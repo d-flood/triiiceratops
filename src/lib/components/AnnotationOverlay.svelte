@@ -26,6 +26,78 @@
     );
   });
 
+  // State for visible annotation IDs
+  let visibleAnnotationIds = $state(new Set<string>());
+
+  // Helper to get ID from annotation object
+  function getAnnotationId(anno: any): string {
+    return (
+      anno.id ||
+      anno["@id"] ||
+      (typeof anno.getId === "function" ? anno.getId() : "") ||
+      ""
+    );
+  }
+
+  // Effect to initialize visibility when annotations load
+  $effect(() => {
+    // When annotations array changes (e.g. canvas change)
+    if (annotations.length > 0) {
+      // Default to all visible
+      // We use a new Set to trigger reactivity if needed, though $state Set is reactive on methods usually?
+      // Svelte 5 Set reactivity: methods mutating it trigger updates.
+      // But we should start fresh for new canvas.
+      const newSet = new Set<string>();
+      annotations.forEach((a: any) => {
+        const id = getAnnotationId(a);
+        if (id) newSet.add(id);
+      });
+      visibleAnnotationIds = newSet;
+    } else {
+      visibleAnnotationIds = new Set();
+    }
+  });
+
+  // Derived state for "All Visible" status
+  let isAllVisible = $derived.by(() => {
+    if (annotations.length === 0) return false;
+    // If visible set matches count of valid IDs
+    // We can just check size if we assume all have IDs
+    // Or check if every annotation id is in set
+    return annotations.every((a: any) => {
+      const id = getAnnotationId(a);
+      return !id || visibleAnnotationIds.has(id);
+    });
+  });
+
+  function toggleAnnotation(id: string) {
+    if (visibleAnnotationIds.has(id)) {
+      visibleAnnotationIds.delete(id);
+    } else {
+      visibleAnnotationIds.add(id);
+    }
+    // reassignment to trigger reactivity if simple mutation doesn't (Svelte 5 Set needs reassignment or proxy, let's look at docs?
+    // Actually Svelte 5 $state with Set/Map: "The built-in Set and Map classes are not deeply reactive... To make them reactive, use the new SvelteSet and SvelteMap classes... OR just reassign."
+    // Docs say: `let s = $state(new Set());` mutations like `s.add` are NOT reactive automatically unless using `SvelteSet`.
+    // Safest is reassignment for now.
+    visibleAnnotationIds = new Set(visibleAnnotationIds);
+  }
+
+  function toggleAllAnnotations() {
+    if (isAllVisible) {
+      // Hide all
+      visibleAnnotationIds = new Set();
+    } else {
+      // Show all
+      const newSet = new Set<string>();
+      annotations.forEach((a: any) => {
+        const id = getAnnotationId(a);
+        if (id) newSet.add(id);
+      });
+      visibleAnnotationIds = newSet;
+    }
+  }
+
   // Helper to parse xywh string
   function parseRegion(
     fragment: string | undefined
@@ -58,9 +130,11 @@
     // Clear existing
     layerGroup.clearLayers();
 
-    if (!viewerState.showAnnotations) return;
-
+    // Loop through annotations and render ONLY those that are visible
     annotations.forEach((anno: any) => {
+      const id = getAnnotationId(anno);
+      if (!id || !visibleAnnotationIds.has(id)) return;
+
       let targetId = "";
       let svgSelectorValue = "";
 
@@ -194,22 +268,11 @@
       if (region) {
         // Create Leaflet Rectangle
         // Bounds: [[top-lat, left-lng], [bottom-lat, right-lng]]
-        // In CRS.Simple logic: top-left is (0,0) mapped to [0,0] if y positive down?
-        // No, our logic was:
-        // Top-Left: [0, 0] ?? No.
-        // LatLng(lat, lng) -> (y, x)
-        // We used: LatLng(-y, x)
 
         const bounds = [
           [-region.y, region.x], // Top Left
           [-(region.y + region.h), region.x + region.w], // Bottom Right
         ] as [[number, number], [number, number]];
-
-        // Extract label for tooltip
-        // const label =
-        //   (typeof anno.getLabel === "function"
-        //     ? anno.getLabel()
-        //     : anno.label) || "Annotation";
 
         const rect = new Rectangle(bounds, {
           color: "#ef4444", // red-500
@@ -234,11 +297,8 @@
     });
 
     return () => {
-      // Cleanup on destroy?
-      // Note: layerGroup variable persists across effects if defined outside,
-      // but we clear it at start of effect.
-      // If map changes, we might need to recreate layerGroup.
-      // If component unmounts?
+      // Cleanup on destroy logic handled by removal effect below, or if we want per-run cleanup
+      // layerGroup is cleared at start of run
     };
   });
 
@@ -252,7 +312,7 @@
   });
 
   interface RenderedAnnotation {
-    // We still need this for the list view
+    id: string; // Added ID
     content: string;
     isHtml: boolean;
     label: string;
@@ -323,6 +383,7 @@
       }
 
       return {
+        id: getAnnotationId(anno),
         content,
         isHtml,
         label:
@@ -352,11 +413,9 @@
           class="btn btn-xs btn-circle btn-ghost"
           onclick={(e) => {
             e.preventDefault();
-            viewerState.toggleAnnotations();
+            toggleAllAnnotations();
           }}
-          title={viewerState.showAnnotations
-            ? "Hide Annotations"
-            : "Show Annotations"}
+          title={isAllVisible ? "Hide All Annotations" : "Show All Annotations"}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -365,7 +424,7 @@
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            {#if viewerState.showAnnotations}
+            {#if isAllVisible}
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -399,7 +458,7 @@
         <span class="text-sm font-medium">
           {annotations.length} Annotations
           <span class="opacity-50 text-xs font-normal ml-1">
-            ({viewerState.showAnnotations ? "visible" : "hidden"})
+            ({visibleAnnotationIds.size} visible)
           </span>
         </span>
 
@@ -423,29 +482,82 @@
         class="absolute right-0 mt-2 w-96 bg-base-200/95 backdrop-blur shadow-xl rounded-box p-0 max-h-[60vh] overflow-y-auto border border-base-300 flex flex-col divide-y divide-base-300"
       >
         {#each renderedAnnotations as anno, i}
-          <div
-            class="p-3 hover:bg-base-300 transition-colors cursor-pointer flex flex-col gap-1 group/item"
+          {@const isVisible = visibleAnnotationIds.has(anno.id)}
+          <!-- List Item Row: Click toggles visibility -->
+          <button
+            class="w-full text-left p-3 hover:bg-base-300 transition-colors cursor-pointer flex gap-3 group/item items-start focus:outline-none focus:bg-base-300"
+            onclick={(e) => {
+              // Prevent default to avoid any weird form submission or details toggling behaviors if any
+              e.preventDefault();
+              toggleAnnotation(anno.id);
+            }}
           >
-            <div class="flex items-start justify-between">
-              <span class="font-bold text-sm text-primary">#{i + 1}</span>
-              <!-- Only show label separately if it's different from the content being displayed -->
-              {#if anno.label && anno.label !== anno.content}
-                <span class="text-xs opacity-50 truncate max-w-[150px]"
-                  >{anno.label}</span
-                >
-              {/if}
-            </div>
+            <!-- Visual Toggle Indicator (formerly a button) -->
             <div
-              class="text-sm prose prose-sm max-w-none prose-p:my-0 prose-a:text-blue-500 break-words"
+              class="btn btn-xs btn-circle btn-ghost mt-0.5 shrink-0 pointer-events-none"
             >
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-              {#if anno.isHtml}
-                {@html anno.content}
+              {#if isVisible}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-primary"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path
+                    fill-rule="evenodd"
+                    d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
               {:else}
-                {anno.content || "(No content)"}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 opacity-40"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.059 10.059 0 013.999-5.325m4.314-1.351A10.054 10.054 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.058 10.058 0 01-2.105 3.86m-3.71 3.71a3 3 0 00-4.242 0"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 3l18 18"
+                  />
+                </svg>
               {/if}
             </div>
-          </div>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-start justify-between">
+                <span class="font-bold text-sm text-primary">#{i + 1}</span>
+                <!-- Only show label separately if it's different from the content being displayed -->
+                {#if anno.label && anno.label !== anno.content}
+                  <span class="text-xs opacity-50 truncate max-w-[150px]"
+                    >{anno.label}</span
+                  >
+                {/if}
+              </div>
+              <div
+                class="text-sm prose prose-sm max-w-none prose-p:my-0 prose-a:text-blue-500 break-words text-left {isVisible
+                  ? ''
+                  : 'opacity-50'}"
+              >
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                {#if anno.isHtml}
+                  {@html anno.content}
+                {:else}
+                  {anno.content || "(No content)"}
+                {/if}
+              </div>
+            </div>
+          </button>
         {/each}
         {#if renderedAnnotations.length === 0 && annotations.length > 0}
           <div class="p-4 text-center opacity-50 text-sm">
