@@ -58,17 +58,6 @@
     });
   });
 
-  function startDrag(e: MouseEvent) {
-    if ((e.target as HTMLElement).closest(".resize-handle")) return; // Don't drag if resizing
-    isDragging = true;
-    dragOffset = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    };
-    window.addEventListener("mousemove", onDrag);
-    window.addEventListener("mouseup", stopDrag);
-  }
-
   function onDrag(e: MouseEvent) {
     if (!isDragging) return;
     position.x = e.clientX - dragOffset.x;
@@ -76,9 +65,16 @@
   }
 
   function stopDrag() {
+    const dropTarget = dragOverSide;
     isDragging = false;
+    dragOverSide = null;
     window.removeEventListener("mousemove", onDrag);
     window.removeEventListener("mouseup", stopDrag);
+
+    // Commit drop
+    if (dropTarget) {
+      dockSide = dropTarget;
+    }
   }
 
   function startResize(e: MouseEvent) {
@@ -111,69 +107,123 @@
   function selectCanvas(canvasId: string) {
     viewerState.canvasId = canvasId;
   }
+
+  // State for docking
+  let dockSide = $state<"top" | "bottom" | "left" | "right" | "none">("bottom");
+  let dragOverSide = $state<"top" | "bottom" | "left" | "right" | null>(null);
+
+  // Switch to horizontal layout if height is small or docked to top/bottom
+  let isHorizontal = $derived(
+    dockSide === "top" ||
+      dockSide === "bottom" ||
+      (dockSide === "none" && size.height < 320)
+  );
+
+  function startDrag(e: MouseEvent) {
+    if ((e.target as HTMLElement).closest(".resize-handle")) return; // Don't drag if resizing
+
+    // If dragging while docked, undock immediately
+    if (dockSide !== "none") {
+      dockSide = "none";
+      // Reset to default floating size and position centered on mouse
+      size = { width: 300, height: 400 };
+      position = {
+        x: e.clientX - 150, // Center width
+        y: e.clientY - 20, // Offset slightly from top
+      };
+    }
+
+    isDragging = true;
+    dragOffset = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+    window.addEventListener("mousemove", onDrag);
+    window.addEventListener("mouseup", stopDrag);
+  }
 </script>
 
 {#if viewerState.showThumbnailGallery}
   <!-- Floating Window -->
   <div
-    class="fixed z-[900] bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden"
-    style="left: {position.x}px; top: {position.y}px; width: {size.width}px; height: {size.height}px;"
+    class={(dockSide !== "none"
+      ? `fixed z-[900] bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 
+           ${dockSide === "bottom" ? "flex-row bottom-0 left-0 right-0 h-[140px] border-t" : ""}
+           ${dockSide === "top" ? "flex-row top-0 left-0 right-0 h-[140px] border-b" : ""}
+           ${dockSide === "left" ? "flex-col left-0 top-0 bottom-0 w-[200px] border-r" : ""}
+           ${dockSide === "right" ? "flex-col right-0 top-0 bottom-0 w-[200px] border-l" : ""}`
+      : "fixed z-[900] bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden") +
+      (isDragging ? " pointer-events-none opacity-80" : "")}
+    style={dockSide !== "none"
+      ? ""
+      : `left: ${position.x}px; top: ${position.y}px; width: ${size.width}px; height: ${size.height}px;`}
   >
-    <!-- Header (Draggable) -->
-    <div
-      class="bg-base-200 p-2 cursor-move flex items-center justify-between select-none border-b border-base-300"
-      onmousedown={startDrag}
-      role="button"
-      tabindex="0"
+    <!-- Close Button (Absolute, always top-right of container) -->
+    <button
+      class="absolute top-1 right-1 btn btn-ghost btn-xs btn-circle z-20"
+      onclick={() => viewerState.toggleThumbnailGallery()}
+      aria-label="Close Gallery"
     >
-      <div class="flex items-center gap-2">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-4 w-4 opacity-50"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-          />
-        </svg>
-        <span class="font-bold text-sm">Gallery</span>
-        <span class="text-xs opacity-50">{thumbnails.length} items</span>
-      </div>
-      <button
-        class="btn btn-ghost btn-xs btn-circle"
-        onclick={() => viewerState.toggleThumbnailGallery()}
-        aria-label="Close Gallery"
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4"
+        viewBox="0 0 20 20"
+        fill="currentColor"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-4 w-4"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-            clip-rule="evenodd"
-          />
-        </svg>
-      </button>
+        <path
+          fill-rule="evenodd"
+          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </button>
+
+    <!-- Header Area -->
+    <div
+      class={"bg-base-100 flex shrink-0 select-none relative " +
+        (dockSide === "bottom" || dockSide === "top"
+          ? "flex-row h-full items-center border-r border-base-200"
+          : "flex-col w-full border-b border-base-200")}
+    >
+      <!-- Drag Handle -->
+      <div
+        class={"cursor-move flex items-center justify-center hover:bg-base-200/50 active:bg-base-200 transition-colors " +
+          (dockSide === "bottom" || dockSide === "top"
+            ? "w-8 h-full"
+            : "h-6 w-full")}
+        onmousedown={startDrag}
+        role="button"
+        tabindex="0"
+        aria-label="Drag Gallery"
+      >
+        <div
+          class={"bg-base-300 rounded-full " +
+            (dockSide === "bottom" || dockSide === "top"
+              ? "w-1.5 h-12"
+              : "w-12 h-1.5")}
+        ></div>
+      </div>
     </div>
 
-    <!-- Content (Grid) -->
-    <div class="flex-1 overflow-y-auto p-4 bg-base-100">
+    <!-- Content (Grid or Horizontal Scroll) -->
+    <div
+      class="flex-1 p-2 bg-base-100 {isHorizontal
+        ? 'overflow-x-auto overflow-y-hidden'
+        : 'overflow-y-auto overflow-x-hidden'}"
+    >
       <div
-        class="grid gap-4"
-        style="grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));"
+        class={isHorizontal
+          ? "flex flex-row gap-2 h-full items-center"
+          : "grid gap-2"}
+        style={isHorizontal
+          ? ""
+          : "grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));"}
       >
         {#each thumbnails as thumb}
           <button
-            class="group flex flex-col gap-2 p-2 rounded hover:bg-base-200 transition-colors text-left relative {viewerState.canvasId ===
-            thumb.id
+            class="group flex flex-col gap-2 p-2 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
+              ? 'w-[140px]'
+              : ''} {viewerState.canvasId === thumb.id
               ? 'ring-2 ring-primary bg-primary/5'
               : ''}"
             onclick={() => selectCanvas(thumb.id)}
@@ -196,6 +246,7 @@
             <div
               class="text-xs font-medium truncate w-full opacity-70 group-hover:opacity-100"
             >
+              <span class="font-bold mr-1">{thumb.index + 1}.</span>
               {thumb.label}
             </div>
           </button>
@@ -204,13 +255,76 @@
     </div>
 
     <!-- Resize Handle -->
-    <div
-      class="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize resize-handle bg-accent hover:bg-accent-focus transition-colors z-50"
-      style="clip-path: polygon(100% 0, 0 100%, 100% 100%);"
-      onmousedown={startResize}
-      role="button"
-      tabindex="0"
-      aria-label="Resize"
-    ></div>
+    {#if dockSide === "none"}
+      <div
+        class="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize resize-handle bg-accent hover:bg-accent-focus transition-colors z-50"
+        style="clip-path: polygon(100% 0, 0 100%, 100% 100%);"
+        onmousedown={startResize}
+        role="button"
+        tabindex="0"
+        aria-label="Resize"
+      ></div>
+    {/if}
   </div>
+
+  {#if isDragging}
+    <!-- Drop Zones -->
+    <!-- Top -->
+    <div
+      class="fixed top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      'top'
+        ? 'bg-primary/20 scale-105'
+        : 'bg-base-100/50'}"
+      onmouseenter={() => (dragOverSide = "top")}
+      onmouseleave={() => (dragOverSide = null)}
+      role="group"
+    >
+      <span class="font-bold text-primary opacity-50">Dock Top</span>
+    </div>
+
+    <!-- Bottom -->
+    <div
+      class="fixed bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      'bottom'
+        ? 'bg-primary/20 scale-105'
+        : 'bg-base-100/50'}"
+      onmouseenter={() => (dragOverSide = "bottom")}
+      onmouseleave={() => (dragOverSide = null)}
+      role="group"
+    >
+      <span class="font-bold text-primary opacity-50">Dock Bottom</span>
+    </div>
+
+    <!-- Left -->
+    <div
+      class="fixed top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      'left'
+        ? 'bg-primary/20 scale-105'
+        : 'bg-base-100/50'}"
+      onmouseenter={() => (dragOverSide = "left")}
+      onmouseleave={() => (dragOverSide = null)}
+      role="group"
+    >
+      <span
+        class="font-bold text-primary opacity-50 vertical-rl rotate-180"
+        style="writing-mode: vertical-rl;">Dock Left</span
+      >
+    </div>
+
+    <!-- Right -->
+    <div
+      class="fixed top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      'right'
+        ? 'bg-primary/20 scale-105'
+        : 'bg-base-100/50'}"
+      onmouseenter={() => (dragOverSide = "right")}
+      onmouseleave={() => (dragOverSide = null)}
+      role="group"
+    >
+      <span
+        class="font-bold text-primary opacity-50 vertical-rl rotate-180"
+        style="writing-mode: vertical-rl;">Dock Right</span
+      >
+    </div>
+  {/if}
 {/if}

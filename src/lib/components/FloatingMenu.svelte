@@ -8,7 +8,6 @@
   }
 </script>
 
-```
 <div
   class="fixed bottom-6 right-6 z-[600] pointer-events-auto flex flex-col items-end"
 >
@@ -115,4 +114,3 @@
     </button>
   </div>
 </div>
-```

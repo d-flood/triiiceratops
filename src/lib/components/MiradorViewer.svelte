@@ -111,7 +111,9 @@
   {/if}
 
   {#if canvases.length > 1}
-    <CanvasNavigation {viewerState} />
+    {#if !viewerState.showThumbnailGallery}
+      <CanvasNavigation {viewerState} />
+    {/if}
     <ThumbnailGallery {canvases} />
   {/if}
 

@@ -399,7 +399,6 @@
   });
 </script>
 
-```
 <!-- No more DOM overlay div loop here -->
 <!-- Just the UI toolbar and list -->
 
