@@ -213,6 +213,9 @@
     // Clear existing
     layerGroup.clearLayers();
 
+    // If global toggle is off, do not render anything
+    if (!viewerState.showAnnotations) return;
+
     // Loop through annotations and render ONLY those that are visible
     annotations.forEach((anno: any, index: number) => {
       const id = getAnnotationId(anno);

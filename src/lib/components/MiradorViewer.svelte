@@ -97,7 +97,10 @@
   });
 </script>
 
-<div class="w-full h-full relative bg-black flex items-center justify-center">
+<div
+  class="w-full h-full relative !bg-base-100 flex items-center justify-center"
+  data-theme="dark"
+>
   {#if manifestData?.isFetching}
     <span class="loading loading-spinner loading-lg text-primary"></span>
   {:else if manifestData?.error}
@@ -111,9 +114,7 @@
   {/if}
 
   {#if canvases.length > 1}
-    {#if !viewerState.showThumbnailGallery}
-      <CanvasNavigation {viewerState} />
-    {/if}
+    <CanvasNavigation {viewerState} />
     <ThumbnailGallery {canvases} />
   {/if}
 

@@ -112,6 +112,12 @@
   let dockSide = $state<"top" | "bottom" | "left" | "right" | "none">("bottom");
   let dragOverSide = $state<"top" | "bottom" | "left" | "right" | null>(null);
 
+  // Sync dock state to viewer state
+  $effect(() => {
+    viewerState.isGalleryDockedBottom = dockSide === "bottom";
+    viewerState.isGalleryDockedRight = dockSide === "right";
+  });
+
   // Switch to horizontal layout if height is small or docked to top/bottom
   let isHorizontal = $derived(
     dockSide === "top" ||

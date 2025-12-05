@@ -5,6 +5,8 @@ export class ViewerState {
     canvasId: string | null = $state(null);
     showAnnotations = $state(false);
     showThumbnailGallery = $state(false);
+    isGalleryDockedBottom = $state(false);
+    isGalleryDockedRight = $state(false);
 
     constructor(initialManifestId?: string | null) {
         this.manifestId = initialManifestId || null;

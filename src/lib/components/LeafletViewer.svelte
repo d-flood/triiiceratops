@@ -91,7 +91,7 @@
 </script>
 
 <div class="w-full h-full relative z-0">
-  <div bind:this={mapElement} class="w-full h-full bg-black z-0"></div>
+  <div bind:this={mapElement} class="w-full h-full !bg-base-100 z-0"></div>
   <!-- Overlay needs the map instance -->
   {#if map && viewerState && iiifLayer}
     <AnnotationOverlay
