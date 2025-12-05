@@ -1,13 +1,20 @@
 import * as manifesto from 'manifesto.js';
 
+interface ManifestEntry {
+    json?: any;
+    manifesto?: any;
+    error?: any;
+    isFetching?: boolean;
+}
+
 export class ManifestsState {
-    manifests = $state({}); // Record<string, { json: any, manifesto: any, error: any, isFetching: boolean }>
+    manifests: Record<string, ManifestEntry> = $state({});
 
     constructor() {
         console.log('ManifestsState: manifesto module:', manifesto);
     }
 
-    async fetchManifest(manifestId) {
+    async fetchManifest(manifestId: string) {
         console.log('ManifestsState: fetchManifest called for', manifestId);
         if (this.manifests[manifestId]) {
             console.log('ManifestsState: already has manifest', manifestId);
@@ -28,19 +35,19 @@ export class ManifestsState {
             console.log('ManifestsState: parsed manifesto', manifestoObject);
             this.manifests[manifestId] = { json, manifesto: manifestoObject, isFetching: false };
             console.log('ManifestsState: set manifest in object');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching manifest:', error);
             this.manifests[manifestId] = { error: error.message, isFetching: false };
         }
     }
 
-    getManifest(manifestId) {
+    getManifest(manifestId: string) {
         const entry = this.manifests[manifestId];
         // console.log('ManifestsState: getManifest', manifestId, entry);
         return entry?.manifesto;
     }
 
-    async fetchAnnotationList(url) {
+    async fetchAnnotationList(url: string) {
         if (this.manifests[url]) return; // Already fetched or fetching
 
         try {
@@ -56,7 +63,7 @@ export class ManifestsState {
         }
     }
 
-    getCanvases(manifestId) {
+    getCanvases(manifestId: string) {
         console.log('ManifestsState: getCanvases', manifestId);
         const m = this.getManifest(manifestId);
         if (!m) {
@@ -71,7 +78,7 @@ export class ManifestsState {
         return canvases;
     }
 
-    getAnnotations(manifestId, canvasId) {
+    getAnnotations(manifestId: string, canvasId: string) {
         console.log('ManifestsState: getAnnotations called', manifestId, canvasId);
         const m = this.getManifest(manifestId);
         if (!m) return [];
@@ -111,7 +118,7 @@ export class ManifestsState {
 
     // Keeping this for now to ensure we don't break the fetching logic we just fixed.
     // We can refactor this to use Manifesto's resource handling later if needed.
-    manualGetAnnotations(manifestId, canvasId) {
+    manualGetAnnotations(manifestId: string, canvasId: string) {
         const manifestoObject = this.getManifest(manifestId);
         if (!manifestoObject) return [];
 
@@ -122,28 +129,18 @@ export class ManifestsState {
         // Or better, use canvas.getContent() if it works, but for external lists manual fetch is robust.
         const canvasJson = canvas.__jsonld;
 
-        let annotations = [];
+        let annotations: any[] = [];
 
         // Helper to parse list using Manifesto
-        const parseList = (listJson) => {
-            try {
-                // manifesto.create detects type. For AnnotationList it should return an AnnotationList object.
-                const resource = manifesto.create(listJson);
-                // Check if it has getResources
-                if (resource && resource.getResources) {
-                    return resource.getResources();
-                }
-                // If not, maybe it's just raw json if create failed to identify
-                return listJson.resources || listJson.items || [];
-            } catch (e) {
-                console.warn("ManifestsState: manifesto.create failed for list, using raw", e);
-                return listJson.resources || listJson.items || [];
-            }
+        const parseList = (listJson: any) => {
+            // manifesto.create is not available in 4.3.0 or not exported nicely?
+            // Just return raw resources.
+            return listJson.resources || listJson.items || [];
         };
 
         // IIIF v2 otherContent
         if (canvasJson.otherContent) {
-            canvasJson.otherContent.forEach(content => {
+            canvasJson.otherContent.forEach((content: any) => {
                 const id = content['@id'] || content.id;
                 if (id && !content.resources) {
                     const externalList = this.manifests[id];
@@ -170,7 +167,7 @@ export class ManifestsState {
 
         // IIIF v3 annotations
         if (canvasJson.annotations) {
-            canvasJson.annotations.forEach(content => {
+            canvasJson.annotations.forEach((content: any) => {
                 const id = content.id || content['@id'];
                 if (id && !content.items) {
                     const externalList = this.manifests[id];

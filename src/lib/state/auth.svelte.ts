@@ -4,7 +4,7 @@ export class AuthState {
     constructor() {
     }
 
-    setAuth(token) {
+    setAuth(token: string | null) {
         this.auth = { token };
     }
 

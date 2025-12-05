@@ -5,11 +5,11 @@ export class ConfigState {
         this.config = initialConfig;
     }
 
-    setConfig(newConfig) {
+    setConfig(newConfig: any) {
         this.config = { ...this.config, ...newConfig };
     }
 
-    updateConfig(updates) {
+    updateConfig(updates: any) {
         this.config = { ...this.config, ...updates };
     }
 }

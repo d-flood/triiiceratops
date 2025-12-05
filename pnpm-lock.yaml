@@ -14,12 +14,12 @@ importers:
       daisyui:
         specifier: ^5.5.8
         version: 5.5.8
+      leaflet:
+        specifier: 2.0.0-alpha.1
+        version: 2.0.0-alpha.1
       manifesto.js:
         specifier: ^4.3.0
         version: 4.3.0
-      openseadragon:
-        specifier: ^5.0.1
-        version: 5.0.1
       tailwindcss:
         specifier: ^4.1.17
         version: 4.1.17
@@ -36,6 +36,9 @@ importers:
       '@tsconfig/svelte':
         specifier: ^5.0.6
         version: 5.0.6
+      '@types/leaflet':
+        specifier: ^1.9.21
+        version: 1.9.21
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -695,8 +698,14 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
+  '@types/geojson@7946.0.16':
+    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
+
   '@types/jsonwebtoken@9.0.10':
     resolution: {integrity: sha512-asx5hIG9Qmf/1oStypjanR7iKTv0gXQ1Ov/jfrX6kS/EO0OFni8orbmGCn0672NHR3kXHwpAwR+B368ZGN/2rA==}
+
+  '@types/leaflet@1.9.21':
+    resolution: {integrity: sha512-TbAd9DaPGSnzp6QvtYngntMZgcRk+igFELwR2N99XZn7RXUdKgsXMR+28bUO0rPsWp8MIu/f47luLIQuSLYv/w==}
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
@@ -999,6 +1008,9 @@ packages:
     resolution: {integrity: sha512-FIyV/64EkKhJmjgC0g2hygpBv5RNWVPyNCqSAD7eTCv6eFWNIi4PN1UvdSJGicN/o35bnevgis4Y0UDC0qi8jQ==}
     engines: {node: '>=14.0.0'}
 
+  leaflet@2.0.0-alpha.1:
+    resolution: {integrity: sha512-2EJU27z/wljOgQCyybRkfrm5Xc3uy6huKehh0UAPsrAdwnSMxaplsqCl9cXPAuDm6D7uL6PCznYMDVIsaAdSdA==}
+
   lightningcss-android-arm64@1.30.2:
     resolution: {integrity: sha512-BH9sEdOCahSgmkVhBLeU7Hc9DWeZ1Eb6wNS6Da8igvUwAe0sqROHddIlvU06q3WyXVEOYDZ6ykBZQnjTbmo4+A==}
     engines: {node: '>= 12.0.0'}
@@ -1146,9 +1158,6 @@ packages:
 
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
-
-  openseadragon@5.0.1:
-    resolution: {integrity: sha512-a/hjouW9i3UfWxRADVYN2MyRhXMGnE7x9VVL7/4jXCcDLFyO4UM5o4RStYtqa5BfaHw/wMNAaD2WbxQF8f1pJg==}
 
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
@@ -2021,10 +2030,16 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
+  '@types/geojson@7946.0.16': {}
+
   '@types/jsonwebtoken@9.0.10':
     dependencies:
       '@types/ms': 2.1.0
       '@types/node': 24.10.1
+
+  '@types/leaflet@1.9.21':
+    dependencies:
+      '@types/geojson': 7946.0.16
 
   '@types/ms@2.1.0': {}
 
@@ -2301,6 +2316,8 @@ snapshots:
 
   kysely@0.27.6: {}
 
+  leaflet@2.0.0-alpha.1: {}
+
   lightningcss-android-arm64@1.30.2:
     optional: true
 
@@ -2417,8 +2434,6 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
-
-  openseadragon@5.0.1: {}
 
   pako@1.0.11: {}
 

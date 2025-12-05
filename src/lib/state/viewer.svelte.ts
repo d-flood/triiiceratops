@@ -1,12 +1,12 @@
 import { manifestsState } from './manifests.svelte.js';
 
 export class ViewerState {
-    manifestId = $state(null);
-    canvasId = $state(null);
+    manifestId: string | null = $state(null);
+    canvasId: string | null = $state(null);
     showAnnotations = $state(true);
 
-    constructor(initialManifestId) {
-        this.manifestId = initialManifestId;
+    constructor(initialManifestId?: string | null) {
+        this.manifestId = initialManifestId || null;
         // Fetch manifest immediately
         if (this.manifestId) {
             manifestsState.fetchManifest(this.manifestId);
@@ -41,7 +41,7 @@ export class ViewerState {
             return -1;
         }
         // Manifesto canvases have an id property
-        return this.canvases.findIndex(c => c.id === this.canvasId);
+        return this.canvases.findIndex((c: any) => c.id === this.canvasId);
     }
 
     get hasNext() {
@@ -68,7 +68,7 @@ export class ViewerState {
         }
     }
 
-    setManifest(manifestId) {
+    setManifest(manifestId: string) {
         this.manifestId = manifestId;
         this.canvasId = null;
         manifestsState.fetchManifest(manifestId);

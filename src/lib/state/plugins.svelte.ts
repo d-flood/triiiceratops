@@ -1,14 +1,14 @@
 export class PluginState {
-    plugins = $state({});
+    plugins: Record<string, any[]> = $state({});
 
-    registerPlugin(slotId, component) {
+    registerPlugin(slotId: string, component: any) {
         if (!this.plugins[slotId]) {
             this.plugins[slotId] = [];
         }
         this.plugins[slotId].push(component);
     }
 
-    getPlugins(slotId) {
+    getPlugins(slotId: string) {
         return this.plugins[slotId] || [];
     }
 }
