@@ -3,6 +3,7 @@
   import LeafletViewer from "./LeafletViewer.svelte";
   import CanvasNavigation from "./CanvasNavigation.svelte";
   import AnnotationOverlay from "./AnnotationOverlay.svelte";
+  import ThumbnailGallery from "./ThumbnailGallery.svelte";
 
   let { manifestId } = $props();
 
@@ -110,5 +111,6 @@
 
   {#if canvases.length > 1}
     <CanvasNavigation {viewerState} />
+    <ThumbnailGallery {canvases} />
   {/if}
 </div>

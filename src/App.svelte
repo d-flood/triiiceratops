@@ -8,7 +8,7 @@
 >
   <header class="navbar bg-base-200 shadow-md z-10">
     <div class="flex-1">
-      <a href="/" class="btn btn-ghost text-xl">Moradore</a>
+      <a href="/" class="btn btn-ghost text-xl">Tiiirex</a>
     </div>
     <div class="flex-none gap-2">
       <ThemeToggle />
