@@ -81,6 +81,7 @@
       zoom: 0,
       crs: CRS.Simple,
       attributionControl: false, // Optional
+      zoomControl: false,
     });
 
     return () => {

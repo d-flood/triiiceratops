@@ -115,202 +115,6 @@
     return null;
   }
 
-  // Layer Group to hold all annotation layers
-  let layerGroup: LayerGroup | undefined;
-
-  // Effect to manage adding/removing layers based on annotations and visibility
-  $effect(() => {
-    if (!map) return;
-
-    // Initialize layer group if needed
-    if (!layerGroup) {
-      layerGroup = new LayerGroup().addTo(map);
-    }
-
-    // Clear existing
-    layerGroup.clearLayers();
-
-    // Loop through annotations and render ONLY those that are visible
-    annotations.forEach((anno: any) => {
-      const id = getAnnotationId(anno);
-      if (!id || !visibleAnnotationIds.has(id)) return;
-
-      let targetId = "";
-      let svgSelectorValue = "";
-
-      // (Target extraction logic)
-      // Check for SvgSelector specifically inside 'selector'
-      // Normalized manifest might not have __jsonld property, or it might be complex logic
-      const rawOn = anno.__jsonld?.on || anno.target; // Normalized often puts it in 'on' or 'target'
-
-      // Helper to check object for selector
-      const checkSelector = (obj: any) => {
-        if (obj?.selector) {
-          const sel = obj.selector;
-          // Handle Array of selectors?
-          // Handle item?
-          const item = sel.item || sel;
-          if (item.type === "SvgSelector" && item.value) {
-            svgSelectorValue = item.value;
-          }
-        }
-      };
-
-      // Check primary target locations
-      if (typeof rawOn === "object") {
-        checkSelector(rawOn);
-      } else if (Array.isArray(rawOn)) {
-        rawOn.forEach(checkSelector);
-      }
-
-      // If no SVG found, fall back to XYWH extraction logic
-      if (!svgSelectorValue) {
-        // ... existing target parsing logic ...
-        if (typeof anno.getTarget === "function") {
-          const t = anno.getTarget();
-          if (t) targetId = t;
-          if (typeof t !== "string") {
-            const rawOn = anno.__jsonld.on;
-            if (rawOn) {
-              if (typeof rawOn === "string") targetId = rawOn;
-              else if (rawOn.selector) {
-                const val = rawOn.selector.value || rawOn.selector.item?.value;
-                if (val) targetId = targetId + "#" + val;
-                else if (rawOn.full)
-                  targetId = rawOn.full + "#" + (rawOn.selector.value || "");
-                else targetId = "";
-              }
-            }
-          }
-        } else {
-          if (anno.on) {
-            if (typeof anno.on === "string") targetId = anno.on;
-            else if (anno.on.selector) {
-              const val =
-                anno.on.selector.value || anno.on.selector.item?.value;
-              if (val && val.includes("xywh=")) targetId = val;
-            } else if (anno.target) {
-              if (typeof anno.target === "string") targetId = anno.target;
-              else if (anno.target.selector) {
-                const val =
-                  anno.target.selector.value ||
-                  anno.target.selector.item?.value;
-                if (val && val.includes("xywh=")) targetId = val;
-              }
-            }
-          }
-        }
-
-        if (!targetId && typeof anno.getTarget !== "function") {
-          if (anno.target && typeof anno.target === "string")
-            targetId = anno.target;
-        }
-      }
-
-      const label =
-        (typeof anno.getLabel === "function" ? anno.getLabel() : anno.label) ||
-        "Annotation";
-
-      // Strategy 1: SVG Selector
-      if (svgSelectorValue) {
-        try {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(svgSelectorValue, "image/svg+xml");
-          const svgEl = doc.documentElement;
-
-          // If the SVG contains just a path/shape without viewBox, we explicitly set it to match the canvas
-          // This ensures the coordinates in the path (image pixels) align with the overlay bounds
-          if (!svgEl.hasAttribute("viewBox")) {
-            svgEl.setAttribute("viewBox", `0 0 ${width} ${height}`);
-          }
-
-          // We apply styles to the paths ensuring they are visible and red
-          // Often IIIF SVGs have no style or 'none'.
-          const paths = svgEl.querySelectorAll("path, polygon, circle, rect");
-          paths.forEach((p) => {
-            p.setAttribute("fill", "#ef4444");
-            p.setAttribute("fill-opacity", "0.2");
-            p.setAttribute("stroke", "#ef4444");
-            p.setAttribute("stroke-width", "2");
-            p.setAttribute("vector-effect", "non-scaling-stroke"); // Keep stroke constant
-          });
-
-          // Create Overlay covering the WHOLE image (since SVG coords are usually absolute image pixels)
-          const bounds = [
-            [0, 0],
-            [-height, width],
-          ] as [[number, number], [number, number]];
-
-          const overlay = new SVGOverlay(
-            svgEl as unknown as SVGElement,
-            bounds,
-            {
-              interactive: true,
-            }
-          );
-
-          overlay.bindTooltip(label, { sticky: true, direction: "top" });
-          layerGroup!.addLayer(overlay);
-        } catch (e) {
-          console.warn("Failed to parse SvgSelector", e);
-        }
-        return;
-      }
-
-      // Strategy 2: Media Fragment (Rectangle)
-      let fragment = "";
-      if (targetId && targetId.includes("xywh=")) {
-        fragment = targetId.split("xywh=")[1];
-      }
-
-      const region = parseRegion(fragment);
-
-      if (region) {
-        // Create Leaflet Rectangle
-        // Bounds: [[top-lat, left-lng], [bottom-lat, right-lng]]
-
-        const bounds = [
-          [-region.y, region.x], // Top Left
-          [-(region.y + region.h), region.x + region.w], // Bottom Right
-        ] as [[number, number], [number, number]];
-
-        const rect = new Rectangle(bounds, {
-          color: "#ef4444", // red-500
-          weight: 2,
-          fillOpacity: 0.2,
-          fillColor: "#ef4444",
-        });
-
-        // Add tooltip (label)
-        rect.bindTooltip(label, {
-          sticky: true,
-          direction: "top",
-        });
-
-        // Add popup (content) if needed
-        // rect.bindPopup(...)
-
-        // Add click interaction to highlight or select in list
-
-        layerGroup!.addLayer(rect);
-      }
-    });
-
-    return () => {
-      // Cleanup on destroy logic handled by removal effect below, or if we want per-run cleanup
-      // layerGroup is cleared at start of run
-    };
-  });
-
-  // Cleanup on unmount
-  $effect(() => {
-    return () => {
-      if (layerGroup && map) {
-        map.removeLayer(layerGroup);
-      }
-    };
-  });
-
   interface RenderedAnnotation {
     id: string; // Added ID
     content: string;
@@ -392,6 +196,206 @@
             : anno.label) || "",
       };
     });
+  });
+
+  // Layer Group to hold all annotation layers
+  let layerGroup: LayerGroup | undefined;
+
+  // Effect to manage adding/removing layers based on annotations and visibility
+  $effect(() => {
+    if (!map) return;
+
+    // Initialize layer group if needed
+    if (!layerGroup) {
+      layerGroup = new LayerGroup().addTo(map);
+    }
+
+    // Clear existing
+    layerGroup.clearLayers();
+
+    // Loop through annotations and render ONLY those that are visible
+    annotations.forEach((anno: any, index: number) => {
+      const id = getAnnotationId(anno);
+      if (!id || !visibleAnnotationIds.has(id)) return;
+
+      const renderedInfo = renderedAnnotations[index];
+      // Prefer content, fall back to label, then generic "Annotation"
+      const tooltipContent =
+        renderedInfo?.content || renderedInfo?.label || "Annotation";
+
+      let targetId = "";
+      let svgSelectorValue = "";
+
+      // (Target extraction logic)
+      // Check for SvgSelector specifically inside 'selector'
+      // Normalized manifest might not have __jsonld property, or it might be complex logic
+      const rawOn = anno.__jsonld?.on || anno.target; // Normalized often puts it in 'on' or 'target'
+
+      // Helper to check object for selector
+      const checkSelector = (obj: any) => {
+        if (obj?.selector) {
+          const sel = obj.selector;
+          // Handle Array of selectors?
+          // Handle item?
+          const item = sel.item || sel;
+          if (item.type === "SvgSelector" && item.value) {
+            svgSelectorValue = item.value;
+          }
+        }
+      };
+
+      // Check primary target locations
+      if (typeof rawOn === "object") {
+        checkSelector(rawOn);
+      } else if (Array.isArray(rawOn)) {
+        rawOn.forEach(checkSelector);
+      }
+
+      // If no SVG found, fall back to XYWH extraction logic
+      if (!svgSelectorValue) {
+        // ... existing target parsing logic ...
+        if (typeof anno.getTarget === "function") {
+          const t = anno.getTarget();
+          if (t) targetId = t;
+          if (typeof t !== "string") {
+            const rawOn = anno.__jsonld.on;
+            if (rawOn) {
+              if (typeof rawOn === "string") targetId = rawOn;
+              else if (rawOn.selector) {
+                const val = rawOn.selector.value || rawOn.selector.item?.value;
+                if (val) targetId = targetId + "#" + val;
+                else if (rawOn.full)
+                  targetId = rawOn.full + "#" + (rawOn.selector.value || "");
+                else targetId = "";
+              }
+            }
+          }
+        } else {
+          if (anno.on) {
+            if (typeof anno.on === "string") targetId = anno.on;
+            else if (anno.on.selector) {
+              const val =
+                anno.on.selector.value || anno.on.selector.item?.value;
+              if (val && val.includes("xywh=")) targetId = val;
+            } else if (anno.target) {
+              if (typeof anno.target === "string") targetId = anno.target;
+              else if (anno.target.selector) {
+                const val =
+                  anno.target.selector.value ||
+                  anno.target.selector.item?.value;
+                if (val && val.includes("xywh=")) targetId = val;
+              }
+            }
+          }
+        }
+
+        if (!targetId && typeof anno.getTarget !== "function") {
+          if (anno.target && typeof anno.target === "string")
+            targetId = anno.target;
+        }
+      }
+
+      // Strategy 1: SVG Selector
+      if (svgSelectorValue) {
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(svgSelectorValue, "image/svg+xml");
+          const svgEl = doc.documentElement;
+
+          // If the SVG contains just a path/shape without viewBox, we explicitly set it to match the canvas
+          // This ensures the coordinates in the path (image pixels) align with the overlay bounds
+          if (!svgEl.hasAttribute("viewBox")) {
+            svgEl.setAttribute("viewBox", `0 0 ${width} ${height}`);
+          }
+
+          // We apply styles to the paths ensuring they are visible and red
+          // Often IIIF SVGs have no style or 'none'.
+          const paths = svgEl.querySelectorAll("path, polygon, circle, rect");
+          paths.forEach((p) => {
+            p.setAttribute("fill", "#ef4444");
+            p.setAttribute("fill-opacity", "0.2");
+            p.setAttribute("stroke", "#ef4444");
+            p.setAttribute("stroke-width", "2");
+            p.setAttribute("vector-effect", "non-scaling-stroke"); // Keep stroke constant
+          });
+
+          // Create Overlay covering the WHOLE image (since SVG coords are usually absolute image pixels)
+          const bounds = [
+            [0, 0],
+            [-height, width],
+          ] as [[number, number], [number, number]];
+
+          const overlay = new SVGOverlay(
+            svgEl as unknown as SVGElement,
+            bounds,
+            {
+              interactive: true,
+            }
+          );
+
+          overlay.bindTooltip(tooltipContent, {
+            sticky: true,
+            direction: "top",
+          });
+          layerGroup!.addLayer(overlay);
+        } catch (e) {
+          console.warn("Failed to parse SvgSelector", e);
+        }
+        return;
+      }
+
+      // Strategy 2: Media Fragment (Rectangle)
+      let fragment = "";
+      if (targetId && targetId.includes("xywh=")) {
+        fragment = targetId.split("xywh=")[1];
+      }
+
+      const region = parseRegion(fragment);
+
+      if (region) {
+        // Create Leaflet Rectangle
+        // Bounds: [[top-lat, left-lng], [bottom-lat, right-lng]]
+
+        const bounds = [
+          [-region.y, region.x], // Top Left
+          [-(region.y + region.h), region.x + region.w], // Bottom Right
+        ] as [[number, number], [number, number]];
+
+        const rect = new Rectangle(bounds, {
+          color: "#ef4444", // red-500
+          weight: 2,
+          fillOpacity: 0.2,
+          fillColor: "#ef4444",
+        });
+
+        // Add tooltip (label)
+        rect.bindTooltip(tooltipContent, {
+          sticky: true,
+          direction: "top",
+        });
+
+        // Add popup (content) if needed
+        // rect.bindPopup(...)
+
+        // Add click interaction to highlight or select in list
+
+        layerGroup!.addLayer(rect);
+      }
+    });
+
+    return () => {
+      // Cleanup on destroy logic handled by removal effect below, or if we want per-run cleanup
+      // layerGroup is cleared at start of run
+    };
+  });
+
+  // Cleanup on unmount
+  $effect(() => {
+    return () => {
+      if (layerGroup && map) {
+        map.removeLayer(layerGroup);
+      }
+    };
   });
 </script>
 
