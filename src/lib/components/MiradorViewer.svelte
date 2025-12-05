@@ -4,6 +4,7 @@
   import CanvasNavigation from "./CanvasNavigation.svelte";
   import AnnotationOverlay from "./AnnotationOverlay.svelte";
   import ThumbnailGallery from "./ThumbnailGallery.svelte";
+  import FloatingMenu from "./FloatingMenu.svelte";
 
   let { manifestId } = $props();
 
@@ -113,4 +114,7 @@
     <CanvasNavigation {viewerState} />
     <ThumbnailGallery {canvases} />
   {/if}
+
+  <!-- Global Floating Menu -->
+  <FloatingMenu />
 </div>

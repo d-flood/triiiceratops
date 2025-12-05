@@ -3,7 +3,8 @@ import { manifestsState } from './manifests.svelte.js';
 export class ViewerState {
     manifestId: string | null = $state(null);
     canvasId: string | null = $state(null);
-    showAnnotations = $state(true);
+    showAnnotations = $state(false);
+    showThumbnailGallery = $state(false);
 
     constructor(initialManifestId?: string | null) {
         this.manifestId = initialManifestId || null;
@@ -76,6 +77,10 @@ export class ViewerState {
 
     toggleAnnotations() {
         this.showAnnotations = !this.showAnnotations;
+    }
+
+    toggleThumbnailGallery() {
+        this.showThumbnailGallery = !this.showThumbnailGallery;
     }
 }
 

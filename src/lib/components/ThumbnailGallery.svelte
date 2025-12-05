@@ -113,7 +113,7 @@
   }
 </script>
 
-{#if isOpen}
+{#if viewerState.showThumbnailGallery}
   <!-- Floating Window -->
   <div
     class="fixed z-[900] bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden"
@@ -146,7 +146,7 @@
       </div>
       <button
         class="btn btn-ghost btn-xs btn-circle"
-        onclick={() => (isOpen = false)}
+        onclick={() => viewerState.toggleThumbnailGallery()}
         aria-label="Close Gallery"
       >
         <svg
@@ -212,31 +212,5 @@
       tabindex="0"
       aria-label="Resize"
     ></div>
-  </div>
-{/if}
-
-<!-- Toggle Button (Always visible when closed) -->
-{#if !isOpen}
-  <div class="absolute top-20 right-4 z-[400]">
-    <button
-      class="btn btn-circle bg-base-200/90 backdrop-blur shadow-lg border-base-300"
-      onclick={() => (isOpen = true)}
-      title="Show Gallery"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-6 w-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-        />
-      </svg>
-    </button>
   </div>
 {/if}
