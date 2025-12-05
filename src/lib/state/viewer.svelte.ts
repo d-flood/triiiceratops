@@ -7,6 +7,7 @@ export class ViewerState {
     showThumbnailGallery = $state(false);
     isGalleryDockedBottom = $state(false);
     isGalleryDockedRight = $state(false);
+    isFullScreen = $state(false);
 
     constructor(initialManifestId?: string | null) {
         this.manifestId = initialManifestId || null;
@@ -83,6 +84,19 @@ export class ViewerState {
 
     toggleThumbnailGallery() {
         this.showThumbnailGallery = !this.showThumbnailGallery;
+    }
+
+    toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            const el = document.getElementById("mirador-viewer");
+            if (el) {
+                el.requestFullscreen().catch((e) => {
+                    console.warn("Fullscreen request failed", e);
+                });
+            }
+        } else {
+            document.exitFullscreen();
+        }
     }
 }
 

@@ -55,7 +55,7 @@
         ? "Hide Gallery"
         : "Show Gallery"}
       class="btn btn-lg btn-circle shadow-lg {viewerState.showThumbnailGallery
-        ? 'btn-active btn-accent'
+        ? 'btn-info'
         : 'btn-neutral'}"
       onclick={() => viewerState.toggleThumbnailGallery()}
     >
@@ -76,6 +76,55 @@
     </button>
   </div>
 
+  <!-- Full Screen Toggle -->
+  <div
+    class="tooltip tooltip-left"
+    data-tip={viewerState.isFullScreen
+      ? "Exit Full Screen"
+      : "Enter Full Screen"}
+  >
+    <button
+      class="btn btn-circle btn-lg shadow-lg transition-all duration-300 ease-out {viewerState.isFullScreen
+        ? 'btn-warning'
+        : 'btn-neutral'}"
+      onclick={() => viewerState.toggleFullScreen()}
+    >
+      {#if viewerState.isFullScreen}
+        <!-- Compress/Exit Icon -->
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10 14H5.25m0 0l4-4m-4 4V9.25M14 10h4.75m0 0l-4-4m4 4v4.75M14 14l-4 4m0 0h-4.75m4.75 0V14m4 0l4 4m0 0v-4.75m0 4.75H14"
+          />
+        </svg>
+      {:else}
+        <!-- Expand/Enter Icon -->
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+          />
+        </svg>
+      {/if}
+    </button>
+  </div>
+
   <!-- Annotations Toggle -->
   <div
     class="tooltip tooltip-left"
@@ -85,7 +134,7 @@
   >
     <button
       class="btn btn-lg btn-circle shadow-lg {viewerState.showAnnotations
-        ? 'btn-active btn-secondary'
+        ? 'btn-error'
         : 'btn-neutral'}"
       onclick={() => viewerState.toggleAnnotations()}
     >

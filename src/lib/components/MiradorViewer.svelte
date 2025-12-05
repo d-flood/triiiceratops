@@ -14,6 +14,16 @@
     }
   });
 
+  $effect(() => {
+    const handleFullScreenChange = () => {
+      viewerState.isFullScreen = !!document.fullscreenElement;
+    };
+    document.addEventListener("fullscreenchange", handleFullScreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+    };
+  });
+
   let manifestData = $derived(viewerState.manifest);
   let canvases = $derived(viewerState.canvases);
   let currentCanvasIndex = $derived(viewerState.currentCanvasIndex);
@@ -98,6 +108,7 @@
 </script>
 
 <div
+  id="mirador-viewer"
   class="w-full h-full relative !bg-base-100 flex items-center justify-center"
   data-theme="dark"
 >
