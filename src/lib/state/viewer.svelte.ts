@@ -103,6 +103,143 @@ export class ViewerState {
     toggleMetadataDialog() {
         this.showMetadataDialog = !this.showMetadataDialog;
     }
+
+    searchQuery = $state("");
+    searchResults: any[] = $state([]);
+    isSearching = $state(false);
+    showSearchPanel = $state(false);
+
+    toggleSearchPanel() {
+        this.showSearchPanel = !this.showSearchPanel;
+    }
+
+    async search(query: string) {
+        if (!query.trim()) return;
+        this.isSearching = true;
+        this.searchQuery = query;
+        this.searchResults = [];
+
+        try {
+            const manifest = this.manifest;
+            if (!manifest) throw new Error("No manifest loaded");
+
+            let service =
+                manifest.getService("http://iiif.io/api/search/1/search") ||
+                manifest.getService("http://iiif.io/api/search/0/search");
+
+            if (!service) {
+                // Fallback: check json directly if manifesto fails me
+                if (manifest.__jsonld && manifest.__jsonld.service) {
+                    const services = Array.isArray(manifest.__jsonld.service)
+                        ? manifest.__jsonld.service
+                        : [manifest.__jsonld.service];
+                    service = services.find(
+                        (s: any) =>
+                            s.profile === "http://iiif.io/api/search/1/search" ||
+                            s.profile === "http://iiif.io/api/search/0/search",
+                    );
+                }
+            }
+
+            if (!service) {
+                console.warn("No IIIF search service found in manifest");
+                this.isSearching = false;
+                return;
+            }
+
+            // Handle service object which might be a manifesto object or raw json
+            const serviceId = service.id || service["@id"];
+
+            const searchUrl = `${serviceId}?q=${encodeURIComponent(query)}`;
+            console.log("Searching:", searchUrl);
+
+            const response = await fetch(searchUrl);
+            if (!response.ok) throw new Error("Search request failed");
+
+            const data = await response.json();
+            const resources = data.resources || [];
+            
+            const processedResults = [];
+
+            if (data.hits) {
+                for (const hit of data.hits) {
+                    // hits have property 'annotations' which is array of ids
+                    const annoId = hit.annotations && hit.annotations.length > 0 ? hit.annotations[0] : null;
+                    if (annoId) {
+                         const annotation = resources.find((r: any) => r['@id'] === annoId || r.id === annoId);
+                         if (annotation && annotation.on) {
+                             // annotation.on can be "canvas-id" or "canvas-id#xywh=..."
+                             const onVal = typeof annotation.on === 'string' ? annotation.on : annotation.on['@id'] || annotation.on.id;
+                             const cleanOn = onVal.split('#')[0];
+                             
+                             const canvasIndex = this.canvases.findIndex((c: any) => c.id === cleanOn);
+                             if (canvasIndex >= 0) {
+                                 const canvas = this.canvases[canvasIndex];
+                                 // Try to get a label
+                                 let label = "Canvas " + (canvasIndex + 1);
+                                 try {
+                                     if (canvas.getLabel) {
+                                        const l = canvas.getLabel();
+                                        if (Array.isArray(l) && l.length > 0) label = l[0].value;
+                                        else if (typeof l === 'string') label = l;
+                                     } else if (canvas.label) {
+                                         // Fallback if raw object
+                                         if (typeof canvas.label === 'string') label = canvas.label;
+                                         else if (Array.isArray(canvas.label)) label = canvas.label[0]?.value;
+                                     }
+                                 } catch(e) { /* ignore */ }
+                                 
+                                 processedResults.push({
+                                     type: 'hit',
+                                     before: hit.before,
+                                     match: hit.match,
+                                     after: hit.after,
+                                     canvasIndex,
+                                     canvasLabel: String(label)
+                                 });
+                             }
+                         }
+                    }
+                }
+            } else if (resources.length > 0) {
+                 // No hits (Basic level?), just annotations
+                 for (const res of resources) {
+                      const onVal = typeof res.on === 'string' ? res.on : res.on['@id'] || res.on.id;
+                      const cleanOn = onVal.split('#')[0];
+                      const canvasIndex = this.canvases.findIndex((c: any) => c.id === cleanOn);
+                      if (canvasIndex >= 0) {
+                           const canvas = this.canvases[canvasIndex];
+                            let label = "Canvas " + (canvasIndex + 1);
+                             try {
+                                 if (canvas.getLabel) {
+                                    const l = canvas.getLabel();
+                                    if (Array.isArray(l) && l.length > 0) label = l[0].value;
+                                    else if (typeof l === 'string') label = l;
+                                 } else if (canvas.label) {
+                                     // Fallback if raw object
+                                     if (typeof canvas.label === 'string') label = canvas.label;
+                                     else if (Array.isArray(canvas.label)) label = canvas.label[0]?.value;
+                                 }
+                             } catch(e) { /* ignore */ }
+                           
+                           processedResults.push({
+                               type: 'resource',
+                               match: res.resource && res.resource.chars ? res.resource.chars : (res.chars || ''),
+                               canvasIndex,
+                               canvasLabel: String(label)
+                           });
+                      }
+                 }
+            }
+            
+            this.searchResults = processedResults;
+
+        } catch (e) {
+            console.error("Search error:", e);
+        } finally {
+            this.isSearching = false;
+        }
+    }
 }
 
 // Create a singleton instance, though we could also instantiate it in App or MiradorViewer

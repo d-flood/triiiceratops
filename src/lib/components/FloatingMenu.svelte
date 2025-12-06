@@ -36,9 +36,30 @@
   </div>
 
   <!-- Main Action button replaces the original button when FAB is open -->
-  <div class="fab-close">
-    <span class="sr-only">Close</span>
-    <span class="btn btn-circle btn-lg btn-error">✕</span>
+  <!-- Main Action button replaces the original button when FAB is open (Now acting as Search) -->
+  <div class="fab-close tooltip tooltip-top" data-tip="Search">
+    <button
+      aria-label="Toggle Search"
+      class="btn btn-circle btn-lg shadow-lg {viewerState.showSearchPanel
+        ? 'btn-primary'
+        : 'btn-neutral'}"
+      onclick={() => viewerState.toggleSearchPanel()}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-6 w-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        />
+      </svg>
+    </button>
   </div>
 
   <!-- buttons that show up when FAB is open -->
@@ -133,6 +154,7 @@
       : "Show Annotations"}
   >
     <button
+      aria-label="Toggle Annotations"
       class="btn btn-lg btn-circle shadow-lg {viewerState.showAnnotations
         ? 'btn-error'
         : 'btn-neutral'}"
@@ -156,9 +178,12 @@
   </div>
 
   <!-- Metadata Toggle -->
-  <div class="tooltip tooltip-left" data-tip="Metadata">
+  <div class="tooltip tooltip-top" data-tip="Metadata">
     <button
-      class="btn btn-lg btn-circle shadow-lg btn-neutral"
+      aria-label="Toggle Metadata"
+      class="btn btn-lg btn-circle shadow-lg {viewerState.showMetadataDialog
+        ? 'btn-info'
+        : 'btn-neutral'}"
       onclick={() => viewerState.toggleMetadataDialog()}
     >
       <svg

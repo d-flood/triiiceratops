@@ -17,7 +17,7 @@
 
   <div class="flex-1 relative overflow-hidden">
     <MiradorViewer
-      manifestId="https://iiif.harvardartmuseums.org/manifests/object/299843"
+      manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
     />
   </div>
 </main>
