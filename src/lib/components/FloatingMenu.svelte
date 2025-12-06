@@ -3,7 +3,7 @@
 </script>
 
 <div
-  class="fab fab-flower fab-top-left fixed z-600 pointer-events-auto flex-col items-end transition-all duration-300 {viewerState.showSearchPanel
+  class="fab fab-flower fab-top-left absolute z-600 pointer-events-auto flex-col items-end transition-all duration-300 {viewerState.showSearchPanel
     ? viewerState.showThumbnailGallery && viewerState.isGalleryDockedRight
       ? 'right-[540px]'
       : 'right-[344px]'

@@ -69,7 +69,11 @@
 </script>
 
 <!-- Modal -->
-<dialog class="modal" open={viewerState.showMetadataDialog}>
+<dialog
+  class="modal absolute"
+  open={viewerState.showMetadataDialog}
+  style="position: absolute;"
+>
   <div class="modal-box w-11/12 max-w-5xl">
     <form method="dialog">
       <button

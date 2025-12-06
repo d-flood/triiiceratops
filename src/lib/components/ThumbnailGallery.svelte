@@ -10,6 +10,7 @@
   let isResizing = $state(false);
   let dragOffset = { x: 0, y: 0 };
   let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
+  let galleryElement: HTMLElement | undefined = $state();
 
   // Generate thumbnail data
   let thumbnails = $derived.by(() => {
@@ -60,8 +61,23 @@
 
   function onDrag(e: MouseEvent) {
     if (!isDragging) return;
-    position.x = e.clientX - dragOffset.x;
-    position.y = e.clientY - dragOffset.y;
+
+    let newX = e.clientX - dragOffset.x;
+    let newY = e.clientY - dragOffset.y;
+
+    // Constrain to parent container
+    if (galleryElement && galleryElement.parentElement) {
+      const parent = galleryElement.parentElement;
+      // Use clientWidth/Height to exclude borders if any, which is usually correct for absolute positioning containment
+      const maxX = Math.max(0, parent.clientWidth - size.width);
+      const maxY = Math.max(0, parent.clientHeight - size.height);
+
+      newX = Math.max(0, Math.min(newX, maxX));
+      newY = Math.max(0, Math.min(newY, maxY));
+    }
+
+    position.x = newX;
+    position.y = newY;
   }
 
   function stopDrag() {
@@ -132,11 +148,18 @@
     // If dragging while docked, undock immediately
     if (dockSide !== "none") {
       dockSide = "none";
+
+      const parentRect =
+        galleryElement?.parentElement?.getBoundingClientRect() || {
+          left: 0,
+          top: 0,
+        };
+
       // Reset to default floating size and position centered on mouse
       size = { width: 300, height: 400 };
       position = {
-        x: e.clientX - 150, // Center width
-        y: e.clientY - 20, // Offset slightly from top
+        x: e.clientX - parentRect.left - 150, // Center width
+        y: e.clientY - parentRect.top - 20, // Offset slightly from top
       };
     }
 
@@ -153,13 +176,14 @@
 {#if viewerState.showThumbnailGallery}
   <!-- Floating Window -->
   <div
+    bind:this={galleryElement}
     class={(dockSide !== "none"
-      ? `fixed z-900 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 
+      ? `absolute z-900 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 
            ${dockSide === "bottom" ? "flex-row bottom-0 left-0 right-0 h-[140px] border-t" : ""}
            ${dockSide === "top" ? "flex-row top-0 left-0 right-0 h-[140px] border-b" : ""}
            ${dockSide === "left" ? "flex-col left-0 top-0 bottom-0 w-[200px] border-r" : ""}
            ${dockSide === "right" ? `flex-col top-0 bottom-0 w-[200px] border-l ${viewerState.showSearchPanel ? "right-80" : "right-0"}` : ""}`
-      : "fixed z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden") +
+      : "absolute z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden") +
       (isDragging ? " pointer-events-none opacity-80" : "")}
     style={dockSide !== "none"
       ? ""
@@ -278,7 +302,7 @@
     <!-- Drop Zones -->
     <!-- Top -->
     <div
-      class="fixed top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      class="absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
       'top'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"
@@ -291,7 +315,7 @@
 
     <!-- Bottom -->
     <div
-      class="fixed bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      class="absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
       'bottom'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"
@@ -304,7 +328,7 @@
 
     <!-- Left -->
     <div
-      class="fixed top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      class="absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
       'left'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"
@@ -320,7 +344,7 @@
 
     <!-- Right -->
     <div
-      class="fixed top-2 bottom-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-300 {viewerState.showSearchPanel
+      class="absolute top-2 bottom-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-300 {viewerState.showSearchPanel
         ? 'right-[328px]'
         : 'right-2'} {dragOverSide === 'right'
         ? 'bg-primary/20 scale-105'
