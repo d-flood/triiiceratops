@@ -114,6 +114,7 @@
 
   // Sync dock state to viewer state
   $effect(() => {
+    viewerState.dockSide = dockSide;
     viewerState.isGalleryDockedBottom = dockSide === "bottom";
     viewerState.isGalleryDockedRight = dockSide === "right";
   });
@@ -157,7 +158,7 @@
            ${dockSide === "bottom" ? "flex-row bottom-0 left-0 right-0 h-[140px] border-t" : ""}
            ${dockSide === "top" ? "flex-row top-0 left-0 right-0 h-[140px] border-b" : ""}
            ${dockSide === "left" ? "flex-col left-0 top-0 bottom-0 w-[200px] border-r" : ""}
-           ${dockSide === "right" ? "flex-col right-0 top-0 bottom-0 w-[200px] border-l" : ""}`
+           ${dockSide === "right" ? `flex-col top-0 bottom-0 w-[200px] border-l ${viewerState.showSearchPanel ? "right-80" : "right-0"}` : ""}`
       : "fixed z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden") +
       (isDragging ? " pointer-events-none opacity-80" : "")}
     style={dockSide !== "none"
@@ -319,8 +320,9 @@
 
     <!-- Right -->
     <div
-      class="fixed top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
-      'right'
+      class="fixed top-2 bottom-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-300 {viewerState.showSearchPanel
+        ? 'right-[328px]'
+        : 'right-2'} {dragOverSide === 'right'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"
       onmouseenter={() => (dragOverSide = "right")}

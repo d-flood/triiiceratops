@@ -9,6 +9,7 @@ export class ViewerState {
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
     showMetadataDialog = $state(false);
+    dockSide = $state("none");
 
     constructor(initialManifestId?: string | null) {
         this.manifestId = initialManifestId || null;

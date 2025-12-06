@@ -3,13 +3,16 @@
 </script>
 
 <div
-  class="fab fab-flower fab-top-left fixed z-600 pointer-events-auto flex-col items-end transition-all duration-200 {viewerState.showThumbnailGallery &&
-  viewerState.isGalleryDockedRight
-    ? 'right-[220px]'
-    : 'right-6'} {viewerState.showThumbnailGallery &&
-  viewerState.isGalleryDockedBottom
+  class="fab fab-flower fab-top-left fixed z-600 pointer-events-auto flex-col items-end transition-all duration-300 {viewerState.showSearchPanel
+    ? viewerState.showThumbnailGallery && viewerState.isGalleryDockedRight
+      ? 'right-[540px]'
+      : 'right-[344px]'
+    : viewerState.showThumbnailGallery && viewerState.isGalleryDockedRight
+      ? 'right-[220px]'
+      : 'right-6'} {viewerState.showThumbnailGallery &&
+  viewerState.dockSide === 'bottom'
     ? 'bottom-[160px]'
-    : 'bottom-4'}"
+    : 'bottom-6'}"
   data-tip="Menu"
 >
   <!-- a focusable div with tabindex is necessary to work on all browsers. role="button" is necessary for accessibility -->
