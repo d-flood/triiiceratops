@@ -107,6 +107,7 @@
     map = new LeafletMap(mapElement, {
       center: [0, 0],
       zoom: 0,
+      minZoom: -5, // Allow zooming out to fit large images
       crs: CRS.Simple,
       attributionControl: false, // Optional
       zoomControl: false,

@@ -62,7 +62,7 @@ export class IIIFLayer extends TileLayer {
     const maxDimension = Math.max(data.width, data.height);
     const calculatedMinZoom = -Math.ceil(Math.log2(maxDimension / tileSize));
     
-    this.options.minZoom = calculatedMinZoom;
+    this.options.minZoom = Math.min(this.options.minZoom || 0, calculatedMinZoom);
     this.options.maxNativeZoom = 0; // We define Z0 as native res
     
     // Register tile load event to fix dimensions of edge tiles
