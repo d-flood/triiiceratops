@@ -5,6 +5,7 @@
   import AnnotationOverlay from "./AnnotationOverlay.svelte";
   import ThumbnailGallery from "./ThumbnailGallery.svelte";
   import FloatingMenu from "./FloatingMenu.svelte";
+  import MetadataDialog from "./MetadataDialog.svelte";
 
   let { manifestId } = $props();
 
@@ -129,6 +130,7 @@
     <ThumbnailGallery {canvases} />
   {/if}
 
+  <MetadataDialog />
   <!-- Global Floating Menu -->
   <FloatingMenu />
 </div>

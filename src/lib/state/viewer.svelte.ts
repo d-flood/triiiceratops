@@ -8,6 +8,7 @@ export class ViewerState {
     isGalleryDockedBottom = $state(false);
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
+    showMetadataDialog = $state(false);
 
     constructor(initialManifestId?: string | null) {
         this.manifestId = initialManifestId || null;
@@ -97,6 +98,10 @@ export class ViewerState {
         } else {
             document.exitFullscreen();
         }
+    }
+
+    toggleMetadataDialog() {
+        this.showMetadataDialog = !this.showMetadataDialog;
     }
 }
 
