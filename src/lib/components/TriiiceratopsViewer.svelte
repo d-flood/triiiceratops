@@ -1,6 +1,6 @@
 <script lang="ts">
   import { viewerState } from "../state/viewer.svelte";
-  import LeafletViewer from "./LeafletViewer.svelte";
+  import OSDViewer from "./OSDViewer.svelte";
   import CanvasNavigation from "./CanvasNavigation.svelte";
   import AnnotationOverlay from "./AnnotationOverlay.svelte";
   import ThumbnailGallery from "./ThumbnailGallery.svelte";
@@ -31,34 +31,34 @@
   let currentCanvasIndex = $derived(viewerState.currentCanvasIndex);
 
   let tileSources = $derived.by(() => {
-    console.log("MiradorViewer: calculating tileSources");
-    console.log("MiradorViewer: canvases", canvases);
-    console.log("MiradorViewer: currentCanvasIndex", currentCanvasIndex);
+    console.log("TriiiceratopsViewer: calculating tileSources");
+    console.log("TriiiceratopsViewer: canvases", canvases);
+    console.log("TriiiceratopsViewer: currentCanvasIndex", currentCanvasIndex);
 
     if (
       !canvases ||
       currentCanvasIndex === -1 ||
       !canvases[currentCanvasIndex]
     ) {
-      console.log("MiradorViewer: No canvas found");
+      console.log("TriiiceratopsViewer: No canvas found");
       return null;
     }
 
     const canvas = canvases[currentCanvasIndex];
-    console.log("MiradorViewer: canvas", canvas);
+    console.log("TriiiceratopsViewer: canvas", canvas);
 
     // Use Manifesto to get images
     // canvas is a Manifesto Canvas object
     const images = canvas.getImages();
     if (!images || !images.length) {
-      console.log("MiradorViewer: No images in canvas");
+      console.log("TriiiceratopsViewer: No images in canvas");
       return null;
     }
 
     const annotation = images[0];
     const resource = annotation.getResource();
     if (!resource) {
-      console.log("MiradorViewer: No resource in annotation");
+      console.log("TriiiceratopsViewer: No resource in annotation");
       return null;
     }
 
@@ -69,7 +69,7 @@
       if (id && !id.endsWith("/info.json")) {
         id = `${id}/info.json`;
       }
-      console.log("MiradorViewer: Found service ID", id);
+      console.log("TriiiceratopsViewer: Found service ID", id);
       return id;
     }
 
@@ -80,7 +80,7 @@
       if (id && !id.endsWith("/info.json")) {
         id = `${id}/info.json`;
       }
-      console.log("MiradorViewer: Found service ID from list", id);
+      console.log("TriiiceratopsViewer: Found service ID from list", id);
       return id;
     }
 
@@ -96,21 +96,19 @@
       );
       if (regionIndex > 0) {
         const base = parts.slice(0, regionIndex).join("/");
-        console.log("MiradorViewer: Inferred service ID from URL", base);
+        console.log("TriiiceratopsViewer: Inferred service ID from URL", base);
         return `${base}/info.json`;
       }
     }
 
-    console.log("MiradorViewer: No service or ID found, returning raw URL");
+    console.log("TriiiceratopsViewer: No service or ID found, returning raw URL");
     const url = resource.id;
     return { type: "image", url };
-    // Note: LeafletViewer current simple implementation might fail if it gets this object without width/height.
-    // Enhanced LeafletViewer should check validity.
   });
 </script>
 
 <div
-  id="mirador-viewer"
+  id="triiiceratops-viewer"
   class="w-full h-full relative !bg-base-100 flex items-center justify-center"
   data-theme="dark"
 >
@@ -120,7 +118,7 @@
     <div class="text-error">Error: {manifestData.error}</div>
   {:else if tileSources}
     {#key tileSources}
-      <LeafletViewer {tileSources} {viewerState} />
+      <OSDViewer {tileSources} {viewerState} />
     {/key}
   {:else}
     <div class="text-base-content/50">No image found</div>
@@ -131,6 +129,7 @@
     <ThumbnailGallery {canvases} />
   {/if}
 
+  <AnnotationOverlay {viewerState} />
   <MetadataDialog />
   <SearchPanel />
   <!-- Global Floating Menu -->

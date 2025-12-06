@@ -19,15 +19,6 @@
   function navigate(result: any) {
     const canvas = viewerState.canvases[result.canvasIndex];
     if (canvas) {
-      // Always reset targetBounds first to ensure effect triggers if bounds changed
-      // Actually, if we set targetBounds, LeafletViewer should react to it.
-      // We might need to ensure it's not null if provided.
-      if (result.bounds) {
-        viewerState.targetBounds = result.bounds;
-      } else {
-        viewerState.targetBounds = null;
-      }
-
       viewerState.canvasId = canvas.id;
     }
   }

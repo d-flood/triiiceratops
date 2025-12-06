@@ -10,6 +10,7 @@ export class ViewerState {
     isFullScreen = $state(false);
     showMetadataDialog = $state(false);
     dockSide = $state("none");
+    visibleAnnotationIds = $state(new Set<string>());
 
     constructor(initialManifestId?: string | null) {
         this.manifestId = initialManifestId || null;
@@ -90,7 +91,7 @@ export class ViewerState {
 
     toggleFullScreen() {
         if (!document.fullscreenElement) {
-            const el = document.getElementById("mirador-viewer");
+            const el = document.getElementById("triiiceratops-viewer");
             if (el) {
                 el.requestFullscreen().catch((e) => {
                     console.warn("Fullscreen request failed", e);
@@ -118,7 +119,6 @@ export class ViewerState {
         }
     }
 
-    targetBounds: number[] | null = $state(null);
     searchAnnotations: any[] = $state([]);
 
     get currentCanvasSearchAnnotations() {
