@@ -14,7 +14,7 @@
     $props();
 
   let container: HTMLElement | undefined = $state();
-  let viewer: OpenSeadragon.Viewer | undefined = $state();
+  let viewer: any | undefined = $state();
   let anno: ReturnType<typeof createOSDAnnotator> | undefined = $state();
 
   // Tooltip state
@@ -70,7 +70,19 @@
 
     // Initialize Annotorious
     anno = createOSDAnnotator(viewer, {
-      drawingEnabled: false, // Read-only mode
+      drawingEnabled: false,
+      // @ts-ignore
+      readOnly: true,
+      // @ts-ignore
+      disableSelect: true,
+    });
+
+    // Enforce read-only by immediately cancelling any selection
+    // This serves as a fallback for v3 where readOnly prop might behave differently
+    anno.on("selectionChanged", (selection) => {
+      if (selection && selection.length > 0) {
+        anno.cancelSelected();
+      }
     });
 
     // Hover events for tooltip
@@ -161,7 +173,7 @@
     }
 
     // Get first non-search-hit body
-    const body = annotation.bodies.find((b) => b.purpose === "commenting");
+    const body = annotation.bodies.find((b: any) => b.purpose === "commenting");
     return body?.value || "Annotation";
   }
 </script>
@@ -172,7 +184,7 @@
   <!-- Hover Tooltip (Option A: positioned div) -->
   {#if hoveredAnnotation && viewerState.showAnnotations}
     <div
-      class="absolute bg-base-200 text-base-content px-3 py-2 rounded-lg shadow-lg text-sm max-w-xs pointer-events-none z-[1000]"
+      class="absolute bg-base-200 text-base-content px-3 py-2 rounded-lg shadow-lg text-sm max-w-xs pointer-events-none z-1000"
       style="left: {tooltipPos.x + 15}px; top: {tooltipPos.y + 15}px;"
     >
       {getAnnotationContent(hoveredAnnotation)}
