@@ -1,13 +1,17 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import OpenSeadragon from 'openseadragon';
-  import { createOSDAnnotator } from '@annotorious/openseadragon';
-  import '@annotorious/openseadragon/annotorious-openseadragon.css';
-  import { convertAnnotations } from '../utils/annotationAdapter';
-  import { manifestsState } from '../state/manifests.svelte';
-  import type { ViewerState } from '../state/viewer.svelte';
+  import { onMount } from "svelte";
+  import OpenSeadragon from "openseadragon";
+  import { createOSDAnnotator } from "@annotorious/openseadragon";
+  import "@annotorious/openseadragon/annotorious-openseadragon.css";
+  import { convertAnnotations } from "../utils/annotationAdapter";
+  import { manifestsState } from "../state/manifests.svelte";
+  import type { ViewerState } from "../state/viewer.svelte";
 
-  let { tileSources, viewerState }: { tileSources: string | object | null; viewerState: ViewerState } = $props();
+  let {
+    tileSources,
+    viewerState,
+  }: { tileSources: string | object | null; viewerState: ViewerState } =
+    $props();
 
   let container: HTMLElement | undefined = $state();
   let viewer: OpenSeadragon.Viewer | undefined = $state();
@@ -22,7 +26,10 @@
     if (!viewerState.manifestId || !viewerState.canvasId) {
       return [];
     }
-    const manifestAnnotations = manifestsState.getAnnotations(viewerState.manifestId, viewerState.canvasId);
+    const manifestAnnotations = manifestsState.getAnnotations(
+      viewerState.manifestId,
+      viewerState.canvasId,
+    );
     const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
     return [...manifestAnnotations, ...searchAnnotations];
   });
@@ -31,7 +38,7 @@
   let searchHitIds = $derived.by(() => {
     const ids = new Set<string>();
     viewerState.currentCanvasSearchAnnotations.forEach((anno: any) => {
-      const id = anno.id || anno['@id'];
+      const id = anno.id || anno["@id"];
       if (id) ids.add(id);
     });
     return ids;
@@ -49,7 +56,7 @@
     viewer = OpenSeadragon({
       element: container,
       tileSources: null, // Will be set via effect
-      prefixUrl: '', // No navigation UI images needed
+      prefixUrl: "", // No navigation UI images needed
       showNavigationControl: false,
       showHomeControl: false,
       showFullPageControl: false,
@@ -67,17 +74,17 @@
     });
 
     // Hover events for tooltip
-    anno.on('mouseEnterAnnotation', (annotation) => {
+    anno.on("mouseEnterAnnotation", (annotation) => {
       hoveredAnnotation = annotation;
     });
 
-    anno.on('mouseLeaveAnnotation', () => {
+    anno.on("mouseLeaveAnnotation", () => {
       hoveredAnnotation = null;
     });
 
     // Track pointer position for tooltip
     if (container) {
-      container.addEventListener('pointermove', (e) => {
+      container.addEventListener("pointermove", (e) => {
         const rect = container!.getBoundingClientRect();
         tooltipPos = {
           x: e.clientX - rect.left,
@@ -111,11 +118,13 @@
     if (!anno) return;
 
     anno.setStyle((annotation) => {
-      const isSearchHit = annotation.bodies?.some((b) => b.purpose === 'search-hit');
+      const isSearchHit = annotation.bodies?.some(
+        (b) => b.purpose === "search-hit",
+      );
       return {
-        fill: isSearchHit ? '#facc15' : '#ef4444',
+        fill: isSearchHit ? "#facc15" : "#ef4444",
         fillOpacity: isSearchHit ? 0.4 : 0.2,
-        stroke: isSearchHit ? '#facc15' : '#ef4444',
+        stroke: isSearchHit ? "#facc15" : "#ef4444",
         strokeWidth: isSearchHit ? 1 : 2,
       };
     });
@@ -125,31 +134,35 @@
   $effect(() => {
     if (!anno) return;
 
+    // Explicitly track dependencies so the effect re-runs
+    const showAnnotations = viewerState.showAnnotations;
+    const visibleIds = viewerState.visibleAnnotationIds;
+
     anno.setFilter((annotation) => {
       // Always show search hits
-      if (annotation.bodies?.some((b) => b.purpose === 'search-hit')) {
+      if (annotation.bodies?.some((b) => b.purpose === "search-hit")) {
         return true;
       }
 
       // Hide all if annotations are toggled off
-      if (!viewerState.showAnnotations) {
+      if (!showAnnotations) {
         return false;
       }
 
       // Check visibility set
-      return viewerState.visibleAnnotationIds.has(annotation.id);
+      return visibleIds.has(annotation.id);
     });
   });
 
   // Helper to get annotation content for tooltip
   function getAnnotationContent(annotation: any): string {
     if (!annotation.bodies || annotation.bodies.length === 0) {
-      return 'Annotation';
+      return "Annotation";
     }
 
     // Get first non-search-hit body
-    const body = annotation.bodies.find((b) => b.purpose === 'commenting');
-    return body?.value || 'Annotation';
+    const body = annotation.bodies.find((b) => b.purpose === "commenting");
+    return body?.value || "Annotation";
   }
 </script>
 
