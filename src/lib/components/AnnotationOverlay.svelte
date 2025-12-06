@@ -20,10 +20,15 @@
     if (!viewerState.manifestId || !viewerState.canvasId) {
       return [];
     }
-    return manifestsState.getAnnotations(
+    const manifestAnnotations = manifestsState.getAnnotations(
       viewerState.manifestId,
       viewerState.canvasId
     );
+    // Add search hits for current canvas
+    // These behave as ephemeral annotations
+    const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
+
+    return [...manifestAnnotations, ...searchAnnotations];
   });
 
   // State for visible annotation IDs
@@ -213,18 +218,30 @@
     // Clear existing
     layerGroup.clearLayers();
 
-    // If global toggle is off, do not render anything
-    if (!viewerState.showAnnotations) return;
-
-    // Loop through annotations and render ONLY those that are visible
+    // Loop through annotations and render
     annotations.forEach((anno: any, index: number) => {
-      const id = getAnnotationId(anno);
-      if (!id || !visibleAnnotationIds.has(id)) return;
+      const isSearchHit = !!anno.isSearchHit;
+
+      // Logic:
+      // 1. Search hits: Display always if they exist in the array (controlled by Search Panel being open)
+      // 2. Standard annotations: Display only if global toggle is ON AND id is in visible set.
+
+      // Ensure we treat search hits as always visible on the map
+      if (!isSearchHit) {
+        if (!viewerState.showAnnotations) return;
+
+        const id = getAnnotationId(anno);
+        if (!id || !visibleAnnotationIds.has(id)) return;
+      }
 
       const renderedInfo = renderedAnnotations[index];
       // Prefer content, fall back to label, then generic "Annotation"
       const tooltipContent =
         renderedInfo?.content || renderedInfo?.label || "Annotation";
+
+      const color = isSearchHit ? "#facc15" : "#ef4444"; // yellow-400 vs red-500
+      const weight = isSearchHit ? 1 : 2;
+      const opacity = isSearchHit ? 0.4 : 0.2;
 
       let targetId = "";
       let svgSelectorValue = "";
@@ -315,10 +332,10 @@
           // Often IIIF SVGs have no style or 'none'.
           const paths = svgEl.querySelectorAll("path, polygon, circle, rect");
           paths.forEach((p) => {
-            p.setAttribute("fill", "#ef4444");
-            p.setAttribute("fill-opacity", "0.2");
-            p.setAttribute("stroke", "#ef4444");
-            p.setAttribute("stroke-width", "2");
+            p.setAttribute("fill", color);
+            p.setAttribute("fill-opacity", String(opacity));
+            p.setAttribute("stroke", color);
+            p.setAttribute("stroke-width", String(weight));
             p.setAttribute("vector-effect", "non-scaling-stroke"); // Keep stroke constant
           });
 
@@ -365,10 +382,10 @@
         ] as [[number, number], [number, number]];
 
         const rect = new Rectangle(bounds, {
-          color: "#ef4444", // red-500
-          weight: 2,
-          fillOpacity: 0.2,
-          fillColor: "#ef4444",
+          color: color,
+          weight: weight,
+          fillOpacity: opacity,
+          fillColor: color,
         });
 
         // Add tooltip (label)
@@ -408,7 +425,7 @@
 <!-- Debug/Info Count -->
 <!-- Unified Annotation Toolbar -->
 {#if viewerState.showAnnotations && annotations.length > 0}
-  <div class="absolute top-4 right-4 z-[500] pointer-events-auto">
+  <div class="absolute top-4 right-4 z-500 pointer-events-auto">
     <!-- z-index increased for Leaflet (z-400 is map) -->
     <details class="group relative">
       <summary

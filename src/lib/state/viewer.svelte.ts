@@ -111,6 +111,18 @@ export class ViewerState {
 
     toggleSearchPanel() {
         this.showSearchPanel = !this.showSearchPanel;
+        if (!this.showSearchPanel) {
+             // Clear ephemeral annotations when closing search
+             this.searchAnnotations = [];
+        }
+    }
+
+    targetBounds: number[] | null = $state(null);
+    searchAnnotations: any[] = $state([]);
+
+    get currentCanvasSearchAnnotations() {
+        if (!this.canvasId) return [];
+        return this.searchAnnotations.filter((a) => a.canvasId === this.canvasId);
     }
 
     async search(query: string) {
@@ -161,16 +173,28 @@ export class ViewerState {
             
             const processedResults = [];
 
+            // Helper to parse xywh
+            const parseSelector = (onVal: string | any) => {
+                const val = typeof onVal === 'string' ? onVal : onVal['@id'] || onVal.id;
+                if (!val) return null;
+                const parts = val.split('#xywh=');
+                if (parts.length < 2) return null;
+                const coords = parts[1].split(',').map(Number);
+                if (coords.length === 4) return coords; // [x, y, w, h]
+                return null;
+            };
+
             if (data.hits) {
                 for (const hit of data.hits) {
                     // hits have property 'annotations' which is array of ids
-                    const annoId = hit.annotations && hit.annotations.length > 0 ? hit.annotations[0] : null;
-                    if (annoId) {
+                    const annotations = hit.annotations || [];
+                    for (const annoId of annotations) {
                          const annotation = resources.find((r: any) => r['@id'] === annoId || r.id === annoId);
                          if (annotation && annotation.on) {
                              // annotation.on can be "canvas-id" or "canvas-id#xywh=..."
                              const onVal = typeof annotation.on === 'string' ? annotation.on : annotation.on['@id'] || annotation.on.id;
                              const cleanOn = onVal.split('#')[0];
+                             const bounds = parseSelector(onVal);
                              
                              const canvasIndex = this.canvases.findIndex((c: any) => c.id === cleanOn);
                              if (canvasIndex >= 0) {
@@ -195,7 +219,8 @@ export class ViewerState {
                                      match: hit.match,
                                      after: hit.after,
                                      canvasIndex,
-                                     canvasLabel: String(label)
+                                     canvasLabel: String(label),
+                                     bounds
                                  });
                              }
                          }
@@ -206,6 +231,8 @@ export class ViewerState {
                  for (const res of resources) {
                       const onVal = typeof res.on === 'string' ? res.on : res.on['@id'] || res.on.id;
                       const cleanOn = onVal.split('#')[0];
+                      const bounds = parseSelector(onVal);
+                      
                       const canvasIndex = this.canvases.findIndex((c: any) => c.id === cleanOn);
                       if (canvasIndex >= 0) {
                            const canvas = this.canvases[canvasIndex];
@@ -226,7 +253,8 @@ export class ViewerState {
                                type: 'resource',
                                match: res.resource && res.resource.chars ? res.resource.chars : (res.chars || ''),
                                canvasIndex,
-                               canvasLabel: String(label)
+                               canvasLabel: String(label),
+                               bounds
                            });
                       }
                  }
@@ -234,6 +262,29 @@ export class ViewerState {
             
             this.searchResults = processedResults;
 
+            // Generate ephemeral search annotations
+            this.searchAnnotations = processedResults
+                .filter((r) => r.bounds)
+                .map((r, i) => {
+                    const canvas = this.canvases[r.canvasIndex];
+                    const on = `${canvas.id}#xywh=${r.bounds.join(",")}`;
+
+                    return {
+                        "@id": `urn:search-hit:${i}`,
+                        "@type": "oa:Annotation",
+                        motivation: "sc:painting",
+                        on: on,
+                        canvasId: canvas.id,
+                        resource: {
+                            "@type": "cnt:ContentAsText",
+                            chars: r.match,
+                        },
+                        // Flag to identify styling in Overlay? 
+                        // Or just standard rendering.
+                        isSearchHit: true
+                    };
+                });
+            
         } catch (e) {
             console.error("Search error:", e);
         } finally {

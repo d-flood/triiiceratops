@@ -153,12 +153,12 @@
   <!-- Floating Window -->
   <div
     class={(dockSide !== "none"
-      ? `fixed z-[900] bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 
+      ? `fixed z-900 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 
            ${dockSide === "bottom" ? "flex-row bottom-0 left-0 right-0 h-[140px] border-t" : ""}
            ${dockSide === "top" ? "flex-row top-0 left-0 right-0 h-[140px] border-b" : ""}
            ${dockSide === "left" ? "flex-col left-0 top-0 bottom-0 w-[200px] border-r" : ""}
            ${dockSide === "right" ? "flex-col right-0 top-0 bottom-0 w-[200px] border-l" : ""}`
-      : "fixed z-[900] bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden") +
+      : "fixed z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden") +
       (isDragging ? " pointer-events-none opacity-80" : "")}
     style={dockSide !== "none"
       ? ""
@@ -277,7 +277,7 @@
     <!-- Drop Zones -->
     <!-- Top -->
     <div
-      class="fixed top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      class="fixed top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
       'top'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"
@@ -290,7 +290,7 @@
 
     <!-- Bottom -->
     <div
-      class="fixed bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      class="fixed bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
       'bottom'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"
@@ -303,7 +303,7 @@
 
     <!-- Left -->
     <div
-      class="fixed top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      class="fixed top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
       'left'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"
@@ -319,7 +319,7 @@
 
     <!-- Right -->
     <div
-      class="fixed top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-[950] flex items-center justify-center transition-all duration-200 {dragOverSide ===
+      class="fixed top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
       'right'
         ? 'bg-primary/20 scale-105'
         : 'bg-base-100/50'}"

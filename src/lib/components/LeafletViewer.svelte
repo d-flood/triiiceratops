@@ -25,6 +25,34 @@
     if (!tileSources || !map) return;
 
     // Load the IIIF source
+    // ... logic ...
+    // Reduced to keep diff clean, I will just append the new effect or insert it.
+  });
+
+  // Watch for targetBounds
+  // Watch for targetBounds
+  $effect(() => {
+    // User request: Do not zoom/pan to search result.
+    // Just rely on AnnotationOverlay to show them.
+    /*
+     if (!map || !viewerState.targetBounds) return;
+
+     const [x, y, w, h] = viewerState.targetBounds;
+     const southWest = new LatLng(-(y + h), x);
+     const northEast = new LatLng(-y, x + w);
+     const bounds = new LatLngBounds(southWest, northEast);
+
+     map.fitBounds(bounds, { animate: true, padding: [50, 50], maxZoom: 4 });
+     
+      setTimeout(() => {
+         viewerState.targetBounds = null;
+     }, 100);
+     */
+  });
+
+  $effect(() => {
+    if (!tileSources || !map) return;
+    // ... existing logic ...
     (async () => {
       try {
         // Handle array or single

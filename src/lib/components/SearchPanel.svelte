@@ -19,6 +19,15 @@
   function navigate(result: any) {
     const canvas = viewerState.canvases[result.canvasIndex];
     if (canvas) {
+      // Always reset targetBounds first to ensure effect triggers if bounds changed
+      // Actually, if we set targetBounds, LeafletViewer should react to it.
+      // We might need to ensure it's not null if provided.
+      if (result.bounds) {
+        viewerState.targetBounds = result.bounds;
+      } else {
+        viewerState.targetBounds = null;
+      }
+
       viewerState.canvasId = canvas.id;
     }
   }
@@ -31,7 +40,7 @@
   <!-- Backdrop for mobile closing? Optional. -->
 
   <div
-    class="absolute top-0 right-0 h-full w-80 bg-base-200 shadow-2xl z-[1000] transform transition-transform duration-300 flex flex-col border-l border-base-300"
+    class="absolute top-0 right-0 h-full w-80 bg-base-200 shadow-2xl z-1000 transform transition-transform duration-300 flex flex-col border-l border-base-300"
     role="dialog"
     aria-label="Search Panel"
   >
