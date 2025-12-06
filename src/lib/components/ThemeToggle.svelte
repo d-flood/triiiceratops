@@ -1,9 +1,22 @@
 <script>
+    import { onMount } from "svelte";
+
     let theme = $state("light");
 
-    function toggleTheme() {
-        theme = theme === "light" ? "dark" : "light";
+    onMount(() => {
+        const storedTheme = localStorage.getItem("theme");
+        if (storedTheme) {
+            theme = storedTheme;
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            theme = "dark";
+        }
         document.documentElement.setAttribute("data-theme", theme);
+    });
+
+    function toggleTheme() {
+        theme = theme === "light" ? "halloween" : "light";
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("theme", theme);
     }
 </script>
 

@@ -1,4 +1,10 @@
 @import "tailwindcss";
+
 @plugin "daisyui" {
-  themes: black --default;
+  themes: retro --default, halloween --prefersdark;
+}
+
+.osd-background,
+.osd-background .openseadragon-container {
+  @apply bg-transparent;
 }

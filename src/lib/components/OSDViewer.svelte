@@ -179,7 +179,10 @@
 </script>
 
 <div class="w-full h-full relative">
-  <div bind:this={container} class="w-full h-full bg-base-100"></div>
+  <div
+    bind:this={container}
+    class="w-full h-full osd-background bg-base-100"
+  ></div>
 
   <!-- Hover Tooltip (Option A: positioned div) -->
   {#if hoveredAnnotation && viewerState.showAnnotations}
