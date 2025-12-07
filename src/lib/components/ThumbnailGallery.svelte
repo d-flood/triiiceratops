@@ -139,7 +139,7 @@
   let isHorizontal = $derived(
     dockSide === "top" ||
       dockSide === "bottom" ||
-      (dockSide === "none" && size.height < 320)
+      (dockSide === "none" && size.height < 320),
   );
 
   function startDrag(e: MouseEvent) {
@@ -238,7 +238,7 @@
 
     <!-- Content (Grid or Horizontal Scroll) -->
     <div
-      class="flex-1 p-2 bg-base-100 {isHorizontal
+      class="flex-1 p-1 bg-base-100 {isHorizontal
         ? 'overflow-x-auto overflow-y-hidden'
         : 'overflow-y-auto overflow-x-hidden'}"
     >
@@ -252,7 +252,7 @@
       >
         {#each thumbnails as thumb}
           <button
-            class="group flex flex-col gap-2 p-2 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
+            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
               ? 'w-[140px]'
               : ''} {viewerState.canvasId === thumb.id
               ? 'ring-2 ring-primary bg-primary/5'
