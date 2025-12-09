@@ -92,7 +92,7 @@
       const parts = resource.id.split("/");
       // find index of 'full' or region
       const regionIndex = parts.findIndex(
-        (p: string) => p === "full" || p.match(/^\d+,\d+,\d+,\d+$/),
+        (p: string) => p === "full" || p.match(/^\d+,\d+,\d+,\d+$/)
       );
       if (regionIndex > 0) {
         const base = parts.slice(0, regionIndex).join("/");
@@ -102,7 +102,7 @@
     }
 
     console.log(
-      "TriiiceratopsViewer: No service or ID found, returning raw URL",
+      "TriiiceratopsViewer: No service or ID found, returning raw URL"
     );
     const url = resource.id;
     return { type: "image", url };
@@ -130,7 +130,7 @@
     <ThumbnailGallery {canvases} />
   {/if}
 
-  <AnnotationOverlay {viewerState} />
+  <AnnotationOverlay />
   <MetadataDialog />
   <SearchPanel />
   <!-- Global Floating Menu -->

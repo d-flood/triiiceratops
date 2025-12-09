@@ -1,11 +1,9 @@
 <script lang="ts">
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
+  import Eye from "phosphor-svelte/lib/Eye";
+  import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import { manifestsState } from "../state/manifests.svelte";
   import { viewerState } from "../state/viewer.svelte";
-
-  let {
-    viewerState: vs,
-  }: { viewerState: typeof viewerState } =
-    $props();
 
   let annotations = $derived.by(() => {
     if (!viewerState.manifestId || !viewerState.canvasId) {
@@ -64,7 +62,9 @@
       viewerState.visibleAnnotationIds.add(id);
     }
     // Reassign to trigger reactivity
-    viewerState.visibleAnnotationIds = new Set(viewerState.visibleAnnotationIds);
+    viewerState.visibleAnnotationIds = new Set(
+      viewerState.visibleAnnotationIds
+    );
   }
 
   function toggleAllAnnotations() {
@@ -167,7 +167,7 @@
 </script>
 
 <!-- Unified Annotation Toolbar -->
-{#if viewerState.showAnnotations && annotations.length > 0}
+{#if viewerState.showAnnotations}
   <div class="absolute top-4 right-4 z-500 pointer-events-auto">
     <!-- z-index increased for Leaflet (z-400 is map) -->
     <details class="group relative">
@@ -183,41 +183,11 @@
           }}
           title={isAllVisible ? "Hide All Annotations" : "Show All Annotations"}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            {#if isAllVisible}
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-              />
-            {:else}
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.059 10.059 0 013.999-5.325m4.314-1.351A10.054 10.054 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.058 10.058 0 01-2.105 3.86m-3.71 3.71a3 3 0 00-4.242 0"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M3 3l18 18"
-              />
-            {/if}
-          </svg>
+          {#if isAllVisible}
+            <Eye size={16} weight="bold" />
+          {:else}
+            <EyeSlash size={16} weight="bold" />
+          {/if}
         </button>
 
         <!-- Badge Text -->
@@ -228,19 +198,11 @@
           </span>
         </span>
 
-        <!-- Chevron indicator -->
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-4 w-4 opacity-50 transition-transform group-open:rotate-180"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-            clip-rule="evenodd"
-          />
-        </svg>
+        <CaretDown
+          size={16}
+          weight="bold"
+          class="group-open:rotate-180 transition-transform opacity-80"
+        />
       </summary>
 
       <!-- Expanded List -->
@@ -262,40 +224,9 @@
               class="btn btn-xs btn-circle btn-ghost mt-0.5 shrink-0 pointer-events-none"
             >
               {#if isVisible}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 text-primary"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path
-                    fill-rule="evenodd"
-                    d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
+                <Eye size={16} weight="bold" />
               {:else}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 opacity-40"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.059 10.059 0 013.999-5.325m4.314-1.351A10.054 10.054 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.058 10.058 0 01-2.105 3.86m-3.71 3.71a3 3 0 00-4.242 0"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M3 3l18 18"
-                  />
-                </svg>
+                <EyeSlash size={16} weight="bold" />
               {/if}
             </div>
 
@@ -310,7 +241,7 @@
                 {/if}
               </div>
               <div
-                class="text-sm prose prose-sm max-w-none prose-p:my-0 prose-a:text-blue-500 break-words text-left {isVisible
+                class="text-sm prose prose-sm max-w-none prose-p:my-0 prose-a:text-blue-500 wrap-break-word text-left {isVisible
                   ? ''
                   : 'opacity-50'}"
               >
@@ -323,12 +254,11 @@
               </div>
             </div>
           </button>
-        {/each}
-        {#if renderedAnnotations.length === 0 && annotations.length > 0}
+        {:else}
           <div class="p-4 text-center opacity-50 text-sm">
-            Annotations are hidden or off-screen.
+            No annotations yet. Click the pencil to draw.
           </div>
-        {/if}
+        {/each}
       </div>
     </details>
   </div>

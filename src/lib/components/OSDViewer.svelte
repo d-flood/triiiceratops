@@ -28,10 +28,13 @@
     }
     const manifestAnnotations = manifestsState.getAnnotations(
       viewerState.manifestId,
-      viewerState.canvasId,
+      viewerState.canvasId
     );
     const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
-    return [...manifestAnnotations, ...searchAnnotations];
+    // User created annotations
+    const userAnnotations =
+      viewerState.createdAnnotations[viewerState.canvasId] || [];
+    return [...manifestAnnotations, ...searchAnnotations, ...userAnnotations];
   });
 
   // Get search hit IDs for styling
@@ -41,6 +44,7 @@
       const id = anno.id || anno["@id"];
       if (id) ids.add(id);
     });
+    // Also track user annotations? Not needed for searching styling but safe to keep separate.
     return ids;
   });
 
@@ -74,13 +78,34 @@
       // @ts-ignore
       readOnly: true,
       // @ts-ignore
-      disableSelect: true,
+      disableSelect: true, // We will manually manage selection if needed, or toggle this
     });
+
+    anno.on("createAnnotation", (annotation: any) => {
+      // Ensure it has required fields for IIIF/W3C
+      const newAnnotation = {
+        ...annotation,
+        id: annotation.id || crypto.randomUUID(), // Ensure ID
+        motivation: "commenting",
+        target: {
+          ...annotation.target,
+          source: viewerState.canvasId, // Enforce canvas ID
+        },
+      };
+
+      console.log("Created annotation:", newAnnotation);
+      viewerState.addAnnotation(newAnnotation, viewerState.canvasId!);
+    });
+
+    // Make sure we load comments for this canvas
+    if (viewerState.canvasId) {
+      viewerState.loadAnnotationsFromStorage(viewerState.canvasId);
+    }
 
     // Enforce read-only by immediately cancelling any selection
     // This serves as a fallback for v3 where readOnly prop might behave differently
     anno.on("selectionChanged", (selection) => {
-      if (selection && selection.length > 0) {
+      if (selection && selection.length > 0 && anno) {
         anno.cancelSelected();
       }
     });
@@ -131,7 +156,7 @@
 
     anno.setStyle((annotation) => {
       const isSearchHit = annotation.bodies?.some(
-        (b) => b.purpose === "search-hit",
+        (b) => b.purpose === "search-hit"
       );
       return {
         fill: isSearchHit ? "#facc15" : "#ef4444",
@@ -142,26 +167,38 @@
     });
   });
 
+  // Manage Drawing Mode
+  $effect(() => {
+    if (!anno) return;
+    anno.setDrawingEnabled(viewerState.isCreatingAnnotation);
+    if (viewerState.isCreatingAnnotation) {
+      anno.setDrawingTool("rect");
+    }
+  });
+
+  // Manage load on canvas change
+  $effect(() => {
+    if (viewerState.canvasId) {
+      viewerState.loadAnnotationsFromStorage(viewerState.canvasId);
+    }
+  });
+
   // Filtering: show based on visibility state
   $effect(() => {
     if (!anno) return;
 
-    // Explicitly track dependencies so the effect re-runs
     const showAnnotations = viewerState.showAnnotations;
     const visibleIds = viewerState.visibleAnnotationIds;
 
     anno.setFilter((annotation) => {
-      // Always show search hits
       if (annotation.bodies?.some((b) => b.purpose === "search-hit")) {
         return true;
       }
 
-      // Hide all if annotations are toggled off
       if (!showAnnotations) {
         return false;
       }
 
-      // Check visibility set
       return visibleIds.has(annotation.id);
     });
   });
