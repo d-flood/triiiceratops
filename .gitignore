@@ -89,6 +89,8 @@ tmp/
 coverage/
 *.lcov
 .nyc_output
+playwright-report/
+test-results/
 
 # Storybook
 storybook-static/
