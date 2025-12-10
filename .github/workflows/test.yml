@@ -10,6 +10,8 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.50.1-jammy
     timeout-minutes: 60
 
     steps:
@@ -27,11 +29,15 @@ jobs:
     - name: Install dependencies
       run: pnpm install
 
-    - name: Install Playwright Browsers
-      run: pnpm exec playwright install --with-deps
-
     - name: Run Unit Tests
       run: pnpm test run
 
     - name: Run E2E Tests
       run: pnpm test:e2e
+      env:
+        # Playwright in container needs this to know it doesn't need to install browsers, 
+        # basically standard env for CI but good to be explicit if needed. 
+        # Actually the container image has browsers pre-installed in specific locations.
+        # However, we must ensure HOME is preserved or we point to the right place if needed.
+        # But usually just running in container works.
+        CI: true
