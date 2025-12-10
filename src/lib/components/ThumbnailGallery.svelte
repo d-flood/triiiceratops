@@ -1,9 +1,9 @@
 <script lang="ts">
+  import X from "phosphor-svelte/lib/X";
   import { viewerState } from "../state/viewer.svelte";
 
   let { canvases } = $props();
 
-  let isOpen = $state(false);
   let position = $state({ x: 20, y: 100 });
   let size = $state({ width: 300, height: 400 });
   let isDragging = $state(false);
@@ -17,7 +17,6 @@
     if (!canvases) return [];
     return canvases.map((canvas: any, index: number) => {
       // Manifesto getThumbnail logic
-      // Try getCanonicalImageUri or standard thumb
       let src = "";
       try {
         // Prefer a small width around 200
@@ -191,22 +190,11 @@
   >
     <!-- Close Button (Absolute, always top-right of container) -->
     <button
-      class="absolute top-1 right-1 btn btn-ghost btn-xs btn-circle z-20"
+      class="absolute top-1 right-1 btn btn-error btn-xs btn-circle z-20"
       onclick={() => viewerState.toggleThumbnailGallery()}
       aria-label="Close Gallery"
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-4 w-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
-        <path
-          fill-rule="evenodd"
-          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-          clip-rule="evenodd"
-        />
-      </svg>
+      <X size={16} weight="bold" />
     </button>
 
     <!-- Header Area -->
@@ -238,7 +226,7 @@
 
     <!-- Content (Grid or Horizontal Scroll) -->
     <div
-      class="flex-1 p-2 bg-base-100 {isHorizontal
+      class="flex-1 p-1 bg-base-100 {isHorizontal
         ? 'overflow-x-auto overflow-y-hidden'
         : 'overflow-y-auto overflow-x-hidden'}"
     >
@@ -252,7 +240,7 @@
       >
         {#each thumbnails as thumb}
           <button
-            class="group flex flex-col gap-2 p-2 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
+            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
               ? 'w-[140px]'
               : ''} {viewerState.canvasId === thumb.id
               ? 'ring-2 ring-primary bg-primary/5'

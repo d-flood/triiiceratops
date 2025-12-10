@@ -97,15 +97,15 @@
         </div>
       {/if}
 
-      <dl class="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4">
+      <dl class="grid grid-cols-1 md:grid-cols-[200px_1fr]">
         {#if attribution}
-          <dt class="font-bold text-sm opacity-70">Attribution</dt>
-          <dd class="text-sm">{@html attribution}</dd>
+          <dt class="font-bold text-lg opacity-70 mt-6">Attribution</dt>
+          <dd class="text-sm ps-2">{@html attribution}</dd>
         {/if}
 
         {#if license}
-          <dt class="font-bold text-sm opacity-70">License</dt>
-          <dd class="text-sm">
+          <dt class="font-bold text-lg opacity-70 mt-6">License</dt>
+          <dd class="text-sm ps-2">
             <a
               href={license}
               target="_blank"
@@ -116,8 +116,8 @@
         {/if}
 
         {#each metadata as item}
-          <dt class="font-bold text-sm opacity-70">{item.label}</dt>
-          <dd class="text-sm">{@html item.value}</dd>
+          <dt class="font-bold text-lg opacity-70 mt-6">{item.label}</dt>
+          <dd class="text-sm ps-2">{@html item.value}</dd>
         {/each}
       </dl>
     </div>
