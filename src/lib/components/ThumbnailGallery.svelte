@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { getContext } from "svelte";
   import X from "phosphor-svelte/lib/X";
-  import { viewerState } from "../state/viewer.svelte";
+  import { VIEWER_STATE_KEY, type ViewerState } from "../state/viewer.svelte";
 
+  const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+  
   let { canvases } = $props();
 
   let position = $state({ x: 20, y: 100 });

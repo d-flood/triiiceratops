@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from "svelte";
   import ChatCenteredText from "phosphor-svelte/lib/ChatCenteredText";
   import CornersIn from "phosphor-svelte/lib/CornersIn";
   import CornersOut from "phosphor-svelte/lib/CornersOut";
@@ -6,7 +7,9 @@
   import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
   import Plus from "phosphor-svelte/lib/Plus";
   import Slideshow from "phosphor-svelte/lib/Slideshow";
-  import { viewerState } from "../state/viewer.svelte";
+  import { VIEWER_STATE_KEY, type ViewerState } from "../state/viewer.svelte";
+
+  const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 </script>
 
 <div
