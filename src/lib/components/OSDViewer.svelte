@@ -93,7 +93,6 @@
         },
       };
 
-      console.log("Created annotation:", newAnnotation);
       viewerState.addAnnotation(newAnnotation, viewerState.canvasId!);
     });
 

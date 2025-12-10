@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Ensure all library components are scanned for class usage */
+@source "../src/lib/**/*.svelte";
+
 @plugin "daisyui" {
   themes:
     light --default,

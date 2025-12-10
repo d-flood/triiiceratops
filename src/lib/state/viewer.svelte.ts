@@ -223,7 +223,6 @@ export class ViewerState {
       const serviceId = service.id || service["@id"];
 
       const searchUrl = `${serviceId}?q=${encodeURIComponent(query)}`;
-      console.log("Searching:", searchUrl);
 
       const response = await fetch(searchUrl);
       if (!response.ok) throw new Error("Search request failed");
@@ -372,5 +371,5 @@ export class ViewerState {
   }
 }
 
-// Create a singleton instance, though we could also instantiate it in App or TriiiceratopsViewer
-export const viewerState = new ViewerState();
+// Context key for providing/injecting ViewerState in components
+export const VIEWER_STATE_KEY = "triiiceratops:viewerState";
