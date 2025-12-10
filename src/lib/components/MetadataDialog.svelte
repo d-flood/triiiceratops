@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { viewerState } from "../state/viewer.svelte";
-  import { manifestsState } from "../state/manifests.svelte";
+  import { getContext } from "svelte";
+  import { VIEWER_STATE_KEY, type ViewerState } from "../state/viewer.svelte";
+
+  const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
   let manifest = $derived(viewerState.manifest);
 

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { viewerState } from "../state/viewer.svelte";
+  import { setContext } from "svelte";
+  import { ViewerState, VIEWER_STATE_KEY } from "../state/viewer.svelte";
   import OSDViewer from "./OSDViewer.svelte";
   import CanvasNavigation from "./CanvasNavigation.svelte";
   import AnnotationOverlay from "./AnnotationOverlay.svelte";
@@ -9,6 +10,10 @@
   import SearchPanel from "./SearchPanel.svelte";
 
   let { manifestId } = $props();
+
+  // Create per-instance viewer state
+  const viewerState = new ViewerState();
+  setContext(VIEWER_STATE_KEY, viewerState);
 
   $effect(() => {
     if (manifestId) {
@@ -31,10 +36,6 @@
   let currentCanvasIndex = $derived(viewerState.currentCanvasIndex);
 
   let tileSources = $derived.by(() => {
-    console.log("TriiiceratopsViewer: calculating tileSources");
-    console.log("TriiiceratopsViewer: canvases", canvases);
-    console.log("TriiiceratopsViewer: currentCanvasIndex", currentCanvasIndex);
-
     if (
       !canvases ||
       currentCanvasIndex === -1 ||
@@ -45,7 +46,6 @@
     }
 
     const canvas = canvases[currentCanvasIndex];
-    console.log("TriiiceratopsViewer: canvas", canvas);
 
     // Use Manifesto to get images
     // canvas is a Manifesto Canvas object
@@ -69,7 +69,6 @@
       if (id && !id.endsWith("/info.json")) {
         id = `${id}/info.json`;
       }
-      console.log("TriiiceratopsViewer: Found service ID", id);
       return id;
     }
 
@@ -80,7 +79,6 @@
       if (id && !id.endsWith("/info.json")) {
         id = `${id}/info.json`;
       }
-      console.log("TriiiceratopsViewer: Found service ID from list", id);
       return id;
     }
 
@@ -96,7 +94,6 @@
       );
       if (regionIndex > 0) {
         const base = parts.slice(0, regionIndex).join("/");
-        console.log("TriiiceratopsViewer: Inferred service ID from URL", base);
         return `${base}/info.json`;
       }
     }
