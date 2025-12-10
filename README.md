@@ -1,113 +1,76 @@
 # Triiiceratops IIIF Viewer
 
-A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. Supports IIIF Presentation API v2 and v3.
+A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is distributed as a web component that can be dropped into any HTML page or frontend framework.
+
+This is a work in progress and does not support all client IIIF features.
 
 ## Features
 
-- 🖼️ Deep zoom support via OpenSeadragon
-- 📚 Multi-canvas navigation
-- 🔍 Content selection and search
-- 🖼️ Thumbnail gallery
-- 📝 Annotation display and creation (using Annotorious)
-- 🌓 Light/Dark mode support (via system/theme)
-- 📦 Web Component and Svelte Library distribution
+- Explore all canvases in a manfifest in a flexible thumbnail gallery that can be a floating window or docked to any of the four sides of the viewer.
+- Handles IIIF annotations.
+- Theme support with Tailwind CSS and DaisyUI.
+- IIIF Search support.
 
-## Installation & Usage
+## Current Limitations (but actively working on supporting)
 
-### Via CDN (Web Component)
+- Does not fully support multiple images per canvas.
+- Does not support IIIF collection navigation.
+- Other IIIF client features are missing.
+- IIIF Annotation Creation is not supported.
 
-Use the viewer as a custom element in any HTML page - no build tools required:
+## Usage
+
+### Web Component
+
+The viewer is available as a web component that works in any framework or static HTML.
+
+**Via CDN:**
 
 ```html
-<!-- Load the custom element -->
 <script type="module" src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/triiiceratops/dist/triiiceratops-element.css">
 
-<!-- Use it anywhere in your HTML -->
-<triiiceratops-viewer 
-  manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
-  style="width: 100%; height: 600px;">
-</triiiceratops-viewer>
+<div style="height: 600px; width: 100%;">
+  <triiiceratops-viewer style="height: 100%; width: 100%; display: block;"
+    manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723">
+  </triiiceratops-viewer>
+</div>
 ```
 
-Alternative CDN URLs:
-- jsDelivr: `https://cdn.jsdelivr.net/npm/triiiceratops/dist/triiiceratops-element.js`
-- unpkg: `https://unpkg.com/triiiceratops/dist/triiiceratops-element.js`
+### Svelte Component
 
-For non-module browsers, use the IIFE build:
-```html
-<script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
-```
+If you are using Svelte, you can import the component directly.
 
-### NPM - Svelte Projects
+**Installation:**
 
 ```bash
-npm install triiiceratops openseadragon manifesto.js
+pnpm add triiiceratops
 ```
+
+**Usage:**
 
 ```svelte
 <script>
   import { TriiiceratopsViewer } from 'triiiceratops';
 </script>
 
-<div style="width: 100%; height: 600px;">
+<!-- Container must have height -->
+<div style="height: 600px;">
   <TriiiceratopsViewer 
     manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723" 
   />
 </div>
 ```
 
-### NPM - Other Frameworks (React, Vue, etc.)
-
-```bash
-npm install triiiceratops
-```
-
-```js
-// Import once to register the custom element
-import 'triiiceratops/element';
-```
-
-```html
-<!-- Then use in your templates -->
-<triiiceratops-viewer 
-  manifest-id="https://example.com/manifest.json">
-</triiiceratops-viewer>
-```
-
-## Demo
-
-To run the demo locally:
-
-```bash
-pnpm install
-pnpm dev
-```
-
-To build the demo:
-
-```bash
-pnpm build:demo
-```
-
-The output will be in `docs/demo/`.
-
 ## Development
 
 ```bash
-# Install dependencies
 pnpm install
 
-# Run development server
-pnpm dev
-
-# Build library
-pnpm build:lib
-
-# Build custom element
-pnpm build:element
-
-# Run tests
-pnpm test
+pnpm dev           # Start local demo server
+pnpm build:all     # Build library, web component, and demo
+pnpm test          # Run unit tests
+pnpm test:e2e      # Run end-to-end tests
 ```
 
 ## License

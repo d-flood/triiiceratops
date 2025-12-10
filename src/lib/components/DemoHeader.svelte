@@ -12,7 +12,7 @@
 </script>
 
 <header class="p-4 bg-base-200 flex gap-4 items-center shrink-0">
-    <a href="/triicceratops/" class="btn btn-outline btn-primary">Docs</a>
+    <a href="/triiiceratops/" class="btn btn-outline btn-primary">Docs</a>
     <label
         for="manifest-input"
         class="text-base-content text-sm whitespace-nowrap"
