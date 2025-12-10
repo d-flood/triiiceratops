@@ -1,6 +1,10 @@
 {
     "$schema": "https://inlang.com/schema/project-settings",
+    "sourceLanguageTag": "en",
     "baseLocale": "en",
+    "languageTags": [
+        "en"
+    ],
     "locales": [
         "en"
     ],
@@ -10,5 +14,8 @@
         "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-missing-translation@latest/dist/index.js",
         "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-without-source@latest/dist/index.js",
         "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js"
-    ]
+    ],
+    "plugin.inlang.messageFormat": {
+        "pathPattern": "./messages/{languageTag}.json"
+    }
 }

@@ -1,5 +1,5 @@
 <script>
-  import MiradorViewer from "./lib/components/MiradorViewer.svelte";
+  import TriiiceratopsViewer from "./lib/components/TriiiceratopsViewer.svelte";
   import ThemeToggle from "./lib/components/ThemeToggle.svelte";
 </script>
 
@@ -13,7 +13,7 @@
   <div
     class="flex-1 bg-base-100 rounded-2xl shadow-2xl overflow-hidden border border-base-content/10 relative isolate"
   >
-    <MiradorViewer
+    <TriiiceratopsViewer
       manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
     />
   </div>

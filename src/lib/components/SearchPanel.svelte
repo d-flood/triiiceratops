@@ -1,8 +1,7 @@
 <script lang="ts">
+  import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
   import { viewerState } from "../state/viewer.svelte";
 
-  // Local state for the input so we don't trigger searches on every keystroke if we were autosaving
-  // But here we trigger on button/enter, so simple binding is fine.
   // We'll initialize from viewerState to preserve context.
   let query = $state(viewerState.searchQuery);
 
@@ -19,15 +18,6 @@
   function navigate(result: any) {
     const canvas = viewerState.canvases[result.canvasIndex];
     if (canvas) {
-      // Always reset targetBounds first to ensure effect triggers if bounds changed
-      // Actually, if we set targetBounds, LeafletViewer should react to it.
-      // We might need to ensure it's not null if provided.
-      if (result.bounds) {
-        viewerState.targetBounds = result.bounds;
-      } else {
-        viewerState.targetBounds = null;
-      }
-
       viewerState.canvasId = canvas.id;
     }
   }
@@ -35,10 +25,6 @@
 
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <!-- Backdrop for mobile closing? Optional. -->
-
   <div
     class="absolute top-0 right-0 h-full w-80 bg-base-200 shadow-2xl z-1000 transform transition-transform duration-300 flex flex-col border-l border-base-300"
     role="dialog"
@@ -72,20 +58,7 @@
           {#if viewerState.isSearching}
             <span class="loading loading-spinner loading-xs"></span>
           {:else}
-            <!-- Search Icon -->
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              /></svg
-            >
+            <MagnifyingGlass size={20} weight="bold" />
           {/if}
         </button>
       </div>
