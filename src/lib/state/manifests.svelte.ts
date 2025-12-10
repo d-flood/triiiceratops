@@ -10,44 +10,34 @@ interface ManifestEntry {
 export class ManifestsState {
   manifests: Record<string, ManifestEntry> = $state({});
 
-  constructor() {
-    console.log("ManifestsState: manifesto module:", manifesto);
-  }
+  constructor() {}
 
   async fetchManifest(manifestId: string) {
-    console.log("ManifestsState: fetchManifest called for", manifestId);
     if (this.manifests[manifestId]) {
-      console.log("ManifestsState: already has manifest", manifestId);
       return; // Already fetched or fetching
     }
 
     this.manifests[manifestId] = { isFetching: true };
 
     try {
-      console.log("ManifestsState: fetching...", manifestId);
       const response = await fetch(manifestId);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const json = await response.json();
-      console.log("ManifestsState: fetched json", json);
       const manifestoObject = manifesto.parseManifest(json);
-      console.log("ManifestsState: parsed manifesto", manifestoObject);
       this.manifests[manifestId] = {
         json,
         manifesto: manifestoObject,
         isFetching: false,
       };
-      console.log("ManifestsState: set manifest in object");
     } catch (error: any) {
-      console.error("Error fetching manifest:", error);
       this.manifests[manifestId] = { error: error.message, isFetching: false };
     }
   }
 
   getManifest(manifestId: string) {
     const entry = this.manifests[manifestId];
-    // console.log('ManifestsState: getManifest', manifestId, entry);
     return entry?.manifesto;
   }
 
@@ -68,22 +58,17 @@ export class ManifestsState {
   }
 
   getCanvases(manifestId: string) {
-    console.log("ManifestsState: getCanvases", manifestId);
     const m = this.getManifest(manifestId);
     if (!m) {
-      console.log("ManifestsState: no manifest found for getCanvases");
       return [];
     }
     const sequences = m.getSequences();
-    console.log("ManifestsState: sequences", sequences);
     if (!sequences || !sequences.length) return [];
     const canvases = sequences[0].getCanvases();
-    console.log("ManifestsState: canvases from manifesto", canvases);
     return canvases;
   }
 
   getAnnotations(manifestId: string, canvasId: string) {
-    console.log("ManifestsState: getAnnotations called", manifestId, canvasId);
     const m = this.getManifest(manifestId);
     if (!m) return [];
 
@@ -91,7 +76,6 @@ export class ManifestsState {
     if (!canvas) return [];
 
     const annos = this.manualGetAnnotations(manifestId, canvasId);
-    console.log("ManifestsState: returning annotations", annos);
     return annos;
   }
 
@@ -128,10 +112,6 @@ export class ManifestsState {
               annotations.push(...parsed);
             }
           } else {
-            console.log(
-              "ManifestsState: fetching external annotation list",
-              id
-            );
             this.fetchAnnotationList(id);
           }
         } else if (content.resources) {

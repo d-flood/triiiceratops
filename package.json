@@ -1,11 +1,43 @@
 {
   "name": "triiiceratops",
-  "private": true,
-  "version": "0.0.0",
+  "private": false,
+  "version": "0.1.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/triiiceratops.js",
+  "module": "./dist/triiiceratops.js",
+  "svelte": "./dist/triiiceratops.js",
+  "types": "./dist/src/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/lib/index.d.ts",
+      "svelte": "./dist/triiiceratops.js",
+      "import": "./dist/triiiceratops.js"
+    },
+    "./element": {
+      "import": "./dist/triiiceratops-element.js"
+    },
+    "./element.iife": "./dist/triiiceratops-element.iife.js"
+  },
+  "peerDependencies": {
+    "svelte": "^5.0.0",
+    "openseadragon": "^5.0.0",
+    "manifesto.js": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "svelte": {
+      "optional": true
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:lib": "vite build --config vite.config.lib.ts",
+    "build:element": "vite build --config vite.config.element.ts",
+    "build:demo": "vite build --config vite.config.demo.ts",
+    "build:all": "pnpm build:lib && pnpm build:element && pnpm build:demo",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "vitest",
@@ -25,6 +57,7 @@
     "svelte-check": "^4.3.4",
     "typescript": "~5.9.3",
     "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.0.15"
   },
   "dependencies": {

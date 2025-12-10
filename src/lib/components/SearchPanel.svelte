@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { getContext } from "svelte";
   import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
-  import { viewerState } from "../state/viewer.svelte";
+  import { VIEWER_STATE_KEY, type ViewerState } from "../state/viewer.svelte";
+
+  const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
   // We'll initialize from viewerState to preserve context.
   let query = $state(viewerState.searchQuery);

@@ -1,6 +1,8 @@
-<script>
-    import DemoHeader from './lib/components/DemoHeader.svelte';
-    import TriiiceratopsViewer from './lib/components/TriiiceratopsViewer.svelte';
+<script lang="ts">
+    // Import the custom element to register it
+    import '../lib/custom-element';
+
+    import DemoHeader from '../lib/components/DemoHeader.svelte';
 
     let manifestUrl = $state(
         'https://iiif.wellcomecollection.org/presentation/v2/b18035723',
@@ -21,9 +23,18 @@
     <!-- Viewer -->
     <main class="flex-1 relative min-h-0 py-16 px-32">
         <div
-            class="h-full w-full rounded-box overflow-hidden border border-primary/20 shadow-xl"
+            class="h-full w-full rounded-box overflow-hidden border border-base-content/10 shadow-xl"
         >
-            <TriiiceratopsViewer manifestId={currentManifest} />
+            <triiiceratops-viewer manifest-id={currentManifest}
+            ></triiiceratops-viewer>
         </div>
     </main>
 </div>
+
+<style>
+    triiiceratops-viewer {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+</style>

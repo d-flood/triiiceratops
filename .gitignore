@@ -94,3 +94,10 @@ test-results/
 
 # Storybook
 storybook-static/
+
+
+# docs
+.venv/
+__pycache__
+site/
+docs/demo
