@@ -2,165 +2,83 @@
 icon: lucide/rocket
 ---
 
-# Get started
+# Triiiceratops IIIF Viewer
 
-For full documentation visit [zensical.org](https://zensical.org/docs/).
+A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is distributed as a web component that can be dropped into any HTML page or frontend framework.
 
-## Commands
+[**View Live Demo**](./demo/index.html)
 
-* [`zensical new`][new] - Create a new project
-* [`zensical serve`][serve] - Start local web server
-* [`zensical build`][build] - Build your site
+## Features
 
-  [new]: https://zensical.org/docs/usage/new/
-  [serve]: https://zensical.org/docs/usage/preview/
-  [build]: https://zensical.org/docs/usage/build/
+- **Flexible Gallery**: Explore all canvases in a manfifest in a flexible thumbnail gallery that can be a floating window or docked to any of the four sides of the viewer.
+- **Annotations**: Handles IIIF annotations.
+- **Theming**: Theme support with Tailwind CSS and DaisyUI.
+- **Search**: IIIF Search support.
 
-## Examples
+## Current Limitations
 
-### Admonitions
+!!! warning "Work in Progress"
+    This project is a work in progress and does not support all client IIIF features.
 
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/)
+- Does not fully support multiple images per canvas.
+- Does not support IIIF collection navigation.
+- IIIF Annotation Creation is not supported.
 
-!!! note
+## Usage
 
-    This is a **note** admonition. Use it to provide helpful information.
+### Web Component
 
-!!! warning
+The viewer is available as a web component that works in any framework or static HTML.
 
-    This is a **warning** admonition. Be careful!
+**Via CDN:**
 
-### Details
+```html
+<script type="module" src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/triiiceratops/dist/triiiceratops-element.css">
 
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/#collapsible-blocks)
-
-??? info "Click to expand for more info"
-    
-    This content is hidden until you click to expand it.
-    Great for FAQs or long explanations.
-
-## Code Blocks
-
-> Go to [documentation](https://zensical.org/docs/authoring/code-blocks/)
-
-``` python hl_lines="2" title="Code blocks"
-def greet(name):
-    print(f"Hello, {name}!") # (1)!
-
-greet("Python")
+<div style="height: 600px; width: 100%;">
+  <triiiceratops-viewer style="height: 100%; width: 100%; display: block;"
+    manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723">
+  </triiiceratops-viewer>
+</div>
 ```
 
-1.  > Go to [documentation](https://zensical.org/docs/authoring/code-blocks/#code-annotations)
+### Svelte Component
 
-    Code annotations allow to attach notes to lines of code.
+If you are using Svelte, you can import the component directly.
 
-Code can also be highlighted inline: `#!python print("Hello, Python!")`.
+**Installation:**
 
-## Content tabs
-
-> Go to [documentation](https://zensical.org/docs/authoring/content-tabs/)
-
-=== "Python"
-
-    ``` python
-    print("Hello from Python!")
-    ```
-
-=== "Rust"
-
-    ``` rs
-    println!("Hello from Rust!");
-    ```
-
-## Diagrams
-
-> Go to [documentation](https://zensical.org/docs/authoring/diagrams/)
-
-``` mermaid
-graph LR
-  A[Start] --> B{Error?};
-  B -->|Yes| C[Hmm...];
-  C --> D[Debug];
-  D --> B;
-  B ---->|No| E[Yay!];
+```bash
+pnpm add triiiceratops
 ```
 
-## Footnotes
+**Usage:**
 
-> Go to [documentation](https://zensical.org/docs/authoring/footnotes/)
-
-Here's a sentence with a footnote.[^1]
-
-Hover it, to see a tooltip.
-
-[^1]: This is the footnote.
-
-
-## Formatting
-
-> Go to [documentation](https://zensical.org/docs/authoring/formatting/)
-
-- ==This was marked (highlight)==
-- ^^This was inserted (underline)^^
-- ~~This was deleted (strikethrough)~~
-- H~2~O
-- A^T^A
-- ++ctrl+alt+del++
-
-## Icons, Emojis
-
-> Go to [documentation](https://zensical.org/docs/authoring/icons-emojis/)
-
-* :sparkles: `:sparkles:`
-* :rocket: `:rocket:`
-* :tada: `:tada:`
-* :memo: `:memo:`
-* :eyes: `:eyes:`
-
-## Maths
-
-> Go to [documentation](https://zensical.org/docs/authoring/math/)
-
-$$
-\cos x=\sum_{k=0}^{\infty}\frac{(-1)^k}{(2k)!}x^{2k}
-$$
-
-!!! warning "Needs configuration"
-    Note that MathJax is included via a `script` tag on this page and is not
-    configured in the generated default configuration to avoid including it
-    in a pages that do not need it. See the documentation for details on how
-    to configure it on all your pages if they are more Maths-heavy than these
-    simple starter pages.
-
-<script id="MathJax-script" async src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+```svelte
 <script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [["\\(", "\\)"]],
-      displayMath: [["\\[", "\\]"]],
-      processEscapes: true,
-      processEnvironments: true
-    },
-    options: {
-      ignoreHtmlClass: ".*|",
-      processHtmlClass: "arithmatex"
-    }
-  };
+  import { TriiiceratopsViewer } from 'triiiceratops';
 </script>
 
-## Task Lists
+<!-- Container must have height -->
+<div style="height: 600px;">
+  <TriiiceratopsViewer 
+    manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723" 
+  />
+</div>
+```
 
-> Go to [documentation](https://zensical.org/docs/authoring/lists/#using-task-lists)
+## Development
 
-* [x] Install Zensical
-* [x] Configure `zensical.toml`
-* [x] Write amazing documentation
-* [ ] Deploy anywhere
+```bash
+pnpm install
 
-## Tooltips
+pnpm dev           # Start local demo server
+pnpm build:all     # Build library, web component, and demo
+pnpm test          # Run unit tests
+pnpm test:e2e      # Run end-to-end tests
+```
 
-> Go to [documentation](https://zensical.org/docs/authoring/tooltips/)
+## License
 
-[Hover me][example]
-
-  [example]: https://example.com "I'm a tooltip!"
+MIT
