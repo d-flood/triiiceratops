@@ -12,10 +12,6 @@ export class ViewerState {
   dockSide = $state("none");
   visibleAnnotationIds = $state(new Set<string>());
 
-  // User-created annotations
-  createdAnnotations = $state<Record<string, any[]>>({});
-  isCreatingAnnotation = $state(false);
-
   constructor(initialManifestId?: string | null) {
     this.manifestId = initialManifestId || null;
     // Fetch manifest immediately
@@ -87,57 +83,6 @@ export class ViewerState {
 
   setCanvas(canvasId: string) {
     this.canvasId = canvasId;
-    this.loadAnnotationsFromStorage(canvasId);
-  }
-
-  toggleCreationMode(enable?: boolean) {
-    if (typeof enable === "boolean") {
-      this.isCreatingAnnotation = enable;
-    } else {
-      this.isCreatingAnnotation = !this.isCreatingAnnotation;
-    }
-  }
-
-  loadAnnotationsFromStorage(canvasId: string) {
-    // Run in browser only
-    if (typeof localStorage === "undefined") return;
-
-    const key = `triiiceratops-annotations-${canvasId}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          this.createdAnnotations[canvasId] = parsed;
-        }
-      } catch (e) {
-        console.error("Failed to parse stored annotations", e);
-      }
-    }
-  }
-
-  addAnnotation(annotation: any, canvasId: string) {
-    if (!canvasId) return;
-
-    // Ensure array exists
-    if (!this.createdAnnotations[canvasId]) {
-      this.createdAnnotations[canvasId] = [];
-    }
-
-    // Add to state
-    this.createdAnnotations[canvasId] = [
-      ...this.createdAnnotations[canvasId],
-      annotation,
-    ];
-
-    // Persist
-    if (typeof localStorage !== "undefined") {
-      const key = `triiiceratops-annotations-${canvasId}`;
-      localStorage.setItem(
-        key,
-        JSON.stringify(this.createdAnnotations[canvasId])
-      );
-    }
   }
 
   toggleAnnotations() {

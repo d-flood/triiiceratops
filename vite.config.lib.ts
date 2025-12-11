@@ -30,7 +30,6 @@ export default defineConfig({
         /^svelte\//,
         "openseadragon",
         "manifesto.js",
-        /^@annotorious/,
         /^phosphor-svelte/,
         "@tailwindcss/vite",
         "daisyui",
