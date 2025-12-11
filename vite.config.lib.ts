@@ -3,11 +3,16 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import dts from "vite-plugin-dts";
+import { paraglide } from "@inlang/paraglide-vite";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
+    paraglide({
+      project: "./project.inlang",
+      outdir: "./src/lib/paraglide",
+    }),
     svelte(),
     dts({
       include: ["src/lib"],
