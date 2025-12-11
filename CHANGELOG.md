@@ -1,5 +1,12 @@
 # triiiceratops
 
+## 0.3.3
+
+### Patch Changes
+
+- 61d4461: Update CI/CD to publish in a single PR rather than opening a second for the version bump.
+- 2d79871: Fix thumbnail fetching for level 0 resources
+
 ## 0.3.0
 
 ### Minor Changes
