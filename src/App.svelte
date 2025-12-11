@@ -18,6 +18,10 @@
     <!-- Header with input -->
     <DemoHeader bind:manifestUrl onLoad={loadManifest} />
 
+    <h1 class="text-3xl font-bold text-center pt-8">
+        Triiiceratops IIIF Viewer Demo
+    </h1>
+
     <!-- Viewer -->
     <main class="flex-1 relative min-h-0 py-16 px-32">
         <div

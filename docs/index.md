@@ -6,7 +6,7 @@ icon: lucide/rocket
 
 A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is distributed as a web component that can be dropped into any HTML page or frontend framework.
 
-[**View Live Demo** :lucide-external-link:](./demo/index.html){ .md-button .md-button--primary }
+[**View Live Demo**](./demo/index.html){ .md-button .md-button--primary }
 
 ## Features
 
@@ -14,6 +14,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 - **Annotations**: Handles IIIF annotatios.
 - **Theming**: Theme support with Tailwind CSS and DaisyUI.
 - **Search**: IIIF Search support.
+- **i18n**: Internationalization support with Paraglide. Translations are provided for English and German (so far).
 
 ## Current Limitations
 
