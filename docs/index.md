@@ -10,6 +10,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
 ## Features
 
+- Compatible with IIIF presentation API versions 2–3
 - **Flexible Gallery**: Explore all canvases in a manfifest in a flexible thumbnail gallery that can be a floating window or docked to any of the four sides of the viewer.
 - **Annotations**: Handles IIIF annotatios.
 - **Theming**: Theme support with Tailwind CSS and DaisyUI.
