@@ -1,22 +1,25 @@
 # Triiiceratops IIIF Viewer
 
-A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is distributed as a web component that can be dropped into any HTML page or frontend framework.
+A modern IIIF viewer with a small footprint (despite the name) distributed as a web component that can be dropped into any HTML page or frontend framework.
 
-This is a work in progress and does not support all client IIIF features.
+This is a work in progress and does not support all required IIIF client features (_yet_).
+
+This project is heavily inspired by Mirador 4, which I still view as the premier IIIF viewer.
 
 ## Features
 
 - Explore all canvases in a manfifest in a flexible thumbnail gallery that can be a floating window or docked to any of the four sides of the viewer.
-- Handles IIIF annotations.
-- Theme support with Tailwind CSS and DaisyUI.
+- Renders IIIF annotations.
+- Flexible theme support using Tailwind CSS and DaisyUI.
 - IIIF Search support.
 
 ## Current Limitations (but actively working on supporting)
 
-- Does not fully support multiple images per canvas.
+- Does not fully support multiple images per canvas (either multiple images in the same canvas or the `choice` property).
 - Does not support IIIF collection navigation.
 - Other IIIF client features are missing.
-- IIIF Annotation Creation is not supported.
+
+The goal is to support all IIIF client mandatory features with pluggable optional features. The footprint of Triiiceratops, despite the name, is intended to remain considerably small than other fully featured viewers while attaining feature parity.
 
 ## Usage
 
