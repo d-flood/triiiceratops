@@ -4,12 +4,8 @@
 
     import DemoHeader from '../lib/components/DemoHeader.svelte';
 
-    let manifestUrl = $state(
-        'https://iiif.wellcomecollection.org/presentation/v2/b18035723',
-    );
-    let currentManifest = $state(
-        'https://iiif.wellcomecollection.org/presentation/v2/b18035723',
-    );
+    let manifestUrl = $state('');
+    let currentManifest = $state('');
 
     function loadManifest() {
         currentManifest = manifestUrl;
