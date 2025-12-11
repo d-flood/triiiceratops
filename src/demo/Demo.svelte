@@ -21,7 +21,7 @@
     <DemoHeader bind:manifestUrl onLoad={loadManifest} />
 
     <!-- Viewer -->
-    <main class="flex-1 relative min-h-0 py-16 px-32">
+    <main class="flex-1 relative min-h-0 p-2 lg:py-16 lg:px-32">
         <div
             class="h-full w-full rounded-box overflow-hidden border border-base-content/10 shadow-xl"
         >
