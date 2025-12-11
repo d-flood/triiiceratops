@@ -6,12 +6,12 @@ icon: lucide/rocket
 
 A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is distributed as a web component that can be dropped into any HTML page or frontend framework.
 
-[**View Live Demo**](./demo/index.html)
+[**View Live Demo** :lucide-external-link:](./demo/index.html){ .md-button .md-button--primary }
 
 ## Features
 
 - **Flexible Gallery**: Explore all canvases in a manfifest in a flexible thumbnail gallery that can be a floating window or docked to any of the four sides of the viewer.
-- **Annotations**: Handles IIIF annotations.
+- **Annotations**: Handles IIIF annotatios.
 - **Theming**: Theme support with Tailwind CSS and DaisyUI.
 - **Search**: IIIF Search support.
 
@@ -55,7 +55,7 @@ pnpm add triiiceratops
 
 **Usage:**
 
-```svelte
+```html
 <script>
   import { TriiiceratopsViewer } from 'triiiceratops';
 </script>
