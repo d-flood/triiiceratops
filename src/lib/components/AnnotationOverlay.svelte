@@ -85,13 +85,6 @@
     }
   }
 
-  interface RenderedAnnotation {
-    id: string;
-    content: string;
-    isHtml: boolean;
-    label: string;
-  }
-
   // Cleaned up renderedAnnotations just for the List UI (no rect/geo data needed)
   let renderedAnnotations = $derived.by(() => {
     if (!annotations.length) return [];
@@ -259,7 +252,7 @@
           </button>
         {:else}
           <div class="p-4 text-center opacity-50 text-sm">
-            No annotations yet. Click the pencil to draw.
+            No annotations available.
           </div>
         {/each}
       </div>

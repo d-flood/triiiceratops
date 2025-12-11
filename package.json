@@ -1,7 +1,7 @@
 {
   "name": "triiiceratops",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "files": [
     "dist"
@@ -61,8 +61,6 @@
     "vitest": "^4.0.15"
   },
   "dependencies": {
-    "@annotorious/annotorious": "^3.7.19",
-    "@annotorious/openseadragon": "^3.7.19",
     "@tailwindcss/vite": "^4.1.17",
     "daisyui": "^5.5.8",
     "manifesto.js": "^4.3.0",

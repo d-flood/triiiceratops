@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import OpenSeadragon from "openseadragon";
-  import { createOSDAnnotator } from "@annotorious/openseadragon";
-  import "@annotorious/openseadragon/annotorious-openseadragon.css";
-  import { convertAnnotations } from "../utils/annotationAdapter";
+  import { parseAnnotations } from "../utils/annotationAdapter";
   import { manifestsState } from "../state/manifests.svelte";
   import type { ViewerState } from "../state/viewer.svelte";
 
@@ -15,11 +13,9 @@
 
   let container: HTMLElement | undefined = $state();
   let viewer: any | undefined = $state();
-  let anno: ReturnType<typeof createOSDAnnotator> | undefined = $state();
 
-  // Tooltip state
-  let hoveredAnnotation: any = $state(null);
-  let tooltipPos = $state({ x: 0, y: 0 });
+  // Track OSD state changes for reactivity
+  let osdVersion = $state(0);
 
   // Get all annotations for current canvas (manifest + search)
   let allAnnotations = $derived.by(() => {
@@ -31,10 +27,7 @@
       viewerState.canvasId
     );
     const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
-    // User created annotations
-    const userAnnotations =
-      viewerState.createdAnnotations[viewerState.canvasId] || [];
-    return [...manifestAnnotations, ...searchAnnotations, ...userAnnotations];
+    return [...manifestAnnotations, ...searchAnnotations];
   });
 
   // Get search hit IDs for styling
@@ -44,13 +37,111 @@
       const id = anno.id || anno["@id"];
       if (id) ids.add(id);
     });
-    // Also track user annotations? Not needed for searching styling but safe to keep separate.
     return ids;
   });
 
-  // Convert to Annotorious format
-  let annotoriousAnnotations = $derived.by(() => {
-    return convertAnnotations(allAnnotations, searchHitIds);
+  // Parse annotations
+  let parsedAnnotations = $derived.by(() => {
+    return parseAnnotations(allAnnotations, searchHitIds);
+  });
+
+  // Rendered annotations with pixel coordinates
+  let renderedAnnotations = $derived.by(() => {
+    // Depend on osdVersion to trigger updates
+    osdVersion;
+
+    if (!viewer || !parsedAnnotations.length) {
+      return [];
+    }
+
+    const tiledImage = viewer.world.getItemAt(0);
+    if (!tiledImage) {
+      return [];
+    }
+
+    const results: any[] = [];
+
+    for (const anno of parsedAnnotations) {
+      // Filter based on visibility
+      if (anno.isSearchHit) {
+        // Search hits are always visible
+      } else if (!viewerState.showAnnotations) {
+        continue;
+      } else if (!viewerState.visibleAnnotationIds.has(anno.id)) {
+        continue;
+      }
+
+      if (anno.geometry.type === "RECTANGLE") {
+        // Convert image coordinates to viewport coordinates
+        const viewportRect = tiledImage.imageToViewportRectangle(
+          anno.geometry.x,
+          anno.geometry.y,
+          anno.geometry.w,
+          anno.geometry.h
+        );
+
+        // Convert viewport to pixel coordinates
+        const pixelRect =
+          viewer.viewport.viewportToViewerElementRectangle(viewportRect);
+
+        results.push({
+          id: anno.id,
+          type: "RECTANGLE" as const,
+          rect: {
+            x: pixelRect.x,
+            y: pixelRect.y,
+            width: pixelRect.width,
+            height: pixelRect.height,
+          },
+          isSearchHit: anno.isSearchHit,
+          tooltip: anno.body.value,
+        });
+      } else if (anno.geometry.type === "POLYGON") {
+        // Convert each point from image to viewport to pixel
+        const pixelPoints = anno.geometry.points.map((point) => {
+          const viewportPoint = tiledImage.imageToViewportCoordinates(
+            new OpenSeadragon.Point(point[0], point[1])
+          );
+          const pixelPoint =
+            viewer.viewport.viewportToViewerElementCoordinates(viewportPoint);
+          return [pixelPoint.x, pixelPoint.y];
+        });
+
+        // Calculate bounding box for SVG positioning
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        for (const [x, y] of pixelPoints) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+
+        // Adjust points relative to bounding box
+        const relativePoints = pixelPoints.map(([x, y]) => [
+          x - minX,
+          y - minY,
+        ]);
+
+        results.push({
+          id: anno.id,
+          type: "POLYGON" as const,
+          bounds: {
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+          },
+          points: relativePoints,
+          isSearchHit: anno.isSearchHit,
+          tooltip: anno.body.value,
+        });
+      }
+    }
+
+    return results;
   });
 
   onMount(() => {
@@ -72,66 +163,33 @@
       zoomPerClick: 2.0,
     });
 
-    // Initialize Annotorious
-    anno = createOSDAnnotator(viewer, {
-      drawingEnabled: false,
-      // @ts-ignore
-      readOnly: true,
-      // @ts-ignore
-      disableSelect: true, // We will manually manage selection if needed, or toggle this
-    });
+    return () => {
+      viewer?.destroy();
+    };
+  });
 
-    anno.on("createAnnotation", (annotation: any) => {
-      // Ensure it has required fields for IIIF/W3C
-      const newAnnotation = {
-        ...annotation,
-        id: annotation.id || crypto.randomUUID(), // Ensure ID
-        motivation: "commenting",
-        target: {
-          ...annotation.target,
-          source: viewerState.canvasId, // Enforce canvas ID
-        },
-      };
+  // Subscribe to OSD events for reactivity
+  $effect(() => {
+    if (!viewer) return;
 
-      viewerState.addAnnotation(newAnnotation, viewerState.canvasId!);
-    });
+    const update = () => {
+      osdVersion++;
+    };
 
-    // Make sure we load comments for this canvas
-    if (viewerState.canvasId) {
-      viewerState.loadAnnotationsFromStorage(viewerState.canvasId);
-    }
-
-    // Enforce read-only by immediately cancelling any selection
-    // This serves as a fallback for v3 where readOnly prop might behave differently
-    anno.on("selectionChanged", (selection) => {
-      if (selection && selection.length > 0 && anno) {
-        anno.cancelSelected();
-      }
-    });
-
-    // Hover events for tooltip
-    anno.on("mouseEnterAnnotation", (annotation) => {
-      hoveredAnnotation = annotation;
-    });
-
-    anno.on("mouseLeaveAnnotation", () => {
-      hoveredAnnotation = null;
-    });
-
-    // Track pointer position for tooltip
-    if (container) {
-      container.addEventListener("pointermove", (e) => {
-        const rect = container!.getBoundingClientRect();
-        tooltipPos = {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        };
-      });
-    }
+    viewer.addHandler("open", update);
+    viewer.addHandler("animation", update);
+    viewer.addHandler("resize", update);
+    viewer.addHandler("rotate", update);
+    viewer.world.addHandler("add-item", update);
+    viewer.world.addHandler("remove-item", update);
 
     return () => {
-      anno?.destroy();
-      viewer?.destroy();
+      viewer.removeHandler("open", update);
+      viewer.removeHandler("animation", update);
+      viewer.removeHandler("resize", update);
+      viewer.removeHandler("rotate", update);
+      viewer.world.removeHandler("add-item", update);
+      viewer.world.removeHandler("remove-item", update);
     };
   });
 
@@ -141,77 +199,6 @@
 
     viewer.open(tileSources);
   });
-
-  // Load annotations when they change
-  $effect(() => {
-    if (!anno) return;
-
-    anno.setAnnotations(annotoriousAnnotations);
-  });
-
-  // Dynamic styling: red for regular, yellow for search hits
-  $effect(() => {
-    if (!anno) return;
-
-    anno.setStyle((annotation) => {
-      const isSearchHit = annotation.bodies?.some(
-        (b) => b.purpose === "search-hit"
-      );
-      return {
-        fill: isSearchHit ? "#facc15" : "#ef4444",
-        fillOpacity: isSearchHit ? 0.4 : 0.2,
-        stroke: isSearchHit ? "#facc15" : "#ef4444",
-        strokeWidth: isSearchHit ? 1 : 2,
-      };
-    });
-  });
-
-  // Manage Drawing Mode
-  $effect(() => {
-    if (!anno) return;
-    anno.setDrawingEnabled(viewerState.isCreatingAnnotation);
-    if (viewerState.isCreatingAnnotation) {
-      anno.setDrawingTool("rect");
-    }
-  });
-
-  // Manage load on canvas change
-  $effect(() => {
-    if (viewerState.canvasId) {
-      viewerState.loadAnnotationsFromStorage(viewerState.canvasId);
-    }
-  });
-
-  // Filtering: show based on visibility state
-  $effect(() => {
-    if (!anno) return;
-
-    const showAnnotations = viewerState.showAnnotations;
-    const visibleIds = viewerState.visibleAnnotationIds;
-
-    anno.setFilter((annotation) => {
-      if (annotation.bodies?.some((b) => b.purpose === "search-hit")) {
-        return true;
-      }
-
-      if (!showAnnotations) {
-        return false;
-      }
-
-      return visibleIds.has(annotation.id);
-    });
-  });
-
-  // Helper to get annotation content for tooltip
-  function getAnnotationContent(annotation: any): string {
-    if (!annotation.bodies || annotation.bodies.length === 0) {
-      return "Annotation";
-    }
-
-    // Get first non-search-hit body
-    const body = annotation.bodies.find((b: any) => b.purpose === "commenting");
-    return body?.value || "Annotation";
-  }
 </script>
 
 <div class="w-full h-full relative">
@@ -220,13 +207,40 @@
     class="w-full h-full osd-background bg-base-100"
   ></div>
 
-  <!-- Hover Tooltip (Option A: positioned div) -->
-  {#if hoveredAnnotation && viewerState.showAnnotations}
-    <div
-      class="absolute bg-base-200 text-base-content px-3 py-2 rounded-lg shadow-lg text-sm max-w-xs pointer-events-none z-1000"
-      style="left: {tooltipPos.x + 15}px; top: {tooltipPos.y + 15}px;"
-    >
-      {getAnnotationContent(hoveredAnnotation)}
-    </div>
-  {/if}
+  <!-- Render annotations -->
+  {#each renderedAnnotations as anno (anno.id)}
+    {#if anno.type === "RECTANGLE"}
+      <div
+        class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
+          ? 'border-yellow-400 bg-yellow-400/40 hover:bg-yellow-400/60'
+          : 'border-red-500 bg-red-500/20 hover:bg-red-500/40'}"
+        style="
+          left: {anno.rect.x}px;
+          top: {anno.rect.y}px;
+          width: {anno.rect.width}px;
+          height: {anno.rect.height}px;
+        "
+        title={anno.tooltip}
+      ></div>
+    {:else if anno.type === "POLYGON"}
+      <svg
+        class="absolute pointer-events-auto"
+        style="
+          left: {anno.bounds.x}px;
+          top: {anno.bounds.y}px;
+          width: {anno.bounds.width}px;
+          height: {anno.bounds.height}px;
+        "
+      >
+        <title>{anno.tooltip}</title>
+        <polygon
+          points={anno.points.map((p: any) => p.join(",")).join(" ")}
+          class="cursor-pointer transition-colors {anno.isSearchHit
+            ? 'fill-yellow-400/40 stroke-yellow-400 hover:fill-yellow-400/60'
+            : 'fill-red-500/20 stroke-red-500 hover:fill-red-500/40'}"
+          stroke-width="2"
+        />
+      </svg>
+    {/if}
+  {/each}
 </div>

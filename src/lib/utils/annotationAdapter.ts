@@ -1,4 +1,25 @@
-import type { ImageAnnotation } from '@annotorious/annotorious';
+/**
+ * Parsed annotation interface for custom rendering
+ */
+export interface ParsedAnnotation {
+  id: string;
+  geometry: RectangleGeometry | PolygonGeometry;
+  body: { value: string; isHtml: boolean };
+  isSearchHit: boolean;
+}
+
+export interface RectangleGeometry {
+  type: 'RECTANGLE';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface PolygonGeometry {
+  type: 'POLYGON';
+  points: [number, number][];
+}
 
 /**
  * Helper to extract ID from annotation object
@@ -29,7 +50,7 @@ function parseXywh(targetStr: string): { x: number; y: number; w: number; h: num
 /**
  * Extract target geometry from various annotation formats
  */
-function extractGeometry(annotation: any): any {
+function extractGeometry(annotation: any): RectangleGeometry | PolygonGeometry | null {
   // Try to find SVG selector first
   const svgSelector = findSvgSelector(annotation);
   if (svgSelector) {
@@ -41,18 +62,10 @@ function extractGeometry(annotation: any): any {
   if (xywh) {
     return {
       type: 'RECTANGLE',
-      geometry: {
-        x: xywh.x,
-        y: xywh.y,
-        w: xywh.w,
-        h: xywh.h,
-        bounds: {
-          minX: xywh.x,
-          minY: xywh.y,
-          maxX: xywh.x + xywh.w,
-          maxY: xywh.y + xywh.h,
-        },
-      },
+      x: xywh.x,
+      y: xywh.y,
+      w: xywh.w,
+      h: xywh.h,
     };
   }
 
@@ -121,10 +134,10 @@ function extractSvgValue(target: any): string | null {
 }
 
 /**
- * Convert SVG string to Annotorious POLYGON geometry
+ * Convert SVG string to POLYGON geometry
  * Parses points from SVG path or polygon element
  */
-function convertSvgToPolygon(svgString: string): any {
+function convertSvgToPolygon(svgString: string): PolygonGeometry | null {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(svgString, 'image/svg+xml');
@@ -135,7 +148,6 @@ function convertSvgToPolygon(svgString: string): any {
     }
 
     const points: [number, number][] = [];
-    let bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
 
     // Extract points from polygon elements
     const polygons = doc.querySelectorAll('polygon');
@@ -167,24 +179,13 @@ function convertSvgToPolygon(svgString: string): any {
       points.push(...circlePoints);
     }
 
-    // Calculate bounds
-    for (const [x, y] of points) {
-      bounds.minX = Math.min(bounds.minX, x);
-      bounds.minY = Math.min(bounds.minY, y);
-      bounds.maxX = Math.max(bounds.maxX, x);
-      bounds.maxY = Math.max(bounds.maxY, y);
-    }
-
     if (points.length === 0) {
       return null;
     }
 
     return {
       type: 'POLYGON',
-      geometry: {
-        points,
-        bounds,
-      },
+      points,
     };
   } catch (e) {
     console.warn('Failed to convert SVG to polygon:', e);
@@ -307,25 +308,26 @@ function extractXywhFromRawTarget(target: any): { x: number; y: number; w: numbe
 /**
  * Extract annotation body content (text, label, etc)
  */
-function extractBody(annotation: any): any[] {
-  const bodies: any[] = [];
+function extractBody(annotation: any): { value: string; isHtml: boolean } {
+  let value = '';
+  let isHtml = false;
 
   // Try Manifesto getBody method
   if (typeof annotation.getBody === 'function') {
     const body = annotation.getBody();
     if (body && Array.isArray(body)) {
+      const values: string[] = [];
       for (const b of body) {
-        const value = b.getValue ? b.getValue() : '';
-        const format = b.getFormat ? b.getFormat() : '';
-
-        if (value) {
-          bodies.push({
-            purpose: 'commenting',
-            value,
-            // Note: Don't include format, Annotorious doesn't track it
-          });
+        const val = b.getValue ? b.getValue() : '';
+        if (val) {
+          values.push(val);
+          const format = b.getFormat ? b.getFormat() : '';
+          if (format === 'text/html' || format === 'application/html') {
+            isHtml = true;
+          }
         }
       }
+      value = values.join(' ');
     }
   } else {
     // Handle raw JSON body/resource
@@ -334,55 +336,38 @@ function extractBody(annotation: any): any[] {
       return r.chars || r.value || r['cnt:chars'] || '';
     };
 
+    const checkHtml = (r: any) => {
+      if (!r) return false;
+      return r.format === 'text/html' || r.type === 'TextualBody';
+    };
+
     if (annotation.resource) {
       const resources = Array.isArray(annotation.resource) ? annotation.resource : [annotation.resource];
-      for (const r of resources) {
-        const text = getText(r);
-        if (text) {
-          bodies.push({
-            purpose: 'commenting',
-            value: text,
-          });
-        }
-      }
+      value = resources.map(getText).filter(Boolean).join(' ');
+      isHtml = resources.some(checkHtml);
     } else if (annotation.body) {
       const bodyArr = Array.isArray(annotation.body) ? annotation.body : [annotation.body];
-      for (const b of bodyArr) {
-        const text = getText(b);
-        if (text) {
-          bodies.push({
-            purpose: 'commenting',
-            value: text,
-          });
-        }
-      }
+      value = bodyArr.map(getText).filter(Boolean).join(' ');
+      isHtml = bodyArr.some(checkHtml);
     }
   }
 
   // Try to extract label if no body content found
-  if (bodies.length === 0) {
-    let label = '';
+  if (!value) {
     if (typeof annotation.getLabel === 'function') {
-      label = annotation.getLabel();
+      value = annotation.getLabel() || '';
     } else if (annotation.label) {
-      label = Array.isArray(annotation.label) ? annotation.label.join(' ') : annotation.label;
-    }
-
-    if (label) {
-      bodies.push({
-        purpose: 'commenting',
-        value: label,
-      });
+      value = Array.isArray(annotation.label) ? annotation.label.join(' ') : annotation.label;
     }
   }
 
-  return bodies;
+  return { value: value || 'Annotation', isHtml };
 }
 
 /**
- * Convert Manifesto/IIIF annotation to Annotorious ImageAnnotation format
+ * Parse Manifesto/IIIF annotation to internal format
  */
-export function convertToAnnotoriousFormat(annotation: any, index: number, isSearchHit: boolean = false): ImageAnnotation | null {
+export function parseAnnotation(annotation: any, index: number, isSearchHit: boolean = false): ParsedAnnotation | null {
   const id = getAnnotationId(annotation) || `anno-${index}`;
   const geometry = extractGeometry(annotation);
 
@@ -391,33 +376,24 @@ export function convertToAnnotoriousFormat(annotation: any, index: number, isSea
     return null;
   }
 
-  const bodies = extractBody(annotation);
-
-  // Add search-hit purpose if this is a search result
-  if (isSearchHit) {
-    bodies.push({
-      purpose: 'search-hit',
-      value: 'search-hit',
-    });
-  }
+  const body = extractBody(annotation);
 
   return {
     id,
-    target: {
-      selector: geometry,
-    },
-    bodies,
-  } as ImageAnnotation;
+    geometry,
+    body,
+    isSearchHit,
+  };
 }
 
 /**
- * Batch convert annotations
+ * Batch parse annotations
  */
-export function convertAnnotations(annotations: any[], searchHitIds: Set<string> = new Set()): ImageAnnotation[] {
+export function parseAnnotations(annotations: any[], searchHitIds: Set<string> = new Set()): ParsedAnnotation[] {
   return annotations
     .map((anno, idx) => {
       const isSearchHit = searchHitIds.has(getAnnotationId(anno));
-      return convertToAnnotoriousFormat(anno, idx, isSearchHit);
+      return parseAnnotation(anno, idx, isSearchHit);
     })
-    .filter((anno) => anno !== null) as ImageAnnotation[];
+    .filter((anno) => anno !== null) as ParsedAnnotation[];
 }

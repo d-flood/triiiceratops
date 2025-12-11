@@ -28,10 +28,6 @@ test.describe("Triiiceratops Viewer", () => {
     const canvas = page.locator(".openseadragon-canvas canvas").first();
     await expect(canvas).toBeVisible();
 
-    // Verify Annotorious layer exists
-    const annotoriousLayer = page.locator(".a9s-annotationlayer");
-    await expect(annotoriousLayer).toBeVisible();
-
     // Check if the "Annotations" toggle is present and clickable
     // Use a more specific selector strategy based on the icon components or text structure
     const toggleButton = page.locator("summary", { hasText: "Annotations" });
