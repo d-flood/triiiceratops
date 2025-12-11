@@ -20,8 +20,10 @@
     <!-- Header with input -->
     <DemoHeader bind:manifestUrl onLoad={loadManifest} />
 
+    <h1 class="text-3xl text-center pt-8">Triiiceratops IIIF Viewer Demo</h1>
+
     <!-- Viewer -->
-    <main class="flex-1 relative min-h-0 p-2 lg:py-16 lg:px-32">
+    <main class="flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-32">
         <div
             class="h-full w-full rounded-box overflow-hidden border border-base-content/10 shadow-xl"
         >
