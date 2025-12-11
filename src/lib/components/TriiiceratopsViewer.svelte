@@ -44,53 +44,119 @@
             currentCanvasIndex === -1 ||
             !canvases[currentCanvasIndex]
         ) {
-            console.log('TriiiceratopsViewer: No canvas found');
+            if (!manifestData?.isFetching) {
+                console.log('TriiiceratopsViewer: No canvas found');
+            }
             return null;
         }
 
         const canvas = canvases[currentCanvasIndex];
 
         // Use Manifesto to get images
-        // canvas is a Manifesto Canvas object
-        const images = canvas.getImages();
+        let images = canvas.getImages();
+
+        // Fallback for IIIF v3: iterate content if images is empty
+        if ((!images || !images.length) && canvas.getContent) {
+            images = canvas.getContent();
+        }
+
         if (!images || !images.length) {
-            console.log('TriiiceratopsViewer: No images in canvas');
+            // Check for raw v3 items
+            if (canvas.__jsonld && canvas.__jsonld.items) {
+                // Try to locate annotation pages -> annotations
+            }
+            if (!manifestData?.isFetching) {
+                console.log('TriiiceratopsViewer: No images/content in canvas');
+            }
             return null;
         }
 
         const annotation = images[0];
-        const resource = annotation.getResource();
+        let resource = annotation.getResource ? annotation.getResource() : null;
+
+        // v3 fallback: getBody
+        if (!resource && annotation.getBody) {
+            const body = annotation.getBody();
+            if (Array.isArray(body) && body.length > 0) resource = body[0];
+            else if (body) resource = body;
+        }
+
+        // Check if resource is valid (Manifesto sometimes returns empty objects for v3 bodies)
+        if (
+            resource &&
+            !resource.id &&
+            !resource.__jsonld &&
+            (!resource.getServices || resource.getServices().length === 0)
+        ) {
+            resource = null;
+        }
+
         if (!resource) {
-            console.log('TriiiceratopsViewer: No resource in annotation');
+            // raw json fallback
+            const json = annotation.__jsonld || annotation;
+            if (json.body) {
+                resource = Array.isArray(json.body) ? json.body[0] : json.body;
+            }
+        }
+
+        if (!resource) {
+            // console.log('TriiiceratopsViewer: No resource in annotation');
             return null;
         }
 
+        // Helper to normalize ID
+        const getId = (thing: any) => thing.id || thing['@id'];
+
         // Start of service detection logic
-        const service = resource.getService();
-        if (service) {
-            let id = service.id;
-            if (id && !id.endsWith('/info.json')) {
-                id = `${id}/info.json`;
-            }
-            return id;
+        let services = [];
+        if (resource.getServices) {
+            services = resource.getServices();
         }
 
-        // Fallback: Check for array of services (Manifesto sometimes puts them here)
-        const services = resource.getServices();
-        if (services && services.length > 0) {
-            let id = services[0].id;
-            if (id && !id.endsWith('/info.json')) {
-                id = `${id}/info.json`;
+        // Fallback: check raw json service
+        if (!services.length) {
+            const rJson = resource.__jsonld || resource;
+            // console.log('Checking raw resource for services:', rJson);
+            if (rJson.service) {
+                services = Array.isArray(rJson.service)
+                    ? rJson.service
+                    : [rJson.service];
             }
-            return id;
+        }
+
+        // console.log('Found services:', services);
+
+        if (services.length > 0) {
+            // Find a valid image service
+            const service = services.find((s: any) => {
+                const type = s.getType ? s.getType() : s.type || '';
+                const profile = s.getProfile ? s.getProfile() : s.profile || '';
+                return (
+                    type === 'ImageService1' ||
+                    type === 'ImageService2' ||
+                    type === 'ImageService3' ||
+                    (typeof profile === 'string' &&
+                        profile.includes('http://iiif.io/api/image')) ||
+                    (typeof profile === 'string' && profile === 'level0')
+                );
+            });
+
+            if (service) {
+                let id = getId(service);
+                if (id && !id.endsWith('/info.json')) {
+                    id = `${id}/info.json`;
+                }
+                return id;
+            }
         }
 
         // Fallback: Heuristic from Image ID (if it looks like IIIF)
-        if (resource.id && resource.id.includes('/iiif/')) {
+        const resourceId = getId(resource);
+        if (resourceId && resourceId.includes('/iiif/')) {
             // Try to strip standard IIIF parameters to find base
             // IIIF URLs often look like .../identifier/region/size/rotation/quality.format
             // We look for the part before the region (often 'full')
-            const parts = resource.id.split('/');
+            const parts = resourceId.split('/');
             // find index of 'full' or region
             const regionIndex = parts.findIndex(
                 (p: string) => p === 'full' || p.match(/^\d+,\d+,\d+,\d+$/),
@@ -104,7 +170,7 @@
         console.log(
             'TriiiceratopsViewer: No service or ID found, returning raw URL',
         );
-        const url = resource.id;
+        const url = resourceId;
         return { type: 'image', url };
     });
 </script>
