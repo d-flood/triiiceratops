@@ -38,11 +38,15 @@ The viewer is available as a web component that works in any framework or static
 <script type="module" src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/triiiceratops/dist/triiiceratops-element.css">
 
-<div style="height: 600px; width: 100%;">
-  <triiiceratops-viewer style="height: 100%; width: 100%; display: block;"
-    manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723">
-  </triiiceratops-viewer>
-</div>
+  <triiiceratops-viewer manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"></triiiceratops-viewer>
+
+<style>
+  triiiceratops-viewer {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
 ```
 
 ### Svelte Component
