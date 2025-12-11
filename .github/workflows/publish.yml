@@ -40,9 +40,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to NPM (OIDC)
-        if: steps.changesets.outputs.published != 'true' && steps.changesets.outputs.hasChangesets == 'false'
+        if: steps.changesets.outputs.published != 'true'
         run: |
-          pnpm config set //registry.npmjs.org/:_authToken $NODE_AUTH_TOKEN
           pnpm publish --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }} 
