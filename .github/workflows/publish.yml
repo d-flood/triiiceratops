@@ -14,7 +14,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      id-token: write # Required for Trusted Publishing
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -30,11 +30,19 @@ jobs:
       - run: pnpm run build:lib
       - run: pnpm run build:element
 
-      - name: Create Release Pull Request or Publish to npm
+      - name: Version Packages (Changesets)
         uses: changesets/action@v1
+        id: changesets
         with:
-          # This runs pnpm publish, but only if the version was just bumped
-          publish: pnpm publish --no-git-checks
+          commit: "chore: update versions"
+          title: "chore: update versions"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
+      - name: Publish to NPM (OIDC)
+        if: steps.changesets.outputs.published != 'true' && steps.changesets.outputs.hasChangesets == 'false'
+        run: |
+          pnpm config set //registry.npmjs.org/:_authToken $NODE_AUTH_TOKEN
+          pnpm publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }} 
