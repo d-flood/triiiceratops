@@ -4,7 +4,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dflood/triiiceratops.git"
+    "url": "git+https://github.com/d-flood/triiiceratops.git"
   },
   "publishConfig": {
     "access": "public",
