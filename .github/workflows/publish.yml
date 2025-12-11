@@ -1,47 +1,40 @@
-name: Publish Package
+name: Release
 
 on:
   push:
-    tags:
-      - "v*"
-  workflow_dispatch:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  build:
+  release:
+    name: Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
+      id-token: write # Required for Trusted Publishing
+
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
           registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:lib
+      - run: pnpm run build:element
 
-      - name: Generate Translations
-        run: pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
-
-      - name: Build
-        run: |
-          pnpm build:lib
-          pnpm build:element
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Create Release Pull Request or Publish to npm
+        uses: changesets/action@v1
+        with:
+          # This runs pnpm publish, but only if the version was just bumped
+          publish: pnpm publish --no-git-checks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to NPM
-        run: pnpm publish --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          
