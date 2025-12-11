@@ -9,16 +9,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [
     svelte({
+      configFile: false,
       // @ts-ignore - The types for this function signature might be slightly off in the plugin dts but valid in Svelte
       compilerOptions: (url) => {
-        return {
-          customElement: url.includes("TriiiceratopsViewerElement.svelte"),
-        };
+        const isCustomElement = url.includes("TriiiceratopsViewerElement.svelte");
+        return { customElement: isCustomElement };
       },
     }),
     tailwindcss(),
   ],
   build: {
+    minify: true,
     lib: {
       entry: resolve(__dirname, "src/lib/custom-element.ts"),
       name: "TriiiceratopsElement",
