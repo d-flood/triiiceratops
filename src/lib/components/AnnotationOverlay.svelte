@@ -5,7 +5,7 @@
     import EyeSlash from 'phosphor-svelte/lib/EyeSlash';
     import { manifestsState } from '../state/manifests.svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import * as m from '../paraglide/messages.js';
+    import { m } from '../state/i18n.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -175,7 +175,17 @@
 
 <!-- Unified Annotation Toolbar -->
 {#if viewerState.showAnnotations}
-    <div class="absolute top-4 right-4 z-500 pointer-events-auto">
+    <div
+        class="absolute top-4 z-500 pointer-events-auto transition-all duration-300 {viewerState.showSearchPanel
+            ? viewerState.showThumbnailGallery &&
+              viewerState.isGalleryDockedRight
+                ? 'right-[536px]'
+                : 'right-[336px]'
+            : viewerState.showThumbnailGallery &&
+                viewerState.isGalleryDockedRight
+              ? 'right-[216px]'
+              : 'right-4'}"
+    >
         <!-- z-index increased for Leaflet (z-400 is map) -->
         <details class="group relative">
             <summary

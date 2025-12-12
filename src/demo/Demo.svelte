@@ -21,7 +21,7 @@
     <!-- Viewer -->
     <main class="flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-32">
         <div
-            class="h-full w-full rounded-box overflow-hidden border border-base-content/10 shadow-xl"
+            class="h-full w-full rounded-box overflow-hidden border border-base-content/10 shadow-2xl"
         >
             <triiiceratops-viewer manifest-id={currentManifest}
             ></triiiceratops-viewer>
