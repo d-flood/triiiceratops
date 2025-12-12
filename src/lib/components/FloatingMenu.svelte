@@ -5,7 +5,7 @@
     import CornersOut from 'phosphor-svelte/lib/CornersOut';
     import Info from 'phosphor-svelte/lib/Info';
     import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
-    import Plus from 'phosphor-svelte/lib/Plus';
+    import List from 'phosphor-svelte/lib/List';
     import Slideshow from 'phosphor-svelte/lib/Slideshow';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
@@ -32,7 +32,8 @@
         role="button"
         class="btn btn-lg btn-primary btn-circle shadow-xl"
     >
-        <Plus size={32} weight="bold" />
+        <span class="sr-only">{m.menu()}</span>
+        <List size={32} weight="bold" />
     </div>
 
     <!-- Main Action button replaces the original button when FAB is open -->
