@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.3.4
+
+### Patch Changes
+
+- 6c5a9bd: Metadata modal can overflow viewer container. Language change applies immediately to the annotation badge overaly.
+
 ## 0.3.3
 
 ### Patch Changes
