@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.4.0
+
+### Minor Changes
+
+- e91c5ba: Add an initial plugin slot framework and add image filter tools as the first plugin to use it.
+
 ## 0.3.4
 
 ### Patch Changes
