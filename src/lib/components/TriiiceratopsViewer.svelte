@@ -1,19 +1,31 @@
 <script lang="ts">
-    import { setContext } from 'svelte';
+    import { setContext, onDestroy } from 'svelte';
     import { ViewerState, VIEWER_STATE_KEY } from '../state/viewer.svelte';
+    import type { TriiiceratopsPlugin } from '../types/plugin';
     import OSDViewer from './OSDViewer.svelte';
     import CanvasNavigation from './CanvasNavigation.svelte';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import FloatingMenu from './FloatingMenu.svelte';
+    import LeftFab from './LeftFab.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
 
-    let { manifestId } = $props();
+    let {
+        manifestId,
+        plugins = [],
+    }: {
+        manifestId?: string;
+        plugins?: TriiiceratopsPlugin[];
+    } = $props();
 
-    // Create per-instance viewer state
-    const viewerState = new ViewerState();
+    // Create per-instance viewer state (passing plugins initially)
+    const viewerState = new ViewerState(null, plugins);
     setContext(VIEWER_STATE_KEY, viewerState);
+
+    onDestroy(() => {
+        viewerState.destroyAllPlugins();
+    });
 
     $effect(() => {
         if (manifestId) {
@@ -177,28 +189,139 @@
 
 <div
     id="triiiceratops-viewer"
-    class="w-full h-full relative bg-base-100 flex items-center justify-center"
+    class="flex w-full h-full relative bg-base-100 overflow-hidden"
 >
-    {#if manifestData?.isFetching}
-        <span class="loading loading-spinner loading-lg text-primary"></span>
-    {:else if manifestData?.error}
-        <div class="text-error">Error: {manifestData.error}</div>
-    {:else if tileSources}
-        {#key tileSources}
-            <OSDViewer {tileSources} {viewerState} />
-        {/key}
-    {:else}
-        <div class="text-base-content/50">No image found</div>
-    {/if}
+    <!-- Left Column -->
+    <div
+        class="flex-none flex flex-row z-20 bg-base-200 border-r border-base-300 transition-all"
+    >
+        <!-- Gallery (when docked left) -->
+        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'left'}
+            <div class="h-full w-[200px] pointer-events-auto relative">
+                <ThumbnailGallery {canvases} />
+            </div>
+        {/if}
 
-    {#if canvases.length > 1}
-        <CanvasNavigation {viewerState} />
-        <ThumbnailGallery {canvases} />
-    {/if}
+        {#each viewerState.pluginPanels as panel (panel.id)}
+            {#if panel.isVisible() && panel.position === 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <panel.component {...panel.props ?? {}} />
+                </div>
+            {/if}
+        {/each}
+    </div>
 
-    <AnnotationOverlay />
-    <MetadataDialog />
-    <SearchPanel />
-    <!-- Global Floating Menu -->
-    <FloatingMenu />
+    <!-- Center Column -->
+    <div
+        id="triiiceratops-center-panel"
+        class="flex-1 relative min-w-0 flex flex-col"
+    >
+        <!-- Top Area (Gallery) -->
+        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'top'}
+            <div
+                class="flex-none h-[140px] w-full pointer-events-auto relative z-20"
+            >
+                <ThumbnailGallery {canvases} />
+            </div>
+        {/if}
+
+        <!-- Main Viewer Area -->
+        <div class="flex-1 relative min-h-0 w-full h-full bg-base-100">
+            {#if manifestData?.isFetching}
+                <div class="w-full h-full flex items-center justify-center">
+                    <span
+                        class="loading loading-spinner loading-lg text-primary"
+                    ></span>
+                </div>
+            {:else if manifestData?.error}
+                <div
+                    class="w-full h-full flex items-center justify-center text-error"
+                >
+                    Error: {manifestData.error}
+                </div>
+            {:else if tileSources}
+                {#key tileSources}
+                    <OSDViewer {tileSources} {viewerState} />
+                {/key}
+            {:else}
+                <div
+                    class="w-full h-full flex items-center justify-center text-base-content/50"
+                >
+                    No image found
+                </div>
+            {/if}
+
+            <AnnotationOverlay />
+            <MetadataDialog />
+
+            <!-- Floating Menu / FABs -->
+            <FloatingMenu />
+            <LeftFab />
+
+            <!-- Overlay Plugin Panels -->
+            {#each viewerState.pluginPanels as panel (panel.id)}
+                {#if panel.isVisible() && panel.position === 'overlay'}
+                    <div class="absolute inset-0 z-40 pointer-events-none">
+                        <panel.component {...panel.props ?? {}} />
+                    </div>
+                {/if}
+            {/each}
+
+            <!-- Canvas Nav (Absolute positioned inside center, or floating?) currently assumes absolute -->
+            {#if canvases.length > 1}
+                <CanvasNavigation {viewerState} />
+            {/if}
+
+            <!-- Float-mode Gallery -->
+            {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'none'}
+                <ThumbnailGallery {canvases} />
+            {/if}
+        </div>
+
+        <!-- Bottom Area (Gallery) -->
+        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'bottom'}
+            <div
+                class="flex-none h-[140px] w-full pointer-events-auto relative z-20"
+            >
+                <ThumbnailGallery {canvases} />
+            </div>
+        {/if}
+
+        <!-- Bottom Area (Plugin Panels) -->
+        {#each viewerState.pluginPanels as panel (panel.id)}
+            {#if panel.isVisible() && panel.position === 'bottom'}
+                <div class="relative w-full z-40 pointer-events-auto">
+                    <panel.component {...panel.props ?? {}} />
+                </div>
+            {/if}
+        {/each}
+    </div>
+
+    <!-- Right Column -->
+    <div
+        class="flex-none flex flex-row z-20 bg-base-200 border-l border-base-300 transition-all"
+    >
+        <!-- Search Panel -->
+        {#if viewerState.showSearchPanel}
+            <div class="h-full relative pointer-events-auto">
+                <SearchPanel />
+            </div>
+        {/if}
+
+        <!-- Gallery (when docked right) -->
+        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'right'}
+            <div class="h-full w-[200px] pointer-events-auto relative">
+                <ThumbnailGallery {canvases} />
+            </div>
+        {/if}
+
+        <!-- Right Plugin Panels -->
+        {#each viewerState.pluginPanels as panel (panel.id)}
+            {#if panel.isVisible() && panel.position === 'right'}
+                <div class="h-full relative pointer-events-auto">
+                    <panel.component {...panel.props ?? {}} />
+                </div>
+            {/if}
+        {/each}
+    </div>
 </div>

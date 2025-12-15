@@ -14,27 +14,19 @@
 </script>
 
 <div
-    class="fab fab-flower fab-top-left absolute z-600 pointer-events-auto flex-col items-end transition-all duration-300 {viewerState.showSearchPanel
-        ? viewerState.showThumbnailGallery && viewerState.isGalleryDockedRight
-            ? 'right-[540px]'
-            : 'right-[344px]'
-        : viewerState.showThumbnailGallery && viewerState.isGalleryDockedRight
-          ? 'right-[220px]'
-          : 'right-6'} {viewerState.showThumbnailGallery &&
-    viewerState.dockSide === 'bottom'
-        ? 'bottom-40'
-        : 'bottom-6'}"
-    data-tip={m.menu()}
+    class="fab fab-flower fab-top-left absolute z-600 pointer-events-auto flex-col items-end transition-all duration-300 bottom-6 right-6"
 >
-    <!-- a focusable div with tabindex is necessary to work on all browsers. role="button" is necessary for accessibility -->
-    <div
-        tabindex="0"
-        role="button"
-        class="btn btn-lg btn-primary btn-circle shadow-xl"
-    >
-        <span class="sr-only">{m.menu()}</span>
-        <List size={32} weight="bold" />
+    <div class="tooltip tooltip-left" data-tip={m.menu()}>
+        <div
+            tabindex="0"
+            role="button"
+            class="btn btn-lg btn-primary btn-circle shadow-xl"
+        >
+            <span class="sr-only">{m.menu()}</span>
+            <List size={32} weight="bold" />
+        </div>
     </div>
+    <!-- a focusable div with tabindex is necessary to work on all browsers. role="button" is necessary for accessibility -->
 
     <!-- Main Action button replaces the original button when FAB is open -->
     <div class="fab-close tooltip tooltip-top" data-tip={m.search()}>

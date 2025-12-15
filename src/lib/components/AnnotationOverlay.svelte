@@ -176,15 +176,7 @@
 <!-- Unified Annotation Toolbar -->
 {#if viewerState.showAnnotations}
     <div
-        class="absolute top-4 z-500 pointer-events-auto transition-all duration-300 {viewerState.showSearchPanel
-            ? viewerState.showThumbnailGallery &&
-              viewerState.isGalleryDockedRight
-                ? 'right-[536px]'
-                : 'right-[336px]'
-            : viewerState.showThumbnailGallery &&
-                viewerState.isGalleryDockedRight
-              ? 'right-[216px]'
-              : 'right-4'}"
+        class="absolute top-4 right-4 z-500 pointer-events-auto transition-all duration-300"
     >
         <!-- z-index increased for Leaflet (z-400 is map) -->
         <details class="group relative">

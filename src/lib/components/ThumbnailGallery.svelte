@@ -3,22 +3,68 @@
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
 
+    // Minimal canvas/annotation types covering methods used here
+    type ManifestService = {
+        id?: string;
+        ['@id']?: string;
+        profile?: unknown;
+        getProfile?: () => unknown;
+    };
+
+    type ManifestResource =
+        | {
+              id?: string;
+              ['@id']?: string;
+              __jsonld?: any;
+              getServices?: () => ManifestService[];
+          }
+        | any;
+
+    type ManifestAnnotation =
+        | {
+              __jsonld?: any;
+              getResource?: () => ManifestResource | null;
+              getBody?: () => ManifestResource | ManifestResource[] | null;
+              body?: ManifestResource | ManifestResource[];
+          }
+        | any;
+
+    type ManifestCanvas =
+        | {
+              id: string;
+              getLabel: () => { value: string }[];
+              getThumbnail?: () =>
+                  | string
+                  | { id?: string; ['@id']?: string }
+                  | null;
+              getImages?: () => ManifestAnnotation[];
+              getContent?: () => ManifestAnnotation[];
+          }
+        | any;
+
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let { canvases } = $props();
+    let { canvases } = $props<{ canvases?: ManifestCanvas[] }>();
 
-    let position = $state({ x: 20, y: 100 });
-    let size = $state({ width: 300, height: 400 });
-    let isDragging = $state(false);
     let isResizing = $state(false);
-    let dragOffset = { x: 0, y: 0 };
-    let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
-    let galleryElement: HTMLElement | undefined = $state();
+    let resizeStart: { x: number; y: number; w: number; h: number } = {
+        x: 0,
+        y: 0,
+        w: 0,
+        h: 0,
+    };
+    let galleryElement: HTMLElement | null = $state(null);
 
     // Generate thumbnail data
     let thumbnails = $derived.by(() => {
-        if (!canvases) return [];
-        return canvases.map((canvas: any, index: number) => {
+        if (!canvases || !Array.isArray(canvases))
+            return [] as Array<{
+                id: string;
+                label: string;
+                src: string;
+                index: number;
+            }>;
+        return canvases.map((canvas: ManifestCanvas, index: number) => {
             // Manifesto getThumbnail logic
             let src = '';
             try {
@@ -46,7 +92,7 @@
                 }
 
                 if (images && images.length > 0) {
-                    const annotation = images[0];
+                    const annotation: ManifestAnnotation = images[0];
                     let resource = annotation.getResource
                         ? annotation.getResource()
                         : null;
@@ -81,7 +127,7 @@
 
                     if (resource) {
                         const getServices = () => {
-                            let s = [];
+                            let s: ManifestService[] = [];
                             if (resource.getServices) {
                                 s = resource.getServices();
                             }
@@ -100,27 +146,28 @@
                         let isLevel0 = false;
                         if (services.length > 0) {
                             const service = services[0];
-                            let profile = '';
+                            let profile: unknown = '';
                             try {
                                 profile = service.getProfile
                                     ? service.getProfile()
-                                    : service.profile || '';
+                                    : (service.profile as unknown) || '';
                                 // Handle Manifesto profile object
-                                if (
-                                    typeof profile === 'object' &&
-                                    profile !== null
-                                ) {
+                                if (typeof profile === 'object' && profile) {
+                                    const pObj = profile as Record<
+                                        string,
+                                        unknown
+                                    >;
                                     profile =
-                                        profile.value ||
-                                        profile.id ||
-                                        profile['@id'] ||
-                                        JSON.stringify(profile);
+                                        (pObj.value as string | undefined) ||
+                                        (pObj.id as string | undefined) ||
+                                        (pObj['@id'] as string | undefined) ||
+                                        JSON.stringify(pObj);
                                 }
                             } catch (e) {
                                 // ignore
                             }
 
-                            const pStr = String(profile).toLowerCase();
+                            const pStr = String(profile ?? '').toLowerCase();
                             if (
                                 pStr.includes('level0') ||
                                 pStr.includes('level-0')
@@ -140,7 +187,7 @@
 
                             // Fallback: if resource was reconstructed but ID is missing (common with Manifesto v3), check raw annotation
                             if (!src) {
-                                let rawBody = null;
+                                let rawBody: any = null;
                                 // Try to find the original raw body from which resource was derived
                                 if (
                                     annotation.__jsonld &&
@@ -175,36 +222,64 @@
     });
 
     function onDrag(e: MouseEvent) {
-        if (!isDragging) return;
+        if (!viewerState.isGalleryDragging) return;
 
-        let newX = e.clientX - dragOffset.x;
-        let newY = e.clientY - dragOffset.y;
+        // Simple fixed positioning logic
+        let newX = e.clientX - viewerState.galleryDragOffset.x;
+        let newY = e.clientY - viewerState.galleryDragOffset.y;
 
-        // Constrain to parent container
-        if (galleryElement && galleryElement.parentElement) {
-            const parent = galleryElement.parentElement;
-            // Use clientWidth/Height to exclude borders if any, which is usually correct for absolute positioning containment
-            const maxX = Math.max(0, parent.clientWidth - size.width);
-            const maxY = Math.max(0, parent.clientHeight - size.height);
+        // Constrain to Window (Viewport)
+        const maxX = Math.max(
+            0,
+            window.innerWidth - viewerState.gallerySize.width,
+        );
+        const maxY = Math.max(
+            0,
+            window.innerHeight - viewerState.gallerySize.height,
+        );
+        newX = Math.max(0, Math.min(newX, maxX));
+        newY = Math.max(0, Math.min(newY, maxY));
 
-            newX = Math.max(0, Math.min(newX, maxX));
-            newY = Math.max(0, Math.min(newY, maxY));
+        viewerState.galleryPosition = { x: newX, y: newY };
+
+        const viewer = document.getElementById('triiiceratops-center-panel');
+        if (viewer) {
+            const rect = viewer.getBoundingClientRect();
+            const x = e.clientX;
+            const y = e.clientY;
+
+            // Threshold for docking detection (pixels)
+            const THRESHOLD = 60;
+
+            // Reset
+            viewerState.dragOverSide = null;
+
+            // Check boundaries (prioritize sides for better UX?)
+            // We check if mouse is within THRESHOLD distance of the edge, inside the rect
+            if (x >= rect.left && x <= rect.left + THRESHOLD) {
+                viewerState.dragOverSide = 'left';
+            } else if (x <= rect.right && x >= rect.right - THRESHOLD) {
+                viewerState.dragOverSide = 'right';
+            } else if (y >= rect.top && y <= rect.top + THRESHOLD) {
+                viewerState.dragOverSide = 'top';
+            } else if (y <= rect.bottom && y >= rect.bottom - THRESHOLD) {
+                viewerState.dragOverSide = 'bottom';
+            }
         }
-
-        position.x = newX;
-        position.y = newY;
     }
 
     function stopDrag() {
-        const dropTarget = dragOverSide;
-        isDragging = false;
-        dragOverSide = null;
+        // If we were dragging towards a dock zone
+        const dropTarget = viewerState.dragOverSide;
+
+        viewerState.isGalleryDragging = false;
+        viewerState.dragOverSide = null;
         window.removeEventListener('mousemove', onDrag);
         window.removeEventListener('mouseup', stopDrag);
 
         // Commit drop
         if (dropTarget) {
-            dockSide = dropTarget;
+            viewerState.dockSide = dropTarget;
         }
     }
 
@@ -214,8 +289,8 @@
         resizeStart = {
             x: e.clientX,
             y: e.clientY,
-            w: size.width,
-            h: size.height,
+            w: viewerState.gallerySize.width,
+            h: viewerState.gallerySize.height,
         };
         window.addEventListener('mousemove', onResize);
         window.addEventListener('mouseup', stopResize);
@@ -225,8 +300,10 @@
         if (!isResizing) return;
         const dx = e.clientX - resizeStart.x;
         const dy = e.clientY - resizeStart.y;
-        size.width = Math.max(200, resizeStart.w + dx);
-        size.height = Math.max(200, resizeStart.h + dy);
+        viewerState.gallerySize = {
+            width: Math.max(200, resizeStart.w + dx),
+            height: Math.max(200, resizeStart.h + dy),
+        };
     }
 
     function stopResize() {
@@ -240,23 +317,41 @@
     }
 
     // State for docking
-    let dockSide = $state<'top' | 'bottom' | 'left' | 'right' | 'none'>(
-        'bottom',
+    // We default to bottom, but we should sync with viewerState immediately?
+    // Actually dockSide *is* viewerState.dockSide essentially.
+    // We can just use viewerState.dockSide and provide a local setter?
+    // Using a local proxy to sync back and forth:
+    let dockSide: 'none' | 'top' | 'bottom' | 'left' | 'right' = $state(
+        viewerState.dockSide as 'none' | 'top' | 'bottom' | 'left' | 'right',
     );
-    let dragOverSide = $state<'top' | 'bottom' | 'left' | 'right' | null>(null);
 
-    // Sync dock state to viewer state
+    // Sync external changes
     $effect(() => {
-        viewerState.dockSide = dockSide;
-        viewerState.isGalleryDockedBottom = dockSide === 'bottom';
-        viewerState.isGalleryDockedRight = dockSide === 'right';
+        const ds = viewerState.dockSide as string;
+        dockSide =
+            ds === 'none' ||
+            ds === 'top' ||
+            ds === 'bottom' ||
+            ds === 'left' ||
+            ds === 'right'
+                ? (ds as 'none' | 'top' | 'bottom' | 'left' | 'right')
+                : 'none';
+    });
+
+    // Sync internal changes
+    $effect(() => {
+        if (viewerState.dockSide !== dockSide) {
+            viewerState.dockSide = dockSide;
+            viewerState.isGalleryDockedBottom = dockSide === 'bottom';
+            viewerState.isGalleryDockedRight = dockSide === 'right';
+        }
     });
 
     // Switch to horizontal layout if height is small or docked to top/bottom
     let isHorizontal = $derived(
         dockSide === 'top' ||
             dockSide === 'bottom' ||
-            (dockSide === 'none' && size.height < 320),
+            (dockSide === 'none' && viewerState.gallerySize.height < 320),
     );
 
     function startDrag(e: MouseEvent) {
@@ -264,27 +359,42 @@
 
         // If dragging while docked, undock immediately
         if (dockSide !== 'none') {
+            // Center on mouse logic is still good for UX
+            let centeredX = Math.max(0, e.clientX - 150);
+            let centeredY = Math.max(0, e.clientY - 20);
+
+            // Constrain initial position so it doesn't jump off-screen if undocking near edges
+            const maxInitialX = Math.max(0, window.innerWidth - 300); // 300 is default width
+            const maxInitialY = Math.max(0, window.innerHeight - 400); // 400 is default height
+
+            centeredX = Math.min(centeredX, maxInitialX);
+            centeredY = Math.min(centeredY, maxInitialY);
+
+            // With fixed positioning, we use client coordinates directly.
+            // No need to worry about container offsets.
+
+            viewerState.galleryPosition = {
+                x: centeredX,
+                y: centeredY,
+            };
+
+            // dragOffset is simply the difference between Mouse and Element
+            viewerState.galleryDragOffset = {
+                x: e.clientX - centeredX,
+                y: e.clientY - centeredY,
+            };
+
             dockSide = 'none';
-
-            const parentRect =
-                galleryElement?.parentElement?.getBoundingClientRect() || {
-                    left: 0,
-                    top: 0,
-                };
-
-            // Reset to default floating size and position centered on mouse
-            size = { width: 300, height: 400 };
-            position = {
-                x: e.clientX - parentRect.left - 150, // Center width
-                y: e.clientY - parentRect.top - 20, // Offset slightly from top
+        } else {
+            // Already floating (fixed)
+            viewerState.galleryDragOffset = {
+                x: e.clientX - viewerState.galleryPosition.x,
+                y: e.clientY - viewerState.galleryPosition.y,
             };
         }
 
-        isDragging = true;
-        dragOffset = {
-            x: e.clientX - position.x,
-            y: e.clientY - position.y,
-        };
+        viewerState.isGalleryDragging = true;
+
         window.addEventListener('mousemove', onDrag);
         window.addEventListener('mouseup', stopDrag);
     }
@@ -295,16 +405,16 @@
     <div
         bind:this={galleryElement}
         class={(dockSide !== 'none'
-            ? `absolute z-900 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 
-           ${dockSide === 'bottom' ? 'flex-row bottom-0 left-0 right-0 h-[140px] border-t' : ''}
-           ${dockSide === 'top' ? 'flex-row top-0 left-0 right-0 h-[140px] border-b' : ''}
-           ${dockSide === 'left' ? 'flex-col left-0 top-0 bottom-0 w-[200px] border-r' : ''}
-           ${dockSide === 'right' ? `flex-col top-0 bottom-0 w-[200px] border-l ${viewerState.showSearchPanel ? 'right-80' : 'right-0'}` : ''}`
-            : 'absolute z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden') +
-            (isDragging ? ' pointer-events-none opacity-80' : '')}
+            ? `relative z-50 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 select-none w-full h-full
+           ${dockSide === 'bottom' || dockSide === 'top' ? 'flex-row border-t' : ''}
+           ${dockSide === 'left' || dockSide === 'right' ? 'flex-col border-x' : ''}`
+            : 'fixed z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden select-none') +
+            (viewerState.isGalleryDragging
+                ? ' pointer-events-none opacity-80'
+                : '')}
         style={dockSide !== 'none'
             ? ''
-            : `left: ${position.x}px; top: ${position.y}px; width: ${size.width}px; height: ${size.height}px;`}
+            : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}
     >
         <!-- Close Button (Absolute, always top-right of container) -->
         <button
@@ -375,6 +485,7 @@
                                     alt={thumb.label}
                                     class="object-contain w-full h-full"
                                     loading="lazy"
+                                    draggable="false"
                                 />
                             {:else}
                                 <span class="opacity-20 text-4xl">?</span>
@@ -406,16 +517,14 @@
         {/if}
     </div>
 
-    {#if isDragging}
+    {#if viewerState.isGalleryDragging}
         <!-- Drop Zones -->
         <!-- Top -->
         <div
-            class="absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
+            class="absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
             'top'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
-            onmouseenter={() => (dragOverSide = 'top')}
-            onmouseleave={() => (dragOverSide = null)}
             role="group"
         >
             <span class="font-bold text-primary opacity-50">Dock Top</span>
@@ -423,12 +532,10 @@
 
         <!-- Bottom -->
         <div
-            class="absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
+            class="absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
             'bottom'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
-            onmouseenter={() => (dragOverSide = 'bottom')}
-            onmouseleave={() => (dragOverSide = null)}
             role="group"
         >
             <span class="font-bold text-primary opacity-50">Dock Bottom</span>
@@ -436,12 +543,10 @@
 
         <!-- Left -->
         <div
-            class="absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {dragOverSide ===
+            class="absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
             'left'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
-            onmouseenter={() => (dragOverSide = 'left')}
-            onmouseleave={() => (dragOverSide = null)}
             role="group"
         >
             <span
@@ -452,13 +557,10 @@
 
         <!-- Right -->
         <div
-            class="absolute top-2 bottom-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-300 {viewerState.showSearchPanel
-                ? 'right-[328px]'
-                : 'right-2'} {dragOverSide === 'right'
+            class="absolute top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-300 {viewerState.dragOverSide ===
+            'right'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
-            onmouseenter={() => (dragOverSide = 'right')}
-            onmouseleave={() => (dragOverSide = null)}
             role="group"
         >
             <span

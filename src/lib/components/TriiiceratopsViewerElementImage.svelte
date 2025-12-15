@@ -1,6 +1,6 @@
 <svelte:options
     customElement={{
-        tag: 'triiiceratops-viewer',
+        tag: 'triiiceratops-viewer-image',
         shadow: 'none',
         props: {
             manifestId: {
@@ -14,11 +14,12 @@
 
 <script lang="ts">
     import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
+    import { ImageManipulationPlugin } from '../plugins/image-manipulation';
     import type { TriiiceratopsPlugin } from '../types/plugin';
 
     let {
         manifestId = '',
-        plugins = [],
+        plugins = [new ImageManipulationPlugin()],
     }: { manifestId?: string; plugins?: TriiiceratopsPlugin[] } = $props();
 </script>
 

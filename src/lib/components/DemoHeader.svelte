@@ -32,7 +32,11 @@
         },
     ];
 
-    let { manifestUrl = $bindable(), onLoad } = $props();
+    let {
+        manifestUrl = $bindable(),
+        onLoad,
+        viewerMode = $bindable('core'),
+    } = $props();
 
     onMount(() => {
         if (!manifestUrl) {
@@ -111,11 +115,31 @@
         class="select select-bordered select-sm w-auto"
         value={language.current}
         onchange={(e) => setLanguageTag(e.currentTarget.value)}
+        aria-label="Select language"
     >
         {#each availableLanguageTags as lang}
             <option value={lang}>{languageNames[lang] || lang}</option>
         {/each}
     </select>
+
+    <div class="join">
+        <input
+            class="join-item btn btn-sm"
+            type="radio"
+            name="viewerMode"
+            aria-label="Core"
+            value="core"
+            bind:group={viewerMode}
+        />
+        <input
+            class="join-item btn btn-sm"
+            type="radio"
+            name="viewerMode"
+            aria-label="Full"
+            value="image"
+            bind:group={viewerMode}
+        />
+    </div>
 
     <ThemeToggle />
     <div class="tooltip tooltip-bottom" data-tip={m.github()}>
