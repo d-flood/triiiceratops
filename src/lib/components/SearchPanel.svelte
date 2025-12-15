@@ -30,7 +30,7 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
     <div
-        class="absolute top-0 right-0 h-full w-80 bg-base-200 shadow-2xl z-1000 transform transition-transform duration-300 flex flex-col border-l border-base-300"
+        class="h-full w-80 bg-base-200 shadow-2xl z-100 flex flex-col border-l border-base-300"
         role="dialog"
         aria-label={m.search_panel_title()}
     >

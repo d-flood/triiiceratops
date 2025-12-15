@@ -167,8 +167,12 @@
             zoomPerClick: 2.0,
         });
 
+        // Notify plugins that OSD is ready
+        viewerState.notifyOSDReady(viewer);
+
         return () => {
             viewer?.destroy();
+            viewerState.osdViewer = null;
         };
     });
 
