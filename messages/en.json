@@ -36,5 +36,15 @@
     "iiif_manifest_label": "IIIF Manifest:",
     "manifest_placeholder": "Enter IIIF manifest URL",
     "load": "Load",
-    "github": "GitHub"
+    "github": "GitHub",
+    "viewer_variant_core": "Core",
+    "viewer_variant_full": "Full",
+    "viewer_variant_custom_theme": "Custom Theme",
+    "viewer_variant_tooltip_core": "Example without plugins",
+    "viewer_variant_tooltip_full": "Example with plugins",
+    "viewer_variant_tooltip_custom_theme": "Example with custom theme override",
+    "plugins_tooltip": "Plugins",
+    "demo_header_external_controls": "External Controls:",
+    "demo_header_active_canvas": "Active Canvas",
+    "image_adjustments": "Image Adjustments"
 }

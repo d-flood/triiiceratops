@@ -2,6 +2,8 @@
     import { setContext, onDestroy } from 'svelte';
     import { ViewerState, VIEWER_STATE_KEY } from '../state/viewer.svelte';
     import type { TriiiceratopsPlugin } from '../types/plugin';
+    import type { DaisyUITheme, ThemeConfig } from '../theme/types';
+    import { applyTheme } from '../theme/themeManager';
     import OSDViewer from './OSDViewer.svelte';
     import CanvasNavigation from './CanvasNavigation.svelte';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
@@ -15,11 +17,27 @@
         manifestId,
         canvasId,
         plugins = [],
+        theme,
+        themeConfig,
     }: {
         manifestId?: string;
         canvasId?: string;
         plugins?: TriiiceratopsPlugin[];
+        /** Built-in DaisyUI theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
+        theme?: DaisyUITheme;
+        /** Custom theme configuration to override the base theme's values. */
+        themeConfig?: ThemeConfig;
     } = $props();
+
+    // Reference to root element for applying theme
+    let rootElement: HTMLElement | undefined = $state();
+
+    // Reactively apply theme when element is available or theme/themeConfig changes
+    $effect(() => {
+        if (rootElement) {
+            applyTheme(rootElement, theme, themeConfig);
+        }
+    });
 
     // Create per-instance viewer state (passing plugins initially)
     const viewerState = new ViewerState(null, canvasId, plugins);
@@ -53,6 +71,22 @@
             );
         };
     });
+
+    let isLeftSidebarVisible = $derived(
+        (viewerState.showThumbnailGallery && viewerState.dockSide === 'left') ||
+            viewerState.pluginPanels.some(
+                (p) => p.position === 'left' && p.isVisible(),
+            ),
+    );
+
+    let isRightSidebarVisible = $derived(
+        viewerState.showSearchPanel ||
+            (viewerState.showThumbnailGallery &&
+                viewerState.dockSide === 'right') ||
+            viewerState.pluginPanels.some(
+                (p) => p.position === 'right' && p.isVisible(),
+            ),
+    );
 
     let manifestData = $derived(viewerState.manifest);
     let canvases = $derived(viewerState.canvases);
@@ -196,28 +230,31 @@
 </script>
 
 <div
+    bind:this={rootElement}
     id="triiiceratops-viewer"
     class="flex w-full h-full relative bg-base-100 overflow-hidden"
 >
     <!-- Left Column -->
-    <div
-        class="flex-none flex flex-row z-20 bg-base-200 border-r border-base-300 transition-all"
-    >
-        <!-- Gallery (when docked left) -->
-        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'left'}
-            <div class="h-full w-[200px] pointer-events-auto relative">
-                <ThumbnailGallery {canvases} />
-            </div>
-        {/if}
-
-        {#each viewerState.pluginPanels as panel (panel.id)}
-            {#if panel.isVisible() && panel.position === 'left'}
-                <div class="h-full relative pointer-events-auto">
-                    <panel.component {...panel.props ?? {}} />
+    {#if isLeftSidebarVisible}
+        <div
+            class="flex-none flex flex-row z-20 bg-base-200 border-r border-base-300 transition-all"
+        >
+            <!-- Gallery (when docked left) -->
+            {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'left'}
+                <div class="h-full w-[200px] pointer-events-auto relative">
+                    <ThumbnailGallery {canvases} />
                 </div>
             {/if}
-        {/each}
-    </div>
+
+            {#each viewerState.pluginPanels as panel (panel.id)}
+                {#if panel.isVisible() && panel.position === 'left'}
+                    <div class="h-full relative pointer-events-auto">
+                        <panel.component {...panel.props ?? {}} />
+                    </div>
+                {/if}
+            {/each}
+        </div>
+    {/if}
 
     <!-- Center Column -->
     <div
@@ -306,30 +343,32 @@
     </div>
 
     <!-- Right Column -->
-    <div
-        class="flex-none flex flex-row z-20 bg-base-200 border-l border-base-300 transition-all"
-    >
-        <!-- Search Panel -->
-        {#if viewerState.showSearchPanel}
-            <div class="h-full relative pointer-events-auto">
-                <SearchPanel />
-            </div>
-        {/if}
-
-        <!-- Gallery (when docked right) -->
-        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'right'}
-            <div class="h-full w-[200px] pointer-events-auto relative">
-                <ThumbnailGallery {canvases} />
-            </div>
-        {/if}
-
-        <!-- Right Plugin Panels -->
-        {#each viewerState.pluginPanels as panel (panel.id)}
-            {#if panel.isVisible() && panel.position === 'right'}
+    {#if isRightSidebarVisible}
+        <div
+            class="flex-none flex flex-row z-20 bg-base-200 border-l border-base-300 transition-all"
+        >
+            <!-- Search Panel -->
+            {#if viewerState.showSearchPanel}
                 <div class="h-full relative pointer-events-auto">
-                    <panel.component {...panel.props ?? {}} />
+                    <SearchPanel />
                 </div>
             {/if}
-        {/each}
-    </div>
+
+            <!-- Gallery (when docked right) -->
+            {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'right'}
+                <div class="h-full w-[200px] pointer-events-auto relative">
+                    <ThumbnailGallery {canvases} />
+                </div>
+            {/if}
+
+            <!-- Right Plugin Panels -->
+            {#each viewerState.pluginPanels as panel (panel.id)}
+                {#if panel.isVisible() && panel.position === 'right'}
+                    <div class="h-full relative pointer-events-auto">
+                        <panel.component {...panel.props ?? {}} />
+                    </div>
+                {/if}
+            {/each}
+        </div>
+    {/if}
 </div>

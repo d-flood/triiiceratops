@@ -1,19 +1,9 @@
 <script lang="ts">
     import DemoHeader from '../lib/components/DemoHeader.svelte';
 
-    // We can import plugins here since we are in the same codebase
-    // In a real-world scenario, the user would bundle these or load them
-    import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
-
     let manifestUrl = $state('');
     let currentManifest = $state('');
     let canvasId = $state('');
-
-    // Reference to the custom element
-    let viewerElement: HTMLElement | undefined = $state();
-
-    // Instantiate plugin
-    const imagePlugin = new ImageManipulationPlugin();
 
     function loadManifest() {
         currentManifest = manifestUrl;
@@ -39,6 +29,31 @@
         newUrl.searchParams.set('mode', viewerMode);
         window.location.href = newUrl.toString();
     });
+
+    // Custom theme configuration for the "Custom Theme" demo
+    // This demonstrates hex color conversion and theme customization
+    const customThemeConfig = JSON.stringify({
+        primary: '#e1a730',
+        primaryContent: '#ffffff',
+        secondary: '#264b3d',
+        secondaryContent: '#ffffff',
+        accent: '#16376f',
+        accentContent: '#ffffff',
+        neutral: '#e9d9b9',
+        neutralContent: '#000000',
+        base100: '#ecede7',
+        base200: '#b7b7b3',
+        base300: '#838381',
+        baseContent: '#000000',
+        info: '#254477',
+        success: '#264b3d',
+        warning: '#733100',
+        error: '#b95527',
+        radiusBox: '1.5rem',
+        radiusField: '0.75rem',
+        radiusSelector: '0.5rem',
+        border: '2px',
+    });
 </script>
 
 <div class="min-h-screen h-screen bg-base-300 flex flex-col">
@@ -61,6 +76,12 @@
                 <triiiceratops-viewer-image
                     manifest-id={currentManifest}
                     canvas-id={canvasId}
+                ></triiiceratops-viewer-image>
+            {:else if viewerMode === 'custom-theme'}
+                <triiiceratops-viewer-image
+                    manifest-id={currentManifest}
+                    canvas-id={canvasId}
+                    theme-config={customThemeConfig}
                 ></triiiceratops-viewer-image>
             {:else}
                 <!-- Core viewer - Manual plugin injection not strictly needed for this demo toggle, 

@@ -13,14 +13,14 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 - Compatible with IIIF presentation API versions 2–3
 - **Flexible Gallery**: Explore all canvases in a manfifest in a flexible thumbnail gallery that can be a floating window or docked to any of the four sides of the viewer.
 - **Annotations**: Handles IIIF annotatios.
-- **Theming**: Theme support with Tailwind CSS and DaisyUI.
+- **Theming**: Full theme customization with 35 built-in DaisyUI themes and custom theme configuration support.
 - **Search**: IIIF Search support.
 - **i18n**: Internationalization support with Paraglide. Translations are provided for English and German (so far).
 
 ## Current Limitations
 
 !!! warning "Work in Progress"
-    This project is a work in progress and does not support all client IIIF features.
+This project is a work in progress and does not support all client IIIF features.
 
 - Does not fully support multiple images per canvas.
 - Does not support IIIF collection navigation.
@@ -28,62 +28,82 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
 ## Usage
 
-### Web Component
+=== "Web Component"
 
-The viewer is available as a web component that works in any framework or static HTML.
+    **Via CDN:**
 
-**Via CDN:**
+    ```html
+    <script
+        type="module"
+        src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"
+    ></script>
 
-```html
-<script type="module" src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/triiiceratops/dist/triiiceratops-element.css">
+    <triiiceratops-viewer
+        manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+    ></triiiceratops-viewer>
 
-  <triiiceratops-viewer manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"></triiiceratops-viewer>
+    <style>
+        triiiceratops-viewer {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    ```
 
-<style>
-  triiiceratops-viewer {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-</style>
-```
+=== "Svelte Component"
 
-### Svelte Component
+    **Installation:**
 
-If you are using Svelte, you can import the component directly.
+    === "pnpm"
 
-**Installation:**
+        ```bash
+        pnpm add triiiceratops
+        ```
 
-```bash
-pnpm add triiiceratops
-```
+    === "npm"
 
-**Usage:**
+        ```bash
+        npm install triiiceratops
+        ```
 
-```html
-<script>
-  import { TriiiceratopsViewer } from 'triiiceratops';
-</script>
+    **Usage:**
 
-<!-- Container must have height -->
-<div style="height: 600px;">
-  <TriiiceratopsViewer 
-    manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723" 
-  />
-</div>
-```
+    ```html
+    <script>
+        import { TriiiceratopsViewer } from 'triiiceratops';
+        // Import the default styles (unless you are using the advanced Tailwind setup)
+        import 'triiiceratops/style.css';
+    </script>
+
+
+    <!-- Container must have height -->
+    <div style="height: 600px;">
+        <TriiiceratopsViewer
+            manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+        />
+    </div>
+    ```
+
+## Theming
+
+Triiiceratops supports full theme customization through two mechanisms:
+
+1. **Built-in themes**: Choose from 35 pre-built DaisyUI themes
+2. **Custom theme configuration**: Override individual theme properties with your own colors, border radius, etc.
+
+[**Read the full Theming Guide**](./theming.md){ .md-button }
 
 ## Development
 
-```bash
-pnpm install
+    ```bash
+    pnpm install
 
-pnpm dev           # Start local demo server
-pnpm build:all     # Build library, web component, and demo
-pnpm test          # Run unit tests
-pnpm test:e2e      # Run end-to-end tests
-```
+    pnpm dev           # Start local demo server
+    pnpm build:all     # Build library, web component, and demo
+    pnpm test          # Run unit tests
+    pnpm test:e2e      # Run end-to-end tests
+    ```
 
 ## License
 

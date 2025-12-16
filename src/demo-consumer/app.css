@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* 
+  Start scanning the library distribution folder. 
+  This mimics what a user would do: @source "node_modules/triiiceratops/dist";
+*/
+@source "../../dist";
+
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+	name: "consumer-theme";
+	default: true;
+	prefersdark: true;
+	color-scheme: "light";
+	--color-base-100: oklch(100% 0 0);
+	--color-base-200: oklch(98% 0.002 247.839);
+	--color-base-300: oklch(96% 0.003 264.542);
+	--color-base-content: oklch(13% 0.028 261.692);
+	--color-primary: oklch(79% 0.184 86.047);
+	--color-primary-content: oklch(13% 0.028 261.692);
+	--color-secondary: oklch(13% 0.028 261.692);
+	--color-secondary-content: oklch(98% 0.002 247.839);
+	--color-accent: oklch(79% 0.184 86.047);
+	--color-accent-content: oklch(0% 0 0);
+	--color-neutral: oklch(100% 0 0);
+	--color-neutral-content: oklch(14% 0.005 285.823);
+	--color-info: oklch(92% 0.006 264.531);
+	--color-info-content: oklch(27% 0.033 256.848);
+	--color-success: oklch(79% 0.184 86.047);
+	--color-success-content: oklch(28% 0.066 53.813);
+	--color-warning: oklch(90% 0.182 98.111);
+	--color-warning-content: oklch(28% 0.066 53.813);
+	--color-error: oklch(63% 0.237 25.331);
+	--color-error-content: oklch(97% 0.013 17.38);
+	--radius-selector: 1rem;
+	--radius-field: 1rem;
+	--radius-box: 1rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 1;
+	--noise: 0;
+}
