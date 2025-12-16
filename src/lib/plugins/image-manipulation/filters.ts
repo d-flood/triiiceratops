@@ -2,7 +2,7 @@ import type { ImageFilters } from './types';
 
 // Minimal local type to avoid reliance on missing OpenSeadragon typings.
 type OSDViewer = {
-    drawer: {
+    drawer?: {
         canvas?: HTMLCanvasElement;
     };
 };
@@ -13,7 +13,7 @@ type OSDViewer = {
  */
 export function applyFilters(viewer: OSDViewer, filters: ImageFilters): void {
     // OSD uses either canvas or webgl drawer
-    const canvas = viewer.drawer.canvas as HTMLCanvasElement | undefined;
+    const canvas = viewer.drawer?.canvas as HTMLCanvasElement | undefined;
     if (!canvas) return;
 
     const parts: string[] = [];
@@ -41,7 +41,7 @@ export function applyFilters(viewer: OSDViewer, filters: ImageFilters): void {
  * Remove all filters from the canvas.
  */
 export function clearFilters(viewer: OSDViewer): void {
-    const canvas = viewer.drawer.canvas as HTMLCanvasElement | undefined;
+    const canvas = viewer.drawer?.canvas as HTMLCanvasElement | undefined;
     if (canvas) {
         canvas.style.filter = 'none';
     }

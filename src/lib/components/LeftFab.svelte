@@ -50,12 +50,12 @@
         </div>
 
         <!-- Main Toggle Button -->
-        <div class="tooltip tooltip-right" data-tip="Plugins">
+        <div class="tooltip tooltip-right" data-tip={m.plugins_tooltip()}>
             <button
                 class="btn btn-lg btn-secondary btn-circle shadow-xl transition-transform duration-300 {isOpen
                     ? 'rotate-90'
                     : ''}"
-                aria-label="Plugins"
+                aria-label={m.plugins_tooltip()}
                 onclick={toggleOpen}
             >
                 {#if isOpen}
