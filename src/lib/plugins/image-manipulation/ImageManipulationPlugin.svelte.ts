@@ -5,6 +5,7 @@ import { BasePlugin, type PluginContext } from '../../types/plugin';
 import { applyFilters, clearFilters, hasActiveFilters } from './filters';
 import { DEFAULT_FILTERS, type ImageFilters } from './types';
 import ImageManipulationPanel from './ImageManipulationPanel.svelte';
+import { m } from '../../state/i18n.svelte';
 
 export class ImageManipulationPlugin extends BasePlugin {
     readonly id = 'image-manipulation';
@@ -24,7 +25,9 @@ export class ImageManipulationPlugin extends BasePlugin {
         context.registerMenuButton({
             id: `${this.id}:toggle`,
             icon: Sliders as Component,
-            tooltip: 'Image Adjustments',
+            get tooltip() {
+                return m.image_adjustments();
+            },
             onClick: () => this.togglePanel(),
             isActive: () => this._panelOpen,
             activeClass: 'btn-secondary',
