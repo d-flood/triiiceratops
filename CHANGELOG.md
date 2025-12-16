@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.5.0
+
+### Minor Changes
+
+- 82e87a9: Expose the selected canvas state as a prop that can be changed by external actors
+
 ## 0.4.0
 
 ### Minor Changes
