@@ -17,10 +17,12 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "svelte": "./dist/index.js",
+  "style": "./dist/triiiceratops.css",
   "types": "./dist/src/lib/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/src/lib/index.d.ts",
+      "style": "./dist/triiiceratops.css",
       "svelte": "./dist/index.js",
       "import": "./dist/index.js"
     },
@@ -32,7 +34,8 @@
     "./element": {
       "import": "./dist/triiiceratops-element.js"
     },
-    "./element.iife": "./dist/triiiceratops-element.iife.js"
+    "./element.iife": "./dist/triiiceratops-element.iife.js",
+    "./style.css": "./dist/triiiceratops.css"
   },
   "peerDependencies": {
     "manifesto.js": "^4.0.0",
@@ -50,8 +53,10 @@
     "build:lib": "vite build --config vite.config.lib.ts",
     "build:element": "vite build --config vite.config.element.ts",
     "build:demo": "vite build --config vite.config.demo.ts",
-    "build:all": "pnpm build:lib && pnpm build:element && pnpm build:demo",
+    "build:consumer": "vite build --config vite.config.demo-consumer.ts",
+    "build:all": "pnpm build:lib && pnpm build:element && pnpm build:demo && pnpm build:consumer",
     "preview": "vite preview",
+    "dev:consumer": "vite --config vite.config.demo-consumer.ts",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "vitest",
     "test:e2e": "playwright test",

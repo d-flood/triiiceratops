@@ -116,22 +116,45 @@
         <div class="flex-1"></div>
 
         <div class="join">
-            <input
-                class="join-item btn btn-sm"
-                type="radio"
-                name="viewerMode"
-                aria-label="Core"
-                value="core"
-                bind:group={viewerMode}
-            />
-            <input
-                class="join-item btn btn-sm"
-                type="radio"
-                name="viewerMode"
-                aria-label="Full"
-                value="image"
-                bind:group={viewerMode}
-            />
+            <div
+                class="tooltip tooltip-bottom"
+                data-tip={m.viewer_variant_tooltip_core()}
+            >
+                <input
+                    class="join-item btn btn-sm"
+                    type="radio"
+                    name="viewerMode"
+                    aria-label={m.viewer_variant_core()}
+                    value="core"
+                    bind:group={viewerMode}
+                />
+            </div>
+            <div
+                class="tooltip tooltip-bottom"
+                data-tip={m.viewer_variant_tooltip_full()}
+            >
+                <input
+                    class="join-item btn btn-sm"
+                    type="radio"
+                    name="viewerMode"
+                    aria-label={m.viewer_variant_full()}
+                    value="image"
+                    bind:group={viewerMode}
+                />
+            </div>
+            <div
+                class="tooltip tooltip-bottom"
+                data-tip={m.viewer_variant_tooltip_custom_theme()}
+            >
+                <input
+                    class="join-item btn btn-sm"
+                    type="radio"
+                    name="viewerMode"
+                    aria-label={m.viewer_variant_custom_theme()}
+                    value="custom-theme"
+                    bind:group={viewerMode}
+                />
+            </div>
         </div>
 
         <select
@@ -159,7 +182,7 @@
     <!-- Bottom Row: External Controls -->
     <div class="flex gap-4 items-center p-2 px-4 bg-base-300/30">
         <span class="text-xs font-bold uppercase tracking-wider opacity-70"
-            >External Controls:</span
+            >{m.demo_header_external_controls()}</span
         >
 
         <!-- Manifest Selector -->
@@ -205,7 +228,7 @@
         <!-- Canvas Selector -->
         <div class="flex gap-2 items-center">
             <label class="text-xs opacity-70" for="canvas-id-select">
-                Active Canvas
+                {m.demo_header_active_canvas()}
             </label>
             <select
                 id="canvas-id-select"

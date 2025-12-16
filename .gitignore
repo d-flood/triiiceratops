@@ -100,4 +100,4 @@ storybook-static/
 .venv/
 __pycache__
 site/
-docs/demo
+docs/demo*
