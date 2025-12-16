@@ -13,14 +13,16 @@
 
     let {
         manifestId,
+        canvasId,
         plugins = [],
     }: {
         manifestId?: string;
+        canvasId?: string;
         plugins?: TriiiceratopsPlugin[];
     } = $props();
 
     // Create per-instance viewer state (passing plugins initially)
-    const viewerState = new ViewerState(null, plugins);
+    const viewerState = new ViewerState(null, canvasId, plugins);
     setContext(VIEWER_STATE_KEY, viewerState);
 
     onDestroy(() => {
@@ -30,6 +32,12 @@
     $effect(() => {
         if (manifestId) {
             viewerState.setManifest(manifestId);
+        }
+    });
+
+    $effect(() => {
+        if (canvasId) {
+            viewerState.setCanvas(canvasId);
         }
     });
 

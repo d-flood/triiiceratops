@@ -7,6 +7,7 @@
 
     let manifestUrl = $state('');
     let currentManifest = $state('');
+    let canvasId = $state('');
 
     // Reference to the custom element
     let viewerElement: HTMLElement | undefined = $state();
@@ -42,7 +43,12 @@
 
 <div class="min-h-screen h-screen bg-base-300 flex flex-col">
     <!-- Header with input -->
-    <DemoHeader bind:manifestUrl bind:viewerMode onLoad={loadManifest} />
+    <DemoHeader
+        bind:manifestUrl
+        bind:viewerMode
+        bind:canvasId
+        onLoad={loadManifest}
+    />
 
     <h1 class="text-3xl text-center pt-8">Triiiceratops IIIF Viewer Demo</h1>
 
@@ -52,13 +58,17 @@
             class="h-full w-full rounded-box overflow-hidden border border-base-content/10 shadow-2xl"
         >
             {#if viewerMode === 'image'}
-                <triiiceratops-viewer-image manifest-id={currentManifest}
+                <triiiceratops-viewer-image
+                    manifest-id={currentManifest}
+                    canvas-id={canvasId}
                 ></triiiceratops-viewer-image>
             {:else}
                 <!-- Core viewer - Manual plugin injection not strictly needed for this demo toggle, 
                      but we keep it clean or could demonstrate manual injection here. 
                      For now, 'core' means NO plugin to clearly show the difference. -->
-                <triiiceratops-viewer manifest-id={currentManifest}
+                <triiiceratops-viewer
+                    manifest-id={currentManifest}
+                    canvas-id={canvasId}
                 ></triiiceratops-viewer>
             {/if}
         </div>

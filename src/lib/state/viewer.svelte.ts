@@ -1,5 +1,5 @@
 import { manifestsState } from './manifests.svelte.js';
-import type OpenSeadragon from 'openseadragon';
+
 import type {
     TriiiceratopsPlugin,
     PluginContext,
@@ -28,9 +28,11 @@ export class ViewerState {
 
     constructor(
         initialManifestId: string | null = null,
+        initialCanvasId: string | null = null,
         initialPlugins: TriiiceratopsPlugin[] = [],
     ) {
         this.manifestId = initialManifestId || null;
+        this.canvasId = initialCanvasId || null;
         // Fetch manifest immediately
         if (this.manifestId) {
             manifestsState.fetchManifest(this.manifestId);
@@ -361,7 +363,7 @@ export class ViewerState {
     pluginPanels: PluginPanel[] = $state([]);
 
     /** OpenSeadragon viewer instance (set by OSDViewer) */
-    osdViewer: OpenSeadragon.Viewer | null = $state(null);
+    osdViewer: any | null = $state(null);
 
     /** Event handlers for inter-plugin communication */
     private pluginEventHandlers = new Map<
@@ -466,7 +468,7 @@ export class ViewerState {
     /**
      * Called by OSDViewer when OpenSeadragon is ready.
      */
-    notifyOSDReady(viewer: OpenSeadragon.Viewer): void {
+    notifyOSDReady(viewer: any): void {
         this.osdViewer = viewer;
         for (const plugin of this.plugins) {
             plugin.onViewerReady?.(viewer);
