@@ -143,7 +143,7 @@
 
     <ThemeToggle />
     <div class="tooltip tooltip-bottom" data-tip={m.github()}>
-        <a href="https://github.com/dflood/triiiceratops" class="btn btn-ghost">
+        <a href="https://github.com/d-flood/triiiceratops" class="btn btn-ghost">
             <GithubLogo size={24} />
         </a>
     </div>
