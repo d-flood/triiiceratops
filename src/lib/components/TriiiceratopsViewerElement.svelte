@@ -8,6 +8,11 @@
                 type: 'String',
                 reflect: true,
             },
+            canvasId: {
+                attribute: 'canvas-id',
+                type: 'String',
+                reflect: true,
+            },
         },
     }}
 />
@@ -18,10 +23,15 @@
 
     let {
         manifestId = '',
+        canvasId = '',
         plugins = [],
-    }: { manifestId?: string; plugins?: TriiiceratopsPlugin[] } = $props();
+    }: {
+        manifestId?: string;
+        canvasId?: string;
+        plugins?: TriiiceratopsPlugin[];
+    } = $props();
 </script>
 
 <div class="w-full h-full">
-    <TriiiceratopsViewer {manifestId} {plugins} />
+    <TriiiceratopsViewer {manifestId} {canvasId} {plugins} />
 </div>
