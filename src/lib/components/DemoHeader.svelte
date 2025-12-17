@@ -7,10 +7,7 @@
 
     import { m, language } from '../state/i18n.svelte';
     import { manifestsState } from '../state/manifests.svelte';
-    import {
-        availableLanguageTags,
-        setLanguageTag,
-    } from '../paraglide/runtime.js';
+    import { locales, setLocale } from '../paraglide/runtime.js';
 
     import { onMount } from 'svelte';
 
@@ -213,10 +210,10 @@
         <select
             class="select select-bordered select-sm w-auto"
             value={language.current}
-            onchange={(e) => setLanguageTag(e.currentTarget.value as any)}
+            onchange={(e) => setLocale(e.currentTarget.value as any)}
             aria-label={m.language_select_label()}
         >
-            {#each availableLanguageTags as lang}
+            {#each locales as lang}
                 <option value={lang}>{languageNames[lang] || lang}</option>
             {/each}
         </select>

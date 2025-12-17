@@ -50,7 +50,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && cp -r src/lib/paraglide dist/ && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts",
+    "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts",
     "build:element": "vite build --config vite.config.element.ts",
     "build:demo": "vite build --config vite.config.demo.ts",
     "build:consumer": "vite build --config vite.config.demo-consumer.ts",
@@ -64,8 +64,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
-    "@inlang/paraglide-js": "^2.5.0",
-    "@inlang/paraglide-vite": "^1.4.0",
+    "@inlang/paraglide-js": "^2.7.0",
     "@playwright/test": "^1.57.0",
     "@sveltejs/package": "^2.5.7",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
