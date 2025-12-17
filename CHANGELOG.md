@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.8.1
+
+### Patch Changes
+
+- 47f8517: internalize phospher-svelte
+
 ## 0.8.0
 
 ### Minor Changes
