@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.8.0
+
+### Minor Changes
+
+- 644f253: Make SSR safe for use in SvelteKit applications; expose iiif search query for external setting
+
 ## 0.7.2
 
 ### Patch Changes
