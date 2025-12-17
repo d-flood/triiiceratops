@@ -5,24 +5,22 @@ import {
     overwriteSetLocale,
 } from '../paraglide/runtime.js';
 
-let tag = $state(getLocale());
+// For SSR compatibility, we use a simple variable instead of $state()
+// The consumer's app will handle reactivity at a higher level if needed
+let currentLocale = getLocale();
 
-// Wrap setLocale to update our reactive state when locale changes
+// Wrap setLocale to track locale changes
 overwriteSetLocale((newLocale, options) => {
     baseSetLocale(newLocale, options);
-    tag = getLocale();
+    currentLocale = getLocale();
 });
 
 export const language = {
     get current() {
-        return tag;
+        return currentLocale;
     },
 };
 
-export const m = new Proxy(messages, {
-    get(target, prop, receiver) {
-        // Register dependency by accessing the signal
-        tag;
-        return Reflect.get(target, prop, receiver);
-    },
-});
+// Re-export messages directly for SSR compatibility
+// The proxy pattern with $state doesn't work during SSR
+export { messages as m };
