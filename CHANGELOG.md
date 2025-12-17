@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.7.1
+
+### Patch Changes
+
+- af4c4fc: When only one floating menu item is enabled, display it instead of the menu
+
 ## 0.7.0
 
 ### Minor Changes
