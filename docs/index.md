@@ -85,6 +85,12 @@ This project is a work in progress and does not support all client IIIF features
     </div>
     ```
 
+## Configuration
+
+Triiiceratops is highly configurable, allowing you to customize the UI layout, enable/disable specialized panels (search, annotations), and control the thumbnail gallery behavior.
+
+[**Read the Configuration Guide**](./configuration.md){ .md-button }
+
 ## Theming
 
 Triiiceratops supports full theme customization through two mechanisms:

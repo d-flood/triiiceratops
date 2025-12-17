@@ -3,6 +3,7 @@
     import { ViewerState, VIEWER_STATE_KEY } from '../state/viewer.svelte';
     import type { TriiiceratopsPlugin } from '../types/plugin';
     import type { DaisyUITheme, ThemeConfig } from '../theme/types';
+    import type { ViewerConfig } from '../types/config';
     import { applyTheme } from '../theme/themeManager';
     import OSDViewer from './OSDViewer.svelte';
     import CanvasNavigation from './CanvasNavigation.svelte';
@@ -12,6 +13,7 @@
     import LeftFab from './LeftFab.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
+    import { m } from '../state/i18n.svelte';
 
     let {
         manifestId,
@@ -19,6 +21,8 @@
         plugins = [],
         theme,
         themeConfig,
+        config = {},
+        viewerState = $bindable(),
     }: {
         manifestId?: string;
         canvasId?: string;
@@ -27,6 +31,10 @@
         theme?: DaisyUITheme;
         /** Custom theme configuration to override the base theme's values. */
         themeConfig?: ThemeConfig;
+        /** Configuration options for the viewer UI */
+        config?: ViewerConfig;
+        /** Bindable viewer state instance for external access (Svelte consumers) */
+        viewerState?: ViewerState;
     } = $props();
 
     // Reference to root element for applying theme
@@ -39,29 +47,47 @@
         }
     });
 
-    // Create per-instance viewer state (passing plugins initially)
-    const viewerState = new ViewerState(null, canvasId, plugins);
-    setContext(VIEWER_STATE_KEY, viewerState);
+    // Create per-instance viewer state
+    // Note: We pass empty initial values and use $effect blocks below to set
+    // manifestId, canvasId, and plugins reactively, avoiding Svelte's
+    // "state_referenced_locally" warning about capturing initial prop values.
+    const internalViewerState = new ViewerState(null, undefined, []);
+    viewerState = internalViewerState; // Expose via bindable prop
+    setContext(VIEWER_STATE_KEY, internalViewerState);
 
     onDestroy(() => {
-        viewerState.destroyAllPlugins();
+        internalViewerState.destroyAllPlugins();
     });
 
     $effect(() => {
         if (manifestId) {
-            viewerState.setManifest(manifestId);
+            internalViewerState.setManifest(manifestId);
         }
     });
 
     $effect(() => {
         if (canvasId) {
-            viewerState.setCanvas(canvasId);
+            internalViewerState.setCanvas(canvasId);
+        }
+    });
+
+    $effect(() => {
+        if (config) {
+            console.log('[Viewer] updateConfig called with:', config);
+            internalViewerState.updateConfig(config);
+        }
+    });
+
+    // Register plugins reactively
+    $effect(() => {
+        for (const plugin of plugins) {
+            internalViewerState.registerPlugin(plugin);
         }
     });
 
     $effect(() => {
         const handleFullScreenChange = () => {
-            viewerState.isFullScreen = !!document.fullscreenElement;
+            internalViewerState.isFullScreen = !!document.fullscreenElement;
         };
         document.addEventListener('fullscreenchange', handleFullScreenChange);
         return () => {
@@ -73,24 +99,25 @@
     });
 
     let isLeftSidebarVisible = $derived(
-        (viewerState.showThumbnailGallery && viewerState.dockSide === 'left') ||
-            viewerState.pluginPanels.some(
+        (internalViewerState.showThumbnailGallery &&
+            internalViewerState.dockSide === 'left') ||
+            internalViewerState.pluginPanels.some(
                 (p) => p.position === 'left' && p.isVisible(),
             ),
     );
 
     let isRightSidebarVisible = $derived(
-        viewerState.showSearchPanel ||
-            (viewerState.showThumbnailGallery &&
-                viewerState.dockSide === 'right') ||
-            viewerState.pluginPanels.some(
+        internalViewerState.showSearchPanel ||
+            (internalViewerState.showThumbnailGallery &&
+                internalViewerState.dockSide === 'right') ||
+            internalViewerState.pluginPanels.some(
                 (p) => p.position === 'right' && p.isVisible(),
             ),
     );
 
-    let manifestData = $derived(viewerState.manifest);
-    let canvases = $derived(viewerState.canvases);
-    let currentCanvasIndex = $derived(viewerState.currentCanvasIndex);
+    let manifestData = $derived(internalViewerState.manifest);
+    let canvases = $derived(internalViewerState.canvases);
+    let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
 
     let tileSources = $derived.by(() => {
         if (
@@ -240,13 +267,13 @@
             class="flex-none flex flex-row z-20 bg-base-200 border-r border-base-300 transition-all"
         >
             <!-- Gallery (when docked left) -->
-            {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'left'}
+            {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
                 <div class="h-full w-[200px] pointer-events-auto relative">
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
 
-            {#each viewerState.pluginPanels as panel (panel.id)}
+            {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'left'}
                     <div class="h-full relative pointer-events-auto">
                         <panel.component {...panel.props ?? {}} />
@@ -262,7 +289,7 @@
         class="flex-1 relative min-w-0 flex flex-col"
     >
         <!-- Top Area (Gallery) -->
-        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'top'}
+        {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
             <div
                 class="flex-none h-[140px] w-full pointer-events-auto relative z-20"
             >
@@ -282,17 +309,21 @@
                 <div
                     class="w-full h-full flex items-center justify-center text-error"
                 >
-                    Error: {manifestData.error}
+                    {m.error_prefix()}
+                    {manifestData.error}
                 </div>
             {:else if tileSources}
                 {#key tileSources}
-                    <OSDViewer {tileSources} {viewerState} />
+                    <OSDViewer
+                        {tileSources}
+                        viewerState={internalViewerState}
+                    />
                 {/key}
             {:else}
                 <div
                     class="w-full h-full flex items-center justify-center text-base-content/50"
                 >
-                    No image found
+                    {m.no_image_found()}
                 </div>
             {/if}
 
@@ -300,11 +331,15 @@
             <MetadataDialog />
 
             <!-- Floating Menu / FABs -->
-            <FloatingMenu />
-            <LeftFab />
+            {#if internalViewerState.showRightMenu}
+                <FloatingMenu />
+            {/if}
+            {#if internalViewerState.showLeftMenu}
+                <LeftFab />
+            {/if}
 
             <!-- Overlay Plugin Panels -->
-            {#each viewerState.pluginPanels as panel (panel.id)}
+            {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'overlay'}
                     <div class="absolute inset-0 z-40 pointer-events-none">
                         <panel.component {...panel.props ?? {}} />
@@ -313,18 +348,18 @@
             {/each}
 
             <!-- Canvas Nav (Absolute positioned inside center, or floating?) currently assumes absolute -->
-            {#if canvases.length > 1}
-                <CanvasNavigation {viewerState} />
+            {#if canvases.length > 1 && internalViewerState.showCanvasNav}
+                <CanvasNavigation viewerState={internalViewerState} />
             {/if}
 
             <!-- Float-mode Gallery -->
-            {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'none'}
+            {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'none'}
                 <ThumbnailGallery {canvases} />
             {/if}
         </div>
 
         <!-- Bottom Area (Gallery) -->
-        {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'bottom'}
+        {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
             <div
                 class="flex-none h-[140px] w-full pointer-events-auto relative z-20"
             >
@@ -333,7 +368,7 @@
         {/if}
 
         <!-- Bottom Area (Plugin Panels) -->
-        {#each viewerState.pluginPanels as panel (panel.id)}
+        {#each internalViewerState.pluginPanels as panel (panel.id)}
             {#if panel.isVisible() && panel.position === 'bottom'}
                 <div class="relative w-full z-40 pointer-events-auto">
                     <panel.component {...panel.props ?? {}} />
@@ -348,21 +383,21 @@
             class="flex-none flex flex-row z-20 bg-base-200 border-l border-base-300 transition-all"
         >
             <!-- Search Panel -->
-            {#if viewerState.showSearchPanel}
+            {#if internalViewerState.showSearchPanel}
                 <div class="h-full relative pointer-events-auto">
                     <SearchPanel />
                 </div>
             {/if}
 
             <!-- Gallery (when docked right) -->
-            {#if viewerState.showThumbnailGallery && viewerState.dockSide === 'right'}
+            {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
                 <div class="h-full w-[200px] pointer-events-auto relative">
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
 
             <!-- Right Plugin Panels -->
-            {#each viewerState.pluginPanels as panel (panel.id)}
+            {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'right'}
                     <div class="h-full relative pointer-events-auto">
                         <panel.component {...panel.props ?? {}} />
