@@ -36,7 +36,7 @@
     function navigate(result: any) {
         const canvas = viewerState.canvases[result.canvasIndex];
         if (canvas) {
-            viewerState.canvasId = canvas.id;
+            viewerState.setCanvas(canvas.id);
         }
     }
 </script>
