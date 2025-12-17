@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.7.2
+
+### Patch Changes
+
+- b8bb035: Fix right menu transition
+
 ## 0.7.1
 
 ### Patch Changes
