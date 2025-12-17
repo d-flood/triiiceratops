@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.2
+
+### Patch Changes
+
+- 2a76f99: Change how styles are bundled
+
 ## 0.9.1
 
 ### Patch Changes
