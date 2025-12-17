@@ -38,13 +38,19 @@
     $effect(() => {
         // When annotations array changes (e.g. canvas change)
         if (annotations.length > 0) {
-            // Default to all visible
-            const newSet = new Set<string>();
-            annotations.forEach((a: any) => {
-                const id = getAnnotationId(a);
-                if (id) newSet.add(id);
-            });
-            viewerState.visibleAnnotationIds = newSet;
+            const shouldBeVisible =
+                viewerState.config.annotations?.visible ?? true;
+
+            if (shouldBeVisible) {
+                const newSet = new Set<string>();
+                annotations.forEach((a: any) => {
+                    const id = getAnnotationId(a);
+                    if (id) newSet.add(id);
+                });
+                viewerState.visibleAnnotationIds = newSet;
+            } else {
+                viewerState.visibleAnnotationIds = new Set();
+            }
         } else {
             viewerState.visibleAnnotationIds = new Set();
         }
@@ -86,7 +92,6 @@
         }
     }
 
-    // Cleaned up renderedAnnotations just for the List UI (no rect/geo data needed)
     let renderedAnnotations = $derived.by(() => {
         if (!annotations.length) return [];
 
@@ -176,7 +181,7 @@
 <!-- Unified Annotation Toolbar -->
 {#if viewerState.showAnnotations}
     <div
-        class="absolute top-4 right-4 z-500 pointer-events-auto transition-all duration-300"
+        class="absolute top-4 right-4 z-40 pointer-events-auto transition-all duration-300"
     >
         <!-- z-index increased for Leaflet (z-400 is map) -->
         <details class="group relative">

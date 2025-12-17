@@ -1,6 +1,7 @@
 <script lang="ts">
     import CaretDown from 'phosphor-svelte/lib/CaretDown';
     import { onMount } from 'svelte';
+    import { m } from '../state/i18n.svelte';
 
     let theme = $state('light');
 
@@ -56,12 +57,12 @@
     }
 </script>
 
-<div title="Change Theme" class="dropdown dropdown-end">
+<div title={m.change_theme_label()} class="dropdown dropdown-end">
     <div
         tabindex="0"
         role="button"
         class="btn group btn-sm gap-1.5 px-1.5 btn-ghost"
-        aria-label="Change Theme"
+        aria-label={m.change_theme_label()}
     >
         <div
             class="bg-base-100 group-hover:border-base-content/20 border-base-content/10 grid shrink-0 grid-cols-2 gap-0.5 rounded-md border p-1 transition-colors"
@@ -78,7 +79,7 @@
         class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-122 max-h-[calc(100vh-8.6rem)] overflow-y-auto border border-white/5 shadow-2xl outline outline-black/5 mt-16"
     >
         <ul class="menu w-56">
-            <li class="menu-title text-xs">Theme</li>
+            <li class="menu-title text-xs">{m.theme_menu_title()}</li>
             {#each themes as t}
                 <li>
                     <button class="gap-3 px-2" onclick={() => onThemeChange(t)}>

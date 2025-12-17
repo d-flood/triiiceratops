@@ -1,16 +1,23 @@
 <script lang="ts">
     import { getContext } from 'svelte';
     import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
+    import Spinner from 'phosphor-svelte/lib/Spinner';
+    import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
     // We'll initialize from viewerState to preserve context.
-    let query = $state(viewerState.searchQuery);
+    let searchQuery = $state('');
+    let resultsContainer: HTMLElement;
+
+    let showCloseButton = $derived(
+        viewerState.config.search?.showCloseButton ?? true,
+    );
 
     function handleSearch() {
-        viewerState.search(query);
+        viewerState.search(searchQuery);
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -35,27 +42,33 @@
         aria-label={m.search_panel_title()}
     >
         <!-- Header -->
-        <div class="p-4 bg-base-300 flex justify-between items-center shrink-0">
-            <h2 class="font-bold text-lg">{m.search_panel_title()}</h2>
-            <button
-                class="btn btn-sm btn-circle btn-ghost"
-                onclick={() => viewerState.toggleSearchPanel()}
-                aria-label={m.search_panel_close()}>✕</button
-            >
+        <div
+            class="flex items-center justify-between p-4 border-b border-base-300"
+        >
+            <h2 class="font-bold text-lg">{m.search()}</h2>
+            {#if showCloseButton}
+                <button
+                    class="btn btn-sm btn-circle btn-ghost"
+                    onclick={() => viewerState.toggleSearchPanel()}
+                    aria-label={m.close_search()}
+                >
+                    <X size={20} weight="bold" />
+                </button>
+            {/if}
         </div>
 
         <!-- Search Input -->
         <div class="p-4 border-b border-base-300 shrink-0">
-            <div class="join w-full">
+            <div class="relative w-full">
                 <input
                     type="text"
-                    placeholder={m.search_panel_placeholder()}
-                    class="input input-bordered join-item w-full"
-                    bind:value={query}
+                    bind:value={searchQuery}
                     onkeydown={handleKeydown}
+                    placeholder={m.search_panel_placeholder()}
+                    class="input input-bordered w-full pr-12"
                 />
                 <button
-                    class="btn btn-primary join-item"
+                    class="btn btn-primary absolute right-0 top-0 h-full rounded-l-none"
                     onclick={handleSearch}
                     aria-label={m.search_panel_title()}
                 >

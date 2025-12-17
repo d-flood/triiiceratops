@@ -1,9 +1,70 @@
 <script lang="ts">
     import DemoHeader from '../lib/components/DemoHeader.svelte';
+    import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
+    import { ViewerState } from '../lib/state/viewer.svelte';
+    import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
 
-    let manifestUrl = $state('');
-    let currentManifest = $state('');
-    let canvasId = $state('');
+    // Initialize state from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+
+    let manifestUrl = $state(urlParams.get('manifest') || '');
+    let currentManifest = $state(urlParams.get('manifest') || '');
+    let canvasId = $state(urlParams.get('canvas') || '');
+
+    const defaultConfig = {
+        showRightMenu: true,
+        showLeftMenu: true,
+        showCanvasNav: true,
+        rightMenu: {
+            showSearch: true,
+            showGallery: true,
+            showAnnotations: true,
+            showFullscreen: true,
+            showInfo: true,
+        },
+        gallery: {
+            open: false,
+            draggable: true,
+            showCloseButton: true,
+            dockPosition: 'bottom' as
+                | 'bottom'
+                | 'top'
+                | 'left'
+                | 'right'
+                | 'none',
+        },
+        search: {
+            open: false,
+            showCloseButton: true,
+        },
+        annotations: {
+            open: false,
+            visible: true,
+        },
+    };
+
+    let initialConfig = defaultConfig;
+    const configParam = urlParams.get('config');
+    if (configParam) {
+        try {
+            initialConfig = { ...defaultConfig, ...JSON.parse(configParam) };
+        } catch (e) {
+            console.error('Failed to parse config from URL', e);
+        }
+    }
+
+    let config = $state(initialConfig);
+
+    // Initialize mode from URL, default to 'image'
+    // const urlParams = new URLSearchParams(window.location.search); // Already defined above
+    let viewerMode = $state(urlParams.get('mode') || 'image');
+
+    // Derived string for custom elements
+    let configStr = $derived(JSON.stringify(config));
+
+    $effect(() => {
+        console.log('[Demo] configStr updated:', configStr);
+    });
 
     function loadManifest() {
         currentManifest = manifestUrl;
@@ -13,21 +74,20 @@
     import('../lib/custom-element');
     import('../lib/custom-element-image');
 
-    // Initialize mode from URL, default to 'image'
-    const urlParams = new URLSearchParams(window.location.search);
-    let viewerMode = $state(urlParams.get('mode') || 'image');
-    let isInitialLoad = true;
-
-    // Handle mode changes by reloading the page
+    // Persist state to URL
     $effect(() => {
-        if (isInitialLoad) {
-            isInitialLoad = false;
-            return;
-        }
-        // When viewerMode changes (via binding from Header), reload page
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.set('mode', viewerMode);
-        window.location.href = newUrl.toString();
+        const params = new URLSearchParams();
+        params.set('mode', viewerMode);
+        if (manifestUrl) params.set('manifest', manifestUrl);
+        if (canvasId) params.set('canvas', canvasId);
+
+        // Only persist config if it's different from default?
+        // For simplicity and correctness of bookmarking "exactly this view", we persist it.
+        // To avoid massive URLs for default state, we could compare, but let's stick to explicit first.
+        params.set('config', JSON.stringify(config));
+
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState({}, '', newUrl);
     });
 
     // Custom theme configuration for the "Custom Theme" demo
@@ -54,6 +114,107 @@
         radiusSelector: '0.5rem',
         border: '2px',
     });
+
+    // ==================== External State Access Demo ====================
+
+    // State received from web component events
+    let externalState = $state<ViewerStateSnapshot | null>(null);
+    let lastEventType = $state<string>('');
+
+    // ViewerState for Svelte component mode (via bindable prop)
+    let svelteViewerState: ViewerState | undefined = $state();
+
+    // Set up event listeners when viewer mounts - use onMount pattern
+    let listenersAttached = false;
+
+    $effect(() => {
+        // Only run once after mount, and only if we haven't attached listeners yet
+        if (listenersAttached) return;
+
+        // Use setTimeout to ensure custom elements are defined and rendered
+        const timeoutId = setTimeout(() => {
+            const el = document.querySelector(
+                'triiiceratops-viewer, triiiceratops-viewer-image',
+            ) as HTMLElement | null;
+
+            if (!el) return;
+
+            listenersAttached = true;
+
+            const handleStateChange = (e: Event) => {
+                const customEvent = e as CustomEvent<ViewerStateSnapshot>;
+                externalState = customEvent.detail;
+                lastEventType = e.type;
+                console.log(
+                    `[Demo] Received ${e.type} event:`,
+                    customEvent.detail,
+                );
+
+                // Sync relevant state back to config for settings dropdown
+                const state = customEvent.detail;
+                if (state) {
+                    config.gallery = {
+                        ...config.gallery,
+                        open: state.showThumbnailGallery,
+                        dockPosition: state.dockSide as
+                            | 'bottom'
+                            | 'top'
+                            | 'left'
+                            | 'right'
+                            | 'none',
+                    };
+                    config.search = {
+                        ...config.search,
+                        open: state.showSearchPanel,
+                    };
+                    config.annotations = {
+                        ...config.annotations,
+                        open: state.showAnnotations,
+                    };
+                }
+            };
+
+            // Listen to all state change events
+            el.addEventListener('statechange', handleStateChange);
+            el.addEventListener('canvaschange', handleStateChange);
+            el.addEventListener('manifestchange', handleStateChange);
+        }, 100);
+
+        return () => {
+            clearTimeout(timeoutId);
+        };
+    });
+
+    // Sync config from Svelte viewerState (for Svelte component mode)
+    // IMPORTANT: Only update config when values actually change to prevent infinite loops
+    $effect(() => {
+        if (viewerMode !== 'svelte' || !svelteViewerState) return;
+
+        config.gallery.open = svelteViewerState.showThumbnailGallery;
+        config.gallery.dockPosition = svelteViewerState.dockSide as any;
+        config.search.open = svelteViewerState.showSearchPanel;
+        config.annotations.open = svelteViewerState.showAnnotations;
+    });
+
+    // External control functions - call methods on ViewerState via the element
+    function externalNextCanvas() {
+        // Access viewerState property on the web component (exposed via shadowRoot)
+        const el = document.querySelector(
+            'triiiceratops-viewer, triiiceratops-viewer-image',
+        ) as any;
+        // The state is exposed via events, but we can also call methods
+        // by accessing the inner component's viewerState
+        if (el?.shadowRoot) {
+            const inner = el.shadowRoot.querySelector(
+                '[id="triiiceratops-viewer"]',
+            );
+            // For now, dispatch a custom event to trigger navigation
+            // or we could expose getViewerState() on the element
+        }
+        console.log(
+            '[Demo] External next canvas - use events for state updates',
+        );
+    }
 </script>
 
 <div class="min-h-screen h-screen bg-base-300 flex flex-col">
@@ -62,6 +223,7 @@
         bind:manifestUrl
         bind:viewerMode
         bind:canvasId
+        bind:config
         onLoad={loadManifest}
     />
 
@@ -69,35 +231,48 @@
 
     <!-- Viewer -->
     <main class="flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-32">
-        <div
-            class="h-full w-full rounded-box overflow-hidden border border-base-content/10 shadow-2xl"
-        >
-            {#if viewerMode === 'image'}
-                <triiiceratops-viewer-image
-                    manifest-id={currentManifest}
-                    canvas-id={canvasId}
-                ></triiiceratops-viewer-image>
-            {:else if viewerMode === 'custom-theme'}
-                <triiiceratops-viewer-image
-                    manifest-id={currentManifest}
-                    canvas-id={canvasId}
-                    theme-config={customThemeConfig}
-                ></triiiceratops-viewer-image>
-            {:else}
-                <!-- Core viewer - Manual plugin injection not strictly needed for this demo toggle, 
-                     but we keep it clean or could demonstrate manual injection here. 
-                     For now, 'core' means NO plugin to clearly show the difference. -->
-                <triiiceratops-viewer
-                    manifest-id={currentManifest}
-                    canvas-id={canvasId}
-                ></triiiceratops-viewer>
-            {/if}
+        <div class="flex gap-4 h-full">
+            <!-- Main Viewer -->
+            <div
+                class="flex-1 rounded-box overflow-hidden border border-base-content/10 shadow-2xl"
+            >
+                {#if viewerMode === 'svelte'}
+                    <!-- Svelte Component (direct import, not web component) -->
+                    <TriiiceratopsViewer
+                        manifestId={currentManifest}
+                        {canvasId}
+                        {config}
+                        bind:viewerState={svelteViewerState}
+                    />
+                {:else if viewerMode === 'image'}
+                    <triiiceratops-viewer-image
+                        manifest-id={currentManifest}
+                        canvas-id={canvasId}
+                        config={configStr}
+                    ></triiiceratops-viewer-image>
+                {:else if viewerMode === 'custom-theme'}
+                    <triiiceratops-viewer-image
+                        manifest-id={currentManifest}
+                        canvas-id={canvasId}
+                        theme-config={customThemeConfig}
+                        config={configStr}
+                    ></triiiceratops-viewer-image>
+                {:else}
+                    <!-- Core viewer (web component, no plugins) -->
+                    <triiiceratops-viewer
+                        manifest-id={currentManifest}
+                        canvas-id={canvasId}
+                        config={configStr}
+                    ></triiiceratops-viewer>
+                {/if}
+            </div>
         </div>
     </main>
 </div>
 
 <style>
-    triiiceratops-viewer {
+    triiiceratops-viewer,
+    triiiceratops-viewer-image {
         display: block;
         width: 100%;
         height: 100%;

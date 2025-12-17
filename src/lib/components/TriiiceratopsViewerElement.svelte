@@ -23,6 +23,11 @@
                 type: 'String',
                 reflect: false,
             },
+            config: {
+                attribute: 'config',
+                type: 'String',
+                reflect: false,
+            },
         },
     }}
 />
@@ -32,7 +37,9 @@
     import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
     import type { TriiiceratopsPlugin } from '../types/plugin';
     import type { DaisyUITheme, ThemeConfig } from '../theme/types';
+    import type { ViewerConfig } from '../types/config';
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
+    import type { ViewerState } from '../state/viewer.svelte';
 
     let {
         manifestId = '',
@@ -40,6 +47,7 @@
         plugins = [],
         theme = undefined as string | undefined,
         themeConfig = undefined as string | ThemeConfig | undefined,
+        config = undefined as string | ViewerConfig | undefined,
     }: {
         manifestId?: string;
         canvasId?: string;
@@ -56,7 +64,28 @@
          * @example JS: element.themeConfig = { primary: '#3b82f6', radiusBox: '0.5rem' }
          */
         themeConfig?: string | ThemeConfig;
+        /**
+         * Configuration options for the viewer UI.
+         */
+        config?: string | ViewerConfig;
     } = $props();
+
+    // Reference to host element for event dispatch
+    let hostElement: HTMLElement;
+
+    // ViewerState from the inner component (via bindable prop)
+    let internalViewerState: ViewerState | undefined = $state();
+
+    // Track if we've already wired up the event target (only do once)
+    let eventTargetSet = false;
+
+    // Wire up eventTarget when viewerState is available - only once
+    $effect(() => {
+        if (internalViewerState && hostElement && !eventTargetSet) {
+            eventTargetSet = true;
+            internalViewerState.setEventTarget(hostElement);
+        }
+    });
 
     // Validate and convert theme string to DaisyUITheme type
     let validatedTheme = $derived.by((): DaisyUITheme | undefined => {
@@ -80,16 +109,31 @@
         }
         return themeConfig;
     });
+    // Parse config if it's a JSON string, pass through if it's already an object
+    let parsedConfig = $derived.by((): ViewerConfig | undefined => {
+        if (!config) return undefined;
+        if (typeof config === 'string') {
+            try {
+                return JSON.parse(config);
+            } catch (e) {
+                console.warn(`Invalid config JSON: "${config}". Ignoring.`);
+                return undefined;
+            }
+        }
+        return config;
+    });
 </script>
 
 {@html `<style>${styles}</style>`}
 
-<div class="w-full h-full">
+<div bind:this={hostElement} class="w-full h-full">
     <TriiiceratopsViewer
         {manifestId}
         {canvasId}
         {plugins}
         theme={validatedTheme}
         themeConfig={parsedThemeConfig}
+        config={parsedConfig}
+        bind:viewerState={internalViewerState}
     />
 </div>

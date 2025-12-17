@@ -44,6 +44,12 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
+    // Config shorthands
+    let draggable = $derived(viewerState.config.gallery?.draggable ?? true);
+    let showCloseButton = $derived(
+        viewerState.config.gallery?.showCloseButton ?? true,
+    );
+
     let { canvases } = $props<{ canvases?: ManifestCanvas[] }>();
 
     let isResizing = $state(false);
@@ -242,35 +248,38 @@
 
         viewerState.galleryPosition = { x: newX, y: newY };
 
-        const viewer = document.getElementById('triiiceratops-center-panel');
-        if (viewer) {
-            const rect = viewer.getBoundingClientRect();
-            const x = e.clientX;
-            const y = e.clientY;
+        // Use the stored center panel rect (captured at drag start, works with shadow DOM)
+        const rect = viewerState.galleryCenterPanelRect;
+        if (!rect) {
+            console.warn('[Gallery] No center panel rect available');
+            return;
+        }
 
-            // Threshold for docking detection (pixels)
-            const THRESHOLD = 60;
+        const x = e.clientX;
+        const y = e.clientY;
 
-            // Reset
-            viewerState.dragOverSide = null;
+        // Threshold for docking detection (pixels)
+        const THRESHOLD = 60;
 
-            // Check boundaries (prioritize sides for better UX?)
-            // We check if mouse is within THRESHOLD distance of the edge, inside the rect
-            if (x >= rect.left && x <= rect.left + THRESHOLD) {
-                viewerState.dragOverSide = 'left';
-            } else if (x <= rect.right && x >= rect.right - THRESHOLD) {
-                viewerState.dragOverSide = 'right';
-            } else if (y >= rect.top && y <= rect.top + THRESHOLD) {
-                viewerState.dragOverSide = 'top';
-            } else if (y <= rect.bottom && y >= rect.bottom - THRESHOLD) {
-                viewerState.dragOverSide = 'bottom';
-            }
+        // Reset
+        viewerState.dragOverSide = null;
+
+        // Check boundaries
+        if (x >= rect.left && x <= rect.left + THRESHOLD) {
+            viewerState.dragOverSide = 'left';
+        } else if (x <= rect.right && x >= rect.right - THRESHOLD) {
+            viewerState.dragOverSide = 'right';
+        } else if (y >= rect.top && y <= rect.top + THRESHOLD) {
+            viewerState.dragOverSide = 'top';
+        } else if (y <= rect.bottom && y >= rect.bottom - THRESHOLD) {
+            viewerState.dragOverSide = 'bottom';
         }
     }
 
     function stopDrag() {
         // If we were dragging towards a dock zone
         const dropTarget = viewerState.dragOverSide;
+        console.log('[Gallery] stopDrag. dropTarget:', dropTarget);
 
         viewerState.isGalleryDragging = false;
         viewerState.dragOverSide = null;
@@ -355,48 +364,64 @@
     );
 
     function startDrag(e: MouseEvent) {
+        if (!draggable) return; // Dragging disabled in config
         if ((e.target as HTMLElement).closest('.resize-handle')) return; // Don't drag if resizing
 
-        // If dragging while docked, undock immediately
-        if (dockSide !== 'none') {
+        const wasDocked = dockSide !== 'none';
+
+        // Calculate position and offset first (no state changes yet)
+        if (wasDocked) {
             // Center on mouse logic is still good for UX
             let centeredX = Math.max(0, e.clientX - 150);
             let centeredY = Math.max(0, e.clientY - 20);
 
             // Constrain initial position so it doesn't jump off-screen if undocking near edges
-            const maxInitialX = Math.max(0, window.innerWidth - 300); // 300 is default width
-            const maxInitialY = Math.max(0, window.innerHeight - 400); // 400 is default height
+            const maxInitialX = Math.max(0, window.innerWidth - 300);
+            const maxInitialY = Math.max(0, window.innerHeight - 400);
 
             centeredX = Math.min(centeredX, maxInitialX);
             centeredY = Math.min(centeredY, maxInitialY);
 
-            // With fixed positioning, we use client coordinates directly.
-            // No need to worry about container offsets.
-
-            viewerState.galleryPosition = {
-                x: centeredX,
-                y: centeredY,
-            };
-
-            // dragOffset is simply the difference between Mouse and Element
+            viewerState.galleryPosition = { x: centeredX, y: centeredY };
             viewerState.galleryDragOffset = {
                 x: e.clientX - centeredX,
                 y: e.clientY - centeredY,
             };
-
-            dockSide = 'none';
         } else {
-            // Already floating (fixed)
+            // Already floating
             viewerState.galleryDragOffset = {
                 x: e.clientX - viewerState.galleryPosition.x,
                 y: e.clientY - viewerState.galleryPosition.y,
             };
         }
 
-        viewerState.isGalleryDragging = true;
+        // CRITICAL: Capture center panel rect BEFORE undocking
+        // Use getRootNode() to work inside shadow DOM
+        const root = galleryElement?.getRootNode() as Document | ShadowRoot;
+        const centerPanel =
+            root?.getElementById?.('triiiceratops-center-panel') ??
+            document.getElementById('triiiceratops-center-panel');
+        if (centerPanel) {
+            viewerState.galleryCenterPanelRect =
+                centerPanel.getBoundingClientRect();
+            console.log(
+                '[Gallery] Captured center panel rect:',
+                viewerState.galleryCenterPanelRect,
+            );
+        } else {
+            console.warn('[Gallery] Could not find center panel in startDrag');
+        }
 
+        // CRITICAL: Set dragging state and attach listeners BEFORE changing dockSide
+        // This ensures listeners persist even if component unmounts
+        viewerState.isGalleryDragging = true;
         window.addEventListener('mousemove', onDrag);
         window.addEventListener('mouseup', stopDrag);
+
+        // NOW undock - this may cause component remount, but listeners are already attached
+        if (wasDocked) {
+            dockSide = 'none';
+        }
     }
 </script>
 
@@ -416,46 +441,50 @@
             ? ''
             : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}
     >
-        <!-- Close Button (Absolute, always top-right of container) -->
-        <button
-            class="absolute top-1 right-1 btn btn-error btn-xs btn-circle z-20"
-            onclick={() => viewerState.toggleThumbnailGallery()}
-            aria-label="Close Gallery"
-        >
-            <X size={16} weight="bold" />
-        </button>
-
-        <!-- Header Area -->
-        <div
-            class={'bg-base-100 flex shrink-0 select-none relative ' +
-                (dockSide === 'bottom' || dockSide === 'top'
-                    ? 'flex-row h-full items-center border-r border-base-200'
-                    : 'flex-col w-full border-b border-base-200')}
-        >
-            <!-- Drag Handle -->
-            <div
-                class={'cursor-move flex items-center justify-center hover:bg-base-200/50 active:bg-base-200 transition-colors ' +
-                    (dockSide === 'bottom' || dockSide === 'top'
-                        ? 'w-8 h-full'
-                        : 'h-6 w-full')}
-                onmousedown={startDrag}
-                role="button"
-                tabindex="0"
-                aria-label="Drag Gallery"
+        <!-- Close Button (show when enabled in config, regardless of dock state) -->
+        {#if showCloseButton}
+            <button
+                class="absolute top-1 right-1 btn btn-error btn-xs btn-circle z-20"
+                onclick={() => viewerState.toggleThumbnailGallery()}
+                aria-label="Close Gallery"
             >
+                <X size={16} weight="bold" />
+            </button>
+        {/if}
+
+        <!-- Header Area (only show drag handle when draggable OR when floating) -->
+        {#if draggable || dockSide === 'none'}
+            <div
+                class={'bg-base-100 flex shrink-0 select-none relative ' +
+                    (dockSide === 'bottom' || dockSide === 'top'
+                        ? 'flex-row h-full items-center border-r border-base-200'
+                        : 'flex-col w-full border-b border-base-200')}
+            >
+                <!-- Drag Handle -->
                 <div
-                    class={'bg-base-300 rounded-full ' +
+                    class={'cursor-move flex items-center justify-center hover:bg-base-200/50 active:bg-base-200 transition-colors ' +
                         (dockSide === 'bottom' || dockSide === 'top'
-                            ? 'w-1.5 h-12'
-                            : 'w-12 h-1.5')}
-                ></div>
+                            ? 'w-8 h-full'
+                            : 'h-6 w-full')}
+                    onmousedown={startDrag}
+                    role="button"
+                    tabindex="0"
+                    aria-label="Drag Gallery"
+                >
+                    <div
+                        class={'bg-base-300 rounded-full ' +
+                            (dockSide === 'bottom' || dockSide === 'top'
+                                ? 'w-1.5 h-12'
+                                : 'w-12 h-1.5')}
+                    ></div>
+                </div>
             </div>
-        </div>
+        {/if}
 
         <!-- Content (Grid or Horizontal Scroll) -->
         <div
             class="flex-1 p-1 bg-base-100 {isHorizontal
-                ? 'overflow-x-auto overflow-y-hidden'
+                ? 'overflow-x-auto overflow-y-hidden h-full'
                 : 'overflow-y-auto overflow-x-hidden'}"
         >
             <div
@@ -521,7 +550,7 @@
         <!-- Drop Zones -->
         <!-- Top -->
         <div
-            class="absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
+            class="absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
             'top'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
@@ -532,7 +561,7 @@
 
         <!-- Bottom -->
         <div
-            class="absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
+            class="absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
             'bottom'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
@@ -543,7 +572,7 @@
 
         <!-- Left -->
         <div
-            class="absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
+            class="absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
             'left'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
@@ -557,7 +586,7 @@
 
         <!-- Right -->
         <div
-            class="absolute top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-950 flex items-center justify-center transition-all duration-300 {viewerState.dragOverSide ===
+            class="absolute top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-300 {viewerState.dragOverSide ===
             'right'
                 ? 'bg-primary/20 scale-105'
                 : 'bg-base-100/50'}"
