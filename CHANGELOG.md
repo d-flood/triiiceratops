@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.8
+
+### Patch Changes
+
+- 8c8aa10: more paraglide i18n fixes
+
 ## 0.9.7
 
 ### Patch Changes
