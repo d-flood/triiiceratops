@@ -2,7 +2,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import dts from 'vite-plugin-dts';
+// import dts from 'vite-plugin-dts';
 import { paraglide } from '@inlang/paraglide-vite';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -16,22 +16,21 @@ export default defineConfig({
         }),
         tailwindcss(),
         svelte(),
-
-        dts({
-            include: ['src/lib'],
-            tsconfigPath: './tsconfig.app.json',
-            outDir: 'dist',
-            exclude: ['**/*.test.ts', '**/*.spec.ts'],
-        }),
+        // dts({
+        //     include: ['src/lib'],
+        //     tsconfigPath: './tsconfig.app.json',
+        //     outDir: 'dist',
+        //     exclude: ['**/*.test.ts', '**/*.spec.ts'],
+        // }),
     ],
     build: {
         lib: {
             entry: {
-                index: resolve(__dirname, 'src/lib/index.ts'),
-                'plugins/image-manipulation': resolve(
-                    __dirname,
-                    'src/lib/plugins/image-manipulation/index.ts',
-                ),
+                'triiiceratops-bundle': resolve(__dirname, 'src/lib/index.ts'),
+                // 'plugins/image-manipulation': resolve(
+                //     __dirname,
+                //     'src/lib/plugins/image-manipulation/index.ts',
+                // ),
             },
             name: 'Triiiceratops',
 
@@ -50,6 +49,6 @@ export default defineConfig({
             ],
         },
         outDir: 'dist',
-        emptyOutDir: true,
+        emptyOutDir: false,
     },
 });
