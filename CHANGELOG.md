@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.8.2
+
+### Patch Changes
+
+- 3192bf7: fix types in svelte component library build output and refactor OSD to import onMount
+
 ## 0.8.1
 
 ### Patch Changes
