@@ -143,46 +143,24 @@
     </div>
 {:else if activeButtons.length > 1}
     <div
-        class="fab fab-flower fab-top-left absolute z-600 pointer-events-auto flex-col items-end transition-all duration-300 bottom-6 right-6"
+        class="fab fab-flower fab-top-left absolute z-600 pointer-events-auto bottom-6 right-6"
     >
-        <div class="tooltip tooltip-left" data-tip={m.menu()}>
-            <div
-                tabindex="0"
-                role="button"
-                class="btn btn-lg btn-primary btn-circle shadow-xl"
-            >
-                <span class="sr-only">{m.menu()}</span>
-                <List size={32} weight="bold" />
-            </div>
-        </div>
-        <!-- a focusable div with tabindex is necessary to work on all browsers. role="button" is necessary for accessibility -->
-
-        <!-- Main Action button replaces the original button when FAB is open -->
+        <!-- Trigger button: focusable div (Safari bug workaround) - hidden when FAB is open -->
         <div
-            class="fab-close tooltip tooltip-top"
-            data-tip={showSearch ? m.search() : m.close_menu()}
+            tabindex="0"
+            role="button"
+            class="btn btn-lg btn-primary btn-circle shadow-xl"
         >
-            {#if showSearch}
-                {@render searchBtn()}
-            {:else}
-                <!-- Fallback Close Button when Search is hidden -->
-                <button
-                    aria-label={m.close_menu()}
-                    class="btn btn-circle btn-lg btn-neutral shadow-lg"
-                    onclick={(e) => {
-                        // To close the CSS-only FAB, we need to remove focus from the trigger
-                        // The trigger is the sibling .btn-circle (List icon)
-                        if (document.activeElement instanceof HTMLElement) {
-                            document.activeElement.blur();
-                        }
-                    }}
-                >
-                    <X size={28} weight="bold" />
-                </button>
-            {/if}
+            <span class="sr-only">{m.menu()}</span>
+            <List size={32} weight="bold" />
         </div>
 
-        <!-- buttons that show up when FAB is open -->
+        <!-- fab-main-action: replaces the trigger button when FAB is open -->
+        <div class="fab-main-action tooltip tooltip-top" data-tip={m.search()}>
+            {@render searchBtn()}
+        </div>
+
+        <!-- buttons that show up when FAB is open (max 4 for flower layout) -->
 
         <!-- Gallery Toggle -->
         {#if showGallery}
@@ -211,7 +189,7 @@
         <!-- Annotations Toggle -->
         {#if showAnnotations}
             <div
-                class="tooltip tooltip-left"
+                class="tooltip tooltip-top"
                 data-tip={viewerState.showAnnotations
                     ? m.hide_annotations()
                     : m.show_annotations()}
@@ -222,7 +200,7 @@
 
         <!-- Metadata Toggle -->
         {#if showInfo}
-            <div class="tooltip tooltip-left" data-tip={m.metadata()}>
+            <div class="tooltip tooltip-top" data-tip={m.metadata()}>
                 {@render infoBtn()}
             </div>
         {/if}
