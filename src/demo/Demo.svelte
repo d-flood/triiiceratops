@@ -223,12 +223,18 @@
     });
 
     // Push config.search.query to Svelte viewerState (one-way: Config -> Viewer)
+    // Track last pushed query to only trigger on actual CONFIG changes
+    let lastPushedQuery = $state('');
     $effect(() => {
         if (viewerMode !== 'svelte' || !svelteViewerState) return;
 
         const query = config.search?.query;
-        if (query !== undefined && query !== svelteViewerState.searchQuery) {
-            svelteViewerState.search(query);
+        // Only search if the CONFIG query has changed (not just differs from viewer)
+        if (query !== undefined && query !== lastPushedQuery) {
+            lastPushedQuery = query;
+            if (query !== svelteViewerState.searchQuery) {
+                svelteViewerState.search(query);
+            }
         }
     });
 

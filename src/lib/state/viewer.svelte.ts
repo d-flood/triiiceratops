@@ -379,7 +379,13 @@ export class ViewerState {
             if (data.hits) {
                 for (const hit of data.hits) {
                     // hits have property 'annotations' which is array of ids
+                    // Collapse all annotations for this hit into a single result per canvas
                     const annotations = hit.annotations || [];
+                    const hitBoundsByCanvas = new Map<
+                        number,
+                        { label: string; bounds: number[][] }
+                    >();
+
                     for (const annoId of annotations) {
                         const annotation = resources.find(
                             (r: any) => r['@id'] === annoId || r.id === annoId,
@@ -397,38 +403,63 @@ export class ViewerState {
                                 (c: any) => c.id === cleanOn,
                             );
                             if (canvasIndex >= 0) {
-                                const canvas = this.canvases[canvasIndex];
-                                // Try to get a label
-                                let label = 'Canvas ' + (canvasIndex + 1);
-                                try {
-                                    if (canvas.getLabel) {
-                                        const l = canvas.getLabel();
-                                        if (Array.isArray(l) && l.length > 0)
-                                            label = l[0].value;
-                                        else if (typeof l === 'string')
-                                            label = l;
-                                    } else if (canvas.label) {
-                                        // Fallback if raw object
-                                        if (typeof canvas.label === 'string')
-                                            label = canvas.label;
-                                        else if (Array.isArray(canvas.label))
-                                            label = canvas.label[0]?.value;
+                                if (!hitBoundsByCanvas.has(canvasIndex)) {
+                                    const canvas = this.canvases[canvasIndex];
+                                    // Try to get a label
+                                    let label = 'Canvas ' + (canvasIndex + 1);
+                                    try {
+                                        if (canvas.getLabel) {
+                                            const l = canvas.getLabel();
+                                            if (
+                                                Array.isArray(l) &&
+                                                l.length > 0
+                                            )
+                                                label = l[0].value;
+                                            else if (typeof l === 'string')
+                                                label = l;
+                                        } else if (canvas.label) {
+                                            // Fallback if raw object
+                                            if (
+                                                typeof canvas.label === 'string'
+                                            )
+                                                label = canvas.label;
+                                            else if (
+                                                Array.isArray(canvas.label)
+                                            )
+                                                label = canvas.label[0]?.value;
+                                        }
+                                    } catch (e) {
+                                        /* ignore */
                                     }
-                                } catch (e) {
-                                    /* ignore */
+                                    hitBoundsByCanvas.set(canvasIndex, {
+                                        label: String(label),
+                                        bounds: [],
+                                    });
                                 }
-
-                                processedResults.push({
-                                    type: 'hit',
-                                    before: hit.before,
-                                    match: hit.match,
-                                    after: hit.after,
-                                    canvasIndex,
-                                    canvasLabel: String(label),
-                                    bounds,
-                                });
+                                if (bounds) {
+                                    hitBoundsByCanvas
+                                        .get(canvasIndex)!
+                                        .bounds.push(bounds);
+                                }
                             }
                         }
+                    }
+
+                    // Create one result per canvas for this hit
+                    for (const [canvasIndex, data] of hitBoundsByCanvas) {
+                        processedResults.push({
+                            type: 'hit',
+                            before: hit.before,
+                            match: hit.match,
+                            after: hit.after,
+                            canvasIndex,
+                            canvasLabel: data.label,
+                            // Store all bounds for this hit on this canvas
+                            allBounds: data.bounds,
+                            // Keep first bounds for backwards compatibility
+                            bounds:
+                                data.bounds.length > 0 ? data.bounds[0] : null,
+                        });
                     }
                 }
             } else if (resources.length > 0) {
@@ -481,14 +512,22 @@ export class ViewerState {
             this.searchResults = processedResults;
 
             // Generate ephemeral search annotations
-            this.searchAnnotations = processedResults
-                .filter((r) => r.bounds)
-                .map((r, i) => {
-                    const canvas = this.canvases[r.canvasIndex];
-                    const on = `${canvas.id}#xywh=${r.bounds.join(',')}`;
+            // Create one annotation per bound location (flatten allBounds)
+            let annotationIndex = 0;
+            this.searchAnnotations = processedResults.flatMap((r) => {
+                const canvas = this.canvases[r.canvasIndex];
+                // Use allBounds if available, otherwise fall back to single bounds
+                const boundsArray =
+                    r.allBounds && r.allBounds.length > 0
+                        ? r.allBounds
+                        : r.bounds
+                          ? [r.bounds]
+                          : [];
 
+                return boundsArray.map((bounds: number[]) => {
+                    const on = `${canvas.id}#xywh=${bounds.join(',')}`;
                     return {
-                        '@id': `urn:search-hit:${i}`,
+                        '@id': `urn:search-hit:${annotationIndex++}`,
                         '@type': 'oa:Annotation',
                         motivation: 'sc:painting',
                         on: on,
@@ -502,6 +541,7 @@ export class ViewerState {
                         isSearchHit: true,
                     };
                 });
+            });
         } catch (e) {
             console.error('Search error:', e);
         } finally {
