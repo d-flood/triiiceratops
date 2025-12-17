@@ -322,7 +322,7 @@
     }
 
     function selectCanvas(canvasId: string) {
-        viewerState.canvasId = canvasId;
+        viewerState.setCanvas(canvasId);
     }
 
     // State for docking

@@ -184,6 +184,11 @@
                         config.search = newSearch;
                         config.annotations = newAnnotations;
                     }
+
+                    // Sync canvas ID back to the dropdown
+                    if (state.canvasId && state.canvasId !== canvasId) {
+                        canvasId = state.canvasId;
+                    }
                 }
             };
 
@@ -207,6 +212,14 @@
         config.gallery.dockPosition = svelteViewerState.dockSide as any;
         config.search.open = svelteViewerState.showSearchPanel;
         config.annotations.open = svelteViewerState.showAnnotations;
+
+        // Sync canvas ID back to the dropdown
+        if (
+            svelteViewerState.canvasId &&
+            svelteViewerState.canvasId !== canvasId
+        ) {
+            canvasId = svelteViewerState.canvasId;
+        }
     });
 
     // Push config.search.query to Svelte viewerState (one-way: Config -> Viewer)

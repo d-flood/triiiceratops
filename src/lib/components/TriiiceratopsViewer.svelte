@@ -65,9 +65,19 @@
         }
     });
 
+    // Track last applied canvasId PROP value to prevent reverting internal navigation
+    let lastAppliedCanvasId = '';
+
     $effect(() => {
-        if (canvasId && canvasId !== internalViewerState.canvasId) {
-            internalViewerState.setCanvas(canvasId);
+        // Only sync from prop to internal state when PROP actually changes
+        // This prevents internal navigation from being reverted when the effect
+        // runs due to internal state changes
+        if (canvasId && canvasId !== lastAppliedCanvasId) {
+            lastAppliedCanvasId = canvasId;
+            // Only apply if different from current internal state
+            if (canvasId !== internalViewerState.canvasId) {
+                internalViewerState.setCanvas(canvasId);
+            }
         }
     });
 
