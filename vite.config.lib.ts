@@ -26,7 +26,10 @@ export default defineConfig({
     build: {
         lib: {
             entry: {
-                'triiiceratops-bundle': resolve(__dirname, 'src/lib/index.ts'),
+                'triiiceratops-bundle': resolve(
+                    __dirname,
+                    'src/lib/index-bundle.ts',
+                ),
                 // 'plugins/image-manipulation': resolve(
                 //     __dirname,
                 //     'src/lib/plugins/image-manipulation/index.ts',

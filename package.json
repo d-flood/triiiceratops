@@ -50,7 +50,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:lib": "svelte-package && vite build --config vite.config.lib.ts",
+    "build:lib": "svelte-package --tsconfig ./tsconfig.app.json && vite build --config vite.config.lib.ts",
     "build:element": "vite build --config vite.config.element.ts",
     "build:demo": "vite build --config vite.config.demo.ts",
     "build:consumer": "vite build --config vite.config.demo-consumer.ts",
