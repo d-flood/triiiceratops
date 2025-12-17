@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.1
+
+### Patch Changes
+
+- ceba065: Remove css import from index.ts
+
 ## 0.9.0
 
 ### Minor Changes
