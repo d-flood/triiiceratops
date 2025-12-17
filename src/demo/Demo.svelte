@@ -36,6 +36,7 @@
         search: {
             open: false,
             showCloseButton: true,
+            query: '',
         },
         annotations: {
             open: false,
@@ -153,24 +154,36 @@
                 // Sync relevant state back to config for settings dropdown
                 const state = customEvent.detail;
                 if (state) {
-                    config.gallery = {
-                        ...config.gallery,
-                        open: state.showThumbnailGallery,
-                        dockPosition: state.dockSide as
-                            | 'bottom'
-                            | 'top'
-                            | 'left'
-                            | 'right'
-                            | 'none',
-                    };
-                    config.search = {
-                        ...config.search,
-                        open: state.showSearchPanel,
-                    };
-                    config.annotations = {
-                        ...config.annotations,
-                        open: state.showAnnotations,
-                    };
+                    let hasChanges = false;
+                    const newGallery = { ...config.gallery };
+                    if (newGallery.open !== state.showThumbnailGallery) {
+                        newGallery.open = state.showThumbnailGallery;
+                        hasChanges = true;
+                    }
+                    if (newGallery.dockPosition !== (state.dockSide as any)) {
+                        newGallery.dockPosition = state.dockSide as any;
+                        hasChanges = true;
+                    }
+
+                    const newSearch = { ...config.search };
+                    if (newSearch.open !== state.showSearchPanel) {
+                        newSearch.open = state.showSearchPanel;
+                        hasChanges = true;
+                    }
+                    // NOTE: Search query is one-way only (Config -> Viewer)
+                    // We do NOT sync query back from viewer to config because of ISSUES
+
+                    const newAnnotations = { ...config.annotations };
+                    if (newAnnotations.open !== state.showAnnotations) {
+                        newAnnotations.open = state.showAnnotations;
+                        hasChanges = true;
+                    }
+
+                    if (hasChanges) {
+                        config.gallery = newGallery;
+                        config.search = newSearch;
+                        config.annotations = newAnnotations;
+                    }
                 }
             };
 
@@ -194,6 +207,16 @@
         config.gallery.dockPosition = svelteViewerState.dockSide as any;
         config.search.open = svelteViewerState.showSearchPanel;
         config.annotations.open = svelteViewerState.showAnnotations;
+    });
+
+    // Push config.search.query to Svelte viewerState (one-way: Config -> Viewer)
+    $effect(() => {
+        if (viewerMode !== 'svelte' || !svelteViewerState) return;
+
+        const query = config.search?.query;
+        if (query !== undefined && query !== svelteViewerState.searchQuery) {
+            svelteViewerState.search(query);
+        }
     });
 
     // External control functions - call methods on ViewerState via the element
@@ -258,7 +281,6 @@
                         config={configStr}
                     ></triiiceratops-viewer-image>
                 {:else}
-                    <!-- Core viewer (web component, no plugins) -->
                     <triiiceratops-viewer
                         manifest-id={currentManifest}
                         canvas-id={canvasId}

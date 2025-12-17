@@ -2,6 +2,7 @@
     import GithubLogo from 'phosphor-svelte/lib/GithubLogo';
     import Gear from 'phosphor-svelte/lib/Gear';
     import Copy from 'phosphor-svelte/lib/Copy';
+    import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
     import ThemeToggle from './ThemeToggle.svelte';
 
     import { m, language } from '../state/i18n.svelte';
@@ -117,6 +118,24 @@
         setTimeout(() => {
             copied = false;
         }, 2000);
+    }
+
+    // Initialize from config
+    let activeSearchTerm = $state(config.search?.query || '');
+    let searchInitialized = false;
+
+    $effect(() => {
+        // Only update if not yet initialized and config has a value (e.g. from URL load)
+        if (!searchInitialized && config.search?.query) {
+            activeSearchTerm = config.search.query;
+            searchInitialized = true;
+        }
+    });
+
+    function handleSearchKeydown(e: KeyboardEvent) {
+        if (e.key === 'Enter' && config.search) {
+            config.search.query = activeSearchTerm;
+        }
     }
 </script>
 
@@ -656,6 +675,29 @@
                     {/each}
                 {/if}
             </select>
+        </div>
+
+        <div class="w-px h-4 bg-base-content/20 mx-2"></div>
+
+        <!-- Search Input -->
+        <div class="flex gap-2 items-center">
+            <label
+                class="text-xs opacity-70 flex items-center gap-1"
+                for="external-search-input"
+            >
+                <MagnifyingGlass size={14} />
+                <span class="sr-only">{m.search()}</span>
+            </label>
+            {#if config.search}
+                <input
+                    id="external-search-input"
+                    type="text"
+                    placeholder={m.search_panel_placeholder()}
+                    class="input input-bordered input-xs w-[150px]"
+                    bind:value={activeSearchTerm}
+                    onkeydown={handleSearchKeydown}
+                />
+            {/if}
         </div>
     </div>
 </header>

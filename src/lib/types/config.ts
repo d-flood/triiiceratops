@@ -48,6 +48,10 @@ export interface SearchConfig {
      * @default true
      */
     showCloseButton?: boolean;
+    /**
+     * Initial search query to execute.
+     */
+    query?: string;
 }
 
 export interface AnnotationsConfig {

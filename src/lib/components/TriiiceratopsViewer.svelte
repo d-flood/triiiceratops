@@ -60,21 +60,31 @@
     });
 
     $effect(() => {
-        if (manifestId) {
+        if (manifestId && manifestId !== internalViewerState.manifestId) {
             internalViewerState.setManifest(manifestId);
         }
     });
 
     $effect(() => {
-        if (canvasId) {
+        if (canvasId && canvasId !== internalViewerState.canvasId) {
             internalViewerState.setCanvas(canvasId);
         }
     });
 
+    // Track last applied config to prevent redundant updates and loops
+    let lastConfigStr = '';
+
     $effect(() => {
         if (config) {
-            console.log('[Viewer] updateConfig called with:', config);
-            internalViewerState.updateConfig(config);
+            const str = JSON.stringify(config);
+            if (str !== lastConfigStr) {
+                lastConfigStr = str;
+                console.log(
+                    '[Viewer] updateConfig called with new config:',
+                    config,
+                );
+                internalViewerState.updateConfig(config);
+            }
         }
     });
 
