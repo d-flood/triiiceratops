@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import OpenSeadragon from 'openseadragon';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -13,6 +12,7 @@
 
     let container: HTMLElement | undefined = $state();
     let viewer: any | undefined = $state();
+    let OSD: any | undefined = $state();
 
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
@@ -50,7 +50,7 @@
         // Depend on osdVersion to trigger updates
         osdVersion;
 
-        if (!viewer || !parsedAnnotations.length) {
+        if (!viewer || !OSD || !parsedAnnotations.length) {
             return [];
         }
 
@@ -102,7 +102,7 @@
                 // Convert each point from image to viewport to pixel
                 const pixelPoints = anno.geometry.points.map((point) => {
                     const viewportPoint = tiledImage.imageToViewportCoordinates(
-                        new OpenSeadragon.Point(point[0], point[1]),
+                        new OSD.Point(point[0], point[1]),
                     );
                     const pixelPoint =
                         viewer.viewport.viewportToViewerElementCoordinates(
@@ -151,24 +151,30 @@
     onMount(() => {
         if (!container) return;
 
-        // Initialize OpenSeadragon viewer
-        viewer = OpenSeadragon({
-            element: container,
-            tileSources: null, // Will be set via effect
-            prefixUrl: '', // No navigation UI images needed
-            showNavigationControl: false,
-            showHomeControl: false,
-            showFullPageControl: false,
-            showSequenceControl: false,
-            showZoomControl: false,
-            showRotationControl: false,
-            animationTime: 0.5,
-            springStiffness: 7.0,
-            zoomPerClick: 2.0,
-        });
+        (async () => {
+            // Dynamically import OpenSeadragon to avoid SSR issues
+            const osdModule = await import('openseadragon');
+            OSD = osdModule.default || osdModule;
 
-        // Notify plugins that OSD is ready
-        viewerState.notifyOSDReady(viewer);
+            // Initialize OpenSeadragon viewer
+            viewer = OSD({
+                element: container,
+                tileSources: null, // Will be set via effect
+                prefixUrl: '', // No navigation UI images needed
+                showNavigationControl: false,
+                showHomeControl: false,
+                showFullPageControl: false,
+                showSequenceControl: false,
+                showZoomControl: false,
+                showRotationControl: false,
+                animationTime: 0.5,
+                springStiffness: 7.0,
+                zoomPerClick: 2.0,
+            });
+
+            // Notify plugins that OSD is ready
+            viewerState.notifyOSDReady(viewer);
+        })();
 
         return () => {
             viewer?.destroy();
