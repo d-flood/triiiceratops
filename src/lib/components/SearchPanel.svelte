@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext } from 'svelte';
+    import { getContext, untrack } from 'svelte';
     import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
     import Spinner from 'phosphor-svelte/lib/Spinner';
     import X from 'phosphor-svelte/lib/X';
@@ -15,6 +15,13 @@
     let showCloseButton = $derived(
         viewerState.config.search?.showCloseButton ?? true,
     );
+
+    // Sync local query with viewerState
+    $effect(() => {
+        if (viewerState.searchQuery !== untrack(() => searchQuery)) {
+            searchQuery = viewerState.searchQuery;
+        }
+    });
 
     function handleSearch() {
         viewerState.search(searchQuery);

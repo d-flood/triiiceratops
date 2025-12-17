@@ -19,6 +19,7 @@ export interface ViewerStateSnapshot {
     showAnnotations: boolean;
     showThumbnailGallery: boolean;
     showSearchPanel: boolean;
+    searchQuery: string;
     isFullScreen: boolean;
     dockSide: string;
 }
@@ -97,6 +98,7 @@ export class ViewerState {
             showAnnotations: this.showAnnotations,
             showThumbnailGallery: this.showThumbnailGallery,
             showSearchPanel: this.showSearchPanel,
+            searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
             dockSide: this.dockSide,
         };
@@ -110,6 +112,10 @@ export class ViewerState {
      * reactive cycle completes, preventing infinite update loops.
      */
     private dispatchStateChange(eventName: string = 'statechange'): void {
+        console.log(
+            `[ViewerState] Dispatching ${eventName}`,
+            JSON.stringify(this.getSnapshot()),
+        );
         if (!this.eventTarget) return;
 
         // Dispatch asynchronously to break reactive loops
@@ -137,8 +143,8 @@ export class ViewerState {
         }
 
         // Register initial plugins
-        for (const plugin of initialPlugins) {
-            this.registerPlugin(plugin);
+        for (const initialPlugin of initialPlugins) {
+            this.registerPlugin(initialPlugin);
         }
     }
 
@@ -210,6 +216,7 @@ export class ViewerState {
     }
 
     updateConfig(newConfig: ViewerConfig) {
+        const oldConfig = this.config;
         this.config = newConfig;
 
         // Sync state from config
@@ -225,6 +232,19 @@ export class ViewerState {
         if (newConfig.search) {
             if (newConfig.search.open !== undefined) {
                 this.showSearchPanel = newConfig.search.open;
+            }
+            // Only search if the CONFIG has changed its query requirement.
+            // This prevents stale config updates (e.g. from other property changes)
+            // from overwriting a newer internal search state.
+            const newQuery = newConfig.search.query;
+            const oldQuery = oldConfig.search?.query;
+
+            if (
+                newQuery !== undefined &&
+                newQuery !== oldQuery &&
+                newQuery !== this.searchQuery
+            ) {
+                this._performSearch(newQuery);
             }
         }
 
@@ -289,6 +309,12 @@ export class ViewerState {
     }
 
     async search(query: string) {
+        this.dispatchStateChange();
+        await this._performSearch(query);
+        this.dispatchStateChange();
+    }
+
+    private async _performSearch(query: string) {
         if (!query.trim()) return;
         this.isSearching = true;
         this.searchQuery = query;
