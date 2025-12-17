@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.0
+
+### Minor Changes
+
+- 8f2cf38: distribute as svelte component library package (not vite)
+
 ## 0.8.2
 
 ### Patch Changes
