@@ -1,5 +1,5 @@
 // Main Svelte component export
-import '../app.css';
+
 export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';
 
 // Type exports for TypeScript users
