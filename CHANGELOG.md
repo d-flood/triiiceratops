@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.7.0
+
+### Minor Changes
+
+- 3cac23b: Add both a config prop for initial state and two-way state binding (events for web component and bindable state for svelte environments)
+
 ## 0.6.0
 
 ### Minor Changes
