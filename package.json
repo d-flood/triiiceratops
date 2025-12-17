@@ -50,7 +50,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && vite build --config vite.config.lib.ts",
+    "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && cp -r src/lib/paraglide dist/ && vite build --config vite.config.lib.ts",
     "build:element": "vite build --config vite.config.element.ts",
     "build:demo": "vite build --config vite.config.demo.ts",
     "build:consumer": "vite build --config vite.config.demo-consumer.ts",
