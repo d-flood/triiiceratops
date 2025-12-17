@@ -1,4 +1,5 @@
 import { manifestsState } from './manifests.svelte.js';
+import type { ViewerConfig } from '../types/config';
 
 import type {
     TriiiceratopsPlugin,
@@ -6,6 +7,21 @@ import type {
     PluginMenuButton,
     PluginPanel,
 } from '../types/plugin';
+
+/**
+ * Snapshot of viewer state for external consumers.
+ * Used by web component events to expose state without Svelte reactivity.
+ */
+export interface ViewerStateSnapshot {
+    manifestId: string | null;
+    canvasId: string | null;
+    currentCanvasIndex: number;
+    showAnnotations: boolean;
+    showThumbnailGallery: boolean;
+    showSearchPanel: boolean;
+    isFullScreen: boolean;
+    dockSide: string;
+}
 
 export class ViewerState {
     manifestId: string | null = $state(null);
@@ -19,12 +35,94 @@ export class ViewerState {
     dockSide = $state('bottom');
     visibleAnnotationIds = $state(new Set<string>());
 
+    // UI Configuration
+    config: ViewerConfig = $state({});
+
+    // Derived configuration specific getters
+    get showRightMenu() {
+        return this.config.showRightMenu ?? true;
+    }
+    get showLeftMenu() {
+        return this.config.showLeftMenu ?? true;
+    }
+    get showCanvasNav() {
+        return this.config.showCanvasNav ?? true;
+    }
+
     // Gallery State (Lifted for persistence during re-docking)
     galleryPosition = $state({ x: 20, y: 100 });
     gallerySize = $state({ width: 300, height: 400 });
     isGalleryDragging = $state(false);
     galleryDragOffset = $state({ x: 0, y: 0 });
     dragOverSide = $state<'top' | 'bottom' | 'left' | 'right' | null>(null);
+    galleryCenterPanelRect = $state<DOMRect | null>(null);
+
+    // ==================== EVENT DISPATCH (Web Component Only) ====================
+
+    /**
+     * Event target for dispatching CustomEvents.
+     * Only set by TriiiceratopsViewerElement (web component build).
+     * Remains null for Svelte component usage → no events dispatched.
+     */
+    private eventTarget: EventTarget | null = null;
+
+    /**
+     * Set the event target for dispatching state change events.
+     * Called by TriiiceratopsViewerElement to enable event-driven API.
+     */
+    setEventTarget(target: EventTarget): void {
+        this.eventTarget = target;
+    }
+
+    /**
+     * Get current state as a plain object snapshot.
+     * Safe to use outside Svelte's reactive system.
+     * NOTE: We calculate currentCanvasIndex inline to avoid triggering the canvases getter
+     * which can cause infinite loops when it auto-sets canvasId.
+     */
+    getSnapshot(): ViewerStateSnapshot {
+        // Calculate canvas index without triggering reactive side effects
+        let canvasIndex = -1;
+        if (this.manifestId && this.canvasId) {
+            const canvases = manifestsState.getCanvases(this.manifestId);
+            canvasIndex = canvases.findIndex(
+                (c: any) => c.id === this.canvasId,
+            );
+        }
+
+        return {
+            manifestId: this.manifestId,
+            canvasId: this.canvasId,
+            currentCanvasIndex: canvasIndex,
+            showAnnotations: this.showAnnotations,
+            showThumbnailGallery: this.showThumbnailGallery,
+            showSearchPanel: this.showSearchPanel,
+            isFullScreen: this.isFullScreen,
+            dockSide: this.dockSide,
+        };
+    }
+
+    /**
+     * Dispatch a state change event to the web component.
+     * No-op if eventTarget is null (Svelte component usage).
+     *
+     * Uses queueMicrotask to dispatch asynchronously AFTER the current
+     * reactive cycle completes, preventing infinite update loops.
+     */
+    private dispatchStateChange(eventName: string = 'statechange'): void {
+        if (!this.eventTarget) return;
+
+        // Dispatch asynchronously to break reactive loops
+        queueMicrotask(() => {
+            this.eventTarget?.dispatchEvent(
+                new CustomEvent(eventName, {
+                    detail: this.getSnapshot(),
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
+        });
+    }
 
     constructor(
         initialManifestId: string | null = null,
@@ -87,7 +185,7 @@ export class ViewerState {
         if (this.hasNext) {
             const nextIndex = this.currentCanvasIndex + 1;
             const canvas = this.canvases[nextIndex];
-            this.canvasId = canvas.id;
+            this.setCanvas(canvas.id);
         }
     }
 
@@ -95,7 +193,7 @@ export class ViewerState {
         if (this.hasPrevious) {
             const prevIndex = this.currentCanvasIndex - 1;
             const canvas = this.canvases[prevIndex];
-            this.canvasId = canvas.id;
+            this.setCanvas(canvas.id);
         }
     }
 
@@ -103,18 +201,51 @@ export class ViewerState {
         this.manifestId = manifestId;
         this.canvasId = null;
         manifestsState.fetchManifest(manifestId);
+        this.dispatchStateChange('manifestchange');
     }
 
     setCanvas(canvasId: string) {
         this.canvasId = canvasId;
+        this.dispatchStateChange('canvaschange');
+    }
+
+    updateConfig(newConfig: ViewerConfig) {
+        this.config = newConfig;
+
+        // Sync state from config
+        if (newConfig.gallery) {
+            if (newConfig.gallery.open !== undefined) {
+                this.showThumbnailGallery = newConfig.gallery.open;
+            }
+            if (newConfig.gallery.dockPosition !== undefined) {
+                this.dockSide = newConfig.gallery.dockPosition;
+            }
+        }
+
+        if (newConfig.search) {
+            if (newConfig.search.open !== undefined) {
+                this.showSearchPanel = newConfig.search.open;
+            }
+        }
+
+        if (newConfig.annotations) {
+            if (newConfig.annotations.open !== undefined) {
+                this.showAnnotations = newConfig.annotations.open;
+            }
+        }
+        // NOTE: We intentionally do NOT dispatch events here.
+        // Config updates are external configuration, not user-initiated state changes.
+        // Dispatching here would cause infinite loops when the consumer re-renders.
     }
 
     toggleAnnotations() {
         this.showAnnotations = !this.showAnnotations;
+        this.dispatchStateChange();
     }
 
     toggleThumbnailGallery() {
         this.showThumbnailGallery = !this.showThumbnailGallery;
+        this.dispatchStateChange();
     }
 
     toggleFullScreen() {
@@ -145,6 +276,7 @@ export class ViewerState {
             // Clear ephemeral annotations when closing search
             this.searchAnnotations = [];
         }
+        this.dispatchStateChange();
     }
 
     searchAnnotations: any[] = $state([]);
