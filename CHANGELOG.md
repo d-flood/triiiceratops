@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.4
+
+### Patch Changes
+
+- 0dc41a7: compile i18n messages before builds
+
 ## 0.9.3
 
 ### Patch Changes
