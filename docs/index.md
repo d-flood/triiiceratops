@@ -12,7 +12,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
 - Compatible with IIIF presentation API versions 2–3
 - **Flexible Gallery**: Explore all canvases in a manfifest in a flexible thumbnail gallery that can be a floating window or docked to any of the four sides of the viewer.
-- **Annotations**: Handles IIIF annotatios.
+- **Annotations**: Renders IIIF annotations.
 - **Theming**: Full theme customization with 35 built-in DaisyUI themes and custom theme configuration support.
 - **Search**: IIIF Search support.
 - **i18n**: Internationalization support with Paraglide. Translations are provided for English and German (so far).

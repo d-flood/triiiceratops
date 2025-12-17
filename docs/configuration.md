@@ -41,6 +41,7 @@ interface ViewerConfig {
   search?: {
     open?: boolean;            // Default: false
     showCloseButton?: boolean; // Default: true
+    query?: string;            // Programmatically set search query
   };
 
   // Annotations Settings
@@ -141,6 +142,111 @@ interface ViewerConfig {
     ```
 
     If you change the bound configuration prop, the viewer will update. If the user interacts with the viewer (e.g., closes the gallery), the `viewerState` binding will update your local variable.
+
+## Programmatic Search
+
+You can trigger a search programmatically by setting the `search.query` property in the configuration. This allows you to integrate external search bars or predefined queries.
+
+=== "Web Component"
+
+    ```html
+    <triiiceratops-viewer
+      id="my-viewer"
+      manifest-id="..."
+    ></triiiceratops-viewer>
+
+    <script>
+      const viewer = document.getElementById('my-viewer');
+      
+      function search(query) {
+        // Update config with new query
+        const config = {
+          search: {
+            open: true,
+            query: query
+          }
+        };
+        viewer.setAttribute('config', JSON.stringify(config));
+      }
+    </script>
+    ```
+
+    Note that the viewer does **not** write back to the `config` attribute. If the user clears the search in the viewer, your external `config` object will still have the old query unless you reset it.
+
+=== "Svelte Component"
+
+    ```html
+    <script>
+      let config = $state({
+        search: {
+          open: false,
+          query: ''
+        }
+      });
+
+      function handleSearch(term) {
+        config.search.open = true;
+        config.search.query = term;
+      }
+    </script>
+
+    <TriiiceratopsViewer {config} ... />
+    ```
+
+## Controlling Active Canvas
+
+You can control which canvas is displayed and stay in sync with the viewer's navigation.
+
+=== "Web Component"
+
+    To set the canvas, use the `canvas-id` attribute. To listen for changes, handle the `canvaschange` event.
+
+    ```html
+    <!-- Set initial canvas -->
+    <triiiceratops-viewer
+      id="viewer"
+      canvas-id="https://example.org/initial-canvas"
+      manifest-id="..."
+    ></triiiceratops-viewer>
+
+    <script>
+      const viewer = document.getElementById('viewer');
+
+      // Listen for internal navigation (Next/Prev buttons, Gallery clicks)
+      viewer.addEventListener('canvaschange', (e) => {
+        console.log('New Canvas ID:', e.detail.canvasId);
+      });
+
+      // Programmatically change canvas
+      function goToCanvas(id) {
+        viewer.setAttribute('canvas-id', id);
+      }
+    </script>
+    ```
+
+=== "Svelte Component"
+
+    The `canvasId` prop is **one-way** (Owner -> Viewer). To keep your local state in sync with the viewer, you should bind to `viewerState` (two-way) to read the authoritative state.
+
+    ```html
+    <script>
+      let canvasId = $state(initialId); 
+      let viewerState = $state();
+
+      // Optional: Sync internal changes back to your local canvasId if you need stricter control
+      $effect(() => {
+        if (viewerState?.canvasId && viewerState.canvasId !== canvasId) {
+          canvasId = viewerState.canvasId;
+        }
+      });
+    </script>
+
+    <TriiiceratopsViewer 
+      {canvasId} 
+      bind:viewerState 
+      ... 
+    />
+    ```
 
 ## Best Practices
 
