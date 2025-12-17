@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.7
+
+### Patch Changes
+
+- 997bf55: upgrade and use paraglide v2 API
+
 ## 0.9.6
 
 ### Patch Changes
