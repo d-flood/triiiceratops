@@ -15,6 +15,9 @@
     import SearchPanel from './SearchPanel.svelte';
     import { m } from '../state/i18n.svelte';
 
+    // SSR-safe browser detection for library consumers
+    const browser = typeof window !== 'undefined';
+
     let {
         manifestId,
         canvasId,
@@ -106,6 +109,8 @@
     });
 
     $effect(() => {
+        if (!browser) return;
+
         const handleFullScreenChange = () => {
             internalViewerState.isFullScreen = !!document.fullscreenElement;
         };
