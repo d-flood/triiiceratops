@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.5
+
+### Patch Changes
+
+- 923333c: build: Copy paraglide output to `dist` in `build:lib` script.
+
 ## 0.9.4
 
 ### Patch Changes
