@@ -1,16 +1,22 @@
-import * as messages from "../paraglide/messages.js";
-import { languageTag, onSetLanguageTag } from "../paraglide/runtime.js";
+import * as messages from '../paraglide/messages.js';
+import {
+    getLocale,
+    setLocale as baseSetLocale,
+    overwriteSetLocale,
+} from '../paraglide/runtime.js';
 
-let tag = $state(languageTag());
+let tag = $state(getLocale());
 
-onSetLanguageTag((newTag) => {
-    tag = newTag;
+// Wrap setLocale to update our reactive state when locale changes
+overwriteSetLocale((newLocale, options) => {
+    baseSetLocale(newLocale, options);
+    tag = getLocale();
 });
 
 export const language = {
     get current() {
         return tag;
-    }
+    },
 };
 
 export const m = new Proxy(messages, {
@@ -18,5 +24,5 @@ export const m = new Proxy(messages, {
         // Register dependency by accessing the signal
         tag;
         return Reflect.get(target, prop, receiver);
-    }
+    },
 });

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
-import { paraglide } from '@inlang/paraglide-vite';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,7 +19,7 @@ export default defineConfig({
                 return { customElement: isCustomElement };
             },
         }),
-        paraglide({
+        paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
         }),
