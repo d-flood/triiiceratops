@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.6
+
+### Patch Changes
+
+- 3aa1826: maybe NOW the paraglide messages make it to npm...
+
 ## 0.9.5
 
 ### Patch Changes
