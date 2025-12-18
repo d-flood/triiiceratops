@@ -87,5 +87,6 @@
     "change_theme_label": "Change Theme",
     "theme_menu_title": "Theme",
     "error_prefix": "Error: ",
-    "no_image_found": "No image found"
+    "no_image_found": "No image found",
+    "settings_panel_width": "Panel Width"
 }

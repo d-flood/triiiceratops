@@ -527,6 +527,31 @@
                                     />
                                 </label>
                             </li>
+                            <li>
+                                <label class="label cursor-pointer py-1 gap-2">
+                                    <span class="label-text"
+                                        >{m.settings_panel_width()}</span
+                                    >
+                                    <input
+                                        type="range"
+                                        min="200"
+                                        max="800"
+                                        value={parseInt(
+                                            config.search?.width ?? '320',
+                                        )}
+                                        class="range range-xs range-primary w-32"
+                                        oninput={(e) => {
+                                            if (!config.search)
+                                                config.search = {};
+                                            config.search.width = `${e.currentTarget.value}px`;
+                                        }}
+                                    />
+                                    <span
+                                        class="text-xs opacity-50 w-8 text-right"
+                                        >{config.search?.width ?? '320px'}</span
+                                    >
+                                </label>
+                            </li>
                         </ul>
                     </details>
                 </li>

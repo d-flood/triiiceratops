@@ -52,6 +52,11 @@ export interface SearchConfig {
      * Initial search query to execute.
      */
     query?: string;
+    /**
+     * Width of the search panel.
+     * @default '320px'
+     */
+    width?: string;
 }
 
 export interface AnnotationsConfig {

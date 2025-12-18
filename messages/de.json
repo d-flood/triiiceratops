@@ -87,5 +87,6 @@
     "change_theme_label": "Design ändern",
     "theme_menu_title": "Design",
     "error_prefix": "Fehler: ",
-    "no_image_found": "Kein Bild gefunden"
+    "no_image_found": "Kein Bild gefunden",
+    "settings_panel_width": "Panelbreite"
 }
