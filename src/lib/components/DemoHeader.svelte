@@ -241,6 +241,18 @@
                 <li>
                     <label class="label cursor-pointer py-1">
                         <span class="label-text"
+                            >{m.settings_transparent_background()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm"
+                            bind:checked={config.transparentBackground}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
                             >{m.settings_toggle_left_menu()}</span
                         >
                         <input
