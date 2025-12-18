@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.9
+
+### Patch Changes
+
+- 9ee87f0: paraglide hell
+
 ## 0.9.8
 
 ### Patch Changes
