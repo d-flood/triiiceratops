@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.12
+
+### Patch Changes
+
+- 8604959: Search panel width is not configurable
+
 ## 0.9.11
 
 ### Patch Changes
