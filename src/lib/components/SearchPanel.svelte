@@ -45,7 +45,10 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
     <div
-        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col border-l border-base-300 transition-[width] duration-200"
+        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 {viewerState
+            .config.transparentBackground
+            ? ''
+            : 'border-l border-base-300'}"
         style="width: {width}"
         role="dialog"
         aria-label={m.search_panel_title()}

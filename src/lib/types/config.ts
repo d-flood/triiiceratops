@@ -146,4 +146,10 @@ export interface ViewerConfig {
      * Configuration for network requests (manifests, etc)
      */
     requests?: RequestConfig;
+
+    /**
+     * Whether the viewer background should be transparent.
+     * @default false
+     */
+    transparentBackground?: boolean;
 }

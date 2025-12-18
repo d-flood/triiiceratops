@@ -218,7 +218,10 @@
 <div class="w-full h-full relative">
     <div
         bind:this={container}
-        class="w-full h-full osd-background bg-base-100"
+        class="w-full h-full osd-background {viewerState.config
+            .transparentBackground
+            ? ''
+            : 'bg-base-100'}"
     ></div>
 
     <!-- Render annotations -->
