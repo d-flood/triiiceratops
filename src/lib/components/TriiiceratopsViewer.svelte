@@ -284,12 +284,18 @@
 <div
     bind:this={rootElement}
     id="triiiceratops-viewer"
-    class="flex w-full h-full relative bg-base-100 overflow-hidden"
+    class="flex w-full h-full relative overflow-hidden {internalViewerState
+        .config.transparentBackground
+        ? ''
+        : 'bg-base-100'}"
 >
     <!-- Left Column -->
     {#if isLeftSidebarVisible}
         <div
-            class="flex-none flex flex-row z-20 bg-base-200 border-r border-base-300 transition-all"
+            class="flex-none flex flex-row z-20 transition-all {internalViewerState
+                .config.transparentBackground
+                ? ''
+                : 'bg-base-200 border-r border-base-300'}"
         >
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
@@ -323,7 +329,12 @@
         {/if}
 
         <!-- Main Viewer Area -->
-        <div class="flex-1 relative min-h-0 w-full h-full bg-base-100">
+        <div
+            class="flex-1 relative min-h-0 w-full h-full {internalViewerState
+                .config.transparentBackground
+                ? ''
+                : 'bg-base-100'}"
+        >
             {#if manifestData?.isFetching}
                 <div class="w-full h-full flex items-center justify-center">
                     <span
@@ -405,7 +416,10 @@
     <!-- Right Column -->
     {#if isRightSidebarVisible}
         <div
-            class="flex-none flex flex-row z-20 bg-base-200 border-l border-base-300 transition-all"
+            class="flex-none flex flex-row z-20 transition-all {internalViewerState
+                .config.transparentBackground
+                ? ''
+                : 'bg-base-200 border-l border-base-300'}"
         >
             <!-- Search Panel -->
             {#if internalViewerState.showSearchPanel}
