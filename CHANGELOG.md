@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.13
+
+### Patch Changes
+
+- c5cb50b: Enable transparent background config
+
 ## 0.9.12
 
 ### Patch Changes
