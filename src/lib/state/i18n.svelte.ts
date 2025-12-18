@@ -1,4 +1,7 @@
-import * as messages from '../paraglide/messages.js';
+// Re-export messages directly from paraglide
+// The 'm' export is provided by paraglide's messages.js
+export { m } from '../paraglide/messages.js';
+
 import {
     getLocale,
     setLocale as baseSetLocale,
@@ -6,7 +9,6 @@ import {
 } from '../paraglide/runtime.js';
 
 // For SSR compatibility, we use a simple variable instead of $state()
-// The consumer's app will handle reactivity at a higher level if needed
 let currentLocale = getLocale();
 
 // Wrap setLocale to track locale changes
@@ -20,7 +22,3 @@ export const language = {
         return currentLocale;
     },
 };
-
-// Re-export messages directly for SSR compatibility
-// The proxy pattern with $state doesn't work during SSR
-export { messages as m };
