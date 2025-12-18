@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.10
+
+### Patch Changes
+
+- 4647d5d: scope daisyui to viewer root element
+
 ## 0.9.9
 
 ### Patch Changes
