@@ -4,6 +4,7 @@
 @source "../src/lib/**/*.svelte";
 
 @plugin "daisyui" {
+  root: "#triiiceratops-viewer";
   themes:
     light --default,
     dark --prefersdark,
