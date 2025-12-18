@@ -161,7 +161,7 @@ These control the main UI elements. Colors can be **Hex** (`#3b82f6`), **RGB** (
 
 ---
 
-## 3. Advanced: SvelteKit + Tailwind Integration (Headless)
+## 3. Advanced: SvelteKit + Tailwind Integration
 
 If you are building a **SvelteKit** or **Vite + Svelte** application that already uses **Tailwind CSS v4**, you do not need to import our CSS file (`triiiceratops/style.css`).
 
@@ -185,6 +185,11 @@ Instead, you can use the `@source` directive to tell your Tailwind compiler to s
 @source "../node_modules/triiiceratops/dist";
 
 @plugin "daisyui" {
+    /* If you aren't using DaisyUI in your project already, include the
+    following two lines so that so that DaisyUI's global styles don't
+    contaminate your app's styles. */
+    exclude: rootcolor, rootstyle, reset, scrollbar, viewport;
+    root: '#triiiceratops-viewer';
     /* Define which themes you want available */
     themes: light --default, dark --prefersdark, my-custom-theme;
 }
@@ -205,6 +210,7 @@ Instead, you can use the `@source` directive to tell your Tailwind compiler to s
 
 ```html
 <!-- src/routes/+page.svelte -->
+<!-- Set the theme by adding it as the value of data-theme to any parent container -->
 <div data-theme="my-custom-theme">
     <TriiiceratopsViewer manifestId="..." />
 </div>
