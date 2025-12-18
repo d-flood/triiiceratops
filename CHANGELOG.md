@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.9.11
+
+### Patch Changes
+
+- 17eb020: exclude daisyui reset
+
 ## 0.9.10
 
 ### Patch Changes
