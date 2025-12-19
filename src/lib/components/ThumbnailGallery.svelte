@@ -356,6 +356,27 @@
         }
     });
 
+    // Auto-scroll active thumbnail into view
+    $effect(() => {
+        if (!galleryElement || !viewerState.canvasId) return;
+        // Use a slight timeout to ensure DOM is ready/layout is stable if needed,
+        // though usually effect runs after render.
+        const id = viewerState.canvasId;
+
+        // requestAnimationFrame to ensure we are in a good painting frame?
+        // Or just direct. Svelte 5 effects are post-dom-update.
+        const activeEl = galleryElement.querySelector(
+            `[data-id="${CSS.escape(id)}"]`,
+        );
+        if (activeEl) {
+            activeEl.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'center',
+            });
+        }
+    });
+
     // Switch to horizontal layout if height is small or docked to top/bottom
     let isHorizontal = $derived(
         dockSide === 'top' ||
@@ -503,6 +524,7 @@
                             ? 'ring-2 ring-primary bg-primary/5'
                             : ''}"
                         onclick={() => selectCanvas(thumb.id)}
+                        data-id={thumb.id}
                         aria-label="Select canvas {thumb.label}"
                     >
                         <div

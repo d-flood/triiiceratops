@@ -33,8 +33,8 @@
         }
     }
 
-    function navigate(result: any) {
-        const canvas = viewerState.canvases[result.canvasIndex];
+    function navigate(canvasIndex: number) {
+        const canvas = viewerState.canvases[canvasIndex];
         if (canvas) {
             viewerState.setCanvas(canvas.id);
         }
@@ -121,32 +121,44 @@
                     })}
                 </div>
 
-                {#each viewerState.searchResults as result, i}
+                {#each viewerState.searchResults as group}
                     <button
-                        class="w-full text-left card bg-base-100 shadow hover:shadow-md transition-all p-4 text-sm group border border-transparent hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        onclick={() => navigate(result)}
+                        class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none"
+                        onclick={() => navigate(group.canvasIndex)}
                     >
-                        <div class="flex justify-between items-baseline mb-1">
-                            <span
-                                class="font-bold text-xs opacity-70 bg-base-200 px-1.5 py-0.5 rounded"
-                                >{result.canvasLabel}</span
+                        <div
+                            class="text-sm font-bold opacity-80 bg-base-200/50 flex items-center justify-between py-2 px-3 border-b border-base-200"
+                        >
+                            <span>{group.canvasLabel}</span>
+                            <span class="badge badge-sm badge-ghost"
+                                >{group.hits.length}
+                                {group.hits.length === 1
+                                    ? 'match'
+                                    : 'matches'}</span
                             >
                         </div>
-
-                        {#if result.type === 'hit'}
-                            <div class="leading-relaxed">
-                                <span>{@html result.before}</span>
-                                <span
-                                    class="bg-yellow-200 text-yellow-900 font-bold px-0.5 rounded"
-                                    >{@html result.match}</span
+                        <div class="p-0">
+                            {#each group.hits.slice(0, 1) as result}
+                                <div
+                                    class="p-3 text-sm border-b border-base-200 last:border-none hover:bg-base-200/30 transition-colors"
                                 >
-                                <span>{@html result.after}</span>
-                            </div>
-                        {:else}
-                            <div class="leading-relaxed">
-                                {result.match}
-                            </div>
-                        {/if}
+                                    {#if result.type === 'hit'}
+                                        <div class="leading-relaxed">
+                                            <span>{@html result.before}</span>
+                                            <span
+                                                class="bg-yellow-200 text-yellow-900 font-bold px-0.5 rounded"
+                                                >{@html result.match}</span
+                                            >
+                                            <span>{@html result.after}</span>
+                                        </div>
+                                    {:else}
+                                        <div class="leading-relaxed">
+                                            {@html result.match}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
                     </button>
                 {/each}
             {/if}
