@@ -33,10 +33,7 @@ This project is a work in progress and does not support all client IIIF features
     **Via CDN:**
 
     ```html
-    <script
-        type="module"
-        src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"
-    ></script>
+    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
 
     <triiiceratops-viewer
         manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
