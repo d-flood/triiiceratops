@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.10.1
+
+### Patch Changes
+
+- edbd565: syle scrollbars in gallery and search pane to be narrow; try to resolve race condition when initiating with a search query
+
 ## 0.10.0
 
 ### Minor Changes
