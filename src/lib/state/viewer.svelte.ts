@@ -153,19 +153,16 @@ export class ViewerState {
         return manifestsState.getManifest(this.manifestId);
     }
 
+    get manifestEntry() {
+        if (!this.manifestId) return null;
+        return manifestsState.getManifestEntry(this.manifestId);
+    }
+
     get canvases() {
         if (!this.manifestId) return [];
         const canvases = manifestsState.getCanvases(this.manifestId);
 
         // Auto-initialize canvasId to first canvas if not set
-        if (canvases.length > 0 && !this.canvasId) {
-            // Use setTimeout to avoid updating state during a derived computation
-            setTimeout(() => {
-                if (!this.canvasId && canvases.length > 0) {
-                    this.canvasId = canvases[0].id;
-                }
-            }, 0);
-        }
 
         return canvases;
     }
@@ -294,6 +291,7 @@ export class ViewerState {
     }
 
     searchQuery = $state('');
+    pendingSearchQuery = $state<string | null>(null);
     searchResults: any[] = $state([]);
     isSearching = $state(false);
     showSearchPanel = $state(false);
@@ -330,7 +328,15 @@ export class ViewerState {
 
         try {
             const manifest = this.manifest;
-            if (!manifest) throw new Error('No manifest loaded');
+            if (!manifest) {
+                // Defer search until manifest is loaded
+                console.log(
+                    '[ViewerState] Manifest not loaded, deferring search:',
+                    query,
+                );
+                this.pendingSearchQuery = query;
+                return;
+            }
 
             let service =
                 manifest.getService('http://iiif.io/api/search/1/search') ||
