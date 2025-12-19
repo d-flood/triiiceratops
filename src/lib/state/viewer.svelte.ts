@@ -374,7 +374,15 @@ export class ViewerState {
             const data = await response.json();
             const resources = data.resources || [];
 
-            const processedResults = [];
+            // Group results by canvas index
+            const resultsByCanvas = new Map<
+                number,
+                {
+                    canvasIndex: number;
+                    canvasLabel: string;
+                    hits: any[];
+                }
+            >();
 
             // Helper to parse xywh
             const parseSelector = (onVal: string | any) => {
@@ -390,89 +398,92 @@ export class ViewerState {
                 return null;
             };
 
+            // Helper to unescape mark tags
+            const decodeMark = (str: string) => {
+                if (!str) return '';
+                return str
+                    .replace(/&lt;mark&gt;/g, '<mark>')
+                    .replace(/&lt;\/mark&gt;/g, '</mark>');
+            };
+
             if (data.hits) {
                 for (const hit of data.hits) {
                     // hits have property 'annotations' which is array of ids
-                    // Collapse all annotations for this hit into a single result per canvas
                     const annotations = hit.annotations || [];
-                    const hitBoundsByCanvas = new Map<
-                        number,
-                        { label: string; bounds: number[][] }
-                    >();
+
+                    // We need to determine which canvas this hit belongs to.
+                    // A hit might technically span annotations on multiple canvases (unlikely for IIIF Content Search),
+                    // but usually it's associated with specific annotations on one canvas.
+                    // We will take the first valid canvas we find for the annotations.
+
+                    let canvasIndex = -1;
+                    let bounds: number[] | null = null;
+                    let allBounds: number[][] = [];
 
                     for (const annoId of annotations) {
                         const annotation = resources.find(
                             (r: any) => r['@id'] === annoId || r.id === annoId,
                         );
                         if (annotation && annotation.on) {
-                            // annotation.on can be "canvas-id" or "canvas-id#xywh=..."
                             const onVal =
                                 typeof annotation.on === 'string'
                                     ? annotation.on
                                     : annotation.on['@id'] || annotation.on.id;
                             const cleanOn = onVal.split('#')[0];
-                            const bounds = parseSelector(onVal);
+                            const b = parseSelector(onVal);
 
-                            const canvasIndex = this.canvases.findIndex(
+                            const cIndex = this.canvases.findIndex(
                                 (c: any) => c.id === cleanOn,
                             );
-                            if (canvasIndex >= 0) {
-                                if (!hitBoundsByCanvas.has(canvasIndex)) {
-                                    const canvas = this.canvases[canvasIndex];
-                                    // Try to get a label
-                                    let label = 'Canvas ' + (canvasIndex + 1);
-                                    try {
-                                        if (canvas.getLabel) {
-                                            const l = canvas.getLabel();
-                                            if (
-                                                Array.isArray(l) &&
-                                                l.length > 0
-                                            )
-                                                label = l[0].value;
-                                            else if (typeof l === 'string')
-                                                label = l;
-                                        } else if (canvas.label) {
-                                            // Fallback if raw object
-                                            if (
-                                                typeof canvas.label === 'string'
-                                            )
-                                                label = canvas.label;
-                                            else if (
-                                                Array.isArray(canvas.label)
-                                            )
-                                                label = canvas.label[0]?.value;
-                                        }
-                                    } catch (e) {
-                                        /* ignore */
-                                    }
-                                    hitBoundsByCanvas.set(canvasIndex, {
-                                        label: String(label),
-                                        bounds: [],
-                                    });
+
+                            if (cIndex >= 0) {
+                                // If we haven't set a canvas yet, set it
+                                if (canvasIndex === -1) {
+                                    canvasIndex = cIndex;
                                 }
-                                if (bounds) {
-                                    hitBoundsByCanvas
-                                        .get(canvasIndex)!
-                                        .bounds.push(bounds);
+                                // If we found bounds, add them
+                                if (b) {
+                                    allBounds.push(b);
+                                    if (!bounds) bounds = b;
                                 }
                             }
                         }
                     }
 
-                    // Create one result per canvas for this hit
-                    for (const [canvasIndex, data] of hitBoundsByCanvas) {
-                        processedResults.push({
+                    if (canvasIndex >= 0) {
+                        if (!resultsByCanvas.has(canvasIndex)) {
+                            const canvas = this.canvases[canvasIndex];
+                            let label = 'Canvas ' + (canvasIndex + 1);
+                            try {
+                                if (canvas.getLabel) {
+                                    const l = canvas.getLabel();
+                                    if (Array.isArray(l) && l.length > 0)
+                                        label = l[0].value;
+                                    else if (typeof l === 'string') label = l;
+                                } else if (canvas.label) {
+                                    // Fallback if raw object
+                                    if (typeof canvas.label === 'string')
+                                        label = canvas.label;
+                                    else if (Array.isArray(canvas.label))
+                                        label = canvas.label[0]?.value;
+                                }
+                            } catch (e) {
+                                /* ignore */
+                            }
+                            resultsByCanvas.set(canvasIndex, {
+                                canvasIndex,
+                                canvasLabel: String(label),
+                                hits: [],
+                            });
+                        }
+
+                        resultsByCanvas.get(canvasIndex)!.hits.push({
                             type: 'hit',
-                            before: hit.before,
-                            match: hit.match,
-                            after: hit.after,
-                            canvasIndex,
-                            canvasLabel: data.label,
-                            // Store all bounds for this hit on this canvas
-                            allBounds: data.bounds,
-                            // Keep first bounds for backwards compatibility
-                            bounds:
-                                data.bounds.length > 0 ? data.bounds[0] : null,
+                            before: decodeMark(hit.before),
+                            match: decodeMark(hit.match),
+                            after: decodeMark(hit.after),
+                            bounds,
+                            allBounds,
                         });
                     }
                 }
@@ -509,51 +520,63 @@ export class ViewerState {
                             /* ignore */
                         }
 
-                        processedResults.push({
+                        if (!resultsByCanvas.has(canvasIndex)) {
+                            resultsByCanvas.set(canvasIndex, {
+                                canvasIndex,
+                                canvasLabel: String(label),
+                                hits: [],
+                            });
+                        }
+
+                        resultsByCanvas.get(canvasIndex)!.hits.push({
                             type: 'resource',
-                            match:
+                            match: decodeMark(
                                 res.resource && res.resource.chars
                                     ? res.resource.chars
                                     : res.chars || '',
-                            canvasIndex,
-                            canvasLabel: String(label),
+                            ),
                             bounds,
+                            allBounds: bounds ? [bounds] : [],
                         });
                     }
                 }
             }
 
-            this.searchResults = processedResults;
+            // Convert Map to Array and Sort
+            this.searchResults = Array.from(resultsByCanvas.values()).sort(
+                (a, b) => a.canvasIndex - b.canvasIndex,
+            );
 
             // Generate ephemeral search annotations
-            // Create one annotation per bound location (flatten allBounds)
+            // We need to flatten our grouped structure to generate the annotations list
             let annotationIndex = 0;
-            this.searchAnnotations = processedResults.flatMap((r) => {
-                const canvas = this.canvases[r.canvasIndex];
-                // Use allBounds if available, otherwise fall back to single bounds
-                const boundsArray =
-                    r.allBounds && r.allBounds.length > 0
-                        ? r.allBounds
-                        : r.bounds
-                          ? [r.bounds]
-                          : [];
+            this.searchAnnotations = this.searchResults.flatMap((group) => {
+                const canvas = this.canvases[group.canvasIndex];
+                return group.hits.flatMap((hit: any) => {
+                    const boundsArray =
+                        hit.allBounds && hit.allBounds.length > 0
+                            ? hit.allBounds
+                            : hit.bounds
+                              ? [hit.bounds]
+                              : [];
 
-                return boundsArray.map((bounds: number[]) => {
-                    const on = `${canvas.id}#xywh=${bounds.join(',')}`;
-                    return {
-                        '@id': `urn:search-hit:${annotationIndex++}`,
-                        '@type': 'oa:Annotation',
-                        motivation: 'sc:painting',
-                        on: on,
-                        canvasId: canvas.id,
-                        resource: {
-                            '@type': 'cnt:ContentAsText',
-                            chars: r.match,
-                        },
-                        // Flag to identify styling in Overlay?
-                        // Or just standard rendering.
-                        isSearchHit: true,
-                    };
+                    return boundsArray.map((bounds: number[]) => {
+                        const on = `${canvas.id}#xywh=${bounds.join(',')}`;
+                        return {
+                            '@id': `urn:search-hit:${annotationIndex++}`,
+                            '@type': 'oa:Annotation',
+                            motivation: 'sc:painting',
+                            on: on,
+                            canvasId: canvas.id,
+                            resource: {
+                                '@type': 'cnt:ContentAsText',
+                                chars: hit.match,
+                            },
+                            // Flag to identify styling in Overlay?
+                            // Or just standard rendering.
+                            isSearchHit: true,
+                        };
+                    });
                 });
             });
         } catch (e) {
