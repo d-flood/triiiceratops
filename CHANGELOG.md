@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.10.2
+
+### Patch Changes
+
+- 9f9e9f4: group search results by canvas, render the mark tag, scroll active thumbnail into view
+
 ## 0.10.1
 
 ### Patch Changes
