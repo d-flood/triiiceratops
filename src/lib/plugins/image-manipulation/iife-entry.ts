@@ -11,16 +11,10 @@
  * </script>
  */
 
-import ImageManipulationController from './ImageManipulationController.svelte';
-import SlidersIcon from 'phosphor-svelte/lib/Sliders';
+import { ImageManipulationPlugin } from './index';
 
 // Ensure the namespace exists (should already be created by the element script)
 window.TriiiceratopsPlugins = window.TriiiceratopsPlugins || {};
 
 // Register the plugin
-window.TriiiceratopsPlugins.ImageManipulation = {
-    name: 'Image Manipulation',
-    icon: SlidersIcon,
-    panel: ImageManipulationController,
-    position: 'left',
-};
+window.TriiiceratopsPlugins.ImageManipulation = ImageManipulationPlugin;
