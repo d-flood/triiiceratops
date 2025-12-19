@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.10.3
+
+### Patch Changes
+
+- 8ebf1a0: enable search pane to be docked on left or right and configured
+
 ## 0.10.2
 
 ### Patch Changes
