@@ -9,11 +9,14 @@ import {
 } from '../paraglide/runtime.js';
 
 // For SSR compatibility, we use a simple variable instead of $state()
-let currentLocale = getLocale();
+let currentLocale = $state(getLocale());
+
+// Capture the original setLocale before overwriting it
+const originalSetLocale = baseSetLocale;
 
 // Wrap setLocale to track locale changes
 overwriteSetLocale((newLocale, options) => {
-    baseSetLocale(newLocale, options);
+    originalSetLocale(newLocale, options);
     currentLocale = getLocale();
 });
 

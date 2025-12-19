@@ -3,17 +3,24 @@
     import PuzzlePiece from 'phosphor-svelte/lib/PuzzlePiece';
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { m, language } from '../state/i18n.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let sortedPluginButtons = $derived(
-        [...viewerState.pluginMenuButtons].sort(
+    let sortedPluginButtons = $derived.by(() => {
+        // Read language to trigger re-evaluation
+        language.current;
+        return [...viewerState.pluginMenuButtons].sort(
             (a, b) => (a.order ?? 100) - (b.order ?? 100),
-        ),
-    );
+        );
+    });
 
     let isOpen = $state(false);
+
+    let pluginsTooltip = $derived.by(() => {
+        language.current;
+        return m.plugins_tooltip();
+    });
 
     function toggleOpen() {
         isOpen = !isOpen;
@@ -32,7 +39,13 @@
         >
             {#each sortedPluginButtons as button (button.id)}
                 {@const Icon = button.icon}
-                <div class="tooltip tooltip-right" data-tip={button.tooltip}>
+                {@const tooltip =
+                    // @ts-ignore - access message dynamically
+                    typeof m[button.tooltip] === 'function'
+                        ? // @ts-ignore
+                          m[button.tooltip]()
+                        : button.tooltip}
+                <div class="tooltip tooltip-right" data-tip={tooltip}>
                     <button
                         aria-label={button.tooltip}
                         class="btn btn-lg btn-circle shadow-lg {button.isActive?.()
@@ -49,13 +62,12 @@
             {/each}
         </div>
 
-        <!-- Main Toggle Button -->
-        <div class="tooltip tooltip-right" data-tip={m.plugins_tooltip()}>
+        <div class="tooltip tooltip-right" data-tip={pluginsTooltip}>
             <button
                 class="btn btn-lg btn-secondary btn-circle shadow-xl transition-transform duration-300 {isOpen
                     ? 'rotate-90'
                     : ''}"
-                aria-label={m.plugins_tooltip()}
+                aria-label={pluginsTooltip}
                 onclick={toggleOpen}
             >
                 {#if isOpen}

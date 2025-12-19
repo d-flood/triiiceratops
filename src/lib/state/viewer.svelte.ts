@@ -566,7 +566,7 @@ export class ViewerState {
     pluginPanels: PluginPanel[] = $state([]);
 
     /** OpenSeadragon viewer instance (set by OSDViewer) */
-    osdViewer: any | null = $state(null);
+    osdViewer: any | null = $state.raw(null);
 
     /** Event handlers for inter-plugin communication */
     private pluginEventHandlers = new Map<
@@ -619,6 +619,11 @@ export class ViewerState {
         // Add directly to lists
         this.pluginMenuButtons = [...this.pluginMenuButtons, button];
         this.pluginPanels = [...this.pluginPanels, panel];
+
+        // Execute lifecycle hook if present
+        if (def.onInit) {
+            def.onInit(this);
+        }
     }
 
     /**

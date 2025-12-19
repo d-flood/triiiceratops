@@ -34,6 +34,10 @@ export default defineConfig({
                     __dirname,
                     'src/lib/plugins/image-manipulation/index.ts',
                 ),
+                'plugins/annotation-editor': resolve(
+                    __dirname,
+                    'src/lib/plugins/annotation-editor/index.ts',
+                ),
             },
             name: 'Triiiceratops',
 

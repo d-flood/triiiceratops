@@ -69,4 +69,11 @@ export interface PluginDef {
 
     /** Props to pass to the panel component */
     props?: Record<string, unknown>;
+
+    /**
+     * Lifecycle hook called when the plugin is registered.
+     * Use this to set up background logic, reactive effects, or event listeners
+     * that should run regardless of whether the plugin's UI is open.
+     */
+    onInit?: (viewerState: ViewerState) => void;
 }

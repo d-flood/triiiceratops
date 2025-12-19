@@ -14,7 +14,7 @@ import SlidersIcon from 'phosphor-svelte/lib/Sliders';
  */
 export const ImageManipulationPlugin: PluginDef = {
     id: 'image-manipulation',
-    name: 'Image Manipulation',
+    name: 'image_adjustments_title',
     icon: SlidersIcon,
     panel: ImageManipulationController,
     position: 'left',

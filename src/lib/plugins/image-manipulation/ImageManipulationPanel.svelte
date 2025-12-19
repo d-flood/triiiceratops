@@ -1,6 +1,8 @@
 <script lang="ts">
     import X from 'phosphor-svelte/lib/X';
     import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
+    import { setLocale, locales } from '../../paraglide/runtime';
+    import * as m from '../../paraglide/messages';
     import type { ImageFilters } from './types';
 
     let {
@@ -8,11 +10,13 @@
         onFilterChange,
         onReset,
         onClose,
+        locale,
     }: {
         filters: ImageFilters;
         onFilterChange: (filters: ImageFilters) => void;
         onReset: () => void;
         onClose: () => void;
+        locale?: string;
     } = $props();
 
     function updateFilter<K extends keyof ImageFilters>(
@@ -21,6 +25,12 @@
     ) {
         onFilterChange({ ...filters, [key]: value });
     }
+
+    $effect(() => {
+        if (locale && locales.includes(locale as any)) {
+            setLocale(locale as any);
+        }
+    });
 </script>
 
 <div
@@ -28,11 +38,11 @@
 >
     <!-- Header -->
     <div class="flex items-center justify-between p-4 border-b border-base-300">
-        <h2 class="text-lg font-semibold">Image Adjustments</h2>
+        <h2 class="text-lg font-semibold">{m.image_adjustments_title()}</h2>
         <button
             class="btn btn-sm btn-ghost btn-circle"
             onclick={onClose}
-            aria-label="Close panel"
+            aria-label={m.close()}
         >
             <X size={20} />
         </button>
@@ -43,7 +53,7 @@
         <!-- Brightness -->
         <div class="form-control">
             <label class="label" for="brightness-slider">
-                <span class="label-text">Brightness</span>
+                <span class="label-text">{m.image_filters_brightness()}</span>
                 <span class="label-text-alt">{filters.brightness}%</span>
             </label>
             <input
@@ -61,7 +71,7 @@
         <!-- Contrast -->
         <div class="form-control">
             <label class="label" for="contrast-slider">
-                <span class="label-text">Contrast</span>
+                <span class="label-text">{m.image_filters_contrast()}</span>
                 <span class="label-text-alt">{filters.contrast}%</span>
             </label>
             <input
@@ -79,7 +89,7 @@
         <!-- Saturation -->
         <div class="form-control">
             <label class="label" for="saturation-slider">
-                <span class="label-text">Saturation</span>
+                <span class="label-text">{m.image_filters_saturation()}</span>
                 <span class="label-text-alt">{filters.saturation}%</span>
             </label>
             <input
@@ -95,11 +105,11 @@
         </div>
 
         <!-- Effects -->
-        <div class="divider">Effects</div>
+        <div class="divider">{m.image_filters_effects()}</div>
 
         <div class="form-control">
             <label class="label cursor-pointer">
-                <span class="label-text">Invert Colors</span>
+                <span class="label-text">{m.image_filters_invert()}</span>
                 <input
                     type="checkbox"
                     checked={filters.invert}
@@ -112,7 +122,7 @@
 
         <div class="form-control">
             <label class="label cursor-pointer">
-                <span class="label-text">Grayscale</span>
+                <span class="label-text">{m.image_filters_grayscale()}</span>
                 <input
                     type="checkbox"
                     checked={filters.grayscale}
@@ -128,7 +138,7 @@
     <div class="p-4 border-t border-base-300">
         <button class="btn btn-outline btn-block" onclick={onReset}>
             <ArrowCounterClockwise size={20} />
-            Reset to Default
+            {m.image_filters_reset()}
         </button>
     </div>
 </div>
