@@ -33,31 +33,19 @@ Triiiceratops features a flexible, component-based plugin system that allows you
 
 === "Svelte Component"
 
-    Import the viewer and plugin components, then pass plugins via the `plugins` prop:
+    Import the viewer and plugin, then pass plugins via the `plugins` prop:
 
     ```svelte
     <script>
       import { TriiiceratopsViewer } from 'triiiceratops';
       import 'triiiceratops/style.css';
-      import {
-        ImageManipulationController,
-        SlidersIcon
-      } from 'triiiceratops/plugins/image-manipulation';
-
-      const plugins = [
-        {
-          name: 'Image Adjustments',
-          icon: SlidersIcon,
-          panel: ImageManipulationController,
-          position: 'left'
-        }
-      ];
+      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
     </script>
 
     <div style="height: 600px;">
       <TriiiceratopsViewer
         manifestId="https://example.com/manifest.json"
-        {plugins}
+        plugins={[ImageManipulationPlugin]}
       />
     </div>
     ```
@@ -168,22 +156,11 @@ interface PluginDef {
     If you're using the web component in a project with a bundler (Vite, Webpack, etc.):
 
     ```javascript
-    import {
-      ImageManipulationController,
-      SlidersIcon
-    } from 'triiiceratops/plugins/image-manipulation';
+    import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
 
     customElements.whenDefined('triiiceratops-viewer').then(() => {
       const viewer = document.querySelector('triiiceratops-viewer');
-
-      viewer.plugins = [
-        {
-          name: 'Image Adjustments',
-          icon: SlidersIcon,
-          panel: ImageManipulationController,
-          position: 'left'
-        }
-      ];
+      viewer.plugins = [ImageManipulationPlugin];
     });
     ```
 
@@ -195,26 +172,13 @@ interface PluginDef {
     <script>
       import { TriiiceratopsViewer } from 'triiiceratops';
       import 'triiiceratops/style.css';
-      import {
-        ImageManipulationController,
-        SlidersIcon
-      } from 'triiiceratops/plugins/image-manipulation';
-
-      // Define your plugins array
-      const plugins = [
-        {
-          name: 'Image Adjustments',
-          icon: SlidersIcon,
-          panel: ImageManipulationController,
-          position: 'left'
-        }
-      ];
+      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
     </script>
 
     <div style="height: 600px;">
       <TriiiceratopsViewer
         manifestId="https://example.com/manifest.json"
-        {plugins}
+        plugins={[ImageManipulationPlugin]}
       />
     </div>
     ```
@@ -225,22 +189,42 @@ interface PluginDef {
     <script>
       import { TriiiceratopsViewer } from 'triiiceratops';
       import 'triiiceratops/style.css';
-      import { ImageManipulationController, SlidersIcon } from 'triiiceratops/plugins/image-manipulation';
+      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
       import MyCustomPlugin from './MyCustomPlugin.svelte';
       import CustomIcon from './CustomIcon.svelte';
 
       const plugins = [
-        {
-          name: 'Image Adjustments',
-          icon: SlidersIcon,
-          panel: ImageManipulationController,
-          position: 'left'
-        },
+        ImageManipulationPlugin,
         {
           name: 'My Custom Feature',
           icon: CustomIcon,
           panel: MyCustomPlugin,
           position: 'right'
+        }
+      ];
+    </script>
+
+    <div style="height: 600px;">
+      <TriiiceratopsViewer manifestId="..." {plugins} />
+    </div>
+    ```
+
+    **Customizing Built-in Plugins:**
+
+    If you need to customize the name, position, or other properties of a built-in plugin, you can import the individual components:
+
+    ```svelte
+    <script>
+      import { TriiiceratopsViewer } from 'triiiceratops';
+      import 'triiiceratops/style.css';
+      import { ImageManipulationController, SlidersIcon } from 'triiiceratops/plugins/image-manipulation';
+
+      const plugins = [
+        {
+          name: 'Custom Name',
+          icon: SlidersIcon,
+          panel: ImageManipulationController,
+          position: 'right'  // Override default position
         }
       ];
     </script>
@@ -272,20 +256,10 @@ Provides brightness, contrast, saturation, invert, and grayscale controls for th
 
     ```svelte
     <script>
-      import {
-        ImageManipulationController,
-        SlidersIcon
-      } from 'triiiceratops/plugins/image-manipulation';
-
-      const plugins = [
-        {
-          name: 'Image Adjustments',
-          icon: SlidersIcon,
-          panel: ImageManipulationController,
-          position: 'left'
-        }
-      ];
+      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
     </script>
+
+    <TriiiceratopsViewer plugins={[ImageManipulationPlugin]} />
     ```
 
 ---

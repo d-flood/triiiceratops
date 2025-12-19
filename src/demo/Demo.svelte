@@ -3,9 +3,7 @@
     import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
-    import { ImageManipulationController } from '../lib/plugins/image-manipulation';
-    import Sliders from 'phosphor-svelte/lib/Sliders';
-    import type { PluginDef } from '../lib/types/plugin';
+    import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
 
     // Initialize state from URL if present
     const urlParams = new URLSearchParams(window.location.search);
@@ -127,14 +125,7 @@
     // ViewerState for Svelte component mode (via bindable prop)
     let svelteViewerState: ViewerState | undefined = $state();
 
-    const enabledPlugins: PluginDef[] = [
-        {
-            name: 'Image Adjustments',
-            icon: Sliders,
-            panel: ImageManipulationController,
-            position: 'left',
-        },
-    ];
+    const enabledPlugins = [ImageManipulationPlugin];
 
     // Derived active plugins based on mode
     let activePlugins = $derived(
