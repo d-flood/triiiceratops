@@ -542,6 +542,33 @@
                             <li>
                                 <label class="label cursor-pointer py-1 gap-2">
                                     <span class="label-text"
+                                        >{m.settings_select_dock_position()}</span
+                                    >
+                                    <select
+                                        class="select select-bordered select-xs w-24"
+                                        value={config.search?.position ??
+                                            'right'}
+                                        onchange={(e) => {
+                                            if (!config.search)
+                                                config.search = {};
+                                            config.search.position = (
+                                                e.currentTarget as HTMLSelectElement
+                                            ).value;
+                                        }}
+                                        onclick={(e) => e.stopPropagation()}
+                                    >
+                                        <option value="right"
+                                            >{m.settings_position_right()}</option
+                                        >
+                                        <option value="left"
+                                            >{m.settings_position_left()}</option
+                                        >
+                                    </select>
+                                </label>
+                            </li>
+                            <li>
+                                <label class="label cursor-pointer py-1 gap-2">
+                                    <span class="label-text"
                                         >{m.settings_panel_width()}</span
                                     >
                                     <input

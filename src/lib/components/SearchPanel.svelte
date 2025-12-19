@@ -40,6 +40,7 @@
         }
     }
     let width = $derived(viewerState.config.search?.width ?? '320px');
+    let position = $derived(viewerState.config.search?.position ?? 'right');
 </script>
 
 <!-- Drawer / Panel -->
@@ -48,7 +49,9 @@
         class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 {viewerState
             .config.transparentBackground
             ? ''
-            : 'border-l border-base-300'}"
+            : position === 'left'
+              ? 'border-r border-base-300'
+              : 'border-l border-base-300'}"
         style="width: {width}"
         role="dialog"
         aria-label={m.search_panel_title()}

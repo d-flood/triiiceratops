@@ -162,13 +162,16 @@
     let isLeftSidebarVisible = $derived(
         (internalViewerState.showThumbnailGallery &&
             internalViewerState.dockSide === 'left') ||
+            (internalViewerState.showSearchPanel &&
+                internalViewerState.config.search?.position === 'left') ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'left' && p.isVisible(),
             ),
     );
 
     let isRightSidebarVisible = $derived(
-        internalViewerState.showSearchPanel ||
+        (internalViewerState.showSearchPanel &&
+            internalViewerState.config.search?.position !== 'left') ||
             (internalViewerState.showThumbnailGallery &&
                 internalViewerState.dockSide === 'right') ||
             internalViewerState.pluginPanels.some(
@@ -373,6 +376,13 @@
                 ? ''
                 : 'bg-base-200 border-r border-base-300'}"
         >
+            <!-- Search Panel (when configured left) -->
+            {#if internalViewerState.showSearchPanel && internalViewerState.config.search?.position === 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <SearchPanel />
+                </div>
+            {/if}
+
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
                 <div class="h-full w-[140px] pointer-events-auto relative">
@@ -507,7 +517,7 @@
                 : 'bg-base-200 border-l border-base-300'}"
         >
             <!-- Search Panel -->
-            {#if internalViewerState.showSearchPanel}
+            {#if internalViewerState.showSearchPanel && internalViewerState.config.search?.position !== 'left'}
                 <div class="h-full relative pointer-events-auto">
                     <SearchPanel />
                 </div>
