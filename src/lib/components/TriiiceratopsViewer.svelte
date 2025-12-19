@@ -13,7 +13,7 @@
     import LeftFab from './LeftFab.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { m, language } from '../state/i18n.svelte';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -348,7 +348,10 @@
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'left'}
                     <div class="h-full relative pointer-events-auto">
-                        <panel.component {...panel.props ?? {}} />
+                        <panel.component
+                            {...panel.props ?? {}}
+                            locale={language.current}
+                        />
                     </div>
                 {/if}
             {/each}
@@ -419,7 +422,10 @@
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'overlay'}
                     <div class="absolute inset-0 z-40 pointer-events-none">
-                        <panel.component {...panel.props ?? {}} />
+                        <panel.component
+                            {...panel.props ?? {}}
+                            locale={language.current}
+                        />
                     </div>
                 {/if}
             {/each}
@@ -448,7 +454,10 @@
         {#each internalViewerState.pluginPanels as panel (panel.id)}
             {#if panel.isVisible() && panel.position === 'bottom'}
                 <div class="relative w-full z-40 pointer-events-auto">
-                    <panel.component {...panel.props ?? {}} />
+                    <panel.component
+                        {...panel.props ?? {}}
+                        locale={language.current}
+                    />
                 </div>
             {/if}
         {/each}
@@ -480,7 +489,10 @@
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'right'}
                     <div class="h-full relative pointer-events-auto">
-                        <panel.component {...panel.props ?? {}} />
+                        <panel.component
+                            {...panel.props ?? {}}
+                            locale={language.current}
+                        />
                     </div>
                 {/if}
             {/each}

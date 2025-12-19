@@ -1,93 +1,100 @@
 {
-  "name": "triiiceratops",
-  "version": "0.9.13",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/d-flood/triiiceratops.git"
-  },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
-  "private": false,
-  "files": [
-    "dist"
-  ],
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "svelte": "./dist/index.js",
-  "style": "./dist/triiiceratops.css",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "style": "./dist/triiiceratops.css",
-      "svelte": "./dist/index.js",
-      "import": "./dist/index.js"
+    "name": "triiiceratops",
+    "version": "0.9.13",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git"
     },
-    "./plugins/image-manipulation": {
-      "types": "./dist/plugins/image-manipulation/index.d.ts",
-      "svelte": "./dist/plugins/image-manipulation.js",
-      "import": "./dist/plugins/image-manipulation.js"
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
     },
-    "./element": {
-      "import": "./dist/triiiceratops-element.js"
+    "private": false,
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "svelte": "./dist/index.js",
+    "style": "./dist/triiiceratops.css",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "style": "./dist/triiiceratops.css",
+            "svelte": "./dist/index.js",
+            "import": "./dist/index.js"
+        },
+        "./plugins/image-manipulation": {
+            "types": "./dist/plugins/image-manipulation/index.d.ts",
+            "svelte": "./dist/plugins/image-manipulation.js",
+            "import": "./dist/plugins/image-manipulation.js"
+        },
+        "./plugins/annotation-editor": {
+            "types": "./dist/plugins/annotation-editor/index.d.ts",
+            "svelte": "./dist/plugins/annotation-editor.js",
+            "import": "./dist/plugins/annotation-editor.js"
+        },
+        "./element": "./dist/triiiceratops-element.iife.js",
+        "./plugins/image-manipulation.iife": "./dist/triiiceratops-plugin-image-manipulation.iife.js",
+        "./plugins/annotation-editor.iife": "./dist/triiiceratops-plugin-annotation-editor.iife.js",
+        "./style.css": "./dist/triiiceratops.css"
     },
-    "./element.iife": "./dist/triiiceratops-element.iife.js",
-    "./style.css": "./dist/triiiceratops.css"
-  },
-  "peerDependencies": {
-    "manifesto.js": "^4.0.0",
-    "openseadragon": "^5.0.0",
-    "svelte": "^5.0.0"
-  },
-  "peerDependenciesMeta": {
-    "svelte": {
-      "optional": true
+    "peerDependencies": {
+        "manifesto.js": "^4.0.0",
+        "openseadragon": "^5.0.0",
+        "svelte": "^5.0.0"
+    },
+    "peerDependenciesMeta": {
+        "svelte": {
+            "optional": true
+        }
+    },
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts",
+        "build:element": "vite build --config vite.config.element.ts",
+        "build:demo": "vite build --config vite.config.demo.ts",
+        "build:consumer": "rm -rf docs/demo-consumer && mkdir -p docs/demo-consumer && cp src/demo-consumer/index.html docs/demo-consumer/index.html && cp src/demo-consumer/app.css docs/demo-consumer/app.css && rm -rf docs/dist && cp -r dist docs/dist",
+        "build:plugins-iife": "PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts",
+        "build:all": "pnpm build:lib && pnpm build:element && pnpm build:plugins-iife && pnpm build:demo && pnpm build:consumer",
+        "preview": "vite preview",
+        "dev:consumer": "vite --config vite.config.demo-consumer.ts",
+        "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+        "test": "vitest",
+        "test:e2e": "playwright test",
+        "changeset": "changeset"
+    },
+    "devDependencies": {
+        "@changesets/cli": "^2.29.8",
+        "@inlang/paraglide-js": "^2.7.0",
+        "@playwright/test": "^1.57.0",
+        "@sveltejs/package": "^2.5.7",
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@tsconfig/svelte": "^5.0.6",
+        "@types/node": "^24.10.1",
+        "@types/openseadragon": "^5.0.1",
+        "happy-dom": "^20.0.11",
+        "jsdom": "^27.3.0",
+        "prettier": "^3.7.4",
+        "prettier-plugin-svelte": "^3.4.0",
+        "svelte": "^5.43.8",
+        "svelte-check": "^4.3.4",
+        "typescript": "~5.9.3",
+        "vite": "^6.0.0",
+        "vite-plugin-dts": "^4.5.4",
+        "vitest": "^4.0.15"
+    },
+    "dependencies": {
+        "@annotorious/annotorious": "^3.7.19",
+        "@annotorious/openseadragon": "^3.7.19",
+        "@tailwindcss/vite": "^4.1.17",
+        "daisyui": "^5.5.8",
+        "manifesto.js": "^4.3.0",
+        "openseadragon": "^5.0.1",
+        "phosphor-svelte": "^3.0.1",
+        "tailwindcss": "^4.1.17"
     }
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts",
-    "build:element": "vite build --config vite.config.element.ts",
-    "build:demo": "vite build --config vite.config.demo.ts",
-    "build:consumer": "vite build --config vite.config.demo-consumer.ts",
-    "build:all": "pnpm build:lib && pnpm build:element && pnpm build:demo && pnpm build:consumer",
-    "preview": "vite preview",
-    "dev:consumer": "vite --config vite.config.demo-consumer.ts",
-    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
-    "test": "vitest",
-    "test:e2e": "playwright test",
-    "changeset": "changeset"
-  },
-  "devDependencies": {
-    "@changesets/cli": "^2.29.8",
-    "@inlang/paraglide-js": "^2.7.0",
-    "@playwright/test": "^1.57.0",
-    "@sveltejs/package": "^2.5.7",
-    "@sveltejs/vite-plugin-svelte": "^6.2.1",
-    "@tsconfig/svelte": "^5.0.6",
-    "@types/node": "^24.10.1",
-    "@types/openseadragon": "^5.0.1",
-    "happy-dom": "^20.0.11",
-    "jsdom": "^27.3.0",
-    "prettier": "^3.7.4",
-    "prettier-plugin-svelte": "^3.4.0",
-    "svelte": "^5.43.8",
-    "svelte-check": "^4.3.4",
-    "typescript": "~5.9.3",
-    "vite": "^6.0.0",
-    "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.15"
-  },
-  "dependencies": {
-    "@tailwindcss/vite": "^4.1.17",
-    "daisyui": "^5.5.8",
-    "manifesto.js": "^4.3.0",
-    "openseadragon": "^5.0.1",
-    "phosphor-svelte": "^3.0.1",
-    "tailwindcss": "^4.1.17"
-  }
 }

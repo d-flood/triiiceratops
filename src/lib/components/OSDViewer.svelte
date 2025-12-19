@@ -11,7 +11,7 @@
         $props();
 
     let container: HTMLElement | undefined = $state();
-    let viewer: any | undefined = $state();
+    let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
 
     // Track OSD state changes for reactivity
@@ -61,6 +61,12 @@
 
         const results: any[] = [];
 
+        // Check if annotation editor is open to prevent double rendering
+        const editorPanel = viewerState.pluginPanels.find(
+            (p) => p.id === 'annotation-editor:panel',
+        );
+        const isEditorOpen = editorPanel ? editorPanel.isVisible() : false;
+
         for (const anno of parsedAnnotations) {
             // Filter based on visibility
             if (anno.isSearchHit) {
@@ -96,7 +102,9 @@
                         height: pixelRect.height,
                     },
                     isSearchHit: anno.isSearchHit,
-                    tooltip: anno.body.value,
+                    tooltip: anno.body.map((b) => b.value).join(' '),
+                    // Disable pointer events if editor is open so blue annotations can be selected
+                    pointerEvents: isEditorOpen ? 'none' : 'auto',
                 });
             } else if (anno.geometry.type === 'POLYGON') {
                 // Convert each point from image to viewport to pixel
@@ -140,7 +148,8 @@
                     },
                     points: relativePoints,
                     isSearchHit: anno.isSearchHit,
-                    tooltip: anno.body.value,
+                    tooltip: anno.body.map((b) => b.value).join(' '),
+                    pointerEvents: isEditorOpen ? 'none' : 'auto',
                 });
             }
         }
@@ -170,6 +179,10 @@
                 animationTime: 0.5,
                 springStiffness: 7.0,
                 zoomPerClick: 2.0,
+                // Disable click-to-zoom to allow Annotorious click drawing
+                gestureSettingsMouse: {
+                    clickToZoom: false,
+                },
             });
 
             // Notify plugins that OSD is ready
@@ -228,6 +241,7 @@
     {#each renderedAnnotations as anno (anno.id)}
         {#if anno.type === 'RECTANGLE'}
             <div
+                id="annotation-visual-{anno.id}"
                 class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
                     ? 'border-yellow-400 bg-yellow-400/40 hover:bg-yellow-400/60'
                     : 'border-red-500 bg-red-500/20 hover:bg-red-500/40'}"
@@ -236,6 +250,7 @@
           top: {anno.rect.y}px;
           width: {anno.rect.width}px;
           height: {anno.rect.height}px;
+          pointer-events: {anno.pointerEvents};
         "
                 title={anno.tooltip}
             ></div>
@@ -247,10 +262,12 @@
           top: {anno.bounds.y}px;
           width: {anno.bounds.width}px;
           height: {anno.bounds.height}px;
+          pointer-events: {anno.pointerEvents};
         "
             >
                 <title>{anno.tooltip}</title>
                 <polygon
+                    id="annotation-visual-{anno.id}"
                     points={anno.points.map((p: any) => p.join(',')).join(' ')}
                     class="cursor-pointer transition-colors {anno.isSearchHit
                         ? 'fill-yellow-400/40 stroke-yellow-400 hover:fill-yellow-400/60'

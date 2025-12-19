@@ -6,26 +6,51 @@ import tailwindcss from '@tailwindcss/vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Get plugin name from environment variable (set by build script)
+const pluginName = process.env.PLUGIN_NAME || 'image-manipulation';
+
+const pluginConfigs: Record<string, { entry: string; name: string }> = {
+    'image-manipulation': {
+        entry: resolve(
+            __dirname,
+            'src/lib/plugins/image-manipulation/iife-entry.ts',
+        ),
+        name: 'TriiiceratopsPluginImageManipulation',
+    },
+    'annotation-editor': {
+        entry: resolve(
+            __dirname,
+            'src/lib/plugins/annotation-editor/iife-entry.ts',
+        ),
+        name: 'TriiiceratopsPluginAnnotationEditor',
+    },
+};
+
+const config = pluginConfigs[pluginName];
+if (!config) {
+    throw new Error(`Unknown plugin: ${pluginName}`);
+}
+
 /**
  * Build configuration for IIFE plugin bundles.
  *
  * Plugins are built to use the Svelte runtime exposed by the main
  * triiiceratops-element.iife.js bundle via window.__TriiiceratopsSvelteRuntime.
  * This ensures getContext/setContext work correctly across bundle boundaries.
+ *
+ * Usage:
+ *   PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts
+ *   PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts
  */
 export default defineConfig({
     plugins: [svelte(), tailwindcss()],
     build: {
         minify: true,
         lib: {
-            entry: {
-                'triiiceratops-plugin-image-manipulation': resolve(
-                    __dirname,
-                    'src/lib/plugins/image-manipulation/iife-entry.ts',
-                ),
-            },
+            entry: config.entry,
             formats: ['iife'],
-            name: 'TriiiceratopsPluginImageManipulation',
+            name: config.name,
+            fileName: () => `triiiceratops-plugin-${pluginName}.iife.js`,
         },
         rollupOptions: {
             // Externalize Svelte - plugins use the runtime from the main element bundle
@@ -55,7 +80,6 @@ export default defineConfig({
                     return id;
                 },
                 inlineDynamicImports: true,
-                entryFileNames: '[name].iife.js',
             },
         },
         outDir: 'dist',

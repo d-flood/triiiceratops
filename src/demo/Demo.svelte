@@ -4,6 +4,7 @@
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
     import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
+    import { AnnotationEditorPlugin } from '../lib/plugins/annotation-editor';
 
     // Initialize state from URL if present
     const urlParams = new URLSearchParams(window.location.search);
@@ -125,7 +126,7 @@
     // ViewerState for Svelte component mode (via bindable prop)
     let svelteViewerState: ViewerState | undefined = $state();
 
-    const enabledPlugins = [ImageManipulationPlugin];
+    const enabledPlugins = [ImageManipulationPlugin, AnnotationEditorPlugin];
 
     // Derived active plugins based on mode
     let activePlugins = $derived(

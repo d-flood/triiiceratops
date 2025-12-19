@@ -14,7 +14,7 @@ declare global {
             svelte: typeof svelte;
             internal: unknown;
         };
-        TriiiceratopsPlugins: Record<string, unknown>;
+        TriiiceratopsPlugins?: Record<string, unknown>;
     }
 }
 
