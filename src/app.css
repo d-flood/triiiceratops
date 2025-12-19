@@ -4,7 +4,8 @@
 @source "../src/lib/**/*.svelte";
 
 @plugin "daisyui" {
-  exclude: reset, rootcolor, rootstyle, scrollbar, viewport;
+  root: "#triiiceratops-viewer";
+  exclude: reset, scrollbar, viewport;
   themes:
     light --default,
     dark --prefersdark,

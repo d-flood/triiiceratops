@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { setContext, onDestroy } from 'svelte';
+    import { setContext, onDestroy, untrack } from 'svelte';
     import { ViewerState, VIEWER_STATE_KEY } from '../state/viewer.svelte';
-    import type { TriiiceratopsPlugin } from '../types/plugin';
+    import type { PluginDef } from '../types/plugin';
     import type { DaisyUITheme, ThemeConfig } from '../theme/types';
     import type { ViewerConfig } from '../types/config';
     import { applyTheme } from '../theme/themeManager';
@@ -18,18 +18,10 @@
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
 
-    let {
-        manifestId,
-        canvasId,
-        plugins = [],
-        theme,
-        themeConfig,
-        config = {},
-        viewerState = $bindable(),
-    }: {
+    interface Props {
         manifestId?: string;
         canvasId?: string;
-        plugins?: TriiiceratopsPlugin[];
+        plugins?: PluginDef[];
         /** Built-in DaisyUI theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
         theme?: DaisyUITheme;
         /** Custom theme configuration to override the base theme's values. */
@@ -38,7 +30,17 @@
         config?: ViewerConfig;
         /** Bindable viewer state instance for external access (Svelte consumers) */
         viewerState?: ViewerState;
-    } = $props();
+    }
+
+    let {
+        manifestId,
+        canvasId,
+        plugins = [],
+        theme,
+        themeConfig,
+        config = {},
+        viewerState = $bindable(),
+    }: Props = $props();
 
     // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
@@ -101,11 +103,45 @@
         }
     });
 
-    // Register plugins reactively
+    // Register plugins reactively with cleanup
+    let registeredPluginIds: string[] = [];
+
     $effect(() => {
-        for (const plugin of plugins) {
-            internalViewerState.registerPlugin(plugin);
-        }
+        // Create dependency on plugins prop by accessing it
+        const currentPlugins = plugins;
+
+        // Use untrack so that operations inside (like registerPlugin accessing/writing state)
+        // do NOT become dependencies of this effect. This prevents infinite loops.
+        untrack(() => {
+            // Cleanup previous plugins first
+            for (const id of registeredPluginIds) {
+                internalViewerState.unregisterPlugin(id);
+            }
+            registeredPluginIds = [];
+
+            // Register new plugins
+            for (const plugin of currentPlugins) {
+                const id =
+                    plugin.id ||
+                    `plugin-${Math.random().toString(36).substr(2, 9)}`;
+                // Create a copy with the ID to ensure stability for THIS registration
+                const defWithId = { ...plugin, id };
+                internalViewerState.registerPlugin(defWithId);
+                registeredPluginIds.push(id);
+            }
+        });
+
+        // Cleanup on effect re-run
+        return () => {
+            for (const id of registeredPluginIds) {
+                internalViewerState.unregisterPlugin(id);
+            }
+            registeredPluginIds = [];
+        };
+    });
+
+    onDestroy(() => {
+        internalViewerState.destroyAllPlugins();
     });
 
     $effect(() => {
@@ -187,13 +223,19 @@
             else if (body) resource = body;
         }
 
-        // Check if resource is valid (Manifesto sometimes returns empty objects for v3 bodies)
-        if (
+        // Check if resource is valid (Manifesto sometimes returns empty wrapper objects for v3 bodies)
+        // The wrapper may have getServices() that returns manifest-level services, so we can't rely on that.
+        // Instead, check if the resource has actual content (id, __jsonld, or a service property)
+        const resourceJson = resource?.__jsonld || resource;
+        const hasContent =
             resource &&
-            !resource.id &&
-            !resource.__jsonld &&
-            (!resource.getServices || resource.getServices().length === 0)
-        ) {
+            (resource.id ||
+                resource['@id'] ||
+                (resourceJson &&
+                    (resourceJson.service ||
+                        resourceJson.id ||
+                        resourceJson['@id'])));
+        if (resource && !hasContent) {
             resource = null;
         }
 
@@ -214,28 +256,27 @@
         const getId = (thing: any) => thing.id || thing['@id'];
 
         // Start of service detection logic
-        let services = [];
-        if (resource.getServices) {
+        // Check raw json service FIRST - Manifesto's getServices() often returns
+        // manifest-level services instead of the image body's services
+        let services: any[] = [];
+        const rJson = resource.__jsonld || resource;
+        if (rJson.service) {
+            services = Array.isArray(rJson.service)
+                ? rJson.service
+                : [rJson.service];
+        }
+
+        // Fallback to getServices() only if raw json didn't have services
+        if (!services.length && resource.getServices) {
             services = resource.getServices();
         }
-
-        // Fallback: check raw json service
-        if (!services.length) {
-            const rJson = resource.__jsonld || resource;
-            // console.log('Checking raw resource for services:', rJson);
-            if (rJson.service) {
-                services = Array.isArray(rJson.service)
-                    ? rJson.service
-                    : [rJson.service];
-            }
-        }
-
-        // console.log('Found services:', services);
 
         if (services.length > 0) {
             // Find a valid image service
             const service = services.find((s: any) => {
-                const type = s.getType ? s.getType() : s.type || '';
+                const type = s.getType
+                    ? s.getType()
+                    : s.type || s['@type'] || '';
                 const profile = s.getProfile ? s.getProfile() : s.profile || '';
                 return (
                     type === 'ImageService1' ||

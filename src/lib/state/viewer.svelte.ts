@@ -1,12 +1,7 @@
 import { manifestsState } from './manifests.svelte.js';
 import type { ViewerConfig } from '../types/config';
 
-import type {
-    TriiiceratopsPlugin,
-    PluginContext,
-    PluginMenuButton,
-    PluginPanel,
-} from '../types/plugin';
+import type { PluginMenuButton, PluginPanel, PluginDef } from '../types/plugin';
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -86,9 +81,14 @@ export class ViewerState {
         let canvasIndex = -1;
         if (this.manifestId && this.canvasId) {
             const canvases = manifestsState.getCanvases(this.manifestId);
-            canvasIndex = canvases.findIndex(
-                (c: any) => c.id === this.canvasId,
-            );
+            canvasIndex = canvases.findIndex((c: any) => {
+                const id =
+                    c.id ||
+                    c['@id'] ||
+                    (c.getCanvasId ? c.getCanvasId() : null) ||
+                    (c.getId ? c.getId() : null);
+                return id === this.canvasId;
+            });
         }
 
         return {
@@ -133,7 +133,7 @@ export class ViewerState {
     constructor(
         initialManifestId: string | null = null,
         initialCanvasId: string | null = null,
-        initialPlugins: TriiiceratopsPlugin[] = [],
+        initialPlugins: PluginDef[] = [],
     ) {
         this.manifestId = initialManifestId || null;
         this.canvasId = initialCanvasId || null;
@@ -175,8 +175,16 @@ export class ViewerState {
             if (this.canvases.length > 0) return 0;
             return -1;
         }
-        // Manifesto canvases have an id property
-        return this.canvases.findIndex((c: any) => c.id === this.canvasId);
+
+        // Manifesto canvases have an id property, but let's be robust and check multiple possibilities
+        return this.canvases.findIndex((c: any) => {
+            const id =
+                c.id ||
+                c['@id'] ||
+                (c.getCanvasId ? c.getCanvasId() : null) ||
+                (c.getId ? c.getId() : null);
+            return id === this.canvasId;
+        });
     }
 
     get hasNext() {
@@ -551,9 +559,6 @@ export class ViewerState {
 
     // ==================== PLUGIN STATE ====================
 
-    /** Registered plugins */
-    plugins: TriiiceratopsPlugin[] = $state([]);
-
     /** Plugin-registered menu buttons */
     pluginMenuButtons: PluginMenuButton[] = $state([]);
 
@@ -572,115 +577,79 @@ export class ViewerState {
     // ==================== PLUGIN METHODS ====================
 
     /**
-     * Create plugin context - the stable API surface for plugins.
+     * Register a plugin with this viewer instance.
+     * Accepts a simple PluginDef object.
      */
-    private createPluginContext(): PluginContext {
-        const self = this;
-        return {
-            viewerState: self,
+    registerPlugin(def: PluginDef): void {
+        const id =
+            def.id || `plugin-${Math.random().toString(36).substr(2, 9)}`;
 
-            getOSDViewer: () => self.osdViewer,
+        // Create reactive state for this plugin's panel
+        // Svelte 5's $state works fine in closures if consumed in reactive context
+        let isOpen = $state(false);
 
-            registerMenuButton(button: PluginMenuButton) {
-                if (!self.pluginMenuButtons.find((b) => b.id === button.id)) {
-                    self.pluginMenuButtons = [
-                        ...self.pluginMenuButtons,
-                        button,
-                    ];
-                }
+        // Register Menu Button
+        const button: PluginMenuButton = {
+            id: `${id}:toggle`,
+            icon: def.icon,
+            tooltip: def.name,
+            onClick: () => {
+                isOpen = !isOpen;
             },
+            isActive: () => isOpen,
+            order: 200, // Default order for simple plugins
+        };
 
-            unregisterMenuButton(buttonId: string) {
-                self.pluginMenuButtons = self.pluginMenuButtons.filter(
-                    (b) => b.id !== buttonId,
-                );
-            },
-
-            registerPanel(panel: PluginPanel) {
-                if (!self.pluginPanels.find((p) => p.id === panel.id)) {
-                    self.pluginPanels = [...self.pluginPanels, panel];
-                }
-            },
-
-            unregisterPanel(panelId: string) {
-                self.pluginPanels = self.pluginPanels.filter(
-                    (p) => p.id !== panelId,
-                );
-            },
-
-            emit(eventName: string, data?: unknown) {
-                const handlers = self.pluginEventHandlers.get(eventName);
-                handlers?.forEach((handler) => handler(data));
-            },
-
-            on(eventName: string, handler: (data: unknown) => void) {
-                if (!self.pluginEventHandlers.has(eventName)) {
-                    self.pluginEventHandlers.set(eventName, new Set());
-                }
-                self.pluginEventHandlers.get(eventName)!.add(handler);
-                return () => {
-                    self.pluginEventHandlers.get(eventName)?.delete(handler);
-                };
+        // Register Panel
+        const panel: PluginPanel = {
+            id: `${id}:panel`,
+            component: def.panel,
+            position: def.position || 'left',
+            isVisible: () => isOpen,
+            props: {
+                ...def.props,
+                // Pass isOpen state and closer to component
+                isOpen: isOpen,
+                close: () => {
+                    isOpen = false;
+                },
             },
         };
+
+        // Add directly to lists
+        this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+        this.pluginPanels = [...this.pluginPanels, panel];
     }
 
     /**
-     * Register a plugin with this viewer instance.
-     */
-    registerPlugin(plugin: TriiiceratopsPlugin): void {
-        if (this.plugins.find((p) => p.id === plugin.id)) {
-            console.warn(
-                `[Triiiceratops] Plugin "${plugin.id}" already registered`,
-            );
-            return;
-        }
-
-        this.plugins = [...this.plugins, plugin];
-        plugin.onRegister(this.createPluginContext());
-
-        // If OSD already ready, notify immediately
-        if (this.osdViewer && plugin.onViewerReady) {
-            plugin.onViewerReady(this.osdViewer);
-        }
-    }
-
-    /**
-     * Unregister a plugin by ID.
+     * Unregister a plugin's UI components by ID prefix.
+     * Note: This cleans up the menu button and panel, but doesn't remove listeners attached by the plugin itself
+     * since we don't have a handle on the plugin instance or its cleanup function anymore.
+     * Plugins should manage their own cleanup via component lifecycle (onDestroy) if possible.
      */
     unregisterPlugin(pluginId: string): void {
-        const plugin = this.plugins.find((p) => p.id === pluginId);
-        if (plugin) {
-            plugin.onDestroy?.();
-            this.plugins = this.plugins.filter((p) => p.id !== pluginId);
-            // Remove plugin's UI registrations
-            this.pluginMenuButtons = this.pluginMenuButtons.filter(
-                (b) => !b.id.startsWith(`${pluginId}:`),
-            );
-            this.pluginPanels = this.pluginPanels.filter(
-                (p) => !p.id.startsWith(`${pluginId}:`),
-            );
-        }
+        this.pluginMenuButtons = this.pluginMenuButtons.filter(
+            (b) => !b.id.startsWith(`${pluginId}:`),
+        );
+        this.pluginPanels = this.pluginPanels.filter(
+            (p) => !p.id.startsWith(`${pluginId}:`),
+        );
     }
 
     /**
-     * Called by OSDViewer when OpenSeadragon is ready.
+     * Notify that OSD viewer is ready.
+     * With the component-based system, we don't notify plugins individually.
+     * Instead, plugins should use the OSDViewer instance from context or listen for 'osd-ready' event (if we emitted one).
+     * But since we have direct access to osdViewer in this state, components can just react to it.
      */
-    notifyOSDReady(viewer: any): void {
+    notifyOSDReady(viewer: OpenSeadragon.Viewer): void {
         this.osdViewer = viewer;
-        for (const plugin of this.plugins) {
-            plugin.onViewerReady?.(viewer);
-        }
     }
 
     /**
-     * Destroy all plugins (called on viewer unmount).
+     * Cleanup everything.
      */
     destroyAllPlugins(): void {
-        for (const plugin of this.plugins) {
-            plugin.onDestroy?.();
-        }
-        this.plugins = [];
         this.pluginMenuButtons = [];
         this.pluginPanels = [];
         this.pluginEventHandlers.clear();

@@ -1,36 +1,5 @@
 import type { Component } from 'svelte';
-import type OpenSeadragon from 'openseadragon';
 import type { ViewerState } from '../state/viewer.svelte';
-
-/**
- * Context object passed to plugins during registration.
- * This is the stable public API that plugins depend on.
- */
-export interface PluginContext {
-    /** The ViewerState instance for accessing/modifying viewer state */
-    viewerState: ViewerState;
-
-    /** Get the OpenSeadragon viewer instance (null until ready) */
-    getOSDViewer(): OpenSeadragon.Viewer | null;
-
-    /** Register a menu button in the FloatingMenu */
-    registerMenuButton(button: PluginMenuButton): void;
-
-    /** Unregister a menu button by ID */
-    unregisterMenuButton(buttonId: string): void;
-
-    /** Register a panel component */
-    registerPanel(panel: PluginPanel): void;
-
-    /** Unregister a panel by ID */
-    unregisterPanel(panelId: string): void;
-
-    /** Emit a custom event that other plugins can listen to */
-    emit(eventName: string, data?: unknown): void;
-
-    /** Subscribe to custom events from other plugins */
-    on(eventName: string, handler: (data: unknown) => void): () => void;
-}
 
 /**
  * Menu button configuration for plugin UI injection.
@@ -40,7 +9,7 @@ export interface PluginMenuButton {
     id: string;
 
     /** Phosphor icon component */
-    icon: Component;
+    icon: Component<any>;
 
     /** Tooltip text */
     tooltip: string;
@@ -66,7 +35,7 @@ export interface PluginPanel {
     id: string;
 
     /** Svelte component to render */
-    component: Component;
+    component: Component<any>;
 
     /** Props passed to the component */
     props?: Record<string, unknown>;
@@ -79,69 +48,25 @@ export interface PluginPanel {
 }
 
 /**
- * Main plugin interface. All plugins must implement this.
+ * Simplified definition for a plugin.
+ * This allows plugins to be defined as simple objects with a component and icon.
  */
-export interface TriiiceratopsPlugin {
-    /** Unique plugin identifier (e.g., 'image-manipulation') */
-    readonly id: string;
+export interface PluginDef {
+    /** Unique ID (optional, will be auto-generated if missing) */
+    id?: string;
 
-    /** Human-readable name */
-    readonly name: string;
+    /** Name/Tooltip for the menu button */
+    name: string;
 
-    /** Plugin version (semver) */
-    readonly version: string;
+    /** Icon component */
+    icon: Component<any>;
 
-    /**
-     * Called when plugin is registered with the viewer.
-     * Store the context and register UI elements here.
-     */
-    onRegister(context: PluginContext): void;
+    /** Panel component */
+    panel: Component<any>;
 
-    /**
-     * Called when OpenSeadragon viewer is ready.
-     * Attach OSD event handlers here.
-     */
-    onViewerReady?(viewer: OpenSeadragon.Viewer): void;
+    /** Preferred position (default: 'left') */
+    position?: 'left' | 'right' | 'bottom' | 'overlay';
 
-    /**
-     * Called when the plugin is being destroyed.
-     * Clean up all handlers and state.
-     */
-    onDestroy?(): void;
-}
-
-/**
- * Optional base class providing common plugin functionality.
- */
-export abstract class BasePlugin implements TriiiceratopsPlugin {
-    abstract readonly id: string;
-    abstract readonly name: string;
-    abstract readonly version: string;
-
-    protected context: PluginContext | null = null;
-
-    onRegister(context: PluginContext): void {
-        this.context = context;
-    }
-
-    onViewerReady?(viewer: OpenSeadragon.Viewer): void;
-
-    onDestroy(): void {
-        this.context = null;
-    }
-
-    /** Convenience getter for ViewerState */
-    protected get viewerState(): ViewerState {
-        if (!this.context) {
-            throw new Error(
-                `Plugin ${this.id} accessed viewerState before registration`,
-            );
-        }
-        return this.context.viewerState;
-    }
-
-    /** Convenience getter for OSD viewer */
-    protected get osdViewer(): OpenSeadragon.Viewer | null {
-        return this.context?.getOSDViewer() ?? null;
-    }
+    /** Props to pass to the panel component */
+    props?: Record<string, unknown>;
 }

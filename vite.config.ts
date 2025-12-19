@@ -14,9 +14,9 @@ export default defineConfig({
             // Ensure custom elements compile when these files are included (tests/dev)
             // @ts-ignore - plugin supports a function signature with `url`
             compilerOptions: (url: string) => {
-                const isCustomElement =
-                    url.includes('TriiiceratopsViewerElement.svelte') ||
-                    url.includes('TriiiceratopsViewerElementImage.svelte');
+                const isCustomElement = url.includes(
+                    'TriiiceratopsViewerElement.svelte',
+                );
                 return { customElement: isCustomElement };
             },
         }),

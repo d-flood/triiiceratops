@@ -3,6 +3,9 @@
     import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
+    import { ImageManipulationController } from '../lib/plugins/image-manipulation';
+    import Sliders from 'phosphor-svelte/lib/Sliders';
+    import type { PluginDef } from '../lib/types/plugin';
 
     // Initialize state from URL if present
     const urlParams = new URLSearchParams(window.location.search);
@@ -71,9 +74,8 @@
         currentManifest = manifestUrl;
     }
 
-    // This defines <triiiceratops-viewer> and <triiiceratops-viewer-image>
+    // This defines <triiiceratops-viewer>
     import('../lib/custom-element');
-    import('../lib/custom-element-image');
 
     // Persist state to URL
     $effect(() => {
@@ -125,26 +127,65 @@
     // ViewerState for Svelte component mode (via bindable prop)
     let svelteViewerState: ViewerState | undefined = $state();
 
+    const enabledPlugins: PluginDef[] = [
+        {
+            name: 'Image Adjustments',
+            icon: Sliders,
+            panel: ImageManipulationController,
+            position: 'left',
+        },
+    ];
+
+    // Derived active plugins based on mode
+    let activePlugins = $derived(
+        viewerMode === 'image' ||
+            viewerMode === 'custom-theme' ||
+            viewerMode === 'svelte'
+            ? enabledPlugins
+            : [],
+    );
+
+    $effect(() => {
+        if (viewerMode !== 'svelte') {
+            const el = document.querySelector('triiiceratops-viewer') as any;
+            if (el) {
+                el.plugins = activePlugins;
+            }
+        }
+    });
+
     // Set up event listeners when viewer mounts - use onMount pattern
     let listenersAttached = false;
 
     $effect(() => {
+        console.log(
+            '[Demo] Setup effect running. listenersAttached:',
+            listenersAttached,
+        );
         // Only run once after mount, and only if we haven't attached listeners yet
         if (listenersAttached) return;
 
         // Use setTimeout to ensure custom elements are defined and rendered
         const timeoutId = setTimeout(() => {
-            const el = document.querySelector(
-                'triiiceratops-viewer, triiiceratops-viewer-image',
-            ) as HTMLElement | null;
+            console.log('[Demo] Setup timeout firing');
+            const el = document.querySelector('triiiceratops-viewer') as any;
 
             if (!el) return;
+
+            // Initial plugin sync is handled by the effect above,
+            // but we can ensure it here too or just rely on the reactive effect.
+            // The effect depends on `activePlugins`, which is derived.
+            // When this component mounts, effect runs.
+            // However, the web component might not be upgraded yet.
+            // Let's set it here just in case, but using the reactive value.
+            el.plugins = activePlugins;
 
             listenersAttached = true;
 
             const handleStateChange = (e: Event) => {
                 const customEvent = e as CustomEvent<ViewerStateSnapshot>;
                 externalState = customEvent.detail;
+                // ... logic remains same ...
                 lastEventType = e.type;
                 console.log(
                     `[Demo] Received ${e.type} event:`,
@@ -241,9 +282,7 @@
     // External control functions - call methods on ViewerState via the element
     function externalNextCanvas() {
         // Access viewerState property on the web component (exposed via shadowRoot)
-        const el = document.querySelector(
-            'triiiceratops-viewer, triiiceratops-viewer-image',
-        ) as any;
+        const el = document.querySelector('triiiceratops-viewer') as any;
         // The state is exposed via events, but we can also call methods
         // by accessing the inner component's viewerState
         if (el?.shadowRoot) {
@@ -285,24 +324,16 @@
                         {canvasId}
                         {config}
                         bind:viewerState={svelteViewerState}
+                        plugins={enabledPlugins}
                     />
-                {:else if viewerMode === 'image'}
-                    <triiiceratops-viewer-image
-                        manifest-id={currentManifest}
-                        canvas-id={canvasId}
-                        config={configStr}
-                    ></triiiceratops-viewer-image>
-                {:else if viewerMode === 'custom-theme'}
-                    <triiiceratops-viewer-image
-                        manifest-id={currentManifest}
-                        canvas-id={canvasId}
-                        theme-config={customThemeConfig}
-                        config={configStr}
-                    ></triiiceratops-viewer-image>
                 {:else}
+                    <!-- Web Component -->
                     <triiiceratops-viewer
                         manifest-id={currentManifest}
                         canvas-id={canvasId}
+                        theme-config={viewerMode === 'custom-theme'
+                            ? customThemeConfig
+                            : undefined}
                         config={configStr}
                     ></triiiceratops-viewer>
                 {/if}
@@ -312,8 +343,7 @@
 </div>
 
 <style>
-    triiiceratops-viewer,
-    triiiceratops-viewer-image {
+    triiiceratops-viewer {
         display: block;
         width: 100%;
         height: 100%;

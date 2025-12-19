@@ -30,10 +30,10 @@ export default defineConfig({
                     __dirname,
                     'src/lib/index-bundle.ts',
                 ),
-                // 'plugins/image-manipulation': resolve(
-                //     __dirname,
-                //     'src/lib/plugins/image-manipulation/index.ts',
-                // ),
+                'plugins/image-manipulation': resolve(
+                    __dirname,
+                    'src/lib/plugins/image-manipulation/index.ts',
+                ),
             },
             name: 'Triiiceratops',
 

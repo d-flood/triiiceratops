@@ -8,13 +8,7 @@ export type { ViewerStateSnapshot } from './state/viewer.svelte';
 export { ManifestsState } from './state/manifests.svelte';
 
 // Plugin system exports
-export type {
-    TriiiceratopsPlugin,
-    PluginContext,
-    PluginMenuButton,
-    PluginPanel,
-} from './types/plugin';
-export { BasePlugin } from './types/plugin';
+export type { PluginDef, PluginMenuButton, PluginPanel } from './types/plugin';
 
 // Theme customization exports
 export type { ThemeConfig, DaisyUITheme } from './theme/types';

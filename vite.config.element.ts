@@ -13,9 +13,9 @@ export default defineConfig({
             configFile: false,
             // @ts-ignore - The types for this function signature might be slightly off in the plugin dts but valid in Svelte
             compilerOptions: (url) => {
-                const isCustomElement =
-                    url.includes('TriiiceratopsViewerElement.svelte') ||
-                    url.includes('TriiiceratopsViewerElementImage.svelte');
+                const isCustomElement = url.includes(
+                    'TriiiceratopsViewerElement.svelte',
+                );
                 return { customElement: isCustomElement };
             },
         }),
@@ -28,28 +28,20 @@ export default defineConfig({
     build: {
         minify: true,
         lib: {
-            entry: {
-                'triiiceratops-element': resolve(
-                    __dirname,
-                    'src/lib/custom-element.ts',
-                ),
-                'triiiceratops-element-image': resolve(
-                    __dirname,
-                    'src/lib/custom-element-image.ts',
-                ),
-            },
+            entry: resolve(__dirname, 'src/lib/custom-element.ts'),
             name: 'TriiiceratopsElement',
-            formats: ['es'], // IIFE is hard with multiple entries, standardizing on ES for now
+            formats: ['iife'],
+            fileName: () => 'triiiceratops-element.iife.js',
         },
         rollupOptions: {
             output: {
-                // Remove inlineDynamicImports as we have multiple entries now
-                chunkFileNames: 'chunks/[name]-[hash].js',
+                // Produce a single file with no chunks
+                inlineDynamicImports: true,
                 assetFileNames: 'triiiceratops-element.[ext]',
             },
         },
         outDir: 'dist',
         emptyOutDir: false, // Don't clear dist (lib build runs first)
-        cssCodeSplit: false, // Output single CSS file
+        cssCodeSplit: false, // Output single CSS file (though CSS is inlined in shadow DOM)
     },
 });

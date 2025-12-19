@@ -35,7 +35,7 @@
 <script lang="ts">
     import styles from '../../app.css?inline';
     import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
-    import type { TriiiceratopsPlugin } from '../types/plugin';
+    import type { PluginDef } from '../types/plugin';
     import type { DaisyUITheme, ThemeConfig } from '../theme/types';
     import type { ViewerConfig } from '../types/config';
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
@@ -51,7 +51,7 @@
     }: {
         manifestId?: string;
         canvasId?: string;
-        plugins?: TriiiceratopsPlugin[];
+        plugins?: PluginDef[];
         /**
          * Built-in DaisyUI theme name (e.g., 'light', 'dark', 'cupcake').
          * When not specified, inherits the theme from the parent context.
