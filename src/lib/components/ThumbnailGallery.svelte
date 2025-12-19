@@ -483,7 +483,7 @@
 
         <!-- Content (Grid or Horizontal Scroll) -->
         <div
-            class="flex-1 px-1 bg-base-100 {isHorizontal
+            class="flex-1 p-1 bg-base-100 {isHorizontal
                 ? 'overflow-x-auto overflow-y-hidden h-full'
                 : 'overflow-y-auto overflow-x-hidden'}"
         >
