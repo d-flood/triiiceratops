@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.10.0
+
+### Minor Changes
+
+- 8d71184: Major refactor of the plugin system AND added an initial annotation editor plugin
+
 ## 0.9.13
 
 ### Patch Changes
