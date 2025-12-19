@@ -176,9 +176,44 @@
             ),
     );
 
-    let manifestData = $derived(internalViewerState.manifest);
+    let manifestData = $derived(internalViewerState.manifestEntry);
     let canvases = $derived(internalViewerState.canvases);
     let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
+
+    // Effect to trigger deferred search once manifest is loaded
+    $effect(() => {
+        if (
+            internalViewerState.pendingSearchQuery &&
+            manifestData &&
+            !manifestData.isFetching &&
+            !manifestData.error &&
+            manifestData.manifesto
+        ) {
+            const query = internalViewerState.pendingSearchQuery;
+            internalViewerState.pendingSearchQuery = null;
+            console.log(
+                '[Viewer] Manifest loaded, triggering deferred search:',
+                query,
+            );
+            internalViewerState.search(query);
+        }
+    });
+
+    // Auto-select first canvas if none selected
+    $effect(() => {
+        if (
+            canvases &&
+            canvases.length > 0 &&
+            !internalViewerState.canvasId &&
+            !manifestData?.isFetching
+        ) {
+            console.log(
+                '[Viewer] Auto-selecting first canvas:',
+                canvases[0].id,
+            );
+            internalViewerState.setCanvas(canvases[0].id);
+        }
+    });
 
     let tileSources = $derived.by(() => {
         if (
@@ -340,7 +375,7 @@
         >
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
-                <div class="h-full w-[200px] pointer-events-auto relative">
+                <div class="h-full w-[140px] pointer-events-auto relative">
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
@@ -366,7 +401,7 @@
         <!-- Top Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
             <div
-                class="flex-none h-[140px] w-full pointer-events-auto relative z-20"
+                class="flex-none h-[160px] w-full pointer-events-auto relative z-20"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -399,7 +434,7 @@
                         viewerState={internalViewerState}
                     />
                 {/key}
-            {:else}
+            {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div
                     class="w-full h-full flex items-center justify-center text-base-content/50"
                 >
@@ -444,7 +479,7 @@
         <!-- Bottom Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
             <div
-                class="flex-none h-[140px] w-full pointer-events-auto relative z-20"
+                class="flex-none h-[160px] w-full pointer-events-auto relative z-20"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -480,7 +515,7 @@
 
             <!-- Gallery (when docked right) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
-                <div class="h-full w-[200px] pointer-events-auto relative">
+                <div class="h-full w-[140px] pointer-events-auto relative">
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
@@ -499,3 +534,33 @@
         </div>
     {/if}
 </div>
+
+<style>
+    /* Scoped scrollbar styles for the viewer */
+    :global(#triiiceratops-viewer *) {
+        scrollbar-width: thin;
+        scrollbar-color: var(--fallback-bc, oklch(var(--bc) / 0.2)) transparent;
+    }
+
+    :global(#triiiceratops-viewer ::-webkit-scrollbar) {
+        width: 4px;
+        height: 4px;
+    }
+
+    :global(#triiiceratops-viewer ::-webkit-scrollbar-track) {
+        background: transparent;
+    }
+
+    :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
+        background-color: var(--fallback-bc, oklch(var(--bc) / 0.2));
+        border-radius: 9999px;
+    }
+
+    :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
+        background-color: var(--fallback-bc, oklch(var(--bc) / 0.4));
+    }
+
+    :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {
+        background: transparent;
+    }
+</style>

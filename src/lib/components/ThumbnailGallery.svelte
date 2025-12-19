@@ -483,7 +483,7 @@
 
         <!-- Content (Grid or Horizontal Scroll) -->
         <div
-            class="flex-1 p-1 bg-base-100 {isHorizontal
+            class="flex-1 px-1 bg-base-100 {isHorizontal
                 ? 'overflow-x-auto overflow-y-hidden h-full'
                 : 'overflow-y-auto overflow-x-hidden'}"
         >
@@ -493,12 +493,12 @@
                     : 'grid gap-2'}
                 style={isHorizontal
                     ? ''
-                    : 'grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));'}
+                    : 'grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));'}
             >
                 {#each thumbnails as thumb}
                     <button
                         class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
-                            ? 'w-[140px]'
+                            ? 'w-[90px]'
                             : ''} {viewerState.canvasId === thumb.id
                             ? 'ring-2 ring-primary bg-primary/5'
                             : ''}"
@@ -506,7 +506,7 @@
                         aria-label="Select canvas {thumb.label}"
                     >
                         <div
-                            class="aspect-4/3 bg-base-300 rounded overflow-hidden relative w-full flex items-center justify-center"
+                            class="aspect-3/4 bg-base-300 rounded overflow-hidden relative w-full flex items-center justify-center"
                         >
                             {#if thumb.src}
                                 <img

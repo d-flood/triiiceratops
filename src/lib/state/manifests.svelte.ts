@@ -1,6 +1,6 @@
 import * as manifesto from 'manifesto.js';
 
-interface ManifestEntry {
+export interface ManifestEntry {
     json?: any;
     manifesto?: any;
     error?: any;
@@ -79,6 +79,10 @@ export class ManifestsState {
     getManifest(manifestId: string) {
         const entry = this.manifests[manifestId];
         return entry?.manifesto;
+    }
+
+    getManifestEntry(manifestId: string): ManifestEntry | undefined {
+        return this.manifests[manifestId];
     }
 
     async fetchAnnotationList(url: string) {
