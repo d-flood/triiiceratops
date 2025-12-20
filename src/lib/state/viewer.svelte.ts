@@ -359,6 +359,7 @@ export class ViewerState {
 
             if (!service) {
                 console.warn('No IIIF search service found in manifest');
+                // Ensure we stop searching if no service found
                 this.isSearching = false;
                 return;
             }
@@ -581,8 +582,12 @@ export class ViewerState {
             });
         } catch (e) {
             console.error('Search error:', e);
-        } finally {
             this.isSearching = false;
+        } finally {
+            // Only stop searching if we are NOT pending (i.e. we finished or failed, but didn't defer)
+            if (!this.pendingSearchQuery) {
+                this.isSearching = false;
+            }
         }
     }
 

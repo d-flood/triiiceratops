@@ -126,7 +126,10 @@
 
                 {#each viewerState.searchResults as group}
                     <button
-                        class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none"
+                        class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none {viewerState.currentCanvasIndex ===
+                        group.canvasIndex
+                            ? 'ring-2 ring-primary bg-primary/5'
+                            : ''}"
                         onclick={() => navigate(group.canvasIndex)}
                     >
                         <div
