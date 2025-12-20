@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.10.4
+
+### Patch Changes
+
+- fc9fc4a: show search spinner until search returns and visually indicate the clicked search result
+
 ## 0.10.3
 
 ### Patch Changes
