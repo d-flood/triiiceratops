@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.10.5
+
+### Patch Changes
+
+- a461715: fix bug preventing full screen toggling from web component
+
 ## 0.10.4
 
 ### Patch Changes
