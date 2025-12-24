@@ -49,6 +49,7 @@
     $effect(() => {
         if (rootElement) {
             applyTheme(rootElement, theme, themeConfig);
+            internalViewerState.setViewerElement(rootElement);
         }
     });
 

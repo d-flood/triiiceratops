@@ -273,13 +273,30 @@ export class ViewerState {
         this.dispatchStateChange();
     }
 
+    /**
+     * Reference to the main viewer DOM element.
+     * Used for fullscreen toggling.
+     */
+    private viewerElement: HTMLElement | null = null;
+
+    setViewerElement(element: HTMLElement) {
+        this.viewerElement = element;
+    }
+
     toggleFullScreen() {
         if (!document.fullscreenElement) {
-            const el = document.getElementById('triiiceratops-viewer');
+            // Use stored reference if available, fallback to ID lookup (legacy/Svelte-only)
+            const el =
+                this.viewerElement ||
+                document.getElementById('triiiceratops-viewer');
             if (el) {
                 el.requestFullscreen().catch((e) => {
                     console.warn('Fullscreen request failed', e);
                 });
+            } else {
+                console.warn(
+                    'Cannot toggle fullscreen: Viewer element not found',
+                );
             }
         } else {
             document.exitFullscreen();
@@ -351,7 +368,7 @@ export class ViewerState {
                     service = services.find(
                         (s: any) =>
                             s.profile ===
-                                'http://iiif.io/api/search/1/search' ||
+                            'http://iiif.io/api/search/1/search' ||
                             s.profile === 'http://iiif.io/api/search/0/search',
                     );
                 }
@@ -558,8 +575,8 @@ export class ViewerState {
                         hit.allBounds && hit.allBounds.length > 0
                             ? hit.allBounds
                             : hit.bounds
-                              ? [hit.bounds]
-                              : [];
+                                ? [hit.bounds]
+                                : [];
 
                     return boundsArray.map((bounds: number[]) => {
                         const on = `${canvas.id}#xywh=${bounds.join(',')}`;
