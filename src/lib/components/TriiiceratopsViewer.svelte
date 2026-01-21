@@ -14,6 +14,7 @@
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import { m, language } from '../state/i18n.svelte';
+    import ModeMenu from './ModeButton.svelte';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -474,6 +475,9 @@
             <MetadataDialog />
 
             <!-- Floating Menu / FABs -->
+            {#if internalViewerState.showModeToggle}
+                <ModeMenu />
+            {/if}
             {#if internalViewerState.showRightMenu}
                 <FloatingMenu />
             {/if}
