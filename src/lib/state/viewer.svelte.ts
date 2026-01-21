@@ -17,6 +17,7 @@ export interface ViewerStateSnapshot {
     searchQuery: string;
     isFullScreen: boolean;
     dockSide: string;
+    twoPageMode: boolean;
 }
 
 export class ViewerState {
@@ -44,6 +45,14 @@ export class ViewerState {
     get showCanvasNav() {
         return this.config.showCanvasNav ?? true;
     }
+
+    get twoPageMode() {
+        return this.config.twoPageMode ?? false;
+    }
+    set twoPageMode(value: boolean) {
+        this.config.twoPageMode = value;
+    }
+
 
     // Gallery State (Lifted for persistence during re-docking)
     galleryPosition = $state({ x: 20, y: 100 });
@@ -101,6 +110,7 @@ export class ViewerState {
             searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
             dockSide: this.dockSide,
+            twoPageMode: this.twoPageMode,
         };
     }
 
@@ -185,7 +195,11 @@ export class ViewerState {
     }
 
     get hasNext() {
-        return this.currentCanvasIndex < this.canvases.length - 1;
+        if (this.twoPageMode) {
+            return this.currentCanvasIndex < this.canvases.length - 2;
+        } else {
+            return this.currentCanvasIndex < this.canvases.length - 1;
+        }
     }
 
     get hasPrevious() {
@@ -194,17 +208,31 @@ export class ViewerState {
 
     nextCanvas() {
         if (this.hasNext) {
-            const nextIndex = this.currentCanvasIndex + 1;
-            const canvas = this.canvases[nextIndex];
-            this.setCanvas(canvas.id);
+            if (this.twoPageMode) {
+                // the next page from the cover is one page away, otherwise we want to skip a page
+                const nextIndex = this.currentCanvasIndex == 0 ? this.currentCanvasIndex + 1 : this.currentCanvasIndex + 2;
+                const canvas = this.canvases[nextIndex];
+                this.setCanvas(canvas.id);
+            } else {
+                const nextIndex = this.currentCanvasIndex + 1;
+                const canvas = this.canvases[nextIndex];
+                this.setCanvas(canvas.id);
+            }
+            
         }
     }
 
     previousCanvas() {
         if (this.hasPrevious) {
-            const prevIndex = this.currentCanvasIndex - 1;
-            const canvas = this.canvases[prevIndex];
-            this.setCanvas(canvas.id);
+            if (this.twoPageMode) {
+                const prevIndex = Math.max(this.currentCanvasIndex - 2, 0);
+                const canvas = this.canvases[prevIndex];
+                this.setCanvas(canvas.id);
+            } else {
+                const prevIndex = this.currentCanvasIndex - 1;
+                const canvas = this.canvases[prevIndex];
+                this.setCanvas(canvas.id);
+            }
         }
     }
 
@@ -307,6 +335,11 @@ export class ViewerState {
         this.showMetadataDialog = !this.showMetadataDialog;
     }
 
+    toggleTwoPageMode() {
+        this.twoPageMode = !this.twoPageMode;
+        this.dispatchStateChange();
+    }
+
     searchQuery = $state('');
     pendingSearchQuery = $state<string | null>(null);
     searchResults: any[] = $state([]);
@@ -324,11 +357,47 @@ export class ViewerState {
 
     searchAnnotations: any[] = $state([]);
 
+    /**
+     * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
+     */
     get currentCanvasSearchAnnotations() {
         if (!this.canvasId) return [];
-        return this.searchAnnotations.filter(
-            (a) => a.canvasId === this.canvasId,
-        );
+        if (this.twoPageMode) {
+            let annotations = this.searchAnnotations.filter(
+                (a) => a.canvasId === this.canvasId,
+            );
+            const currentIndex = this.currentCanvasIndex;
+            const nextIndex = currentIndex + 1;
+            if (nextIndex < this.canvases.length) {
+                const nextCanvas = this.canvases[nextIndex];
+                const nextCanvasId =
+                    nextCanvas.id ||
+                    nextCanvas['@id']
+                const xOffset = 1.025 // account for small gap between pages
+                const annoOffset =  this.canvases[currentIndex].getWidth()*xOffset;
+                const nextAnnotations = this.searchAnnotations.filter(
+                    (a) => a.canvasId === nextCanvasId,
+                );
+                
+                // update x coordinates for display on the right side in two-page mode
+                const nextAnnotationsUpdated = nextAnnotations.map((a) => {
+                    const parts = a.on.split('#xywh=');
+                    const coords = parts[1].split(',').map(Number);
+                    const shiftedX = coords[0] + annoOffset;
+                    return {
+                        ...a,
+                        on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`
+                    };
+                });
+                annotations = annotations.concat(nextAnnotationsUpdated);
+            }
+            return annotations;
+        } else {
+            return this.searchAnnotations.filter(
+                (a) => a.canvasId === this.canvasId,
+            );
+        }
+        
     }
 
     async search(query: string) {

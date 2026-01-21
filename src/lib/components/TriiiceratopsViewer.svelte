@@ -235,6 +235,15 @@
 
         // Use Manifesto to get images
         let images = canvas.getImages();
+        if (internalViewerState.twoPageMode && currentCanvasIndex > 0) {
+            // In two-page mode, we may need to combine images from the next canvas
+            const nextIndex = currentCanvasIndex + 1;
+            if (nextIndex < canvases.length) {
+                const nextCanvas = canvases[nextIndex];
+                const nextImages = nextCanvas.getImages();
+                images = images.concat(nextImages);
+            }
+        }
 
         // Fallback for IIIF v3: iterate content if images is empty
         if ((!images || !images.length) && canvas.getContent) {
@@ -252,7 +261,15 @@
             return null;
         }
 
-        const annotation = images[0];
+
+        // Map images to tile sources, in two page mode, this will get two image sources
+        const tileSourcesArray = images.map((annotation: any) =>
+            getImageService(annotation),
+        );
+        return tileSourcesArray;
+    });
+
+    function getImageService(annotation: any) {
         let resource = annotation.getResource ? annotation.getResource() : null;
 
         // v3 fallback: getBody
@@ -358,7 +375,7 @@
         );
         const url = resourceId;
         return { type: 'image', url };
-    });
+    }
 </script>
 
 <div
