@@ -123,6 +123,8 @@
     "annotation_tool_rectangle": "Rectangle",
     "annotation_tool_polygon": "Polygon",
     "annotation_tool_point": "Point",
-    "two_page_mode": "Switch to Two Page Mode",
-    "single_page_mode": "Switch to Single Page Mode"
+    "toggle_two_page_mode": "Switch to Two Page Mode",
+    "toggle_single_page_mode": "Switch to Single Page Mode",
+    "show_mode_toggle": "Show Mode Toggle",
+    "two_page_mode": "Two Page Mode"
 }
