@@ -126,6 +126,12 @@ export interface ViewerConfig {
      * @default true
      */
     showCanvasNav?: boolean;
+
+    /**
+     * Whether to show the two-page mode toggle button.
+     * @default true
+     */
+    showModeToggle?: boolean;
     
     /**
      * Whether to display pages in two page spreads after the cover.

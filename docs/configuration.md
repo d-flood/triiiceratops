@@ -19,6 +19,7 @@ interface ViewerConfig {
     showRightMenu?: boolean; // Default: true
     showLeftMenu?: boolean; // Default: true
     showCanvasNav?: boolean; // Default: true
+    showModeToggle?: boolean; // Default: true
     twoPageMode?: boolean; // Defailt: false
 
     // Right Menu Items
