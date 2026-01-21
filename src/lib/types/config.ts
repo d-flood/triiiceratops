@@ -106,6 +106,12 @@ export interface ViewerConfig {
      * @default true
      */
     showCanvasNav?: boolean;
+    
+    /**
+     * Whether to display pages in two page spreads after the cover.
+     * @default false
+     */
+    twoPageMode?: boolean;
 
     /**
      * Whether to show the zoom controls in the canvas navigation.
