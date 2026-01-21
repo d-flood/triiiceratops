@@ -116,11 +116,12 @@
     "image_filters_effects": "Effekte",
     "image_filters_invert": "Farben umkehren",
     "image_filters_grayscale": "Graustufen",
-    "image_filters_grayscale": "Graustufen",
     "image_filters_reset": "Zurücksetzen",
     "annotation_tool_rectangle": "Rechteck",
     "annotation_tool_polygon": "Polygon",
     "annotation_tool_point": "Punkt",
-    "two_page_mode": "Wechseln Sie in den Zwei-Seiten-Modus",
-    "single_page_mode": "Wechseln Sie in den Einzelseitenmodus"
+    "toggle_two_page_mode": "Wechseln Sie in den Zwei-Seiten-Modus",
+    "toggle_single_page_mode": "Wechseln Sie in den Einzelseitenmodus",
+    "show_mode_toggle": "Modus-Umschalter anzeigen",
+    "two_page_mode": "Zwei-Seiten-Modus"
 }
