@@ -11,8 +11,8 @@
     }
 
     const modeTooltip = viewerState.twoPageMode
-            ? 'Switch to Single Page Mode'
-            : 'Switch to Two Page Mode'
+            ? m.single_page_mode()
+            : m.two_page_mode();
 </script>
 {#if viewerState.showModeToggle}
     <div
