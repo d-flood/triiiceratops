@@ -120,5 +120,7 @@
     "image_filters_reset": "Zurücksetzen",
     "annotation_tool_rectangle": "Rechteck",
     "annotation_tool_polygon": "Polygon",
-    "annotation_tool_point": "Punkt"
+    "annotation_tool_point": "Punkt",
+    "two_page_mode": "Wechseln Sie in den Zwei-Seiten-Modus",
+    "single_page_mode": "Wechseln Sie in den Einzelseitenmodus"
 }
