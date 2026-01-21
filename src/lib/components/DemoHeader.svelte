@@ -286,6 +286,30 @@
                         />
                     </label>
                 </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.show_mode_toggle()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm"
+                            bind:checked={config.showModeToggle}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.two_page_mode()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm"
+                            bind:checked={config.twoPageMode}
+                        />
+                    </label>
+                </li>
 
                 <div class="divider my-1"></div>
 
