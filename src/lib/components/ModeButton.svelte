@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m, language } from '../state/i18n.svelte';
+    import { m } from '../state/i18n.svelte';
     import { Book, BookOpen } from 'phosphor-svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
