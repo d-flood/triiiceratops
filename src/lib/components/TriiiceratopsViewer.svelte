@@ -13,6 +13,7 @@
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import { m, language } from '../state/i18n.svelte';
+    import ModeMenu from './ModeButton.svelte';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -260,7 +261,6 @@
             return null;
         }
 
-
         // Map images to tile sources, in two page mode, this will get two image sources
         const tileSourcesArray = images.map((annotation: any) =>
             getImageService(annotation),
@@ -474,6 +474,9 @@
 
             <!-- Floating Toolbar (Replaced Unified Side Menu) -->
             <Toolbar />
+            {#if internalViewerState.showModeToggle}
+                <ModeMenu />
+            {/if}
 
             <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
