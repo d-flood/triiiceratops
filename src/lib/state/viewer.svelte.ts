@@ -49,6 +49,10 @@ export class ViewerState {
         return this.config.showZoomControls ?? true;
     }
 
+    get showModeToggle() {
+        return this.config.showModeToggle ?? true;
+    }
+
     get twoPageMode() {
         return this.config.twoPageMode ?? false;
     }
@@ -364,6 +368,12 @@ export class ViewerState {
 
     toggleTwoPageMode() {
         this.twoPageMode = !this.twoPageMode;
+        if (this.currentCanvasIndex % 2 === 0 && this.currentCanvasIndex > 0) {
+            // If we are on a right-hand page, move back one to show the spread correctly
+            const newIndex = this.currentCanvasIndex - 1;
+            const canvas = this.canvases[newIndex];
+            this.setCanvas(canvas.id);
+        }
         this.dispatchStateChange();
     }
 
