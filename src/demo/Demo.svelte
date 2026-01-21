@@ -19,6 +19,7 @@
         toolbarOpen: false,
         showCanvasNav: true,
         showZoomControls: true,
+        twoPageMode: false,
         toolbar: {
             showSearch: true,
             showGallery: true,
