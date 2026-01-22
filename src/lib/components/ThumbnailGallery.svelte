@@ -322,7 +322,20 @@
     }
 
     function selectCanvas(canvasId: string) {
-        viewerState.setCanvas(canvasId);
+        if (viewerState.twoPageMode) {
+            const canvasIndex = thumbnails.findIndex(
+                (t) => t.id === canvasId,
+            );
+            if (canvasIndex % 2 === 1) {
+                viewerState.setCanvas(canvasId);
+            } else {
+                const prevCanvas = thumbnails[canvasIndex - 1];
+                viewerState.setCanvas(prevCanvas.id);
+            }
+        } else {
+            viewerState.setCanvas(canvasId);
+        }
+        
     }
 
     // State for docking
