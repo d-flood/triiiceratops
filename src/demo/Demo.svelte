@@ -17,6 +17,7 @@
         showRightMenu: true,
         showLeftMenu: true,
         showCanvasNav: true,
+        showZoomControls: true,
         rightMenu: {
             showSearch: true,
             showGallery: true,

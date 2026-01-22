@@ -128,6 +128,12 @@ export interface ViewerConfig {
     showCanvasNav?: boolean;
 
     /**
+     * Whether to show the zoom controls in the canvas navigation.
+     * @default true
+     */
+    showZoomControls?: boolean;
+
+    /**
      * Configuration for the thumbnail gallery pane.
      */
     gallery?: GalleryConfig;

@@ -286,6 +286,18 @@
                         />
                     </label>
                 </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_zoom_controls()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm"
+                            bind:checked={config.showZoomControls}
+                        />
+                    </label>
+                </li>
 
                 <div class="divider my-1"></div>
 
