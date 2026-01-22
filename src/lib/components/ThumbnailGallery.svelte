@@ -476,7 +476,7 @@
         const thumbs = thumbnails;
         for (const i of groupedThumbnailIndices) {
             const first = thumbs[i];
-            const second = thumbs[i + 1];
+            const second = i === 0 ? null : thumbs[i + 1];
             const groupId = first.id;
             const groupLabel = first.label;
             const groupSrcs = [first.src];
