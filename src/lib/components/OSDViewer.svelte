@@ -179,9 +179,10 @@
                 animationTime: 0.5,
                 springStiffness: 7.0,
                 zoomPerClick: 2.0,
-                // Disable click-to-zoom to allow Annotorious click drawing
+                // Enable double-click to zoom, but keep clickToZoom disabled for Annotorious
                 gestureSettingsMouse: {
                     clickToZoom: false,
+                    dblClickToZoom: true,
                 },
             });
 

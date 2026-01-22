@@ -1,6 +1,8 @@
 <script>
     import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
     import CaretRight from 'phosphor-svelte/lib/CaretRight';
+    import MagnifyingGlassPlus from 'phosphor-svelte/lib/MagnifyingGlassPlus';
+    import MagnifyingGlassMinus from 'phosphor-svelte/lib/MagnifyingGlassMinus';
     import { m } from '../state/i18n.svelte';
     let { viewerState } = $props();
 </script>
@@ -16,6 +18,28 @@
     >
         <CaretLeft size={20} weight="bold" />
     </button>
+
+    {#if viewerState.showZoomControls}
+        <div class="h-4 w-px bg-base-content/20 mx-1"></div>
+
+        <button
+            class="btn btn-circle btn-sm btn-ghost"
+            onclick={() => viewerState.zoomOut()}
+            aria-label="Zoom Out"
+        >
+            <MagnifyingGlassMinus size={20} weight="bold" />
+        </button>
+
+        <button
+            class="btn btn-circle btn-sm btn-ghost"
+            onclick={() => viewerState.zoomIn()}
+            aria-label="Zoom In"
+        >
+            <MagnifyingGlassPlus size={20} weight="bold" />
+        </button>
+
+        <div class="h-4 w-px bg-base-content/20 mx-1"></div>
+    {/if}
 
     <span class="text-sm font-mono tabular-nums text-nowrap">
         {viewerState.currentCanvasIndex + 1} / {viewerState.canvases.length}

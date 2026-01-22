@@ -44,6 +44,9 @@ export class ViewerState {
     get showCanvasNav() {
         return this.config.showCanvasNav ?? true;
     }
+    get showZoomControls() {
+        return this.config.showZoomControls ?? true;
+    }
 
     // Gallery State (Lifted for persistence during re-docking)
     galleryPosition = $state({ x: 20, y: 100 });
@@ -208,6 +211,20 @@ export class ViewerState {
         }
     }
 
+    zoomIn() {
+        if (this.osdViewer && this.osdViewer.viewport) {
+            this.osdViewer.viewport.zoomBy(1.2);
+            this.osdViewer.viewport.applyConstraints();
+        }
+    }
+
+    zoomOut() {
+        if (this.osdViewer && this.osdViewer.viewport) {
+            this.osdViewer.viewport.zoomBy(0.8);
+            this.osdViewer.viewport.applyConstraints();
+        }
+    }
+
     setManifest(manifestId: string) {
         this.manifestId = manifestId;
         this.canvasId = null;
@@ -368,7 +385,7 @@ export class ViewerState {
                     service = services.find(
                         (s: any) =>
                             s.profile ===
-                            'http://iiif.io/api/search/1/search' ||
+                                'http://iiif.io/api/search/1/search' ||
                             s.profile === 'http://iiif.io/api/search/0/search',
                     );
                 }
@@ -575,8 +592,8 @@ export class ViewerState {
                         hit.allBounds && hit.allBounds.length > 0
                             ? hit.allBounds
                             : hit.bounds
-                                ? [hit.bounds]
-                                : [];
+                              ? [hit.bounds]
+                              : [];
 
                     return boundsArray.map((bounds: number[]) => {
                         const on = `${canvas.id}#xywh=${bounds.join(',')}`;
