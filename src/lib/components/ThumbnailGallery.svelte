@@ -326,7 +326,7 @@
             const canvasIndex = thumbnails.findIndex(
                 (t) => t.id === canvasId,
             );
-            if (canvasIndex % 2 === 1) {
+            if (canvasIndex % 2 === 1 || canvasIndex === 0) {
                 viewerState.setCanvas(canvasId);
             } else {
                 const prevCanvas = thumbnails[canvasIndex - 1];
@@ -457,6 +457,45 @@
             dockSide = 'none';
         }
     }
+
+    // Grouped thumbnail mode (for two-page mode)
+    const groupedThumbnailIndices = $derived.by(() => {
+        const indices: number[] = [0];
+        if (viewerState.twoPageMode && canvases) {
+            for (let i = 1; i < canvases.length; i += 2) {
+                indices.push(i);
+            }
+        }
+        return indices;
+    });
+
+    const groupedThumbnails = $derived.by(() => {
+        const groups: Array<{
+            id: string;
+            label: string;
+            srcs: string[];
+            index: number;
+        }> = [];
+        const thumbs = thumbnails;
+        for (const i of groupedThumbnailIndices) {
+            const first = thumbs[i];
+            const second = thumbs[i + 1];
+            const groupId = first.id;
+            const groupLabel = first.label;
+            const groupSrcs = [first.src];
+            if (second) {
+                groupSrcs.push(second.src);
+            }
+            groups.push({
+                id: groupId,
+                label: groupLabel,
+                srcs: groupSrcs,
+                index: i,
+            });
+        }
+        return groups;
+    });
+    
 </script>
 
 {#if viewerState.showThumbnailGallery}
@@ -529,42 +568,93 @@
                     ? ''
                     : 'grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));'}
             >
-                {#each thumbnails as thumb}
-                    <button
-                        class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
-                            ? 'w-[90px]'
-                            : ''} {viewerState.canvasId === thumb.id
-                            ? 'ring-2 ring-primary bg-primary/5'
-                            : ''}"
-                        onclick={() => selectCanvas(thumb.id)}
-                        data-id={thumb.id}
-                        aria-label="Select canvas {thumb.label}"
-                    >
-                        <div
-                            class="aspect-3/4 bg-base-300 rounded overflow-hidden relative w-full flex items-center justify-center"
+                {#if viewerState.twoPageMode}
+                    <!-- grouped thumbnail display -->
+                    {#each groupedThumbnails as thumbGroup}
+                        <button
+                            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
+                                ? 'w-[90px]'
+                                : ''} {viewerState.canvasId === thumbGroup.id
+                                ? 'ring-2 ring-primary bg-primary/5'
+                                : ''}"
+                            onclick={() => selectCanvas(thumbGroup.id)}
+                            data-id={thumbGroup.id}
+                            aria-label="Select canvas {thumbGroup.label}"
                         >
-                            {#if thumb.src}
-                                <img
-                                    src={thumb.src}
-                                    alt={thumb.label}
-                                    class="object-contain w-full h-full"
-                                    loading="lazy"
-                                    draggable="false"
-                                />
-                            {:else}
-                                <span class="opacity-20 text-4xl">?</span>
-                            {/if}
-                        </div>
-                        <div
-                            class="text-xs font-medium truncate w-full opacity-70 group-hover:opacity-100"
-                        >
-                            <span class="font-bold mr-1"
-                                >{thumb.index + 1}.</span
+                            <div
+                                class="aspect-3/4 bg-base-300 rounded overflow-hidden relative w-full flex items-center justify-center"
                             >
-                            {thumb.label}
-                        </div>
-                    </button>
-                {/each}
+                                {#if thumbGroup.srcs[0]}
+                                    <img
+                                        src={thumbGroup.srcs[0]}
+                                        alt={thumbGroup.label}
+                                        class="object-contain w-full h-full"
+                                        loading="lazy"
+                                        draggable="false"
+                                    />
+                                {:else}
+                                    <span class="opacity-20 text-4xl">?</span>
+                                {/if}
+                                {#if thumbGroup.srcs[1]}
+                                    <img
+                                        src={thumbGroup.srcs[1]}
+                                        alt={thumbGroup.label}
+                                        class="object-contain w-full h-full"
+                                        loading="lazy"
+                                        draggable="false"
+                                    />
+                                {:else}
+                                    <span class="opacity-20 text-4xl">?</span>
+                                {/if}
+                            </div>
+                            <div
+                                class="text-xs font-medium truncate w-full opacity-70 group-hover:opacity-100"
+                            >
+                                <span class="font-bold mr-1"
+                                    >{thumbGroup.index + 1}.</span
+                                >
+                                {thumbGroup.label}
+                            </div>
+                        </button>
+                    {/each}
+                {:else}
+                    {#each thumbnails as thumb}
+                        <button
+                            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
+                                ? 'w-[90px]'
+                                : ''} {viewerState.canvasId === thumb.id
+                                ? 'ring-2 ring-primary bg-primary/5'
+                                : ''}"
+                            onclick={() => selectCanvas(thumb.id)}
+                            data-id={thumb.id}
+                            aria-label="Select canvas {thumb.label}"
+                        >
+                            <div
+                                class="aspect-3/4 bg-base-300 rounded overflow-hidden relative w-full flex items-center justify-center"
+                            >
+                                {#if thumb.src}
+                                    <img
+                                        src={thumb.src}
+                                        alt={thumb.label}
+                                        class="object-contain w-full h-full"
+                                        loading="lazy"
+                                        draggable="false"
+                                    />
+                                {:else}
+                                    <span class="opacity-20 text-4xl">?</span>
+                                {/if}
+                            </div>
+                            <div
+                                class="text-xs font-medium truncate w-full opacity-70 group-hover:opacity-100"
+                            >
+                                <span class="font-bold mr-1"
+                                    >{thumb.index + 1}.</span
+                                >
+                                {thumb.label}
+                            </div>
+                        </button>
+                    {/each}
+                {/if}
             </div>
         </div>
 
