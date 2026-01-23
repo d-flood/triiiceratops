@@ -79,7 +79,7 @@
                     }
                 }
             }
-        } catch (e) {
+        } catch {
             /* ignore */
         }
         return `Canvas ${index + 1}`;
@@ -213,7 +213,7 @@
             onchange={(e) => setLocale(e.currentTarget.value as any)}
             aria-label={m.language_select_label()}
         >
-            {#each locales as lang}
+            {#each locales as lang (lang)}
                 <option value={lang}>{languageNames[lang] || lang}</option>
             {/each}
         </select>
@@ -730,7 +730,7 @@
                     value={isCustom ? 'custom' : manifestUrl}
                     onchange={handleSelectChange}
                 >
-                    {#each SUGGESTED_MANIFESTS as manifest}
+                    {#each SUGGESTED_MANIFESTS as manifest (manifest.url)}
                         <option value={manifest.url}>{manifest.label}</option>
                     {/each}
                     <option value="custom">{m.try_your_own()}</option>
@@ -769,7 +769,7 @@
                 {#if canvases.length === 0}
                     <option value="" disabled>{m.no_canvases_loaded()}</option>
                 {:else}
-                    {#each canvases as canvas, i}
+                    {#each canvases as canvas, i (canvas.id)}
                         <option value={canvas.id}>
                             {getCanvasLabel(canvas, i)}
                         </option>

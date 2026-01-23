@@ -9,7 +9,7 @@
     import ImageManipulationPanel from './ImageManipulationPanel.svelte';
 
     // Props from the plugin system
-    let { isOpen = false, close } = $props();
+    let { isOpen: _isOpen = false, close } = $props();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let filters = $state<ImageFilters>({ ...DEFAULT_FILTERS });

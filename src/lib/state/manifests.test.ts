@@ -7,7 +7,7 @@ vi.mock('manifesto.js', async (importOriginal) => {
     const actual = await importOriginal<typeof import('manifesto.js')>();
     return {
         ...actual,
-        parseManifest: vi.fn((json) => {
+        parseManifest: vi.fn((_json) => {
             // Minimal mock of a manifesto object
             return {
                 getSequences: () => [

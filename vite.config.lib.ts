@@ -15,7 +15,7 @@ export default defineConfig({
             outdir: './src/lib/paraglide',
         }),
         tailwindcss(),
-        svelte(),
+        svelte({ compilerOptions: { customElement: false } }),
         // dts({
         //     include: ['src/lib'],
         //     tsconfigPath: './tsconfig.app.json',

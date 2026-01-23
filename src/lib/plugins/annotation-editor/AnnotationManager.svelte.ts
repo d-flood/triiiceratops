@@ -29,7 +29,6 @@ export class AnnotationManager {
     > | null = null;
 
     // Store reference to OSD viewer for mouse nav toggling
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private osdViewer: any = null;
 
     // Current canvas tracking
@@ -51,7 +50,6 @@ export class AnnotationManager {
         this.activeTool = config.defaultTool ?? 'rectangle';
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     init(viewer: any, canvasId: string | null): void {
         if (!viewer) {
             console.error('[AnnotationManager] Cannot init: Viewer is null');
@@ -92,7 +90,6 @@ export class AnnotationManager {
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private initAnnotorious(viewer: any, canvasId: string | null): void {
         if (this.annotorious) return;
 
@@ -153,7 +150,6 @@ export class AnnotationManager {
 
     // ... (injectStyles remains same) ...
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private handlePointClick(event: any): void {
         if (!this.osdViewer || !this.annotorious) return;
 
@@ -175,7 +171,6 @@ export class AnnotationManager {
         // User requested a 2x2 pixel rectangle.
         const targetScreenPixels = 2;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const OSD = OpenSeadragon as any;
 
         const p1 = this.osdViewer.viewport.pointFromPixel(new OSD.Point(0, 0));
@@ -234,7 +229,6 @@ export class AnnotationManager {
 
         // Wait for render cycle before selecting coverage
         setTimeout(() => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (this.annotorious as any).setSelected(id);
         }, 50);
     }
@@ -292,7 +286,6 @@ export class AnnotationManager {
         return this.config.tools ?? ['rectangle', 'polygon', 'point'];
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private injectStyles(viewer: any): void {
         if (!viewer.element) return;
 

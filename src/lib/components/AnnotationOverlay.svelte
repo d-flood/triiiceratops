@@ -42,18 +42,15 @@
             const shouldBeVisible =
                 viewerState.config.annotations?.visible ?? true;
 
+            viewerState.visibleAnnotationIds.clear();
             if (shouldBeVisible) {
-                const newSet = new Set<string>();
                 annotations.forEach((a: any) => {
                     const id = getAnnotationId(a);
-                    if (id) newSet.add(id);
+                    if (id) viewerState.visibleAnnotationIds.add(id);
                 });
-                viewerState.visibleAnnotationIds = newSet;
-            } else {
-                viewerState.visibleAnnotationIds = new Set();
             }
         } else {
-            viewerState.visibleAnnotationIds = new Set();
+            viewerState.visibleAnnotationIds.clear();
         }
     });
 
@@ -72,24 +69,19 @@
         } else {
             viewerState.visibleAnnotationIds.add(id);
         }
-        // Reassign to trigger reactivity
-        viewerState.visibleAnnotationIds = new Set(
-            viewerState.visibleAnnotationIds,
-        );
     }
 
     function toggleAllAnnotations() {
         if (isAllVisible) {
             // Hide all
-            viewerState.visibleAnnotationIds = new Set();
+            viewerState.visibleAnnotationIds.clear();
         } else {
             // Show all
-            const newSet = new Set<string>();
+            viewerState.visibleAnnotationIds.clear();
             annotations.forEach((a: any) => {
                 const id = getAnnotationId(a);
-                if (id) newSet.add(id);
+                if (id) viewerState.visibleAnnotationIds.add(id);
             });
-            viewerState.visibleAnnotationIds = newSet;
         }
     }
 
@@ -98,7 +90,7 @@
     let toolbarContainer: HTMLElement | undefined = $state();
 
     // Calculate coordinates for connecting line
-    let connectingLine = $derived.by(() => {
+    let _connectingLine = $derived.by(() => {
         if (!hoveredAnnotationId) return null;
         return null;
     });
@@ -254,7 +246,7 @@
             <div
                 class="absolute right-0 mt-2 w-96 bg-base-200/95 backdrop-blur shadow-xl rounded-box p-0 max-h-[60vh] overflow-y-auto border border-base-300 flex flex-col divide-y divide-base-300"
             >
-                {#each renderedAnnotations as anno, i}
+                {#each renderedAnnotations as anno, i (anno.id)}
                     {@const isVisible = viewerState.visibleAnnotationIds.has(
                         anno.id,
                     )}
@@ -315,7 +307,7 @@
                                     ? ''
                                     : 'opacity-50'} space-y-2"
                             >
-                                {#each anno.bodies as body}
+                                {#each anno.bodies as body, i (i)}
                                     <div
                                         class="flex flex-wrap gap-2 pointer-events-auto"
                                     >
@@ -354,6 +346,7 @@
                                             <!-- Commenting / Default -->
                                             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                                             {#if body.isHtml}
+                                                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                                                 {@html body.value}
                                             {:else}
                                                 {body.value || '(No content)'}

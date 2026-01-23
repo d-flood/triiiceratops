@@ -1,3 +1,4 @@
+import { SvelteMap } from 'svelte/reactivity';
 import * as manifesto from 'manifesto.js';
 
 export interface ManifestEntry {
@@ -11,7 +12,7 @@ export class ManifestsState {
     manifests: Record<string, ManifestEntry> = $state({});
 
     // User-created annotations (from plugins like annotation editor)
-    userAnnotations: Map<string, any[]> = $state(new Map());
+    userAnnotations: SvelteMap<string, any[]> = new SvelteMap();
 
     constructor() {}
 
@@ -27,18 +28,13 @@ export class ManifestsState {
         annotations: any[],
     ): void {
         const key = this.userAnnotationKey(manifestId, canvasId);
-        // Create a new Map to trigger reactivity
-        const newMap = new Map(this.userAnnotations);
-        newMap.set(key, annotations);
-        this.userAnnotations = newMap;
+        this.userAnnotations.set(key, annotations);
     }
 
     clearUserAnnotations(manifestId: string, canvasId: string): void {
         const key = this.userAnnotationKey(manifestId, canvasId);
         if (this.userAnnotations.has(key)) {
-            const newMap = new Map(this.userAnnotations);
-            newMap.delete(key);
-            this.userAnnotations = newMap;
+            this.userAnnotations.delete(key);
         }
     }
 
