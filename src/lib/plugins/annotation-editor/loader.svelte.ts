@@ -1,7 +1,7 @@
-import type { PluginDef } from '../../types/plugin';
+// import type { PluginDef } from '../../types/plugin';
 import type { ViewerState } from '../../state/viewer.svelte';
 import type { AnnotationStorageAdapter } from './types';
-import { manifestsState } from '../../state/manifests.svelte';
+// import { manifestsState } from '../../state/manifests.svelte';
 
 /**
  * Creates a reactive loader that syncs annotations from the adapter to the viewer state.
@@ -28,7 +28,7 @@ export function createLoader(adapter: AnnotationStorageAdapter) {
             // Load annotations for this canvas
             adapter
                 .load(manifestId, canvasId)
-                .then((annotations) => {
+                .then((_annotations) => {
                     // Success handling
                 })
                 .catch((err) => {

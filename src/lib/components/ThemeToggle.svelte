@@ -80,7 +80,7 @@
     >
         <ul class="menu w-56">
             <li class="menu-title text-xs">{m.theme_menu_title()}</li>
-            {#each themes as t}
+            {#each themes as t (t)}
                 <li>
                     <button class="gap-3 px-2" onclick={() => onThemeChange(t)}>
                         <div

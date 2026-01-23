@@ -39,10 +39,14 @@ export default ts.config(
     },
     {
         rules: {
-            '@typescript-eslint/no-explicit-any': 'warn',
+            '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unused-vars': [
                 'warn',
-                { argsIgnorePattern: '^_' },
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_',
+                },
             ],
             'svelte/no-at-html-tags': 'warn',
             'svelte/require-each-key': 'warn',

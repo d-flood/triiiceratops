@@ -158,7 +158,7 @@
                     {m.annotation_editor_tool_label()}
                 </p>
                 <div class="join">
-                    {#each availableTools as tool}
+                    {#each availableTools as tool (tool)}
                         {@const Icon = toolIcons[tool] ?? Rectangle}
                         {@const toolName =
                             {
@@ -221,14 +221,14 @@
                 </div>
 
                 <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
-                    {#each editableBodies as body, i}
+                    {#each editableBodies as body, i (i)}
                         <div class="card bg-base-200 p-2 space-y-2">
                             <div class="flex items-center gap-2">
                                 <select
                                     class="select select-xs select-bordered flex-1"
                                     bind:value={body.purpose}
                                 >
-                                    {#each W3C_PURPOSES as purpose}
+                                    {#each W3C_PURPOSES as purpose (purpose)}
                                         <option
                                             value={purpose}
                                             class="capitalize">{purpose}</option

@@ -1,7 +1,6 @@
 <script lang="ts">
     import { getContext, untrack } from 'svelte';
     import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
-    import Spinner from 'phosphor-svelte/lib/Spinner';
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
@@ -10,7 +9,6 @@
 
     // We'll initialize from viewerState to preserve context.
     let searchQuery = $state('');
-    let resultsContainer: HTMLElement;
 
     let showCloseButton = $derived(
         viewerState.config.search?.showCloseButton ?? true,
@@ -124,7 +122,7 @@
                     })}
                 </div>
 
-                {#each viewerState.searchResults as group}
+                {#each viewerState.searchResults as group (group.canvasIndex)}
                     <button
                         class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none {viewerState.currentCanvasIndex ===
                         group.canvasIndex
@@ -144,21 +142,26 @@
                             >
                         </div>
                         <div class="p-0">
-                            {#each group.hits.slice(0, 1) as result}
+                            {#each group.hits.slice(0, 1) as result, i (i)}
                                 <div
                                     class="p-3 text-sm border-b border-base-200 last:border-none hover:bg-base-200/30 transition-colors"
                                 >
                                     {#if result.type === 'hit'}
                                         <div class="leading-relaxed">
+                                            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                                             <span>{@html result.before}</span>
                                             <span
                                                 class="bg-yellow-200 text-yellow-900 font-bold px-0.5 rounded"
-                                                >{@html result.match}</span
                                             >
+                                                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                                                {@html result.match}
+                                            </span>
+                                            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                                             <span>{@html result.after}</span>
                                         </div>
                                     {:else}
                                         <div class="leading-relaxed">
+                                            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                                             {@html result.match}
                                         </div>
                                     {/if}

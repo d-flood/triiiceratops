@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext, onMount, onDestroy } from 'svelte';
+    import { getContext, onMount, onDestroy, untrack } from 'svelte';
     import {
         VIEWER_STATE_KEY,
         type ViewerState,
@@ -14,7 +14,7 @@
 
     // Props from the plugin system
     let {
-        isOpen = false,
+        isOpen: _isOpen = false,
         close,
         config,
     }: {
@@ -27,7 +27,9 @@
 
     // UI state
     let isEditing = $state(false);
-    let activeTool = $state<DrawingTool>(config.defaultTool ?? 'rectangle');
+    let activeTool = $state<DrawingTool>(
+        untrack(() => config.defaultTool ?? 'rectangle'),
+    );
     let selectedAnnotation = $state<any>(null);
     let showDeleteConfirm = $state(false);
     let pendingDeleteId = $state<string | null>(null);

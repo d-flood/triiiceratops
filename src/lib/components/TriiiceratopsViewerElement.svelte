@@ -1,3 +1,4 @@
+<!-- svelte-ignore options_missing_custom_element -->
 <svelte:options
     customElement={{
         tag: 'triiiceratops-viewer',
@@ -115,7 +116,7 @@
         if (typeof config === 'string') {
             try {
                 return JSON.parse(config);
-            } catch (e) {
+            } catch {
                 console.warn(`Invalid config JSON: "${config}". Ignoring.`);
                 return undefined;
             }
@@ -124,6 +125,7 @@
     });
 </script>
 
+<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 {@html `<style>${styles}</style>`}
 
 <div bind:this={hostElement} class="w-full h-full">

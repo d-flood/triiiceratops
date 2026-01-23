@@ -3,6 +3,7 @@
     import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
+    import { SvelteURLSearchParams } from 'svelte/reactivity';
     import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
     import { AnnotationEditorPlugin } from '../lib/plugins/annotation-editor';
 
@@ -79,7 +80,7 @@
 
     // Persist state to URL
     $effect(() => {
-        const params = new URLSearchParams();
+        const params = new SvelteURLSearchParams();
         params.set('mode', viewerMode);
         if (manifestUrl) params.set('manifest', manifestUrl);
         if (canvasId) params.set('canvas', canvasId);
@@ -121,8 +122,8 @@
     // ==================== External State Access Demo ====================
 
     // State received from web component events
-    let externalState = $state<ViewerStateSnapshot | null>(null);
-    let lastEventType = $state<string>('');
+    let _externalState = $state<ViewerStateSnapshot | null>(null);
+    let _lastEventType = $state<string>('');
 
     // ViewerState for Svelte component mode (via bindable prop)
     let svelteViewerState: ViewerState | undefined = $state();
@@ -177,9 +178,9 @@
 
             const handleStateChange = (e: Event) => {
                 const customEvent = e as CustomEvent<ViewerStateSnapshot>;
-                externalState = customEvent.detail;
+                _externalState = customEvent.detail;
                 // ... logic remains same ...
-                lastEventType = e.type;
+                _lastEventType = e.type;
                 console.log(
                     `[Demo] Received ${e.type} event:`,
                     customEvent.detail,
@@ -277,24 +278,6 @@
             }
         }
     });
-
-    // External control functions - call methods on ViewerState via the element
-    function externalNextCanvas() {
-        // Access viewerState property on the web component (exposed via shadowRoot)
-        const el = document.querySelector('triiiceratops-viewer') as any;
-        // The state is exposed via events, but we can also call methods
-        // by accessing the inner component's viewerState
-        if (el?.shadowRoot) {
-            const inner = el.shadowRoot.querySelector(
-                '[id="triiiceratops-viewer"]',
-            );
-            // For now, dispatch a custom event to trigger navigation
-            // or we could expose getViewerState() on the element
-        }
-        console.log(
-            '[Demo] External next canvas - use events for state updates',
-        );
-    }
 </script>
 
 <div class="min-h-screen h-screen bg-base-300 flex flex-col">

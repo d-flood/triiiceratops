@@ -98,6 +98,7 @@
         <div class="py-4 overflow-y-auto max-h-[70vh]">
             {#if description}
                 <div class="mb-6 prose">
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                     <p>{@html description}</p>
                 </div>
             {/if}
@@ -107,6 +108,7 @@
                     <dt class="font-bold text-lg opacity-70 mt-6">
                         {m.attribution()}
                     </dt>
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                     <dd class="text-sm ps-2">{@html attribution}</dd>
                 {/if}
 
@@ -124,10 +126,11 @@
                     </dd>
                 {/if}
 
-                {#each metadata as item}
+                {#each metadata as item, i (i)}
                     <dt class="font-bold text-lg opacity-70 mt-6">
                         {item.label}
                     </dt>
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                     <dd class="text-sm ps-2">{@html item.value}</dd>
                 {/each}
             </dl>

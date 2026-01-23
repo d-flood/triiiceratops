@@ -1,3 +1,4 @@
+import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { manifestsState } from './manifests.svelte.js';
 import type { ViewerConfig } from '../types/config';
 
@@ -31,7 +32,7 @@ export class ViewerState {
     isFullScreen = $state(false);
     showMetadataDialog = $state(false);
     dockSide = $state('bottom');
-    visibleAnnotationIds = $state(new Set<string>());
+    visibleAnnotationIds = new SvelteSet<string>();
 
     // UI Configuration
     config: ViewerConfig = $state({});
@@ -419,7 +420,7 @@ export class ViewerState {
             const resources = data.resources || [];
 
             // Group results by canvas index
-            const resultsByCanvas = new Map<
+            const resultsByCanvas = new SvelteMap<
                 number,
                 {
                     canvasIndex: number;
@@ -511,7 +512,7 @@ export class ViewerState {
                                     else if (Array.isArray(canvas.label))
                                         label = canvas.label[0]?.value;
                                 }
-                            } catch (e) {
+                            } catch (_e) {
                                 /* ignore */
                             }
                             resultsByCanvas.set(canvasIndex, {
@@ -560,7 +561,7 @@ export class ViewerState {
                                 else if (Array.isArray(canvas.label))
                                     label = canvas.label[0]?.value;
                             }
-                        } catch (e) {
+                        } catch (_e) {
                             /* ignore */
                         }
 
@@ -646,7 +647,7 @@ export class ViewerState {
     osdViewer: any | null = $state.raw(null);
 
     /** Event handlers for inter-plugin communication */
-    private pluginEventHandlers = new Map<
+    private pluginEventHandlers = new SvelteMap<
         string,
         Set<(data: unknown) => void>
     >();
@@ -685,8 +686,7 @@ export class ViewerState {
             isVisible: () => isOpen,
             props: {
                 ...def.props,
-                // Pass isOpen state and closer to component
-                isOpen: isOpen,
+                // Pass closer to component
                 close: () => {
                     isOpen = false;
                 },

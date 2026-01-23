@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { SvelteSet } from 'svelte/reactivity';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -32,7 +33,7 @@
 
     // Get search hit IDs for styling
     let searchHitIds = $derived.by(() => {
-        const ids = new Set<string>();
+        const ids = new SvelteSet<string>();
         viewerState.currentCanvasSearchAnnotations.forEach((anno: any) => {
             const id = anno.id || anno['@id'];
             if (id) ids.add(id);
@@ -160,9 +161,13 @@
     onMount(() => {
         if (!container) return;
 
+        let mounted = true;
+
         (async () => {
             // Dynamically import OpenSeadragon to avoid SSR issues
             const osdModule = await import('openseadragon');
+            if (!mounted) return;
+
             OSD = osdModule.default || osdModule;
 
             // Initialize OpenSeadragon viewer
@@ -191,6 +196,7 @@
         })();
 
         return () => {
+            mounted = false;
             viewer?.destroy();
             viewerState.osdViewer = null;
         };

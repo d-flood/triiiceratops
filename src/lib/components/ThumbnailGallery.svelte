@@ -83,8 +83,8 @@
                                 : thumb.id || thumb['@id'];
                     }
                 }
-            } catch (e) {
-                console.warn('Error getting thumbnail', e);
+            } catch {
+                console.warn('Error getting thumbnail');
             }
 
             // Fallback to first image if no thumbnail service
@@ -169,7 +169,7 @@
                                         (pObj['@id'] as string | undefined) ||
                                         JSON.stringify(pObj);
                                 }
-                            } catch (e) {
+                            } catch {
                                 // ignore
                             }
 
@@ -516,7 +516,7 @@
                     ? ''
                     : 'grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));'}
             >
-                {#each thumbnails as thumb}
+                {#each thumbnails as thumb (thumb.id)}
                     <button
                         class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
                             ? 'w-[90px]'
