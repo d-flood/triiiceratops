@@ -253,36 +253,24 @@
                 <li>
                     <label class="label cursor-pointer py-1">
                         <span class="label-text"
-                            >{m.settings_toggle_left_menu()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-sm"
-                            bind:checked={config.showLeftMenu}
-                        />
-                    </label>
-                </li>
-                <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_right_menu()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-sm"
-                            bind:checked={config.showRightMenu}
-                        />
-                    </label>
-                </li>
-                <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
                             >{m.settings_toggle_canvas_nav()}</span
                         >
                         <input
                             type="checkbox"
                             class="toggle toggle-sm"
                             bind:checked={config.showCanvasNav}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_zoom_controls()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm"
+                            bind:checked={config.showZoomControls}
                         />
                     </label>
                 </li>
@@ -295,10 +283,63 @@
 
                 <li>
                     <details>
-                        <summary
-                            >{m.settings_submenu_right_menu_items()}</summary
-                        >
+                        <summary>{m.settings_submenu_toolbar()}</summary>
                         <ul>
+                            <li>
+                                <label class="label cursor-pointer py-1">
+                                    <span class="label-text"
+                                        >{m.settings_toggle_show_toggle()}</span
+                                    >
+                                    <input
+                                        type="checkbox"
+                                        class="toggle toggle-sm"
+                                        checked={config.showToggle !== false}
+                                        onchange={(e) => {
+                                            config.showToggle =
+                                                e.currentTarget.checked;
+                                        }}
+                                    />
+                                </label>
+                            </li>
+                            <li>
+                                <label class="label cursor-pointer py-1">
+                                    <span class="label-text"
+                                        >{m.settings_toolbar_open()}</span
+                                    >
+                                    <input
+                                        type="checkbox"
+                                        class="toggle toggle-sm"
+                                        bind:checked={config.toolbarOpen}
+                                    />
+                                </label>
+                            </li>
+                            <li>
+                                <label class="label cursor-pointer py-1">
+                                    <span class="label-text"
+                                        >{m.settings_toolbar_position()}</span
+                                    >
+                                    <select
+                                        class="select select-bordered select-xs w-24"
+                                        value={config.toolbarPosition ?? 'left'}
+                                        onchange={(e) => {
+                                            config.toolbarPosition = (
+                                                e.currentTarget as HTMLSelectElement
+                                            ).value as 'left' | 'right' | 'top';
+                                        }}
+                                    >
+                                        <option value="left"
+                                            >{m.settings_position_left()}</option
+                                        >
+                                        <option value="right"
+                                            >{m.settings_position_right()}</option
+                                        >
+                                        <option value="top"
+                                            >{m.settings_position_top()}</option
+                                        >
+                                    </select>
+                                </label>
+                            </li>
+                            <div class="divider my-1"></div>
                             <li>
                                 <label class="label cursor-pointer py-1">
                                     <span class="label-text"
@@ -307,12 +348,12 @@
                                     <input
                                         type="checkbox"
                                         class="checkbox checkbox-xs"
-                                        checked={config.rightMenu?.showSearch ??
+                                        checked={config.toolbar?.showSearch ??
                                             true}
                                         onchange={(e) => {
-                                            if (!config.rightMenu)
-                                                config.rightMenu = {};
-                                            config.rightMenu.showSearch =
+                                            if (!config.toolbar)
+                                                config.toolbar = {};
+                                            config.toolbar.showSearch =
                                                 e.currentTarget.checked;
                                         }}
                                     />
@@ -326,12 +367,12 @@
                                     <input
                                         type="checkbox"
                                         class="checkbox checkbox-xs"
-                                        checked={config.rightMenu
-                                            ?.showGallery ?? true}
+                                        checked={config.toolbar?.showGallery ??
+                                            true}
                                         onchange={(e) => {
-                                            if (!config.rightMenu)
-                                                config.rightMenu = {};
-                                            config.rightMenu.showGallery =
+                                            if (!config.toolbar)
+                                                config.toolbar = {};
+                                            config.toolbar.showGallery =
                                                 e.currentTarget.checked;
                                         }}
                                     />
@@ -345,12 +386,12 @@
                                     <input
                                         type="checkbox"
                                         class="checkbox checkbox-xs"
-                                        checked={config.rightMenu
+                                        checked={config.toolbar
                                             ?.showAnnotations ?? true}
                                         onchange={(e) => {
-                                            if (!config.rightMenu)
-                                                config.rightMenu = {};
-                                            config.rightMenu.showAnnotations =
+                                            if (!config.toolbar)
+                                                config.toolbar = {};
+                                            config.toolbar.showAnnotations =
                                                 e.currentTarget.checked;
                                         }}
                                     />
@@ -364,12 +405,12 @@
                                     <input
                                         type="checkbox"
                                         class="checkbox checkbox-xs"
-                                        checked={config.rightMenu
+                                        checked={config.toolbar
                                             ?.showFullscreen ?? true}
                                         onchange={(e) => {
-                                            if (!config.rightMenu)
-                                                config.rightMenu = {};
-                                            config.rightMenu.showFullscreen =
+                                            if (!config.toolbar)
+                                                config.toolbar = {};
+                                            config.toolbar.showFullscreen =
                                                 e.currentTarget.checked;
                                         }}
                                     />
@@ -383,12 +424,12 @@
                                     <input
                                         type="checkbox"
                                         class="checkbox checkbox-xs"
-                                        checked={config.rightMenu?.showInfo ??
+                                        checked={config.toolbar?.showInfo ??
                                             true}
                                         onchange={(e) => {
-                                            if (!config.rightMenu)
-                                                config.rightMenu = {};
-                                            config.rightMenu.showInfo =
+                                            if (!config.toolbar)
+                                                config.toolbar = {};
+                                            config.toolbar.showInfo =
                                                 e.currentTarget.checked;
                                         }}
                                     />
