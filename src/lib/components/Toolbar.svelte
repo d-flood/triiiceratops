@@ -49,34 +49,43 @@
 </script>
 
 <div
-    class="absolute z-50 pointer-events-none flex {isTop
-        ? 'top-0 w-full items-end flex-col pt-0 pr-2'
-        : `top-0 h-full items-start pt-4 pb-4 ${
-              isLeft ? 'left-0 flex-row' : 'right-0 flex-row-reverse'
-          }`}"
+    class={[
+        'absolute z-50 pointer-events-none flex',
+        isTop && 'top-0 w-full items-end flex-col pt-0 pr-2',
+        !isTop && 'top-0 h-full items-start pt-4 pb-4',
+        !isTop && isLeft && 'left-0 flex-row',
+        !isTop && !isLeft && 'right-0 flex-row-reverse',
+    ]}
 >
     <!-- Collapsible Toolbar -->
     <div
-        class="pointer-events-auto bg-base-100/95 backdrop-blur shadow-xl transition-all duration-300 ease-in-out flex overflow-hidden {isTop
-            ? 'flex-row-reverse h-16 w-auto max-w-full rounded-b-xl border-x border-b border-base-200 origin-top'
-            : `flex-col h-auto max-h-full border-y border-base-200 w-16 ${
-                  isLeft
-                      ? 'rounded-r-xl border-r origin-left'
-                      : 'rounded-l-xl border-l origin-right'
-              }`} {isOpen
-            ? isTop
-                ? 'opacity-100 translate-y-0'
-                : 'w-16 opacity-100 translate-x-0'
-            : isTop
-              ? 'h-0 opacity-0 -translate-y-full'
-              : `w-0 opacity-0 ${isLeft ? '-translate-x-full' : 'translate-x-full'}`}"
+        class={[
+            'pointer-events-auto bg-base-100/95 backdrop-blur shadow-xl transition-all duration-300 ease-in-out flex overflow-hidden',
+            // Layout based on position
+            isTop &&
+                'flex-row-reverse h-16 w-auto max-w-full rounded-b-xl border-x border-b border-base-200 origin-top',
+            !isTop &&
+                'flex-col h-auto max-h-full border-y border-base-200 w-16',
+            !isTop && isLeft && 'rounded-r-xl border-r origin-left',
+            !isTop && !isLeft && 'rounded-l-xl border-l origin-right',
+
+            // Animation state based on open/closed and position
+            isOpen && isTop && 'opacity-100 translate-y-0',
+            isOpen && !isTop && 'w-16 opacity-100 translate-x-0',
+            !isOpen && isTop && 'h-0 opacity-0 -translate-y-full',
+            !isOpen && !isTop && 'w-0 opacity-0',
+            !isOpen && !isTop && isLeft && '-translate-x-full',
+            !isOpen && !isTop && !isLeft && 'translate-x-full',
+        ]}
     >
         <!-- Close Button (Inside Menu) -->
         {#if showToggle}
             <div
-                class={isTop
-                    ? 'h-full flex items-center px-2 shrink-0'
-                    : 'w-full flex justify-center py-2 shrink-0'}
+                class={[
+                    'shrink-0',
+                    isTop && 'h-full flex items-center px-2',
+                    !isTop && 'w-full flex justify-center py-2',
+                ]}
             >
                 <button
                     class="btn btn-ghost btn-circle btn-sm"
@@ -96,18 +105,22 @@
         {/if}
 
         <ul
-            class="menu menu-md p-2 gap-2 flex-nowrap items-center min-h-0 {isTop
-                ? 'menu-horizontal w-auto overflow-x-auto overflow-y-hidden flex-row-reverse'
-                : 'flex-1 overflow-y-auto overflow-x-hidden w-16'}"
+            class={[
+                'menu menu-md p-2 gap-2 flex-nowrap items-center min-h-0',
+                isTop &&
+                    'menu-horizontal w-auto overflow-x-auto overflow-y-hidden flex-row-reverse',
+                !isTop && 'flex-1 overflow-y-auto overflow-x-hidden w-16',
+            ]}
         >
             <!-- --- Standard Actions --- -->
 
             {#if showSearch}
                 <li>
                     <button
-                        class="flex items-center justify-center {viewerState.showSearchPanel
-                            ? 'active'
-                            : ''}"
+                        class={[
+                            'flex items-center justify-center',
+                            viewerState.showSearchPanel && 'active',
+                        ]}
                         use:tooltip={{
                             content: m.search(),
                             position: tooltipPos,
@@ -123,9 +136,10 @@
             {#if showGallery}
                 <li>
                     <button
-                        class="flex items-center justify-center {viewerState.showThumbnailGallery
-                            ? 'active'
-                            : ''}"
+                        class={[
+                            'flex items-center justify-center',
+                            viewerState.showThumbnailGallery && 'active',
+                        ]}
                         use:tooltip={{
                             content: viewerState.showThumbnailGallery
                                 ? m.hide_gallery()
@@ -145,9 +159,10 @@
             {#if showFullscreen}
                 <li>
                     <button
-                        class="flex items-center justify-center {viewerState.isFullScreen
-                            ? 'active'
-                            : ''}"
+                        class={[
+                            'flex items-center justify-center',
+                            viewerState.isFullScreen && 'active',
+                        ]}
                         use:tooltip={{
                             content: viewerState.isFullScreen
                                 ? m.exit_full_screen()
@@ -171,9 +186,10 @@
             {#if showAnnotations}
                 <li>
                     <button
-                        class="flex items-center justify-center {viewerState.showAnnotations
-                            ? 'active'
-                            : ''}"
+                        class={[
+                            'flex items-center justify-center',
+                            viewerState.showAnnotations && 'active',
+                        ]}
                         use:tooltip={{
                             content: viewerState.showAnnotations
                                 ? m.hide_annotations()
@@ -193,9 +209,10 @@
             {#if showInfo}
                 <li>
                     <button
-                        class="flex items-center justify-center {viewerState.showMetadataDialog
-                            ? 'active'
-                            : ''}"
+                        class={[
+                            'flex items-center justify-center',
+                            viewerState.showMetadataDialog && 'active',
+                        ]}
                         use:tooltip={{
                             content: m.metadata(),
                             position: tooltipPos,
@@ -211,7 +228,11 @@
             <!-- Separator if both groups exist -->
             {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo) && sortedPluginButtons.length > 0}
                 <div
-                    class="divider {isTop ? 'divider-horizontal mx-0' : 'my-0'}"
+                    class={[
+                        'divider',
+                        isTop && 'divider-horizontal mx-0',
+                        !isTop && 'my-0',
+                    ]}
                 ></div>
             {/if}
 
@@ -226,9 +247,10 @@
                         : button.tooltip}
                 <li>
                     <button
-                        class="flex items-center justify-center {button.isActive?.()
-                            ? 'active'
-                            : ''}"
+                        class={[
+                            'flex items-center justify-center',
+                            button.isActive?.() && 'active',
+                        ]}
                         use:tooltip={{
                             content: tooltipText,
                             position: tooltipPos,
@@ -248,9 +270,11 @@
     <!-- Toggle Handle (Only visible when closed) -->
     {#if showToggle}
         <button
-            class="pointer-events-auto btn btn-circle btn-sm btn-neutral shadow-md z-40 transition-opacity duration-300 absolute mt-2 {isOpen
-                ? 'opacity-0 pointer-events-none'
-                : 'opacity-100'}"
+            class={[
+                'pointer-events-auto btn btn-circle btn-sm btn-neutral shadow-md z-40 transition-opacity duration-300 absolute mt-2',
+                isOpen && 'opacity-0 pointer-events-none',
+                !isOpen && 'opacity-100',
+            ]}
             style={isTop
                 ? 'right: 0.5rem;'
                 : isLeft
