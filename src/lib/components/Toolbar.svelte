@@ -63,15 +63,15 @@
             'pointer-events-auto bg-base-100/95 backdrop-blur shadow-xl transition-all duration-300 ease-in-out flex overflow-hidden',
             // Layout based on position
             isTop &&
-                'flex-row-reverse h-16 w-auto max-w-full rounded-b-xl border-x border-b border-base-200 origin-top',
+                'flex-row-reverse h-12 w-auto max-w-full rounded-b-xl border-x border-b border-base-200 origin-top',
             !isTop &&
-                'flex-col h-auto max-h-full border-y border-base-200 w-16',
+                'flex-col h-auto max-h-full border-y border-base-200 w-12',
             !isTop && isLeft && 'rounded-r-xl border-r origin-left',
             !isTop && !isLeft && 'rounded-l-xl border-l origin-right',
 
             // Animation state based on open/closed and position
             isOpen && isTop && 'opacity-100 translate-y-0',
-            isOpen && !isTop && 'w-16 opacity-100 translate-x-0',
+            isOpen && !isTop && 'w-12 opacity-100 translate-x-0',
             !isOpen && isTop && 'h-0 opacity-0 -translate-y-full',
             !isOpen && !isTop && 'w-0 opacity-0',
             !isOpen && !isTop && isLeft && '-translate-x-full',
@@ -106,10 +106,11 @@
 
         <ul
             class={[
-                'menu menu-md p-2 gap-2 flex-nowrap items-center min-h-0',
+                'menu menu-md gap-2 flex-nowrap items-center min-h-0',
                 isTop &&
-                    'menu-horizontal w-auto overflow-x-auto overflow-y-hidden flex-row-reverse',
-                !isTop && 'flex-1 overflow-y-auto overflow-x-hidden w-16',
+                    'px-2 py-1 menu-horizontal w-auto overflow-x-auto overflow-y-hidden flex-row-reverse',
+                !isTop &&
+                    'py-2 px-1 flex-1 overflow-y-auto overflow-x-hidden w-12',
             ]}
         >
             <!-- --- Standard Actions --- -->
