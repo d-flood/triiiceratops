@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.11.2
+
+### Patch Changes
+
+- d71cd9f: Add lint and format configs, resolve lint errors, run formatting, and make plugins SSR safe
+
 ## 0.11.1
 
 ### Patch Changes
