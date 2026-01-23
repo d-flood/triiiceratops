@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.11.1
+
+### Patch Changes
+
+- 1169712: make toolbar open button match canvas nav
+
 ## 0.11.0
 
 ### Minor Changes
