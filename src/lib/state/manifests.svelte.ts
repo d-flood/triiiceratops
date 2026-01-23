@@ -135,7 +135,7 @@ export class ManifestsState {
         // Or better, use canvas.getContent() if it works, but for external lists manual fetch is robust.
         const canvasJson = canvas.__jsonld;
 
-        let annotations: any[] = [];
+        const annotations: any[] = [];
 
         // Helper to parse list using Manifesto
         const parseList = (listJson: any) => {

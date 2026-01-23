@@ -11,7 +11,7 @@ export default defineConfig({
     plugins: [
         svelte({
             configFile: false,
-            // @ts-ignore - The types for this function signature might be slightly off in the plugin dts but valid in Svelte
+            // @ts-expect-error - The types for this function signature might be slightly off in the plugin dts but valid in Svelte
             compilerOptions: (url) => {
                 const isCustomElement = url.includes(
                     'TriiiceratopsViewerElement.svelte',

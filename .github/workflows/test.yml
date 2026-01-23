@@ -1,37 +1,37 @@
 name: Run Tests
 
 on:
-  pull_request:
-    branches: [ "main" ]
-  push:
-    branches: [ "main" ]
+    pull_request:
+        branches: ['main']
+    push:
+        branches: ['main']
 
 jobs:
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    test:
+        name: Run Tests
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
 
-    steps:
-    - uses: actions/checkout@v4
+        steps:
+            - uses: actions/checkout@v4
 
-    - uses: pnpm/action-setup@v4
-      with:
-        version: 9
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
 
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'pnpm'
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'pnpm'
 
-    - name: Install dependencies
-      run: pnpm install
+            - name: Install dependencies
+              run: pnpm install
 
-    - name: Install Playwright Browsers
-      run: pnpm exec playwright install --with-deps chromium
+            - name: Install Playwright Browsers
+              run: pnpm exec playwright install --with-deps chromium
 
-    - name: Run Unit Tests
-      run: pnpm test run
+            - name: Run Unit Tests
+              run: pnpm test run
 
-    - name: Run E2E Tests
-      run: pnpm test:e2e
+            - name: Run E2E Tests
+              run: pnpm test:e2e

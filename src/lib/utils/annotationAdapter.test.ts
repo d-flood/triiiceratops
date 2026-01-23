@@ -77,7 +77,6 @@ describe('annotationAdapter', () => {
                 ],
             };
 
-            // @ts-ignore - mocking complex object
             const result = parseAnnotation(mockManifestoAnno, 2);
 
             expect(result?.id).toBe('http://example.org/manifesto-anno');

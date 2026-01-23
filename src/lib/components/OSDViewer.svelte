@@ -48,7 +48,7 @@
     // Rendered annotations with pixel coordinates
     let renderedAnnotations = $derived.by(() => {
         // Depend on osdVersion to trigger updates
-        osdVersion;
+        void osdVersion;
 
         if (!viewer || !OSD || !parsedAnnotations.length) {
             return [];

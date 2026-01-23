@@ -1,83 +1,83 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+    push:
+        branches:
+            - main
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      id-token: write
+    release:
+        name: Release
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+            id-token: write
 
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build:lib
-      - run: pnpm run build:element
+        steps:
+            - uses: actions/checkout@v4
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  registry-url: 'https://registry.npmjs.org'
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm run build:lib
+            - run: pnpm run build:element
 
-      - name: Git Configuration
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            - name: Git Configuration
+              run: |
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump Version
-        id: version
-        run: |
-          pnpm changeset version
-          if git diff --name-only | grep -q 'package.json'; then
-            echo "Detected version bump."
-            pnpm install --lockfile-only
-            git add .
-            git commit -m "chore: release [skip ci]"
-            
-            VERSION=$(node -p "require('./package.json').version")
-            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "No version bump detected."
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Bump Version
+              id: version
+              run: |
+                  pnpm changeset version
+                  if git diff --name-only | grep -q 'package.json'; then
+                    echo "Detected version bump."
+                    pnpm install --lockfile-only
+                    git add .
+                    git commit -m "chore: release [skip ci]"
+                    
+                    VERSION=$(node -p "require('./package.json').version")
+                    echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+                    echo "has_changes=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "No version bump detected."
+                    echo "has_changes=false" >> $GITHUB_OUTPUT
+                  fi
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Lib
-        if: steps.version.outputs.has_changes == 'true'
-        run: pnpm run build:lib
+            - name: Build Lib
+              if: steps.version.outputs.has_changes == 'true'
+              run: pnpm run build:lib
 
-      - name: Build Element
-        if: steps.version.outputs.has_changes == 'true'
-        run: pnpm run build:element
+            - name: Build Element
+              if: steps.version.outputs.has_changes == 'true'
+              run: pnpm run build:element
 
-      - name: Publish to NPM
-        if: steps.version.outputs.has_changes == 'true'
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+            - name: Publish to NPM
+              if: steps.version.outputs.has_changes == 'true'
+              run: pnpm publish --access public --no-git-checks
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Push Changes
-        if: steps.version.outputs.has_changes == 'true'
-        run: git push
+            - name: Push Changes
+              if: steps.version.outputs.has_changes == 'true'
+              run: git push
 
-      - name: Create GitHub Release
-        if: steps.version.outputs.has_changes == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          name: v${{ steps.version.outputs.VERSION }}
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Create GitHub Release
+              if: steps.version.outputs.has_changes == 'true'
+              uses: softprops/action-gh-release@v1
+              with:
+                  tag_name: v${{ steps.version.outputs.VERSION }}
+                  name: v${{ steps.version.outputs.VERSION }}
+                  generate_release_notes: true
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

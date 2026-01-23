@@ -136,7 +136,7 @@ function extractSvgValue(target: any): string | null {
     if (!target) return null;
 
     // Check for selector property or use target itself
-    let selector = target.selector || target;
+    const selector = target.selector || target;
 
     // Handle array of selectors
     if (Array.isArray(selector)) {
@@ -342,7 +342,7 @@ function extractXywhFromRawTarget(
 
     // Handle object with selector
     if (target.selector) {
-        let sel = target.selector;
+        const sel = target.selector;
 
         // Handle array of selectors
         if (Array.isArray(sel)) {

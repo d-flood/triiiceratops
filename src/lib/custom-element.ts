@@ -5,6 +5,7 @@
 // Plugins built as IIFE need to share the same Svelte runtime instance
 // so that getContext/setContext work correctly across bundle boundaries
 // @ts-expect-error - svelte/internal/client is not typed but exists at runtime
+// eslint-disable-next-line svelte/no-svelte-internal
 import * as svelteInternal from 'svelte/internal/client';
 import * as svelte from 'svelte';
 
