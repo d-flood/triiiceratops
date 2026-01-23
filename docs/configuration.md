@@ -9,46 +9,46 @@ Triiiceratops provides a flexible configuration system that works consistently a
 ## Configuration Object
 
 !!! tip "Interactive Configuration"
-    You can experiment with these settings in the [Live Demo](./demo/){target=_blank}. Open the settings menu (gear icon), tweak the configuration, and then click **"Copy Config"** to get the JSON for your project.
+You can experiment with these settings in the [Live Demo](./demo/){target=\_blank}. Open the settings menu (gear icon), tweak the configuration, and then click **"Copy Config"** to get the JSON for your project.
 
 The viewer accepts a configuration object to customize the UI and behavior. Below is the structure of the configuration object with default values:
 
 ```typescript
 interface ViewerConfig {
-  // Top-level UI Toggles
-  showRightMenu?: boolean; // Default: true
-  showLeftMenu?: boolean;  // Default: true
-  showCanvasNav?: boolean; // Default: true
+    // Top-level UI Toggles
+    showRightMenu?: boolean; // Default: true
+    showLeftMenu?: boolean; // Default: true
+    showCanvasNav?: boolean; // Default: true
 
-  // Right Menu Items
-  rightMenu?: {
-    showSearch?: boolean;      // Default: true
-    showGallery?: boolean;     // Default: true
-    showAnnotations?: boolean; // Default: true
-    showFullscreen?: boolean;  // Default: true
-    showInfo?: boolean;        // Default: true
-  };
+    // Right Menu Items
+    rightMenu?: {
+        showSearch?: boolean; // Default: true
+        showGallery?: boolean; // Default: true
+        showAnnotations?: boolean; // Default: true
+        showFullscreen?: boolean; // Default: true
+        showInfo?: boolean; // Default: true
+    };
 
-  // Thumbnail Gallery Settings
-  gallery?: {
-    open?: boolean;            // Default: false
-    draggable?: boolean;       // Default: true
-    showCloseButton?: boolean; // Default: true
-    dockPosition?: 'bottom' | 'top' | 'left' | 'right' | 'none'; // Default: 'bottom'
-  };
+    // Thumbnail Gallery Settings
+    gallery?: {
+        open?: boolean; // Default: false
+        draggable?: boolean; // Default: true
+        showCloseButton?: boolean; // Default: true
+        dockPosition?: 'bottom' | 'top' | 'left' | 'right' | 'none'; // Default: 'bottom'
+    };
 
-  // Search Panel Settings
-  search?: {
-    open?: boolean;            // Default: false
-    showCloseButton?: boolean; // Default: true
-    query?: string;            // Programmatically set search query
-  };
+    // Search Panel Settings
+    search?: {
+        open?: boolean; // Default: false
+        showCloseButton?: boolean; // Default: true
+        query?: string; // Programmatically set search query
+    };
 
-  // Annotations Settings
-  annotations?: {
-    open?: boolean;    // Default: false (Sidebar panel)
-    visible?: boolean; // Default: true (Overlay visibility)
-  };
+    // Annotations Settings
+    annotations?: {
+        open?: boolean; // Default: false (Sidebar panel)
+        visible?: boolean; // Default: true (Overlay visibility)
+    };
 }
 ```
 
@@ -126,14 +126,14 @@ interface ViewerConfig {
     ```html
     <script>
       import TriiiceratopsViewer from 'triiiceratops/components/TriiiceratopsViewer.svelte';
-      
+
       // This will strictly mirror the internal state
-      let state = $state(); 
+      let state = $state();
     </script>
 
-    <TriiiceratopsViewer 
-      manifestId="..." 
-      bind:viewerState={state} 
+    <TriiiceratopsViewer
+      manifestId="..."
+      bind:viewerState={state}
     />
 
     <div>
@@ -157,7 +157,7 @@ You can trigger a search programmatically by setting the `search.query` property
 
     <script>
       const viewer = document.getElementById('my-viewer');
-      
+
       function search(query) {
         // Update config with new query
         const config = {
@@ -230,7 +230,7 @@ You can control which canvas is displayed and stay in sync with the viewer's nav
 
     ```html
     <script>
-      let canvasId = $state(initialId); 
+      let canvasId = $state(initialId);
       let viewerState = $state();
 
       // Optional: Sync internal changes back to your local canvasId if you need stricter control
@@ -241,10 +241,10 @@ You can control which canvas is displayed and stay in sync with the viewer's nav
       });
     </script>
 
-    <TriiiceratopsViewer 
-      {canvasId} 
-      bind:viewerState 
-      ... 
+    <TriiiceratopsViewer
+      {canvasId}
+      bind:viewerState
+      ...
     />
     ```
 
