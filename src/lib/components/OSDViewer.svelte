@@ -231,20 +231,26 @@
     $effect(() => {
         if (!viewer || !tileSources) return;
 
-        if (viewerState.twoPageMode && tileSources instanceof Array && tileSources.length === 2) {
-            const secondPageLocation = 1.025
-            const twoPageSpread = [{
-                tileSource: tileSources[0],
-                x: 0,
-                y: 0,
-                width: 1.0
-            },
-            {
-                tileSource: tileSources[1],
-                x: secondPageLocation, // small gap between pages
-                y: 0,
-                width: 1.0
-            }];
+        if (
+            viewerState.twoPageMode &&
+            tileSources instanceof Array &&
+            tileSources.length === 2
+        ) {
+            const secondPageLocation = 1.025;
+            const twoPageSpread = [
+                {
+                    tileSource: tileSources[0],
+                    x: 0,
+                    y: 0,
+                    width: 1.0,
+                },
+                {
+                    tileSource: tileSources[1],
+                    x: secondPageLocation, // small gap between pages
+                    y: 0,
+                    width: 1.0,
+                },
+            ];
             viewer.open(twoPageSpread);
         } else {
             viewer.open(tileSources);

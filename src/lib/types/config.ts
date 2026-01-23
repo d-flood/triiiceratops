@@ -112,7 +112,7 @@ export interface ViewerConfig {
      * @default true
      */
     showModeToggle?: boolean;
-    
+
     /**
      * Whether to display pages in two page spreads after the cover.
      * @default false
