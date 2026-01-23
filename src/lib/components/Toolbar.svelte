@@ -272,7 +272,8 @@
     {#if showToggle}
         <button
             class={[
-                'pointer-events-auto btn btn-circle btn-sm btn-neutral shadow-md z-40 transition-opacity duration-300 absolute mt-2',
+                'pointer-events-auto btn btn-circle btn-sm shadow-md z-40 transition-opacity duration-300 absolute mt-2',
+                'bg-base-200/90 backdrop-blur border border-base-300 hover:bg-base-300 text-base-content',
                 isOpen && 'opacity-0 pointer-events-none',
                 !isOpen && 'opacity-100',
             ]}
