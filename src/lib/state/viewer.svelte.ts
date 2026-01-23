@@ -14,6 +14,7 @@ export interface ViewerStateSnapshot {
     showAnnotations: boolean;
     showThumbnailGallery: boolean;
     showSearchPanel: boolean;
+    toolbarOpen: boolean;
     searchQuery: string;
     isFullScreen: boolean;
     dockSide: string;
@@ -24,6 +25,7 @@ export class ViewerState {
     canvasId: string | null = $state(null);
     showAnnotations = $state(false);
     showThumbnailGallery = $state(false);
+    toolbarOpen = $state(false);
     isGalleryDockedBottom = $state(false);
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
@@ -35,11 +37,8 @@ export class ViewerState {
     config: ViewerConfig = $state({});
 
     // Derived configuration specific getters
-    get showRightMenu() {
-        return this.config.showRightMenu ?? true;
-    }
-    get showLeftMenu() {
-        return this.config.showLeftMenu ?? true;
+    get showToggle() {
+        return this.config.showToggle ?? true;
     }
     get showCanvasNav() {
         return this.config.showCanvasNav ?? true;
@@ -101,6 +100,7 @@ export class ViewerState {
             showAnnotations: this.showAnnotations,
             showThumbnailGallery: this.showThumbnailGallery,
             showSearchPanel: this.showSearchPanel,
+            toolbarOpen: this.toolbarOpen,
             searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
             dockSide: this.dockSide,
@@ -242,6 +242,10 @@ export class ViewerState {
         this.config = newConfig;
 
         // Sync state from config
+        if (newConfig.toolbarOpen !== undefined) {
+            this.toolbarOpen = newConfig.toolbarOpen;
+        }
+
         if (newConfig.gallery) {
             if (newConfig.gallery.open !== undefined) {
                 this.showThumbnailGallery = newConfig.gallery.open;
@@ -282,6 +286,11 @@ export class ViewerState {
 
     toggleAnnotations() {
         this.showAnnotations = !this.showAnnotations;
+        this.dispatchStateChange();
+    }
+
+    toggleToolbar() {
+        this.toolbarOpen = !this.toolbarOpen;
         this.dispatchStateChange();
     }
 

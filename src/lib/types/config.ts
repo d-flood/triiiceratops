@@ -72,7 +72,7 @@ export interface AnnotationsConfig {
     visible?: boolean;
 }
 
-export interface MenuConfig {
+export interface ToolbarConfig {
     /**
      * Whether the Search button is shown in this menu.
      * @default true
@@ -101,26 +101,6 @@ export interface MenuConfig {
 }
 
 export interface ViewerConfig {
-    /**
-     * Whether the right floating menu is visible.
-     * @default true
-     */
-    showRightMenu?: boolean;
-    /**
-     * Configuration for the right menu items.
-     */
-    rightMenu?: MenuConfig;
-
-    /**
-     * Whether the left FAB (plugins menu) is visible.
-     * @default true
-     */
-    showLeftMenu?: boolean;
-    /**
-     * Configuration for the left menu items.
-     */
-    leftMenu?: MenuConfig;
-
     /**
      * Whether to show the canvas navigation arrows/controls.
      * @default true
@@ -158,4 +138,27 @@ export interface ViewerConfig {
      * @default false
      */
     transparentBackground?: boolean;
+
+    /**
+     * Whether the toolbar open/close toggle button is visible.
+     * @default true
+     */
+    showToggle?: boolean;
+
+    /**
+     * Whether the toolbar is currently expanded/open.
+     * @default false
+     */
+    toolbarOpen?: boolean;
+
+    /**
+     * Which side the toolbar should appear on.
+     * @default 'left'
+     */
+    toolbarPosition?: 'left' | 'right' | 'top';
+
+    /**
+     * Configuration for the toolbar items.
+     */
+    toolbar?: ToolbarConfig;
 }
