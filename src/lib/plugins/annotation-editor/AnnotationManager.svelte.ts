@@ -1,11 +1,8 @@
-import {
-    createOSDAnnotator,
-    W3CImageFormat,
-    type OpenSeadragonAnnotator,
-    type W3CImageAnnotation,
+import type {
+    OpenSeadragonAnnotator,
+    W3CImageAnnotation,
 } from '@annotorious/openseadragon';
 import type { ImageAnnotation } from '@annotorious/annotorious';
-import OpenSeadragon from 'openseadragon';
 
 import type {
     AnnotationEditorConfig,
@@ -30,6 +27,11 @@ export class AnnotationManager {
 
     // Store reference to OSD viewer for mouse nav toggling
     private osdViewer: any = null;
+
+    // Dynamic dependencies
+    private OSD: any = null;
+    private createOSDAnnotator: any = null;
+    private W3CImageFormat: any = null;
 
     // Current canvas tracking
     private currentManifestId: string | null = null;
@@ -90,10 +92,24 @@ export class AnnotationManager {
         });
     }
 
-    private initAnnotorious(viewer: any, canvasId: string | null): void {
+    private async initAnnotorious(
+        viewer: any,
+        canvasId: string | null,
+    ): Promise<void> {
         if (this.annotorious) return;
 
         try {
+            // Load dynamic dependencies
+            if (!this.createOSDAnnotator || !this.W3CImageFormat) {
+                const mod = await import('@annotorious/openseadragon');
+                this.createOSDAnnotator = mod.createOSDAnnotator;
+                this.W3CImageFormat = mod.W3CImageFormat;
+            }
+            if (!this.OSD) {
+                const mod = await import('openseadragon');
+                this.OSD = mod.default || mod;
+            }
+
             const sourceId = canvasId ?? 'unknown';
 
             // Initial drawing enabled state only if tool is NOT point (Annotorious handles others)
@@ -101,7 +117,7 @@ export class AnnotationManager {
                 this.isDrawingEnabled && this.activeTool !== 'point';
 
             const config = {
-                adapter: W3CImageFormat(sourceId),
+                adapter: this.W3CImageFormat(sourceId),
                 drawingEnabled: initialDrawingEnabled,
                 autoSave: false,
                 drawingMode: 'click' as const,
@@ -120,7 +136,7 @@ export class AnnotationManager {
                 },
             };
 
-            const anno = createOSDAnnotator(viewer, config);
+            const anno = this.createOSDAnnotator(viewer, config);
             this.annotorious = anno;
 
             if (this.config.user) {
@@ -139,7 +155,7 @@ export class AnnotationManager {
 
             // Apply pending state
             this.updateDrawingMode(this.isDrawingEnabled);
-            this.annotorious.setVisible(true); // Always start visible
+            anno.setVisible(true); // Always start visible
         } catch (error) {
             console.error(
                 '[AnnotationManager] Failed to create annotator:',
@@ -171,7 +187,7 @@ export class AnnotationManager {
         // User requested a 2x2 pixel rectangle.
         const targetScreenPixels = 2;
 
-        const OSD = OpenSeadragon as any;
+        const OSD = this.OSD;
 
         const p1 = this.osdViewer.viewport.pointFromPixel(new OSD.Point(0, 0));
         const p2 = this.osdViewer.viewport.pointFromPixel(
