@@ -471,7 +471,7 @@
             {/each}
 
             <!-- Canvas Nav (Absolute positioned inside center, or floating?) currently assumes absolute -->
-            {#if canvases.length > 1 && internalViewerState.showCanvasNav}
+            {#if (canvases.length > 1 && internalViewerState.showCanvasNav) || (internalViewerState.config.showZoomControls ?? true)}
                 <CanvasNavigation viewerState={internalViewerState} />
             {/if}
 
