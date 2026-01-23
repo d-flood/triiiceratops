@@ -1,0 +1,8 @@
+dist/
+.svelte-kit/
+.venv/
+site/
+node_modules/
+src/lib/paraglide/
+docs/
+pnpm-lock.yaml

@@ -107,7 +107,7 @@ export class AnnotationManager {
                 adapter: W3CImageFormat(sourceId),
                 drawingEnabled: initialDrawingEnabled,
                 autoSave: false,
-                drawingMode: 'click' as 'click',
+                drawingMode: 'click' as const,
                 style: this.config.drawingStyle ?? {
                     fill: '#1e90ff',
                     fillOpacity: 0.25,

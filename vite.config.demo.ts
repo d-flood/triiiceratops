@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
     plugins: [
         svelte({
-            // @ts-ignore
+            // @ts-expect-error - plugin supports a function signature with `url`
             compilerOptions: (url) => {
                 return {
                     customElement: url.includes(

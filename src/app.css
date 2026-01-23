@@ -1,78 +1,77 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Ensure all library components are scanned for class usage */
 @source "../src/lib/**/*.svelte";
 
 @plugin "daisyui" {
-  exclude: reset, scrollbar, viewport;
-  themes:
-    light --default,
-    dark --prefersdark,
-    cupcake,
-    bumblebee,
-    emerald,
-    corporate,
-    synthwave,
-    retro,
-    cyberpunk,
-    valentine,
-    halloween,
-    garden,
-    forest,
-    aqua,
-    lofi,
-    pastel,
-    fantasy,
-    wireframe,
-    black,
-    luxury,
-    dracula,
-    cmyk,
-    autumn,
-    business,
-    acid,
-    lemonade,
-    night,
-    coffee,
-    winter,
-    dim,
-    nord,
-    sunset;
+    exclude: reset, scrollbar, viewport;
+    themes:
+        light --default,
+        dark --prefersdark,
+        cupcake,
+        bumblebee,
+        emerald,
+        corporate,
+        synthwave,
+        retro,
+        cyberpunk,
+        valentine,
+        halloween,
+        garden,
+        forest,
+        aqua,
+        lofi,
+        pastel,
+        fantasy,
+        wireframe,
+        black,
+        luxury,
+        dracula,
+        cmyk,
+        autumn,
+        business,
+        acid,
+        lemonade,
+        night,
+        coffee,
+        winter,
+        dim,
+        nord,
+        sunset;
 }
 
 .osd-background,
 .osd-background .openseadragon-container {
-  @apply bg-transparent;
+    @apply bg-transparent;
 }
 
 @layer base {
+    /* Firefox */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--fallback-bc, oklch(var(--bc) / 0.2)) transparent;
+    }
 
-  /* Firefox */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--fallback-bc, oklch(var(--bc)/0.2)) transparent;
-  }
+    /* Webkit (Chrome, Safari, Edge) */
+    ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
 
-  /* Webkit (Chrome, Safari, Edge) */
-  ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
 
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+    ::-webkit-scrollbar-thumb {
+        background-color: var(--fallback-bc, oklch(var(--bc) / 0.2));
+        border-radius: 9999px;
+    }
 
-  ::-webkit-scrollbar-thumb {
-    background-color: var(--fallback-bc, oklch(var(--bc)/0.2));
-    border-radius: 9999px;
-  }
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--fallback-bc, oklch(var(--bc) / 0.4));
+    }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--fallback-bc, oklch(var(--bc)/0.4));
-  }
-
-  ::-webkit-scrollbar-corner {
-    background: transparent;
-  }
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
 }

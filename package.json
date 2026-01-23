@@ -65,10 +65,15 @@
         "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
         "test": "vitest",
         "test:e2e": "playwright test",
-        "changeset": "changeset"
+        "changeset": "changeset",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
     },
     "devDependencies": {
         "@changesets/cli": "^2.29.8",
+        "@eslint/js": "^9.39.2",
         "@inlang/paraglide-js": "^2.7.0",
         "@playwright/test": "^1.57.0",
         "@sveltejs/package": "^2.5.7",
@@ -76,6 +81,10 @@
         "@tsconfig/svelte": "^5.0.6",
         "@types/node": "^24.10.1",
         "@types/openseadragon": "^5.0.1",
+        "eslint": "^9.39.2",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-svelte": "^3.14.0",
+        "globals": "^17.1.0",
         "happy-dom": "^20.0.11",
         "jsdom": "^27.3.0",
         "prettier": "^3.7.4",
@@ -83,6 +92,7 @@
         "svelte": "^5.43.8",
         "svelte-check": "^4.3.4",
         "typescript": "~5.9.3",
+        "typescript-eslint": "^8.53.1",
         "vite": "^6.0.0",
         "vite-plugin-dts": "^4.5.4",
         "vitest": "^4.0.15"

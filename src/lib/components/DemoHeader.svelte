@@ -230,7 +230,6 @@
             >
                 <Gear size={20} />
             </div>
-            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
             <ul
                 tabindex="-1"
                 class="dropdown-content z-20 menu bg-base-100 rounded-box w-80 p-2 shadow border border-base-300 max-h-[80vh] overflow-y-auto block invisible pointer-events-none group-focus-within:visible group-focus-within:pointer-events-auto"

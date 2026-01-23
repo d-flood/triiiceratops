@@ -12,7 +12,7 @@ export default defineConfig({
         }),
         svelte({
             // Ensure custom elements compile when these files are included (tests/dev)
-            // @ts-ignore - plugin supports a function signature with `url`
+            // @ts-expect-error - plugin supports a function signature with `url`
             compilerOptions: (url: string) => {
                 const isCustomElement = url.includes(
                     'TriiiceratopsViewerElement.svelte',

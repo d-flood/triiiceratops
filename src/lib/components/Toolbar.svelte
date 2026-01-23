@@ -37,7 +37,7 @@
 
     // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
-        language.current;
+        void language.current;
         return [...viewerState.pluginMenuButtons].sort(
             (a, b) => (a.order ?? 100) - (b.order ?? 100),
         );
@@ -241,9 +241,9 @@
             {#each sortedPluginButtons as button (button.id)}
                 {@const Icon = button.icon}
                 {@const tooltipText =
-                    // @ts-ignore
+                    // @ts-expect-error - m[button.tooltip] might be a function
                     typeof m[button.tooltip] === 'function'
-                        ? // @ts-ignore
+                        ? // @ts-expect-error - m[button.tooltip] is a function
                           m[button.tooltip]()
                         : button.tooltip}
                 <li>

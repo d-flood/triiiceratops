@@ -30,13 +30,21 @@ The viewer is available as a web component that works in any framework or static
 **Via CDN:**
 
 ```html
-<script type="module" src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/triiiceratops/dist/triiiceratops-element.css">
+<script
+    type="module"
+    src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"
+></script>
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/triiiceratops/dist/triiiceratops-element.css"
+/>
 
 <div style="height: 600px; width: 100%;">
-  <triiiceratops-viewer style="height: 100%; width: 100%; display: block;"
-    manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723">
-  </triiiceratops-viewer>
+    <triiiceratops-viewer
+        style="height: 100%; width: 100%; display: block;"
+        manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+    >
+    </triiiceratops-viewer>
 </div>
 ```
 
@@ -54,14 +62,14 @@ pnpm add triiiceratops
 
 ```svelte
 <script>
-  import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops';
 </script>
 
 <!-- Container must have height -->
 <div style="height: 600px;">
-  <TriiiceratopsViewer 
-    manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723" 
-  />
+    <TriiiceratopsViewer
+        manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+    />
 </div>
 ```
 

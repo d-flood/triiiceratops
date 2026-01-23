@@ -462,7 +462,7 @@ export class ViewerState {
 
                     let canvasIndex = -1;
                     let bounds: number[] | null = null;
-                    let allBounds: number[][] = [];
+                    const allBounds: number[][] = [];
 
                     for (const annoId of annotations) {
                         const annotation = resources.find(
