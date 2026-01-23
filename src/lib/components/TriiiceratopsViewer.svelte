@@ -9,8 +9,7 @@
     import CanvasNavigation from './CanvasNavigation.svelte';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
-    import FloatingMenu from './FloatingMenu.svelte';
-    import LeftFab from './LeftFab.svelte';
+    import Toolbar from './Toolbar.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import { m, language } from '../state/i18n.svelte';
@@ -412,7 +411,7 @@
         <!-- Top Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
             <div
-                class="flex-none h-[160px] w-full pointer-events-auto relative z-20"
+                class="flex-none h-40 w-full pointer-events-auto relative z-20"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -456,13 +455,8 @@
             <AnnotationOverlay />
             <MetadataDialog />
 
-            <!-- Floating Menu / FABs -->
-            {#if internalViewerState.showRightMenu}
-                <FloatingMenu />
-            {/if}
-            {#if internalViewerState.showLeftMenu}
-                <LeftFab />
-            {/if}
+            <!-- Floating Toolbar (Replaced Unified Side Menu) -->
+            <Toolbar />
 
             <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
@@ -490,7 +484,7 @@
         <!-- Bottom Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
             <div
-                class="flex-none h-[160px] w-full pointer-events-auto relative z-20"
+                class="flex-none h-40 w-full pointer-events-auto relative z-20"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -515,7 +509,7 @@
             class="flex-none flex flex-row z-20 transition-all {internalViewerState
                 .config.transparentBackground
                 ? ''
-                : 'bg-base-200 border-l border-base-300'}"
+                : 'bg-base-100'}"
         >
             <!-- Search Panel -->
             {#if internalViewerState.showSearchPanel && internalViewerState.config.search?.position !== 'left'}
