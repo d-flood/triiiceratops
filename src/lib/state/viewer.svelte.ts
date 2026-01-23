@@ -14,6 +14,7 @@ export interface ViewerStateSnapshot {
     showAnnotations: boolean;
     showThumbnailGallery: boolean;
     showSearchPanel: boolean;
+    toolbarOpen: boolean;
     searchQuery: string;
     isFullScreen: boolean;
     dockSide: string;
@@ -24,6 +25,7 @@ export class ViewerState {
     canvasId: string | null = $state(null);
     showAnnotations = $state(false);
     showThumbnailGallery = $state(false);
+    toolbarOpen = $state(false);
     isGalleryDockedBottom = $state(false);
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
@@ -35,14 +37,14 @@ export class ViewerState {
     config: ViewerConfig = $state({});
 
     // Derived configuration specific getters
-    get showRightMenu() {
-        return this.config.showRightMenu ?? true;
-    }
-    get showLeftMenu() {
-        return this.config.showLeftMenu ?? true;
+    get showToggle() {
+        return this.config.showToggle ?? true;
     }
     get showCanvasNav() {
         return this.config.showCanvasNav ?? true;
+    }
+    get showZoomControls() {
+        return this.config.showZoomControls ?? true;
     }
 
     // Gallery State (Lifted for persistence during re-docking)
@@ -98,6 +100,7 @@ export class ViewerState {
             showAnnotations: this.showAnnotations,
             showThumbnailGallery: this.showThumbnailGallery,
             showSearchPanel: this.showSearchPanel,
+            toolbarOpen: this.toolbarOpen,
             searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
             dockSide: this.dockSide,
@@ -208,6 +211,20 @@ export class ViewerState {
         }
     }
 
+    zoomIn() {
+        if (this.osdViewer && this.osdViewer.viewport) {
+            this.osdViewer.viewport.zoomBy(1.2);
+            this.osdViewer.viewport.applyConstraints();
+        }
+    }
+
+    zoomOut() {
+        if (this.osdViewer && this.osdViewer.viewport) {
+            this.osdViewer.viewport.zoomBy(0.8);
+            this.osdViewer.viewport.applyConstraints();
+        }
+    }
+
     setManifest(manifestId: string) {
         this.manifestId = manifestId;
         this.canvasId = null;
@@ -225,6 +242,10 @@ export class ViewerState {
         this.config = newConfig;
 
         // Sync state from config
+        if (newConfig.toolbarOpen !== undefined) {
+            this.toolbarOpen = newConfig.toolbarOpen;
+        }
+
         if (newConfig.gallery) {
             if (newConfig.gallery.open !== undefined) {
                 this.showThumbnailGallery = newConfig.gallery.open;
@@ -265,6 +286,11 @@ export class ViewerState {
 
     toggleAnnotations() {
         this.showAnnotations = !this.showAnnotations;
+        this.dispatchStateChange();
+    }
+
+    toggleToolbar() {
+        this.toolbarOpen = !this.toolbarOpen;
         this.dispatchStateChange();
     }
 
@@ -368,7 +394,7 @@ export class ViewerState {
                     service = services.find(
                         (s: any) =>
                             s.profile ===
-                            'http://iiif.io/api/search/1/search' ||
+                                'http://iiif.io/api/search/1/search' ||
                             s.profile === 'http://iiif.io/api/search/0/search',
                     );
                 }
@@ -575,8 +601,8 @@ export class ViewerState {
                         hit.allBounds && hit.allBounds.length > 0
                             ? hit.allBounds
                             : hit.bounds
-                                ? [hit.bounds]
-                                : [];
+                              ? [hit.bounds]
+                              : [];
 
                     return boundsArray.map((bounds: number[]) => {
                         const on = `${canvas.id}#xywh=${bounds.join(',')}`;

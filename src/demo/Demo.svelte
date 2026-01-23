@@ -14,10 +14,11 @@
     let canvasId = $state(urlParams.get('canvas') || '');
 
     const defaultConfig = {
-        showRightMenu: true,
-        showLeftMenu: true,
+        showToggle: true,
+        toolbarOpen: false,
         showCanvasNav: true,
-        rightMenu: {
+        showZoomControls: true,
+        toolbar: {
             showSearch: true,
             showGallery: true,
             showAnnotations: true,
@@ -212,6 +213,11 @@
                         hasChanges = true;
                     }
 
+                    if (config.toolbarOpen !== state.toolbarOpen) {
+                        config.toolbarOpen = state.toolbarOpen;
+                        hasChanges = true;
+                    }
+
                     if (hasChanges) {
                         config.gallery = newGallery;
                         config.search = newSearch;
@@ -245,6 +251,7 @@
         config.gallery.dockPosition = svelteViewerState.dockSide as any;
         config.search.open = svelteViewerState.showSearchPanel;
         config.annotations.open = svelteViewerState.showAnnotations;
+        config.toolbarOpen = svelteViewerState.toolbarOpen;
 
         // Sync canvas ID back to the dropdown
         if (
