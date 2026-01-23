@@ -60,7 +60,6 @@ export class ViewerState {
         this.config.twoPageMode = value;
     }
 
-
     // Gallery State (Lifted for persistence during re-docking)
     galleryPosition = $state({ x: 20, y: 100 });
     gallerySize = $state({ width: 300, height: 400 });
@@ -218,7 +217,10 @@ export class ViewerState {
         if (this.hasNext) {
             if (this.twoPageMode) {
                 // the next page from the cover is one page away, otherwise we want to skip a page
-                const nextIndex = this.currentCanvasIndex == 0 ? this.currentCanvasIndex + 1 : this.currentCanvasIndex + 2;
+                const nextIndex =
+                    this.currentCanvasIndex == 0
+                        ? this.currentCanvasIndex + 1
+                        : this.currentCanvasIndex + 2;
                 const canvas = this.canvases[nextIndex];
                 this.setCanvas(canvas.id);
             } else {
@@ -226,7 +228,6 @@ export class ViewerState {
                 const canvas = this.canvases[nextIndex];
                 this.setCanvas(canvas.id);
             }
-            
         }
     }
 
@@ -407,15 +408,14 @@ export class ViewerState {
             const nextIndex = currentIndex + 1;
             if (nextIndex < this.canvases.length) {
                 const nextCanvas = this.canvases[nextIndex];
-                const nextCanvasId =
-                    nextCanvas.id ||
-                    nextCanvas['@id']
-                const xOffset = 1.025 // account for small gap between pages
-                const annoOffset =  this.canvases[currentIndex].getWidth()*xOffset;
+                const nextCanvasId = nextCanvas.id || nextCanvas['@id'];
+                const xOffset = 1.025; // account for small gap between pages
+                const annoOffset =
+                    this.canvases[currentIndex].getWidth() * xOffset;
                 const nextAnnotations = this.searchAnnotations.filter(
                     (a) => a.canvasId === nextCanvasId,
                 );
-                
+
                 // update x coordinates for display on the right side in two-page mode
                 const nextAnnotationsUpdated = nextAnnotations.map((a) => {
                     const parts = a.on.split('#xywh=');
@@ -423,7 +423,7 @@ export class ViewerState {
                     const shiftedX = coords[0] + annoOffset;
                     return {
                         ...a,
-                        on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`
+                        on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
                     };
                 });
                 annotations = annotations.concat(nextAnnotationsUpdated);
@@ -434,7 +434,6 @@ export class ViewerState {
                 (a) => a.canvasId === this.canvasId,
             );
         }
-        
     }
 
     async search(query: string) {
