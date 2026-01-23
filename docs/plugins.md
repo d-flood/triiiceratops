@@ -337,17 +337,17 @@ The `viewerState` context provides access to:
 
 And methods:
 
-| Method                  | Description                         |
-| ----------------------- | ----------------------------------- |
-| `nextCanvas()`          | Navigate to the next canvas         |
-| `previousCanvas()`      | Navigate to the previous canvas     |
-| `setCanvas(id)`         | Navigate to a specific canvas by ID |
-| `setManifest(id)`       | Load a new manifest                 |
-| `toggleFullScreen()`    | Toggle fullscreen mode              |
-| `toggleAnnotations()`   | Toggle annotation visibility        |
-| `toggleThumbnailGallery()` | Toggle thumbnail gallery         |
-| `toggleSearchPanel()`   | Toggle search panel                 |
-| `search(query)`         | Perform a search (async)            |
+| Method                     | Description                         |
+| -------------------------- | ----------------------------------- |
+| `nextCanvas()`             | Navigate to the next canvas         |
+| `previousCanvas()`         | Navigate to the previous canvas     |
+| `setCanvas(id)`            | Navigate to a specific canvas by ID |
+| `setManifest(id)`          | Load a new manifest                 |
+| `toggleFullScreen()`       | Toggle fullscreen mode              |
+| `toggleAnnotations()`      | Toggle annotation visibility        |
+| `toggleThumbnailGallery()` | Toggle thumbnail gallery            |
+| `toggleSearchPanel()`      | Toggle search panel                 |
+| `search(query)`            | Perform a search (async)            |
 
 ### Registering Your Custom Plugin
 

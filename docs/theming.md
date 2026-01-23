@@ -12,8 +12,8 @@ If you just want it to look good out of the box, use one of the 35 pre-built Dai
 
 ### Available Themes
 
-| Light Themes | Dark Themes | Special Themes |
-| :--- | :--- | :--- |
+| Light Themes                                                                                                                                                           | Dark Themes                                                                                                                       | Special Themes                                                 |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------- |
 | `light`, `cupcake`, `bumblebee`, `emerald`, `corporate`, `garden`, `lofi`, `pastel`, `fantasy`, `autumn`, `lemonade`, `winter`, `nord`, `aqua`, `caramellatte`, `silk` | `dark`, `synthwave`, `halloween`, `forest`, `black`, `luxury`, `dracula`, `night`, `coffee`, `dim`, `abyss`, `sunset`, `business` | `cyberpunk`, `retro`, `valentine`, `wireframe`, `cmyk`, `acid` |
 
 ### Usage
@@ -21,8 +21,8 @@ If you just want it to look good out of the box, use one of the 35 pre-built Dai
 === "Web Component"
 
     ```html
-    <triiiceratops-viewer 
-        manifest-id="..." 
+    <triiiceratops-viewer
+        manifest-id="..."
         theme="dark"
     ></triiiceratops-viewer>
     ```
@@ -33,12 +33,12 @@ If you just want it to look good out of the box, use one of the 35 pre-built Dai
     <script>
         import { TriiiceratopsViewer } from 'triiiceratops';
         // Essential: Import the library styles!
-        import 'triiiceratops/style.css'; 
+        import 'triiiceratops/style.css';
     </script>
 
-    <TriiiceratopsViewer 
-        manifestId="..." 
-        theme="dracula" 
+    <TriiiceratopsViewer
+        manifestId="..."
+        theme="dracula"
     />
     ```
 
@@ -56,56 +56,56 @@ The `themeConfig` object allows you to override the following properties:
 
 These control the main UI elements. Colors can be **Hex** (`#3b82f6`), **RGB** (`rgb(59, 130, 246)`), or **OKLCH** (`oklch(60% 0.25 250)`).
 
-| Keyword | Description | CSS Variable |
-| :--- | :--- | :--- |
-| `primary` | Primary brand color (buttons, active states) | `--color-primary` |
-| `primaryContent` | Text color on primary background | `--color-primary-content` |
-| `secondary` | Secondary brand color | `--color-secondary` |
-| `secondaryContent` | Text color on secondary background | `--color-secondary-content` |
-| `accent` | Accent brand color | `--color-accent` |
-| `accentContent` | Text color on accent background | `--color-accent-content` |
-| `neutral` | Neutral/Dark color (headers, footers) | `--color-neutral` |
-| `neutralContent` | Text color on neutral background | `--color-neutral-content` |
+| Keyword            | Description                                  | CSS Variable                |
+| :----------------- | :------------------------------------------- | :-------------------------- |
+| `primary`          | Primary brand color (buttons, active states) | `--color-primary`           |
+| `primaryContent`   | Text color on primary background             | `--color-primary-content`   |
+| `secondary`        | Secondary brand color                        | `--color-secondary`         |
+| `secondaryContent` | Text color on secondary background           | `--color-secondary-content` |
+| `accent`           | Accent brand color                           | `--color-accent`            |
+| `accentContent`    | Text color on accent background              | `--color-accent-content`    |
+| `neutral`          | Neutral/Dark color (headers, footers)        | `--color-neutral`           |
+| `neutralContent`   | Text color on neutral background             | `--color-neutral-content`   |
 
 #### Base Colors (Backgrounds)
 
-| Keyword | Description | CSS Variable |
-| :--- | :--- | :--- |
-| `base100` | Main background color (canvas, panel) | `--color-base-100` |
-| `base200` | Secondary background (sidebars, cards) | `--color-base-200` |
-| `base300` | Tertiary background (inputs, borders) | `--color-base-300` |
-| `baseContent` | Default text color | `--color-base-content` |
+| Keyword       | Description                            | CSS Variable           |
+| :------------ | :------------------------------------- | :--------------------- |
+| `base100`     | Main background color (canvas, panel)  | `--color-base-100`     |
+| `base200`     | Secondary background (sidebars, cards) | `--color-base-200`     |
+| `base300`     | Tertiary background (inputs, borders)  | `--color-base-300`     |
+| `baseContent` | Default text color                     | `--color-base-content` |
 
 #### State Colors
 
-| Keyword | Description | CSS Variable |
-| :--- | :--- | :--- |
-| `info` | Info alerts/badges | `--color-info` |
-| `infoContent` | Text on info background | `--color-info-content` |
-| `success` | Success alerts/badges | `--color-success` |
+| Keyword          | Description                | CSS Variable              |
+| :--------------- | :------------------------- | :------------------------ |
+| `info`           | Info alerts/badges         | `--color-info`            |
+| `infoContent`    | Text on info background    | `--color-info-content`    |
+| `success`        | Success alerts/badges      | `--color-success`         |
 | `successContent` | Text on success background | `--color-success-content` |
-| `warning` | Warning alerts/badges | `--color-warning` |
+| `warning`        | Warning alerts/badges      | `--color-warning`         |
 | `warningContent` | Text on warning background | `--color-warning-content` |
-| `error` | Error alerts/badges | `--color-error` |
-| `errorContent` | Text on error background | `--color-error-content` |
+| `error`          | Error alerts/badges        | `--color-error`           |
+| `errorContent`   | Text on error background   | `--color-error-content`   |
 
 #### UI Shape & Sizing
 
-| Keyword | Description | CSS Variable | Example |
-| :--- | :--- | :--- | :--- |
-| `radiusBox` | Radius for large containers (cards, modals) | `--radius-box` | `1rem` |
-| `radiusField` | Radius for inputs and buttons | `--radius-field` | `0.5rem` |
-| `radiusSelector` | Radius for small selectors (checkboxes) | `--radius-selector` | `0.25rem` |
-| `sizeField` | Base padding/size for inputs | `--size-field` | `0.25rem` |
-| `sizeSelector` | Base padding/size for selectors | `--size-selector` | `0.25rem` |
-| `border` | Border width | `--border` | `1px` |
+| Keyword          | Description                                 | CSS Variable        | Example   |
+| :--------------- | :------------------------------------------ | :------------------ | :-------- |
+| `radiusBox`      | Radius for large containers (cards, modals) | `--radius-box`      | `1rem`    |
+| `radiusField`    | Radius for inputs and buttons               | `--radius-field`    | `0.5rem`  |
+| `radiusSelector` | Radius for small selectors (checkboxes)     | `--radius-selector` | `0.25rem` |
+| `sizeField`      | Base padding/size for inputs                | `--size-field`      | `0.25rem` |
+| `sizeSelector`   | Base padding/size for selectors             | `--size-selector`   | `0.25rem` |
+| `border`         | Border width                                | `--border`          | `1px`     |
 
 #### Effects
 
-| Keyword | Description | CCS Variable | Example |
-| :--- | :--- | :--- | :--- |
-| `depth` | Enable drop shadows? (1 = yes, 0 = no) | `--depth` | `1` |
-| `noise` | Enable noise texture? (1 = yes, 0 = no) | `--noise` | `0` |
+| Keyword | Description                             | CCS Variable | Example |
+| :------ | :-------------------------------------- | :----------- | :------ |
+| `depth` | Enable drop shadows? (1 = yes, 0 = no)  | `--depth`    | `1`     |
+| `noise` | Enable noise texture? (1 = yes, 0 = no) | `--noise`    | `0`     |
 
 ### Example Usage
 
@@ -148,14 +148,14 @@ These control the main UI elements. Colors can be **Hex** (`#3b82f6`), **RGB** (
         import { TriiiceratopsViewer } from 'triiiceratops';
         import 'triiiceratops/style.css';
         import type { ThemeConfig } from 'triiiceratops';
-    
+
         const customTheme: ThemeConfig = {
             primary: '#0ea5e9',
             secondary: '#6366f1',
             radiusBox: '1rem',
         };
     </script>
-    
+
     <TriiiceratopsViewer manifestId="..." theme="light" themeConfig={customTheme} />
     ```
 
@@ -176,7 +176,7 @@ Instead, you can use the `@source` directive to tell your Tailwind compiler to s
 2. **Configure CSS**: In your main CSS file (e.g., `src/app.css`):
 
 ```css
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* 
    Tell Tailwind to scan the Triiiceratops library in node_modules.
@@ -191,22 +191,25 @@ Instead, you can use the `@source` directive to tell your Tailwind compiler to s
     exclude: rootcolor, rootstyle, reset, scrollbar, viewport;
     root: '#triiiceratops-viewer';
     /* Define which themes you want available */
-    themes: light --default, dark --prefersdark, my-custom-theme;
+    themes:
+        light --default,
+        dark --prefersdark,
+        my-custom-theme;
 }
 
 /* Now you can define a custom theme in pure CSS! */
 @theme my-custom-theme {
     --color-primary: oklch(65% 0.25 260); /* Purple */
     --color-secondary: oklch(80% 0.1 50); /* Orange */
-    --radius-box: 0px;                    /* Square corners */
+    --radius-box: 0px; /* Square corners */
 }
 ```
 
 3. **Consume the Component**:
-    import `TriiiceratopsViewer` as usual, but **DO NOT** import `style.css`.
+   import `TriiiceratopsViewer` as usual, but **DO NOT** import `style.css`.
 
 4. **Apply Your Theme**:
-    You can now apply your custom theme using standard CSS inheritance or the `data-theme` attribute on a parent container.
+   You can now apply your custom theme using standard CSS inheritance or the `data-theme` attribute on a parent container.
 
 ```html
 <!-- src/routes/+page.svelte -->
@@ -216,4 +219,4 @@ Instead, you can use the `@source` directive to tell your Tailwind compiler to s
 </div>
 ```
 
-This efficiently builds the viewer's styles into *your* application's stylesheet.
+This efficiently builds the viewer's styles into _your_ application's stylesheet.
