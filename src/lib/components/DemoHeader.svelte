@@ -273,16 +273,6 @@
                         />
                     </label>
                 </li>
-                <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text">{m.two_page_mode()}</span>
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-sm"
-                            bind:checked={config.twoPageMode}
-                        />
-                    </label>
-                </li>
 
                 <div class="divider my-1"></div>
 
@@ -442,6 +432,49 @@
                                                 e.currentTarget.checked;
                                         }}
                                     />
+                                </label>
+                            </li>
+                            <li>
+                                <label class="label cursor-pointer py-1">
+                                    <span class="label-text"
+                                        >{m.settings_toggle_show_viewing_mode()}</span
+                                    >
+                                    <input
+                                        type="checkbox"
+                                        class="checkbox checkbox-xs"
+                                        checked={config.toolbar
+                                            ?.showViewingMode ?? true}
+                                        onchange={(e) => {
+                                            if (!config.toolbar)
+                                                config.toolbar = {};
+                                            config.toolbar.showViewingMode =
+                                                e.currentTarget.checked;
+                                        }}
+                                    />
+                                </label>
+                            </li>
+                            <li>
+                                <label class="label cursor-pointer py-1">
+                                    <span class="label-text"
+                                        >{m.viewing_mode_label()}</span
+                                    >
+                                    <select
+                                        class="select select-bordered select-xs"
+                                        value={config.viewingMode ??
+                                            'individuals'}
+                                        onchange={(e) => {
+                                            config.viewingMode = (
+                                                e.currentTarget as HTMLSelectElement
+                                            ).value as 'individuals' | 'paged';
+                                        }}
+                                    >
+                                        <option value="individuals"
+                                            >{m.viewing_mode_individuals()}</option
+                                        >
+                                        <option value="paged"
+                                            >{m.viewing_mode_paged()}</option
+                                        >
+                                    </select>
                                 </label>
                             </li>
                         </ul>

@@ -98,6 +98,11 @@ export interface ToolbarConfig {
      * @default true
      */
     showFullscreen?: boolean;
+    /**
+     * Whether the Viewing Mode button/menu is shown in this menu.
+     * @default true
+     */
+    showViewingMode?: boolean;
 }
 
 export interface ViewerConfig {
@@ -108,16 +113,12 @@ export interface ViewerConfig {
     showCanvasNav?: boolean;
 
     /**
-     * Whether to show the two-page mode toggle button.
-     * @default true
+     * The viewing mode for the viewer.
+     * 'individuals' = Single canvas view
+     * 'paged' = Dual canvas view (book view)
+     * @default 'individuals'
      */
-    showModeToggle?: boolean;
-
-    /**
-     * Whether to display pages in two page spreads after the cover.
-     * @default false
-     */
-    twoPageMode?: boolean;
+    viewingMode?: 'individuals' | 'paged';
 
     /**
      * Whether to show the zoom controls in the canvas navigation.

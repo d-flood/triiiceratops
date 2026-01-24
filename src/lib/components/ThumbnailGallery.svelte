@@ -322,7 +322,7 @@
     }
 
     function selectCanvas(canvasId: string) {
-        if (viewerState.twoPageMode) {
+        if (viewerState.viewingMode === 'paged') {
             const canvasIndex = thumbnails.findIndex((t) => t.id === canvasId);
             if (canvasIndex % 2 === 1 || canvasIndex === 0) {
                 viewerState.setCanvas(canvasId);
@@ -458,7 +458,7 @@
     // Grouped thumbnail mode (for two-page mode)
     const groupedThumbnailIndices = $derived.by(() => {
         const indices: number[] = [0];
-        if (viewerState.twoPageMode && canvases) {
+        if (viewerState.viewingMode === 'paged' && canvases) {
             for (let i = 1; i < canvases.length; i += 2) {
                 indices.push(i);
             }
@@ -564,7 +564,7 @@
                     ? ''
                     : 'grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));'}
             >
-                {#if viewerState.twoPageMode}
+                {#if viewerState.viewingMode === 'paged'}
                     <!-- grouped thumbnail display -->
                     {#each groupedThumbnails as thumbGroup}
                         <button
