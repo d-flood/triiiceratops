@@ -19,7 +19,7 @@ export interface ViewerStateSnapshot {
     searchQuery: string;
     isFullScreen: boolean;
     dockSide: string;
-    twoPageMode: boolean;
+    viewingMode: 'individuals' | 'paged';
 }
 
 export class ViewerState {
@@ -49,15 +49,11 @@ export class ViewerState {
         return this.config.showZoomControls ?? true;
     }
 
-    get showModeToggle() {
-        return this.config.showModeToggle ?? true;
+    get viewingMode() {
+        return this.config.viewingMode ?? 'individuals';
     }
-
-    get twoPageMode() {
-        return this.config.twoPageMode ?? false;
-    }
-    set twoPageMode(value: boolean) {
-        this.config.twoPageMode = value;
+    set viewingMode(value: 'individuals' | 'paged') {
+        this.config.viewingMode = value;
     }
 
     // Gallery State (Lifted for persistence during re-docking)
@@ -117,7 +113,7 @@ export class ViewerState {
             searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
             dockSide: this.dockSide,
-            twoPageMode: this.twoPageMode,
+            viewingMode: this.viewingMode,
         };
     }
 
@@ -202,7 +198,7 @@ export class ViewerState {
     }
 
     get hasNext() {
-        if (this.twoPageMode) {
+        if (this.viewingMode === 'paged') {
             return this.currentCanvasIndex < this.canvases.length - 2;
         } else {
             return this.currentCanvasIndex < this.canvases.length - 1;
@@ -215,7 +211,7 @@ export class ViewerState {
 
     nextCanvas() {
         if (this.hasNext) {
-            if (this.twoPageMode) {
+            if (this.viewingMode === 'paged') {
                 // the next page from the cover is one page away, otherwise we want to skip a page
                 const nextIndex =
                     this.currentCanvasIndex == 0
@@ -233,7 +229,7 @@ export class ViewerState {
 
     previousCanvas() {
         if (this.hasPrevious) {
-            if (this.twoPageMode) {
+            if (this.viewingMode === 'paged') {
                 const prevIndex = Math.max(this.currentCanvasIndex - 2, 0);
                 const canvas = this.canvases[prevIndex];
                 this.setCanvas(canvas.id);
@@ -278,6 +274,11 @@ export class ViewerState {
         // Sync state from config
         if (newConfig.toolbarOpen !== undefined) {
             this.toolbarOpen = newConfig.toolbarOpen;
+        }
+
+        if (newConfig.viewingMode) {
+            // direct assignment works because of the setter
+            this.viewingMode = newConfig.viewingMode;
         }
 
         if (newConfig.gallery) {
@@ -367,9 +368,13 @@ export class ViewerState {
         this.showMetadataDialog = !this.showMetadataDialog;
     }
 
-    toggleTwoPageMode() {
-        this.twoPageMode = !this.twoPageMode;
-        if (this.currentCanvasIndex % 2 === 0 && this.currentCanvasIndex > 0) {
+    setViewingMode(mode: 'individuals' | 'paged') {
+        this.viewingMode = mode;
+        if (
+            mode === 'paged' &&
+            this.currentCanvasIndex % 2 === 0 &&
+            this.currentCanvasIndex > 0
+        ) {
             // If we are on a right-hand page, move back one to show the spread correctly
             const newIndex = this.currentCanvasIndex - 1;
             const canvas = this.canvases[newIndex];
@@ -400,7 +405,7 @@ export class ViewerState {
      */
     get currentCanvasSearchAnnotations() {
         if (!this.canvasId) return [];
-        if (this.twoPageMode) {
+        if (this.viewingMode === 'paged') {
             let annotations = this.searchAnnotations.filter(
                 (a) => a.canvasId === this.canvasId,
             );

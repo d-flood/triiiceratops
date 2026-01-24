@@ -13,7 +13,6 @@
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import { m, language } from '../state/i18n.svelte';
-    import ModeMenu from './ModeButton.svelte';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -235,7 +234,10 @@
 
         // Use Manifesto to get images
         let images = canvas.getImages();
-        if (internalViewerState.twoPageMode && currentCanvasIndex > 0) {
+        if (
+            internalViewerState.viewingMode === 'paged' &&
+            currentCanvasIndex > 0
+        ) {
             // In two-page mode, we may need to combine images from the next canvas
             const nextIndex = currentCanvasIndex + 1;
             if (nextIndex < canvases.length) {
@@ -474,9 +476,6 @@
 
             <!-- Floating Toolbar (Replaced Unified Side Menu) -->
             <Toolbar />
-            {#if internalViewerState.showModeToggle}
-                <ModeMenu />
-            {/if}
 
             <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}

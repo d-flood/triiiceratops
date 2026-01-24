@@ -19,16 +19,16 @@ interface ViewerConfig {
     showRightMenu?: boolean; // Default: true
     showLeftMenu?: boolean; // Default: true
     showCanvasNav?: boolean; // Default: true
-    showModeToggle?: boolean; // Default: true
-    twoPageMode?: boolean; // Defailt: false
+    viewingMode?: 'individuals' | 'paged'; // Default: 'individuals'
 
-    // Right Menu Items
-    rightMenu?: {
+    // Toolbar Settings
+    toolbar?: {
         showSearch?: boolean; // Default: true
         showGallery?: boolean; // Default: true
         showAnnotations?: boolean; // Default: true
         showFullscreen?: boolean; // Default: true
         showInfo?: boolean; // Default: true
+        showViewingMode?: boolean; // Default: true
     };
 
     // Thumbnail Gallery Settings

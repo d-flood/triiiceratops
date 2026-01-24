@@ -232,7 +232,7 @@
         if (!viewer || !tileSources) return;
 
         if (
-            viewerState.twoPageMode &&
+            viewerState.viewingMode === 'paged' &&
             tileSources instanceof Array &&
             tileSources.length === 2
         ) {
