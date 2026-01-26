@@ -234,16 +234,17 @@
 
         // Use Manifesto to get images
         let images = canvas.getImages();
-        if (
-            internalViewerState.viewingMode === 'paged' &&
-            currentCanvasIndex > 0
-        ) {
-            // In two-page mode, we may need to combine images from the next canvas
-            const nextIndex = currentCanvasIndex + 1;
-            if (nextIndex < canvases.length) {
-                const nextCanvas = canvases[nextIndex];
-                const nextImages = nextCanvas.getImages();
-                images = images.concat(nextImages);
+        if (internalViewerState.viewingMode === 'paged') {
+            // Single pages at the start: pagedOffset (default 0, shifted = 1)
+            const singlePages = internalViewerState.pagedOffset;
+            // Only show two-page spread if we're past the single pages section
+            if (currentCanvasIndex >= singlePages) {
+                const nextIndex = currentCanvasIndex + 1;
+                if (nextIndex < canvases.length) {
+                    const nextCanvas = canvases[nextIndex];
+                    const nextImages = nextCanvas.getImages();
+                    images = images.concat(nextImages);
+                }
             }
         }
 
@@ -404,7 +405,11 @@
 
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
-                <div class="h-full w-[140px] pointer-events-auto relative">
+                <div
+                    class="h-full pointer-events-auto relative"
+                    style="width: {internalViewerState.galleryFixedHeight +
+                        40}px"
+                >
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
@@ -430,7 +435,8 @@
         <!-- Top Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
             <div
-                class="flex-none h-40 w-full pointer-events-auto relative z-20"
+                class="flex-none w-full pointer-events-auto relative z-20"
+                style="height: {internalViewerState.galleryFixedHeight + 50}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -457,12 +463,7 @@
                     {manifestData.error}
                 </div>
             {:else if tileSources}
-                {#key tileSources}
-                    <OSDViewer
-                        {tileSources}
-                        viewerState={internalViewerState}
-                    />
-                {/key}
+                <OSDViewer {tileSources} viewerState={internalViewerState} />
             {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div
                     class="w-full h-full flex items-center justify-center text-base-content/50"
@@ -503,7 +504,8 @@
         <!-- Bottom Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
             <div
-                class="flex-none h-40 w-full pointer-events-auto relative z-20"
+                class="flex-none w-full pointer-events-auto relative z-20"
+                style="height: {internalViewerState.galleryFixedHeight + 50}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -539,7 +541,11 @@
 
             <!-- Gallery (when docked right) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
-                <div class="h-full w-[140px] pointer-events-auto relative">
+                <div
+                    class="h-full pointer-events-auto relative"
+                    style="width: {internalViewerState.galleryFixedHeight +
+                        40}px"
+                >
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}

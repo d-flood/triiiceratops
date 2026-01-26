@@ -61,6 +61,28 @@
     };
     let galleryElement: HTMLElement | null = $state(null);
 
+    // Initialize position and size from config if available (only once on mount)
+    $effect(() => {
+        if (
+            viewerState.config.gallery?.width &&
+            viewerState.config.gallery?.height
+        ) {
+            viewerState.gallerySize = {
+                width: viewerState.config.gallery.width,
+                height: viewerState.config.gallery.height,
+            };
+        }
+        if (
+            viewerState.config.gallery?.x !== undefined &&
+            viewerState.config.gallery?.y !== undefined
+        ) {
+            viewerState.galleryPosition = {
+                x: viewerState.config.gallery.x,
+                y: viewerState.config.gallery.y,
+            };
+        }
+    });
+
     // Generate thumbnail data
     let thumbnails = $derived.by(() => {
         if (!canvases || !Array.isArray(canvases))
@@ -324,11 +346,20 @@
     function selectCanvas(canvasId: string) {
         if (viewerState.viewingMode === 'paged') {
             const canvasIndex = thumbnails.findIndex((t) => t.id === canvasId);
-            if (canvasIndex % 2 === 1 || canvasIndex === 0) {
+            const singlePages = viewerState.pagedOffset;
+            // If within single pages section, select directly
+            if (canvasIndex < singlePages) {
                 viewerState.setCanvas(canvasId);
             } else {
-                const prevCanvas = thumbnails[canvasIndex - 1];
-                viewerState.setCanvas(prevCanvas.id);
+                // Check if this is a left-hand page (start of a pair)
+                const pairPosition = (canvasIndex - singlePages) % 2;
+                if (pairPosition === 0) {
+                    viewerState.setCanvas(canvasId);
+                } else {
+                    // Right-hand page, select the left page of this pair
+                    const prevCanvas = thumbnails[canvasIndex - 1];
+                    viewerState.setCanvas(prevCanvas.id);
+                }
             }
         } else {
             viewerState.setCanvas(canvasId);
@@ -394,6 +425,8 @@
             (dockSide === 'none' && viewerState.gallerySize.height < 320),
     );
 
+    let fixedHeight = $derived(viewerState.galleryFixedHeight);
+
     function startDrag(e: MouseEvent) {
         if (!draggable) return; // Dragging disabled in config
         if ((e.target as HTMLElement).closest('.resize-handle')) return; // Don't drag if resizing
@@ -457,9 +490,16 @@
 
     // Grouped thumbnail mode (for two-page mode)
     const groupedThumbnailIndices = $derived.by(() => {
-        const indices: number[] = [0];
+        const indices: number[] = [];
         if (viewerState.viewingMode === 'paged' && canvases) {
-            for (let i = 1; i < canvases.length; i += 2) {
+            // Single pages at the start: pagedOffset (default 0, shifted = 1)
+            const singlePages = viewerState.pagedOffset;
+            // Add indices for single pages
+            for (let i = 0; i < singlePages && i < canvases.length; i++) {
+                indices.push(i);
+            }
+            // Add indices for paired pages (step by 2 starting from singlePages)
+            for (let i = singlePages; i < canvases.length; i += 2) {
                 indices.push(i);
             }
         }
@@ -474,9 +514,11 @@
             index: number;
         }> = [];
         const thumbs = thumbnails;
+        const singlePages = viewerState.pagedOffset;
         for (const i of groupedThumbnailIndices) {
             const first = thumbs[i];
-            const second = i === 0 ? null : thumbs[i + 1];
+            // Only pair if we're past the single pages section
+            const second = i < singlePages ? null : thumbs[i + 1];
             const groupId = first.id;
             const groupLabel = first.label;
             const groupSrcs = [first.src];
@@ -562,46 +604,85 @@
                     : 'grid gap-2'}
                 style={isHorizontal
                     ? ''
-                    : 'grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));'}
+                    : `grid-template-columns: repeat(auto-fill, minmax(${fixedHeight}px, 1fr));`}
             >
                 {#if viewerState.viewingMode === 'paged'}
                     <!-- grouped thumbnail display -->
                     {#each groupedThumbnails as thumbGroup}
                         <button
                             class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
-                                ? 'w-[90px]'
-                                : ''} {viewerState.canvasId === thumbGroup.id
+                                ? 'w-auto'
+                                : thumbGroup.srcs.length > 1
+                                  ? 'col-span-2'
+                                  : ''} {viewerState.canvasId === thumbGroup.id
                                 ? 'ring-2 ring-primary bg-primary/5'
                                 : ''}"
+                            style={isHorizontal
+                                ? `height: ${fixedHeight + 24}px`
+                                : ''}
                             onclick={() => selectCanvas(thumbGroup.id)}
                             data-id={thumbGroup.id}
                             aria-label="Select canvas {thumbGroup.label}"
                         >
                             <div
-                                class="aspect-3/4 bg-base-300 rounded overflow-hidden relative w-full flex items-center justify-center"
+                                class="{isHorizontal
+                                    ? 'h-full w-auto flex-row'
+                                    : thumbGroup.srcs.length > 1
+                                      ? 'aspect-3/2 w-full'
+                                      : 'aspect-3/4 w-full'} bg-base-300 rounded overflow-hidden relative flex items-center justify-center gap-px"
+                                style={isHorizontal
+                                    ? `height: ${fixedHeight}px`
+                                    : ''}
                             >
+                                <div
+                                    class="flex items-center justify-center overflow-hidden {isHorizontal
+                                        ? 'h-full w-auto'
+                                        : 'h-full ' +
+                                          (thumbGroup.srcs.length > 1
+                                              ? 'w-1/2'
+                                              : 'w-full')}"
                                 >
-                                {#if thumbGroup.srcs[0]}
-                                    <img
-                                        src={thumbGroup.srcs[0]}
-                                        alt={thumbGroup.label}
-                                        class="object-contain w-full h-full"
-                                        loading="lazy"
-                                        draggable="false"
-                                    />
-                                {:else}
-                                    <span class="opacity-20 text-4xl">?</span>
-                                {/if}
-                                {#if thumbGroup.srcs[1]}
-                                    <img
-                                        src={thumbGroup.srcs[1]}
-                                        alt={thumbGroup.label}
-                                        class="object-contain w-full h-full"
-                                        loading="lazy"
-                                        draggable="false"
-                                    />
-                                {:else}
-                                    <span class="opacity-20 text-4xl">?</span>
+                                    {#if thumbGroup.srcs[0]}
+                                        <img
+                                            src={thumbGroup.srcs[0]}
+                                            alt={thumbGroup.label}
+                                            class="object-contain {isHorizontal
+                                                ? 'h-full w-auto'
+                                                : 'w-full h-full'} {thumbGroup
+                                                .srcs.length > 1
+                                                ? 'object-right'
+                                                : 'object-center'}"
+                                            loading="lazy"
+                                            draggable="false"
+                                        />
+                                    {:else}
+                                        <span class="opacity-20 text-4xl"
+                                            >?</span
+                                        >
+                                    {/if}
+                                </div>
+                                {#if thumbGroup.srcs.length > 1}
+                                    <div
+                                        class="flex items-center justify-center overflow-hidden {isHorizontal
+                                            ? 'h-full w-auto'
+                                            : 'h-full w-1/2'}"
+                                    >
+                                        {#if thumbGroup.srcs[1]}
+                                            <img
+                                                src={thumbGroup.srcs[1]}
+                                                alt={thumbGroup.label}
+                                                class="object-contain {isHorizontal
+                                                    ? 'h-full w-auto'
+                                                    : 'w-full h-full'} object-left"
+                                                loading="lazy"
+                                                draggable="false"
+                                            />
+                                        {:else}
+                                            <span class="opacity-20 text-4xl"
+                                                >?</span
+                                            >
+                                        {/if}
+                                    </div>
                                 {/if}
                             </div>
                             <div
@@ -618,22 +699,32 @@
                     {#each thumbnails as thumb}
                         <button
                             class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
-                                ? 'w-[90px]'
+                                ? 'w-auto'
                                 : ''} {viewerState.canvasId === thumb.id
                                 ? 'ring-2 ring-primary bg-primary/5'
                                 : ''}"
+                            style={isHorizontal
+                                ? `height: ${fixedHeight + 24}px`
+                                : ''}
                             onclick={() => selectCanvas(thumb.id)}
                             data-id={thumb.id}
                             aria-label="Select canvas {thumb.label}"
                         >
                             <div
-                                class="aspect-3/4 bg-base-300 rounded overflow-hidden relative w-full flex items-center justify-center"
+                                class="{isHorizontal
+                                    ? 'h-full w-auto'
+                                    : 'aspect-3/4 w-full'} bg-base-300 rounded overflow-hidden relative flex items-center justify-center"
+                                style={isHorizontal
+                                    ? `height: ${fixedHeight}px`
+                                    : ''}
                             >
                                 {#if thumb.src}
                                     <img
                                         src={thumb.src}
                                         alt={thumb.label}
-                                        class="object-contain w-full h-full"
+                                        class="object-contain {isHorizontal
+                                            ? 'h-full w-auto'
+                                            : 'w-full h-full'}"
                                         loading="lazy"
                                         draggable="false"
                                     />

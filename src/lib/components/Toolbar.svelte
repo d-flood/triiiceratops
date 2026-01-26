@@ -207,7 +207,7 @@
                     </div>
                     <ul
                         tabindex="-1"
-                        class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-40 border border-base-200 font-normal {isTop
+                        class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-48 border border-base-200 font-normal {isTop
                             ? 'left-1/2 -translate-x-1/2'
                             : ''}"
                     >
@@ -235,6 +235,23 @@
                                 {m.viewing_mode_paged()}
                             </button>
                         </li>
+                        {#if viewerState.viewingMode === 'paged'}
+                            <div class="divider my-1"></div>
+                            <li>
+                                <label class="label cursor-pointer py-1 gap-2">
+                                    <span class="label-text text-sm"
+                                        >{m.viewing_mode_shift_pairing()}</span
+                                    >
+                                    <input
+                                        type="checkbox"
+                                        class="checkbox checkbox-sm"
+                                        checked={viewerState.pagedOffset === 1}
+                                        onchange={() =>
+                                            viewerState.togglePagedOffset()}
+                                    />
+                                </label>
+                            </li>
+                        {/if}
                     </ul>
                 </li>
             {/if}

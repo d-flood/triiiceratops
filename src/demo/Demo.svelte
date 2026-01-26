@@ -201,6 +201,16 @@
                         newGallery.dockPosition = state.dockSide as any;
                         hasChanges = true;
                     }
+                    if (state.gallerySize && state.dockSide === 'none') {
+                        newGallery.width = state.gallerySize.width;
+                        newGallery.height = state.gallerySize.height;
+                        hasChanges = true;
+                    }
+                    if (state.galleryPosition && state.dockSide === 'none') {
+                        newGallery.x = state.galleryPosition.x;
+                        newGallery.y = state.galleryPosition.y;
+                        hasChanges = true;
+                    }
 
                     const newSearch = { ...config.search };
                     if (newSearch.open !== state.showSearchPanel) {
