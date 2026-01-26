@@ -19,6 +19,9 @@ export interface ViewerStateSnapshot {
     searchQuery: string;
     isFullScreen: boolean;
     dockSide: string;
+    viewingMode: 'individuals' | 'paged';
+    galleryPosition: { x: number; y: number };
+    gallerySize: { width: number; height: number };
 }
 
 export class ViewerState {
@@ -47,6 +50,20 @@ export class ViewerState {
     get showZoomControls() {
         return this.config.showZoomControls ?? true;
     }
+
+    get galleryFixedHeight() {
+        return this.config.gallery?.fixedHeight ?? 120;
+    }
+
+    get viewingMode() {
+        return this.config.viewingMode ?? 'individuals';
+    }
+    set viewingMode(value: 'individuals' | 'paged') {
+        this.config.viewingMode = value;
+    }
+
+    // Pairing offset for paged mode: 0 = default (pairs start at 1+2), 1 = shifted (page 1 alone, pairs start at 2+3)
+    pagedOffset = $state(0);
 
     // Gallery State (Lifted for persistence during re-docking)
     galleryPosition = $state({ x: 20, y: 100 });
@@ -105,6 +122,9 @@ export class ViewerState {
             searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
             dockSide: this.dockSide,
+            viewingMode: this.viewingMode,
+            galleryPosition: this.galleryPosition,
+            gallerySize: this.gallerySize,
         };
     }
 
@@ -189,7 +209,16 @@ export class ViewerState {
     }
 
     get hasNext() {
-        return this.currentCanvasIndex < this.canvases.length - 1;
+        if (this.viewingMode === 'paged') {
+            // Account for paged offset: with offset 1, page 1 is single, pairs start at 2+3
+            const singlePages = this.pagedOffset;
+            if (this.currentCanvasIndex < singlePages) {
+                return this.currentCanvasIndex < this.canvases.length - 1;
+            }
+            return this.currentCanvasIndex < this.canvases.length - 2;
+        } else {
+            return this.currentCanvasIndex < this.canvases.length - 1;
+        }
     }
 
     get hasPrevious() {
@@ -198,17 +227,46 @@ export class ViewerState {
 
     nextCanvas() {
         if (this.hasNext) {
-            const nextIndex = this.currentCanvasIndex + 1;
-            const canvas = this.canvases[nextIndex];
-            this.setCanvas(canvas.id);
+            if (this.viewingMode === 'paged') {
+                // Single pages at the start: pagedOffset (default 0, shifted = 1)
+                const singlePages = this.pagedOffset;
+                const nextIndex =
+                    this.currentCanvasIndex < singlePages
+                        ? this.currentCanvasIndex + 1
+                        : this.currentCanvasIndex + 2;
+                const canvas = this.canvases[nextIndex];
+                this.setCanvas(canvas.id);
+            } else {
+                const nextIndex = this.currentCanvasIndex + 1;
+                const canvas = this.canvases[nextIndex];
+                this.setCanvas(canvas.id);
+            }
         }
     }
 
     previousCanvas() {
         if (this.hasPrevious) {
-            const prevIndex = this.currentCanvasIndex - 1;
-            const canvas = this.canvases[prevIndex];
-            this.setCanvas(canvas.id);
+            if (this.viewingMode === 'paged') {
+                // Single pages at the start: pagedOffset (default 0, shifted = 1)
+                const singlePages = this.pagedOffset;
+                let prevIndex: number;
+                if (this.currentCanvasIndex <= singlePages) {
+                    // Going back within single pages or to a single page
+                    prevIndex = this.currentCanvasIndex - 1;
+                } else {
+                    // Going back in paired pages, but don't go past the last single page
+                    prevIndex = Math.max(
+                        this.currentCanvasIndex - 2,
+                        singlePages,
+                    );
+                }
+                const canvas = this.canvases[prevIndex];
+                this.setCanvas(canvas.id);
+            } else {
+                const prevIndex = this.currentCanvasIndex - 1;
+                const canvas = this.canvases[prevIndex];
+                this.setCanvas(canvas.id);
+            }
         }
     }
 
@@ -247,12 +305,29 @@ export class ViewerState {
             this.toolbarOpen = newConfig.toolbarOpen;
         }
 
+        if (newConfig.viewingMode) {
+            // direct assignment works because of the setter
+            this.viewingMode = newConfig.viewingMode;
+        }
+
         if (newConfig.gallery) {
             if (newConfig.gallery.open !== undefined) {
                 this.showThumbnailGallery = newConfig.gallery.open;
             }
             if (newConfig.gallery.dockPosition !== undefined) {
                 this.dockSide = newConfig.gallery.dockPosition;
+            }
+            if (newConfig.gallery.width !== undefined) {
+                this.gallerySize.width = newConfig.gallery.width;
+            }
+            if (newConfig.gallery.height !== undefined) {
+                this.gallerySize.height = newConfig.gallery.height;
+            }
+            if (newConfig.gallery.x !== undefined) {
+                this.galleryPosition.x = newConfig.gallery.x;
+            }
+            if (newConfig.gallery.y !== undefined) {
+                this.galleryPosition.y = newConfig.gallery.y;
             }
         }
 
@@ -334,6 +409,42 @@ export class ViewerState {
         this.showMetadataDialog = !this.showMetadataDialog;
     }
 
+    setViewingMode(mode: 'individuals' | 'paged') {
+        this.viewingMode = mode;
+        if (mode === 'paged') {
+            const singlePages = this.pagedOffset;
+            // If we're past the single pages, check if we're on a right-hand page
+            if (this.currentCanvasIndex >= singlePages) {
+                // Calculate position relative to where pairs start
+                const pairPosition =
+                    (this.currentCanvasIndex - singlePages) % 2;
+                if (pairPosition === 1) {
+                    // We're on a right-hand page, move back one
+                    const newIndex = this.currentCanvasIndex - 1;
+                    const canvas = this.canvases[newIndex];
+                    this.setCanvas(canvas.id);
+                }
+            }
+        }
+        this.dispatchStateChange();
+    }
+
+    togglePagedOffset() {
+        this.pagedOffset = this.pagedOffset === 0 ? 1 : 0;
+        // Adjust current canvas position if needed
+        const singlePages = this.pagedOffset;
+        if (this.currentCanvasIndex >= singlePages) {
+            const pairPosition = (this.currentCanvasIndex - singlePages) % 2;
+            if (pairPosition === 1) {
+                // We're now on a right-hand page after the shift, move back
+                const newIndex = this.currentCanvasIndex - 1;
+                const canvas = this.canvases[newIndex];
+                this.setCanvas(canvas.id);
+            }
+        }
+        this.dispatchStateChange();
+    }
+
     searchQuery = $state('');
     pendingSearchQuery = $state<string | null>(null);
     searchResults: any[] = $state([]);
@@ -351,11 +462,49 @@ export class ViewerState {
 
     searchAnnotations: any[] = $state([]);
 
+    /**
+     * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
+     */
     get currentCanvasSearchAnnotations() {
         if (!this.canvasId) return [];
-        return this.searchAnnotations.filter(
-            (a) => a.canvasId === this.canvasId,
-        );
+        if (this.viewingMode === 'paged') {
+            let annotations = this.searchAnnotations.filter(
+                (a) => a.canvasId === this.canvasId,
+            );
+            const currentIndex = this.currentCanvasIndex;
+            const singlePages = this.pagedOffset;
+            // Only include next canvas annotations if we're in a two-page spread
+            if (currentIndex >= singlePages) {
+                const nextIndex = currentIndex + 1;
+                if (nextIndex < this.canvases.length) {
+                    const nextCanvas = this.canvases[nextIndex];
+                    const nextCanvasId = nextCanvas.id || nextCanvas['@id'];
+                    const xOffset = 1.025; // account for small gap between pages
+                    const annoOffset =
+                        this.canvases[currentIndex].getWidth() * xOffset;
+                    const nextAnnotations = this.searchAnnotations.filter(
+                        (a) => a.canvasId === nextCanvasId,
+                    );
+
+                    // update x coordinates for display on the right side in two-page mode
+                    const nextAnnotationsUpdated = nextAnnotations.map((a) => {
+                        const parts = a.on.split('#xywh=');
+                        const coords = parts[1].split(',').map(Number);
+                        const shiftedX = coords[0] + annoOffset;
+                        return {
+                            ...a,
+                            on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
+                        };
+                    });
+                    annotations = annotations.concat(nextAnnotationsUpdated);
+                }
+            }
+            return annotations;
+        } else {
+            return this.searchAnnotations.filter(
+                (a) => a.canvasId === this.canvasId,
+            );
+        }
     }
 
     async search(query: string) {

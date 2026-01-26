@@ -14,17 +14,19 @@
     let currentManifest = $state(urlParams.get('manifest') || '');
     let canvasId = $state(urlParams.get('canvas') || '');
 
-    const defaultConfig = {
+    const defaultConfig: import('../lib/types/config').ViewerConfig = {
         showToggle: true,
         toolbarOpen: false,
         showCanvasNav: true,
         showZoomControls: true,
+        viewingMode: 'individuals',
         toolbar: {
             showSearch: true,
             showGallery: true,
             showAnnotations: true,
             showFullscreen: true,
             showInfo: true,
+            showViewingMode: true,
         },
         gallery: {
             open: false,
@@ -199,6 +201,16 @@
                         newGallery.dockPosition = state.dockSide as any;
                         hasChanges = true;
                     }
+                    if (state.gallerySize && state.dockSide === 'none') {
+                        newGallery.width = state.gallerySize.width;
+                        newGallery.height = state.gallerySize.height;
+                        hasChanges = true;
+                    }
+                    if (state.galleryPosition && state.dockSide === 'none') {
+                        newGallery.x = state.galleryPosition.x;
+                        newGallery.y = state.galleryPosition.y;
+                        hasChanges = true;
+                    }
 
                     const newSearch = { ...config.search };
                     if (newSearch.open !== state.showSearchPanel) {
@@ -216,6 +228,11 @@
 
                     if (config.toolbarOpen !== state.toolbarOpen) {
                         config.toolbarOpen = state.toolbarOpen;
+                        hasChanges = true;
+                    }
+
+                    if (config.viewingMode !== state.viewingMode) {
+                        config.viewingMode = state.viewingMode;
                         hasChanges = true;
                     }
 
@@ -248,11 +265,18 @@
     $effect(() => {
         if (viewerMode !== 'svelte' || !svelteViewerState) return;
 
-        config.gallery.open = svelteViewerState.showThumbnailGallery;
-        config.gallery.dockPosition = svelteViewerState.dockSide as any;
-        config.search.open = svelteViewerState.showSearchPanel;
-        config.annotations.open = svelteViewerState.showAnnotations;
+        if (config.gallery) {
+            config.gallery.open = svelteViewerState.showThumbnailGallery;
+            config.gallery.dockPosition = svelteViewerState.dockSide as any;
+        }
+        if (config.search) {
+            config.search.open = svelteViewerState.showSearchPanel;
+        }
+        if (config.annotations) {
+            config.annotations.open = svelteViewerState.showAnnotations;
+        }
         config.toolbarOpen = svelteViewerState.toolbarOpen;
+        config.viewingMode = svelteViewerState.viewingMode;
 
         // Sync canvas ID back to the dropdown
         if (

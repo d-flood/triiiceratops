@@ -30,6 +30,27 @@ export interface GalleryConfig {
      * @default true
      */
     showCloseButton?: boolean;
+    /**
+     * Fixed height for thumbnails in the horizontal strip view (in pixels).
+     * @default 120
+     */
+    fixedHeight?: number;
+    /**
+     * Width of the gallery window when floating (in pixels).
+     */
+    width?: number;
+    /**
+     * Height of the gallery window when floating (in pixels).
+     */
+    height?: number;
+    /**
+     * X position of the gallery window when floating (in pixels).
+     */
+    x?: number;
+    /**
+     * Y position of the gallery window when floating (in pixels).
+     */
+    y?: number;
 }
 
 export interface SearchConfig {
@@ -98,6 +119,11 @@ export interface ToolbarConfig {
      * @default true
      */
     showFullscreen?: boolean;
+    /**
+     * Whether the Viewing Mode button/menu is shown in this menu.
+     * @default true
+     */
+    showViewingMode?: boolean;
 }
 
 export interface ViewerConfig {
@@ -106,6 +132,14 @@ export interface ViewerConfig {
      * @default true
      */
     showCanvasNav?: boolean;
+
+    /**
+     * The viewing mode for the viewer.
+     * 'individuals' = Single canvas view
+     * 'paged' = Dual canvas view (book view)
+     * @default 'individuals'
+     */
+    viewingMode?: 'individuals' | 'paged';
 
     /**
      * Whether to show the zoom controls in the canvas navigation.

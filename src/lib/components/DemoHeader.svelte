@@ -434,6 +434,49 @@
                                     />
                                 </label>
                             </li>
+                            <li>
+                                <label class="label cursor-pointer py-1">
+                                    <span class="label-text"
+                                        >{m.settings_toggle_show_viewing_mode()}</span
+                                    >
+                                    <input
+                                        type="checkbox"
+                                        class="checkbox checkbox-xs"
+                                        checked={config.toolbar
+                                            ?.showViewingMode ?? true}
+                                        onchange={(e) => {
+                                            if (!config.toolbar)
+                                                config.toolbar = {};
+                                            config.toolbar.showViewingMode =
+                                                e.currentTarget.checked;
+                                        }}
+                                    />
+                                </label>
+                            </li>
+                            <li>
+                                <label class="label cursor-pointer py-1">
+                                    <span class="label-text"
+                                        >{m.viewing_mode_label()}</span
+                                    >
+                                    <select
+                                        class="select select-bordered select-xs"
+                                        value={config.viewingMode ??
+                                            'individuals'}
+                                        onchange={(e) => {
+                                            config.viewingMode = (
+                                                e.currentTarget as HTMLSelectElement
+                                            ).value as 'individuals' | 'paged';
+                                        }}
+                                    >
+                                        <option value="individuals"
+                                            >{m.viewing_mode_individuals()}</option
+                                        >
+                                        <option value="paged"
+                                            >{m.viewing_mode_paged()}</option
+                                        >
+                                    </select>
+                                </label>
+                            </li>
                         </ul>
                     </details>
                 </li>
@@ -532,6 +575,32 @@
                                             >{m.settings_position_floating()}</option
                                         >
                                     </select>
+                                </label>
+                            </li>
+                            <li>
+                                <label class="label cursor-pointer py-1 gap-2">
+                                    <span class="label-text"
+                                        >Thumbnail Height</span
+                                    >
+                                    <input
+                                        type="range"
+                                        min="50"
+                                        max="300"
+                                        value={config.gallery?.fixedHeight ??
+                                            120}
+                                        class="range range-xs range-primary w-24"
+                                        oninput={(e) => {
+                                            if (!config.gallery)
+                                                config.gallery = {};
+                                            config.gallery.fixedHeight =
+                                                parseInt(e.currentTarget.value);
+                                        }}
+                                    />
+                                    <span
+                                        class="text-xs opacity-50 w-8 text-right"
+                                        >{config.gallery?.fixedHeight ??
+                                            120}px</span
+                                    >
                                 </label>
                             </li>
                         </ul>

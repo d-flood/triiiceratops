@@ -7,6 +7,8 @@
     import ChatCenteredText from 'phosphor-svelte/lib/ChatCenteredText';
     import Info from 'phosphor-svelte/lib/Info';
     import List from 'phosphor-svelte/lib/List';
+    import BookOpen from 'phosphor-svelte/lib/BookOpen';
+    import Scroll from 'phosphor-svelte/lib/Scroll';
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
@@ -34,6 +36,7 @@
     const showFullscreen = $derived(toolbarConfig.showFullscreen !== false);
     const showAnnotations = $derived(toolbarConfig.showAnnotations !== false);
     const showInfo = $derived(toolbarConfig.showInfo !== false);
+    const showViewingMode = $derived(toolbarConfig.showViewingMode !== false);
 
     // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
@@ -46,6 +49,18 @@
     function toggleOpen() {
         viewerState.toggleToolbar();
     }
+
+    let isOverflowVisible = $state(false);
+    $effect(() => {
+        if (isOpen) {
+            const timer = setTimeout(() => {
+                isOverflowVisible = true;
+            }, 320); // Slightly longer than 300ms to ensure transition is done
+            return () => clearTimeout(timer);
+        } else {
+            isOverflowVisible = false;
+        }
+    });
 </script>
 
 <div
@@ -60,7 +75,7 @@
     <!-- Collapsible Toolbar -->
     <div
         class={[
-            'pointer-events-auto bg-base-100/95 backdrop-blur shadow-xl transition-all duration-300 ease-in-out flex overflow-hidden',
+            'pointer-events-auto bg-base-100/95 backdrop-blur shadow-xl transition-all duration-300 ease-in-out flex',
             // Layout based on position
             isTop &&
                 'flex-row-reverse h-12 w-auto max-w-full rounded-b-xl border-x border-b border-base-200 origin-top',
@@ -76,6 +91,9 @@
             !isOpen && !isTop && 'w-0 opacity-0',
             !isOpen && !isTop && isLeft && '-translate-x-full',
             !isOpen && !isTop && !isLeft && 'translate-x-full',
+
+            // Overflow handling
+            isOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
         ]}
     >
         <!-- Close Button (Inside Menu) -->
@@ -104,13 +122,19 @@
             <div class={isTop ? 'w-2' : 'h-2'}></div>
         {/if}
 
+        <!-- Scrollable Actions -->
         <ul
             class={[
                 'menu menu-md gap-2 flex-nowrap items-center min-h-0',
+                isTop && 'px-2 py-1 menu-horizontal w-auto flex-row-reverse',
                 isTop &&
-                    'px-2 py-1 menu-horizontal w-auto overflow-x-auto overflow-y-hidden flex-row-reverse',
+                    !isOverflowVisible &&
+                    'overflow-x-auto overflow-y-hidden',
+                isTop && isOverflowVisible && 'overflow-visible',
                 !isTop &&
+                    !isOverflowVisible &&
                     'py-2 px-1 flex-1 overflow-y-auto overflow-x-hidden w-12',
+                !isTop && isOverflowVisible && 'py-2 px-1 flex-1 w-12',
             ]}
         >
             <!-- --- Standard Actions --- -->
@@ -154,6 +178,81 @@
                     >
                         <Slideshow size={24} weight="bold" />
                     </button>
+                </li>
+            {/if}
+
+            {#if showViewingMode}
+                <li
+                    class="dropdown {isTop
+                        ? 'dropdown-bottom'
+                        : isLeft
+                          ? 'dropdown-right'
+                          : 'dropdown-left'}"
+                >
+                    <div
+                        tabindex="0"
+                        role="button"
+                        class="flex items-center justify-center"
+                        use:tooltip={{
+                            content: m.viewing_mode_label(),
+                            position: tooltipPos,
+                        }}
+                        aria-label={m.viewing_mode_label()}
+                    >
+                        {#if viewerState.viewingMode === 'paged'}
+                            <BookOpen size={24} weight="bold" />
+                        {:else}
+                            <Scroll size={24} weight="bold" />
+                        {/if}
+                    </div>
+                    <ul
+                        tabindex="-1"
+                        class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-48 border border-base-200 font-normal {isTop
+                            ? 'left-1/2 -translate-x-1/2'
+                            : ''}"
+                    >
+                        <li>
+                            <button
+                                class={viewerState.viewingMode === 'individuals'
+                                    ? 'active'
+                                    : ''}
+                                onclick={() =>
+                                    viewerState.setViewingMode('individuals')}
+                            >
+                                <Scroll size={16} />
+                                {m.viewing_mode_individuals()}
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                class={viewerState.viewingMode === 'paged'
+                                    ? 'active'
+                                    : ''}
+                                onclick={() =>
+                                    viewerState.setViewingMode('paged')}
+                            >
+                                <BookOpen size={16} />
+                                {m.viewing_mode_paged()}
+                            </button>
+                        </li>
+                        {#if viewerState.viewingMode === 'paged'}
+                            <div class="divider my-1"></div>
+                            <li>
+                                <label class="label cursor-pointer py-1 gap-2">
+                                    <span class="label-text text-sm"
+                                        >{m.viewing_mode_shift_pairing()}</span
+                                    >
+                                    <input
+                                        type="checkbox"
+                                        class="checkbox checkbox-sm"
+                                        checked={viewerState.pagedOffset === 1}
+                                        onchange={() =>
+                                            viewerState.togglePagedOffset()}
+                                    />
+                                </label>
+                            </li>
+                        {/if}
+                    </ul>
                 </li>
             {/if}
 
@@ -227,7 +326,7 @@
             {/if}
 
             <!-- Separator if both groups exist -->
-            {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo) && sortedPluginButtons.length > 0}
+            {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode) && sortedPluginButtons.length > 0}
                 <div
                     class={[
                         'divider',
