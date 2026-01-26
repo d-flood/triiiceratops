@@ -16,12 +16,16 @@ The viewer accepts a configuration object to customize the UI and behavior. Belo
 ```typescript
 interface ViewerConfig {
     // Top-level UI Toggles
-    showRightMenu?: boolean; // Default: true
-    showLeftMenu?: boolean; // Default: true
     showCanvasNav?: boolean; // Default: true
     viewingMode?: 'individuals' | 'paged'; // Default: 'individuals'
+    showZoomControls?: boolean; // Default: true
+    transparentBackground?: boolean; // Default: false
 
     // Toolbar Settings
+    showToggle?: boolean; // Default: true (Toolbar toggle visible)
+    toolbarOpen?: boolean; // Default: false (Toolbar expanded)
+    toolbarPosition?: 'left' | 'right' | 'top'; // Default: 'left'
+
     toolbar?: {
         showSearch?: boolean; // Default: true
         showGallery?: boolean; // Default: true
@@ -36,21 +40,33 @@ interface ViewerConfig {
         open?: boolean; // Default: false
         draggable?: boolean; // Default: true
         showCloseButton?: boolean; // Default: true
-        dockPosition?: 'bottom' | 'top' | 'left' | 'right' | 'none'; // Default: 'bottom'
-        fixedHeight?: number; // Default: 120 (for horizontal layout)
+        dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none'; // Default: 'bottom'
+        fixedHeight?: number; // Default: 120
+        width?: number; // Floating window width
+        height?: number; // Floating window height
+        x?: number; // Floating window X position
+        y?: number; // Floating window Y position
     };
 
     // Search Panel Settings
     search?: {
         open?: boolean; // Default: false
         showCloseButton?: boolean; // Default: true
+        position?: 'left' | 'right'; // Default: 'right'
+        width?: string; // Default: '320px'
         query?: string; // Programmatically set search query
     };
 
     // Annotations Settings
     annotations?: {
         open?: boolean; // Default: false (Sidebar panel)
-        visible?: boolean; // Default: true (Overlay visibility)
+        visible?: boolean; // Default: false (Overlay visibility)
+    };
+
+    // Network Requests
+    requests?: {
+        headers?: Record<string, string>; // Extra headers for manifest requests
+        withCredentials?: boolean; // Use cookies/credentials
     };
 }
 ```
@@ -66,7 +82,7 @@ interface ViewerConfig {
     ```html
     <triiiceratops-viewer
       manifest-id="https://example.org/iiif/manifest.json"
-      config='{"showLeftMenu": false, "gallery": {"open": true}}'
+      config='{"toolbarPosition": "right", "gallery": {"open": true}}'
     ></triiiceratops-viewer>
     ```
 
@@ -75,7 +91,7 @@ interface ViewerConfig {
     ```javascript
     const viewer = document.querySelector('triiiceratops-viewer');
     const config = {
-      showRightMenu: false,
+      toolbarPosition: 'left',
       gallery: { dockPosition: 'right' }
     };
     viewer.setAttribute('config', JSON.stringify(config));
@@ -114,7 +130,7 @@ interface ViewerConfig {
       import TriiiceratopsViewer from 'triiiceratops/components/TriiiceratopsViewer.svelte';
 
       let config = {
-        showRightMenu: true,
+        toolbarPosition: 'left',
         gallery: { open: true }
       };
     </script>
