@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.12.0
+
+### Minor Changes
+
+- 8dd3b38: New feature: viewing mode and customizeable thumbnail sizes
+
 ## 0.11.2
 
 ### Patch Changes
