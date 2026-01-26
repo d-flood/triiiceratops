@@ -37,6 +37,7 @@ interface ViewerConfig {
         draggable?: boolean; // Default: true
         showCloseButton?: boolean; // Default: true
         dockPosition?: 'bottom' | 'top' | 'left' | 'right' | 'none'; // Default: 'bottom'
+        fixedHeight?: number; // Default: 120 (for horizontal layout)
     };
 
     // Search Panel Settings

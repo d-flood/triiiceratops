@@ -30,6 +30,27 @@ export interface GalleryConfig {
      * @default true
      */
     showCloseButton?: boolean;
+    /**
+     * Fixed height for thumbnails in the horizontal strip view (in pixels).
+     * @default 120
+     */
+    fixedHeight?: number;
+    /**
+     * Width of the gallery window when floating (in pixels).
+     */
+    width?: number;
+    /**
+     * Height of the gallery window when floating (in pixels).
+     */
+    height?: number;
+    /**
+     * X position of the gallery window when floating (in pixels).
+     */
+    x?: number;
+    /**
+     * Y position of the gallery window when floating (in pixels).
+     */
+    y?: number;
 }
 
 export interface SearchConfig {

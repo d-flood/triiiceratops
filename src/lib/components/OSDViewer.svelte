@@ -17,6 +17,8 @@
 
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
+    // Track last opened tile source to prevent unnecessary resets
+    let lastTileSourceStr = '';
 
     // Get all annotations for current canvas (manifest + search)
     let allAnnotations = $derived.by(() => {
@@ -230,6 +232,11 @@
     // Load tile source when it changes
     $effect(() => {
         if (!viewer || !tileSources) return;
+
+        // Check if source actually changed to avoid resetting zoom
+        const currentStr = JSON.stringify(tileSources);
+        if (currentStr === lastTileSourceStr) return;
+        lastTileSourceStr = currentStr;
 
         if (
             viewerState.viewingMode === 'paged' &&

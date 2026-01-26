@@ -577,6 +577,32 @@
                                     </select>
                                 </label>
                             </li>
+                            <li>
+                                <label class="label cursor-pointer py-1 gap-2">
+                                    <span class="label-text"
+                                        >Thumbnail Height</span
+                                    >
+                                    <input
+                                        type="range"
+                                        min="50"
+                                        max="300"
+                                        value={config.gallery?.fixedHeight ??
+                                            120}
+                                        class="range range-xs range-primary w-24"
+                                        oninput={(e) => {
+                                            if (!config.gallery)
+                                                config.gallery = {};
+                                            config.gallery.fixedHeight =
+                                                parseInt(e.currentTarget.value);
+                                        }}
+                                    />
+                                    <span
+                                        class="text-xs opacity-50 w-8 text-right"
+                                        >{config.gallery?.fixedHeight ??
+                                            120}px</span
+                                    >
+                                </label>
+                            </li>
                         </ul>
                     </details>
                 </li>
