@@ -17,6 +17,8 @@
 
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
+    // Track last opened tile source to prevent unnecessary resets
+    let lastTileSourceStr = '';
 
     // Get all annotations for current canvas (manifest + search)
     let allAnnotations = $derived.by(() => {
@@ -231,7 +233,35 @@
     $effect(() => {
         if (!viewer || !tileSources) return;
 
-        viewer.open(tileSources);
+        // Check if source actually changed to avoid resetting zoom
+        const currentStr = JSON.stringify(tileSources);
+        if (currentStr === lastTileSourceStr) return;
+        lastTileSourceStr = currentStr;
+
+        if (
+            viewerState.viewingMode === 'paged' &&
+            tileSources instanceof Array &&
+            tileSources.length === 2
+        ) {
+            const secondPageLocation = 1.025;
+            const twoPageSpread = [
+                {
+                    tileSource: tileSources[0],
+                    x: 0,
+                    y: 0,
+                    width: 1.0,
+                },
+                {
+                    tileSource: tileSources[1],
+                    x: secondPageLocation, // small gap between pages
+                    y: 0,
+                    width: 1.0,
+                },
+            ];
+            viewer.open(twoPageSpread);
+        } else {
+            viewer.open(tileSources);
+        }
     });
 </script>
 

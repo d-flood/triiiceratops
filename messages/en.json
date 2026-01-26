@@ -122,5 +122,10 @@
     "image_filters_reset": "Reset to Default",
     "annotation_tool_rectangle": "Rectangle",
     "annotation_tool_polygon": "Polygon",
-    "annotation_tool_point": "Point"
+    "annotation_tool_point": "Point",
+    "viewing_mode_label": "Viewing Mode",
+    "viewing_mode_individuals": "Individuals",
+    "viewing_mode_paged": "Paged",
+    "viewing_mode_shift_pairing": "Shift Page Pairing",
+    "settings_toggle_show_viewing_mode": "Show Viewing Mode"
 }
