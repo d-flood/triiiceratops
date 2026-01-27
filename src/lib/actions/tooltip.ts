@@ -7,17 +7,26 @@ export function tooltip(
     function create() {
         if (tip) return;
         tip = document.createElement('div');
-        // Mimic DaisyUI tooltip style
-        // tooltip: --tooltip-color: #e5e7eb; --tooltip-text-color: #000000; ...
-        // We'll use standard utility classes that match the theme roughly
-        // bg-neutral text-neutral-content is usually closest to daisyui tooltip default
         tip.className =
-            'fixed z-[9999] px-2 py-1 text-xs rounded bg-neutral text-neutral-content shadow-sm pointer-events-none opacity-0 transition-opacity duration-150 whitespace-nowrap max-w-xs';
+            'fixed z-[9999] px-2 py-1 text-xs rounded shadow-sm pointer-events-none opacity-0 transition-opacity duration-150 whitespace-nowrap max-w-xs';
         tip.textContent = params.content;
+
+        const computedStyle = getComputedStyle(node);
+        const bgColor =
+            computedStyle.getPropertyValue('--color-base-200').trim() ||
+            computedStyle.getPropertyValue('--color-neutral').trim() ||
+            'oklch(0.95 0 0)';
+        const textColor =
+            computedStyle.getPropertyValue('--color-base-content').trim() ||
+            computedStyle.getPropertyValue('--color-neutral-content').trim() ||
+            'oklch(0.2 0 0)';
+
+        tip.style.backgroundColor = bgColor;
+        tip.style.color = textColor;
+
         document.body.appendChild(tip);
         updatePosition();
 
-        // Trigger reflow/paint for transition
         requestAnimationFrame(() => {
             if (tip) tip.style.opacity = '1';
         });
