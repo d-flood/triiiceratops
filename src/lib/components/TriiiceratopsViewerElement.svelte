@@ -1,4 +1,3 @@
-<!-- svelte-ignore options_missing_custom_element -->
 <svelte:options
     customElement={{
         tag: 'triiiceratops-viewer',
