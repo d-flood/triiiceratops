@@ -1,3 +1,7 @@
+---
+icon: lucide/plug-2
+---
+
 # Plugin System
 
 Triiiceratops features a flexible, component-based plugin system that allows you to extend the viewer's functionality by adding custom panels to the left or right sidebars.
