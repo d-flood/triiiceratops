@@ -1,8 +1,10 @@
 <script lang="ts">
     import DemoHeader from '../lib/components/DemoHeader.svelte';
     import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
+    import SettingsMenu from '../lib/components/SettingsMenu.svelte';
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
+    import { m } from '../lib/state/i18n.svelte';
     import { SvelteURLSearchParams } from 'svelte/reactivity';
     import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
     import { AnnotationEditorPlugin } from '../lib/plugins/annotation-editor';
@@ -314,10 +316,10 @@
         onLoad={loadManifest}
     />
 
-    <h1 class="text-3xl text-center pt-8">Triiiceratops IIIF Viewer Demo</h1>
+    <h1 class="text-3xl text-center pt-8">{m.demo_title()}</h1>
 
     <!-- Viewer -->
-    <main class="flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-32">
+    <main class="flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-8">
         <div class="flex gap-4 h-full">
             <!-- Main Viewer -->
             <div
@@ -343,6 +345,23 @@
                         config={configStr}
                     ></triiiceratops-viewer>
                 {/if}
+            </div>
+
+            <!-- Desktop Settings Sidebar -->
+            <div
+                class="hidden lg:flex flex-col w-80 shrink-0 bg-base-100 rounded-box border border-base-content/10 shadow-xl overflow-hidden"
+            >
+                <div
+                    class="p-4 font-bold text-lg border-b border-base-content/10 bg-base-100"
+                >
+                    {m.settings_view_configuration()}
+                </div>
+                <div class="flex-1 overflow-y-auto">
+                    <SettingsMenu
+                        bind:config
+                        class="menu p-2 flex-nowrap w-full"
+                    />
+                </div>
             </div>
         </div>
     </main>
