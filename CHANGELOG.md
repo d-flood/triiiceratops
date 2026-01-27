@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.12.2
+
+### Patch Changes
+
+- be75cc2: Pass themeConfig colors to the toolbar tooltips
+
 ## 0.12.1
 
 ### Patch Changes
