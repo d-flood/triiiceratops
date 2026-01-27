@@ -127,5 +127,8 @@
     "viewing_mode_individuals": "Individuals",
     "viewing_mode_paged": "Paged",
     "viewing_mode_shift_pairing": "Shift Page Pairing",
-    "settings_toggle_show_viewing_mode": "Show Viewing Mode"
+    "settings_toggle_show_viewing_mode": "Show Viewing Mode",
+    "demo_title": "Triiiceratops IIIF Viewer Demo",
+    "settings_view_configuration": "Viewer Configuration",
+    "settings_thumbnail_height": "Thumbnail Height"
 }

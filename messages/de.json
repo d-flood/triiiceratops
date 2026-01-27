@@ -125,5 +125,9 @@
     "toggle_two_page_mode": "Wechseln Sie in den Zwei-Seiten-Modus",
     "toggle_single_page_mode": "Wechseln Sie in den Einzelseitenmodus",
     "show_mode_toggle": "Modus-Umschalter anzeigen",
-    "two_page_mode": "Zwei-Seiten-Modus"
+    "two_page_mode": "Zwei-Seiten-Modus",
+    "settings_toggle_show_viewing_mode": "Ansichtsmodus anzeigen",
+    "demo_title": "Triiiceratops IIIF-Viewer-Demo",
+    "settings_view_configuration": "Viewer-Konfiguration",
+    "settings_thumbnail_height": "Thumbnail-Höhe"
 }
