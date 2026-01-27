@@ -232,8 +232,17 @@
 
         const canvas = canvases[currentCanvasIndex];
 
-        // Use Manifesto to get images
-        let images = canvas.getImages();
+        // Helper to get images from a canvas, with v3 fallback
+        // v2 uses getImages(), v3 uses getContent() for painting annotations
+        const getCanvasImages = (c: any): any[] => {
+            let imgs = c.getImages?.() || [];
+            if ((!imgs || !imgs.length) && c.getContent) {
+                imgs = c.getContent();
+            }
+            return imgs || [];
+        };
+
+        let images = getCanvasImages(canvas);
         if (internalViewerState.viewingMode === 'paged') {
             // Single pages at the start: pagedOffset (default 0, shifted = 1)
             const singlePages = internalViewerState.pagedOffset;
@@ -242,15 +251,10 @@
                 const nextIndex = currentCanvasIndex + 1;
                 if (nextIndex < canvases.length) {
                     const nextCanvas = canvases[nextIndex];
-                    const nextImages = nextCanvas.getImages();
+                    const nextImages = getCanvasImages(nextCanvas);
                     images = images.concat(nextImages);
                 }
             }
-        }
-
-        // Fallback for IIIF v3: iterate content if images is empty
-        if ((!images || !images.length) && canvas.getContent) {
-            images = canvas.getContent();
         }
 
         if (!images || !images.length) {
@@ -330,6 +334,30 @@
         }
 
         if (services.length > 0) {
+            // Matches IIIF Image API profile URIs with http or https scheme
+            const iiifImageApiPattern = /^https?:\/\/iiif\.io\/api\/image\//;
+
+            // IIIF allows profile as a string, array, or containing objects
+            // Shorthand levels (level0, level1, level2) are valid per spec
+            const isIiifImageProfile = (p: unknown): boolean => {
+                if (typeof p === 'string') {
+                    return (
+                        iiifImageApiPattern.test(p) ||
+                        p === 'level0' ||
+                        p === 'level1' ||
+                        p === 'level2'
+                    );
+                }
+                if (Array.isArray(p)) {
+                    return p.some(
+                        (item) =>
+                            typeof item === 'string' &&
+                            isIiifImageProfile(item),
+                    );
+                }
+                return false;
+            };
+
             // Find a valid image service
             const service = services.find((s: any) => {
                 const type = s.getType
@@ -340,9 +368,7 @@
                     type === 'ImageService1' ||
                     type === 'ImageService2' ||
                     type === 'ImageService3' ||
-                    (typeof profile === 'string' &&
-                        profile.includes('http://iiif.io/api/image')) ||
-                    (typeof profile === 'string' && profile === 'level0')
+                    isIiifImageProfile(profile)
                 );
             });
 
