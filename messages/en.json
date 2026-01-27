@@ -130,5 +130,6 @@
     "settings_toggle_show_viewing_mode": "Show Viewing Mode",
     "demo_title": "Triiiceratops IIIF Viewer Demo",
     "settings_view_configuration": "Viewer Configuration",
+    "settings_paged_view_offset": "Paged View Offset",
     "settings_thumbnail_height": "Thumbnail Height"
 }
