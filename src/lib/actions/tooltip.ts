@@ -11,15 +11,15 @@ export function tooltip(
             'fixed z-[9999] px-2 py-1 text-xs rounded shadow-sm pointer-events-none opacity-0 transition-opacity duration-150 whitespace-nowrap max-w-xs';
         tip.textContent = params.content;
 
-        const computedStyle = getComputedStyle(node);
-        const bgColor =
-            computedStyle.getPropertyValue('--color-base-200').trim() ||
-            computedStyle.getPropertyValue('--color-neutral').trim() ||
-            'oklch(0.95 0 0)';
-        const textColor =
-            computedStyle.getPropertyValue('--color-base-content').trim() ||
-            computedStyle.getPropertyValue('--color-neutral-content').trim() ||
-            'oklch(0.2 0 0)';
+        const tempEl = document.createElement('div');
+        tempEl.className = 'bg-base-200 text-base-content';
+        tempEl.style.position = 'absolute';
+        tempEl.style.visibility = 'hidden';
+        node.appendChild(tempEl);
+        const computedStyle = getComputedStyle(tempEl);
+        const bgColor = computedStyle.backgroundColor;
+        const textColor = computedStyle.color;
+        node.removeChild(tempEl);
 
         tip.style.backgroundColor = bgColor;
         tip.style.color = textColor;
