@@ -9,6 +9,7 @@
     import List from 'phosphor-svelte/lib/List';
     import BookOpen from 'phosphor-svelte/lib/BookOpen';
     import Scroll from 'phosphor-svelte/lib/Scroll';
+    import Check from 'phosphor-svelte/lib/Check';
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
@@ -220,7 +221,12 @@
                                     viewerState.setViewingMode('individuals')}
                             >
                                 <Scroll size={16} />
-                                {m.viewing_mode_individuals()}
+                                <span class="flex-1"
+                                    >{m.viewing_mode_individuals()}</span
+                                >
+                                {#if viewerState.viewingMode === 'individuals'}
+                                    <Check size={16} weight="bold" />
+                                {/if}
                             </button>
                         </li>
                         <li>
@@ -232,7 +238,12 @@
                                     viewerState.setViewingMode('paged')}
                             >
                                 <BookOpen size={16} />
-                                {m.viewing_mode_paged()}
+                                <span class="flex-1"
+                                    >{m.viewing_mode_paged()}</span
+                                >
+                                {#if viewerState.viewingMode === 'paged'}
+                                    <Check size={16} weight="bold" />
+                                {/if}
                             </button>
                         </li>
                         {#if viewerState.viewingMode === 'paged'}
