@@ -29,8 +29,7 @@ test.describe('Triiiceratops Viewer', () => {
         await expect(canvas).toBeVisible();
 
         // Check if the "Annotations" toggle is present and clickable
-        // Use a more specific selector strategy based on the icon components or text structure
-        const toggleButton = page.locator('summary', {
+        const toggleButton = page.locator('#triiiceratops-viewer summary', {
             hasText: 'Annotations',
         });
         if (await toggleButton.isVisible()) {
