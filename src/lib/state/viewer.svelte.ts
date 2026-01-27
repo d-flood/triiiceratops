@@ -55,10 +55,16 @@ export class ViewerState {
         return this.config.gallery?.fixedHeight ?? 120;
     }
 
+    // Dedicated reactive state for viewingMode to ensure proper reactivity
+    // when accessed in $derived expressions (tileSources computation)
+    private _viewingMode = $state<'individuals' | 'paged'>('individuals');
+
     get viewingMode() {
-        return this.config.viewingMode ?? 'individuals';
+        return this._viewingMode;
     }
     set viewingMode(value: 'individuals' | 'paged') {
+        this._viewingMode = value;
+        // Also sync to config for consistency
         this.config.viewingMode = value;
     }
 
