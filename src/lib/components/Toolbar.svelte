@@ -118,9 +118,6 @@
                     <X size={20} weight="bold" />
                 </button>
             </div>
-        {:else}
-            <!-- Add some padding if no close button -->
-            <div class={isTop ? 'w-2' : 'h-2'}></div>
         {/if}
 
         <!-- Scrollable Actions -->
@@ -134,8 +131,8 @@
                 isTop && isOverflowVisible && 'overflow-visible',
                 !isTop &&
                     !isOverflowVisible &&
-                    'py-2 px-1 flex-1 overflow-y-auto overflow-x-hidden w-12',
-                !isTop && isOverflowVisible && 'py-2 px-1 flex-1 w-12',
+                    'py-2 px-0 flex-1 overflow-y-auto overflow-x-hidden w-12',
+                !isTop && isOverflowVisible && 'py-2 px-0 flex-1 w-12',
             ]}
         >
             <!-- --- Standard Actions --- -->
@@ -144,7 +141,7 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center',
+                            'flex items-center justify-center aspect-square rounded-full',
                             viewerState.showSearchPanel && 'active',
                         ]}
                         use:tooltip={{
@@ -163,7 +160,7 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center',
+                            'flex items-center justify-center aspect-square rounded-full',
                             viewerState.showThumbnailGallery && 'active',
                         ]}
                         use:tooltip={{
@@ -193,7 +190,7 @@
                     <div
                         tabindex="0"
                         role="button"
-                        class="flex items-center justify-center"
+                        class="flex items-center justify-center aspect-square rounded-full"
                         use:tooltip={{
                             content: m.viewing_mode_label(),
                             position: tooltipPos,
@@ -271,7 +268,7 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center',
+                            'flex items-center justify-center aspect-square rounded-full',
                             viewerState.isFullScreen && 'active',
                         ]}
                         use:tooltip={{
@@ -298,7 +295,7 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center',
+                            'flex items-center justify-center aspect-square rounded-full',
                             viewerState.showAnnotations && 'active',
                         ]}
                         use:tooltip={{
@@ -321,7 +318,7 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center',
+                            'flex items-center justify-center aspect-square rounded-full',
                             viewerState.showMetadataDialog && 'active',
                         ]}
                         use:tooltip={{
@@ -359,7 +356,7 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center',
+                            'flex items-center justify-center aspect-square rounded-full',
                             button.isActive?.() && 'active',
                         ]}
                         use:tooltip={{
