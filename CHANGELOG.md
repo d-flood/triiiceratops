@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.12.7
+
+### Patch Changes
+
+- 9a2546e: Improve toolbar button padding/spacing
+
 ## 0.12.6
 
 ### Patch Changes
