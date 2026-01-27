@@ -142,6 +142,12 @@ export interface ViewerConfig {
     viewingMode?: 'individuals' | 'paged';
 
     /**
+     * Whether to offset the paged view by one canvas (e.g. cover page).
+     * @default true
+     */
+    pagedViewOffset?: boolean;
+
+    /**
      * Whether to show the zoom controls in the canvas navigation.
      * @default true
      */

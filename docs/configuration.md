@@ -18,6 +18,7 @@ interface ViewerConfig {
     // Top-level UI Toggles
     showCanvasNav?: boolean; // Default: true
     viewingMode?: 'individuals' | 'paged'; // Default: 'individuals'
+    pagedViewOffset?: boolean; // Default: true (Offset paged view by one canvas)
     showZoomControls?: boolean; // Default: true
     transparentBackground?: boolean; // Default: false
 

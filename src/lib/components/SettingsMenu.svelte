@@ -239,6 +239,22 @@
                         </select>
                     </label>
                 </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_paged_view_offset()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="checkbox checkbox-xs"
+                            checked={config.pagedViewOffset ?? true}
+                            onchange={(e) => {
+                                config.pagedViewOffset =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
             </ul>
         </details>
     </li>

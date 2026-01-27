@@ -69,7 +69,7 @@ export class ViewerState {
     }
 
     // Pairing offset for paged mode: 0 = default (pairs start at 1+2), 1 = shifted (page 1 alone, pairs start at 2+3)
-    pagedOffset = $state(0);
+    pagedOffset = $state(1);
 
     // Gallery State (Lifted for persistence during re-docking)
     galleryPosition = $state({ x: 20, y: 100 });
@@ -316,6 +316,10 @@ export class ViewerState {
             this.viewingMode = newConfig.viewingMode;
         }
 
+        if (newConfig.pagedViewOffset !== undefined) {
+            this.pagedOffset = newConfig.pagedViewOffset ? 1 : 0;
+        }
+
         if (newConfig.gallery) {
             if (newConfig.gallery.open !== undefined) {
                 this.showThumbnailGallery = newConfig.gallery.open;
@@ -437,6 +441,7 @@ export class ViewerState {
 
     togglePagedOffset() {
         this.pagedOffset = this.pagedOffset === 0 ? 1 : 0;
+        this.config.pagedViewOffset = this.pagedOffset === 1;
         // Adjust current canvas position if needed
         const singlePages = this.pagedOffset;
         if (this.currentCanvasIndex >= singlePages) {
