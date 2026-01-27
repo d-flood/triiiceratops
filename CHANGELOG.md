@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.12.6
+
+### Patch Changes
+
+- f2035ba: add pagedViewOffset to the config, demo, and docs
+
 ## 0.12.5
 
 ### Patch Changes
