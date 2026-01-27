@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.12.5
+
+### Patch Changes
+
+- 1fc99e2: fix canvas canvas discovery of iiif 2.0 pres api
+
 ## 0.12.4
 
 ### Patch Changes
