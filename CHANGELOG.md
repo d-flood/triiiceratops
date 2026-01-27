@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.12.3
+
+### Patch Changes
+
+- 9c95d95: Trying a different dynamic tooltip theming approach
+
 ## 0.12.2
 
 ### Patch Changes
