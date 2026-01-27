@@ -103,20 +103,20 @@
                 </div>
             {/if}
 
-            <dl class="grid grid-cols-1 md:grid-cols-[200px_1fr]">
+            <dl>
                 {#if attribution}
                     <dt class="font-bold text-lg opacity-70 mt-6">
                         {m.attribution()}
                     </dt>
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    <dd class="text-sm ps-2">{@html attribution}</dd>
+                    <dd class="text-sm ps-4">{@html attribution}</dd>
                 {/if}
 
                 {#if license}
                     <dt class="font-bold text-lg opacity-70 mt-6">
                         {m.license()}
                     </dt>
-                    <dd class="text-sm ps-2">
+                    <dd class="text-sm ps-4">
                         <a
                             href={license}
                             target="_blank"
@@ -131,8 +131,24 @@
                         {item.label}
                     </dt>
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    <dd class="text-sm ps-2">{@html item.value}</dd>
+                    <dd class="text-sm ps-4">{@html item.value}</dd>
                 {/each}
+
+                {#if viewerState.manifestId}
+                    <dt class="font-bold text-lg opacity-70 mt-6">
+                        {m.iiif_manifest_label()}
+                    </dt>
+                    <dd class="text-sm ps-4">
+                        <a
+                            href={viewerState.manifestId}
+                            target="_blank"
+                            rel="noreferrer"
+                            class="link link-primary break-all"
+                        >
+                            {viewerState.manifestId}
+                        </a>
+                    </dd>
+                {/if}
             </dl>
         </div>
 
