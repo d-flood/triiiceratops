@@ -74,8 +74,6 @@
             // Filter based on visibility
             if (anno.isSearchHit) {
                 // Search hits are always visible
-            } else if (!viewerState.showAnnotations) {
-                continue;
             } else if (!viewerState.visibleAnnotationIds.has(anno.id)) {
                 continue;
             }

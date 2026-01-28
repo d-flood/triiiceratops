@@ -36,6 +36,7 @@ export class ViewerState {
     showMetadataDialog = $state(false);
     dockSide = $state('bottom');
     visibleAnnotationIds = new SvelteSet<string>();
+    hoveredAnnotationId = $state<string | null>(null);
 
     // UI Configuration
     config: ViewerConfig = $state({});

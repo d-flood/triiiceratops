@@ -91,6 +91,21 @@ export interface AnnotationsConfig {
      * @default false
      */
     visible?: boolean;
+    /**
+     * Whether to show the close button.
+     * @default true
+     */
+    showCloseButton?: boolean;
+    /**
+     * Where the annotations panel should appear.
+     * @default 'right'
+     */
+    position?: 'left' | 'right';
+    /**
+     * Width of the annotations panel.
+     * @default '320px'
+     */
+    width?: string;
 }
 
 export interface ToolbarConfig {

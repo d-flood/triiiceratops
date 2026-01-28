@@ -62,6 +62,9 @@ interface ViewerConfig {
     annotations?: {
         open?: boolean; // Default: false (Sidebar panel)
         visible?: boolean; // Default: false (Overlay visibility)
+        showCloseButton?: boolean; // Default: true
+        position?: 'left' | 'right'; // Default: 'right'
+        width?: string; // Default: '320px'
     };
 
     // Network Requests
