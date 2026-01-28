@@ -12,6 +12,7 @@
     import Toolbar from './Toolbar.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
+    import AnnotationPanel from './AnnotationPanel.svelte';
     import { m, language } from '../state/i18n.svelte';
 
     // SSR-safe browser detection for library consumers
@@ -164,6 +165,8 @@
             internalViewerState.dockSide === 'left') ||
             (internalViewerState.showSearchPanel &&
                 internalViewerState.config.search?.position === 'left') ||
+            (internalViewerState.showAnnotations &&
+                internalViewerState.config.annotations?.position === 'left') ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'left' && p.isVisible(),
             ),
@@ -172,6 +175,8 @@
     let isRightSidebarVisible = $derived(
         (internalViewerState.showSearchPanel &&
             internalViewerState.config.search?.position !== 'left') ||
+            (internalViewerState.showAnnotations &&
+                internalViewerState.config.annotations?.position !== 'left') ||
             (internalViewerState.showThumbnailGallery &&
                 internalViewerState.dockSide === 'right') ||
             internalViewerState.pluginPanels.some(
@@ -429,6 +434,13 @@
                 </div>
             {/if}
 
+            <!-- Annotations Panel (when configured left) -->
+            {#if internalViewerState.showAnnotations && internalViewerState.config.annotations?.position === 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <AnnotationPanel />
+                </div>
+            {/if}
+
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
                 <div
@@ -562,6 +574,13 @@
             {#if internalViewerState.showSearchPanel && internalViewerState.config.search?.position !== 'left'}
                 <div class="h-full relative pointer-events-auto">
                     <SearchPanel />
+                </div>
+            {/if}
+
+            <!-- Annotations Panel (when configured right) -->
+            {#if internalViewerState.showAnnotations && internalViewerState.config.annotations?.position !== 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <AnnotationPanel />
                 </div>
             {/if}
 
