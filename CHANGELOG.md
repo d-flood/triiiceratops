@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.12.8
+
+### Patch Changes
+
+- ed29800: Convert annotations component from a floating panel to a docked side panel (either side optional)
+
 ## 0.12.7
 
 ### Patch Changes
