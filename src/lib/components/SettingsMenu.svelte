@@ -246,7 +246,10 @@
                             onchange={(e) => {
                                 config.viewingMode = (
                                     e.currentTarget as HTMLSelectElement
-                                ).value as 'individuals' | 'paged';
+                                ).value as
+                                    | 'individuals'
+                                    | 'paged'
+                                    | 'continuous';
                             }}
                         >
                             <option value="individuals"
@@ -254,6 +257,42 @@
                             >
                             <option value="paged"
                                 >{m.viewing_mode_paged()}</option
+                            >
+                            <option value="continuous"
+                                >{m.viewing_mode_continuous()}</option
+                            >
+                        </select>
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.viewing_direction_label()}</span
+                        >
+                        <select
+                            class="select select-bordered select-xs"
+                            value={config.viewingDirection ?? 'left-to-right'}
+                            onchange={(e) => {
+                                config.viewingDirection = (
+                                    e.currentTarget as HTMLSelectElement
+                                ).value as
+                                    | 'left-to-right'
+                                    | 'right-to-left'
+                                    | 'top-to-bottom'
+                                    | 'bottom-to-top';
+                            }}
+                        >
+                            <option value="left-to-right"
+                                >{m.viewing_direction_ltr()}</option
+                            >
+                            <option value="right-to-left"
+                                >{m.viewing_direction_rtl()}</option
+                            >
+                            <option value="top-to-bottom"
+                                >{m.viewing_direction_ttb()}</option
+                            >
+                            <option value="bottom-to-top"
+                                >{m.viewing_direction_btt()}</option
                             >
                         </select>
                     </label>
