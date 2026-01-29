@@ -426,6 +426,7 @@
     );
 
     let fixedHeight = $derived(viewerState.galleryFixedHeight);
+    let isRTL = $derived(viewerState.viewingDirection === 'right-to-left');
 
     function startDrag(e: MouseEvent) {
         if (!draggable) return; // Dragging disabled in config
@@ -629,7 +630,9 @@
                                     ? 'h-full w-auto flex-row'
                                     : thumbGroup.srcs.length > 1
                                       ? 'aspect-3/2 w-full'
-                                      : 'aspect-3/4 w-full'} bg-base-300 rounded overflow-hidden relative flex items-center justify-center gap-px"
+                                      : 'aspect-3/4 w-full'} bg-base-300 rounded overflow-hidden relative flex items-center justify-center gap-px {isRTL
+                                    ? 'flex-row-reverse'
+                                    : ''}"
                                 style={isHorizontal
                                     ? `height: ${fixedHeight}px`
                                     : ''}

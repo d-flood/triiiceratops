@@ -19,7 +19,12 @@ export interface ViewerStateSnapshot {
     searchQuery: string;
     isFullScreen: boolean;
     dockSide: string;
-    viewingMode: 'individuals' | 'paged';
+    viewingMode: 'individuals' | 'paged' | 'continuous';
+    viewingDirection:
+        | 'left-to-right'
+        | 'right-to-left'
+        | 'top-to-bottom'
+        | 'bottom-to-top';
     galleryPosition: { x: number; y: number };
     gallerySize: { width: number; height: number };
 }
@@ -37,6 +42,23 @@ export class ViewerState {
     dockSide = $state('bottom');
     visibleAnnotationIds = new SvelteSet<string>();
     hoveredAnnotationId = $state<string | null>(null);
+
+    private _viewingDirection = $state<
+        'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top'
+    >('left-to-right');
+    get viewingDirection() {
+        return this._viewingDirection;
+    }
+    set viewingDirection(
+        value:
+            | 'left-to-right'
+            | 'right-to-left'
+            | 'top-to-bottom'
+            | 'bottom-to-top',
+    ) {
+        this._viewingDirection = value;
+        this.config.viewingDirection = value;
+    }
 
     // UI Configuration
     config: ViewerConfig = $state({});
@@ -58,12 +80,14 @@ export class ViewerState {
 
     // Dedicated reactive state for viewingMode to ensure proper reactivity
     // when accessed in $derived expressions (tileSources computation)
-    private _viewingMode = $state<'individuals' | 'paged'>('individuals');
+    private _viewingMode = $state<'individuals' | 'paged' | 'continuous'>(
+        'individuals',
+    );
 
     get viewingMode() {
         return this._viewingMode;
     }
-    set viewingMode(value: 'individuals' | 'paged') {
+    set viewingMode(value: 'individuals' | 'paged' | 'continuous') {
         this._viewingMode = value;
         // Also sync to config for consistency
         this.config.viewingMode = value;
@@ -130,6 +154,7 @@ export class ViewerState {
             isFullScreen: this.isFullScreen,
             dockSide: this.dockSide,
             viewingMode: this.viewingMode,
+            viewingDirection: this.viewingDirection,
             galleryPosition: this.galleryPosition,
             gallerySize: this.gallerySize,
         };
@@ -291,10 +316,104 @@ export class ViewerState {
         }
     }
 
-    setManifest(manifestId: string) {
+    async setManifest(manifestId: string) {
         this.manifestId = manifestId;
         this.canvasId = null;
-        manifestsState.fetchManifest(manifestId);
+        await manifestsState.fetchManifest(manifestId);
+
+        // Auto-detect settings from Manifest
+        const manifest = this.manifest;
+        if (manifest) {
+            // 1. Viewing Direction
+            let direction: string | null = null;
+            try {
+                // Check manifest root first
+                if (manifest.getViewingDirection) {
+                    const d = manifest.getViewingDirection();
+                    if (d) direction = String(d);
+                }
+                if (!direction && manifest.__jsonld) {
+                    direction = manifest.__jsonld.viewingDirection;
+                }
+                // Check sequence if not found (IIIF v2)
+                if (!direction) {
+                    const seq = manifest.getSequences()?.[0];
+                    if (seq) {
+                        if (seq.getViewingDirection) {
+                            const d = seq.getViewingDirection();
+                            if (d) direction = String(d);
+                        }
+                        if (!direction && seq.__jsonld) {
+                            direction = seq.__jsonld.viewingDirection;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error parsing viewing direction', e);
+            }
+
+            if (
+                direction &&
+                [
+                    'left-to-right',
+                    'right-to-left',
+                    'top-to-bottom',
+                    'bottom-to-top',
+                ].includes(direction)
+            ) {
+                this.viewingDirection = direction as any;
+            } else {
+                this.viewingDirection = 'left-to-right'; // Default
+            }
+
+            // 2. Viewing Mode (Behavior)
+            let behaviors: string[] = [];
+            try {
+                // Check manifest root
+                if (manifest.__jsonld && manifest.__jsonld.behavior) {
+                    const b = manifest.__jsonld.behavior;
+                    behaviors = Array.isArray(b) ? b : [b];
+                }
+
+                // Manifesto accessor
+                if (behaviors.length === 0 && manifest.getBehavior) {
+                    const b = manifest.getBehavior();
+                    if (b) behaviors = [String(b)];
+                }
+
+                // Check sequence behavior
+                const seq = manifest.getSequences()?.[0];
+                if (seq) {
+                    if (seq.__jsonld && seq.__jsonld.behavior) {
+                        const b = seq.__jsonld.behavior;
+                        behaviors = behaviors.concat(
+                            Array.isArray(b) ? b : [b],
+                        );
+                    }
+                }
+            } catch (e) {
+                console.warn('Error parsing behavior', e);
+            }
+
+            if (behaviors.includes('continuous')) {
+                this.viewingMode = 'continuous';
+            } else if (
+                behaviors.includes('individuals') ||
+                behaviors.includes('non-paged')
+            ) {
+                this.viewingMode = 'individuals';
+            } else if (
+                behaviors.includes('paged') ||
+                behaviors.includes('facing-pages')
+            ) {
+                this.viewingMode = 'paged';
+            } else {
+                // Default remains as initialized or previously set?
+                // Or force default? Better to force default for new manifest.
+                this.viewingMode = 'individuals';
+            }
+        }
+
         this.dispatchStateChange('manifestchange');
     }
 
@@ -315,6 +434,10 @@ export class ViewerState {
         if (newConfig.viewingMode) {
             // direct assignment works because of the setter
             this.viewingMode = newConfig.viewingMode;
+        }
+
+        if (newConfig.viewingDirection) {
+            this.viewingDirection = newConfig.viewingDirection;
         }
 
         if (newConfig.pagedViewOffset !== undefined) {
@@ -420,7 +543,7 @@ export class ViewerState {
         this.showMetadataDialog = !this.showMetadataDialog;
     }
 
-    setViewingMode(mode: 'individuals' | 'paged') {
+    setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {
         this.viewingMode = mode;
         if (mode === 'paged') {
             const singlePages = this.pagedOffset;

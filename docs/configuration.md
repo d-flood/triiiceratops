@@ -17,7 +17,12 @@ The viewer accepts a configuration object to customize the UI and behavior. Belo
 interface ViewerConfig {
     // Top-level UI Toggles
     showCanvasNav?: boolean; // Default: true
-    viewingMode?: 'individuals' | 'paged'; // Default: 'individuals'
+    viewingMode?: 'individuals' | 'paged' | 'continuous'; // Default: 'individuals'
+    viewingDirection?:
+        | 'left-to-right'
+        | 'right-to-left'
+        | 'top-to-bottom'
+        | 'bottom-to-top';
     pagedViewOffset?: boolean; // Default: true (Offset paged view by one canvas)
     showZoomControls?: boolean; // Default: true
     transparentBackground?: boolean; // Default: false

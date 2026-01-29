@@ -152,9 +152,20 @@ export interface ViewerConfig {
      * The viewing mode for the viewer.
      * 'individuals' = Single canvas view
      * 'paged' = Dual canvas view (book view)
+     * 'continuous' = Continuous scroll view
      * @default 'individuals'
      */
-    viewingMode?: 'individuals' | 'paged';
+    viewingMode?: 'individuals' | 'paged' | 'continuous';
+
+    /**
+     * The viewing direction for the viewer.
+     * Overrides the manifest's viewing direction if set.
+     */
+    viewingDirection?:
+        | 'left-to-right'
+        | 'right-to-left'
+        | 'top-to-bottom'
+        | 'bottom-to-top';
 
     /**
      * Whether to offset the paged view by one canvas (e.g. cover page).
