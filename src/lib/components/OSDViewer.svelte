@@ -231,34 +231,126 @@
     $effect(() => {
         if (!viewer || !tileSources) return;
 
-        // Check if source actually changed to avoid resetting zoom
-        const currentStr = JSON.stringify(tileSources);
-        if (currentStr === lastTileSourceStr) return;
-        lastTileSourceStr = currentStr;
+        const mode = viewerState.viewingMode;
+        const direction = viewerState.viewingDirection;
 
-        if (
-            viewerState.viewingMode === 'paged' &&
-            tileSources instanceof Array &&
-            tileSources.length === 2
-        ) {
-            const secondPageLocation = 1.025;
-            const twoPageSpread = [
+        // Check if source or layout params actually changed to avoid resetting zoom
+        // We include mode and direction in the key because they affect layout even if sources are same
+        const stateKey = `${mode}:${direction}:${JSON.stringify(tileSources)}`;
+        if (stateKey === lastTileSourceStr) return;
+        lastTileSourceStr = stateKey;
+
+        const isRTL =
+            direction === 'right-to-left' || direction === 'bottom-to-top'; // Treat BTT as reversed flow?
+        // Actually usually BTT is vertical reversed.
+        // For RTL logic in Paged (Side-by-Side), only 'right-to-left' matters.
+        const isPagedRTL = direction === 'right-to-left';
+
+        const isVertical =
+            direction === 'top-to-bottom' || direction === 'bottom-to-top';
+        const isBTT = direction === 'bottom-to-top';
+
+        // Normalize sources
+        const sources = Array.isArray(tileSources)
+            ? tileSources
+            : tileSources
+              ? [tileSources]
+              : [];
+
+        if (sources.length === 0) return;
+
+        if (mode === 'continuous') {
+            const gap = 0.025;
+            const spread = sources.map((source, index) => {
+                let x = 0;
+                let y = 0;
+                if (isVertical) {
+                    // Vertical
+                    const yPos = index * (1 + gap);
+                    y = isBTT ? -yPos : yPos;
+                } else {
+                    // Horizontal
+                    const xPos = index * (1 + gap);
+                    x = isRTL ? -xPos : xPos;
+                }
+
+                return {
+                    tileSource: source,
+                    x,
+                    y,
+                    width: 1.0,
+                };
+            });
+            viewer.open(spread);
+        } else if (mode === 'paged' && sources.length === 2) {
+            const gap = 0.025;
+            const offset = 1 + gap;
+
+            // Two pages.
+            // If LTR: [0] at 0, [1] at 1.025
+            // If RTL: [0] at 1.025, [1] at 0
+            const firstX = isPagedRTL ? offset : 0;
+            const secondX = isPagedRTL ? 0 : offset;
+
+            const spread = [
                 {
-                    tileSource: tileSources[0],
-                    x: 0,
+                    tileSource: sources[0],
+                    x: firstX,
                     y: 0,
                     width: 1.0,
                 },
                 {
-                    tileSource: tileSources[1],
-                    x: secondPageLocation, // small gap between pages
+                    tileSource: sources[1],
+                    x: secondX,
                     y: 0,
                     width: 1.0,
                 },
             ];
-            viewer.open(twoPageSpread);
+            viewer.open(spread);
         } else {
+            // Individuals or single paged or fallback
             viewer.open(tileSources);
+        }
+    });
+
+    // Handle navigation in continuous mode
+    $effect(() => {
+        // Only run if viewer is ready, mode is continuous, and we have canvases
+        if (
+            !viewer ||
+            viewerState.viewingMode !== 'continuous' ||
+            !viewerState.canvases.length
+        )
+            return;
+
+        // Depend on currentCanvasIndex
+        const currentIndex = viewerState.currentCanvasIndex;
+
+        // We need to map the canvas index to the OSD world item index.
+        // This depends on how many images each canvas has.
+        // We replicate the counting logic from TriiiceratopsViewer.
+        let imageIndex = 0;
+        for (let i = 0; i < currentIndex; i++) {
+            const canvas = viewerState.canvases[i];
+            // Helper to get images from a canvas (v2/v3 compatible)
+            let imgs = canvas.getImages?.() || [];
+            if ((!imgs || !imgs.length) && canvas.getContent) {
+                imgs = canvas.getContent();
+            }
+            const count = imgs ? imgs.length : 0;
+            imageIndex += count;
+        }
+
+        // Get the item corresponding to the start of this canvas
+        // Note: The world might not be populated yet if we just called open(),
+        // but $effect runs after render updates. However, OSD loads async.
+        // We check if item exists.
+        const item = viewer.world.getItemAt(imageIndex);
+        if (item) {
+            // Pan to center of this item
+            const bounds = item.getBounds();
+            // We use fitBounds to ensure the item is visible and centered
+            viewer.viewport.fitBounds(bounds);
         }
     });
 </script>

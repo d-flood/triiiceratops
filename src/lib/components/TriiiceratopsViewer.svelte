@@ -248,7 +248,13 @@
         };
 
         let images = getCanvasImages(canvas);
-        if (internalViewerState.viewingMode === 'paged') {
+        if (internalViewerState.viewingMode === 'continuous') {
+            // Get all images from all canvases
+            images = [];
+            for (const c of canvases) {
+                images = images.concat(getCanvasImages(c));
+            }
+        } else if (internalViewerState.viewingMode === 'paged') {
             // Single pages at the start: pagedOffset (default 0, shifted = 1)
             const singlePages = internalViewerState.pagedOffset;
             // Only show two-page spread if we're past the single pages section

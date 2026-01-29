@@ -9,6 +9,7 @@
     import List from 'phosphor-svelte/lib/List';
     import BookOpen from 'phosphor-svelte/lib/BookOpen';
     import Scroll from 'phosphor-svelte/lib/Scroll';
+    import File from 'phosphor-svelte/lib/File';
     import Check from 'phosphor-svelte/lib/Check';
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
@@ -199,8 +200,10 @@
                     >
                         {#if viewerState.viewingMode === 'paged'}
                             <BookOpen size={24} weight="bold" />
-                        {:else}
+                        {:else if viewerState.viewingMode === 'continuous'}
                             <Scroll size={24} weight="bold" />
+                        {:else}
+                            <File size={24} weight="bold" />
                         {/if}
                     </div>
                     <ul
@@ -217,7 +220,7 @@
                                 onclick={() =>
                                     viewerState.setViewingMode('individuals')}
                             >
-                                <Scroll size={16} />
+                                <File size={16} />
                                 <span class="flex-1"
                                     >{m.viewing_mode_individuals()}</span
                                 >
@@ -239,6 +242,23 @@
                                     >{m.viewing_mode_paged()}</span
                                 >
                                 {#if viewerState.viewingMode === 'paged'}
+                                    <Check size={16} weight="bold" />
+                                {/if}
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                class={viewerState.viewingMode === 'continuous'
+                                    ? 'active'
+                                    : ''}
+                                onclick={() =>
+                                    viewerState.setViewingMode('continuous')}
+                            >
+                                <Scroll size={16} />
+                                <span class="flex-1"
+                                    >{m.viewing_mode_continuous()}</span
+                                >
+                                {#if viewerState.viewingMode === 'continuous'}
                                     <Check size={16} weight="bold" />
                                 {/if}
                             </button>
