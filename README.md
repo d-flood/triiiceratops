@@ -10,7 +10,8 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 
 - **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
 - **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
-- **Viewing Modes**: Toggle between single-page ("individuals") and book ("paged") viewing with configurable cover page offset
+- **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
+- **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL support)
 - **Annotations**:
   - Renders IIIF annotations from embedded or external annotation lists
   - Supports rectangle (xywh) and polygon (SVG selector) geometries
@@ -37,12 +38,6 @@ This project is actively developed. The following IIIF features are not yet supp
 - **Ranges/Structures**: No table of contents or hierarchical navigation (book chapters, sections)
 - **`start` property**: Cannot specify initial canvas or temporal position
 - **`navDate`**: No date-based navigation for newspapers/journals
-
-### Behaviors
-
-- **Manifest-driven behaviors**: The `behavior` property is not read from manifests; viewing mode is set manually via UI
-- **Missing behaviors**: `continuous`, `facing-pages`, `auto-advance`, `repeat`, `hidden`, etc.
-- **`viewingDirection`**: Not used for layout decisions
 
 ### Annotations
 
