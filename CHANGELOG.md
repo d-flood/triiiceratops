@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.13.0
+
+### Minor Changes
+
+- a65b845: Fully implment behavior (paged, individual, continuous) and viewing direction
+
 ## 0.12.8
 
 ### Patch Changes
