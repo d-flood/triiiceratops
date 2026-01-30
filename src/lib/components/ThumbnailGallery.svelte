@@ -1,6 +1,7 @@
 <script lang="ts">
     import { getContext } from 'svelte';
     import X from 'phosphor-svelte/lib/X';
+    import Stack from 'phosphor-svelte/lib/Stack';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
 
     // Minimal canvas/annotation types covering methods used here
@@ -91,10 +92,13 @@
                 label: string;
                 src: string;
                 index: number;
+                hasChoice: boolean;
             }>;
         return canvases.map((canvas: ManifestCanvas, index: number) => {
             // Manifesto getThumbnail logic
             let src = '';
+            let hasChoice = false;
+
             try {
                 if (canvas.getThumbnail) {
                     const thumb = canvas.getThumbnail();
@@ -128,9 +132,38 @@
                     // v3 fallback: getBody
                     if (!resource && annotation.getBody) {
                         const body = annotation.getBody();
-                        if (Array.isArray(body) && body.length > 0)
+                        const rawBody =
+                            annotation.__jsonld?.body || annotation.body;
+                        // Check if body is a Choice
+                        const isChoiceBody =
+                            rawBody?.type === 'Choice' ||
+                            rawBody?.type === 'oa:Choice' ||
+                            (body &&
+                                !Array.isArray(body) &&
+                                (body.type === 'Choice' ||
+                                    body.type === 'oa:Choice'));
+
+                        if (isChoiceBody) {
+                            // Extract first item from Choice for thumbnail
+                            let items: any[] = [];
+                            if (Array.isArray(body)) {
+                                items = body;
+                            } else if (body && (body.items || body.item)) {
+                                items = body.items || body.item;
+                            } else if (
+                                rawBody &&
+                                (rawBody.items || rawBody.item)
+                            ) {
+                                items = rawBody.items || rawBody.item;
+                            }
+                            if (items.length > 0) {
+                                resource = items[0];
+                            }
+                        } else if (Array.isArray(body) && body.length > 0) {
                             resource = body[0];
-                        else if (body) resource = body;
+                        } else if (body) {
+                            resource = body;
+                        }
                     }
 
                     if (
@@ -147,9 +180,16 @@
                         // raw json fallback
                         const json = annotation.__jsonld || annotation;
                         if (json.body) {
-                            resource = Array.isArray(json.body)
-                                ? json.body[0]
-                                : json.body;
+                            let body = json.body;
+                            // Handle Choice in raw JSON fallback
+                            if (
+                                body.type === 'Choice' ||
+                                body.type === 'oa:Choice'
+                            ) {
+                                const items = body.items || body.item || [];
+                                body = items[0] || null;
+                            }
+                            resource = Array.isArray(body) ? body[0] : body;
                         }
                     }
 
@@ -211,9 +251,13 @@
                         }
 
                         if (!src) {
-                            src = resource.id || resource['@id'];
+                            src =
+                                resource.id ||
+                                resource['@id'] ||
+                                (resource.__jsonld &&
+                                    (resource.__jsonld.id ||
+                                        resource.__jsonld['@id']));
 
-                            // Fallback: if resource was reconstructed but ID is missing (common with Manifesto v3), check raw annotation
                             if (!src) {
                                 let rawBody: any = null;
                                 // Try to find the original raw body from which resource was derived
@@ -227,9 +271,18 @@
                                 }
 
                                 if (rawBody) {
-                                    const bodyObj = Array.isArray(rawBody)
+                                    let bodyObj = Array.isArray(rawBody)
                                         ? rawBody[0]
                                         : rawBody;
+                                    // Handle Choice - extract first item
+                                    if (
+                                        bodyObj.type === 'Choice' ||
+                                        bodyObj.type === 'oa:Choice'
+                                    ) {
+                                        const items =
+                                            bodyObj.items || bodyObj.item || [];
+                                        bodyObj = items[0] || bodyObj;
+                                    }
                                     src = bodyObj.id || bodyObj['@id'];
                                 }
                             }
@@ -237,6 +290,33 @@
                     }
                 }
             }
+            // Check for choices
+            try {
+                let images = canvas.getImages?.() || [];
+                if ((!images || !images.length) && canvas.getContent) {
+                    images = canvas.getContent();
+                }
+                if (images && images.length > 0) {
+                    const anno = images[0];
+                    const body = anno.getBody
+                        ? anno.getBody()
+                        : anno.body || anno.resource;
+
+                    const rawBody = anno.__jsonld?.body || anno.body;
+                    // isChoice check - check rawBody and body itself
+                    const isChoice =
+                        rawBody?.type === 'Choice' ||
+                        rawBody?.type === 'oa:Choice' ||
+                        (body &&
+                            !Array.isArray(body) &&
+                            (body.type === 'Choice' ||
+                                body.type === 'oa:Choice'));
+
+                    if (isChoice) {
+                        hasChoice = true;
+                    }
+                }
+            } catch {}
 
             return {
                 id: canvas.id,
@@ -245,6 +325,7 @@
                     : `Canvas ${index + 1}`,
                 src,
                 index,
+                hasChoice,
             };
         });
     });
@@ -513,6 +594,7 @@
             label: string;
             srcs: string[];
             index: number;
+            hasChoice: boolean;
         }> = [];
         const thumbs = thumbnails;
         const singlePages = viewerState.pagedOffset;
@@ -526,11 +608,15 @@
             if (second) {
                 groupSrcs.push(second.src);
             }
+            const groupHasChoice =
+                first.hasChoice || (second ? second.hasChoice : false);
+
             groups.push({
                 id: groupId,
                 label: groupLabel,
                 srcs: groupSrcs,
                 index: i,
+                hasChoice: groupHasChoice,
             });
         }
         return groups;
@@ -695,6 +781,18 @@
                                     >{thumbGroup.index + 1}.</span
                                 >
                                 {thumbGroup.label}
+                                {#if thumbGroup.hasChoice}
+                                    <span
+                                        class="ml-1 inline-flex items-center"
+                                        title="Has choices/layers"
+                                    >
+                                        <Stack
+                                            size={12}
+                                            weight="bold"
+                                            class="opacity-70"
+                                        />
+                                    </span>
+                                {/if}
                             </div>
                         </button>
                     {/each}
@@ -742,6 +840,18 @@
                                     >{thumb.index + 1}.</span
                                 >
                                 {thumb.label}
+                                {#if thumb.hasChoice}
+                                    <span
+                                        class="ml-1 inline-flex items-center"
+                                        title="Has choices/layers"
+                                    >
+                                        <Stack
+                                            size={12}
+                                            weight="bold"
+                                            class="opacity-70"
+                                        />
+                                    </span>
+                                {/if}
                             </div>
                         </button>
                     {/each}

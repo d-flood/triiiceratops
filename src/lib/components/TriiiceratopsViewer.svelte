@@ -6,7 +6,7 @@
     import type { ViewerConfig } from '../types/config';
     import { applyTheme } from '../theme/themeManager';
     import OSDViewer from './OSDViewer.svelte';
-    import CanvasNavigation from './CanvasNavigation.svelte';
+    import ViewerControls from './ViewerControls.svelte';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
@@ -244,7 +244,11 @@
             if ((!imgs || !imgs.length) && c.getContent) {
                 imgs = c.getContent();
             }
-            return imgs || [];
+            // Return wrapper to preserve methods
+            return (imgs || []).map((img: any) => ({
+                annotation: img,
+                canvasId: c.id || c['@id'],
+            }));
         };
 
         let images = getCanvasImages(canvas);
@@ -280,20 +284,74 @@
         }
 
         // Map images to tile sources, in two page mode, this will get two image sources
-        const tileSourcesArray = images.map((annotation: any) =>
-            getImageService(annotation),
+        const tileSourcesArray = images
+            .map((item: any) => getImageService(item.annotation, item.canvasId))
+            .filter((s) => s !== null); // Filter out nulls to prevent OSD crashes
+
+        console.log(
+            '[TriiiceratopsViewer] Derived tileSources:',
+            tileSourcesArray,
         );
         return tileSourcesArray;
     });
 
-    function getImageService(annotation: any) {
+    function getImageService(annotation: any, canvasId: string) {
         let resource = annotation.getResource ? annotation.getResource() : null;
 
         // v3 fallback: getBody
         if (!resource && annotation.getBody) {
             const body = annotation.getBody();
-            if (Array.isArray(body) && body.length > 0) resource = body[0];
-            else if (body) resource = body;
+            // Handle Choice (IIIF v2/v3)
+            // Note: Manifesto might wrap Choice in a resource object, OR return the items as array if it flattens it.
+            // We check multiple sources to determine if it was a Choice.
+
+            const rawBody = annotation.__jsonld?.body || annotation.body;
+            // Checking if the body is a Choice - check rawBody, body itself, or body's type
+            const isChoice =
+                rawBody?.type === 'Choice' ||
+                rawBody?.type === 'oa:Choice' ||
+                (body &&
+                    !Array.isArray(body) &&
+                    (body.type === 'Choice' || body.type === 'oa:Choice'));
+
+            if (isChoice) {
+                // Manifesto may return the items array as 'body' when getBody() is called,
+                // or it may return the Choice object itself. We handle both cases.
+
+                let items: any[] = [];
+                if (Array.isArray(body)) {
+                    items = body;
+                } else if (body && (body.items || body.item)) {
+                    items = body.items || body.item;
+                } else if (rawBody && (rawBody.items || rawBody.item)) {
+                    // Fallback to rawBody items if body doesn't have them
+                    items = rawBody.items || rawBody.item;
+                }
+
+                // Get selected item ID from state
+                const selectedId =
+                    internalViewerState.getSelectedChoice(canvasId);
+
+                let selectedItem = null;
+                if (selectedId) {
+                    selectedItem = items.find(
+                        (item: any) => (item.id || item['@id']) === selectedId,
+                    );
+                }
+
+                // Default to first item if no selection or not found
+                if (!selectedItem && items.length > 0) {
+                    selectedItem = items[0];
+                }
+
+                if (selectedItem) {
+                    resource = selectedItem;
+                }
+            } else if (Array.isArray(body) && body.length > 0) {
+                resource = body[0];
+            } else if (body) {
+                resource = body;
+            }
         }
 
         // Check if resource is valid (Manifesto sometimes returns empty wrapper objects for v3 bodies)
@@ -308,15 +366,37 @@
                     (resourceJson.service ||
                         resourceJson.id ||
                         resourceJson['@id'])));
+
         if (resource && !hasContent) {
             resource = null;
         }
+
+        // Helper to normalize ID
+        const getId = (thing: any) =>
+            thing.id ||
+            thing['@id'] ||
+            (thing.__jsonld && (thing.__jsonld.id || thing.__jsonld['@id']));
 
         if (!resource) {
             // raw json fallback
             const json = annotation.__jsonld || annotation;
             if (json.body) {
-                resource = Array.isArray(json.body) ? json.body[0] : json.body;
+                let body = json.body;
+                // Handle Choice in raw JSON fallback
+                if (body.type === 'Choice' || body.type === 'oa:Choice') {
+                    const items = body.items || body.item || [];
+                    // Get selected choice or default to first item
+                    const selectedId =
+                        internalViewerState.getSelectedChoice(canvasId);
+                    const selectedItem = selectedId
+                        ? items.find(
+                              (item: any) =>
+                                  (item.id || item['@id']) === selectedId,
+                          )
+                        : null;
+                    body = selectedItem || items[0] || null;
+                }
+                resource = Array.isArray(body) ? body[0] : body;
             }
         }
 
@@ -326,7 +406,6 @@
         }
 
         // Helper to normalize ID
-        const getId = (thing: any) => thing.id || thing['@id'];
 
         // Start of service detection logic
         // Check raw json service FIRST - Manifesto's getServices() often returns
@@ -409,8 +488,23 @@
             }
         }
 
+        if (!resourceId) {
+            console.warn('TriiiceratopsViewer: No resource ID found', resource);
+            if (resource) {
+                console.log(
+                    'Resource dump:',
+                    JSON.stringify(resource, null, 2),
+                );
+                if (resource.getServices) {
+                    console.log('Resource services:', resource.getServices());
+                }
+            }
+            return null;
+        }
+
         console.log(
             'TriiiceratopsViewer: No service or ID found, returning raw URL',
+            resourceId,
         );
         const url = resourceId;
         return { type: 'image', url };
@@ -534,10 +628,8 @@
                 {/if}
             {/each}
 
-            <!-- Canvas Nav (Absolute positioned inside center, or floating?) currently assumes absolute -->
-            {#if (canvases.length > 1 && internalViewerState.showCanvasNav) || (internalViewerState.config.showZoomControls ?? true)}
-                <CanvasNavigation viewerState={internalViewerState} />
-            {/if}
+            <!-- Viewer Controls (Canvas Navigation + Zoom + IIIF Choice Selector) -->
+            <ViewerControls />
 
             <!-- Float-mode Gallery -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'none'}
