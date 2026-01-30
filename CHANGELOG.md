@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.14.0
+
+### Minor Changes
+
+- d6408a8: Implement IIIF choice spec
+
 ## 0.13.0
 
 ### Minor Changes
