@@ -43,6 +43,9 @@ export class ViewerState {
     visibleAnnotationIds = new SvelteSet<string>();
     hoveredAnnotationId = $state<string | null>(null);
 
+    // Map of canvasId -> selected choiceId (Content State)
+    selectedChoices = new SvelteMap<string, string>();
+
     private _viewingDirection = $state<
         'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top'
     >('left-to-right');
@@ -420,6 +423,21 @@ export class ViewerState {
     setCanvas(canvasId: string) {
         this.canvasId = canvasId;
         this.dispatchStateChange('canvaschange');
+    }
+
+    selectChoice(canvasId: string, choiceId: string) {
+        this.selectedChoices.set(canvasId, choiceId);
+        // Force reactivity for $derived blocks that depend on the map
+        // Reassigning the map is one way, or using fine-grained signals.
+        // Svelte 5 map is reactive, but let's ensure dependent derivations see it.
+        // We might need to "bump" a version signal if derivations don't pick it up automatically
+        // but they should if they use get().
+
+        this.dispatchStateChange('choicechange');
+    }
+
+    getSelectedChoice(canvasId: string): string | undefined {
+        return this.selectedChoices.get(canvasId);
     }
 
     updateConfig(newConfig: ViewerConfig) {
