@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.14.1
+
+### Patch Changes
+
+- 01f4b47: enable config to override manifest behavior setting
+
 ## 0.14.0
 
 ### Minor Changes
