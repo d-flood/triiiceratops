@@ -87,6 +87,10 @@ export class ViewerState {
         'individuals',
     );
 
+    // Track whether viewingMode was explicitly set via config (user preference)
+    // When true, manifest behavior detection is skipped to respect user configuration
+    private _viewingModeUserConfigured = $state(false);
+
     get viewingMode() {
         return this._viewingMode;
     }
@@ -370,50 +374,52 @@ export class ViewerState {
             }
 
             // 2. Viewing Mode (Behavior)
-            let behaviors: string[] = [];
-            try {
-                // Check manifest root
-                if (manifest.__jsonld && manifest.__jsonld.behavior) {
-                    const b = manifest.__jsonld.behavior;
-                    behaviors = Array.isArray(b) ? b : [b];
-                }
-
-                // Manifesto accessor
-                if (behaviors.length === 0 && manifest.getBehavior) {
-                    const b = manifest.getBehavior();
-                    if (b) behaviors = [String(b)];
-                }
-
-                // Check sequence behavior
-                const seq = manifest.getSequences()?.[0];
-                if (seq) {
-                    if (seq.__jsonld && seq.__jsonld.behavior) {
-                        const b = seq.__jsonld.behavior;
-                        behaviors = behaviors.concat(
-                            Array.isArray(b) ? b : [b],
-                        );
+            // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
+            if (!this._viewingModeUserConfigured) {
+                let behaviors: string[] = [];
+                try {
+                    // Check manifest root
+                    if (manifest.__jsonld && manifest.__jsonld.behavior) {
+                        const b = manifest.__jsonld.behavior;
+                        behaviors = Array.isArray(b) ? b : [b];
                     }
-                }
-            } catch (e) {
-                console.warn('Error parsing behavior', e);
-            }
 
-            if (behaviors.includes('continuous')) {
-                this.viewingMode = 'continuous';
-            } else if (
-                behaviors.includes('individuals') ||
-                behaviors.includes('non-paged')
-            ) {
-                this.viewingMode = 'individuals';
-            } else if (
-                behaviors.includes('paged') ||
-                behaviors.includes('facing-pages')
-            ) {
-                this.viewingMode = 'paged';
-            } else {
-                // Default remains as initialized or previously set?
-                // Or force default? Better to force default for new manifest.
-                this.viewingMode = 'individuals';
+                    // Manifesto accessor
+                    if (behaviors.length === 0 && manifest.getBehavior) {
+                        const b = manifest.getBehavior();
+                        if (b) behaviors = [String(b)];
+                    }
+
+                    // Check sequence behavior
+                    const seq = manifest.getSequences()?.[0];
+                    if (seq) {
+                        if (seq.__jsonld && seq.__jsonld.behavior) {
+                            const b = seq.__jsonld.behavior;
+                            behaviors = behaviors.concat(
+                                Array.isArray(b) ? b : [b],
+                            );
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Error parsing behavior', e);
+                }
+
+                if (behaviors.includes('continuous')) {
+                    this.viewingMode = 'continuous';
+                } else if (
+                    behaviors.includes('individuals') ||
+                    behaviors.includes('non-paged')
+                ) {
+                    this.viewingMode = 'individuals';
+                } else if (
+                    behaviors.includes('paged') ||
+                    behaviors.includes('facing-pages')
+                ) {
+                    this.viewingMode = 'paged';
+                } else {
+                    // Default to 'individuals' when no behavior is specified in manifest
+                    this.viewingMode = 'individuals';
+                }
             }
         }
 
@@ -452,6 +458,8 @@ export class ViewerState {
         if (newConfig.viewingMode) {
             // direct assignment works because of the setter
             this.viewingMode = newConfig.viewingMode;
+            // Mark as user-configured so manifest behavior detection is skipped
+            this._viewingModeUserConfigured = true;
         }
 
         if (newConfig.viewingDirection) {

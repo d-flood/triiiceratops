@@ -153,6 +153,7 @@ export interface ViewerConfig {
      * 'individuals' = Single canvas view
      * 'paged' = Dual canvas view (book view)
      * 'continuous' = Continuous scroll view
+     * Overrides the manifest's viewing mode behavior if set.
      * @default 'individuals'
      */
     viewingMode?: 'individuals' | 'paged' | 'continuous';
