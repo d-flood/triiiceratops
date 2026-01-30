@@ -12,9 +12,9 @@
     import File from 'phosphor-svelte/lib/File';
     import Check from 'phosphor-svelte/lib/Check';
     import X from 'phosphor-svelte/lib/X';
+    import ArrowsLeftRight from 'phosphor-svelte/lib/ArrowsLeftRight';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
-    import { tooltip } from '../actions/tooltip';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -24,12 +24,16 @@
     // --- Configuration ---
     // Default to 'left' if not specified
     const position = $derived(viewerState.config.toolbarPosition || 'left');
-    const isLeft = $derived(position === 'left');
-    const isTop = $derived(position === 'top');
-    const tooltipPos = $derived(
-        isTop ? 'bottom' : isLeft ? 'right' : 'left',
-    ) as 'bottom' | 'right' | 'left';
     const showToggle = $derived(viewerState.config.showToggle !== false);
+
+    // --- Tooltip Classes ---
+    const tooltipClasses = $derived(
+        position === 'top'
+            ? ['tooltip', 'tooltip-bottom']
+            : position === 'left'
+              ? ['tooltip', 'tooltip-right']
+              : ['tooltip', 'tooltip-left'],
+    );
 
     // --- Standard Viewer Actions ---
     const toolbarConfig = $derived(viewerState.config.toolbar || {});
@@ -51,104 +55,71 @@
     function toggleOpen() {
         viewerState.toggleToolbar();
     }
-
-    let isOverflowVisible = $state(false);
-    $effect(() => {
-        if (isOpen) {
-            const timer = setTimeout(() => {
-                isOverflowVisible = true;
-            }, 320); // Slightly longer than 300ms to ensure transition is done
-            return () => clearTimeout(timer);
-        } else {
-            isOverflowVisible = false;
-        }
-    });
 </script>
 
 <div
     class={[
         'absolute z-50 pointer-events-none flex',
-        isTop && 'top-0 w-full items-end flex-col pt-0 pr-2',
-        !isTop && 'top-0 h-full items-start pt-4 pb-4',
-        !isTop && isLeft && 'left-0 flex-row',
-        !isTop && !isLeft && 'right-0 flex-row-reverse',
+        position === 'top' && 'w-full items-end flex-col pt-0 pr-3 top-0',
+        position !== 'top' && 'h-full items-start top-1.5',
+        position === 'left' && 'left-0',
+        position === 'right' && 'right-0',
     ]}
 >
     <!-- Collapsible Toolbar -->
     <div
         class={[
-            'pointer-events-auto bg-base-100/95 backdrop-blur shadow-xl transition-all duration-300 ease-in-out flex',
+            'pointer-events-auto transition-all duration-300 ease-in-out flex',
             // Layout based on position
-            isTop &&
-                'flex-row-reverse h-12 w-auto max-w-full rounded-b-xl border-x border-b border-base-200 origin-top',
-            !isTop &&
-                'flex-col h-auto max-h-full border-y border-base-200 w-12',
-            !isTop && isLeft && 'rounded-r-xl border-r origin-left',
-            !isTop && !isLeft && 'rounded-l-xl border-l origin-right',
+            position === 'top' &&
+                'flex-row-reverse h-12 w-auto max-w-full origin-top',
+            position !== 'top' && 'flex-col h-auto max-h-full',
 
             // Animation state based on open/closed and position
-            isOpen && isTop && 'opacity-100 translate-y-0',
-            isOpen && !isTop && 'w-12 opacity-100 translate-x-0',
-            !isOpen && isTop && 'h-0 opacity-0 -translate-y-full',
-            !isOpen && !isTop && 'w-0 opacity-0',
-            !isOpen && !isTop && isLeft && '-translate-x-full',
-            !isOpen && !isTop && !isLeft && 'translate-x-full',
-
-            // Overflow handling
-            isOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
+            isOpen && position === 'top' && 'opacity-100 translate-y-0',
+            isOpen && position !== 'top' && 'opacity-100 translate-x-0',
+            !isOpen && position === 'top' && 'h-0 opacity-0 -translate-y-full',
+            !isOpen && position !== 'top' && 'w-0 opacity-0',
         ]}
     >
-        <!-- Close Button (Inside Menu) -->
-        {#if showToggle}
-            <div
-                class={[
-                    'shrink-0',
-                    isTop && 'h-full flex items-center px-2',
-                    !isTop && 'w-full flex justify-center py-2',
-                ]}
-            >
-                <button
-                    class="btn btn-ghost btn-circle btn-sm"
-                    onclick={toggleOpen}
-                    use:tooltip={{
-                        content: m.close_menu(),
-                        position: tooltipPos,
-                    }}
-                    aria-label={m.close_menu()}
-                >
-                    <X size={20} weight="bold" />
-                </button>
-            </div>
-        {/if}
-
         <!-- Scrollable Actions -->
         <ul
             class={[
-                'menu menu-md gap-2 flex-nowrap items-center min-h-0',
-                isTop && 'px-2 py-1 menu-horizontal w-auto flex-row-reverse',
-                isTop &&
-                    !isOverflowVisible &&
-                    'overflow-x-auto overflow-y-hidden',
-                isTop && isOverflowVisible && 'overflow-visible',
-                !isTop &&
-                    !isOverflowVisible &&
-                    'py-2 px-0 flex-1 overflow-y-auto overflow-x-hidden w-12',
-                !isTop && isOverflowVisible && 'py-2 px-0 flex-1 w-12',
+                'menu menu-sm bg-base-200 [&_li>*]:p-1 justify-center items-center',
+                position === 'top' &&
+                    'menu-horizontal rounded-b-box flex-row-reverse space-x-px [&_li]:pb-0',
+                position === 'left' && 'rounded-r-box pr-1 space-y-px',
+                position === 'right' && 'rounded-l-box pl-1 space-y-px',
             ]}
         >
+            <!-- --- Close Button --- -->
+            {#if showToggle}
+                <li>
+                    <button
+                        class={[
+                            ...tooltipClasses,
+                            'tooltip-sm flex justify-center items-center',
+                        ]}
+                        data-tip={m.close_menu()}
+                        onclick={toggleOpen}
+                        aria-label={m.close_menu()}
+                    >
+                        <X size={20} weight="bold" />
+                    </button>
+                </li>
+            {/if}
+
             <!-- --- Standard Actions --- -->
 
             {#if showSearch}
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center aspect-square rounded-full',
-                            viewerState.showSearchPanel && 'active',
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.showSearchPanel && 'menu-active',
                         ]}
-                        use:tooltip={{
-                            content: m.search(),
-                            position: tooltipPos,
-                        }}
+                        data-tip={m.search()}
                         aria-label={m.toggle_search()}
                         onclick={() => viewerState.toggleSearchPanel()}
                     >
@@ -161,15 +132,13 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center aspect-square rounded-full',
-                            viewerState.showThumbnailGallery && 'active',
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.showThumbnailGallery && 'menu-active',
                         ]}
-                        use:tooltip={{
-                            content: viewerState.showThumbnailGallery
-                                ? m.hide_gallery()
-                                : m.show_gallery(),
-                            position: tooltipPos,
-                        }}
+                        data-tip={viewerState.showThumbnailGallery
+                            ? m.hide_gallery()
+                            : m.show_gallery()}
                         aria-label={viewerState.showThumbnailGallery
                             ? m.hide_gallery()
                             : m.show_gallery()}
@@ -181,21 +150,12 @@
             {/if}
 
             {#if showViewingMode}
-                <li
-                    class="dropdown {isTop
-                        ? 'dropdown-bottom'
-                        : isLeft
-                          ? 'dropdown-right'
-                          : 'dropdown-left'}"
-                >
-                    <div
-                        tabindex="0"
-                        role="button"
-                        class="flex items-center justify-center aspect-square rounded-full"
-                        use:tooltip={{
-                            content: m.viewing_mode_label(),
-                            position: tooltipPos,
-                        }}
+                <li>
+                    <button
+                        class={[...tooltipClasses, 'tooltip-sm']}
+                        data-tip={m.viewing_mode_label()}
+                        popovertarget="toolbar-viewing-mode"
+                        style="anchor-name:--anchor-viewing-mode"
                         aria-label={m.viewing_mode_label()}
                     >
                         {#if viewerState.viewingMode === 'paged'}
@@ -205,25 +165,31 @@
                         {:else}
                             <File size={24} weight="bold" />
                         {/if}
-                    </div>
+                    </button>
                     <ul
-                        tabindex="-1"
-                        class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-48 border border-base-200 font-normal {isTop
-                            ? 'left-1/2 -translate-x-1/2'
-                            : ''}"
+                        popover
+                        id="toolbar-viewing-mode"
+                        class={[
+                            'dropdown menu menu-sm rounded-box bg-base-100 shadow-sm border border-base-200',
+                            position === 'top' && 'mt-2 -translate-x-1/2',
+                            position === 'left' && 'ms-10',
+                            position === 'right' && '-translate-x-full -ms-2',
+                        ]}
+                        style={`
+                            position-anchor: --anchor-viewing-mode;
+                        `}
                     >
                         <li>
                             <button
-                                class={viewerState.viewingMode === 'individuals'
-                                    ? 'active'
-                                    : ''}
+                                class={[
+                                    viewerState.viewingMode === 'individuals' &&
+                                        'menu-active',
+                                ]}
                                 onclick={() =>
                                     viewerState.setViewingMode('individuals')}
                             >
                                 <File size={16} />
-                                <span class="flex-1"
-                                    >{m.viewing_mode_individuals()}</span
-                                >
+                                <span>{m.viewing_mode_individuals()}</span>
                                 {#if viewerState.viewingMode === 'individuals'}
                                     <Check size={16} weight="bold" />
                                 {/if}
@@ -231,16 +197,15 @@
                         </li>
                         <li>
                             <button
-                                class={viewerState.viewingMode === 'paged'
-                                    ? 'active'
-                                    : ''}
+                                class={[
+                                    viewerState.viewingMode === 'paged' &&
+                                        'menu-active',
+                                ]}
                                 onclick={() =>
                                     viewerState.setViewingMode('paged')}
                             >
                                 <BookOpen size={16} />
-                                <span class="flex-1"
-                                    >{m.viewing_mode_paged()}</span
-                                >
+                                <span>{m.viewing_mode_paged()}</span>
                                 {#if viewerState.viewingMode === 'paged'}
                                     <Check size={16} weight="bold" />
                                 {/if}
@@ -248,36 +213,38 @@
                         </li>
                         <li>
                             <button
-                                class={viewerState.viewingMode === 'continuous'
-                                    ? 'active'
-                                    : ''}
+                                class={[
+                                    viewerState.viewingMode === 'continuous' &&
+                                        'menu-active',
+                                ]}
                                 onclick={() =>
                                     viewerState.setViewingMode('continuous')}
                             >
                                 <Scroll size={16} />
-                                <span class="flex-1"
-                                    >{m.viewing_mode_continuous()}</span
-                                >
+                                <span>{m.viewing_mode_continuous()}</span>
                                 {#if viewerState.viewingMode === 'continuous'}
                                     <Check size={16} weight="bold" />
                                 {/if}
                             </button>
                         </li>
                         {#if viewerState.viewingMode === 'paged'}
-                            <div class="divider my-1"></div>
                             <li>
-                                <label class="label cursor-pointer py-1 gap-2">
-                                    <span class="label-text text-sm"
-                                        >{m.viewing_mode_shift_pairing()}</span
+                                <button
+                                    class={[
+                                        'text-start',
+                                        viewerState.pagedOffset === 1 &&
+                                            'menu-active',
+                                    ]}
+                                    onclick={() =>
+                                        viewerState.togglePagedOffset()}
+                                >
+                                    <ArrowsLeftRight size={16} />
+                                    <span>{m.viewing_mode_shift_pairing()}</span
                                     >
-                                    <input
-                                        type="checkbox"
-                                        class="checkbox checkbox-sm"
-                                        checked={viewerState.pagedOffset === 1}
-                                        onchange={() =>
-                                            viewerState.togglePagedOffset()}
-                                    />
-                                </label>
+                                    {#if viewerState.pagedOffset === 1}
+                                        <Check size={16} weight="bold" />
+                                    {/if}
+                                </button>
                             </li>
                         {/if}
                     </ul>
@@ -288,15 +255,13 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center aspect-square rounded-full',
-                            viewerState.isFullScreen && 'active',
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.isFullScreen && 'menu-active',
                         ]}
-                        use:tooltip={{
-                            content: viewerState.isFullScreen
-                                ? m.exit_full_screen()
-                                : m.enter_full_screen(),
-                            position: tooltipPos,
-                        }}
+                        data-tip={viewerState.isFullScreen
+                            ? m.exit_full_screen()
+                            : m.enter_full_screen()}
                         aria-label={viewerState.isFullScreen
                             ? m.exit_full_screen()
                             : m.enter_full_screen()}
@@ -315,15 +280,13 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center aspect-square rounded-full',
-                            viewerState.showAnnotations && 'active',
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.showAnnotations && 'menu-active',
                         ]}
-                        use:tooltip={{
-                            content: viewerState.showAnnotations
-                                ? m.hide_annotations()
-                                : m.show_annotations(),
-                            position: tooltipPos,
-                        }}
+                        data-tip={viewerState.showAnnotations
+                            ? m.hide_annotations()
+                            : m.show_annotations()}
                         aria-label={viewerState.showAnnotations
                             ? m.hide_annotations()
                             : m.show_annotations()}
@@ -338,13 +301,11 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center aspect-square rounded-full',
-                            viewerState.showMetadataDialog && 'active',
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.showMetadataDialog && 'menu-active',
                         ]}
-                        use:tooltip={{
-                            content: m.metadata(),
-                            position: tooltipPos,
-                        }}
+                        data-tip={m.metadata()}
                         aria-label={m.toggle_metadata()}
                         onclick={() => viewerState.toggleMetadataDialog()}
                     >
@@ -358,8 +319,8 @@
                 <div
                     class={[
                         'divider',
-                        isTop && 'divider-horizontal mx-0',
-                        !isTop && 'my-0',
+                        position === 'top' && 'divider-horizontal mx-0',
+                        position !== 'top' && 'my-0',
                     ]}
                 ></div>
             {/if}
@@ -376,17 +337,13 @@
                 <li>
                     <button
                         class={[
-                            'flex items-center justify-center aspect-square rounded-full',
-                            button.isActive?.() && 'active',
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            button.isActive?.() && 'menu-active',
                         ]}
-                        use:tooltip={{
-                            content: tooltipText,
-                            position: tooltipPos,
-                        }}
+                        data-tip={tooltipText}
                         aria-label={tooltipText}
-                        onclick={() => {
-                            button.onClick();
-                        }}
+                        onclick={() => button.onClick()}
                     >
                         <Icon size={24} weight="bold" />
                     </button>
@@ -399,21 +356,18 @@
     {#if showToggle}
         <button
             class={[
-                'pointer-events-auto btn btn-circle btn-sm shadow-md z-40 transition-opacity duration-300 absolute mt-2',
+                'pointer-events-auto btn btn-sm shadow-md z-40 w-8 h-8 transition-opacity duration-300 absolute p-0',
                 'bg-base-200/90 backdrop-blur border border-base-300 hover:bg-base-300 text-base-content',
                 isOpen && 'opacity-0 pointer-events-none',
                 !isOpen && 'opacity-100',
+                position === 'top' && 'top-1.5',
+                position === 'left' && 'left-1.5',
+                (position === 'top' || position === 'right') && 'right-1.5',
+                ...tooltipClasses,
+                'tooltip-sm',
             ]}
-            style={isTop
-                ? 'right: 0.5rem;'
-                : isLeft
-                  ? 'left: 0.5rem;'
-                  : 'right: 0.5rem;'}
             aria-label={m.open_menu()}
-            use:tooltip={{
-                content: m.open_menu(),
-                position: tooltipPos,
-            }}
+            data-tip={m.open_menu()}
             onclick={toggleOpen}
         >
             <List size={20} weight="bold" />

@@ -15,9 +15,10 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 - **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
 - **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL support)
 - **Annotations**:
-  - Renders IIIF annotations from embedded or external annotation lists
-  - Supports rectangle (xywh) and polygon (SVG selector) geometries
-  - Toggle annotation visibility on/off
+    - Renders IIIF annotations from embedded or external annotation lists
+    - Supports rectangle (xywh) and polygon (SVG selector) geometries
+    - Toggle annotation visibility on/off
+- **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **IIIF Search**: Full Content Search API support with hit highlighting
 - **Metadata Display**: Shows manifest metadata, description, attribution, and license/rights
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
@@ -32,7 +33,6 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
 ### Content
 
-- **Multiple images per canvas**: Only the first image is used; the `choice` property is not supported
 - **Audio/Video**: Time-based media (canvases with `duration`) not supported
 - **Multiple sequences**: Only the first sequence is read
 

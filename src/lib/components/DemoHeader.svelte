@@ -34,6 +34,10 @@
             label: 'Yugoslavia',
             url: 'https://zavicajna.digitalna.rs/iiif/api/presentation/3/96571949-03d6-478e-ab44-a2d5ad68f935%252F00000001%252Fostalo01%252F00000071/manifest',
         },
+        {
+            label: 'IIIF Cookbook: Choice (0033)',
+            url: 'https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json',
+        },
     ];
 
     let {
