@@ -6,10 +6,9 @@
     import type { ViewerConfig } from '../types/config';
     import { applyTheme } from '../theme/themeManager';
     import OSDViewer from './OSDViewer.svelte';
-    import CanvasNavigation from './CanvasNavigation.svelte';
+    import ViewerControls from './ViewerControls.svelte';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
-    import ChoiceSelector from './ChoiceSelector.svelte';
     import Toolbar from './Toolbar.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import SearchPanel from './SearchPanel.svelte';
@@ -612,7 +611,6 @@
             {/if}
 
             <AnnotationOverlay />
-            <ChoiceSelector />
             <MetadataDialog />
 
             <!-- Floating Toolbar (Replaced Unified Side Menu) -->
@@ -630,10 +628,8 @@
                 {/if}
             {/each}
 
-            <!-- Canvas Nav (Absolute positioned inside center, or floating?) currently assumes absolute -->
-            {#if (canvases.length > 1 && internalViewerState.showCanvasNav) || (internalViewerState.config.showZoomControls ?? true)}
-                <CanvasNavigation viewerState={internalViewerState} />
-            {/if}
+            <!-- Viewer Controls (Canvas Navigation + Zoom + IIIF Choice Selector) -->
+            <ViewerControls />
 
             <!-- Float-mode Gallery -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'none'}
