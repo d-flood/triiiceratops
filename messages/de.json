@@ -6,7 +6,7 @@
     "search_panel_placeholder": "Inhalt durchsuchen...",
     "search_panel_no_results": "Keine Ergebnisse für \"{query}\" gefunden",
     "search_panel_instruction": "Geben Sie einen Suchbegriff ein, um Vorkommen in diesem Manifest zu finden.",
-    "search_panel_results_count": "{count} Ergebnisse",
+    "search_panel_results_count": "{count} Gesamtergebnisse",
     "metadata_label_fallback": "Manifest-Metadaten",
     "loading": "Lädt...",
     "attribution": "Quellenangabe",
