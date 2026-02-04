@@ -6,7 +6,7 @@
     "search_panel_placeholder": "Search content...",
     "search_panel_no_results": "No results found for \"{query}\"",
     "search_panel_instruction": "Enter a search term to find occurrences within this manifest.",
-    "search_panel_results_count": "{count} Results",
+    "search_panel_results_count": "{count} Total Results",
     "metadata_label_fallback": "Manifest Metadata",
     "loading": "Loading...",
     "attribution": "Attribution",
