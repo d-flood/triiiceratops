@@ -30,7 +30,7 @@ interface ViewerConfig {
     // Toolbar Settings
     showToggle?: boolean; // Default: true (Toolbar toggle visible)
     toolbarOpen?: boolean; // Default: false (Toolbar expanded)
-    toolbarPosition?: 'left' | 'right' | 'top'; // Default: 'left'
+    toolbarPosition?: 'left' | 'right' | 'top-left' | 'top-right'; // Default: 'left'
 
     toolbar?: {
         showSearch?: boolean; // Default: true

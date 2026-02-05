@@ -48,7 +48,7 @@
         },
         annotations: {
             open: false,
-            visible: true,
+            visible: false,
         },
     };
 
@@ -82,21 +82,33 @@
     // This defines <triiiceratops-viewer>
     import('../lib/custom-element');
 
-    // Persist state to URL
+    // Persist non-config state to URL (mode, manifest, canvas)
+    // Config is only added to the URL when the user clicks "Share Current State"
     $effect(() => {
         const params = new SvelteURLSearchParams();
         params.set('mode', viewerMode);
         if (manifestUrl) params.set('manifest', manifestUrl);
         if (canvasId) params.set('canvas', canvasId);
 
-        // Only persist config if it's different from default?
-        // For simplicity and correctness of bookmarking "exactly this view", we persist it.
-        // To avoid massive URLs for default state, we could compare, but let's stick to explicit first.
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState({}, '', newUrl);
+    });
+
+    function resetConfig() {
+        config = JSON.parse(JSON.stringify(defaultConfig));
+    }
+
+    async function shareState() {
+        const params = new URLSearchParams();
+        params.set('mode', viewerMode);
+        if (manifestUrl) params.set('manifest', manifestUrl);
+        if (canvasId) params.set('canvas', canvasId);
         params.set('config', JSON.stringify(config));
 
         const newUrl = `${window.location.pathname}?${params.toString()}`;
         window.history.replaceState({}, '', newUrl);
-    });
+        await navigator.clipboard.writeText(window.location.origin + newUrl);
+    }
 
     // Custom theme configuration for the "Custom Theme" demo
     // This demonstrates hex color conversion and theme customization
@@ -314,6 +326,8 @@
         bind:canvasId
         bind:config
         onLoad={loadManifest}
+        onReset={resetConfig}
+        onShare={shareState}
     />
 
     <h1 class="text-3xl text-center pt-8">{m.demo_title()}</h1>
@@ -359,6 +373,8 @@
                 <div class="flex-1 overflow-y-auto">
                     <SettingsMenu
                         bind:config
+                        onReset={resetConfig}
+                        onShare={shareState}
                         class="menu p-2 flex-nowrap w-full"
                     />
                 </div>
