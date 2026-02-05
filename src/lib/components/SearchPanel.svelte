@@ -62,6 +62,22 @@
 
     // Number of excerpts to show before collapse
     const INITIAL_EXCERPT_COUNT = 2;
+
+    // Ref for the scrollable results container
+    let resultsContainer = $state<HTMLElement | null>(null);
+
+    // Auto-scroll active search result into view (e.g. on init when canvas is set via props)
+    $effect(() => {
+        if (!resultsContainer || viewerState.searchResults.length === 0) return;
+        const idx = viewerState.currentCanvasIndex;
+        if (idx < 0) return;
+        const el = resultsContainer.querySelector(
+            `[data-canvas-index="${idx}"]`,
+        );
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    });
 </script>
 
 <!-- Drawer / Panel -->
@@ -118,7 +134,10 @@
         </div>
 
         <!-- Results -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div
+            bind:this={resultsContainer}
+            class="flex-1 overflow-y-auto p-4 space-y-4"
+        >
             {#if viewerState.isSearching}
                 <div class="flex justify-center p-8">
                     <span
@@ -152,6 +171,7 @@
                         : group.hits.slice(0, INITIAL_EXCERPT_COUNT)}
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
+                        data-canvas-index={group.canvasIndex}
                         class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none {viewerState.currentCanvasIndex ===
                         group.canvasIndex
                             ? 'ring-2 ring-primary bg-primary/5'
