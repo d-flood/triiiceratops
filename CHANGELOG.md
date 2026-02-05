@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.15.5
+
+### Patch Changes
+
+- 05e136a: Display both canvas labels in paged viewing mode
+
 ## 0.15.4
 
 ### Patch Changes
