@@ -710,12 +710,21 @@
                 {#if viewerState.viewingMode === 'paged'}
                     <!-- grouped thumbnail display -->
                     {#each groupedThumbnails as thumbGroup}
+                        {@const isGroupSelected = (() => {
+                            const idx = thumbGroup.index;
+                            const first = thumbnails[idx];
+                            const second = thumbnails[idx + 1];
+                            return (
+                                viewerState.canvasId === first?.id ||
+                                viewerState.canvasId === second?.id
+                            );
+                        })()}
                         <button
                             class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
                                 ? 'w-auto'
                                 : thumbGroup.srcs.length > 1
                                   ? 'col-span-2'
-                                  : ''} {viewerState.canvasId === thumbGroup.id
+                                  : ''} {isGroupSelected
                                 ? 'ring-2 ring-primary bg-primary/5'
                                 : ''}"
                             style={isHorizontal
