@@ -121,7 +121,7 @@
                     onclick={() => viewerState.toggleAnnotations()}
                     aria-label={m.close()}
                 >
-                    <X size={20} weight="bold" />
+                    <X size={20} />
                 </button>
             {/if}
         </div>
@@ -139,10 +139,10 @@
                 disabled={annotations.length === 0}
             >
                 {#if isAllVisible}
-                    <Eye size={16} weight="bold" />
+                    <Eye size={16} />
                     {m.hide_all_annotations()}
                 {:else}
-                    <EyeSlash size={16} weight="bold" />
+                    <EyeSlash size={16} />
                     {m.show_all_annotations()}
                 {/if}
             </button>
@@ -188,9 +188,9 @@
                         }}
                     >
                         {#if isVisible}
-                            <Eye size={16} weight="bold" />
+                            <Eye size={16} />
                         {:else}
-                            <EyeSlash size={16} weight="bold" />
+                            <EyeSlash size={16} />
                         {/if}
                     </button>
 

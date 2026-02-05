@@ -104,7 +104,7 @@
                     onclick={() => viewerState.toggleSearchPanel()}
                     aria-label={m.close_search()}
                 >
-                    <X size={20} weight="bold" />
+                    <X size={20} />
                 </button>
             {/if}
         </div>

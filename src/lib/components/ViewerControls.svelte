@@ -100,7 +100,7 @@
 
 {#if showNav || showZoom || hasChoices}
     <div
-        class="select-none absolute left-1/2 -translate-x-1/2 bg-base-200/90 backdrop-blur rounded-full shadow-lg flex items-center gap-2 z-10 border border-base-300 transition-all duration-200 bottom-4 px-2"
+        class="select-none absolute left-1/2 -translate-x-1/2 bg-base-200/70 backdrop-blur rounded-full shadow-lg flex items-center gap-2 z-10 border border-base-300 transition-all duration-200 bottom-4 px-2"
     >
         <!-- Choice Selector Section (first, if present) -->
         {#if hasChoices}
@@ -194,7 +194,7 @@
                     onclick={() => viewerState.zoomOut()}
                     aria-label="Zoom Out"
                 >
-                    <MagnifyingGlassMinus size={18} weight="bold" />
+                    <MagnifyingGlassMinus size={18} />
                 </button>
 
                 <button
@@ -202,7 +202,7 @@
                     onclick={() => viewerState.zoomIn()}
                     aria-label="Zoom In"
                 >
-                    <MagnifyingGlassPlus size={18} weight="bold" />
+                    <MagnifyingGlassPlus size={18} />
                 </button>
             </div>
         {/if}
@@ -224,7 +224,7 @@
                     onclick={() => viewerState.previousCanvas()}
                     aria-label={m.previous_canvas()}
                 >
-                    <CaretLeft size={18} weight="bold" />
+                    <CaretLeft size={18} />
                 </button>
 
                 <span class="text-sm font-mono tabular-nums text-nowrap px-1">
@@ -238,7 +238,7 @@
                     onclick={() => viewerState.nextCanvas()}
                     aria-label={m.next_canvas()}
                 >
-                    <CaretRight size={18} weight="bold" />
+                    <CaretRight size={18} />
                 </button>
             </div>
         {/if}
