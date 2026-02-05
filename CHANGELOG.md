@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.15.2
+
+### Patch Changes
+
+- 339a03b: Fix setting active canvas in 'paged' mode
+
 ## 0.15.1
 
 ### Patch Changes
