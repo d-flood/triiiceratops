@@ -646,7 +646,7 @@
                 onclick={() => viewerState.toggleThumbnailGallery()}
                 aria-label="Close Gallery"
             >
-                <X size={16} weight="bold" />
+                <X size={16} />
             </button>
         {/if}
 
@@ -786,11 +786,7 @@
                                         class="ml-1 inline-flex items-center"
                                         title="Has choices/layers"
                                     >
-                                        <Stack
-                                            size={12}
-                                            weight="bold"
-                                            class="opacity-70"
-                                        />
+                                        <Stack size={12} class="opacity-70" />
                                     </span>
                                 {/if}
                             </div>
@@ -845,11 +841,7 @@
                                         class="ml-1 inline-flex items-center"
                                         title="Has choices/layers"
                                     >
-                                        <Stack
-                                            size={12}
-                                            weight="bold"
-                                            class="opacity-70"
-                                        />
+                                        <Stack size={12} class="opacity-70" />
                                     </span>
                                 {/if}
                             </div>

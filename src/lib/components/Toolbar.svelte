@@ -89,7 +89,7 @@
         <!-- Scrollable Actions -->
         <ul
             class={[
-                'menu menu-sm bg-base-200 [&_li>*]:p-1 justify-center items-center',
+                'menu menu-sm bg-base-200/70 backdrop-blur shadow-lg [&_li>*]:p-1 justify-center items-center',
                 position === 'top' &&
                     'menu-horizontal rounded-b-box flex-row-reverse space-x-px [&_li]:pb-0',
                 position === 'left' && 'rounded-r-box pr-1 space-y-px',
@@ -108,7 +108,7 @@
                         onclick={toggleOpen}
                         aria-label={m.close_menu()}
                     >
-                        <X size={20} weight="bold" />
+                        <X size={24} />
                     </button>
                 </li>
             {/if}
@@ -122,13 +122,13 @@
                             ...tooltipClasses,
                             'tooltip-sm',
                             viewerState.showSearchPanel &&
-                                'menu-active bg-primary text-primary-content',
+                                'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
                         data-tip={m.search()}
                         aria-label={m.toggle_search()}
                         onclick={() => viewerState.toggleSearchPanel()}
                     >
-                        <MagnifyingGlass size={24} weight="bold" />
+                        <MagnifyingGlass size={24} />
                     </button>
                 </li>
             {/if}
@@ -139,7 +139,8 @@
                         class={[
                             ...tooltipClasses,
                             'tooltip-sm',
-                            viewerState.showThumbnailGallery && 'menu-active',
+                            viewerState.showThumbnailGallery &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
                         data-tip={viewerState.showThumbnailGallery
                             ? m.hide_gallery()
@@ -149,7 +150,7 @@
                             : m.show_gallery()}
                         onclick={() => viewerState.toggleThumbnailGallery()}
                     >
-                        <Slideshow size={24} weight="bold" />
+                        <Slideshow size={24} />
                     </button>
                 </li>
             {/if}
@@ -164,11 +165,11 @@
                         aria-label={m.viewing_mode_label()}
                     >
                         {#if viewerState.viewingMode === 'paged'}
-                            <BookOpen size={24} weight="bold" />
+                            <BookOpen size={24} />
                         {:else if viewerState.viewingMode === 'continuous'}
-                            <Scroll size={24} weight="bold" />
+                            <Scroll size={24} />
                         {:else}
-                            <File size={24} weight="bold" />
+                            <File size={24} />
                         {/if}
                     </button>
                     <ul
@@ -188,7 +189,7 @@
                             <button
                                 class={[
                                     viewerState.viewingMode === 'individuals' &&
-                                        'menu-active',
+                                        'menu-active bg-primary text-primary-content cursor-pointer',
                                 ]}
                                 onclick={() =>
                                     viewerState.setViewingMode('individuals')}
@@ -196,7 +197,7 @@
                                 <File size={16} />
                                 <span>{m.viewing_mode_individuals()}</span>
                                 {#if viewerState.viewingMode === 'individuals'}
-                                    <Check size={16} weight="bold" />
+                                    <Check size={16} />
                                 {/if}
                             </button>
                         </li>
@@ -204,7 +205,7 @@
                             <button
                                 class={[
                                     viewerState.viewingMode === 'paged' &&
-                                        'menu-active',
+                                        'menu-active bg-primary text-primary-content cursor-pointer',
                                 ]}
                                 onclick={() =>
                                     viewerState.setViewingMode('paged')}
@@ -212,7 +213,7 @@
                                 <BookOpen size={16} />
                                 <span>{m.viewing_mode_paged()}</span>
                                 {#if viewerState.viewingMode === 'paged'}
-                                    <Check size={16} weight="bold" />
+                                    <Check size={16} />
                                 {/if}
                             </button>
                         </li>
@@ -220,7 +221,7 @@
                             <button
                                 class={[
                                     viewerState.viewingMode === 'continuous' &&
-                                        'menu-active',
+                                        'menu-active bg-primary text-primary-content cursor-pointer',
                                 ]}
                                 onclick={() =>
                                     viewerState.setViewingMode('continuous')}
@@ -228,7 +229,7 @@
                                 <Scroll size={16} />
                                 <span>{m.viewing_mode_continuous()}</span>
                                 {#if viewerState.viewingMode === 'continuous'}
-                                    <Check size={16} weight="bold" />
+                                    <Check size={16} />
                                 {/if}
                             </button>
                         </li>
@@ -238,7 +239,7 @@
                                     class={[
                                         'text-start',
                                         viewerState.pagedOffset === 1 &&
-                                            'menu-active',
+                                            'menu-active bg-primary text-primary-content cursor-pointer',
                                     ]}
                                     onclick={() =>
                                         viewerState.togglePagedOffset()}
@@ -247,7 +248,7 @@
                                     <span>{m.viewing_mode_shift_pairing()}</span
                                     >
                                     {#if viewerState.pagedOffset === 1}
-                                        <Check size={16} weight="bold" />
+                                        <Check size={16} />
                                     {/if}
                                 </button>
                             </li>
@@ -262,7 +263,8 @@
                         class={[
                             ...tooltipClasses,
                             'tooltip-sm',
-                            viewerState.isFullScreen && 'menu-active',
+                            viewerState.isFullScreen &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
                         data-tip={viewerState.isFullScreen
                             ? m.exit_full_screen()
@@ -273,9 +275,9 @@
                         onclick={() => viewerState.toggleFullScreen()}
                     >
                         {#if viewerState.isFullScreen}
-                            <CornersIn size={24} weight="bold" />
+                            <CornersIn size={24} />
                         {:else}
-                            <CornersOut size={24} weight="bold" />
+                            <CornersOut size={24} />
                         {/if}
                     </button>
                 </li>
@@ -287,7 +289,8 @@
                         class={[
                             ...tooltipClasses,
                             'tooltip-sm',
-                            viewerState.showAnnotations && 'menu-active',
+                            viewerState.showAnnotations &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
                         data-tip={viewerState.showAnnotations
                             ? m.hide_annotations()
@@ -297,7 +300,7 @@
                             : m.show_annotations()}
                         onclick={() => viewerState.toggleAnnotations()}
                     >
-                        <ChatCenteredText size={24} weight="bold" />
+                        <ChatCenteredText size={24} />
                     </button>
                 </li>
             {/if}
@@ -308,13 +311,14 @@
                         class={[
                             ...tooltipClasses,
                             'tooltip-sm',
-                            viewerState.showMetadataDialog && 'menu-active',
+                            viewerState.showMetadataDialog &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
                         data-tip={m.metadata()}
                         aria-label={m.toggle_metadata()}
                         onclick={() => viewerState.toggleMetadataDialog()}
                     >
-                        <Info size={24} weight="bold" />
+                        <Info size={24} />
                     </button>
                 </li>
             {/if}
@@ -344,13 +348,14 @@
                         class={[
                             ...tooltipClasses,
                             'tooltip-sm',
-                            button.isActive?.() && 'menu-active',
+                            button.isActive?.() &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
                         data-tip={tooltipText}
                         aria-label={tooltipText}
                         onclick={() => button.onClick()}
                     >
-                        <Icon size={24} weight="bold" />
+                        <Icon size={24} />
                     </button>
                 </li>
             {/each}
@@ -362,7 +367,7 @@
         <button
             class={[
                 'pointer-events-auto btn btn-sm shadow-md z-40 w-8 h-8 transition-opacity duration-300 absolute p-0',
-                'bg-base-200/90 backdrop-blur border border-base-300 hover:bg-base-300 text-base-content',
+                'bg-base-200/70 backdrop-blur border border-base-300 hover:bg-base-300 text-base-content',
                 isOpen && 'opacity-0 pointer-events-none',
                 !isOpen && 'opacity-100',
                 position === 'top' && 'top-1.5',
@@ -375,7 +380,7 @@
             data-tip={m.open_menu()}
             onclick={toggleOpen}
         >
-            <List size={20} weight="bold" />
+            <List size={20} />
         </button>
     {/if}
 </div>
