@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.15.3
+
+### Patch Changes
+
+- 25edc3d: second attempt at fixing active canvas when behavior is paged
+
 ## 0.15.2
 
 ### Patch Changes
