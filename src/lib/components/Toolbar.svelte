@@ -24,15 +24,27 @@
     // --- Configuration ---
     // Default to 'left' if not specified
     const position = $derived(viewerState.config.toolbarPosition || 'left');
+    const isTop = $derived(position === 'top-left' || position === 'top-right');
     const showToggle = $derived(viewerState.config.showToggle !== false);
 
     // --- Tooltip Classes ---
     const tooltipClasses = $derived(
-        position === 'top'
+        isTop
             ? ['tooltip', 'tooltip-bottom']
             : position === 'left'
               ? ['tooltip', 'tooltip-right']
               : ['tooltip', 'tooltip-left'],
+    );
+
+    // Tooltip classes specifically for the open button when toolbar is closed
+    const openButtonTooltipClasses = $derived(
+        position === 'top-left'
+            ? ['tooltip', 'tooltip-right']
+            : position === 'top-right'
+              ? ['tooltip', 'tooltip-left']
+              : position === 'left'
+                ? ['tooltip', 'tooltip-right']
+                : ['tooltip', 'tooltip-left'],
     );
 
     // --- Standard Viewer Actions ---
@@ -60,8 +72,10 @@
 <div
     class={[
         'absolute z-50 pointer-events-none flex',
-        position === 'top' && 'w-full items-end flex-col pt-0 pr-3 top-0',
-        position !== 'top' && 'h-full items-start top-1.5',
+        position === 'top-right' && 'w-full items-end flex-col pt-0 pr-3 top-0',
+        position === 'top-left' &&
+            'w-full items-start flex-col pt-0 pl-3 top-0',
+        !isTop && 'h-full items-start top-1.5',
         position === 'left' && 'left-0',
         position === 'right' && 'right-0',
     ]}
@@ -71,13 +85,15 @@
         class={[
             'pointer-events-auto transition-all duration-200 ease-in-out flex',
             // Layout based on position
-            position === 'top' &&
-                'flex-row-reverse h-12 w-auto max-w-full origin-top',
-            position !== 'top' && 'flex-col h-auto max-h-full',
+            position === 'top-right' &&
+                'flex-row-reverse h-12 w-auto max-w-full origin-top mr-4',
+            position === 'top-left' &&
+                'flex-row h-12 w-auto max-w-full origin-top ml-4',
+            !isTop && 'flex-col h-auto max-h-full',
             // Animation state based on open/closed and position
-            isOpen && position === 'top' && 'opacity-100 translate-y-0',
-            isOpen && position !== 'top' && 'opacity-100 translate-x-0',
-            !isOpen && position === 'top' && 'h-0 opacity-0 -translate-y-full',
+            isOpen && isTop && 'opacity-100 translate-y-0',
+            isOpen && !isTop && 'opacity-100 translate-x-0',
+            !isOpen && isTop && 'h-0 opacity-0 -translate-y-full',
             !isOpen &&
                 position === 'left' &&
                 'opacity-0 -translate-x-full pointer-events-none',
@@ -90,8 +106,10 @@
         <ul
             class={[
                 'menu menu-sm bg-base-200/70 backdrop-blur shadow-lg [&_li>*]:p-1 justify-center items-center',
-                position === 'top' &&
+                position === 'top-right' &&
                     'menu-horizontal rounded-b-box flex-row-reverse space-x-px [&_li]:pb-0',
+                position === 'top-left' &&
+                    'menu-horizontal rounded-b-box flex-row space-x-px [&_li]:pb-0',
                 position === 'left' && 'rounded-r-box pr-1 space-y-px',
                 position === 'right' && 'rounded-l-box pl-1 space-y-px',
             ]}
@@ -177,7 +195,7 @@
                         id="toolbar-viewing-mode"
                         class={[
                             'dropdown menu menu-sm rounded-box bg-base-100 shadow-sm border border-base-200',
-                            position === 'top' && 'mt-2 -translate-x-1/2',
+                            isTop && 'mt-2 -translate-x-1/2',
                             position === 'left' && 'ms-10',
                             position === 'right' && '-translate-x-full -ms-2',
                         ]}
@@ -328,8 +346,8 @@
                 <div
                     class={[
                         'divider',
-                        position === 'top' && 'divider-horizontal mx-0',
-                        position !== 'top' && 'my-0',
+                        isTop && 'divider-horizontal mx-0',
+                        !isTop && 'my-0',
                     ]}
                 ></div>
             {/if}
@@ -370,10 +388,11 @@
                 'bg-base-200/70 backdrop-blur border border-base-300 hover:bg-base-300 text-base-content',
                 isOpen && 'opacity-0 pointer-events-none',
                 !isOpen && 'opacity-100',
-                position === 'top' && 'top-1.5',
-                position === 'left' && 'left-1.5',
-                (position === 'top' || position === 'right') && 'right-1.5',
-                ...tooltipClasses,
+                isTop && 'top-1.5',
+                (position === 'left' || position === 'top-left') && 'left-1.5',
+                (position === 'right' || position === 'top-right') &&
+                    'right-1.5',
+                ...openButtonTooltipClasses,
                 'tooltip-sm',
             ]}
             aria-label={m.open_menu()}
