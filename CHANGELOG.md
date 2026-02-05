@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.15.4
+
+### Patch Changes
+
+- b4af2ea: disable default canvas selection if canvas_id is provided as prop
+
 ## 0.15.3
 
 ### Patch Changes
