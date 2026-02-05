@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.15.0
+
+### Minor Changes
+
+- 2eb3cfd: Display total results number; concatenate all exerpts per page with separator; add two-way sync between active search result and active canvas; rename toolbar position "top" to "top-right" and add new "top-left" position.
+
 ## 0.14.1
 
 ### Patch Changes
