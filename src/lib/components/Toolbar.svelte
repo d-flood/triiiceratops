@@ -69,17 +69,21 @@
     <!-- Collapsible Toolbar -->
     <div
         class={[
-            'pointer-events-auto transition-all duration-300 ease-in-out flex',
+            'pointer-events-auto transition-all duration-200 ease-in-out flex',
             // Layout based on position
             position === 'top' &&
                 'flex-row-reverse h-12 w-auto max-w-full origin-top',
             position !== 'top' && 'flex-col h-auto max-h-full',
-
             // Animation state based on open/closed and position
             isOpen && position === 'top' && 'opacity-100 translate-y-0',
             isOpen && position !== 'top' && 'opacity-100 translate-x-0',
             !isOpen && position === 'top' && 'h-0 opacity-0 -translate-y-full',
-            !isOpen && position !== 'top' && 'w-0 opacity-0',
+            !isOpen &&
+                position === 'left' &&
+                'opacity-0 -translate-x-full pointer-events-none',
+            !isOpen &&
+                position === 'right' &&
+                'opacity-0 translate-x-full pointer-events-none',
         ]}
     >
         <!-- Scrollable Actions -->
@@ -117,7 +121,8 @@
                         class={[
                             ...tooltipClasses,
                             'tooltip-sm',
-                            viewerState.showSearchPanel && 'menu-active',
+                            viewerState.showSearchPanel &&
+                                'menu-active bg-primary text-primary-content',
                         ]}
                         data-tip={m.search()}
                         aria-label={m.toggle_search()}
