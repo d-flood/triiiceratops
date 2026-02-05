@@ -605,7 +605,7 @@
     const groupedThumbnails = $derived.by(() => {
         const groups: Array<{
             id: string;
-            label: string;
+            labels: string[];
             srcs: string[];
             index: number;
             hasChoice: boolean;
@@ -617,9 +617,10 @@
             // Only pair if we're past the single pages section
             const second = i < singlePages ? null : thumbs[i + 1];
             const groupId = first.id;
-            const groupLabel = first.label;
+            const groupLabels = [first.label];
             const groupSrcs = [first.src];
             if (second) {
+                groupLabels.push(second.label);
                 groupSrcs.push(second.src);
             }
             const groupHasChoice =
@@ -627,7 +628,7 @@
 
             groups.push({
                 id: groupId,
-                label: groupLabel,
+                labels: groupLabels,
                 srcs: groupSrcs,
                 index: i,
                 hasChoice: groupHasChoice,
@@ -720,7 +721,7 @@
                             );
                         })()}
                         <button
-                            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
+                            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 overflow-hidden {isHorizontal
                                 ? 'w-auto'
                                 : thumbGroup.srcs.length > 1
                                   ? 'col-span-2'
@@ -728,11 +729,13 @@
                                 ? 'ring-2 ring-primary bg-primary/5'
                                 : ''}"
                             style={isHorizontal
-                                ? `height: ${fixedHeight + 24}px`
+                                ? `height: ${fixedHeight + (thumbGroup.labels.length > 1 ? 40 : 24)}px`
                                 : ''}
                             onclick={() => selectCanvas(thumbGroup.id)}
                             data-id={thumbGroup.id}
-                            aria-label="Select canvas {thumbGroup.label}"
+                            aria-label="Select canvas {thumbGroup.labels.join(
+                                ' / ',
+                            )}"
                         >
                             <div
                                 class="{isHorizontal
@@ -757,7 +760,7 @@
                                     {#if thumbGroup.srcs[0]}
                                         <img
                                             src={thumbGroup.srcs[0]}
-                                            alt={thumbGroup.label}
+                                            alt={thumbGroup.labels[0]}
                                             class="object-contain {isHorizontal
                                                 ? 'h-full w-auto'
                                                 : 'w-full h-full'} {thumbGroup
@@ -782,7 +785,7 @@
                                         {#if thumbGroup.srcs[1]}
                                             <img
                                                 src={thumbGroup.srcs[1]}
-                                                alt={thumbGroup.label}
+                                                alt={thumbGroup.labels[1]}
                                                 class="object-contain {isHorizontal
                                                     ? 'h-full w-auto'
                                                     : 'w-full h-full'} object-left"
@@ -798,19 +801,41 @@
                                 {/if}
                             </div>
                             <div
-                                class="text-xs font-medium truncate w-full opacity-70 group-hover:opacity-100"
+                                class="text-xs font-medium opacity-70 group-hover:opacity-100 overflow-hidden {isHorizontal
+                                    ? 'w-0 min-w-full'
+                                    : 'w-full'}"
+                                title="{thumbGroup.index + 1}. {thumbGroup
+                                    .labels[0]}{thumbGroup.labels.length > 1
+                                    ? ` / ${thumbGroup.index + 2}. ${thumbGroup.labels[1]}`
+                                    : ''}"
                             >
-                                <span class="font-bold mr-1"
-                                    >{thumbGroup.index + 1}.</span
-                                >
-                                {thumbGroup.label}
-                                {#if thumbGroup.hasChoice}
-                                    <span
-                                        class="ml-1 inline-flex items-center"
-                                        title="Has choices/layers"
-                                    >
-                                        <Stack size={12} class="opacity-70" />
-                                    </span>
+                                <div class="truncate">
+                                    <span class="font-bold mr-1"
+                                        >{thumbGroup.index + 1}.</span
+                                    >{thumbGroup
+                                        .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
+                                            class="ml-1 inline-flex items-center align-middle"
+                                            title="Has choices/layers"
+                                            ><Stack
+                                                size={12}
+                                                class="opacity-70"
+                                            /></span
+                                        >{/if}
+                                </div>
+                                {#if thumbGroup.labels.length > 1}
+                                    <div class="truncate">
+                                        <span class="font-bold mr-1"
+                                            >{thumbGroup.index + 2}.</span
+                                        >{thumbGroup
+                                            .labels[1]}{#if thumbGroup.hasChoice}<span
+                                                class="ml-1 inline-flex items-center align-middle"
+                                                title="Has choices/layers"
+                                                ><Stack
+                                                    size={12}
+                                                    class="opacity-70"
+                                                /></span
+                                            >{/if}
+                                    </div>
                                 {/if}
                             </div>
                         </button>
