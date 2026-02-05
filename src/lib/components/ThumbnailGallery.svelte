@@ -481,8 +481,10 @@
     // Auto-scroll active thumbnail into view
     $effect(() => {
         if (!galleryElement || !viewerState.canvasId) return;
-        // Use a slight timeout to ensure DOM is ready/layout is stable if needed,
-        // though usually effect runs after render.
+        // Wait for thumbnails to be available - this creates a reactive dependency
+        // so the effect re-runs when thumbnails populate after manifest loads
+        if (thumbnails.length === 0) return;
+
         const id = viewerState.canvasId;
 
         // requestAnimationFrame to ensure we are in a good painting frame?
