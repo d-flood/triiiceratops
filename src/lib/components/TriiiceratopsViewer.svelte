@@ -207,13 +207,14 @@
         }
     });
 
-    // Auto-select first canvas if none selected
+    // Auto-select first canvas if none selected AND no canvasId prop was provided
     $effect(() => {
         if (
             canvases &&
             canvases.length > 0 &&
             !internalViewerState.canvasId &&
-            !manifestData?.isFetching
+            !manifestData?.isFetching &&
+            !canvasId // Don't auto-select if a canvasId prop is provided
         ) {
             console.log(
                 '[Viewer] Auto-selecting first canvas:',
