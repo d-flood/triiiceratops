@@ -485,12 +485,24 @@
         // so the effect re-runs when thumbnails populate after manifest loads
         if (thumbnails.length === 0) return;
 
-        const id = viewerState.canvasId;
+        let targetId = viewerState.canvasId;
 
-        // requestAnimationFrame to ensure we are in a good painting frame?
-        // Or just direct. Svelte 5 effects are post-dom-update.
+        // In paged mode, find the group that contains this canvas
+        // (the canvas could be the second of a pair, but data-id uses the first canvas's id)
+        if (viewerState.viewingMode === 'paged') {
+            const group = groupedThumbnails.find((g) => {
+                const idx = g.index;
+                const first = thumbnails[idx];
+                const second = thumbnails[idx + 1];
+                return first?.id === targetId || second?.id === targetId;
+            });
+            if (group) {
+                targetId = group.id;
+            }
+        }
+
         const activeEl = galleryElement.querySelector(
-            `[data-id="${CSS.escape(id)}"]`,
+            `[data-id="${CSS.escape(targetId)}"]`,
         );
         if (activeEl) {
             activeEl.scrollIntoView({
