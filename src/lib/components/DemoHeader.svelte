@@ -46,6 +46,16 @@
         viewerMode = $bindable('core'),
         canvasId = $bindable(''),
         config = $bindable({}),
+        onReset,
+        onShare,
+    }: {
+        manifestUrl: string;
+        onLoad: () => void;
+        viewerMode: string;
+        canvasId: string;
+        config: any;
+        onReset?: () => void;
+        onShare?: () => Promise<void>;
     } = $props();
 
     onMount(() => {
@@ -225,6 +235,8 @@
             </div>
             <SettingsMenu
                 bind:config
+                {onReset}
+                {onShare}
                 class="dropdown-content z-20 menu bg-base-100 rounded-box w-80 p-2 shadow border border-base-300 max-h-[80vh] overflow-y-auto block invisible pointer-events-none group-focus-within:visible group-focus-within:pointer-events-auto"
             />
         </div>

@@ -2,10 +2,23 @@
     import { m } from '../state/i18n.svelte';
     import Check from 'phosphor-svelte/lib/Check';
     import Copy from 'phosphor-svelte/lib/Copy';
+    import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
+    import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
 
-    let { config = $bindable(), class: className = '' } = $props();
+    let {
+        config = $bindable(),
+        class: className = '',
+        onReset,
+        onShare,
+    }: {
+        config: any;
+        class?: string;
+        onReset?: () => void;
+        onShare?: () => Promise<void>;
+    } = $props();
 
     let copied = $state(false);
+    let shared = $state(false);
 
     function copyConfig() {
         navigator.clipboard.writeText(JSON.stringify(config, null, 2));
@@ -13,6 +26,16 @@
         setTimeout(() => {
             copied = false;
         }, 2000);
+    }
+
+    async function shareState() {
+        if (onShare) {
+            await onShare();
+            shared = true;
+            setTimeout(() => {
+                shared = false;
+            }, 2000);
+        }
     }
 </script>
 
@@ -119,7 +142,11 @@
                             onchange={(e) => {
                                 config.toolbarPosition = (
                                     e.currentTarget as HTMLSelectElement
-                                ).value as 'left' | 'right' | 'top';
+                                ).value as
+                                    | 'left'
+                                    | 'right'
+                                    | 'top-left'
+                                    | 'top-right';
                             }}
                         >
                             <option value="left"
@@ -128,8 +155,11 @@
                             <option value="right"
                                 >{m.settings_position_right()}</option
                             >
-                            <option value="top"
-                                >{m.settings_position_top()}</option
+                            <option value="top-left"
+                                >{m.settings_position_top_left()}</option
+                            >
+                            <option value="top-right"
+                                >{m.settings_position_top_right()}</option
                             >
                         </select>
                     </label>
@@ -630,6 +660,17 @@
         </details>
     </li>
     <div class="divider my-1"></div>
+    {#if onReset}
+        <li>
+            <button
+                class="btn btn-sm btn-ghost w-full justify-start gap-2"
+                onclick={onReset}
+            >
+                <ArrowCounterClockwise size={16} />
+                {m.reset_config()}
+            </button>
+        </li>
+    {/if}
     <li>
         <button
             class="btn btn-sm btn-ghost w-full justify-start gap-2"
@@ -645,4 +686,21 @@
             {/if}
         </button>
     </li>
+    {#if onShare}
+        <li>
+            <button
+                class="btn btn-sm btn-ghost w-full justify-start gap-2"
+                class:text-success={shared}
+                onclick={shareState}
+            >
+                {#if shared}
+                    <Check size={16} />
+                    {m.link_copied()}
+                {:else}
+                    <ShareNetwork size={16} />
+                    {m.share_current_state()}
+                {/if}
+            </button>
+        </li>
+    {/if}
 </ul>

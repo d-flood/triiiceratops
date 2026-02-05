@@ -222,7 +222,7 @@ export interface ViewerConfig {
      * Which side the toolbar should appear on.
      * @default 'left'
      */
-    toolbarPosition?: 'left' | 'right' | 'top';
+    toolbarPosition?: 'left' | 'right' | 'top-left' | 'top-right';
 
     /**
      * Configuration for the toolbar items.
