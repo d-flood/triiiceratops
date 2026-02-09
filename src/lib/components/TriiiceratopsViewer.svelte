@@ -575,7 +575,7 @@
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
             <div
                 class="flex-none w-full pointer-events-auto relative z-20"
-                style="height: {internalViewerState.galleryFixedHeight + 50}px"
+                style="height: {internalViewerState.galleryFixedHeight + 55}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -642,7 +642,7 @@
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
             <div
                 class="flex-none w-full pointer-events-auto relative z-20"
-                style="height: {internalViewerState.galleryFixedHeight + 50}px"
+                style="height: {internalViewerState.galleryFixedHeight + 55}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
