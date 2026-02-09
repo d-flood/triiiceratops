@@ -82,13 +82,13 @@
     // This defines <triiiceratops-viewer>
     import('../lib/custom-element');
 
-    // Persist non-config state to URL (mode, manifest, canvas)
-    // Config is only added to the URL when the user clicks "Share Current State"
+    // Persist state to URL (mode, manifest, canvas, config)
     $effect(() => {
         const params = new SvelteURLSearchParams();
         params.set('mode', viewerMode);
         if (manifestUrl) params.set('manifest', manifestUrl);
         if (canvasId) params.set('canvas', canvasId);
+        params.set('config', JSON.stringify(config));
 
         const newUrl = `${window.location.pathname}?${params.toString()}`;
         window.history.replaceState({}, '', newUrl);
