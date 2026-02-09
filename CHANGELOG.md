@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.15.6
+
+### Patch Changes
+
+- 4df4515: increase gallery height when docked top or bottom so active thumbnail ring is visible
+
 ## 0.15.5
 
 ### Patch Changes
