@@ -642,14 +642,17 @@
     <!-- Floating Window -->
     <div
         bind:this={galleryElement}
-        class={(dockSide !== 'none'
-            ? `relative z-50 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 select-none w-full h-full
-           ${dockSide === 'bottom' || dockSide === 'top' ? 'flex-row border-t' : ''}
-           ${dockSide === 'left' || dockSide === 'right' ? 'flex-col border-x' : ''}`
-            : 'fixed z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden select-none') +
-            (viewerState.isGalleryDragging
-                ? ' pointer-events-none opacity-80'
-                : '')}
+        class={[
+            dockSide !== 'none' &&
+                'relative z-50 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 select-none w-full h-full',
+            dockSide === 'none' &&
+                'fixed z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden select-none',
+            (dockSide === 'bottom' || dockSide === 'top') &&
+                'flex-row border-t',
+            (dockSide === 'left' || dockSide === 'right') &&
+                'flex-col border-x',
+            viewerState.isGalleryDragging && 'pointer-events-none opacity-80',
+        ]}
         style={dockSide !== 'none'
             ? ''
             : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}
@@ -668,27 +671,39 @@
         <!-- Header Area (only show drag handle when draggable OR when floating) -->
         {#if draggable || dockSide === 'none'}
             <div
-                class={'bg-base-100 flex shrink-0 select-none relative ' +
-                    (dockSide === 'bottom' || dockSide === 'top'
-                        ? 'flex-row h-full items-center border-r border-base-200'
-                        : 'flex-col w-full border-b border-base-200')}
+                class={[
+                    'bg-base-100 flex shrink-0 select-none relative',
+                    (dockSide === 'bottom' || dockSide === 'top') &&
+                        'flex-row h-full items-center border-r border-base-200',
+                    dockSide !== 'bottom' &&
+                        dockSide !== 'top' &&
+                        'flex-col w-full border-b border-base-200',
+                ]}
             >
                 <!-- Drag Handle -->
                 <div
-                    class={'cursor-move flex items-center justify-center hover:bg-base-200/50 active:bg-base-200 transition-colors ' +
-                        (dockSide === 'bottom' || dockSide === 'top'
-                            ? 'w-8 h-full'
-                            : 'h-6 w-full')}
+                    class={[
+                        'cursor-move flex items-center justify-center hover:bg-base-200/50 active:bg-base-200 transition-colors',
+                        (dockSide === 'bottom' || dockSide === 'top') &&
+                            'w-8 h-full',
+                        dockSide !== 'bottom' &&
+                            dockSide !== 'top' &&
+                            'h-6 w-full',
+                    ]}
                     onmousedown={startDrag}
                     role="button"
                     tabindex="0"
                     aria-label="Drag Gallery"
                 >
                     <div
-                        class={'bg-base-300 rounded-full ' +
-                            (dockSide === 'bottom' || dockSide === 'top'
-                                ? 'w-1.5 h-12'
-                                : 'w-12 h-1.5')}
+                        class={[
+                            'bg-base-300 rounded-full',
+                            (dockSide === 'bottom' || dockSide === 'top') &&
+                                'w-1.5 h-12',
+                            dockSide !== 'bottom' &&
+                                dockSide !== 'top' &&
+                                'w-12 h-1.5',
+                        ]}
                     ></div>
                 </div>
             </div>
@@ -696,14 +711,17 @@
 
         <!-- Content (Grid or Horizontal Scroll) -->
         <div
-            class="flex-1 p-1 bg-base-100 {isHorizontal
-                ? 'overflow-x-auto overflow-y-hidden h-full'
-                : 'overflow-y-auto overflow-x-hidden'}"
+            class={[
+                'flex-1 p-1 bg-base-100',
+                isHorizontal && 'overflow-x-auto overflow-y-hidden h-full',
+                !isHorizontal && 'overflow-y-auto overflow-x-hidden',
+            ]}
         >
             <div
-                class={isHorizontal
-                    ? 'flex flex-row gap-2 h-full items-center'
-                    : 'grid gap-2'}
+                class={[
+                    isHorizontal && 'flex flex-row gap-2 h-full items-center',
+                    !isHorizontal && 'grid gap-2',
+                ]}
                 style={isHorizontal
                     ? ''
                     : `grid-template-columns: repeat(auto-fill, minmax(${fixedHeight}px, 1fr));`}
@@ -714,20 +732,27 @@
                         {@const isGroupSelected = (() => {
                             const idx = thumbGroup.index;
                             const first = thumbnails[idx];
-                            const second = thumbnails[idx + 1];
+                            // Only check second canvas if this is a paired group (not a single page)
+                            const isPairedGroup =
+                                idx >= viewerState.pagedOffset;
+                            const second = isPairedGroup
+                                ? thumbnails[idx + 1]
+                                : null;
                             return (
                                 viewerState.canvasId === first?.id ||
-                                viewerState.canvasId === second?.id
+                                (second && viewerState.canvasId === second.id)
                             );
                         })()}
                         <button
-                            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 overflow-hidden {isHorizontal
-                                ? 'w-auto'
-                                : thumbGroup.srcs.length > 1
-                                  ? 'col-span-2'
-                                  : ''} {isGroupSelected
-                                ? 'ring-2 ring-primary bg-primary/5'
-                                : ''}"
+                            class={[
+                                'group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 overflow-hidden',
+                                isHorizontal && 'w-auto',
+                                !isHorizontal &&
+                                    thumbGroup.srcs.length > 1 &&
+                                    'col-span-2',
+                                isGroupSelected &&
+                                    'ring-2 ring-primary bg-primary/5',
+                            ]}
                             style={isHorizontal
                                 ? `height: ${fixedHeight + (thumbGroup.labels.length > 1 ? 40 : 24)}px`
                                 : ''}
@@ -738,35 +763,48 @@
                             )}"
                         >
                             <div
-                                class="{isHorizontal
-                                    ? 'h-full w-auto flex-row'
-                                    : thumbGroup.srcs.length > 1
-                                      ? 'aspect-3/2 w-full'
-                                      : 'aspect-3/4 w-full'} bg-base-300 rounded overflow-hidden relative flex items-center justify-center gap-px {isRTL
-                                    ? 'flex-row-reverse'
-                                    : ''}"
+                                class={[
+                                    isHorizontal && 'h-full w-auto flex-row',
+                                    !isHorizontal &&
+                                        thumbGroup.srcs.length > 1 &&
+                                        'aspect-3/2 w-full',
+                                    !isHorizontal &&
+                                        thumbGroup.srcs.length <= 1 &&
+                                        'aspect-3/4 w-full',
+                                    'bg-base-300 rounded overflow-hidden relative flex items-center justify-center gap-px',
+                                    isRTL && 'flex-row-reverse',
+                                ]}
                                 style={isHorizontal
                                     ? `height: ${fixedHeight}px`
                                     : ''}
                             >
                                 <div
-                                    class="flex items-center justify-center overflow-hidden {isHorizontal
-                                        ? 'h-full w-auto'
-                                        : 'h-full ' +
-                                          (thumbGroup.srcs.length > 1
-                                              ? 'w-1/2'
-                                              : 'w-full')}"
+                                    class={[
+                                        'flex items-center justify-center overflow-hidden',
+                                        isHorizontal && 'h-full w-auto',
+                                        !isHorizontal && 'h-full',
+                                        !isHorizontal &&
+                                            thumbGroup.srcs.length > 1 &&
+                                            'w-1/2',
+                                        !isHorizontal &&
+                                            thumbGroup.srcs.length <= 1 &&
+                                            'w-full',
+                                    ]}
                                 >
                                     {#if thumbGroup.srcs[0]}
                                         <img
                                             src={thumbGroup.srcs[0]}
                                             alt={thumbGroup.labels[0]}
-                                            class="object-contain {isHorizontal
-                                                ? 'h-full w-auto'
-                                                : 'w-full h-full'} {thumbGroup
-                                                .srcs.length > 1
-                                                ? 'object-right'
-                                                : 'object-center'}"
+                                            class={[
+                                                'object-contain',
+                                                isHorizontal && 'h-full w-auto',
+                                                !isHorizontal &&
+                                                    'w-full h-full',
+                                                thumbGroup.srcs.length > 1 &&
+                                                    'object-right',
+                                                thumbGroup.srcs.length <= 1 &&
+                                                    'object-center',
+                                            ]}
                                             loading="lazy"
                                             draggable="false"
                                         />
@@ -778,17 +816,23 @@
                                 </div>
                                 {#if thumbGroup.srcs.length > 1}
                                     <div
-                                        class="flex items-center justify-center overflow-hidden {isHorizontal
-                                            ? 'h-full w-auto'
-                                            : 'h-full w-1/2'}"
+                                        class={[
+                                            'flex items-center justify-center overflow-hidden',
+                                            isHorizontal && 'h-full w-auto',
+                                            !isHorizontal && 'h-full w-1/2',
+                                        ]}
                                     >
                                         {#if thumbGroup.srcs[1]}
                                             <img
                                                 src={thumbGroup.srcs[1]}
                                                 alt={thumbGroup.labels[1]}
-                                                class="object-contain {isHorizontal
-                                                    ? 'h-full w-auto'
-                                                    : 'w-full h-full'} object-left"
+                                                class={[
+                                                    'object-contain object-left',
+                                                    isHorizontal &&
+                                                        'h-full w-auto',
+                                                    !isHorizontal &&
+                                                        'w-full h-full',
+                                                ]}
                                                 loading="lazy"
                                                 draggable="false"
                                             />
@@ -801,9 +845,11 @@
                                 {/if}
                             </div>
                             <div
-                                class="text-xs font-medium opacity-70 group-hover:opacity-100 overflow-hidden {isHorizontal
-                                    ? 'w-0 min-w-full'
-                                    : 'w-full'}"
+                                class={[
+                                    'text-xs font-medium opacity-70 group-hover:opacity-100 overflow-hidden',
+                                    isHorizontal && 'w-0 min-w-full',
+                                    !isHorizontal && 'w-full',
+                                ]}
                                 title="{thumbGroup.index + 1}. {thumbGroup
                                     .labels[0]}{thumbGroup.labels.length > 1
                                     ? ` / ${thumbGroup.index + 2}. ${thumbGroup.labels[1]}`
@@ -843,11 +889,12 @@
                 {:else}
                     {#each thumbnails as thumb}
                         <button
-                            class="group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 {isHorizontal
-                                ? 'w-auto'
-                                : ''} {viewerState.canvasId === thumb.id
-                                ? 'ring-2 ring-primary bg-primary/5'
-                                : ''}"
+                            class={[
+                                'group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0',
+                                isHorizontal && 'w-auto',
+                                viewerState.canvasId === thumb.id &&
+                                    'ring-2 ring-primary bg-primary/5',
+                            ]}
                             style={isHorizontal
                                 ? `height: ${fixedHeight + 24}px`
                                 : ''}
@@ -856,9 +903,11 @@
                             aria-label="Select canvas {thumb.label}"
                         >
                             <div
-                                class="{isHorizontal
-                                    ? 'h-full w-auto'
-                                    : 'aspect-3/4 w-full'} bg-base-300 rounded overflow-hidden relative flex items-center justify-center"
+                                class={[
+                                    isHorizontal && 'h-full w-auto',
+                                    !isHorizontal && 'aspect-3/4 w-full',
+                                    'bg-base-300 rounded overflow-hidden relative flex items-center justify-center',
+                                ]}
                                 style={isHorizontal
                                     ? `height: ${fixedHeight}px`
                                     : ''}
@@ -867,9 +916,11 @@
                                     <img
                                         src={thumb.src}
                                         alt={thumb.label}
-                                        class="object-contain {isHorizontal
-                                            ? 'h-full w-auto'
-                                            : 'w-full h-full'}"
+                                        class={[
+                                            'object-contain',
+                                            isHorizontal && 'h-full w-auto',
+                                            !isHorizontal && 'w-full h-full',
+                                        ]}
                                         loading="lazy"
                                         draggable="false"
                                     />
@@ -916,10 +967,11 @@
         <!-- Drop Zones -->
         <!-- Top -->
         <div
-            class="absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
-            'top'
-                ? 'bg-primary/20 scale-105'
-                : 'bg-base-100/50'}"
+            class={[
+                'absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200',
+                viewerState.dragOverSide === 'top' && 'bg-primary/20 scale-105',
+                viewerState.dragOverSide !== 'top' && 'bg-base-100/50',
+            ]}
             role="group"
         >
             <span class="font-bold text-primary opacity-50">Dock Top</span>
@@ -927,10 +979,12 @@
 
         <!-- Bottom -->
         <div
-            class="absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
-            'bottom'
-                ? 'bg-primary/20 scale-105'
-                : 'bg-base-100/50'}"
+            class={[
+                'absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200',
+                viewerState.dragOverSide === 'bottom' &&
+                    'bg-primary/20 scale-105',
+                viewerState.dragOverSide !== 'bottom' && 'bg-base-100/50',
+            ]}
             role="group"
         >
             <span class="font-bold text-primary opacity-50">Dock Bottom</span>
@@ -938,10 +992,12 @@
 
         <!-- Left -->
         <div
-            class="absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200 {viewerState.dragOverSide ===
-            'left'
-                ? 'bg-primary/20 scale-105'
-                : 'bg-base-100/50'}"
+            class={[
+                'absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200',
+                viewerState.dragOverSide === 'left' &&
+                    'bg-primary/20 scale-105',
+                viewerState.dragOverSide !== 'left' && 'bg-base-100/50',
+            ]}
             role="group"
         >
             <span
@@ -952,10 +1008,12 @@
 
         <!-- Right -->
         <div
-            class="absolute top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-300 {viewerState.dragOverSide ===
-            'right'
-                ? 'bg-primary/20 scale-105'
-                : 'bg-base-100/50'}"
+            class={[
+                'absolute top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-300',
+                viewerState.dragOverSide === 'right' &&
+                    'bg-primary/20 scale-105',
+                viewerState.dragOverSide !== 'right' && 'bg-base-100/50',
+            ]}
             role="group"
         >
             <span
