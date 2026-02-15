@@ -282,6 +282,26 @@
                 };
             });
             viewer.open(spread);
+
+            // Zoom to the active canvas once OSD finishes loading,
+            // so the user doesn't see the default zoomed-out view of all canvases.
+            viewer.addOnceHandler('open', () => {
+                const currentIndex = viewerState.currentCanvasIndex;
+                let imageIndex = 0;
+                for (let i = 0; i < currentIndex; i++) {
+                    const canvas = viewerState.canvases[i];
+                    let imgs = canvas.getImages?.() || [];
+                    if ((!imgs || !imgs.length) && canvas.getContent) {
+                        imgs = canvas.getContent();
+                    }
+                    const count = imgs ? imgs.length : 0;
+                    imageIndex += count;
+                }
+                const item = viewer.world.getItemAt(imageIndex);
+                if (item) {
+                    viewer.viewport.fitBounds(item.getBounds(), true);
+                }
+            });
         } else if (mode === 'paged' && sources.length === 2) {
             const gap = 0.025;
             const offset = 1 + gap;
