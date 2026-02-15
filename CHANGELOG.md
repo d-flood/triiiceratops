@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.0
+
+### Minor Changes
+
+- 0ee1fc4: Pass through OSD config; zoom to active canvas by default when viewing mode is continuous
+
 ## 0.15.6
 
 ### Patch Changes
