@@ -77,6 +77,9 @@ interface ViewerConfig {
         headers?: Record<string, string>; // Extra headers for manifest requests
         withCredentials?: boolean; // Use cookies/credentials
     };
+
+    // OpenSeadragon overrides
+    openSeadragonConfig?: Partial<OpenSeadragon.Options>;
 }
 ```
 
@@ -275,6 +278,20 @@ You can control which canvas is displayed and stay in sync with the viewer's nav
       ...
     />
     ```
+
+## OpenSeadragon Overrides
+
+You can pass custom [OpenSeadragon options](https://openseadragon.github.io/docs/OpenSeadragon.html#.Options) via `openSeadragonConfig` to fine-tune the underlying viewer. These are merged into the default options at initialization and updated reactively.
+
+```javascript
+config = {
+    openSeadragonConfig: {
+        maxZoomPixelRatio: 4,
+        zoomPerScroll: 1.5,
+        animationTime: 0.3,
+    }
+};
+```
 
 ## Best Practices
 
