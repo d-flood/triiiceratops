@@ -22,6 +22,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom
 - **Theming**: 35 built-in DaisyUI themes plus custom theme configuration
+- **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
 
 ## Current Limitations
 

@@ -1,3 +1,5 @@
+import type OpenSeadragon from 'openseadragon';
+
 export interface RequestConfig {
     /**
      * Extra headers to send with the IIIF manifest request
@@ -228,4 +230,13 @@ export interface ViewerConfig {
      * Configuration for the toolbar items.
      */
     toolbar?: ToolbarConfig;
+
+    /**
+     * Additional OpenSeadragon viewer options.
+     * These are merged into the OSD constructor options, allowing you to
+     * override defaults or set any OSD option (e.g. maxZoomPixelRatio,
+     * zoomPerScroll, animationTime, etc.).
+     * @see https://openseadragon.github.io/docs/OpenSeadragon.html#.Options
+     */
+    openSeadragonConfig?: Partial<OpenSeadragon.Options>;
 }

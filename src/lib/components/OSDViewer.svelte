@@ -184,6 +184,8 @@
                 animationTime: 0.5,
                 springStiffness: 7.0,
                 zoomPerClick: 2.0,
+                // Consumer-provided OSD overrides
+                ...(viewerState.config?.openSeadragonConfig ?? {}),
                 // Enable double-click to zoom, but keep clickToZoom disabled for Annotorious
                 gestureSettingsMouse: {
                     clickToZoom: false,
@@ -225,6 +227,16 @@
             viewer.world.removeHandler('add-item', update);
             viewer.world.removeHandler('remove-item', update);
         };
+    });
+
+    // Apply consumer OSD config overrides reactively
+    $effect(() => {
+        if (!viewer) return;
+        const overrides = viewerState.config?.openSeadragonConfig;
+        if (!overrides) return;
+        for (const [key, value] of Object.entries(overrides)) {
+            viewer[key] = value;
+        }
     });
 
     // Load tile source when it changes
