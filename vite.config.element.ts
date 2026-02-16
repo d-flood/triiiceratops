@@ -25,6 +25,10 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    esbuild: {
+        pure: ['console.log', 'console.debug'],
+        drop: ['debugger'],
+    },
     build: {
         minify: true,
         lib: {

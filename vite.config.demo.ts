@@ -25,6 +25,10 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    esbuild: {
+        pure: ['console.log', 'console.debug'],
+        drop: ['debugger'],
+    },
     root: 'src/demo',
     base: './', // Relative paths for GitHub Pages
     build: {
