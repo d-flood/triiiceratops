@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.3
+
+### Patch Changes
+
+- 75e513a: fix level 0 regression
+
 ## 0.16.2
 
 ### Patch Changes
