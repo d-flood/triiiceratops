@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.7
+
+### Patch Changes
+
+- aaf6c5f: fix mobile rendering regression
+
 ## 0.16.6
 
 ### Patch Changes
