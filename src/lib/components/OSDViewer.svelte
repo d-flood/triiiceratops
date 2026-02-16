@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
-    import { createRevealSession } from './osdReveal';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -174,6 +173,17 @@
 
             OSD = osdModule.default || osdModule;
             patchIiifLevel0ProfileCompatibility(OSD);
+            const userAgent = navigator.userAgent || '';
+            const isAndroidChrome =
+                /Android/i.test(userAgent) && /\bChrome\//i.test(userAgent);
+            const consumerOverrides = viewerState.config?.openSeadragonConfig ?? {};
+
+            // Prefer canvas first on Android Chrome unless consumer overrides drawer.
+            // This avoids known WebGL tile rendering issues on some mobile devices.
+            const defaultDrawer =
+                isAndroidChrome && consumerOverrides.drawer === undefined
+                    ? { drawer: ['canvas', 'webgl', 'html'] }
+                    : {};
 
             // Initialize OpenSeadragon viewer
             viewer = OSD({
@@ -189,8 +199,9 @@
                 animationTime: 0.5,
                 springStiffness: 7.0,
                 zoomPerClick: 2.0,
+                ...defaultDrawer,
                 // Consumer-provided OSD overrides
-                ...(viewerState.config?.openSeadragonConfig ?? {}),
+                ...consumerOverrides,
                 // Enable double-click to zoom, but keep clickToZoom disabled for Annotorious
                 gestureSettingsMouse: {
                     clickToZoom: false,
@@ -210,7 +221,9 @@
                 viewer.viewport.minZoomLevel = homeZoom * floorFactor;
 
                 if (overrides.minPixelRatio === undefined) {
-                    viewer.minPixelRatio = 0.5;
+                    // Lower threshold prevents blanking on sparse/level-0 pyramids
+                    // when zooming far out (especially on small mobile viewports).
+                    viewer.minPixelRatio = 0.1;
                 }
             });
 
@@ -345,11 +358,6 @@
         osd.__triiiceratopsIiifLevel0Patched = true;
     }
 
-    function setViewerImageVisible(isVisible: boolean) {
-        if (!container) return;
-        container.style.opacity = isVisible ? '1' : '0';
-    }
-
     // Pre-fetch info.json URLs to detect 401 auth errors before passing to OSD
     async function resolveTileSources(
         sources: any[],
@@ -394,23 +402,14 @@
     // Load tile source when it changes
     $effect(() => {
         if (!viewer) return;
-        let cleanupRevealSession: (() => void) | null = null;
-
-        const clearRevealSession = () => {
-            if (!cleanupRevealSession) return;
-            cleanupRevealSession();
-            cleanupRevealSession = null;
-        };
 
         // If sources are cleared/absent during a canvas/world switch, clear
         // stale tiles immediately and allow the same source to reopen later.
         if (!tileSources) {
-            clearRevealSession();
-            setViewerImageVisible(false);
             viewer.close();
             viewerState.tileSourceError = null;
             lastTileSourceStr = '';
-            return clearRevealSession;
+            return;
         }
 
         const mode = viewerState.viewingMode;
@@ -440,27 +439,15 @@
               : [];
 
         if (sources.length === 0) {
-            clearRevealSession();
-            setViewerImageVisible(false);
             viewer.close();
             viewerState.tileSourceError = null;
             lastTileSourceStr = '';
-            return clearRevealSession;
+            return;
         }
 
         // Capture stateKey for staleness guard
         const capturedKey = stateKey;
         const overrides = viewerState.config?.openSeadragonConfig ?? {};
-
-        // Hide the previous image immediately; reveal once new tiles are drawn.
-        clearRevealSession();
-        setViewerImageVisible(false);
-        cleanupRevealSession = createRevealSession({
-            viewer,
-            capturedKey,
-            getCurrentKey: () => lastTileSourceStr,
-            setViewerImageVisible,
-        });
 
         if (mode === 'continuous') {
             // Remove current world immediately so stale canvases are not shown
@@ -469,7 +456,7 @@
             viewerState.tileSourceError = null;
 
             if (overrides.minPixelRatio === undefined) {
-                viewer.minPixelRatio = 0.5;
+                viewer.minPixelRatio = 0.1;
             }
             if (overrides.minZoomImageRatio === undefined) {
                 viewer.minZoomImageRatio = 0.9;
@@ -587,7 +574,7 @@
 
         // Restore less aggressive defaults outside continuous mode unless user-overridden.
         if (overrides.minPixelRatio === undefined) {
-            viewer.minPixelRatio = 0.5;
+            viewer.minPixelRatio = 0.1;
         }
         if (overrides.minZoomImageRatio === undefined) {
             viewer.minZoomImageRatio = 0.9;
@@ -650,8 +637,6 @@
             // Clear any previous error
             viewerState.tileSourceError = null;
         });
-
-        return clearRevealSession;
     });
 
     // Handle navigation in continuous mode

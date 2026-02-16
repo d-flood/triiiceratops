@@ -26,6 +26,9 @@ export default defineConfig({
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],
     },
+    server: {
+        allowedHosts: ['df-laptop-wsl.flicker-lionfish.ts.net'],
+    },
     test: {
         include: ['src/**/*.{test,spec}.{js,ts}'],
         environment: 'happy-dom',
