@@ -17,16 +17,6 @@
 
     const IIIF_LEVEL0_V2_HTTPS = 'https://iiif.io/api/image/2/level0.json';
     const IIIF_LEVEL0_V2_HTTP = 'http://iiif.io/api/image/2/level0.json';
-    const IIIF_LEVEL0_V3_HTTPS = 'https://iiif.io/api/image/3/level0.json';
-
-    const IIIF_LEVEL0_PROFILES = new Set([
-        'level0',
-        IIIF_LEVEL0_V2_HTTP,
-        IIIF_LEVEL0_V2_HTTPS,
-        IIIF_LEVEL0_V3_HTTPS,
-        'http://library.stanford.edu/iiif/image-api/compliance.html#level0',
-        'http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level0',
-    ]);
 
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
@@ -198,6 +188,9 @@
                 animationTime: 0.5,
                 springStiffness: 7.0,
                 zoomPerClick: 2.0,
+                // Lower threshold prevents blanking on sparse/level-0 pyramids
+                // when zooming far out. Consumers can override via config.
+                minPixelRatio: 0.1,
                 // Consumer-provided OSD overrides
                 ...(viewerState.config?.openSeadragonConfig ?? {}),
                 // Enable double-click to zoom, but keep clickToZoom disabled for Annotorious
@@ -215,6 +208,10 @@
                 // some level-0 services when zoomed far past home view.
                 const homeZoom = viewer.viewport.getHomeZoom();
                 viewer.viewport.minZoomLevel = homeZoom * 0.5;
+
+                if (overrides.minPixelRatio === undefined) {
+                    viewer.minPixelRatio = 0.1;
+                }
             });
 
             // Notify plugins that OSD is ready
@@ -281,41 +278,6 @@
         return source;
     }
 
-    function isLevel0Profile(profile: unknown): boolean {
-        if (typeof profile === 'string') {
-            return IIIF_LEVEL0_PROFILES.has(profile);
-        }
-        if (Array.isArray(profile)) {
-            return profile.some(
-                (item) =>
-                    typeof item === 'string' && IIIF_LEVEL0_PROFILES.has(item),
-            );
-        }
-        return false;
-    }
-
-    function buildLevel0ImageSource(info: any): { type: 'image'; url: string } | null {
-        const id = info?.id || info?.['@id'];
-        if (!id || typeof id !== 'string') return null;
-
-        const serviceId = id.endsWith('/info.json')
-            ? id.slice(0, -'/info.json'.length)
-            : id;
-
-        const context = info?.['@context'];
-        const contextValues = Array.isArray(context)
-            ? context.filter((v: unknown) => typeof v === 'string')
-            : [context].filter((v: unknown) => typeof v === 'string');
-        const isV3 = contextValues.some((v: string) =>
-            v.includes('/api/image/3/context.json'),
-        );
-
-        // IIIF level-0 is fundamentally a non-tiled target. Using a plain image
-        // source avoids zoom-out blanking caused by sparse level math.
-        const size = isV3 ? 'max' : 'full';
-        return { type: 'image', url: `${serviceId}/full/${size}/0/default.jpg` };
-    }
-
     function patchIiifLevel0ProfileCompatibility(osd: any) {
         if (
             !osd?.IIIFTileSource?.prototype ||
@@ -354,20 +316,14 @@
                         return { __authError: true };
                     }
                     if (response.ok) {
+                        // Keep probing for auth, but preserve source URL so OSD
+                        // continues using IIIF tile source behavior.
                         try {
-                            const info = normalizeIiifLevel0Profile(
-                                await response.json(),
-                            ) as any;
-                            if (isLevel0Profile(info?.profile)) {
-                                const level0Source = buildLevel0ImageSource(info);
-                                if (level0Source) return level0Source;
-                            }
+                            normalizeIiifLevel0Profile(await response.json());
                         } catch {
                             // Not JSON or malformed response; let OSD handle source URL.
                         }
                     }
-                    // For non-401 responses, keep passing through the original source
-                    // unless we positively detect and convert level-0.
                     return source;
                 } catch {
                     // Network errors: pass through and let OSD handle it
@@ -418,8 +374,18 @@
 
         // Capture stateKey for staleness guard
         const capturedKey = stateKey;
+        const overrides = viewerState.config?.openSeadragonConfig ?? {};
 
         if (mode === 'continuous') {
+            // Continuous mode can include mixed-size canvases; keep tile culling
+            // thresholds low so smaller images don't disappear before full-strip view.
+            if (overrides.minPixelRatio === undefined) {
+                viewer.minPixelRatio = 0.01;
+            }
+            if (overrides.minZoomImageRatio === undefined) {
+                viewer.minZoomImageRatio = 0.1;
+            }
+
             resolveTileSources(sources).then((result) => {
                 // Staleness guard: if tile sources changed while we were fetching, discard
                 if (capturedKey !== lastTileSourceStr) return;
@@ -495,14 +461,11 @@
                             (batchIdx + 1) * BATCH_SIZE,
                         );
                         if (batch.length === 0) {
-                            // All loaded — set a stable min zoom floor from world home zoom.
-                            // Avoid forcing visibilityRatio=1; it can over-constrain level-0
-                            // services and cause abrupt blanking at zoom-out extremes.
-                            const overrides =
-                                viewerState.config?.openSeadragonConfig ?? {};
+                            // In continuous mode, allow a bit beyond home zoom so
+                            // strips centered near one end can still include all canvases.
                             if (overrides.minZoomLevel === undefined) {
-                                const homeZoom = viewer.viewport.getHomeZoom();
-                                viewer.viewport.minZoomLevel = homeZoom * 0.8;
+                                viewer.viewport.minZoomLevel =
+                                    viewer.viewport.getHomeZoom() + 0.1;
                             }
                             return;
                         }
@@ -527,7 +490,62 @@
             return;
         }
 
-        // Pre-fetch info.json URLs to detect auth errors (for non-continuous modes)
+        // In paged/individual modes, clear the current image immediately so
+        // users don't see stale content while tile sources are being prepared.
+        viewer.close();
+        viewerState.tileSourceError = null;
+
+        // Restore less aggressive defaults outside continuous mode unless user-overridden.
+        if (overrides.minPixelRatio === undefined) {
+            viewer.minPixelRatio = 0.1;
+        }
+        if (overrides.minZoomImageRatio === undefined) {
+            viewer.minZoomImageRatio = 0.9;
+        }
+
+        const immediateSources = sources.map((source) =>
+            typeof source === 'string'
+                ? source
+                : normalizeIiifLevel0Profile(source),
+        );
+
+        // Open immediately for perceived responsiveness.
+        if (mode === 'paged' && immediateSources.length === 2) {
+            const gap = 0.025;
+            const offset = 1 + gap;
+
+            // Two pages.
+            // If LTR: [0] at 0, [1] at 1.025
+            // If RTL: [0] at 1.025, [1] at 0
+            const firstX = isPagedRTL ? offset : 0;
+            const secondX = isPagedRTL ? 0 : offset;
+
+            const spread = [
+                {
+                    tileSource: immediateSources[0],
+                    x: firstX,
+                    y: 0,
+                    width: 1.0,
+                },
+                {
+                    tileSource: immediateSources[1],
+                    x: secondX,
+                    y: 0,
+                    width: 1.0,
+                },
+            ];
+            viewer.open(spread);
+        } else {
+            // Individuals or single paged or fallback
+            viewer.open(
+                immediateSources.length === 1
+                    ? immediateSources[0]
+                    : immediateSources,
+            );
+        }
+
+        // Pre-fetch info.json URLs in the background to detect auth errors
+        // without delaying image display.
         resolveTileSources(sources).then((result) => {
             // Staleness guard: if tile sources changed while we were fetching, discard
             if (capturedKey !== lastTileSourceStr) return;
@@ -541,42 +559,6 @@
 
             // Clear any previous error
             viewerState.tileSourceError = null;
-
-            const resolvedSources = result.resolved;
-
-            if (mode === 'paged' && resolvedSources.length === 2) {
-                const gap = 0.025;
-                const offset = 1 + gap;
-
-                // Two pages.
-                // If LTR: [0] at 0, [1] at 1.025
-                // If RTL: [0] at 1.025, [1] at 0
-                const firstX = isPagedRTL ? offset : 0;
-                const secondX = isPagedRTL ? 0 : offset;
-
-                const spread = [
-                    {
-                        tileSource: resolvedSources[0],
-                        x: firstX,
-                        y: 0,
-                        width: 1.0,
-                    },
-                    {
-                        tileSource: resolvedSources[1],
-                        x: secondX,
-                        y: 0,
-                        width: 1.0,
-                    },
-                ];
-                viewer.open(spread);
-            } else {
-                // Individuals or single paged or fallback
-                viewer.open(
-                    resolvedSources.length === 1
-                        ? resolvedSources[0]
-                        : resolvedSources,
-                );
-            }
         });
     });
 
