@@ -22,6 +22,10 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    esbuild: {
+        pure: ['console.log', 'console.debug'],
+        drop: ['debugger'],
+    },
     test: {
         include: ['src/**/*.{test,spec}.{js,ts}'],
         environment: 'happy-dom',

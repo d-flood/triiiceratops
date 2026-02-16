@@ -23,6 +23,10 @@ export default defineConfig({
         //     exclude: ['**/*.test.ts', '**/*.spec.ts'],
         // }),
     ],
+    esbuild: {
+        pure: ['console.log', 'console.debug'],
+        drop: ['debugger'],
+    },
     build: {
         lib: {
             entry: {
