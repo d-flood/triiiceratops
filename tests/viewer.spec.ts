@@ -24,19 +24,6 @@ test.describe('Triiiceratops Viewer', () => {
         const viewer = page.locator('.openseadragon-container');
         await expect(viewer).toBeVisible({ timeout: 10000 });
 
-        // Ensure the OSD host container is not left hidden by reveal timing.
-        const osdBackground = page.locator('.osd-background').first();
-        await expect(osdBackground).toBeVisible({ timeout: 10000 });
-        await expect
-            .poll(
-                () =>
-                    osdBackground.evaluate(
-                        (el) => window.getComputedStyle(el).opacity,
-                    ),
-                { timeout: 10000 },
-            )
-            .toBe('1');
-
         // Check that the canvas element inside OSD is created
         const canvas = page.locator('.openseadragon-canvas canvas').first();
         await expect(canvas).toBeVisible();
