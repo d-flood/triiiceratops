@@ -7,6 +7,7 @@
         MOBILE_DRAWER_FALLBACK,
         shouldUseMobileDrawerFallback,
     } from './osdDefaults';
+    import { resolveTileSources } from './osdTileSources';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -20,9 +21,6 @@
     let container: HTMLElement | undefined = $state();
     let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
-
-    const IIIF_LEVEL0_V2_HTTPS = 'https://iiif.io/api/image/2/level0.json';
-    const IIIF_LEVEL0_V2_HTTP = 'http://iiif.io/api/image/2/level0.json';
 
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
@@ -178,7 +176,6 @@
             if (!mounted) return;
 
             OSD = osdModule.default || osdModule;
-            patchIiifLevel0ProfileCompatibility(OSD);
             const userAgent = navigator.userAgent || '';
             const consumerOverrides = viewerState.config?.openSeadragonConfig ?? {};
 
@@ -220,8 +217,8 @@
                 const overrides = viewerState.config?.openSeadragonConfig ?? {};
                 if (overrides.minZoomLevel !== undefined) return;
 
-                // Prevent zooming into the "no tiles rendered" range seen on
-                // some level-0 services when zoomed far past home view.
+                // Keep a conservative floor below home zoom to avoid over-zoomed
+                // empty/unstable ranges while preserving normal navigation.
                 const homeZoom = viewer.viewport.getHomeZoom();
                 const floorFactor =
                     viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
@@ -277,132 +274,6 @@
             viewer[key] = value;
         }
     });
-
-    function normalizeIiifLevel0Profile<T>(source: T): T {
-        if (!source || typeof source !== 'object') return source;
-
-        const obj = source as any;
-        const profile = obj.profile;
-        const getProfileHead = (p: any): string | null => {
-            if (typeof p === 'string') return p;
-            if (Array.isArray(p) && typeof p[0] === 'string') return p[0];
-            return null;
-        };
-        const profileHead = getProfileHead(profile);
-        const isLevel0 =
-            profileHead === 'level0' ||
-            profileHead === IIIF_LEVEL0_V2_HTTPS ||
-            profileHead === IIIF_LEVEL0_V2_HTTP ||
-            (typeof profileHead === 'string' &&
-                (profileHead.endsWith('/level0.json') ||
-                    profileHead.endsWith('#level0')));
-
-        // Keep this minimal and conservative: OSD 5 misses the https v2 profile
-        // variant in some paths, so normalize only that string form.
-        if (typeof profile === 'string' && profile === IIIF_LEVEL0_V2_HTTPS) {
-            obj.profile = IIIF_LEVEL0_V2_HTTP;
-        } else if (Array.isArray(profile) && profile.length > 0) {
-            const first = profile[0];
-            if (typeof first === 'string' && first === IIIF_LEVEL0_V2_HTTPS) {
-                obj.profile = [IIIF_LEVEL0_V2_HTTP, ...profile.slice(1)];
-            }
-        }
-
-        // Some level-0 services advertise `tiles`, but 1x1 tile levels produce
-        // `/full/w,h/...` requests that 404. Keep only scale factors that still
-        // require at least 2 tiles in one dimension.
-        if (
-            isLevel0 &&
-            Array.isArray(obj.tiles) &&
-            obj.tiles.length > 0 &&
-            typeof obj.width === 'number' &&
-            typeof obj.height === 'number'
-        ) {
-            obj.tiles = obj.tiles.map((tile: any) => {
-                if (!Array.isArray(tile?.scaleFactors)) return tile;
-                const tileW =
-                    typeof tile.width === 'number' ? tile.width : 0;
-                const tileH =
-                    typeof tile.height === 'number' ? tile.height : tileW;
-                if (!tileW || !tileH) return tile;
-
-                const filtered = tile.scaleFactors.filter((sf: any) => {
-                    if (typeof sf !== 'number' || sf <= 0) return false;
-                    const levelW = Math.ceil(obj.width / sf);
-                    const levelH = Math.ceil(obj.height / sf);
-                    const tilesX = Math.ceil(levelW / tileW);
-                    const tilesY = Math.ceil(levelH / tileH);
-                    return tilesX > 1 || tilesY > 1;
-                });
-
-                // If everything is filtered out, keep original to avoid breaking source.
-                if (!filtered.length) return tile;
-                return { ...tile, scaleFactors: filtered };
-            });
-        }
-
-        return source;
-    }
-
-    function patchIiifLevel0ProfileCompatibility(osd: any) {
-        if (
-            !osd?.IIIFTileSource?.prototype ||
-            osd.__triiiceratopsIiifLevel0Patched
-        )
-            return;
-
-        const proto = osd.IIIFTileSource.prototype;
-        const originalConfigure = proto.configure;
-        if (typeof originalConfigure !== 'function') return;
-
-        proto.configure = function (data: any, url: string, postData: any) {
-            const configured = originalConfigure.call(this, data, url, postData);
-            return normalizeIiifLevel0Profile(configured);
-        };
-
-        osd.__triiiceratopsIiifLevel0Patched = true;
-    }
-
-    // Pre-fetch info.json URLs to detect 401 auth errors before passing to OSD
-    async function resolveTileSources(
-        sources: any[],
-    ): Promise<
-        | { ok: true; resolved: any[] }
-        | { ok: false; error: { type: 'auth' } }
-    > {
-        const resolved = await Promise.all(
-            sources.map(async (source) => {
-                // Only probe string sources (info.json URLs); preserve string tile
-                // sources so OSD follows its normal source-loading path.
-                if (typeof source !== 'string')
-                    return normalizeIiifLevel0Profile(source);
-                try {
-                    const response = await fetch(source);
-                    if (response.status === 401) {
-                        return { __authError: true };
-                    }
-                    if (response.ok) {
-                        try {
-                            normalizeIiifLevel0Profile(await response.json());
-                        } catch {
-                            // Not JSON or malformed response; let OSD handle source URL.
-                        }
-                    }
-                    return source;
-                } catch {
-                    // Network errors: pass through and let OSD handle it
-                    return source;
-                }
-            }),
-        );
-
-        // Check if any source had an auth error
-        if (resolved.some((r) => r && r.__authError)) {
-            return { ok: false, error: { type: 'auth' } };
-        }
-
-        return { ok: true, resolved };
-    }
 
     // Load tile source when it changes
     $effect(() => {
@@ -467,7 +338,14 @@
                 viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
             }
 
-            resolveTileSources(sources).then((result) => {
+            resolveTileSources({
+                sources,
+                osd: OSD,
+                viewport: {
+                    width: container?.clientWidth ?? 0,
+                    height: container?.clientHeight ?? 0,
+                },
+            }).then((result) => {
                 // Staleness guard: if tile sources changed while we were fetching, discard
                 if (capturedKey !== lastTileSourceStr) return;
 
@@ -542,9 +420,8 @@
                             (batchIdx + 1) * BATCH_SIZE,
                         );
                         if (batch.length === 0) {
-                            // Keep a modest margin below home zoom, but avoid the
-                            // extreme zoom-out range where some level-0 services
-                            // trigger invalid tile URLs.
+                            // Keep a modest margin below home zoom in continuous
+                            // mode to reduce empty over-zoom edge cases.
                             if (overrides.minZoomLevel === undefined) {
                                 viewer.viewport.minZoomLevel =
                                     viewer.viewport.getHomeZoom() * 0.8;
@@ -585,62 +462,59 @@
             viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
         }
 
-        const immediateSources = sources.map((source) =>
-            typeof source === 'string'
-                ? source
-                : normalizeIiifLevel0Profile(source),
-        );
-
-        // Open immediately for perceived responsiveness.
-        if (mode === 'paged' && immediateSources.length === 2) {
-            const gap = 0.025;
-            const offset = 1 + gap;
-
-            // Two pages.
-            // If LTR: [0] at 0, [1] at 1.025
-            // If RTL: [0] at 1.025, [1] at 0
-            const firstX = isPagedRTL ? offset : 0;
-            const secondX = isPagedRTL ? 0 : offset;
-
-            const spread = [
-                {
-                    tileSource: immediateSources[0],
-                    x: firstX,
-                    y: 0,
-                    width: 1.0,
-                },
-                {
-                    tileSource: immediateSources[1],
-                    x: secondX,
-                    y: 0,
-                    width: 1.0,
-                },
-            ];
-            viewer.open(spread);
-        } else {
-            // Individuals or single paged or fallback
-            viewer.open(
-                immediateSources.length === 1
-                    ? immediateSources[0]
-                    : immediateSources,
-            );
-        }
-
-        // Pre-fetch info.json URLs in the background to detect auth errors
-        // without delaying image display.
-        resolveTileSources(sources).then((result) => {
+        resolveTileSources({
+            sources,
+            osd: OSD,
+            viewport: {
+                width: container?.clientWidth ?? 0,
+                height: container?.clientHeight ?? 0,
+            },
+        }).then((result) => {
             // Staleness guard: if tile sources changed while we were fetching, discard
             if (capturedKey !== lastTileSourceStr) return;
 
             if (!result.ok) {
                 viewerState.tileSourceError = result.error;
-                // Clear stale tiles from the previous canvas
                 viewer.close();
                 return;
             }
 
-            // Clear any previous error
             viewerState.tileSourceError = null;
+            const resolvedSources = result.resolved;
+
+            if (mode === 'paged' && resolvedSources.length === 2) {
+                const gap = 0.025;
+                const offset = 1 + gap;
+
+                // Two pages.
+                // If LTR: [0] at 0, [1] at 1.025
+                // If RTL: [0] at 1.025, [1] at 0
+                const firstX = isPagedRTL ? offset : 0;
+                const secondX = isPagedRTL ? 0 : offset;
+
+                const spread = [
+                    {
+                        tileSource: resolvedSources[0],
+                        x: firstX,
+                        y: 0,
+                        width: 1.0,
+                    },
+                    {
+                        tileSource: resolvedSources[1],
+                        x: secondX,
+                        y: 0,
+                        width: 1.0,
+                    },
+                ];
+                viewer.open(spread);
+            } else {
+                // Individuals or single paged or fallback
+                viewer.open(
+                    resolvedSources.length === 1
+                        ? resolvedSources[0]
+                        : resolvedSources,
+                );
+            }
         });
     });
 
