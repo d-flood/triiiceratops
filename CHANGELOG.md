@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.1
+
+### Patch Changes
+
+- 446096c: friendly 401 error message for info.json
+
 ## 0.16.0
 
 ### Minor Changes
