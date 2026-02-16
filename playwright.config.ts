@@ -16,9 +16,13 @@ export default defineConfig({
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
         },
+        {
+            name: 'android-chrome',
+            use: { ...devices['Pixel 7'] },
+        },
     ],
     webServer: {
-        command: 'npm run dev -- --port 5175',
+        command: 'pnpm dev --port 5175',
         url: 'http://localhost:5175',
         reuseExistingServer: !process.env.CI,
     },

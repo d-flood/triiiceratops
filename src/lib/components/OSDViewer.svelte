@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
+    import { createRevealSession } from './osdReveal';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -349,24 +350,6 @@
         container.style.opacity = isVisible ? '1' : '0';
     }
 
-    function revealViewerImageAfterFirstRender(capturedKey: string) {
-        if (!viewer) return;
-
-        const reveal = () => {
-            if (capturedKey !== lastTileSourceStr) return;
-            setViewerImageVisible(true);
-        };
-
-        // WebGLDrawer in OSD 5 rejects tile-drawn/tile-drawing handlers.
-        const drawerType = viewer.drawer?.getType?.();
-        if (drawerType === 'webgl') {
-            viewer.addOnceHandler('open', reveal);
-            return;
-        }
-
-        viewer.addOnceHandler('tile-drawn', reveal);
-    }
-
     // Pre-fetch info.json URLs to detect 401 auth errors before passing to OSD
     async function resolveTileSources(
         sources: any[],
@@ -411,15 +394,23 @@
     // Load tile source when it changes
     $effect(() => {
         if (!viewer) return;
+        let cleanupRevealSession: (() => void) | null = null;
+
+        const clearRevealSession = () => {
+            if (!cleanupRevealSession) return;
+            cleanupRevealSession();
+            cleanupRevealSession = null;
+        };
 
         // If sources are cleared/absent during a canvas/world switch, clear
         // stale tiles immediately and allow the same source to reopen later.
         if (!tileSources) {
+            clearRevealSession();
             setViewerImageVisible(false);
             viewer.close();
             viewerState.tileSourceError = null;
             lastTileSourceStr = '';
-            return;
+            return clearRevealSession;
         }
 
         const mode = viewerState.viewingMode;
@@ -449,11 +440,12 @@
               : [];
 
         if (sources.length === 0) {
+            clearRevealSession();
             setViewerImageVisible(false);
             viewer.close();
             viewerState.tileSourceError = null;
             lastTileSourceStr = '';
-            return;
+            return clearRevealSession;
         }
 
         // Capture stateKey for staleness guard
@@ -461,8 +453,14 @@
         const overrides = viewerState.config?.openSeadragonConfig ?? {};
 
         // Hide the previous image immediately; reveal once new tiles are drawn.
+        clearRevealSession();
         setViewerImageVisible(false);
-        revealViewerImageAfterFirstRender(capturedKey);
+        cleanupRevealSession = createRevealSession({
+            viewer,
+            capturedKey,
+            getCurrentKey: () => lastTileSourceStr,
+            setViewerImageVisible,
+        });
 
         if (mode === 'continuous') {
             // Remove current world immediately so stale canvases are not shown
@@ -652,6 +650,8 @@
             // Clear any previous error
             viewerState.tileSourceError = null;
         });
+
+        return clearRevealSession;
     });
 
     // Handle navigation in continuous mode
