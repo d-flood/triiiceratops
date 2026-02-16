@@ -145,5 +145,6 @@
     "settings_thumbnail_height": "Thumbnail-Höhe",
     "reset_config": "Konfiguration zurücksetzen",
     "share_current_state": "Aktuellen Zustand teilen",
-    "link_copied": "Link kopiert!"
+    "link_copied": "Link kopiert!",
+    "error_auth_required": "Dieses Bild erfordert eine Authentifizierung. Bitte melden Sie sich an oder beantragen Sie Zugang, um diesen Inhalt anzuzeigen."
 }

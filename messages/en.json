@@ -142,5 +142,6 @@
     "settings_thumbnail_height": "Thumbnail Height",
     "reset_config": "Reset Config",
     "share_current_state": "Share Current State",
-    "link_copied": "Link Copied!"
+    "link_copied": "Link Copied!",
+    "error_auth_required": "This image requires authentication. Please log in or request access to view this content."
 }
