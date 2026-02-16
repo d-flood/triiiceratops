@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.2
+
+### Patch Changes
+
+- 27d59a4: speed up and fix bugs in continuous mode
+
 ## 0.16.1
 
 ### Patch Changes
