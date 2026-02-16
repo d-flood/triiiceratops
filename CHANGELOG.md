@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.4
+
+### Patch Changes
+
+- 4127fa3: check for 401 in background instead of blocking and continue working on continuous viewing stability
+
 ## 0.16.3
 
 ### Patch Changes
