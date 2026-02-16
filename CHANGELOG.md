@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.10
+
+### Patch Changes
+
+- 3c4235d: refactor special level 0 source handling
+
 ## 0.16.9
 
 ### Patch Changes
