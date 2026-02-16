@@ -610,10 +610,9 @@
                     {manifestData.error}
                 </div>
             {:else if tileSources}
-                <OSDViewer {tileSources} viewerState={internalViewerState} />
                 {#if internalViewerState.tileSourceError}
                     <div
-                        class="absolute inset-0 z-[5] flex items-center justify-center pointer-events-none overflow-hidden"
+                        class="w-full h-full absolute inset-0 z-[5] flex items-center justify-center pointer-events-none overflow-hidden"
                         role="alert"
                     >
                         {#if currentCanvasThumbnail}
@@ -643,6 +642,8 @@
                             </p>
                         </div>
                     </div>
+                {:else}
+                    <OSDViewer {tileSources} viewerState={internalViewerState} />
                 {/if}
             {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div
