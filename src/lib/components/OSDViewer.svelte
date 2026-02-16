@@ -188,9 +188,6 @@
                 animationTime: 0.5,
                 springStiffness: 7.0,
                 zoomPerClick: 2.0,
-                // Lower threshold prevents blanking on sparse/level-0 pyramids
-                // when zooming far out. Consumers can override via config.
-                minPixelRatio: 0.1,
                 // Consumer-provided OSD overrides
                 ...(viewerState.config?.openSeadragonConfig ?? {}),
                 // Enable double-click to zoom, but keep clickToZoom disabled for Annotorious
@@ -210,7 +207,7 @@
                 viewer.viewport.minZoomLevel = homeZoom * 0.5;
 
                 if (overrides.minPixelRatio === undefined) {
-                    viewer.minPixelRatio = 0.1;
+                    viewer.minPixelRatio = 0.5;
                 }
             });
 
@@ -266,6 +263,8 @@
         const obj = source as any;
         const profile = obj.profile;
 
+        // Keep this minimal and conservative: OSD 5 misses the https v2 profile
+        // variant in some paths, so normalize only that string form.
         if (typeof profile === 'string' && profile === IIIF_LEVEL0_V2_HTTPS) {
             obj.profile = IIIF_LEVEL0_V2_HTTP;
         } else if (Array.isArray(profile) && profile.length > 0) {
@@ -316,8 +315,6 @@
                         return { __authError: true };
                     }
                     if (response.ok) {
-                        // Keep probing for auth, but preserve source URL so OSD
-                        // continues using IIIF tile source behavior.
                         try {
                             normalizeIiifLevel0Profile(await response.json());
                         } catch {
@@ -380,7 +377,7 @@
             // Continuous mode can include mixed-size canvases; keep tile culling
             // thresholds low so smaller images don't disappear before full-strip view.
             if (overrides.minPixelRatio === undefined) {
-                viewer.minPixelRatio = 0.01;
+                viewer.minPixelRatio = 0.5;
             }
             if (overrides.minZoomImageRatio === undefined) {
                 viewer.minZoomImageRatio = 0.1;
@@ -465,7 +462,7 @@
                             // strips centered near one end can still include all canvases.
                             if (overrides.minZoomLevel === undefined) {
                                 viewer.viewport.minZoomLevel =
-                                    viewer.viewport.getHomeZoom() + 0.1;
+                                    viewer.viewport.getHomeZoom() * 0.5;
                             }
                             return;
                         }
@@ -497,7 +494,7 @@
 
         // Restore less aggressive defaults outside continuous mode unless user-overridden.
         if (overrides.minPixelRatio === undefined) {
-            viewer.minPixelRatio = 0.1;
+            viewer.minPixelRatio = 0.5;
         }
         if (overrides.minZoomImageRatio === undefined) {
             viewer.minZoomImageRatio = 0.9;
