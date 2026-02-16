@@ -98,8 +98,19 @@ describe('ViewerState - IIIF Search', () => {
      * Helper to setup a mock manifest with canvases
      */
     function setupMockManifest(manifestJson: any) {
-        const mockManifest = manifesto.parseManifest(manifestJson);
-        const mockCanvases = mockManifest.getSequences()[0].getCanvases();
+        const parsed = manifesto.parseManifest(manifestJson) as
+            | {
+                  getSequences: () => Array<{
+                      getCanvases: () => any[];
+                  }>;
+              }
+            | null;
+        if (!parsed) {
+            throw new Error('Failed to parse mock manifest');
+        }
+
+        const mockManifest = parsed;
+        const mockCanvases = mockManifest.getSequences()[0]?.getCanvases() ?? [];
 
         vi.mocked(manifestsState.getManifest).mockReturnValue(mockManifest);
         vi.mocked(manifestsState.getCanvases).mockReturnValue(mockCanvases);

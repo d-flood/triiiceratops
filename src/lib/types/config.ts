@@ -1,5 +1,3 @@
-import type OpenSeadragon from 'openseadragon';
-
 export interface RequestConfig {
     /**
      * Extra headers to send with the IIIF manifest request
