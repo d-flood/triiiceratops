@@ -6,6 +6,7 @@
         "type": "git",
         "url": "git+https://github.com/d-flood/triiiceratops.git"
     },
+    "homepage": "https://d-flood.github.io/triiiceratops/",
     "publishConfig": {
         "access": "public",
         "provenance": true
