@@ -349,6 +349,24 @@
         container.style.opacity = isVisible ? '1' : '0';
     }
 
+    function revealViewerImageAfterFirstRender(capturedKey: string) {
+        if (!viewer) return;
+
+        const reveal = () => {
+            if (capturedKey !== lastTileSourceStr) return;
+            setViewerImageVisible(true);
+        };
+
+        // WebGLDrawer in OSD 5 rejects tile-drawn/tile-drawing handlers.
+        const drawerType = viewer.drawer?.getType?.();
+        if (drawerType === 'webgl') {
+            viewer.addOnceHandler('open', reveal);
+            return;
+        }
+
+        viewer.addOnceHandler('tile-drawn', reveal);
+    }
+
     // Pre-fetch info.json URLs to detect 401 auth errors before passing to OSD
     async function resolveTileSources(
         sources: any[],
@@ -444,10 +462,7 @@
 
         // Hide the previous image immediately; reveal once new tiles are drawn.
         setViewerImageVisible(false);
-        viewer.addOnceHandler('tile-drawn', () => {
-            if (capturedKey !== lastTileSourceStr) return;
-            setViewerImageVisible(true);
-        });
+        revealViewerImageAfterFirstRender(capturedKey);
 
         if (mode === 'continuous') {
             // Remove current world immediately so stale canvases are not shown
