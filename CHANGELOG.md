@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.6
+
+### Patch Changes
+
+- 182e5cf: change strategy for removing image on canvas change
+
 ## 0.16.5
 
 ### Patch Changes
