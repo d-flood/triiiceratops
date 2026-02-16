@@ -204,7 +204,9 @@
                 // Prevent zooming into the "no tiles rendered" range seen on
                 // some level-0 services when zoomed far past home view.
                 const homeZoom = viewer.viewport.getHomeZoom();
-                viewer.viewport.minZoomLevel = homeZoom * 0.5;
+                const floorFactor =
+                    viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
+                viewer.viewport.minZoomLevel = homeZoom * floorFactor;
 
                 if (overrides.minPixelRatio === undefined) {
                     viewer.minPixelRatio = 0.5;
@@ -262,6 +264,19 @@
 
         const obj = source as any;
         const profile = obj.profile;
+        const getProfileHead = (p: any): string | null => {
+            if (typeof p === 'string') return p;
+            if (Array.isArray(p) && typeof p[0] === 'string') return p[0];
+            return null;
+        };
+        const profileHead = getProfileHead(profile);
+        const isLevel0 =
+            profileHead === 'level0' ||
+            profileHead === IIIF_LEVEL0_V2_HTTPS ||
+            profileHead === IIIF_LEVEL0_V2_HTTP ||
+            (typeof profileHead === 'string' &&
+                (profileHead.endsWith('/level0.json') ||
+                    profileHead.endsWith('#level0')));
 
         // Keep this minimal and conservative: OSD 5 misses the https v2 profile
         // variant in some paths, so normalize only that string form.
@@ -272,6 +287,39 @@
             if (typeof first === 'string' && first === IIIF_LEVEL0_V2_HTTPS) {
                 obj.profile = [IIIF_LEVEL0_V2_HTTP, ...profile.slice(1)];
             }
+        }
+
+        // Some level-0 services advertise `tiles`, but 1x1 tile levels produce
+        // `/full/w,h/...` requests that 404. Keep only scale factors that still
+        // require at least 2 tiles in one dimension.
+        if (
+            isLevel0 &&
+            Array.isArray(obj.tiles) &&
+            obj.tiles.length > 0 &&
+            typeof obj.width === 'number' &&
+            typeof obj.height === 'number'
+        ) {
+            obj.tiles = obj.tiles.map((tile: any) => {
+                if (!Array.isArray(tile?.scaleFactors)) return tile;
+                const tileW =
+                    typeof tile.width === 'number' ? tile.width : 0;
+                const tileH =
+                    typeof tile.height === 'number' ? tile.height : tileW;
+                if (!tileW || !tileH) return tile;
+
+                const filtered = tile.scaleFactors.filter((sf: any) => {
+                    if (typeof sf !== 'number' || sf <= 0) return false;
+                    const levelW = Math.ceil(obj.width / sf);
+                    const levelH = Math.ceil(obj.height / sf);
+                    const tilesX = Math.ceil(levelW / tileW);
+                    const tilesY = Math.ceil(levelH / tileH);
+                    return tilesX > 1 || tilesY > 1;
+                });
+
+                // If everything is filtered out, keep original to avoid breaking source.
+                if (!filtered.length) return tile;
+                return { ...tile, scaleFactors: filtered };
+            });
         }
 
         return source;
@@ -294,6 +342,11 @@
         };
 
         osd.__triiiceratopsIiifLevel0Patched = true;
+    }
+
+    function setViewerImageVisible(isVisible: boolean) {
+        if (!container) return;
+        container.style.opacity = isVisible ? '1' : '0';
     }
 
     // Pre-fetch info.json URLs to detect 401 auth errors before passing to OSD
@@ -339,7 +392,17 @@
 
     // Load tile source when it changes
     $effect(() => {
-        if (!viewer || !tileSources) return;
+        if (!viewer) return;
+
+        // If sources are cleared/absent during a canvas/world switch, clear
+        // stale tiles immediately and allow the same source to reopen later.
+        if (!tileSources) {
+            setViewerImageVisible(false);
+            viewer.close();
+            viewerState.tileSourceError = null;
+            lastTileSourceStr = '';
+            return;
+        }
 
         const mode = viewerState.viewingMode;
         const direction = viewerState.viewingDirection;
@@ -367,20 +430,36 @@
               ? [tileSources]
               : [];
 
-        if (sources.length === 0) return;
+        if (sources.length === 0) {
+            setViewerImageVisible(false);
+            viewer.close();
+            viewerState.tileSourceError = null;
+            lastTileSourceStr = '';
+            return;
+        }
 
         // Capture stateKey for staleness guard
         const capturedKey = stateKey;
         const overrides = viewerState.config?.openSeadragonConfig ?? {};
 
+        // Hide the previous image immediately; reveal once new tiles are drawn.
+        setViewerImageVisible(false);
+        viewer.addOnceHandler('tile-drawn', () => {
+            if (capturedKey !== lastTileSourceStr) return;
+            setViewerImageVisible(true);
+        });
+
         if (mode === 'continuous') {
-            // Continuous mode can include mixed-size canvases; keep tile culling
-            // thresholds low so smaller images don't disappear before full-strip view.
+            // Remove current world immediately so stale canvases are not shown
+            // while async source resolution is in progress.
+            viewer.close();
+            viewerState.tileSourceError = null;
+
             if (overrides.minPixelRatio === undefined) {
                 viewer.minPixelRatio = 0.5;
             }
             if (overrides.minZoomImageRatio === undefined) {
-                viewer.minZoomImageRatio = 0.1;
+                viewer.minZoomImageRatio = 0.9;
             }
 
             resolveTileSources(sources).then((result) => {
@@ -458,11 +537,12 @@
                             (batchIdx + 1) * BATCH_SIZE,
                         );
                         if (batch.length === 0) {
-                            // In continuous mode, allow a bit beyond home zoom so
-                            // strips centered near one end can still include all canvases.
+                            // Keep a modest margin below home zoom, but avoid the
+                            // extreme zoom-out range where some level-0 services
+                            // trigger invalid tile URLs.
                             if (overrides.minZoomLevel === undefined) {
                                 viewer.viewport.minZoomLevel =
-                                    viewer.viewport.getHomeZoom() * 0.5;
+                                    viewer.viewport.getHomeZoom() * 0.8;
                             }
                             return;
                         }
