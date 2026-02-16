@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.9
+
+### Patch Changes
+
+- fbf59ca: more mobile regressions; cover with tests this time
+
 ## 0.16.8
 
 ### Patch Changes
