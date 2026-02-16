@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.16.8
+
+### Patch Changes
+
+- 315f7fb: complete mobile regression fix
+
 ## 0.16.7
 
 ### Patch Changes
