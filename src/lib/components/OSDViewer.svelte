@@ -1,6 +1,12 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
+    import {
+        DEFAULT_MIN_PIXEL_RATIO,
+        DEFAULT_MIN_ZOOM_IMAGE_RATIO,
+        MOBILE_DRAWER_FALLBACK,
+        shouldUseMobileDrawerFallback,
+    } from './osdDefaults';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -174,15 +180,16 @@
             OSD = osdModule.default || osdModule;
             patchIiifLevel0ProfileCompatibility(OSD);
             const userAgent = navigator.userAgent || '';
-            const isAndroidChrome =
-                /Android/i.test(userAgent) && /\bChrome\//i.test(userAgent);
             const consumerOverrides = viewerState.config?.openSeadragonConfig ?? {};
 
-            // Prefer canvas first on Android Chrome unless consumer overrides drawer.
-            // This avoids known WebGL tile rendering issues on some mobile devices.
+            // Prefer canvas first on mobile unless consumer overrides drawer.
+            // This avoids known WebGL tile rendering issues on some devices.
             const defaultDrawer =
-                isAndroidChrome && consumerOverrides.drawer === undefined
-                    ? { drawer: ['canvas', 'webgl', 'html'] }
+                shouldUseMobileDrawerFallback({
+                    userAgent,
+                    drawerOverride: consumerOverrides.drawer,
+                })
+                    ? { drawer: [...MOBILE_DRAWER_FALLBACK] }
                     : {};
 
             // Initialize OpenSeadragon viewer
@@ -221,9 +228,7 @@
                 viewer.viewport.minZoomLevel = homeZoom * floorFactor;
 
                 if (overrides.minPixelRatio === undefined) {
-                    // Lower threshold prevents blanking on sparse/level-0 pyramids
-                    // when zooming far out (especially on small mobile viewports).
-                    viewer.minPixelRatio = 0.1;
+                    viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
                 }
             });
 
@@ -456,10 +461,10 @@
             viewerState.tileSourceError = null;
 
             if (overrides.minPixelRatio === undefined) {
-                viewer.minPixelRatio = 0.1;
+                viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
             }
             if (overrides.minZoomImageRatio === undefined) {
-                viewer.minZoomImageRatio = 0.9;
+                viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
             }
 
             resolveTileSources(sources).then((result) => {
@@ -574,10 +579,10 @@
 
         // Restore less aggressive defaults outside continuous mode unless user-overridden.
         if (overrides.minPixelRatio === undefined) {
-            viewer.minPixelRatio = 0.1;
+            viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
         }
         if (overrides.minZoomImageRatio === undefined) {
-            viewer.minZoomImageRatio = 0.9;
+            viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
         }
 
         const immediateSources = sources.map((source) =>
