@@ -239,6 +239,42 @@
         }
     });
 
+    // Pre-fetch info.json URLs to detect 401 auth errors before passing to OSD
+    async function resolveTileSources(
+        sources: any[],
+    ): Promise<
+        | { ok: true; resolved: any[] }
+        | { ok: false; error: { type: 'auth' } }
+    > {
+        const resolved = await Promise.all(
+            sources.map(async (source) => {
+                // Only fetch string sources (info.json URLs)
+                if (typeof source !== 'string') return source;
+                try {
+                    const response = await fetch(source);
+                    if (response.status === 401) {
+                        return { __authError: true };
+                    }
+                    if (!response.ok) {
+                        // For other errors, pass through the URL and let OSD handle it
+                        return source;
+                    }
+                    return await response.json();
+                } catch {
+                    // Network errors: pass through and let OSD handle it
+                    return source;
+                }
+            }),
+        );
+
+        // Check if any source had an auth error
+        if (resolved.some((r) => r && r.__authError)) {
+            return { ok: false, error: { type: 'auth' } };
+        }
+
+        return { ok: true, resolved };
+    }
+
     // Load tile source when it changes
     $effect(() => {
         if (!viewer || !tileSources) return;
@@ -271,78 +307,103 @@
 
         if (sources.length === 0) return;
 
-        if (mode === 'continuous') {
-            const gap = 0.025;
-            const spread = sources.map((source, index) => {
-                let x = 0;
-                let y = 0;
-                if (isVertical) {
-                    // Vertical
-                    const yPos = index * (1 + gap);
-                    y = isBTT ? -yPos : yPos;
-                } else {
-                    // Horizontal
-                    const xPos = index * (1 + gap);
-                    x = isRTL ? -xPos : xPos;
-                }
+        // Capture stateKey for staleness guard
+        const capturedKey = stateKey;
 
-                return {
-                    tileSource: source,
-                    x,
-                    y,
-                    width: 1.0,
-                };
-            });
-            viewer.open(spread);
+        // Pre-fetch info.json URLs to detect auth errors
+        resolveTileSources(sources).then((result) => {
+            // Staleness guard: if tile sources changed while we were fetching, discard
+            if (capturedKey !== lastTileSourceStr) return;
 
-            // Zoom to the active canvas once OSD finishes loading,
-            // so the user doesn't see the default zoomed-out view of all canvases.
-            viewer.addOnceHandler('open', () => {
-                const currentIndex = viewerState.currentCanvasIndex;
-                let imageIndex = 0;
-                for (let i = 0; i < currentIndex; i++) {
-                    const canvas = viewerState.canvases[i];
-                    let imgs = canvas.getImages?.() || [];
-                    if ((!imgs || !imgs.length) && canvas.getContent) {
-                        imgs = canvas.getContent();
+            if (!result.ok) {
+                viewerState.tileSourceError = result.error;
+                // Clear stale tiles from the previous canvas
+                viewer.close();
+                return;
+            }
+
+            // Clear any previous error
+            viewerState.tileSourceError = null;
+
+            const resolvedSources = result.resolved;
+
+            if (mode === 'continuous') {
+                const gap = 0.025;
+                const spread = resolvedSources.map((source, index) => {
+                    let x = 0;
+                    let y = 0;
+                    if (isVertical) {
+                        // Vertical
+                        const yPos = index * (1 + gap);
+                        y = isBTT ? -yPos : yPos;
+                    } else {
+                        // Horizontal
+                        const xPos = index * (1 + gap);
+                        x = isRTL ? -xPos : xPos;
                     }
-                    const count = imgs ? imgs.length : 0;
-                    imageIndex += count;
-                }
-                const item = viewer.world.getItemAt(imageIndex);
-                if (item) {
-                    viewer.viewport.fitBounds(item.getBounds(), true);
-                }
-            });
-        } else if (mode === 'paged' && sources.length === 2) {
-            const gap = 0.025;
-            const offset = 1 + gap;
 
-            // Two pages.
-            // If LTR: [0] at 0, [1] at 1.025
-            // If RTL: [0] at 1.025, [1] at 0
-            const firstX = isPagedRTL ? offset : 0;
-            const secondX = isPagedRTL ? 0 : offset;
+                    return {
+                        tileSource: source,
+                        x,
+                        y,
+                        width: 1.0,
+                    };
+                });
+                viewer.open(spread);
 
-            const spread = [
-                {
-                    tileSource: sources[0],
-                    x: firstX,
-                    y: 0,
-                    width: 1.0,
-                },
-                {
-                    tileSource: sources[1],
-                    x: secondX,
-                    y: 0,
-                    width: 1.0,
-                },
-            ];
-            viewer.open(spread);
-        } else {
-            // Individuals or single paged or fallback
-            viewer.open(tileSources);
-        }
+                // Zoom to the active canvas once OSD finishes loading,
+                // so the user doesn't see the default zoomed-out view of all canvases.
+                viewer.addOnceHandler('open', () => {
+                    const currentIndex = viewerState.currentCanvasIndex;
+                    let imageIndex = 0;
+                    for (let i = 0; i < currentIndex; i++) {
+                        const canvas = viewerState.canvases[i];
+                        let imgs = canvas.getImages?.() || [];
+                        if ((!imgs || !imgs.length) && canvas.getContent) {
+                            imgs = canvas.getContent();
+                        }
+                        const count = imgs ? imgs.length : 0;
+                        imageIndex += count;
+                    }
+                    const item = viewer.world.getItemAt(imageIndex);
+                    if (item) {
+                        viewer.viewport.fitBounds(item.getBounds(), true);
+                    }
+                });
+            } else if (mode === 'paged' && resolvedSources.length === 2) {
+                const gap = 0.025;
+                const offset = 1 + gap;
+
+                // Two pages.
+                // If LTR: [0] at 0, [1] at 1.025
+                // If RTL: [0] at 1.025, [1] at 0
+                const firstX = isPagedRTL ? offset : 0;
+                const secondX = isPagedRTL ? 0 : offset;
+
+                const spread = [
+                    {
+                        tileSource: resolvedSources[0],
+                        x: firstX,
+                        y: 0,
+                        width: 1.0,
+                    },
+                    {
+                        tileSource: resolvedSources[1],
+                        x: secondX,
+                        y: 0,
+                        width: 1.0,
+                    },
+                ];
+                viewer.open(spread);
+            } else {
+                // Individuals or single paged or fallback
+                viewer.open(
+                    resolvedSources.length === 1
+                        ? resolvedSources[0]
+                        : resolvedSources,
+                );
+            }
+        });
     });
 
     // Handle navigation in continuous mode

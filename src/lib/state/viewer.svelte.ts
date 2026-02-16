@@ -43,6 +43,9 @@ export class ViewerState {
     visibleAnnotationIds = new SvelteSet<string>();
     hoveredAnnotationId = $state<string | null>(null);
 
+    // Error state for tile source fetching (e.g. 401 auth required)
+    tileSourceError: { type: 'auth' } | null = $state(null);
+
     // Map of canvasId -> selected choiceId (Content State)
     selectedChoices = new SvelteMap<string, string>();
 
@@ -428,6 +431,7 @@ export class ViewerState {
 
     setCanvas(canvasId: string) {
         this.canvasId = canvasId;
+        this.tileSourceError = null;
         this.dispatchStateChange('canvaschange');
     }
 

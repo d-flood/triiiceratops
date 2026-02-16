@@ -14,6 +14,7 @@
     import SearchPanel from './SearchPanel.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import { m, language } from '../state/i18n.svelte';
+    import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -222,6 +223,13 @@
             );
             internalViewerState.setCanvas(canvases[0].id);
         }
+    });
+
+    // Derive thumbnail URL for the current canvas (used for auth error backdrop)
+    // Uses the same fallback chain as ThumbnailGallery
+    let currentCanvasThumbnail = $derived.by(() => {
+        if (!canvases || currentCanvasIndex === -1 || !canvases[currentCanvasIndex]) return null;
+        return getThumbnailSrc(canvases[currentCanvasIndex]) || null;
     });
 
     let tileSources = $derived.by(() => {
@@ -603,6 +611,39 @@
                 </div>
             {:else if tileSources}
                 <OSDViewer {tileSources} viewerState={internalViewerState} />
+                {#if internalViewerState.tileSourceError}
+                    <div
+                        class="absolute inset-0 z-[5] flex items-center justify-center pointer-events-none overflow-hidden"
+                        role="alert"
+                    >
+                        {#if currentCanvasThumbnail}
+                            <img
+                                src={currentCanvasThumbnail}
+                                alt=""
+                                class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-40"
+                            />
+                            <div class="absolute inset-0 bg-base-100/50"></div>
+                        {/if}
+                        <div class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="w-12 h-12 text-warning"
+                            >
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <p class="text-base-content text-sm">
+                                {m.error_auth_required()}
+                            </p>
+                        </div>
+                    </div>
+                {/if}
             {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div
                     class="w-full h-full flex items-center justify-center text-base-content/50"
