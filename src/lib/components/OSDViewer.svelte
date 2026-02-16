@@ -15,6 +15,19 @@
     let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
 
+    const IIIF_LEVEL0_V2_HTTPS = 'https://iiif.io/api/image/2/level0.json';
+    const IIIF_LEVEL0_V2_HTTP = 'http://iiif.io/api/image/2/level0.json';
+    const IIIF_LEVEL0_V3_HTTPS = 'https://iiif.io/api/image/3/level0.json';
+
+    const IIIF_LEVEL0_PROFILES = new Set([
+        'level0',
+        IIIF_LEVEL0_V2_HTTP,
+        IIIF_LEVEL0_V2_HTTPS,
+        IIIF_LEVEL0_V3_HTTPS,
+        'http://library.stanford.edu/iiif/image-api/compliance.html#level0',
+        'http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level0',
+    ]);
+
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
     // Track last opened tile source to prevent unnecessary resets
@@ -169,6 +182,7 @@
             if (!mounted) return;
 
             OSD = osdModule.default || osdModule;
+            patchIiifLevel0ProfileCompatibility(OSD);
 
             // Initialize OpenSeadragon viewer
             viewer = OSD({
@@ -191,6 +205,16 @@
                     clickToZoom: false,
                     dblClickToZoom: true,
                 },
+            });
+
+            viewer.addHandler('open', () => {
+                const overrides = viewerState.config?.openSeadragonConfig ?? {};
+                if (overrides.minZoomLevel !== undefined) return;
+
+                // Prevent zooming into the "no tiles rendered" range seen on
+                // some level-0 services when zoomed far past home view.
+                const homeZoom = viewer.viewport.getHomeZoom();
+                viewer.viewport.minZoomLevel = homeZoom * 0.5;
             });
 
             // Notify plugins that OSD is ready
@@ -239,6 +263,78 @@
         }
     });
 
+    function normalizeIiifLevel0Profile<T>(source: T): T {
+        if (!source || typeof source !== 'object') return source;
+
+        const obj = source as any;
+        const profile = obj.profile;
+
+        if (typeof profile === 'string' && profile === IIIF_LEVEL0_V2_HTTPS) {
+            obj.profile = IIIF_LEVEL0_V2_HTTP;
+        } else if (Array.isArray(profile) && profile.length > 0) {
+            const first = profile[0];
+            if (typeof first === 'string' && first === IIIF_LEVEL0_V2_HTTPS) {
+                obj.profile = [IIIF_LEVEL0_V2_HTTP, ...profile.slice(1)];
+            }
+        }
+
+        return source;
+    }
+
+    function isLevel0Profile(profile: unknown): boolean {
+        if (typeof profile === 'string') {
+            return IIIF_LEVEL0_PROFILES.has(profile);
+        }
+        if (Array.isArray(profile)) {
+            return profile.some(
+                (item) =>
+                    typeof item === 'string' && IIIF_LEVEL0_PROFILES.has(item),
+            );
+        }
+        return false;
+    }
+
+    function buildLevel0ImageSource(info: any): { type: 'image'; url: string } | null {
+        const id = info?.id || info?.['@id'];
+        if (!id || typeof id !== 'string') return null;
+
+        const serviceId = id.endsWith('/info.json')
+            ? id.slice(0, -'/info.json'.length)
+            : id;
+
+        const context = info?.['@context'];
+        const contextValues = Array.isArray(context)
+            ? context.filter((v: unknown) => typeof v === 'string')
+            : [context].filter((v: unknown) => typeof v === 'string');
+        const isV3 = contextValues.some((v: string) =>
+            v.includes('/api/image/3/context.json'),
+        );
+
+        // IIIF level-0 is fundamentally a non-tiled target. Using a plain image
+        // source avoids zoom-out blanking caused by sparse level math.
+        const size = isV3 ? 'max' : 'full';
+        return { type: 'image', url: `${serviceId}/full/${size}/0/default.jpg` };
+    }
+
+    function patchIiifLevel0ProfileCompatibility(osd: any) {
+        if (
+            !osd?.IIIFTileSource?.prototype ||
+            osd.__triiiceratopsIiifLevel0Patched
+        )
+            return;
+
+        const proto = osd.IIIFTileSource.prototype;
+        const originalConfigure = proto.configure;
+        if (typeof originalConfigure !== 'function') return;
+
+        proto.configure = function (data: any, url: string, postData: any) {
+            const configured = originalConfigure.call(this, data, url, postData);
+            return normalizeIiifLevel0Profile(configured);
+        };
+
+        osd.__triiiceratopsIiifLevel0Patched = true;
+    }
+
     // Pre-fetch info.json URLs to detect 401 auth errors before passing to OSD
     async function resolveTileSources(
         sources: any[],
@@ -248,18 +344,31 @@
     > {
         const resolved = await Promise.all(
             sources.map(async (source) => {
-                // Only fetch string sources (info.json URLs)
-                if (typeof source !== 'string') return source;
+                // Only probe string sources (info.json URLs); preserve string tile
+                // sources so OSD follows its normal source-loading path.
+                if (typeof source !== 'string')
+                    return normalizeIiifLevel0Profile(source);
                 try {
                     const response = await fetch(source);
                     if (response.status === 401) {
                         return { __authError: true };
                     }
-                    if (!response.ok) {
-                        // For other errors, pass through the URL and let OSD handle it
-                        return source;
+                    if (response.ok) {
+                        try {
+                            const info = normalizeIiifLevel0Profile(
+                                await response.json(),
+                            ) as any;
+                            if (isLevel0Profile(info?.profile)) {
+                                const level0Source = buildLevel0ImageSource(info);
+                                if (level0Source) return level0Source;
+                            }
+                        } catch {
+                            // Not JSON or malformed response; let OSD handle source URL.
+                        }
                     }
-                    return await response.json();
+                    // For non-401 responses, keep passing through the original source
+                    // unless we positively detect and convert level-0.
+                    return source;
                 } catch {
                     // Network errors: pass through and let OSD handle it
                     return source;
@@ -311,99 +420,108 @@
         const capturedKey = stateKey;
 
         if (mode === 'continuous') {
-            viewerState.tileSourceError = null;
+            resolveTileSources(sources).then((result) => {
+                // Staleness guard: if tile sources changed while we were fetching, discard
+                if (capturedKey !== lastTileSourceStr) return;
 
-            const gap = 0.025;
-
-            // Build position info for all sources
-            const allPositions = sources.map((source, index) => {
-                let x = 0;
-                let y = 0;
-                if (isVertical) {
-                    const yPos = index * (1 + gap);
-                    y = isBTT ? -yPos : yPos;
-                } else {
-                    const xPos = index * (1 + gap);
-                    x = isRTL ? -xPos : xPos;
-                }
-                return { tileSource: source, x, y, width: 1.0 };
-            });
-
-            // Only open a window of canvases around the active one for fast initial load.
-            // The rest are added progressively after the viewer opens.
-            const INITIAL_WINDOW = 3; // canvases on each side of current
-            const currentIndex = viewerState.currentCanvasIndex;
-            const startIdx = Math.max(0, currentIndex - INITIAL_WINDOW);
-            const endIdx = Math.min(
-                allPositions.length,
-                currentIndex + INITIAL_WINDOW + 1,
-            );
-
-            const initialSpread = allPositions.slice(startIdx, endIdx);
-            viewer.open(initialSpread);
-
-            viewer.addOnceHandler('open', () => {
-                // Zoom to the active canvas
-                const itemIdx = currentIndex - startIdx;
-                const item = viewer.world.getItemAt(itemIdx);
-                if (item) {
-                    viewer.viewport.fitBounds(item.getBounds(), true);
+                if (!result.ok) {
+                    viewerState.tileSourceError = result.error;
+                    viewer.close();
+                    return;
                 }
 
-                // Progressively add remaining canvases in batches
-                const remaining = [
-                    ...allPositions
-                        .slice(0, startIdx)
-                        .map((pos, i) => ({ ...pos, originalIndex: i })),
-                    ...allPositions
-                        .slice(endIdx)
-                        .map((pos, i) => ({
-                            ...pos,
-                            originalIndex: endIdx + i,
-                        })),
-                ];
+                viewerState.tileSourceError = null;
+                const resolvedSources = result.resolved;
 
-                const BATCH_SIZE = 5;
-                let batchIdx = 0;
+                const gap = 0.025;
 
-                function addNextBatch() {
-                    // Staleness guard
-                    if (capturedKey !== lastTileSourceStr) return;
+                // Build position info for all sources
+                const allPositions = resolvedSources.map((source, index) => {
+                    let x = 0;
+                    let y = 0;
+                    if (isVertical) {
+                        const yPos = index * (1 + gap);
+                        y = isBTT ? -yPos : yPos;
+                    } else {
+                        const xPos = index * (1 + gap);
+                        x = isRTL ? -xPos : xPos;
+                    }
+                    return { tileSource: source, x, y, width: 1.0 };
+                });
 
-                    const batch = remaining.slice(
-                        batchIdx * BATCH_SIZE,
-                        (batchIdx + 1) * BATCH_SIZE,
-                    );
-                    if (batch.length === 0) {
-                        // All loaded — now set zoom constraints based on full world bounds
-                        const worldBounds = viewer.world.getHomeBounds();
-                        const viewportBounds = viewer.viewport.getBounds();
-                        const minZoom =
-                            (Math.min(
-                                viewportBounds.width / worldBounds.width,
-                                viewportBounds.height / worldBounds.height,
-                            ) *
-                                viewer.viewport.getZoom()) *
-                            0.8;
-                        viewer.viewport.minZoomLevel = minZoom;
-                        viewer.viewport.visibilityRatio = 1;
-                        return;
+                // Only open a window of canvases around the active one for fast initial load.
+                // The rest are added progressively after the viewer opens.
+                const INITIAL_WINDOW = 3; // canvases on each side of current
+                const currentIndex = viewerState.currentCanvasIndex;
+                const startIdx = Math.max(0, currentIndex - INITIAL_WINDOW);
+                const endIdx = Math.min(
+                    allPositions.length,
+                    currentIndex + INITIAL_WINDOW + 1,
+                );
+
+                const initialSpread = allPositions.slice(startIdx, endIdx);
+                viewer.open(initialSpread);
+
+                viewer.addOnceHandler('open', () => {
+                    // Zoom to the active canvas
+                    const itemIdx = currentIndex - startIdx;
+                    const item = viewer.world.getItemAt(itemIdx);
+                    if (item) {
+                        viewer.viewport.fitBounds(item.getBounds(), true);
                     }
 
-                    for (const pos of batch) {
-                        viewer.addTiledImage({
-                            tileSource: pos.tileSource,
-                            x: pos.x,
-                            y: pos.y,
-                            width: pos.width,
-                        });
-                    }
-                    batchIdx++;
-                    setTimeout(addNextBatch, 100);
-                }
+                    // Progressively add remaining canvases in batches
+                    const remaining = [
+                        ...allPositions
+                            .slice(0, startIdx)
+                            .map((pos, i) => ({ ...pos, originalIndex: i })),
+                        ...allPositions
+                            .slice(endIdx)
+                            .map((pos, i) => ({
+                                ...pos,
+                                originalIndex: endIdx + i,
+                            })),
+                    ];
 
-                // Start adding remaining canvases after a short delay
-                setTimeout(addNextBatch, 200);
+                    const BATCH_SIZE = 5;
+                    let batchIdx = 0;
+
+                    function addNextBatch() {
+                        // Staleness guard
+                        if (capturedKey !== lastTileSourceStr) return;
+
+                        const batch = remaining.slice(
+                            batchIdx * BATCH_SIZE,
+                            (batchIdx + 1) * BATCH_SIZE,
+                        );
+                        if (batch.length === 0) {
+                            // All loaded — set a stable min zoom floor from world home zoom.
+                            // Avoid forcing visibilityRatio=1; it can over-constrain level-0
+                            // services and cause abrupt blanking at zoom-out extremes.
+                            const overrides =
+                                viewerState.config?.openSeadragonConfig ?? {};
+                            if (overrides.minZoomLevel === undefined) {
+                                const homeZoom = viewer.viewport.getHomeZoom();
+                                viewer.viewport.minZoomLevel = homeZoom * 0.8;
+                            }
+                            return;
+                        }
+
+                        for (const pos of batch) {
+                            viewer.addTiledImage({
+                                tileSource: pos.tileSource,
+                                x: pos.x,
+                                y: pos.y,
+                                width: pos.width,
+                            });
+                        }
+                        batchIdx++;
+                        setTimeout(addNextBatch, 100);
+                    }
+
+                    // Start adding remaining canvases after a short delay
+                    setTimeout(addNextBatch, 200);
+                });
             });
 
             return;
