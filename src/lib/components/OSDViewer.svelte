@@ -310,7 +310,106 @@
         // Capture stateKey for staleness guard
         const capturedKey = stateKey;
 
-        // Pre-fetch info.json URLs to detect auth errors
+        if (mode === 'continuous') {
+            viewerState.tileSourceError = null;
+
+            const gap = 0.025;
+
+            // Build position info for all sources
+            const allPositions = sources.map((source, index) => {
+                let x = 0;
+                let y = 0;
+                if (isVertical) {
+                    const yPos = index * (1 + gap);
+                    y = isBTT ? -yPos : yPos;
+                } else {
+                    const xPos = index * (1 + gap);
+                    x = isRTL ? -xPos : xPos;
+                }
+                return { tileSource: source, x, y, width: 1.0 };
+            });
+
+            // Only open a window of canvases around the active one for fast initial load.
+            // The rest are added progressively after the viewer opens.
+            const INITIAL_WINDOW = 3; // canvases on each side of current
+            const currentIndex = viewerState.currentCanvasIndex;
+            const startIdx = Math.max(0, currentIndex - INITIAL_WINDOW);
+            const endIdx = Math.min(
+                allPositions.length,
+                currentIndex + INITIAL_WINDOW + 1,
+            );
+
+            const initialSpread = allPositions.slice(startIdx, endIdx);
+            viewer.open(initialSpread);
+
+            viewer.addOnceHandler('open', () => {
+                // Zoom to the active canvas
+                const itemIdx = currentIndex - startIdx;
+                const item = viewer.world.getItemAt(itemIdx);
+                if (item) {
+                    viewer.viewport.fitBounds(item.getBounds(), true);
+                }
+
+                // Progressively add remaining canvases in batches
+                const remaining = [
+                    ...allPositions
+                        .slice(0, startIdx)
+                        .map((pos, i) => ({ ...pos, originalIndex: i })),
+                    ...allPositions
+                        .slice(endIdx)
+                        .map((pos, i) => ({
+                            ...pos,
+                            originalIndex: endIdx + i,
+                        })),
+                ];
+
+                const BATCH_SIZE = 5;
+                let batchIdx = 0;
+
+                function addNextBatch() {
+                    // Staleness guard
+                    if (capturedKey !== lastTileSourceStr) return;
+
+                    const batch = remaining.slice(
+                        batchIdx * BATCH_SIZE,
+                        (batchIdx + 1) * BATCH_SIZE,
+                    );
+                    if (batch.length === 0) {
+                        // All loaded — now set zoom constraints based on full world bounds
+                        const worldBounds = viewer.world.getHomeBounds();
+                        const viewportBounds = viewer.viewport.getBounds();
+                        const minZoom =
+                            (Math.min(
+                                viewportBounds.width / worldBounds.width,
+                                viewportBounds.height / worldBounds.height,
+                            ) *
+                                viewer.viewport.getZoom()) *
+                            0.8;
+                        viewer.viewport.minZoomLevel = minZoom;
+                        viewer.viewport.visibilityRatio = 1;
+                        return;
+                    }
+
+                    for (const pos of batch) {
+                        viewer.addTiledImage({
+                            tileSource: pos.tileSource,
+                            x: pos.x,
+                            y: pos.y,
+                            width: pos.width,
+                        });
+                    }
+                    batchIdx++;
+                    setTimeout(addNextBatch, 100);
+                }
+
+                // Start adding remaining canvases after a short delay
+                setTimeout(addNextBatch, 200);
+            });
+
+            return;
+        }
+
+        // Pre-fetch info.json URLs to detect auth errors (for non-continuous modes)
         resolveTileSources(sources).then((result) => {
             // Staleness guard: if tile sources changed while we were fetching, discard
             if (capturedKey !== lastTileSourceStr) return;
@@ -327,50 +426,7 @@
 
             const resolvedSources = result.resolved;
 
-            if (mode === 'continuous') {
-                const gap = 0.025;
-                const spread = resolvedSources.map((source, index) => {
-                    let x = 0;
-                    let y = 0;
-                    if (isVertical) {
-                        // Vertical
-                        const yPos = index * (1 + gap);
-                        y = isBTT ? -yPos : yPos;
-                    } else {
-                        // Horizontal
-                        const xPos = index * (1 + gap);
-                        x = isRTL ? -xPos : xPos;
-                    }
-
-                    return {
-                        tileSource: source,
-                        x,
-                        y,
-                        width: 1.0,
-                    };
-                });
-                viewer.open(spread);
-
-                // Zoom to the active canvas once OSD finishes loading,
-                // so the user doesn't see the default zoomed-out view of all canvases.
-                viewer.addOnceHandler('open', () => {
-                    const currentIndex = viewerState.currentCanvasIndex;
-                    let imageIndex = 0;
-                    for (let i = 0; i < currentIndex; i++) {
-                        const canvas = viewerState.canvases[i];
-                        let imgs = canvas.getImages?.() || [];
-                        if ((!imgs || !imgs.length) && canvas.getContent) {
-                            imgs = canvas.getContent();
-                        }
-                        const count = imgs ? imgs.length : 0;
-                        imageIndex += count;
-                    }
-                    const item = viewer.world.getItemAt(imageIndex);
-                    if (item) {
-                        viewer.viewport.fitBounds(item.getBounds(), true);
-                    }
-                });
-            } else if (mode === 'paged' && resolvedSources.length === 2) {
+            if (mode === 'paged' && resolvedSources.length === 2) {
                 const gap = 0.025;
                 const offset = 1 + gap;
 
@@ -419,31 +475,40 @@
         // Depend on currentCanvasIndex
         const currentIndex = viewerState.currentCanvasIndex;
 
-        // We need to map the canvas index to the OSD world item index.
-        // This depends on how many images each canvas has.
-        // We replicate the counting logic from TriiiceratopsViewer.
-        let imageIndex = 0;
-        for (let i = 0; i < currentIndex; i++) {
-            const canvas = viewerState.canvases[i];
-            // Helper to get images from a canvas (v2/v3 compatible)
-            let imgs = canvas.getImages?.() || [];
-            if ((!imgs || !imgs.length) && canvas.getContent) {
-                imgs = canvas.getContent();
+        // Calculate the expected position for this canvas index.
+        // Items may be added out of order due to progressive loading,
+        // so we find the item by its position rather than world index.
+        const direction = viewerState.viewingDirection;
+        const isVertical =
+            direction === 'top-to-bottom' || direction === 'bottom-to-top';
+        const isBTT = direction === 'bottom-to-top';
+        const isRTL =
+            direction === 'right-to-left' || direction === 'bottom-to-top';
+        const gap = 0.025;
+
+        const expectedPos = isVertical
+            ? isBTT
+                ? -(currentIndex * (1 + gap))
+                : currentIndex * (1 + gap)
+            : isRTL
+              ? -(currentIndex * (1 + gap))
+              : currentIndex * (1 + gap);
+
+        // Find the world item at the expected position
+        const itemCount = viewer.world.getItemCount();
+        let matchedItem = null;
+        for (let i = 0; i < itemCount; i++) {
+            const item = viewer.world.getItemAt(i);
+            const bounds = item.getBounds();
+            const pos = isVertical ? bounds.y : bounds.x;
+            if (Math.abs(pos - expectedPos) < 0.01) {
+                matchedItem = item;
+                break;
             }
-            const count = imgs ? imgs.length : 0;
-            imageIndex += count;
         }
 
-        // Get the item corresponding to the start of this canvas
-        // Note: The world might not be populated yet if we just called open(),
-        // but $effect runs after render updates. However, OSD loads async.
-        // We check if item exists.
-        const item = viewer.world.getItemAt(imageIndex);
-        if (item) {
-            // Pan to center of this item
-            const bounds = item.getBounds();
-            // We use fitBounds to ensure the item is visible and centered
-            viewer.viewport.fitBounds(bounds);
+        if (matchedItem) {
+            viewer.viewport.fitBounds(matchedItem.getBounds());
         }
     });
 </script>
