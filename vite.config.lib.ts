@@ -52,8 +52,6 @@ export default defineConfig({
                 'svelte',
                 'svelte/internal',
                 /^svelte\//,
-                'openseadragon',
-                'manifesto.js',
                 '@tailwindcss/vite',
                 'daisyui',
                 'tailwindcss',
