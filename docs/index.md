@@ -91,6 +91,9 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
         npm install triiiceratops
         ```
 
+    The packaged Svelte build includes the viewer runtime dependencies. You do not
+    need to install `manifesto.js` or `openseadragon` separately for normal usage.
+
     **Usage:**
 
     ```html

@@ -15,17 +15,17 @@
     "files": [
         "dist"
     ],
-    "main": "./dist/index.js",
-    "module": "./dist/index.js",
-    "svelte": "./dist/index.js",
+    "main": "./dist/triiiceratops-bundle.js",
+    "module": "./dist/triiiceratops-bundle.js",
+    "svelte": "./dist/triiiceratops-bundle.js",
     "style": "./dist/triiiceratops.css",
     "types": "./dist/index.d.ts",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "style": "./dist/triiiceratops.css",
-            "svelte": "./dist/index.js",
-            "import": "./dist/index.js"
+            "svelte": "./dist/triiiceratops-bundle.js",
+            "import": "./dist/triiiceratops-bundle.js"
         },
         "./plugins/image-manipulation": {
             "types": "./dist/plugins/image-manipulation/index.d.ts",
@@ -43,8 +43,6 @@
         "./style.css": "./dist/triiiceratops.css"
     },
     "peerDependencies": {
-        "manifesto.js": "^4.0.0",
-        "openseadragon": "^5.0.0",
         "svelte": "^5.0.0"
     },
     "peerDependenciesMeta": {
@@ -55,7 +53,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts",
+        "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts && pnpm check:runtime-deps",
         "build:element": "vite build --config vite.config.element.ts",
         "build:demo": "vite build --config vite.config.demo.ts",
         "build:consumer": "rm -rf docs/demo-consumer && mkdir -p docs/demo-consumer && cp src/demo-consumer/index.html docs/demo-consumer/index.html && cp src/demo-consumer/app.css docs/demo-consumer/app.css && rm -rf docs/dist && cp -r dist docs/dist",
@@ -64,6 +62,7 @@
         "preview": "vite preview",
         "dev:consumer": "vite --config vite.config.demo-consumer.ts",
         "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+        "check:runtime-deps": "node ./scripts/check-runtime-deps.mjs",
         "test": "vitest",
         "test:e2e": "playwright test",
         "changeset": "changeset",
