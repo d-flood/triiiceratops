@@ -6,6 +6,8 @@ icon: lucide/wrench
 
 Triiiceratops provides a flexible configuration system that works consistently across both the Web Component and Svelte Component implementations.
 
+The web component and the Svelte component share the same UI configuration object. Both can load manifest JSON directly, while `searchProvider` remains a Svelte-only integration prop.
+
 ## Configuration Object
 
 !!! tip "Interactive Configuration"
@@ -109,6 +111,23 @@ interface ViewerConfig {
     viewer.setAttribute('config', JSON.stringify(config));
     ```
 
+    ### Direct Manifest Data
+
+    To load a manifest from in-memory JSON instead of fetching `manifest-id`, set the `manifestJson` property from JavaScript:
+
+    ```javascript
+    const viewer = document.querySelector('triiiceratops-viewer');
+    viewer.manifestId = 'urn:example:manifest';
+    viewer.manifestJson = {
+      id: 'urn:example:manifest',
+      type: 'Manifest',
+      label: { none: ['Local manifest'] },
+      items: []
+    };
+    ```
+
+    `manifestJson` is a property-based API for the web component. It is not intended to be authored as a large inline HTML attribute.
+
     ### Reacting to State Changes
 
     The Web Component keeps its internal state in sync with the user's interactions (e.g., opening/closing panels, changing canvas). It dispatches events to notify the host application of these changes.
@@ -145,10 +164,31 @@ interface ViewerConfig {
         toolbarPosition: 'left',
         gallery: { open: true }
       };
+
+      let manifestJson = {
+        id: 'urn:example:manifest',
+        type: 'Manifest',
+        label: { none: ['Local manifest'] },
+        items: []
+      };
     </script>
 
-    <TriiiceratopsViewer {config} manifestId="..." />
+    <TriiiceratopsViewer {config} manifestId="urn:example:manifest" {manifestJson} />
     ```
+
+    ### Direct Manifest Data
+
+    If `manifestJson` is provided alongside `manifestId`, the viewer uses the supplied JSON directly and does not fetch the manifest over HTTP.
+
+    ```typescript
+    interface TriiiceratopsViewerProps {
+      manifestId?: string;
+      manifestJson?: Record<string, any>;
+      searchProvider?: SearchProvider | null;
+    }
+    ```
+
+    This is useful when your app stores or assembles manifests locally.
 
     ### Two-Way State Binding
 
@@ -177,6 +217,8 @@ interface ViewerConfig {
 ## Programmatic Search
 
 You can trigger a search programmatically by setting the `search.query` property in the configuration. This allows you to integrate external search bars or predefined queries.
+
+For Svelte integrations, you can also provide a `searchProvider` prop when the search source is local application state rather than a manifest-declared IIIF Search service.
 
 === "Web Component"
 
@@ -223,6 +265,61 @@ You can trigger a search programmatically by setting the `search.query` property
 
     <TriiiceratopsViewer {config} ... />
     ```
+
+## Custom Search Providers
+
+Svelte integrations can pass a `searchProvider` prop to supply search results from host application code.
+
+`searchProvider` is a callback-based alternate search source. It is not a way to declare a IIIF Search service URI, inject a missing service into a manifest, or override the manifest's service metadata. Use normal manifest `service` declarations for traditional IIIF Content Search endpoints.
+
+```typescript
+type SearchProvider = (
+  query: string,
+  context: {
+    manifestId: string;
+    manifest: any;
+    canvases: any[];
+    canvasId: string | null;
+  }
+) => Promise<Array<{
+  canvasIndex: number;
+  canvasLabel: string;
+  hits: Array<{
+    type: 'hit' | 'resource';
+    before?: string;
+    match: string;
+    after?: string;
+    bounds?: number[] | null;
+    allBounds?: number[][];
+  }>;
+}>>;
+```
+
+```svelte
+<script>
+  import { TriiiceratopsViewer } from 'triiiceratops';
+
+  const searchProvider = async (query, context) => {
+    return [
+      {
+        canvasIndex: 0,
+        canvasLabel: 'Page 1',
+        hits: [{ type: 'hit', before: '', match: query, after: '' }]
+      }
+    ];
+  };
+</script>
+
+<TriiiceratopsViewer
+  manifestId="urn:example:manifest"
+  {manifestJson}
+  {searchProvider}
+/>
+```
+
+If no `searchProvider` is supplied, the viewer falls back to its normal IIIF Content Search service discovery.
+
+If `searchProvider` is supplied, the viewer uses that callback instead of fetching a manifest-declared IIIF Search service for that search action.
 
 ## Controlling Active Canvas
 

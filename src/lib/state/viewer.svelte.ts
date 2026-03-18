@@ -1,6 +1,11 @@
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { manifestsState } from './manifests.svelte.js';
-import type { ViewerConfig } from '../types/config';
+import type {
+    RequestConfig,
+    SearchProvider,
+    SearchResultGroup,
+    ViewerConfig,
+} from '../types/config';
 
 import type { PluginMenuButton, PluginPanel, PluginDef } from '../types/plugin';
 
@@ -68,6 +73,8 @@ export class ViewerState {
 
     // UI Configuration
     config: ViewerConfig = $state({});
+    searchProvider: SearchProvider | null = $state.raw(null);
+    manifestRequestConfig: RequestConfig | undefined = $state.raw(undefined);
 
     // Derived configuration specific getters
     get showToggle() {
@@ -205,7 +212,7 @@ export class ViewerState {
         this.canvasId = initialCanvasId || null;
         // Fetch manifest immediately
         if (this.manifestId) {
-            manifestsState.fetchManifest(this.manifestId);
+            manifestsState.fetchManifest(this.manifestId, this.manifestRequestConfig);
         }
 
         // Register initial plugins
@@ -326,10 +333,25 @@ export class ViewerState {
         }
     }
 
-    async setManifest(manifestId: string) {
+    setSearchProvider(searchProvider: SearchProvider | null): void {
+        this.searchProvider = searchProvider;
+    }
+
+    setManifestRequestConfig(requestConfig?: RequestConfig): void {
+        this.manifestRequestConfig = requestConfig;
+    }
+
+    setManifestData(manifestId: string, manifestJson: any): void {
         this.manifestId = manifestId;
         this.canvasId = null;
-        await manifestsState.fetchManifest(manifestId);
+        manifestsState.registerManifest(manifestId, manifestJson);
+    }
+
+    async setManifest(manifestId: string, options?: { requestConfig?: RequestConfig }) {
+        this.manifestId = manifestId;
+        this.canvasId = null;
+        this.manifestRequestConfig = options?.requestConfig;
+        await manifestsState.fetchManifest(manifestId, this.manifestRequestConfig);
 
         // Auto-detect settings from Manifest
         const manifest = this.manifest;
@@ -612,7 +634,7 @@ export class ViewerState {
 
     searchQuery = $state('');
     pendingSearchQuery = $state<string | null>(null);
-    searchResults: any[] = $state([]);
+    searchResults: SearchResultGroup[] = $state([]);
     isSearching = $state(false);
     showSearchPanel = $state(false);
 
@@ -693,6 +715,17 @@ export class ViewerState {
                     query,
                 );
                 this.pendingSearchQuery = query;
+                return;
+            }
+
+            if (this.searchProvider && this.manifestId) {
+                this.searchResults = await this.searchProvider(query, {
+                    manifestId: this.manifestId,
+                    manifest,
+                    canvases: this.canvases,
+                    canvasId: this.canvasId,
+                });
+                this.searchAnnotations = this.buildSearchAnnotations(this.searchResults);
                 return;
             }
 
@@ -901,43 +934,10 @@ export class ViewerState {
                 }
             }
 
-            // Convert Map to Array and Sort
             this.searchResults = Array.from(resultsByCanvas.values()).sort(
                 (a, b) => a.canvasIndex - b.canvasIndex,
             );
-
-            // Generate ephemeral search annotations
-            // We need to flatten our grouped structure to generate the annotations list
-            let annotationIndex = 0;
-            this.searchAnnotations = this.searchResults.flatMap((group) => {
-                const canvas = this.canvases[group.canvasIndex];
-                return group.hits.flatMap((hit: any) => {
-                    const boundsArray =
-                        hit.allBounds && hit.allBounds.length > 0
-                            ? hit.allBounds
-                            : hit.bounds
-                              ? [hit.bounds]
-                              : [];
-
-                    return boundsArray.map((bounds: number[]) => {
-                        const on = `${canvas.id}#xywh=${bounds.join(',')}`;
-                        return {
-                            '@id': `urn:search-hit:${annotationIndex++}`,
-                            '@type': 'oa:Annotation',
-                            motivation: 'sc:painting',
-                            on: on,
-                            canvasId: canvas.id,
-                            resource: {
-                                '@type': 'cnt:ContentAsText',
-                                chars: hit.match,
-                            },
-                            // Flag to identify styling in Overlay?
-                            // Or just standard rendering.
-                            isSearchHit: true,
-                        };
-                    });
-                });
-            });
+            this.searchAnnotations = this.buildSearchAnnotations(this.searchResults);
         } catch (e) {
             console.error('Search error:', e);
             this.isSearching = false;
@@ -947,6 +947,35 @@ export class ViewerState {
                 this.isSearching = false;
             }
         }
+    }
+
+    private buildSearchAnnotations(searchResults: SearchResultGroup[]): any[] {
+        let annotationIndex = 0;
+        return searchResults.flatMap((group) => {
+            const canvas = this.canvases[group.canvasIndex];
+            if (!canvas?.id) return [];
+            return group.hits.flatMap((hit) => {
+                const boundsArray =
+                    hit.allBounds && hit.allBounds.length > 0
+                        ? hit.allBounds
+                        : hit.bounds
+                          ? [hit.bounds]
+                          : [];
+
+                return boundsArray.map((bounds: number[]) => ({
+                    '@id': `urn:search-hit:${annotationIndex++}`,
+                    '@type': 'oa:Annotation',
+                    motivation: 'sc:painting',
+                    on: `${canvas.id}#xywh=${bounds.join(',')}`,
+                    canvasId: canvas.id,
+                    resource: {
+                        '@type': 'cnt:ContentAsText',
+                        chars: hit.match,
+                    },
+                    isSearchHit: true,
+                }));
+            });
+        });
     }
 
     // ==================== PLUGIN STATE ====================

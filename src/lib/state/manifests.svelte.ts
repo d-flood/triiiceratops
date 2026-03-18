@@ -1,6 +1,8 @@
 import { SvelteMap } from 'svelte/reactivity';
 import * as manifesto from 'manifesto.js';
 
+import type { RequestConfig } from '../types/config';
+
 export interface ManifestEntry {
     json?: any;
     manifesto?: any;
@@ -15,6 +17,15 @@ export class ManifestsState {
     userAnnotations: SvelteMap<string, any[]> = new SvelteMap();
 
     constructor() {}
+
+    registerManifest(manifestId: string, json: any): void {
+        const manifestoObject = manifesto.parseManifest(json);
+        this.manifests[manifestId] = {
+            json,
+            manifesto: manifestoObject,
+            isFetching: false,
+        };
+    }
 
     // === User Annotations API ===
 
@@ -45,31 +56,34 @@ export class ManifestsState {
 
     // === Manifest Fetching ===
 
-    async fetchManifest(manifestId: string) {
-        if (this.manifests[manifestId]) {
+    async fetchManifest(manifestId: string, requestConfig?: RequestConfig) {
+        const existing = this.manifests[manifestId];
+        if (existing && (existing.isFetching || existing.json || existing.manifesto)) {
             return; // Already fetched or fetching
         }
 
         this.manifests[manifestId] = { isFetching: true };
 
         try {
-            const response = await fetch(manifestId);
+            const response = await fetch(manifestId, {
+                headers: requestConfig?.headers,
+                credentials: requestConfig?.withCredentials ? 'include' : 'same-origin',
+            });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const json = await response.json();
-            const manifestoObject = manifesto.parseManifest(json);
-            this.manifests[manifestId] = {
-                json,
-                manifesto: manifestoObject,
-                isFetching: false,
-            };
+            this.registerManifest(manifestId, json);
         } catch (error: any) {
             this.manifests[manifestId] = {
                 error: error.message,
                 isFetching: false,
             };
         }
+    }
+
+    clearManifest(manifestId: string): void {
+        delete this.manifests[manifestId];
     }
 
     getManifest(manifestId: string) {

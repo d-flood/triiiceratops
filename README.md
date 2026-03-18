@@ -18,6 +18,8 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
     - Toggle annotation visibility on/off
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **IIIF Search**: Full Content Search API support with hit highlighting
+- **Direct Manifest Injection**: Svelte and web component consumers can pass manifest JSON directly instead of loading over HTTP
+- **Custom Search Providers**: Svelte consumers can supply local or app-backed search results without exposing an HTTP IIIF Search endpoint
 - **Metadata Display**: Shows manifest metadata, description, attribution, and license/rights
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom
@@ -42,7 +44,7 @@ This project is actively developed. The following IIIF features are not yet supp
 
 ### Annotations
 
-- **Annotation creation**: Read-only; cannot create or edit annotations
+- **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
 - **Motivation differentiation**: All annotations rendered similarly regardless of motivation type
 
 ### Other
@@ -79,6 +81,23 @@ The viewer is available as a web component that works in any framework or static
 </div>
 ```
 
+To load a manifest directly from JSON, assign it as a property from JavaScript:
+
+```html
+<triiiceratops-viewer id="viewer"></triiiceratops-viewer>
+
+<script type="module">
+    const viewer = document.getElementById('viewer');
+    viewer.manifestId = 'urn:example:manifest';
+    viewer.manifestJson = {
+        id: 'urn:example:manifest',
+        type: 'Manifest',
+        label: { none: ['Local manifest'] },
+        items: []
+    };
+</script>
+```
+
 ### Svelte Component
 
 If you are using Svelte, you can import the component directly.
@@ -94,15 +113,53 @@ pnpm add triiiceratops
 ```svelte
 <script>
     import { TriiiceratopsViewer } from 'triiiceratops';
+
+    const manifestJson = {
+        id: 'urn:example:manifest',
+        type: 'Manifest',
+        label: { none: ['Local manifest'] },
+        items: []
+    };
 </script>
 
 <!-- Container must have height -->
 <div style="height: 600px;">
     <TriiiceratopsViewer
-        manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+        manifestId="urn:example:manifest"
+        {manifestJson}
     />
 </div>
 ```
+
+### Local Search in Svelte
+
+If your application stores transcript or annotation data locally, you can provide search results directly with `searchProvider`:
+
+```svelte
+<script>
+    import { TriiiceratopsViewer } from 'triiiceratops';
+
+    const searchProvider = async (query, context) => {
+        return [
+            {
+                canvasIndex: 0,
+                canvasLabel: 'Page 1',
+                hits: [{ type: 'hit', before: '', match: query, after: '' }]
+            }
+        ];
+    };
+</script>
+
+<TriiiceratopsViewer
+    manifestId="urn:example:manifest"
+    {manifestJson}
+    {searchProvider}
+/>
+```
+
+`searchProvider` is a callback hook, not a IIIF Search service declaration. It does not add, replace, or override a search service URI in the manifest. If your manifest already declares a normal IIIF Search service, Triiiceratops will use that service when `searchProvider` is not supplied.
+
+The web component can also load manifest JSON directly via the `manifestJson` property, but custom search providers remain a Svelte-only integration hook for now.
 
 ## Development
 
