@@ -20,6 +20,8 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
     - Toggle annotation visibility on/off
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **IIIF Search**: Full Content Search API support with hit highlighting
+- **Direct Manifest Injection**: Svelte and web component integrations can pass manifest JSON directly to the viewer
+- **Custom Search Providers**: Svelte integrations can feed search results from local state, SQLite, or app services
 - **Metadata Display**: Shows manifest metadata, description, attribution, and license/rights
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom
@@ -45,7 +47,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
 ### Annotations
 
-- **Annotation creation**: Read-only; cannot create or edit annotations
+- **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
 - **Motivation differentiation**: All annotations rendered similarly regardless of motivation type
 
 ### Other
@@ -75,6 +77,23 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
     </style>
     ```
 
+    To use in-memory manifest data with the web component, assign `manifestJson` as a JavaScript property:
+
+    ```html
+    <triiiceratops-viewer id="viewer"></triiiceratops-viewer>
+
+    <script>
+      const viewer = document.getElementById('viewer');
+      viewer.manifestId = 'urn:example:manifest';
+      viewer.manifestJson = {
+        id: 'urn:example:manifest',
+        type: 'Manifest',
+        label: { none: ['Local manifest'] },
+        items: []
+      };
+    </script>
+    ```
+
 === "Svelte Component"
 
     **Installation:**
@@ -101,16 +120,26 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
         import { TriiiceratopsViewer } from 'triiiceratops';
         // Import the default styles (unless you are using the advanced Tailwind setup)
         import 'triiiceratops/style.css';
+
+        const manifestJson = {
+            id: 'urn:example:manifest',
+            type: 'Manifest',
+            label: { none: ['Local manifest'] },
+            items: []
+        };
     </script>
 
 
     <!-- Container must have height -->
     <div style="height: 600px;">
         <TriiiceratopsViewer
-            manifestId="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+            manifestId="urn:example:manifest"
+            {manifestJson}
         />
     </div>
     ```
+
+    You can also pass a `searchProvider` prop when your app wants to supply search results directly instead of relying on an HTTP IIIF Search service.
 
 ## Configuration
 

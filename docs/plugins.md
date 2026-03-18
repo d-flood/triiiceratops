@@ -6,6 +6,8 @@ icon: lucide/plug-2
 
 Triiiceratops features a flexible, component-based plugin system that allows you to extend the viewer's functionality by adding custom panels to the left or right sidebars.
 
+For Svelte integrations, plugins can now be combined with direct `manifestJson` loading and a custom `searchProvider`, which makes it easier to build app-specific IIIF workflows without adding a separate HTTP layer.
+
 ## Quick Start
 
 === "Web Component"

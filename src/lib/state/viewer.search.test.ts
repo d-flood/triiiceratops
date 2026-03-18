@@ -119,6 +119,28 @@ describe('ViewerState - IIIF Search', () => {
     }
 
     describe('Search service detection', () => {
+        it('should use a custom search provider when one is set', async () => {
+            const mockManifestJson = {
+                '@id': 'http://example.org/manifest',
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+            state.setSearchProvider(async () => [
+                {
+                    canvasIndex: 0,
+                    canvasLabel: 'Page 1',
+                    hits: [{ type: 'hit', before: 'before ', match: 'term', after: ' after' }],
+                },
+            ]);
+
+            await state.search('term');
+
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(state.searchResults).toHaveLength(1);
+            expect(state.searchResults[0]?.canvasLabel).toBe('Page 1');
+        });
+
         it('should detect IIIF Search API v1 service', async () => {
             const mockManifestJson = {
                 '@id': 'http://example.org/manifest',
