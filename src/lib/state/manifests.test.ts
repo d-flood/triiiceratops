@@ -72,6 +72,10 @@ describe('ManifestsState', () => {
 
             expect(mockFetch).toHaveBeenCalledWith(
                 'http://example.org/manifest',
+                {
+                    headers: undefined,
+                    credentials: 'same-origin',
+                },
             );
             expect(
                 state.manifests['http://example.org/manifest'],

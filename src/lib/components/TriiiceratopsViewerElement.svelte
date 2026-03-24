@@ -8,6 +8,11 @@
                 type: 'String',
                 reflect: true,
             },
+            manifestJson: {
+                attribute: 'manifest-json',
+                type: 'Object',
+                reflect: false,
+            },
             canvasId: {
                 attribute: 'canvas-id',
                 type: 'String',
@@ -43,6 +48,7 @@
 
     let {
         manifestId = '',
+        manifestJson = undefined as string | Record<string, any> | undefined,
         canvasId = '',
         plugins = [],
         theme = undefined as string | undefined,
@@ -50,6 +56,7 @@
         config = undefined as string | ViewerConfig | undefined,
     }: {
         manifestId?: string;
+        manifestJson?: string | Record<string, any>;
         canvasId?: string;
         plugins?: PluginDef[];
         /**
@@ -122,6 +129,26 @@
         }
         return config;
     });
+
+    let parsedManifestJson = $derived.by(():
+        | Record<string, any>
+        | undefined => {
+        if (!manifestJson) return undefined;
+        if (typeof manifestJson === 'string') {
+            try {
+                const parsed = JSON.parse(manifestJson);
+                return parsed && typeof parsed === 'object'
+                    ? (parsed as Record<string, any>)
+                    : undefined;
+            } catch {
+                console.warn(
+                    `Invalid manifest-json JSON: "${manifestJson}". Ignoring.`,
+                );
+                return undefined;
+            }
+        }
+        return manifestJson;
+    });
 </script>
 
 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -130,6 +157,7 @@
 <div bind:this={hostElement} class="w-full h-full">
     <TriiiceratopsViewer
         {manifestId}
+        manifestJson={parsedManifestJson}
         {canvasId}
         {plugins}
         theme={validatedTheme}

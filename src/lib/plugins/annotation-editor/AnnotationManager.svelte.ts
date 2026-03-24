@@ -6,6 +6,7 @@ import type { ImageAnnotation } from '@annotorious/annotorious';
 
 import type {
     AnnotationEditorConfig,
+    AnnotationEditorRuntimeContext,
     DrawingTool,
     W3CAnnotationBody,
     AnnotationStorageAdapter,
@@ -40,11 +41,13 @@ export class AnnotationManager {
     // Internal state tracking
     private isDrawingEnabled = false;
     private activeTool: DrawingTool = 'rectangle';
+    private selectedAnnotation: W3CAnnotation | null = null;
 
     // Callbacks for state updates (set by controller)
     onSelectionChange?: (annotation: any | null) => void;
     onUndoRedoChange?: (canUndo: boolean, canRedo: boolean) => void;
     onAnnotationCreated?: (annotation: any) => void;
+    onAnnotationHydrationChange?: (isHydrating: boolean) => void;
 
     constructor(config: AnnotationEditorConfig) {
         this.config = config;
@@ -156,6 +159,10 @@ export class AnnotationManager {
             // Apply pending state
             this.updateDrawingMode(this.isDrawingEnabled);
             anno.setVisible(true); // Always start visible
+
+            if (this.currentManifestId && this.currentCanvasId) {
+                void this.loadAnnotations();
+            }
         } catch (error) {
             console.error(
                 '[AnnotationManager] Failed to create annotator:',
@@ -390,8 +397,9 @@ export class AnnotationManager {
         if (!this.annotorious) return;
 
         this.annotorious.on('createAnnotation', async (annotation) => {
-            this.onAnnotationCreated?.(annotation);
-            await this.saveAnnotation(annotation);
+            const prepared = this.prepareAnnotation(annotation);
+            this.onAnnotationCreated?.(prepared);
+            await this.saveAnnotation(prepared);
             this.updateUndoRedoState();
         });
 
@@ -401,7 +409,11 @@ export class AnnotationManager {
         });
 
         this.annotorious.on('selectionChanged', (annotations) => {
-            const selected = annotations.length > 0 ? annotations[0] : null;
+            const selected =
+                annotations.length > 0
+                    ? (annotations[0] as unknown as W3CAnnotation)
+                    : null;
+            this.selectedAnnotation = selected;
 
             // Robustly toggle a class on the viewer container
             if (selected && selected.id && selected.id.startsWith('point-')) {
@@ -411,6 +423,13 @@ export class AnnotationManager {
             }
 
             this.onSelectionChange?.(selected);
+            this.notifyExtensionSelectionChange(selected);
+
+            if (selected?.id) {
+                void this.hydrateAnnotation(selected.id);
+            } else {
+                this.onAnnotationHydrationChange?.(false);
+            }
         });
     }
 
@@ -433,7 +452,9 @@ export class AnnotationManager {
 
         this.currentManifestId = manifestId;
         this.currentCanvasId = canvasId;
+        this.selectedAnnotation = null;
         this.onSelectionChange?.(null);
+        this.notifyExtensionSelectionChange(null);
         await this.loadAnnotations();
     }
 
@@ -470,7 +491,9 @@ export class AnnotationManager {
     async saveAnnotation(annotation: any): Promise<void> {
         if (!this.currentManifestId || !this.currentCanvasId) return;
 
-        const w3cAnnotation = this.ensureTargetSource(annotation);
+        const w3cAnnotation = await this.applyBeforeSave(
+            this.ensureTargetSource(annotation),
+        );
 
         try {
             const existing = await this.adapter.load(
@@ -508,6 +531,86 @@ export class AnnotationManager {
             clone.target = { source: this.currentCanvasId };
         }
         return clone;
+    }
+
+    private prepareAnnotation(annotation: any): W3CAnnotation {
+        const base = this.ensureTargetSource(annotation);
+        const prepared = this.config.extension?.prepareDraft
+            ? this.config.extension.prepareDraft(base, this.getRuntimeContext(null))
+            : this.config.prepareAnnotation
+              ? this.config.prepareAnnotation(base)
+              : base;
+        const clone = JSON.parse(JSON.stringify(prepared));
+        clone.__fullBodyLoaded = true;
+        return clone;
+    }
+
+    private async applyBeforeSave(annotation: W3CAnnotation): Promise<W3CAnnotation> {
+        if (this.config.extension?.beforeSave) {
+            return await this.config.extension.beforeSave(
+                annotation,
+                this.getRuntimeContext(annotation),
+            );
+        }
+        return annotation;
+    }
+
+    private getRuntimeContext(
+        selectedAnnotation: W3CAnnotation | null,
+    ): AnnotationEditorRuntimeContext {
+        return {
+            manifestId: this.currentManifestId,
+            canvasId: this.currentCanvasId,
+            isEditing: this.isDrawingEnabled,
+            selectedAnnotation,
+            user: this.config.user,
+            hostContext: this.config.extension?.getContext?.() ?? null,
+        };
+    }
+
+    private notifyExtensionSelectionChange(annotation: W3CAnnotation | null): void {
+        this.config.extension?.onSelectionChange?.(
+            annotation,
+            this.getRuntimeContext(annotation),
+        );
+    }
+
+    private async hydrateAnnotation(annotationId: string): Promise<void> {
+        if (
+            !this.currentManifestId ||
+            !this.currentCanvasId ||
+            !this.adapter.hydrate ||
+            !this.annotorious
+        ) {
+            return;
+        }
+
+        const annotations = this.annotorious.getAnnotations() ?? [];
+        const selected = annotations.find((entry: any) => entry.id === annotationId);
+        if (!selected || selected.__fullBodyLoaded !== false) {
+            this.onAnnotationHydrationChange?.(false);
+            return;
+        }
+
+        this.onAnnotationHydrationChange?.(true);
+
+		try {
+			const hydrated = await this.adapter.hydrate(
+				this.currentManifestId,
+				this.currentCanvasId,
+				annotationId,
+			);
+			if (!hydrated) return;
+
+			const current = this.annotorious.getAnnotations() ?? [];
+			const stillPresent = current.some((entry: any) => entry.id === annotationId);
+			if (!stillPresent) return;
+			this.onSelectionChange?.(hydrated);
+		} catch (error) {
+            console.error('[AnnotationEditor] Failed to hydrate annotation body:', error);
+        } finally {
+            this.onAnnotationHydrationChange?.(false);
+        }
     }
 
     async deleteAnnotation(annotationId: string): Promise<void> {
@@ -548,6 +651,7 @@ export class AnnotationManager {
     }
 
     cancelSelection(): void {
+        this.selectedAnnotation = null;
         this.annotorious?.cancelSelected();
     }
 

@@ -1,10 +1,46 @@
 import type { User, DrawingStyle } from '@annotorious/openseadragon';
 
+export interface AnnotationEditorRuntimeContext<HostContext = unknown> {
+    manifestId: string | null;
+    canvasId: string | null;
+    isEditing: boolean;
+    selectedAnnotation: any | null;
+    user?: User;
+    hostContext: HostContext | null;
+}
+
+export interface AnnotationEditorExtension<HostContext = unknown> {
+    getContext?: () => HostContext | null;
+    canCreate?: (
+        context: AnnotationEditorRuntimeContext<HostContext>,
+    ) => boolean;
+    getCreateDisabledReason?: (
+        context: AnnotationEditorRuntimeContext<HostContext>,
+    ) => string | null;
+    prepareDraft?: (
+        annotation: any,
+        context: AnnotationEditorRuntimeContext<HostContext>,
+    ) => any;
+    beforeSave?: (
+        annotation: any,
+        context: AnnotationEditorRuntimeContext<HostContext>,
+    ) => any | Promise<any>;
+    onSelectionChange?: (
+        annotation: any | null,
+        context: AnnotationEditorRuntimeContext<HostContext>,
+    ) => void;
+}
+
 /** Forward reference to avoid circular imports - full definition in adapters/types.ts */
 export interface AnnotationStorageAdapter {
     readonly id: string;
     readonly name: string;
     load(manifestId: string, canvasId: string): Promise<any[]>;
+    hydrate?(
+        manifestId: string,
+        canvasId: string,
+        annotationId: string,
+    ): Promise<any | null>;
     create(
         manifestId: string,
         canvasId: string,
@@ -38,6 +74,18 @@ export interface AnnotationEditorConfig {
 
     /** Default drawing tool */
     defaultTool?: DrawingTool;
+
+    /** Optional extension hook surface for host apps */
+    extension?: AnnotationEditorExtension;
+
+    /** Optional hook to prefill a new annotation before its first save */
+    prepareAnnotation?: (annotation: any) => any;
+
+    /** Optional gate for whether new annotations can be created right now */
+    canCreateAnnotation?: () => boolean;
+
+    /** Optional status message explaining why creation is unavailable */
+    getCreateDisabledReason?: () => string | null;
 }
 
 export type DrawingTool = 'rectangle' | 'polygon' | 'point';

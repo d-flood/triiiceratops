@@ -1,26 +1,27 @@
 <script lang="ts">
-    import { setContext, onDestroy, untrack } from 'svelte';
-    import { ViewerState, VIEWER_STATE_KEY } from '../state/viewer.svelte';
-    import type { PluginDef } from '../types/plugin';
-    import type { DaisyUITheme, ThemeConfig } from '../theme/types';
-    import type { ViewerConfig } from '../types/config';
+    import { onDestroy, setContext, untrack } from 'svelte';
+    import { language, m } from '../state/i18n.svelte';
+    import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
-    import OSDViewer from './OSDViewer.svelte';
-    import ViewerControls from './ViewerControls.svelte';
+    import type { DaisyUITheme, ThemeConfig } from '../theme/types';
+    import type { SearchProvider, ViewerConfig } from '../types/config';
+    import type { PluginDef } from '../types/plugin';
+    import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
+    import AnnotationPanel from './AnnotationPanel.svelte';
+    import MetadataDialog from './MetadataDialog.svelte';
+    import OSDViewer from './OSDViewer.svelte';
+    import SearchPanel from './SearchPanel.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
-    import MetadataDialog from './MetadataDialog.svelte';
-    import SearchPanel from './SearchPanel.svelte';
-    import AnnotationPanel from './AnnotationPanel.svelte';
-    import { m, language } from '../state/i18n.svelte';
-    import { getThumbnailSrc } from '../utils/getThumbnailSrc';
+    import ViewerControls from './ViewerControls.svelte';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
 
     interface Props {
         manifestId?: string;
+        manifestJson?: any;
         canvasId?: string;
         plugins?: PluginDef[];
         /** Built-in DaisyUI theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
@@ -29,17 +30,20 @@
         themeConfig?: ThemeConfig;
         /** Configuration options for the viewer UI */
         config?: ViewerConfig;
+        searchProvider?: SearchProvider | null;
         /** Bindable viewer state instance for external access (Svelte consumers) */
         viewerState?: ViewerState;
     }
 
     let {
         manifestId,
+        manifestJson,
         canvasId,
         plugins = [],
         theme,
         themeConfig,
         config = {},
+        searchProvider = null,
         viewerState = $bindable(),
     }: Props = $props();
 
@@ -67,8 +71,23 @@
     });
 
     $effect(() => {
+        internalViewerState.setManifestRequestConfig(config?.requests);
+    });
+
+    $effect(() => {
+        internalViewerState.setSearchProvider(searchProvider);
+    });
+
+    $effect(() => {
+        if (manifestId && manifestJson) {
+            internalViewerState.setManifestData(manifestId, manifestJson);
+            return;
+        }
+
         if (manifestId && manifestId !== internalViewerState.manifestId) {
-            internalViewerState.setManifest(manifestId);
+            internalViewerState.setManifest(manifestId, {
+                requestConfig: config?.requests,
+            });
         }
     });
 
@@ -228,7 +247,12 @@
     // Derive thumbnail URL for the current canvas (used for auth error backdrop)
     // Uses the same fallback chain as ThumbnailGallery
     let currentCanvasThumbnail = $derived.by(() => {
-        if (!canvases || currentCanvasIndex === -1 || !canvases[currentCanvasIndex]) return null;
+        if (
+            !canvases ||
+            currentCanvasIndex === -1 ||
+            !canvases[currentCanvasIndex]
+        )
+            return null;
         return getThumbnailSrc(canvases[currentCanvasIndex]) || null;
     });
 
@@ -612,7 +636,7 @@
             {:else if tileSources}
                 {#if internalViewerState.tileSourceError}
                     <div
-                        class="w-full h-full absolute inset-0 z-[5] flex items-center justify-center pointer-events-none overflow-hidden"
+                        class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
                         role="alert"
                     >
                         {#if currentCanvasThumbnail}
@@ -623,7 +647,9 @@
                             />
                             <div class="absolute inset-0 bg-base-100/50"></div>
                         {/if}
-                        <div class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg">
+                        <div
+                            class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
+                        >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24"
@@ -634,7 +660,14 @@
                                 stroke-linejoin="round"
                                 class="w-12 h-12 text-warning"
                             >
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <rect
+                                    x="3"
+                                    y="11"
+                                    width="18"
+                                    height="11"
+                                    rx="2"
+                                    ry="2"
+                                />
                                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                             </svg>
                             <p class="text-base-content text-sm">
@@ -643,7 +676,10 @@
                         </div>
                     </div>
                 {:else}
-                    <OSDViewer {tileSources} viewerState={internalViewerState} />
+                    <OSDViewer
+                        {tileSources}
+                        viewerState={internalViewerState}
+                    />
                 {/if}
             {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div

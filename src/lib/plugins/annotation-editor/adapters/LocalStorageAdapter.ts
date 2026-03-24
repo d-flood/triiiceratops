@@ -23,11 +23,26 @@ export class LocalStorageAdapter implements AnnotationStorageAdapter {
         const key = this.storageKey(manifestId, canvasId);
         const data = localStorage.getItem(key);
         const annotations: W3CAnnotation[] = data ? JSON.parse(data) : [];
+        for (const annotation of annotations) {
+            annotation.__fullBodyLoaded = true;
+        }
 
         // Inject into manifestsState for display
         this.injectIntoManifestsState(manifestId, canvasId, annotations);
 
         return annotations;
+    }
+
+    async hydrate(
+        manifestId: string,
+        canvasId: string,
+        annotationId: string,
+    ): Promise<W3CAnnotation | null> {
+        const annotations = await this.loadFromStorage(manifestId, canvasId);
+        const annotation = annotations.find((entry) => entry.id === annotationId) ?? null;
+        if (!annotation) return null;
+        annotation.__fullBodyLoaded = true;
+        return annotation;
     }
 
     async create(
