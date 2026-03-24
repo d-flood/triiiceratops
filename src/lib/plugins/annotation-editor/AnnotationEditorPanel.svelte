@@ -24,8 +24,11 @@
         activeTool = 'rectangle' as DrawingTool,
         selectedAnnotation = null as any,
         showDeleteConfirm = false,
+        isHydratingSelection = false,
         canUndo = false,
         canRedo = false,
+        canCreateAnnotation = true,
+        createDisabledReason = null,
         availableTools = ['rectangle', 'polygon', 'point'] as DrawingTool[],
         onToggleEditing,
         onSetTool,
@@ -42,8 +45,11 @@
         activeTool: DrawingTool;
         selectedAnnotation: any;
         showDeleteConfirm: boolean;
+        isHydratingSelection: boolean;
         canUndo: boolean;
         canRedo: boolean;
+        canCreateAnnotation: boolean;
+        createDisabledReason: string | null;
         availableTools: DrawingTool[];
         onToggleEditing: () => void;
         onSetTool: (tool: DrawingTool) => void;
@@ -139,6 +145,7 @@
                     class="join-item btn btn-sm {isEditing
                         ? 'btn-primary'
                         : ''}"
+                    disabled={!canCreateAnnotation}
                     onclick={() => !isEditing && onToggleEditing()}
                 >
                     {m.annotation_editor_create_mode()}
@@ -149,6 +156,11 @@
                     ? m.annotation_editor_instruction_create()
                     : m.annotation_editor_instruction_edit()}
             </p>
+            {#if !canCreateAnnotation && createDisabledReason}
+                <p class="text-xs text-center text-base-content/70">
+                    {createDisabledReason}
+                </p>
+            {/if}
         </div>
 
         <!-- Tool Selection -->
@@ -248,6 +260,7 @@
                                     type="text"
                                     class="input input-xs input-bordered w-full"
                                     placeholder={m.annotation_editor_tag_placeholder()}
+                                    disabled={isHydratingSelection}
                                     bind:value={body.value}
                                 />
                             {:else if body.purpose === 'linking'}
@@ -255,6 +268,7 @@
                                     type="url"
                                     class="input input-xs input-bordered w-full"
                                     placeholder={m.annotation_editor_link_placeholder()}
+                                    disabled={isHydratingSelection}
                                     bind:value={body.value}
                                 />
                             {:else}
@@ -262,6 +276,7 @@
                                     class="textarea textarea-xs textarea-bordered w-full"
                                     rows="2"
                                     placeholder={m.annotation_editor_text_placeholder()}
+                                    disabled={isHydratingSelection}
                                     bind:value={body.value}
                                 ></textarea>
                             {/if}
@@ -269,7 +284,17 @@
                     {/each}
                 </div>
 
-                <button class="btn btn-xs btn-ghost w-full" onclick={addBody}>
+                {#if isHydratingSelection}
+                    <p class="text-xs opacity-60">
+                        Loading the full annotation text...
+                    </p>
+                {/if}
+
+                <button
+                    class="btn btn-xs btn-ghost w-full"
+                    onclick={addBody}
+                    disabled={isHydratingSelection}
+                >
                     <Plus size={14} />
                     {m.annotation_editor_add_content()}
                 </button>
@@ -278,6 +303,7 @@
                     <button
                         class="btn btn-sm btn-primary w-full"
                         onclick={handleSaveBodies}
+                        disabled={isHydratingSelection}
                     >
                         <Check size={16} />
                         {m.annotation_editor_save()}

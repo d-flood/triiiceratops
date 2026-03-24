@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext, onMount, onDestroy, untrack } from 'svelte';
+    import { getContext, onDestroy, untrack } from 'svelte';
     import {
         VIEWER_STATE_KEY,
         type ViewerState,
@@ -8,6 +8,7 @@
     import AnnotationEditorPanel from './AnnotationEditorPanel.svelte';
     import type {
         AnnotationEditorConfig,
+        AnnotationEditorRuntimeContext,
         DrawingTool,
         W3CAnnotationBody,
     } from './types';
@@ -31,48 +32,76 @@
         untrack(() => config.defaultTool ?? 'rectangle'),
     );
     let selectedAnnotation = $state<any>(null);
+    let isHydratingSelection = $state(false);
     let showDeleteConfirm = $state(false);
     let pendingDeleteId = $state<string | null>(null);
     let canUndo = $state(false);
     let canRedo = $state(false);
+    function getRuntimeContext(): AnnotationEditorRuntimeContext {
+        return {
+            manifestId: viewerState?.manifestId ?? null,
+            canvasId: viewerState?.canvasId ?? null,
+            isEditing,
+            selectedAnnotation,
+            user: config.user,
+            hostContext: config.extension?.getContext?.() ?? null,
+        };
+    }
+
+    let canCreateAnnotation = $derived.by(() => {
+        const context = getRuntimeContext();
+        if (config.extension?.canCreate) {
+            return config.extension.canCreate(context);
+        }
+        return config.canCreateAnnotation ? config.canCreateAnnotation() : true;
+    });
+    let createDisabledReason = $derived.by(() => {
+        const context = getRuntimeContext();
+        if (config.extension?.getCreateDisabledReason) {
+            return config.extension.getCreateDisabledReason(context);
+        }
+        return config.getCreateDisabledReason
+            ? config.getCreateDisabledReason()
+            : null;
+    });
 
     // Create the annotation manager
     let manager: AnnotationManager | null = $state.raw(null);
 
-    onMount(() => {
-        if (viewerState?.osdViewer) {
-            const mgr = new AnnotationManager(config);
+    $effect(() => {
+        if (manager || !viewerState?.osdViewer) {
+            return;
+        }
 
-            // Set up callbacks
-            mgr.onSelectionChange = (annotation) => {
-                selectedAnnotation = annotation;
-            };
+        const mgr = new AnnotationManager(config);
 
-            mgr.onUndoRedoChange = (undo, redo) => {
-                canUndo = undo;
-                canRedo = redo;
-            };
+        mgr.onSelectionChange = (annotation) => {
+            selectedAnnotation = annotation;
+        };
 
-            mgr.onAnnotationCreated = (annotation) => {
-                selectedAnnotation = annotation;
-            };
+        mgr.onUndoRedoChange = (undo, redo) => {
+            canUndo = undo;
+            canRedo = redo;
+        };
 
-            mgr.init(viewerState.osdViewer, viewerState.canvasId);
+        mgr.onAnnotationCreated = (annotation) => {
+            selectedAnnotation = annotation;
+        };
 
-            // Load initial annotations
-            if (viewerState.manifestId && viewerState.canvasId) {
-                mgr.handleCanvasChange(
-                    viewerState.manifestId,
-                    viewerState.canvasId,
-                );
-            }
+        mgr.onAnnotationHydrationChange = (isHydrating) => {
+            isHydratingSelection = isHydrating;
+        };
 
-            manager = mgr;
-        } else {
-            console.warn(
-                '[AnnotationEditor] No OSD viewer available at mount time',
+        mgr.init(viewerState.osdViewer, viewerState.canvasId);
+
+        if (viewerState.manifestId && viewerState.canvasId) {
+            void mgr.handleCanvasChange(
+                viewerState.manifestId,
+                viewerState.canvasId,
             );
         }
+
+        manager = mgr;
     });
 
     onDestroy(() => {
@@ -86,8 +115,19 @@
         manager?.handleCanvasChange(manifestId ?? null, canvasId ?? null);
     });
 
+    $effect(() => {
+        if (canCreateAnnotation || !isEditing) {
+            return;
+        }
+        isEditing = false;
+        manager?.setEditing(false);
+    });
+
     // Handlers
     function handleToggleEditing() {
+        if (!isEditing && !canCreateAnnotation) {
+            return;
+        }
         isEditing = !isEditing;
         manager?.setEditing(isEditing);
     }
@@ -98,7 +138,7 @@
     }
 
     async function handleSaveBodies(bodies: W3CAnnotationBody[]) {
-        if (selectedAnnotation && manager) {
+        if (selectedAnnotation && manager && !isHydratingSelection) {
             await manager.updateAnnotationBodies(selectedAnnotation.id, bodies);
             selectedAnnotation = null;
             manager.cancelSelection();
@@ -149,8 +189,11 @@
     {activeTool}
     {selectedAnnotation}
     {showDeleteConfirm}
+    {isHydratingSelection}
     {canUndo}
     {canRedo}
+    {canCreateAnnotation}
+    {createDisabledReason}
     availableTools={manager?.availableTools ?? [
         'rectangle',
         'polygon',

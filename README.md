@@ -47,6 +47,8 @@ This project is actively developed. The following IIIF features are not yet supp
 - **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
 - **Motivation differentiation**: All annotations rendered similarly regardless of motivation type
 
+The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
+
 ### Other
 
 - **`rendering` property**: No links to alternative formats (PDF, etc.)

@@ -50,6 +50,8 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 - **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
 - **Motivation differentiation**: All annotations rendered similarly regardless of motivation type
 
+The `annotation-editor` plugin supports pluggable persistence and host extension hooks so applications can add workflows like lazy body hydration or selection-aware drafting without modifying the core viewer.
+
 ### Other
 
 - **`rendering` property**: No links to alternative formats (PDF, etc.)

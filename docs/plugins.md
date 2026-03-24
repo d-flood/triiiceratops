@@ -270,6 +270,102 @@ Provides brightness, contrast, saturation, invert, and grayscale controls for th
 
 ---
 
+### Annotation Editor
+
+Provides optional annotation authoring on top of the read-only viewer. The plugin supports rectangle, polygon, and point drawing tools, pluggable persistence, and host-provided extension hooks for app-specific workflows.
+
+Out of the box, `AnnotationEditorPlugin` uses a `LocalStorageAdapter`. Use `createAnnotationEditorPlugin(...)` when you want to persist elsewhere or inject host logic.
+
+=== "Web Component"
+
+    ```html
+    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-annotation-editor.iife.js"></script>
+
+    <script>
+      viewer.plugins = [window.TriiiceratopsPlugins.AnnotationEditor];
+    </script>
+    ```
+
+=== "Svelte Component"
+
+    ```svelte
+    <script>
+      import { AnnotationEditorPlugin } from 'triiiceratops/plugins/annotation-editor';
+    </script>
+
+    <TriiiceratopsViewer plugins={[AnnotationEditorPlugin]} />
+    ```
+
+#### Custom Storage Adapters
+
+The plugin persistence layer is framework-agnostic. Supply an `AnnotationStorageAdapter` to back annotations with your own API, IndexedDB, SQLite bridge, or another local/remote store.
+
+```ts
+import {
+  createAnnotationEditorPlugin,
+  type AnnotationStorageAdapter
+} from 'triiiceratops/plugins/annotation-editor';
+
+const adapter: AnnotationStorageAdapter = {
+  id: 'my-adapter',
+  name: 'My Adapter',
+  async load(manifestId, canvasId) {
+    return [];
+  },
+  async hydrate(manifestId, canvasId, annotationId) {
+    return null;
+  },
+  async create(manifestId, canvasId, annotation) {},
+  async update(manifestId, canvasId, annotation) {},
+  async delete(manifestId, canvasId, annotationId) {}
+};
+
+const plugin = createAnnotationEditorPlugin({ adapter });
+```
+
+`hydrate(...)` is optional. Implement it when you want to load lightweight annotation headers first and fetch large bodies only when a specific annotation is selected.
+
+#### Host Extension Hooks
+
+For app-specific behavior, prefer the `extension` API over forking the plugin. This keeps the annotation editor reusable in both the Svelte package and the web component build.
+
+```ts
+import {
+  createAnnotationEditorPlugin,
+  type AnnotationEditorExtension
+} from 'triiiceratops/plugins/annotation-editor';
+
+const extension: AnnotationEditorExtension<{ selectedText: string | null }> = {
+  getContext: () => ({ selectedText: window.appSelection ?? null }),
+  canCreate: ({ hostContext }) => !!hostContext?.selectedText,
+  getCreateDisabledReason: ({ hostContext }) =>
+    hostContext?.selectedText ? null : 'Select text before creating an annotation.',
+  prepareDraft: (annotation, { hostContext }) => ({
+    ...annotation,
+    body: hostContext?.selectedText
+      ? [{ type: 'TextualBody', purpose: 'commenting', value: hostContext.selectedText }]
+      : []
+  }),
+  beforeSave: async (annotation, context) => annotation,
+  onSelectionChange: (annotation, context) => {}
+};
+
+const plugin = createAnnotationEditorPlugin({ extension });
+```
+
+The extension context includes the active manifest/canvas, current editing state, selected annotation, current user, and your host-specific context object.
+
+#### Backward-Compatible Hooks
+
+`prepareAnnotation`, `canCreateAnnotation`, and `getCreateDisabledReason` remain available for simple integrations. New work should prefer `extension` because it works as a single, portable surface for creation rules, draft enrichment, save-time transforms, and selection callbacks.
+
+#### Export Paths
+
+- `triiiceratops/plugins/annotation-editor`
+- `triiiceratops/plugins/annotation-editor.iife`
+
+---
+
 ## Creating Custom Plugins
 
 Custom plugins are Svelte components that receive props from the plugin system and can access the viewer's state via Svelte context.
@@ -400,6 +496,8 @@ And methods:
 | ----------------------------------------------- | --------------------------------------- |
 | `triiiceratops`                                 | Main Svelte component and utilities     |
 | `triiiceratops/element`                         | Web component IIFE bundle               |
+| `triiiceratops/plugins/annotation-editor`       | Annotation editor plugin (ES module)    |
+| `triiiceratops/plugins/annotation-editor.iife`  | Annotation editor plugin (IIFE bundle)  |
 | `triiiceratops/plugins/image-manipulation`      | Image manipulation plugin (ES module)   |
 | `triiiceratops/plugins/image-manipulation.iife` | Image manipulation plugin (IIFE bundle) |
 | `triiiceratops/style.css`                       | Stylesheet (for Svelte component usage) |
