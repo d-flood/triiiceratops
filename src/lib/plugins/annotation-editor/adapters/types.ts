@@ -20,6 +20,14 @@ export interface W3CAnnotation {
     };
     created?: string;
     modified?: string;
+    motivation?: string;
+    apatopwa?: {
+        anchor?: Record<string, unknown> | null;
+        annotationKind?: string | null;
+        createdBy?: string | null;
+    };
+    __fullBodyLoaded?: boolean;
+    __bodyPreview?: string | null;
 }
 
 // Re-export for convenience

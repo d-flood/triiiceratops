@@ -65,6 +65,8 @@ export { default as AnnotationEditorIcon } from 'phosphor-svelte/lib/PencilSimpl
 // Type exports
 export type {
     AnnotationEditorConfig,
+    AnnotationEditorExtension,
+    AnnotationEditorRuntimeContext,
     DrawingTool,
     W3CAnnotationBody,
     W3CPurpose,

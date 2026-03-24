@@ -9,6 +9,33 @@ export interface RequestConfig {
     withCredentials?: boolean;
 }
 
+export interface SearchHit {
+    type: 'hit' | 'resource';
+    before?: string;
+    match: string;
+    after?: string;
+    bounds?: number[] | null;
+    allBounds?: number[][];
+}
+
+export interface SearchResultGroup {
+    canvasIndex: number;
+    canvasLabel: string;
+    hits: SearchHit[];
+}
+
+export interface SearchProviderContext {
+    manifestId: string;
+    manifest: any;
+    canvases: any[];
+    canvasId: string | null;
+}
+
+export type SearchProvider = (
+    query: string,
+    context: SearchProviderContext,
+) => Promise<SearchResultGroup[]>;
+
 export interface GalleryConfig {
     /**
      * Where the gallery should be docked by default if shown.

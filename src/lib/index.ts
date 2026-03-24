@@ -6,6 +6,13 @@ export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer
 export { ViewerState, VIEWER_STATE_KEY } from './state/viewer.svelte';
 export type { ViewerStateSnapshot } from './state/viewer.svelte';
 export { ManifestsState } from './state/manifests.svelte';
+export { manifestsState } from './state/manifests.svelte';
+export type {
+    SearchHit,
+    SearchProvider,
+    SearchProviderContext,
+    SearchResultGroup,
+} from './types/config';
 
 // Plugin system exports
 export type { PluginDef, PluginMenuButton, PluginPanel } from './types/plugin';
