@@ -1,5 +1,17 @@
 # triiiceratops
 
+## 0.17.0
+
+### Minor Changes
+
+- 23e09d6: Enable adding a custom searchService callback prop and manifest json directly
+
+## 0.16.11
+
+### Patch Changes
+
+- bdfccc2: fix falsely reported peer dependencies
+
 ## 0.16.10
 
 ### Patch Changes
