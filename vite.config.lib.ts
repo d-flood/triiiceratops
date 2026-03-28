@@ -34,6 +34,10 @@ export default defineConfig({
                     __dirname,
                     'src/lib/index-bundle.ts',
                 ),
+                'state/manifestoRuntime.browser': resolve(
+                    __dirname,
+                    'src/lib/state/manifestoRuntime.browser.ts',
+                ),
                 'plugins/image-manipulation': resolve(
                     __dirname,
                     'src/lib/plugins/image-manipulation/index.ts',

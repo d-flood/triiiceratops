@@ -92,7 +92,7 @@ The viewer exposes its Svelte runtime on `window.__TriiiceratopsSvelteRuntime`, 
 
 ### ES Module Exports
 
-For projects using Vite, SvelteKit, or other bundlers, Triiiceratops exports ES modules that enable tree-shaking and integration with your existing build pipeline:
+For projects using Vite, SvelteKit, or other bundlers, Triiiceratops exports package-built ES modules that are compiled by the consuming app's Svelte pipeline. This avoids runtime clashes while still enabling tree-shaking and normal bundler integration:
 
 ```javascript
 // Main Svelte component
