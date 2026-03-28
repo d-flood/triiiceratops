@@ -1,7 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
-import * as manifesto from 'manifesto.js';
 
 import type { RequestConfig } from '../types/config';
+import { loadManifestoModule } from './manifestoRuntime';
 
 export interface ManifestEntry {
     json?: any;
@@ -18,8 +18,9 @@ export class ManifestsState {
 
     constructor() {}
 
-    registerManifest(manifestId: string, json: any): void {
-        const manifestoObject = manifesto.parseManifest(json);
+    async registerManifest(manifestId: string, json: any): Promise<void> {
+        const manifestoModule = await loadManifestoModule();
+        const manifestoObject = manifestoModule.parseManifest(json);
         this.manifests[manifestId] = {
             json,
             manifesto: manifestoObject,
@@ -73,7 +74,7 @@ export class ManifestsState {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const json = await response.json();
-            this.registerManifest(manifestId, json);
+            await this.registerManifest(manifestId, json);
         } catch (error: any) {
             this.manifests[manifestId] = {
                 error: error.message,

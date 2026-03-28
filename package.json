@@ -15,27 +15,31 @@
     "files": [
         "dist"
     ],
-    "main": "./dist/triiiceratops-bundle.js",
-    "module": "./dist/triiiceratops-bundle.js",
-    "svelte": "./dist/triiiceratops-bundle.js",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "svelte": "./dist/index.js",
     "style": "./dist/triiiceratops.css",
     "types": "./dist/index.d.ts",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "style": "./dist/triiiceratops.css",
-            "svelte": "./dist/triiiceratops-bundle.js",
-            "import": "./dist/triiiceratops-bundle.js"
+            "svelte": "./dist/index.js",
+            "import": "./dist/index.js"
         },
         "./plugins/image-manipulation": {
             "types": "./dist/plugins/image-manipulation/index.d.ts",
-            "svelte": "./dist/plugins/image-manipulation.js",
-            "import": "./dist/plugins/image-manipulation.js"
+            "svelte": "./dist/plugins/image-manipulation/index.js",
+            "import": "./dist/plugins/image-manipulation/index.js"
         },
         "./plugins/annotation-editor": {
             "types": "./dist/plugins/annotation-editor/index.d.ts",
-            "svelte": "./dist/plugins/annotation-editor.js",
-            "import": "./dist/plugins/annotation-editor.js"
+            "svelte": "./dist/plugins/annotation-editor/index.js",
+            "import": "./dist/plugins/annotation-editor/index.js"
+        },
+        "./bundle": {
+            "types": "./dist/index-bundle.d.ts",
+            "import": "./dist/triiiceratops-bundle.js"
         },
         "./element": "./dist/triiiceratops-element.iife.js",
         "./plugins/image-manipulation.iife": "./dist/triiiceratops-plugin-image-manipulation.iife.js",

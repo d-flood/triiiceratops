@@ -112,7 +112,8 @@ The `annotation-editor` plugin supports pluggable persistence and host extension
         npm install triiiceratops
         ```
 
-    The packaged Svelte build includes the viewer runtime dependencies. You do not
+    The packaged Svelte build now resolves to the package-built component modules,
+    so your app compiles Triiiceratops inside its own Svelte runtime. You do not
     need to install `manifesto.js` or `openseadragon` separately for normal usage.
 
     **Usage:**

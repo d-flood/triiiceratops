@@ -23,7 +23,7 @@
         manifestId?: string;
         manifestJson?: any;
         canvasId?: string;
-        plugins?: PluginDef[];
+        plugins?: PluginDef[] | null | boolean;
         /** Built-in DaisyUI theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
         theme?: DaisyUITheme;
         /** Custom theme configuration to override the base theme's values. */
@@ -39,13 +39,15 @@
         manifestId,
         manifestJson,
         canvasId,
-        plugins = [],
+        plugins: rawPlugins = [],
         theme,
         themeConfig,
         config = {},
         searchProvider = null,
         viewerState = $bindable(),
     }: Props = $props();
+
+    let plugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
 
     // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
@@ -80,7 +82,7 @@
 
     $effect(() => {
         if (manifestId && manifestJson) {
-            internalViewerState.setManifestData(manifestId, manifestJson);
+            void internalViewerState.setManifestData(manifestId, manifestJson);
             return;
         }
 
@@ -128,7 +130,6 @@
     let registeredPluginIds: string[] = [];
 
     $effect(() => {
-        // Create dependency on plugins prop by accessing it
         const currentPlugins = plugins;
 
         // Use untrack so that operations inside (like registerPlugin accessing/writing state)
@@ -142,6 +143,10 @@
 
             // Register new plugins
             for (const plugin of currentPlugins) {
+                if (!plugin || typeof plugin !== 'object') {
+                    continue;
+                }
+
                 const id =
                     plugin.id ||
                     `plugin-${Math.random().toString(36).substr(2, 9)}`;

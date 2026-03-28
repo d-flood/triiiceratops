@@ -341,10 +341,10 @@ export class ViewerState {
         this.manifestRequestConfig = requestConfig;
     }
 
-    setManifestData(manifestId: string, manifestJson: any): void {
+    async setManifestData(manifestId: string, manifestJson: any): Promise<void> {
         this.manifestId = manifestId;
         this.canvasId = null;
-        manifestsState.registerManifest(manifestId, manifestJson);
+        await manifestsState.registerManifest(manifestId, manifestJson);
     }
 
     async setManifest(manifestId: string, options?: { requestConfig?: RequestConfig }) {
