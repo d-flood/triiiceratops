@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.18.0
+
+### Minor Changes
+
+- 118dc37: Fix canvas choice objects for second canvas when in viewing mode; fix packaging for svelte component library to ensure it never incluces its own runtime
+
 ## 0.17.0
 
 ### Minor Changes
