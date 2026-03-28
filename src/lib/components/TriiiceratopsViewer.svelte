@@ -15,6 +15,7 @@
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
     import ViewerControls from './ViewerControls.svelte';
+    import { getVisibleCanvasEntries } from './viewerControls';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -297,17 +298,13 @@
                 images = images.concat(getCanvasImages(c));
             }
         } else if (internalViewerState.viewingMode === 'paged') {
-            // Single pages at the start: pagedOffset (default 0, shifted = 1)
-            const singlePages = internalViewerState.pagedOffset;
-            // Only show two-page spread if we're past the single pages section
-            if (currentCanvasIndex >= singlePages) {
-                const nextIndex = currentCanvasIndex + 1;
-                if (nextIndex < canvases.length) {
-                    const nextCanvas = canvases[nextIndex];
-                    const nextImages = getCanvasImages(nextCanvas);
-                    images = images.concat(nextImages);
-                }
-            }
+            images = getVisibleCanvasEntries({
+                canvases,
+                currentCanvasId: internalViewerState.canvasId,
+                currentCanvasIndex,
+                viewingMode: internalViewerState.viewingMode,
+                pagedOffset: internalViewerState.pagedOffset,
+            }).flatMap(({ canvas: visibleCanvas }) => getCanvasImages(visibleCanvas));
         }
 
         if (!images || !images.length) {

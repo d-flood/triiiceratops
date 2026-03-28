@@ -8,6 +8,11 @@
     import MagnifyingGlassPlus from 'phosphor-svelte/lib/MagnifyingGlassPlus';
     import MagnifyingGlassMinus from 'phosphor-svelte/lib/MagnifyingGlassMinus';
     import { m } from '../state/i18n.svelte';
+    import {
+        getVisibleChoiceGroups,
+        shouldUseAbbreviatedChoiceLabels,
+        type ChoiceGroup,
+    } from './viewerControls';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -16,60 +21,44 @@
         viewerState.showCanvasNav && viewerState.canvases.length > 1,
     );
 
-    // IIIF Choice extraction logic (from ChoiceSelector)
     let currentCanvasId = $derived(viewerState.canvasId);
     let manifestId = $derived(viewerState.manifestId);
+    let visibleChoiceGroups = $derived.by(() => {
+        if (!manifestId || !currentCanvasId) return [] as ChoiceGroup[];
 
-    let choices = $derived.by(() => {
-        if (!manifestId || !currentCanvasId) return [];
-        const canvas = manifestsState
-            .getCanvases(manifestId)
-            .find((c: any) => (c.id || c['@id']) === currentCanvasId);
-        if (!canvas) return [];
-
-        let images = canvas.getImages?.() || [];
-        if ((!images || !images.length) && canvas.getContent) {
-            images = canvas.getContent();
-        }
-
-        if (!images || !images.length) return [];
-
-        const paintingAnno = images[0];
-        if (!paintingAnno) return [];
-
-        const body = paintingAnno.getBody
-            ? paintingAnno.getBody()
-            : paintingAnno.body || paintingAnno.resource;
-
-        const rawBody = paintingAnno.__jsonld?.body || paintingAnno.body;
-        const isChoice =
-            rawBody?.type === 'Choice' || rawBody?.type === 'oa:Choice';
-
-        if (isChoice) {
-            let items: any[] = [];
-            if (Array.isArray(body)) {
-                items = body;
-            } else if (body && (body.items || body.item)) {
-                items = body.items || body.item;
-            }
-            return items;
-        }
-
-        return [];
+        return getVisibleChoiceGroups({
+            canvases: manifestsState.getCanvases(manifestId),
+            currentCanvasId,
+            currentCanvasIndex: viewerState.currentCanvasIndex,
+            viewingMode: viewerState.viewingMode,
+            pagedOffset: viewerState.pagedOffset,
+            viewingDirection: viewerState.viewingDirection,
+            getSelectedChoice: (canvasId) => viewerState.getSelectedChoice(canvasId),
+        });
     });
 
-    let selectedChoiceId = $derived(
-        currentCanvasId
-            ? viewerState.getSelectedChoice(currentCanvasId)
-            : undefined,
+    let leftChoiceGroup = $derived(
+        visibleChoiceGroups.find((group) => group.side === 'left'),
+    );
+    let rightChoiceGroup = $derived(
+        visibleChoiceGroups.find((group) => group.side === 'right'),
     );
 
-    let hasChoices = $derived(choices.length > 0);
+    // Zoom controls
+    let showZoom = $derived(viewerState.showZoomControls);
+    let hasChoices = $derived(visibleChoiceGroups.length > 0);
+    let hasCenterControls = $derived(showZoom || showNav);
+    let useAbbreviatedChoiceLabels = $derived(
+        shouldUseAbbreviatedChoiceLabels(
+            viewerState.viewingMode,
+            visibleChoiceGroups,
+        ),
+    );
 
-    function selectChoice(item: any) {
-        if (currentCanvasId) {
+    function selectChoice(canvasId: string, item: any) {
+        if (canvasId) {
             const id = item.id || item['@id'];
-            viewerState.selectChoice(currentCanvasId, id);
+            viewerState.selectChoice(canvasId, id);
         }
     }
 
@@ -94,153 +83,172 @@
         return `Option ${index + 1}`;
     }
 
-    // Zoom controls
-    let showZoom = $derived(viewerState.showZoomControls);
+    function getChoiceDisplayLabel(
+        choice: any,
+        index: number,
+        abbreviated: boolean,
+    ) {
+        if (abbreviated) return `${index + 1}`;
+        return getChoiceLabel(choice, index);
+    }
+
 </script>
+
+{#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
+    <div class="flex items-center gap-1">
+        <div class="px-1 text-xs font-bold opacity-50 flex items-center">
+            <Stack size={14} />
+        </div>
+
+        {#if group.choices.length <= 4}
+            <div class="join hidden sm:flex">
+                {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
+                    {@const id = choice.id || choice['@id']}
+                    {@const label = getChoiceLabel(choice, i)}
+                    {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                    {@const isSelected = group.selectedChoiceId
+                        ? group.selectedChoiceId === id
+                        : i === 0}
+                    <button
+                        class="join-item btn btn-xs {isSelected
+                            ? 'btn-primary'
+                            : 'btn-ghost'}"
+                        onclick={() => selectChoice(group.canvasId, choice)}
+                        aria-pressed={isSelected}
+                        aria-label={label}
+                        title={abbreviated ? label : undefined}
+                    >
+                        {displayLabel}
+                    </button>
+                {/each}
+            </div>
+        {:else}
+            <select
+                class="select select-bordered select-xs rounded-full max-w-xs hidden sm:flex"
+                onchange={(e) => {
+                    const idx = e.currentTarget.selectedIndex;
+                    if (idx >= 0) selectChoice(group.canvasId, group.choices[idx]);
+                }}
+            >
+                {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
+                    {@const id = choice.id || choice['@id']}
+                    {@const label = getChoiceLabel(choice, i)}
+                    {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                    {@const isSelected = group.selectedChoiceId
+                        ? group.selectedChoiceId === id
+                        : i === 0}
+                    <option value={id} selected={isSelected}>
+                        {displayLabel}
+                    </option>
+                {/each}
+            </select>
+        {/if}
+
+        <div class="join sm:hidden">
+            {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
+                {@const id = choice.id || choice['@id']}
+                {@const label = getChoiceLabel(choice, i)}
+                {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                {@const isSelected = group.selectedChoiceId
+                    ? group.selectedChoiceId === id
+                    : i === 0}
+                <button
+                    class="join-item btn btn-xs {isSelected
+                        ? 'btn-primary'
+                        : 'btn-ghost'} min-w-8"
+                    onclick={() => selectChoice(group.canvasId, choice)}
+                    aria-pressed={isSelected}
+                    aria-label={isSelected
+                        ? `Selected: ${label}`
+                        : `Option ${i + 1}: ${label}`}
+                    title={abbreviated ? label : undefined}
+                >
+                    {#if abbreviated}
+                        {displayLabel}
+                    {:else if isSelected}
+                        {label}
+                    {:else}
+                        {i + 1}
+                    {/if}
+                </button>
+            {/each}
+        </div>
+    </div>
+{/snippet}
 
 {#if showNav || showZoom || hasChoices}
     <div
         class="select-none absolute left-1/2 -translate-x-1/2 bg-base-200/70 backdrop-blur rounded-full shadow-lg flex items-center gap-2 z-10 border border-base-300 transition-all duration-200 bottom-4 px-2"
     >
-        <!-- Choice Selector Section (first, if present) -->
-        {#if hasChoices}
-            <div class="flex items-center gap-1">
-                <div
-                    class="px-1 text-xs font-bold opacity-50 flex items-center"
-                >
-                    <Stack size={14} />
-                </div>
+        {#if leftChoiceGroup}
+            {@render choiceControls(leftChoiceGroup, useAbbreviatedChoiceLabels)}
+        {/if}
 
-                <!-- Wide Screen: Full labels -->
-                {#if choices.length <= 4}
-                    <div class="join hidden sm:flex">
-                        {#each choices as choice, i (choice.id || choice['@id'] || i)}
-                            {@const id = choice.id || choice['@id']}
-                            {@const label = getChoiceLabel(choice, i)}
-                            {@const isSelected = selectedChoiceId
-                                ? selectedChoiceId === id
-                                : i === 0}
-                            <button
-                                class="join-item btn btn-xs {isSelected
-                                    ? 'btn-primary'
-                                    : 'btn-ghost'}"
-                                onclick={() => selectChoice(choice)}
-                                aria-pressed={isSelected}
-                            >
-                                {label}
-                            </button>
-                        {/each}
+        {#if leftChoiceGroup && (hasCenterControls || rightChoiceGroup)}
+            <div class="h-4 w-px bg-base-content/20"></div>
+        {/if}
+
+        {#if hasCenterControls}
+            <div class="flex items-center gap-2">
+                {#if showZoom}
+                    <div class="flex items-center gap-1">
+                        <button
+                            class="btn btn-circle btn-sm btn-ghost"
+                            onclick={() => viewerState.zoomOut()}
+                            aria-label="Zoom Out"
+                        >
+                            <MagnifyingGlassMinus size={18} />
+                        </button>
+
+                        <button
+                            class="btn btn-circle btn-sm btn-ghost"
+                            onclick={() => viewerState.zoomIn()}
+                            aria-label="Zoom In"
+                        >
+                            <MagnifyingGlassPlus size={18} />
+                        </button>
                     </div>
-                {:else}
-                    <select
-                        class="select select-bordered select-xs rounded-full max-w-xs hidden sm:flex"
-                        onchange={(e) => {
-                            const idx = e.currentTarget.selectedIndex;
-                            if (idx >= 0) selectChoice(choices[idx]);
-                        }}
-                    >
-                        {#each choices as choice, i (choice.id || choice['@id'] || i)}
-                            {@const id = choice.id || choice['@id']}
-                            {@const label = getChoiceLabel(choice, i)}
-                            {@const isSelected = selectedChoiceId
-                                ? selectedChoiceId === id
-                                : i === 0}
-                            <option value={id} selected={isSelected}>
-                                {label}
-                            </option>
-                        {/each}
-                    </select>
                 {/if}
 
-                <!-- Narrow Screen: Numbers for unselected, full label for selected -->
-                <div class="join sm:hidden">
-                    {#each choices as choice, i (choice.id || choice['@id'] || i)}
-                        {@const id = choice.id || choice['@id']}
-                        {@const label = getChoiceLabel(choice, i)}
-                        {@const isSelected = selectedChoiceId
-                            ? selectedChoiceId === id
-                            : i === 0}
+                {#if showZoom && showNav}
+                    <div class="h-4 w-px bg-base-content/20"></div>
+                {/if}
+
+                {#if showNav}
+                    <div class="flex items-center gap-1">
                         <button
-                            class="join-item btn btn-xs {isSelected
-                                ? 'btn-primary'
-                                : 'btn-ghost'} min-w-8"
-                            onclick={() => selectChoice(choice)}
-                            aria-pressed={isSelected}
-                            aria-label={isSelected
-                                ? `Selected: ${label}`
-                                : `Option ${i + 1}: ${label}`}
+                            class="btn btn-circle btn-sm btn-ghost"
+                            disabled={!viewerState.hasPrevious}
+                            onclick={() => viewerState.previousCanvas()}
+                            aria-label={m.previous_canvas()}
                         >
-                            {#if isSelected}
-                                {label}
-                            {:else}
-                                {i + 1}
-                            {/if}
+                            <CaretLeft size={18} />
                         </button>
-                    {/each}
-                </div>
+
+                        <span class="text-sm font-mono tabular-nums text-nowrap px-1">
+                            {viewerState.currentCanvasIndex + 1} / {viewerState.canvases
+                                .length}
+                        </span>
+
+                        <button
+                            class="btn btn-circle btn-sm btn-ghost"
+                            disabled={!viewerState.hasNext}
+                            onclick={() => viewerState.nextCanvas()}
+                            aria-label={m.next_canvas()}
+                        >
+                            <CaretRight size={18} />
+                        </button>
+                    </div>
+                {/if}
             </div>
         {/if}
 
-        <!-- Divider between choices and zoom (if both present) -->
-        {#if hasChoices && showZoom}
+        {#if rightChoiceGroup && (hasCenterControls || leftChoiceGroup)}
             <div class="h-4 w-px bg-base-content/20"></div>
         {/if}
 
-        <!-- Zoom Controls Section -->
-        {#if showZoom}
-            <div class="flex items-center gap-1">
-                <button
-                    class="btn btn-circle btn-sm btn-ghost"
-                    onclick={() => viewerState.zoomOut()}
-                    aria-label="Zoom Out"
-                >
-                    <MagnifyingGlassMinus size={18} />
-                </button>
-
-                <button
-                    class="btn btn-circle btn-sm btn-ghost"
-                    onclick={() => viewerState.zoomIn()}
-                    aria-label="Zoom In"
-                >
-                    <MagnifyingGlassPlus size={18} />
-                </button>
-            </div>
-        {/if}
-
-        <!-- Divider between zoom and nav (if both present) -->
-        {#if showZoom && showNav}
-            <div class="h-4 w-px bg-base-content/20"></div>
-        {/if}
-        {#if !showZoom && hasChoices && showNav}
-            <div class="h-4 w-px bg-base-content/20"></div>
-        {/if}
-
-        <!-- Canvas Navigation Section -->
-        {#if showNav}
-            <div class="flex items-center gap-1">
-                <button
-                    class="btn btn-circle btn-sm btn-ghost"
-                    disabled={!viewerState.hasPrevious}
-                    onclick={() => viewerState.previousCanvas()}
-                    aria-label={m.previous_canvas()}
-                >
-                    <CaretLeft size={18} />
-                </button>
-
-                <span class="text-sm font-mono tabular-nums text-nowrap px-1">
-                    {viewerState.currentCanvasIndex + 1} / {viewerState.canvases
-                        .length}
-                </span>
-
-                <button
-                    class="btn btn-circle btn-sm btn-ghost"
-                    disabled={!viewerState.hasNext}
-                    onclick={() => viewerState.nextCanvas()}
-                    aria-label={m.next_canvas()}
-                >
-                    <CaretRight size={18} />
-                </button>
-            </div>
+        {#if rightChoiceGroup}
+            {@render choiceControls(rightChoiceGroup, useAbbreviatedChoiceLabels)}
         {/if}
     </div>
 {/if}
