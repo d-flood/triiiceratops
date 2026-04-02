@@ -46,6 +46,10 @@ export default defineConfig({
                     __dirname,
                     'src/lib/plugins/annotation-editor/index.ts',
                 ),
+                'plugins/pdf-export': resolve(
+                    __dirname,
+                    'src/lib/plugins/pdf-export/index.ts',
+                ),
             },
             name: 'Triiiceratops',
 
