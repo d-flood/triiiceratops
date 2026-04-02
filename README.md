@@ -49,6 +49,8 @@ This project is actively developed. The following IIIF features are not yet supp
 
 The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
 
+There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See `docs/plugins.md`.
+
 ### Other
 
 - **`rendering` property**: No links to alternative formats (PDF, etc.)
@@ -95,7 +97,7 @@ To load a manifest directly from JSON, assign it as a property from JavaScript:
         id: 'urn:example:manifest',
         type: 'Manifest',
         label: { none: ['Local manifest'] },
-        items: []
+        items: [],
     };
 </script>
 ```
@@ -120,16 +122,13 @@ pnpm add triiiceratops
         id: 'urn:example:manifest',
         type: 'Manifest',
         label: { none: ['Local manifest'] },
-        items: []
+        items: [],
     };
 </script>
 
 <!-- Container must have height -->
 <div style="height: 600px;">
-    <TriiiceratopsViewer
-        manifestId="urn:example:manifest"
-        {manifestJson}
-    />
+    <TriiiceratopsViewer manifestId="urn:example:manifest" {manifestJson} />
 </div>
 ```
 
@@ -146,8 +145,8 @@ If your application stores transcript or annotation data locally, you can provid
             {
                 canvasIndex: 0,
                 canvasLabel: 'Page 1',
-                hits: [{ type: 'hit', before: '', match: query, after: '' }]
-            }
+                hits: [{ type: 'hit', before: '', match: query, after: '' }],
+            },
         ];
     };
 </script>

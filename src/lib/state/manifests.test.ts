@@ -1,45 +1,46 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ManifestsState } from './manifests.svelte';
-import * as manifesto from 'manifesto.js';
 
-// Mock manifesto.js since it's an external dependency
-vi.mock('manifesto.js', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('manifesto.js')>();
+const parseManifestMock = vi.fn((_json) => {
+    return {
+        getSequences: () => [
+            {
+                getCanvases: () => [{ id: 'canvas1' }],
+                getCanvasById: (id: string) => {
+                    if (id === 'canvas1') {
+                        return {
+                            id: 'canvas1',
+                            __jsonld: {
+                                otherContent: [
+                                    {
+                                        '@id': 'http://example.org/list1',
+                                        '@type': 'sc:AnnotationList',
+                                    },
+                                ],
+                                annotations: [
+                                    {
+                                        id: 'http://example.org/list2',
+                                        type: 'AnnotationPage',
+                                    },
+                                ],
+                            },
+                        };
+                    }
+                    return null;
+                },
+            },
+        ],
+    };
+});
+
+vi.mock('./manifestoRuntime', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('./manifestoRuntime')>();
+
     return {
         ...actual,
-        parseManifest: vi.fn((_json) => {
-            // Minimal mock of a manifesto object
-            return {
-                getSequences: () => [
-                    {
-                        getCanvases: () => [{ id: 'canvas1' }],
-                        getCanvasById: (id: string) => {
-                            if (id === 'canvas1') {
-                                return {
-                                    id: 'canvas1',
-                                    __jsonld: {
-                                        otherContent: [
-                                            {
-                                                '@id': 'http://example.org/list1',
-                                                '@type': 'sc:AnnotationList',
-                                            },
-                                        ],
-                                        annotations: [
-                                            // v3 style
-                                            {
-                                                id: 'http://example.org/list2',
-                                                type: 'AnnotationPage',
-                                            },
-                                        ],
-                                    },
-                                };
-                            }
-                            return null;
-                        },
-                    },
-                ],
-            };
-        }),
+        loadManifestoModule: vi.fn(async () => ({
+            parseManifest: parseManifestMock,
+        })),
     };
 });
 
@@ -51,6 +52,7 @@ describe('ManifestsState', () => {
         vi.stubGlobal('fetch', mockFetch);
         state = new ManifestsState();
         mockFetch.mockReset();
+        parseManifestMock.mockClear();
     });
 
     afterEach(() => {
@@ -86,7 +88,7 @@ describe('ManifestsState', () => {
             expect(
                 state.manifests['http://example.org/manifest'].isFetching,
             ).toBe(false);
-            expect(manifesto.parseManifest).toHaveBeenCalledWith(mockManifest);
+            expect(parseManifestMock).toHaveBeenCalledWith(mockManifest);
         });
 
         it('should handle fetch errors', async () => {
@@ -189,6 +191,112 @@ describe('ManifestsState', () => {
             );
             expect(annos).toHaveLength(1);
             expect(annos[0]['@id']).toBe('anno1');
+        });
+    });
+
+    describe('ensureCanvasAnnotations', () => {
+        it('fetches external annotation pages before returning them', async () => {
+            state.manifests['http://example.org/manifest'] = {
+                manifesto: {
+                    getSequences: () => [
+                        {
+                            getCanvasById: () => ({
+                                __jsonld: {
+                                    annotations: [
+                                        {
+                                            id: 'http://example.org/ocr-page',
+                                            type: 'AnnotationPage',
+                                        },
+                                    ],
+                                },
+                            }),
+                        },
+                    ],
+                },
+            };
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    items: [
+                        {
+                            id: 'ocr-1',
+                            motivation: 'supplementing',
+                            body: {
+                                type: 'TextualBody',
+                                value: 'Line one',
+                            },
+                            target: 'http://example.org/canvas1#xywh=1,2,3,4',
+                        },
+                    ],
+                }),
+            } as Response);
+
+            const annotations = await state.ensureCanvasAnnotations(
+                'http://example.org/manifest',
+                'canvas1',
+            );
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                'http://example.org/ocr-page',
+            );
+            expect(annotations).toHaveLength(1);
+            expect(annotations[0].id).toBe('ocr-1');
+        });
+
+        it('filters annotations to a configured source id', async () => {
+            state.manifests['http://example.org/manifest'] = {
+                manifesto: {
+                    getSequences: () => [
+                        {
+                            getCanvasById: () => ({
+                                __jsonld: {
+                                    annotations: [
+                                        {
+                                            id: 'http://example.org/ocr-page',
+                                            type: 'AnnotationPage',
+                                        },
+                                        {
+                                            id: 'http://example.org/notes-page',
+                                            type: 'AnnotationPage',
+                                        },
+                                    ],
+                                },
+                            }),
+                        },
+                    ],
+                },
+            };
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    items: [
+                        {
+                            id: 'ocr-1',
+                            motivation: 'supplementing',
+                            body: {
+                                type: 'TextualBody',
+                                value: 'Line one',
+                            },
+                            target: 'http://example.org/canvas1#xywh=1,2,3,4',
+                        },
+                    ],
+                }),
+            } as Response);
+
+            const annotations = await state.ensureCanvasAnnotations(
+                'http://example.org/manifest',
+                'canvas1',
+                'http://example.org/ocr-page',
+            );
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(mockFetch).toHaveBeenCalledWith(
+                'http://example.org/ocr-page',
+            );
+            expect(annotations).toHaveLength(1);
+            expect(annotations[0].id).toBe('ocr-1');
         });
     });
 });

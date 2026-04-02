@@ -59,7 +59,10 @@ export class ManifestsState {
 
     async fetchManifest(manifestId: string, requestConfig?: RequestConfig) {
         const existing = this.manifests[manifestId];
-        if (existing && (existing.isFetching || existing.json || existing.manifesto)) {
+        if (
+            existing &&
+            (existing.isFetching || existing.json || existing.manifesto)
+        ) {
             return; // Already fetched or fetching
         }
 
@@ -68,7 +71,9 @@ export class ManifestsState {
         try {
             const response = await fetch(manifestId, {
                 headers: requestConfig?.headers,
-                credentials: requestConfig?.withCredentials ? 'include' : 'same-origin',
+                credentials: requestConfig?.withCredentials
+                    ? 'include'
+                    : 'same-origin',
             });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -112,6 +117,68 @@ export class ManifestsState {
         }
     }
 
+    private getCanvasJson(manifestId: string, canvasId: string): any | null {
+        const manifestoObject = this.getManifest(manifestId);
+        if (!manifestoObject) return null;
+
+        const canvas = manifestoObject
+            .getSequences()[0]
+            .getCanvasById(canvasId);
+        return canvas?.__jsonld || null;
+    }
+
+    private getCanvasAnnotationListRefs(canvasJson: any): string[] {
+        const ids = new Set<string>();
+
+        canvasJson?.otherContent?.forEach((content: any) => {
+            const id = content['@id'] || content.id;
+            if (id && !content.resources) {
+                ids.add(id);
+            }
+        });
+
+        canvasJson?.annotations?.forEach((content: any) => {
+            const id = content.id || content['@id'];
+            if (id && !content.items) {
+                ids.add(id);
+            }
+        });
+
+        return [...ids];
+    }
+
+    private matchesAnnotationSource(content: any, sourceId?: string): boolean {
+        if (!sourceId) {
+            return true;
+        }
+
+        return (content?.id || content?.['@id']) === sourceId;
+    }
+
+    async ensureCanvasAnnotations(
+        manifestId: string,
+        canvasId: string,
+        sourceId?: string,
+    ) {
+        const canvasJson = this.getCanvasJson(manifestId, canvasId);
+        if (!canvasJson) {
+            return [];
+        }
+
+        const annotationListRefs = this.getCanvasAnnotationListRefs(
+            canvasJson,
+        ).filter((id) => !sourceId || id === sourceId);
+        await Promise.all(
+            annotationListRefs.map(async (url) => {
+                if (!this.manifests[url]) {
+                    await this.fetchAnnotationList(url);
+                }
+            }),
+        );
+
+        return this.getAnnotations(manifestId, canvasId, sourceId);
+    }
+
     getCanvases(manifestId: string) {
         const m = this.getManifest(manifestId);
         if (!m) {
@@ -123,9 +190,18 @@ export class ManifestsState {
         return canvases;
     }
 
-    getAnnotations(manifestId: string, canvasId: string) {
+    getAnnotations(manifestId: string, canvasId: string, sourceId?: string) {
         // Get manifest annotations
-        const manifestAnnos = this.manualGetAnnotations(manifestId, canvasId);
+        const manifestAnnos = this.manualGetAnnotations(
+            manifestId,
+            canvasId,
+            sourceId,
+        );
+
+        if (sourceId) {
+            return manifestAnnos;
+        }
+
         // Get user-created annotations
         const userAnnos = this.getUserAnnotations(manifestId, canvasId);
         // Merge both sources
@@ -133,18 +209,13 @@ export class ManifestsState {
     }
 
     // We can refactor this to use Manifesto's resource handling later if needed.
-    manualGetAnnotations(manifestId: string, canvasId: string) {
-        const manifestoObject = this.getManifest(manifestId);
-        if (!manifestoObject) return [];
-
-        const canvas = manifestoObject
-            .getSequences()[0]
-            .getCanvasById(canvasId);
-        if (!canvas) return [];
-
-        // Manifesto wraps the JSON. We can access the underlying JSON via canvas.__jsonld
-        // Or better, use canvas.getContent() if it works, but for external lists manual fetch is robust.
-        const canvasJson = canvas.__jsonld;
+    manualGetAnnotations(
+        manifestId: string,
+        canvasId: string,
+        sourceId?: string,
+    ) {
+        const canvasJson = this.getCanvasJson(manifestId, canvasId);
+        if (!canvasJson) return [];
 
         const annotations: any[] = [];
 
@@ -158,6 +229,10 @@ export class ManifestsState {
         // IIIF v2 otherContent
         if (canvasJson.otherContent) {
             canvasJson.otherContent.forEach((content: any) => {
+                if (!this.matchesAnnotationSource(content, sourceId)) {
+                    return;
+                }
+
                 const id = content['@id'] || content.id;
                 if (id && !content.resources) {
                     const externalList = this.manifests[id];
@@ -184,6 +259,10 @@ export class ManifestsState {
         // IIIF v3 annotations
         if (canvasJson.annotations) {
             canvasJson.annotations.forEach((content: any) => {
+                if (!this.matchesAnnotationSource(content, sourceId)) {
+                    return;
+                }
+
                 const id = content.id || content['@id'];
                 if (id && !content.items) {
                     const externalList = this.manifests[id];
