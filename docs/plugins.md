@@ -248,13 +248,35 @@ interface PluginDef {
 
 Provides brightness, contrast, saturation, invert, and grayscale controls for the displayed image.
 
+### PDF Export
+
+Exports a flat range of canvases as a browser-generated PDF, with one PDF page per selected canvas.
+
+Feature summary:
+
+- range-based export from the plugin panel
+- one PDF page per selected canvas
+- optional cover sheet with consumer-provided label/value metadata
+- selectable OCR text when the canvas exposes IIIF OCR annotations
+- configurable browser image request settings for public or authenticated image services
+
+By default, `PdfExportPlugin` uses:
+
+- no cover sheet
+- public-friendly image fetching with `credentials: "same-origin"`
+- OCR text embedding only when suitable IIIF OCR annotations are present
+
+#### Basic Usage
+
 === "Web Component"
 
+    Script-tag usage exposes the default preconfigured plugin only:
+
     ```html
-    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-image-manipulation.iife.js"></script>
+    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-pdf-export.iife.js"></script>
 
     <script>
-      viewer.plugins = [window.TriiiceratopsPlugins.ImageManipulation];
+      viewer.plugins = [window.TriiiceratopsPlugins.PdfExport];
     </script>
     ```
 
@@ -262,11 +284,224 @@ Provides brightness, contrast, saturation, invert, and grayscale controls for th
 
     ```svelte
     <script>
-      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
+      import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
     </script>
 
-    <TriiiceratopsViewer plugins={[ImageManipulationPlugin]} />
+    <TriiiceratopsViewer manifestId="..." plugins={[PdfExportPlugin]} />
     ```
+
+#### Configuring The Plugin
+
+Use `createPdfExportPlugin(...)` when you want a cover sheet, a specific OCR annotation source, or custom image request behavior.
+
+```ts
+import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+
+const pdfExportPlugin = createPdfExportPlugin({
+    coverSheet: {
+        title: 'Digitization Summary',
+        fields: [
+            { label: 'Repository', value: 'Example Library' },
+            { label: 'Call Number', value: 'MS 123' },
+        ],
+    },
+    ocrAnnotationSource: 'https://example.org/canvas/1/ocr',
+    imageRequest: {
+        credentials: 'same-origin',
+    },
+});
+```
+
+For image services that cannot be fetched directly by the browser, you can also provide a custom image loader:
+
+```ts
+import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+
+const pdfExportPlugin = createPdfExportPlugin({
+    loadImageBlob: async ({ imageUrl }) => {
+        const response = await fetch(
+            `/api/pdf-image?url=${encodeURIComponent(imageUrl)}`,
+        );
+        if (!response.ok) {
+            throw new Error('Unable to load image for PDF export.');
+        }
+
+        return response.blob();
+    },
+});
+```
+
+You can use that configured plugin in either a Svelte app or a bundler-based host app that assigns plugins to the web component:
+
+```ts
+import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+
+const pdfExportPlugin = createPdfExportPlugin({
+    coverSheet: {
+        title: 'Export Summary',
+        fields: [{ label: 'Collection', value: 'Example collection' }],
+    },
+});
+
+viewer.plugins = [pdfExportPlugin];
+```
+
+Configuration shape:
+
+```ts
+type PdfExportConfig = {
+    coverSheet?: {
+        title?: string;
+        fields: { label: string; value: string }[];
+    };
+    ocrAnnotationSource?: string;
+    imageRequest?: {
+        credentials?: RequestCredentials;
+        headers?: HeadersInit;
+        mode?: RequestMode;
+        referrerPolicy?: ReferrerPolicy;
+    };
+    loadImageBlob?: (params: {
+        canvas: any;
+        canvasId: string;
+        imageUrl: string;
+        manifestId: string | null;
+        targetWidth: number;
+        imageRequest: RequestInit;
+        resolvedImage: any | null;
+    }) => Promise<Blob> | Blob;
+};
+```
+
+#### Cover Sheet
+
+When `coverSheet` is configured, the exported PDF begins with a generated summary page.
+
+The cover sheet includes:
+
+- each consumer-provided `label` / `value` pair
+- the PDF creation date and time
+- the current page URL, when available in the browser
+
+The export UI does not ask end users to edit these fields. They are supplied by the consuming application at plugin creation time.
+
+#### OCR Support
+
+When a canvas includes IIIF OCR annotations, the plugin embeds selectable text into the exported PDF.
+
+The plugin reads OCR from IIIF annotation data, not from IIIF Search responses. Search hits alone are not enough because the PDF export needs stable text plus canvas-relative bounding boxes.
+
+Supported OCR annotation patterns include:
+
+- IIIF Presentation 3 annotations using `TextualBody` plus `motivation: "supplementing"`
+- legacy IIIF Presentation 2 text annotation lists in `otherContent`, including `cnt:ContentAsText` bodies that use `sc:painting` for line text
+
+If a canvas exposes multiple annotation pages or lists, set `ocrAnnotationSource` to the specific annotation page/list `id` you want the PDF export to use for selectable text. When omitted, the plugin reads OCR-compatible annotations from every available canvas annotation source.
+
+To make exported PDF text selectable, provide OCR as canvas-linked IIIF annotations with these properties:
+
+- the canvas `width` and `height` must use the same coordinate space as the OCR bounding boxes
+- each OCR annotation should target a rectangle using `#xywh=x,y,w,h` or a `FragmentSelector` with `xywh=...`
+- each OCR annotation should use `motivation: "supplementing"`
+- each OCR annotation body should be a `TextualBody` with plain text in `value`
+- embedded and external `AnnotationPage` resources are both supported
+- the original ALTO, hOCR, or other OCR file can also be linked via `seeAlso`, but the plugin reads the IIIF annotations directly
+
+Example canvas with an external OCR page:
+
+```json
+{
+    "id": "https://example.org/canvas/1",
+    "type": "Canvas",
+    "width": 3000,
+    "height": 4000,
+    "annotations": [
+        {
+            "id": "https://example.org/canvas/1/ocr",
+            "type": "AnnotationPage"
+        }
+    ],
+    "seeAlso": [
+        {
+            "id": "https://example.org/canvas/1/ocr/alto.xml",
+            "type": "Dataset",
+            "format": "application/xml",
+            "label": {
+                "en": ["ALTO OCR"]
+            }
+        }
+    ]
+}
+```
+
+Example OCR annotation page:
+
+```json
+{
+    "id": "https://example.org/canvas/1/ocr",
+    "type": "AnnotationPage",
+    "items": [
+        {
+            "id": "https://example.org/canvas/1/ocr/line/1",
+            "type": "Annotation",
+            "motivation": "supplementing",
+            "body": {
+                "type": "TextualBody",
+                "value": "This is one OCR line.",
+                "format": "text/plain"
+            },
+            "target": "https://example.org/canvas/1#xywh=240,380,1620,52"
+        }
+    ]
+}
+```
+
+Tesseract guidance:
+
+- convert each OCR line or word into one IIIF annotation item
+- line-level annotations are the easiest starting point for usable PDF text selection
+- if your Tesseract boxes are in raw image pixels, make sure the canvas `width` and `height` match that same pixel space, or scale the boxes during annotation generation
+
+#### Image Request Notes
+
+The plugin fetches canvas images with `credentials: "same-origin"` by default. This avoids common CORS failures on public IIIF servers that respond with `Access-Control-Allow-Origin: *`.
+
+For IIIF Image API level 0 services, the plugin prefers the painting body's declared image URL instead of synthesizing an arbitrary sized IIIF image request. This is more compatible with services that expose only a fixed image URL alongside a level 0 service description.
+
+Some IIIF image services block browser access entirely. Typical symptoms are:
+
+- no `Access-Control-Allow-Origin` response header
+- `401` or `403` responses for cross-origin image fetches
+- browser errors such as `TypeError: Failed to fetch`
+
+In those cases, a purely client-side export is not possible from a different origin. Configure `loadImageBlob` so your application can fetch the image through a same-origin proxy, a backend endpoint, or another authenticated path that the browser is allowed to read.
+
+If your image service requires cookies or another authenticated browser session, configure the plugin explicitly:
+
+```ts
+import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+
+const plugin = createPdfExportPlugin({
+    imageRequest: {
+        credentials: 'include',
+        mode: 'cors',
+        headers: {
+            Authorization: 'Bearer <token>',
+        },
+    },
+});
+```
+
+Supported `imageRequest` fields are passed directly to `fetch(...)`:
+
+- `credentials`
+- `headers`
+- `mode`
+- `referrerPolicy`
+
+Use `loadImageBlob` when `imageRequest` is still not enough because the remote service does not allow browser access at all.
+
+Only use `credentials: "include"` when the IIIF image service is configured for credentialed CORS.
 
 ---
 
@@ -302,22 +537,22 @@ The plugin persistence layer is framework-agnostic. Supply an `AnnotationStorage
 
 ```ts
 import {
-  createAnnotationEditorPlugin,
-  type AnnotationStorageAdapter
+    createAnnotationEditorPlugin,
+    type AnnotationStorageAdapter,
 } from 'triiiceratops/plugins/annotation-editor';
 
 const adapter: AnnotationStorageAdapter = {
-  id: 'my-adapter',
-  name: 'My Adapter',
-  async load(manifestId, canvasId) {
-    return [];
-  },
-  async hydrate(manifestId, canvasId, annotationId) {
-    return null;
-  },
-  async create(manifestId, canvasId, annotation) {},
-  async update(manifestId, canvasId, annotation) {},
-  async delete(manifestId, canvasId, annotationId) {}
+    id: 'my-adapter',
+    name: 'My Adapter',
+    async load(manifestId, canvasId) {
+        return [];
+    },
+    async hydrate(manifestId, canvasId, annotationId) {
+        return null;
+    },
+    async create(manifestId, canvasId, annotation) {},
+    async update(manifestId, canvasId, annotation) {},
+    async delete(manifestId, canvasId, annotationId) {},
 };
 
 const plugin = createAnnotationEditorPlugin({ adapter });
@@ -331,23 +566,31 @@ For app-specific behavior, prefer the `extension` API over forking the plugin. T
 
 ```ts
 import {
-  createAnnotationEditorPlugin,
-  type AnnotationEditorExtension
+    createAnnotationEditorPlugin,
+    type AnnotationEditorExtension,
 } from 'triiiceratops/plugins/annotation-editor';
 
 const extension: AnnotationEditorExtension<{ selectedText: string | null }> = {
-  getContext: () => ({ selectedText: window.appSelection ?? null }),
-  canCreate: ({ hostContext }) => !!hostContext?.selectedText,
-  getCreateDisabledReason: ({ hostContext }) =>
-    hostContext?.selectedText ? null : 'Select text before creating an annotation.',
-  prepareDraft: (annotation, { hostContext }) => ({
-    ...annotation,
-    body: hostContext?.selectedText
-      ? [{ type: 'TextualBody', purpose: 'commenting', value: hostContext.selectedText }]
-      : []
-  }),
-  beforeSave: async (annotation, context) => annotation,
-  onSelectionChange: (annotation, context) => {}
+    getContext: () => ({ selectedText: window.appSelection ?? null }),
+    canCreate: ({ hostContext }) => !!hostContext?.selectedText,
+    getCreateDisabledReason: ({ hostContext }) =>
+        hostContext?.selectedText
+            ? null
+            : 'Select text before creating an annotation.',
+    prepareDraft: (annotation, { hostContext }) => ({
+        ...annotation,
+        body: hostContext?.selectedText
+            ? [
+                  {
+                      type: 'TextualBody',
+                      purpose: 'commenting',
+                      value: hostContext.selectedText,
+                  },
+              ]
+            : [],
+    }),
+    beforeSave: async (annotation, context) => annotation,
+    onSelectionChange: (annotation, context) => {},
 };
 
 const plugin = createAnnotationEditorPlugin({ extension });

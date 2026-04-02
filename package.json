@@ -37,6 +37,11 @@
             "svelte": "./dist/plugins/annotation-editor/index.js",
             "import": "./dist/plugins/annotation-editor/index.js"
         },
+        "./plugins/pdf-export": {
+            "types": "./dist/plugins/pdf-export/index.d.ts",
+            "svelte": "./dist/plugins/pdf-export/index.js",
+            "import": "./dist/plugins/pdf-export/index.js"
+        },
         "./bundle": {
             "types": "./dist/index-bundle.d.ts",
             "import": "./dist/triiiceratops-bundle.js"
@@ -44,6 +49,7 @@
         "./element": "./dist/triiiceratops-element.iife.js",
         "./plugins/image-manipulation.iife": "./dist/triiiceratops-plugin-image-manipulation.iife.js",
         "./plugins/annotation-editor.iife": "./dist/triiiceratops-plugin-annotation-editor.iife.js",
+        "./plugins/pdf-export.iife": "./dist/triiiceratops-plugin-pdf-export.iife.js",
         "./style.css": "./dist/triiiceratops.css"
     },
     "peerDependencies": {
@@ -61,7 +67,7 @@
         "build:element": "vite build --config vite.config.element.ts",
         "build:demo": "vite build --config vite.config.demo.ts",
         "build:consumer": "rm -rf docs/demo-consumer && mkdir -p docs/demo-consumer && cp src/demo-consumer/index.html docs/demo-consumer/index.html && cp src/demo-consumer/app.css docs/demo-consumer/app.css && rm -rf docs/dist && cp -r dist docs/dist",
-        "build:plugins-iife": "PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts",
+        "build:plugins-iife": "PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=pdf-export vite build --config vite.config.plugins-iife.ts",
         "build:all": "pnpm build:lib && pnpm build:element && pnpm build:plugins-iife && pnpm build:demo && pnpm build:consumer",
         "preview": "vite preview",
         "dev:consumer": "vite --config vite.config.demo-consumer.ts",
@@ -108,6 +114,7 @@
         "daisyui": "^5.5.8",
         "manifesto.js": "^4.3.0",
         "openseadragon": "^5.0.1",
+        "pdf-lib": "^1.17.1",
         "phosphor-svelte": "^3.0.1",
         "tailwindcss": "^4.1.17"
     }
