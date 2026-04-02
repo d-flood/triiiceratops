@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.19.0
+
+### Minor Changes
+
+- 8f8f5d0: Add PDF Export plugin and a few small updates to core to support it
+
 ## 0.18.0
 
 ### Minor Changes
