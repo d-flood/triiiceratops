@@ -8,6 +8,7 @@
     import { SvelteURLSearchParams } from 'svelte/reactivity';
     import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
     import { AnnotationEditorPlugin } from '../lib/plugins/annotation-editor';
+    import { PdfExportPlugin } from '../lib/plugins/pdf-export';
 
     // Initialize state from URL if present
     const urlParams = new URLSearchParams(window.location.search);
@@ -144,7 +145,11 @@
     // ViewerState for Svelte component mode (via bindable prop)
     let svelteViewerState: ViewerState | undefined = $state();
 
-    const enabledPlugins = [ImageManipulationPlugin, AnnotationEditorPlugin];
+    const enabledPlugins = [
+        ImageManipulationPlugin,
+        AnnotationEditorPlugin,
+        PdfExportPlugin,
+    ];
 
     // Derived active plugins based on mode
     let activePlugins = $derived(

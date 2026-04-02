@@ -7,6 +7,7 @@
     import type { SearchProvider, ViewerConfig } from '../types/config';
     import type { PluginDef } from '../types/plugin';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
+    import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
@@ -15,7 +16,6 @@
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
     import ViewerControls from './ViewerControls.svelte';
-    import { getVisibleCanvasEntries } from './viewerControls';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -274,54 +274,22 @@
             return null;
         }
 
-        const canvas = canvases[currentCanvasIndex];
+        const tileSourcesArray = getViewerTileSources({
+            canvases,
+            currentCanvasIndex,
+            currentCanvasId: internalViewerState.canvasId,
+            viewingMode: internalViewerState.viewingMode,
+            pagedOffset: internalViewerState.pagedOffset,
+            getSelectedChoice: (canvasId) =>
+                internalViewerState.getSelectedChoice(canvasId),
+        });
 
-        // Helper to get images from a canvas, with v3 fallback
-        // v2 uses getImages(), v3 uses getContent() for painting annotations
-        const getCanvasImages = (c: any): any[] => {
-            let imgs = c.getImages?.() || [];
-            if ((!imgs || !imgs.length) && c.getContent) {
-                imgs = c.getContent();
-            }
-            // Return wrapper to preserve methods
-            return (imgs || []).map((img: any) => ({
-                annotation: img,
-                canvasId: c.id || c['@id'],
-            }));
-        };
-
-        let images = getCanvasImages(canvas);
-        if (internalViewerState.viewingMode === 'continuous') {
-            // Get all images from all canvases
-            images = [];
-            for (const c of canvases) {
-                images = images.concat(getCanvasImages(c));
-            }
-        } else if (internalViewerState.viewingMode === 'paged') {
-            images = getVisibleCanvasEntries({
-                canvases,
-                currentCanvasId: internalViewerState.canvasId,
-                currentCanvasIndex,
-                viewingMode: internalViewerState.viewingMode,
-                pagedOffset: internalViewerState.pagedOffset,
-            }).flatMap(({ canvas: visibleCanvas }) => getCanvasImages(visibleCanvas));
-        }
-
-        if (!images || !images.length) {
-            // Check for raw v3 items
-            if (canvas.__jsonld && canvas.__jsonld.items) {
-                // Try to locate annotation pages -> annotations
-            }
+        if (!tileSourcesArray) {
             if (!manifestData?.isFetching) {
                 console.log('TriiiceratopsViewer: No images/content in canvas');
             }
             return null;
         }
-
-        // Map images to tile sources, in two page mode, this will get two image sources
-        const tileSourcesArray = images
-            .map((item: any) => getImageService(item.annotation, item.canvasId))
-            .filter((s) => s !== null); // Filter out nulls to prevent OSD crashes
 
         console.log(
             '[TriiiceratopsViewer] Derived tileSources:',
@@ -329,221 +297,6 @@
         );
         return tileSourcesArray;
     });
-
-    function getImageService(annotation: any, canvasId: string) {
-        let resource = annotation.getResource ? annotation.getResource() : null;
-
-        // v3 fallback: getBody
-        if (!resource && annotation.getBody) {
-            const body = annotation.getBody();
-            // Handle Choice (IIIF v2/v3)
-            // Note: Manifesto might wrap Choice in a resource object, OR return the items as array if it flattens it.
-            // We check multiple sources to determine if it was a Choice.
-
-            const rawBody = annotation.__jsonld?.body || annotation.body;
-            // Checking if the body is a Choice - check rawBody, body itself, or body's type
-            const isChoice =
-                rawBody?.type === 'Choice' ||
-                rawBody?.type === 'oa:Choice' ||
-                (body &&
-                    !Array.isArray(body) &&
-                    (body.type === 'Choice' || body.type === 'oa:Choice'));
-
-            if (isChoice) {
-                // Manifesto may return the items array as 'body' when getBody() is called,
-                // or it may return the Choice object itself. We handle both cases.
-
-                let items: any[] = [];
-                if (Array.isArray(body)) {
-                    items = body;
-                } else if (body && (body.items || body.item)) {
-                    items = body.items || body.item;
-                } else if (rawBody && (rawBody.items || rawBody.item)) {
-                    // Fallback to rawBody items if body doesn't have them
-                    items = rawBody.items || rawBody.item;
-                }
-
-                // Get selected item ID from state
-                const selectedId =
-                    internalViewerState.getSelectedChoice(canvasId);
-
-                let selectedItem = null;
-                if (selectedId) {
-                    selectedItem = items.find(
-                        (item: any) => (item.id || item['@id']) === selectedId,
-                    );
-                }
-
-                // Default to first item if no selection or not found
-                if (!selectedItem && items.length > 0) {
-                    selectedItem = items[0];
-                }
-
-                if (selectedItem) {
-                    resource = selectedItem;
-                }
-            } else if (Array.isArray(body) && body.length > 0) {
-                resource = body[0];
-            } else if (body) {
-                resource = body;
-            }
-        }
-
-        // Check if resource is valid (Manifesto sometimes returns empty wrapper objects for v3 bodies)
-        // The wrapper may have getServices() that returns manifest-level services, so we can't rely on that.
-        // Instead, check if the resource has actual content (id, __jsonld, or a service property)
-        const resourceJson = resource?.__jsonld || resource;
-        const hasContent =
-            resource &&
-            (resource.id ||
-                resource['@id'] ||
-                (resourceJson &&
-                    (resourceJson.service ||
-                        resourceJson.id ||
-                        resourceJson['@id'])));
-
-        if (resource && !hasContent) {
-            resource = null;
-        }
-
-        // Helper to normalize ID
-        const getId = (thing: any) =>
-            thing.id ||
-            thing['@id'] ||
-            (thing.__jsonld && (thing.__jsonld.id || thing.__jsonld['@id']));
-
-        if (!resource) {
-            // raw json fallback
-            const json = annotation.__jsonld || annotation;
-            if (json.body) {
-                let body = json.body;
-                // Handle Choice in raw JSON fallback
-                if (body.type === 'Choice' || body.type === 'oa:Choice') {
-                    const items = body.items || body.item || [];
-                    // Get selected choice or default to first item
-                    const selectedId =
-                        internalViewerState.getSelectedChoice(canvasId);
-                    const selectedItem = selectedId
-                        ? items.find(
-                              (item: any) =>
-                                  (item.id || item['@id']) === selectedId,
-                          )
-                        : null;
-                    body = selectedItem || items[0] || null;
-                }
-                resource = Array.isArray(body) ? body[0] : body;
-            }
-        }
-
-        if (!resource) {
-            // console.log('TriiiceratopsViewer: No resource in annotation');
-            return null;
-        }
-
-        // Helper to normalize ID
-
-        // Start of service detection logic
-        // Check raw json service FIRST - Manifesto's getServices() often returns
-        // manifest-level services instead of the image body's services
-        let services: any[] = [];
-        const rJson = resource.__jsonld || resource;
-        if (rJson.service) {
-            services = Array.isArray(rJson.service)
-                ? rJson.service
-                : [rJson.service];
-        }
-
-        // Fallback to getServices() only if raw json didn't have services
-        if (!services.length && resource.getServices) {
-            services = resource.getServices();
-        }
-
-        if (services.length > 0) {
-            // Matches IIIF Image API profile URIs with http or https scheme
-            const iiifImageApiPattern = /^https?:\/\/iiif\.io\/api\/image\//;
-
-            // IIIF allows profile as a string, array, or containing objects
-            // Shorthand levels (level0, level1, level2) are valid per spec
-            const isIiifImageProfile = (p: unknown): boolean => {
-                if (typeof p === 'string') {
-                    return (
-                        iiifImageApiPattern.test(p) ||
-                        p === 'level0' ||
-                        p === 'level1' ||
-                        p === 'level2'
-                    );
-                }
-                if (Array.isArray(p)) {
-                    return p.some(
-                        (item) =>
-                            typeof item === 'string' &&
-                            isIiifImageProfile(item),
-                    );
-                }
-                return false;
-            };
-
-            // Find a valid image service
-            const service = services.find((s: any) => {
-                const type = s.getType
-                    ? s.getType()
-                    : s.type || s['@type'] || '';
-                const profile = s.getProfile ? s.getProfile() : s.profile || '';
-                return (
-                    type === 'ImageService1' ||
-                    type === 'ImageService2' ||
-                    type === 'ImageService3' ||
-                    isIiifImageProfile(profile)
-                );
-            });
-
-            if (service) {
-                let id = getId(service);
-                if (id && !id.endsWith('/info.json')) {
-                    id = `${id}/info.json`;
-                }
-                return id;
-            }
-        }
-
-        // Fallback: Heuristic from Image ID (if it looks like IIIF)
-        const resourceId = getId(resource);
-        if (resourceId && resourceId.includes('/iiif/')) {
-            // Try to strip standard IIIF parameters to find base
-            // IIIF URLs often look like .../identifier/region/size/rotation/quality.format
-            // We look for the part before the region (often 'full')
-            const parts = resourceId.split('/');
-            // find index of 'full' or region
-            const regionIndex = parts.findIndex(
-                (p: string) => p === 'full' || p.match(/^\d+,\d+,\d+,\d+$/),
-            );
-            if (regionIndex > 0) {
-                const base = parts.slice(0, regionIndex).join('/');
-                return `${base}/info.json`;
-            }
-        }
-
-        if (!resourceId) {
-            console.warn('TriiiceratopsViewer: No resource ID found', resource);
-            if (resource) {
-                console.log(
-                    'Resource dump:',
-                    JSON.stringify(resource, null, 2),
-                );
-                if (resource.getServices) {
-                    console.log('Resource services:', resource.getServices());
-                }
-            }
-            return null;
-        }
-
-        console.log(
-            'TriiiceratopsViewer: No service or ID found, returning raw URL',
-            resourceId,
-        );
-        const url = resourceId;
-        return { type: 'image', url };
-    }
 </script>
 
 <div
