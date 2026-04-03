@@ -6,6 +6,10 @@ import {
     searchResponseWithResourcesOnly,
     searchResponseEmpty,
     searchResponseMultiCanvas,
+    searchResponseV2WithContext,
+    searchResponseV2ItemsOnly,
+    searchResponseV2MultiCanvas,
+    searchResponseV2Empty,
 } from '../test/fixtures/searchResponses';
 
 // Mock manifesto.js
@@ -29,13 +33,15 @@ vi.mock('manifesto.js', async (importOriginal) => {
             // Handle both single service and service array
             let services = [];
             if (json.service) {
-                services = Array.isArray(json.service) ? json.service : [json.service];
+                services = Array.isArray(json.service)
+                    ? json.service
+                    : [json.service];
             }
 
             const searchService = services.find(
                 (s: any) =>
                     s.profile === 'http://iiif.io/api/search/1/search' ||
-                    s.profile === 'http://iiif.io/api/search/0/search'
+                    s.profile === 'http://iiif.io/api/search/0/search',
             );
 
             return {
@@ -98,19 +104,18 @@ describe('ViewerState - IIIF Search', () => {
      * Helper to setup a mock manifest with canvases
      */
     function setupMockManifest(manifestJson: any) {
-        const parsed = manifesto.parseManifest(manifestJson) as
-            | {
-                  getSequences: () => Array<{
-                      getCanvases: () => any[];
-                  }>;
-              }
-            | null;
+        const parsed = manifesto.parseManifest(manifestJson) as {
+            getSequences: () => Array<{
+                getCanvases: () => any[];
+            }>;
+        } | null;
         if (!parsed) {
             throw new Error('Failed to parse mock manifest');
         }
 
         const mockManifest = parsed;
-        const mockCanvases = mockManifest.getSequences()[0]?.getCanvases() ?? [];
+        const mockCanvases =
+            mockManifest.getSequences()[0]?.getCanvases() ?? [];
 
         vi.mocked(manifestsState.getManifest).mockReturnValue(mockManifest);
         vi.mocked(manifestsState.getCanvases).mockReturnValue(mockCanvases);
@@ -130,7 +135,14 @@ describe('ViewerState - IIIF Search', () => {
                 {
                     canvasIndex: 0,
                     canvasLabel: 'Page 1',
-                    hits: [{ type: 'hit', before: 'before ', match: 'term', after: ' after' }],
+                    hits: [
+                        {
+                            type: 'hit',
+                            before: 'before ',
+                            match: 'term',
+                            after: ' after',
+                        },
+                    ],
                 },
             ]);
 
@@ -228,7 +240,9 @@ describe('ViewerState - IIIF Search', () => {
             setupMockManifest(mockManifestJson);
             state.manifestId = 'http://example.org/manifest';
 
-            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const consoleSpy = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
 
             await state.search('test');
 
@@ -526,7 +540,9 @@ describe('ViewerState - IIIF Search', () => {
 
             const anno = state.searchAnnotations[0];
             expect(anno.on).toMatch(/xywh=\d+,\d+,\d+,\d+/);
-            expect(anno.on).toBe('http://example.org/canvas/1#xywh=100,100,50,20');
+            expect(anno.on).toBe(
+                'http://example.org/canvas/1#xywh=100,100,50,20',
+            );
         });
 
         it('should set canvasId on annotations', async () => {
@@ -574,7 +590,9 @@ describe('ViewerState - IIIF Search', () => {
             state.manifestId = null;
             vi.mocked(manifestsState.getManifest).mockReturnValue(null);
 
-            const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+            const consoleSpy = vi
+                .spyOn(console, 'log')
+                .mockImplementation(() => {});
 
             await state.search('deferred query');
 
@@ -606,7 +624,9 @@ describe('ViewerState - IIIF Search', () => {
         it('should handle network failures', async () => {
             mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleSpy = vi
+                .spyOn(console, 'error')
+                .mockImplementation(() => {});
 
             await state.search('test');
 
@@ -625,7 +645,9 @@ describe('ViewerState - IIIF Search', () => {
                 status: 500,
             });
 
-            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleSpy = vi
+                .spyOn(console, 'error')
+                .mockImplementation(() => {});
 
             await state.search('test');
 
@@ -667,6 +689,339 @@ describe('ViewerState - IIIF Search', () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => searchResponseEmpty,
+            });
+
+            await state.search('notfound');
+
+            expect(state.searchResults).toEqual([]);
+            expect(state.searchAnnotations).toEqual([]);
+            expect(state.isSearching).toBe(false);
+        });
+    });
+
+    // ==================== IIIF Content Search API v2 ====================
+
+    describe('Search API v2 - Service detection', () => {
+        it('should detect v2 service by type: SearchService2', async () => {
+            const mockManifestJson = {
+                id: 'http://example.org/manifest',
+                service: [
+                    {
+                        id: 'http://example.org/search-v2',
+                        type: 'SearchService2',
+                    },
+                ],
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2Empty,
+            });
+
+            await state.search('test');
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                'http://example.org/search-v2?q=test',
+            );
+        });
+
+        it('should detect v2 service via raw JSON fallback', async () => {
+            const mockManifestJson = {
+                id: 'http://example.org/manifest',
+                service: {
+                    id: 'http://example.org/search-v2',
+                    type: 'SearchService2',
+                },
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2Empty,
+            });
+
+            await state.search('test');
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                'http://example.org/search-v2?q=test',
+            );
+        });
+
+        it('should prefer v2 over v1 when both are present', async () => {
+            const mockManifestJson = {
+                id: 'http://example.org/manifest',
+                service: [
+                    {
+                        '@id': 'http://example.org/search-v1',
+                        profile: 'http://iiif.io/api/search/1/search',
+                    },
+                    {
+                        id: 'http://example.org/search-v2',
+                        type: 'SearchService2',
+                    },
+                ],
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2Empty,
+            });
+
+            await state.search('test');
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                'http://example.org/search-v2?q=test',
+            );
+        });
+    });
+
+    describe('Search API v2 - Parse response with context', () => {
+        beforeEach(() => {
+            const mockManifestJson = {
+                id: 'http://example.org/manifest',
+                service: [
+                    {
+                        id: 'http://example.org/search-v2',
+                        type: 'SearchService2',
+                    },
+                ],
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+        });
+
+        it('should parse v2 items with annotations context (prefix/exact/suffix)', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2WithContext,
+            });
+
+            await state.search('test');
+
+            expect(state.searchResults).toHaveLength(2); // 2 canvases
+            expect(state.searchResults[0].hits[0]).toMatchObject({
+                type: 'hit',
+                before: 'This is a ',
+                match: '<mark>test</mark>',
+                after: ' result on page one',
+            });
+            expect(state.searchResults[1].hits[0]).toMatchObject({
+                type: 'hit',
+                before: 'Another ',
+                match: '<mark>test</mark>',
+                after: ' result on page two',
+            });
+        });
+
+        it('should decode HTML entities in v2 match text', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2WithContext,
+            });
+
+            await state.search('test');
+
+            const firstHit = state.searchResults[0].hits[0];
+            expect(firstHit.match).toContain('<mark>');
+            expect(firstHit.match).not.toContain('&lt;');
+        });
+
+        it('should extract xywh bounds from v2 target strings', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2WithContext,
+            });
+
+            await state.search('test');
+
+            const firstHit = state.searchResults[0].hits[0];
+            expect(firstHit.bounds).toEqual([100, 100, 50, 20]);
+        });
+
+        it('should generate search annotations from v2 results', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2WithContext,
+            });
+
+            await state.search('test');
+
+            expect(state.searchAnnotations.length).toBeGreaterThan(0);
+            expect(state.searchAnnotations[0]).toMatchObject({
+                isSearchHit: true,
+                '@type': 'oa:Annotation',
+                motivation: 'sc:painting',
+            });
+            expect(state.searchAnnotations[0].on).toBe(
+                'http://example.org/canvas/1#xywh=100,100,50,20',
+            );
+        });
+    });
+
+    describe('Search API v2 - Parse items-only response (no annotations)', () => {
+        beforeEach(() => {
+            const mockManifestJson = {
+                id: 'http://example.org/manifest',
+                service: [
+                    {
+                        id: 'http://example.org/search-v2',
+                        type: 'SearchService2',
+                    },
+                ],
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+        });
+
+        it('should parse v2 items-only response as resource type', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2ItemsOnly,
+            });
+
+            await state.search('word');
+
+            expect(state.searchResults).toHaveLength(1); // 1 canvas
+            expect(state.searchResults[0].hits).toHaveLength(2);
+            expect(state.searchResults[0].hits[0]).toMatchObject({
+                type: 'resource',
+                match: '<mark>word</mark>',
+            });
+        });
+
+        it('should extract text from body.value when no annotations context', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2ItemsOnly,
+            });
+
+            await state.search('word');
+
+            const firstHit = state.searchResults[0].hits[0];
+            expect(firstHit.match).toBe('<mark>word</mark>');
+        });
+
+        it('should extract bounds from v2 items-only response', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2ItemsOnly,
+            });
+
+            await state.search('word');
+
+            const firstHit = state.searchResults[0].hits[0];
+            expect(firstHit.bounds).toEqual([50, 50, 100, 25]);
+        });
+    });
+
+    describe('Search API v2 - Multi-canvas results', () => {
+        beforeEach(() => {
+            const mockManifestJson = {
+                id: 'http://example.org/manifest',
+                service: [
+                    {
+                        id: 'http://example.org/search-v2',
+                        type: 'SearchService2',
+                    },
+                ],
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+        });
+
+        it('should group v2 results by canvas index', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2MultiCanvas,
+            });
+
+            await state.search('common');
+
+            expect(state.searchResults).toHaveLength(2);
+            expect(state.searchResults[0].canvasIndex).toBe(0);
+            expect(state.searchResults[0].hits).toHaveLength(2);
+            expect(state.searchResults[1].canvasIndex).toBe(1);
+            expect(state.searchResults[1].hits).toHaveLength(2);
+        });
+
+        it('should extract canvas labels for v2 results', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2MultiCanvas,
+            });
+
+            await state.search('common');
+
+            expect(state.searchResults[0].canvasLabel).toBe('Page 1');
+            expect(state.searchResults[1].canvasLabel).toBe('Page 2');
+        });
+
+        it('should sort v2 results by canvas index', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2MultiCanvas,
+            });
+
+            await state.search('common');
+
+            const indices = state.searchResults.map((r) => r.canvasIndex);
+            expect(indices).toEqual([0, 1]);
+        });
+
+        it('should map v2 context prefix/exact/suffix to before/match/after', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2MultiCanvas,
+            });
+
+            await state.search('common');
+
+            expect(state.searchResults[0].hits[0]).toMatchObject({
+                type: 'hit',
+                before: 'First ',
+                match: 'common',
+                after: ' word',
+            });
+            expect(state.searchResults[1].hits[1]).toMatchObject({
+                type: 'hit',
+                before: 'Fourth ',
+                match: 'common',
+                after: ' word',
+            });
+        });
+    });
+
+    describe('Search API v2 - Empty results', () => {
+        beforeEach(() => {
+            const mockManifestJson = {
+                id: 'http://example.org/manifest',
+                service: [
+                    {
+                        id: 'http://example.org/search-v2',
+                        type: 'SearchService2',
+                    },
+                ],
+            };
+
+            setupMockManifest(mockManifestJson);
+            state.manifestId = 'http://example.org/manifest';
+        });
+
+        it('should handle empty v2 search results', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2Empty,
             });
 
             await state.search('notfound');

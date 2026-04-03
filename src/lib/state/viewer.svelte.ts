@@ -212,7 +212,10 @@ export class ViewerState {
         this.canvasId = initialCanvasId || null;
         // Fetch manifest immediately
         if (this.manifestId) {
-            manifestsState.fetchManifest(this.manifestId, this.manifestRequestConfig);
+            manifestsState.fetchManifest(
+                this.manifestId,
+                this.manifestRequestConfig,
+            );
         }
 
         // Register initial plugins
@@ -341,17 +344,26 @@ export class ViewerState {
         this.manifestRequestConfig = requestConfig;
     }
 
-    async setManifestData(manifestId: string, manifestJson: any): Promise<void> {
+    async setManifestData(
+        manifestId: string,
+        manifestJson: any,
+    ): Promise<void> {
         this.manifestId = manifestId;
         this.canvasId = null;
         await manifestsState.registerManifest(manifestId, manifestJson);
     }
 
-    async setManifest(manifestId: string, options?: { requestConfig?: RequestConfig }) {
+    async setManifest(
+        manifestId: string,
+        options?: { requestConfig?: RequestConfig },
+    ) {
         this.manifestId = manifestId;
         this.canvasId = null;
         this.manifestRequestConfig = options?.requestConfig;
-        await manifestsState.fetchManifest(manifestId, this.manifestRequestConfig);
+        await manifestsState.fetchManifest(
+            manifestId,
+            this.manifestRequestConfig,
+        );
 
         // Auto-detect settings from Manifest
         const manifest = this.manifest;
@@ -725,219 +737,36 @@ export class ViewerState {
                     canvases: this.canvases,
                     canvasId: this.canvasId,
                 });
-                this.searchAnnotations = this.buildSearchAnnotations(this.searchResults);
+                this.searchAnnotations = this.buildSearchAnnotations(
+                    this.searchResults,
+                );
                 return;
             }
 
-            let service =
-                manifest.getService('http://iiif.io/api/search/1/search') ||
-                manifest.getService('http://iiif.io/api/search/0/search');
-
-            if (!service) {
-                // Fallback: check json directly if manifesto fails me
-                if (manifest.__jsonld && manifest.__jsonld.service) {
-                    const services = Array.isArray(manifest.__jsonld.service)
-                        ? manifest.__jsonld.service
-                        : [manifest.__jsonld.service];
-                    service = services.find(
-                        (s: any) =>
-                            s.profile ===
-                                'http://iiif.io/api/search/1/search' ||
-                            s.profile === 'http://iiif.io/api/search/0/search',
-                    );
-                }
-            }
+            const service = this.discoverSearchService(manifest);
 
             if (!service) {
                 console.warn('No IIIF search service found in manifest');
-                // Ensure we stop searching if no service found
                 this.isSearching = false;
                 return;
             }
 
-            // Handle service object which might be a manifesto object or raw json
-            const serviceId = service.id || service['@id'];
-
-            const searchUrl = `${serviceId}?q=${encodeURIComponent(query)}`;
+            const searchUrl = `${service.serviceId}?q=${encodeURIComponent(query)}`;
 
             const response = await fetch(searchUrl);
             if (!response.ok) throw new Error('Search request failed');
 
             const data = await response.json();
-            const resources = data.resources || [];
 
-            // Group results by canvas index
-            const resultsByCanvas = new SvelteMap<
-                number,
-                {
-                    canvasIndex: number;
-                    canvasLabel: string;
-                    hits: any[];
-                }
-            >();
-
-            // Helper to parse xywh
-            const parseSelector = (onVal: string | any) => {
-                const val =
-                    typeof onVal === 'string'
-                        ? onVal
-                        : onVal['@id'] || onVal.id;
-                if (!val) return null;
-                const parts = val.split('#xywh=');
-                if (parts.length < 2) return null;
-                const coords = parts[1].split(',').map(Number);
-                if (coords.length === 4) return coords; // [x, y, w, h]
-                return null;
-            };
-
-            // Helper to unescape mark tags
-            const decodeMark = (str: string) => {
-                if (!str) return '';
-                return str
-                    .replace(/&lt;mark&gt;/g, '<mark>')
-                    .replace(/&lt;\/mark&gt;/g, '</mark>');
-            };
-
-            if (data.hits) {
-                for (const hit of data.hits) {
-                    // hits have property 'annotations' which is array of ids
-                    const annotations = hit.annotations || [];
-
-                    // We need to determine which canvas this hit belongs to.
-                    // A hit might technically span annotations on multiple canvases (unlikely for IIIF Content Search),
-                    // but usually it's associated with specific annotations on one canvas.
-                    // We will take the first valid canvas we find for the annotations.
-
-                    let canvasIndex = -1;
-                    let bounds: number[] | null = null;
-                    const allBounds: number[][] = [];
-
-                    for (const annoId of annotations) {
-                        const annotation = resources.find(
-                            (r: any) => r['@id'] === annoId || r.id === annoId,
-                        );
-                        if (annotation && annotation.on) {
-                            const onVal =
-                                typeof annotation.on === 'string'
-                                    ? annotation.on
-                                    : annotation.on['@id'] || annotation.on.id;
-                            const cleanOn = onVal.split('#')[0];
-                            const b = parseSelector(onVal);
-
-                            const cIndex = this.canvases.findIndex(
-                                (c: any) => c.id === cleanOn,
-                            );
-
-                            if (cIndex >= 0) {
-                                // If we haven't set a canvas yet, set it
-                                if (canvasIndex === -1) {
-                                    canvasIndex = cIndex;
-                                }
-                                // If we found bounds, add them
-                                if (b) {
-                                    allBounds.push(b);
-                                    if (!bounds) bounds = b;
-                                }
-                            }
-                        }
-                    }
-
-                    if (canvasIndex >= 0) {
-                        if (!resultsByCanvas.has(canvasIndex)) {
-                            const canvas = this.canvases[canvasIndex];
-                            let label = 'Canvas ' + (canvasIndex + 1);
-                            try {
-                                if (canvas.getLabel) {
-                                    const l = canvas.getLabel();
-                                    if (Array.isArray(l) && l.length > 0)
-                                        label = l[0].value;
-                                    else if (typeof l === 'string') label = l;
-                                } else if (canvas.label) {
-                                    // Fallback if raw object
-                                    if (typeof canvas.label === 'string')
-                                        label = canvas.label;
-                                    else if (Array.isArray(canvas.label))
-                                        label = canvas.label[0]?.value;
-                                }
-                            } catch (_e) {
-                                /* ignore */
-                            }
-                            resultsByCanvas.set(canvasIndex, {
-                                canvasIndex,
-                                canvasLabel: String(label),
-                                hits: [],
-                            });
-                        }
-
-                        resultsByCanvas.get(canvasIndex)!.hits.push({
-                            type: 'hit',
-                            before: decodeMark(hit.before),
-                            match: decodeMark(hit.match),
-                            after: decodeMark(hit.after),
-                            bounds,
-                            allBounds,
-                        });
-                    }
-                }
-            } else if (resources.length > 0) {
-                // No hits (Basic level?), just annotations
-                for (const res of resources) {
-                    const onVal =
-                        typeof res.on === 'string'
-                            ? res.on
-                            : res.on['@id'] || res.on.id;
-                    const cleanOn = onVal.split('#')[0];
-                    const bounds = parseSelector(onVal);
-
-                    const canvasIndex = this.canvases.findIndex(
-                        (c: any) => c.id === cleanOn,
-                    );
-                    if (canvasIndex >= 0) {
-                        const canvas = this.canvases[canvasIndex];
-                        let label = 'Canvas ' + (canvasIndex + 1);
-                        try {
-                            if (canvas.getLabel) {
-                                const l = canvas.getLabel();
-                                if (Array.isArray(l) && l.length > 0)
-                                    label = l[0].value;
-                                else if (typeof l === 'string') label = l;
-                            } else if (canvas.label) {
-                                // Fallback if raw object
-                                if (typeof canvas.label === 'string')
-                                    label = canvas.label;
-                                else if (Array.isArray(canvas.label))
-                                    label = canvas.label[0]?.value;
-                            }
-                        } catch (_e) {
-                            /* ignore */
-                        }
-
-                        if (!resultsByCanvas.has(canvasIndex)) {
-                            resultsByCanvas.set(canvasIndex, {
-                                canvasIndex,
-                                canvasLabel: String(label),
-                                hits: [],
-                            });
-                        }
-
-                        resultsByCanvas.get(canvasIndex)!.hits.push({
-                            type: 'resource',
-                            match: decodeMark(
-                                res.resource && res.resource.chars
-                                    ? res.resource.chars
-                                    : res.chars || '',
-                            ),
-                            bounds,
-                            allBounds: bounds ? [bounds] : [],
-                        });
-                    }
-                }
+            if (service.version === 2) {
+                this.searchResults = this.parseV2SearchResponse(data);
+            } else {
+                this.searchResults = this.parseLegacySearchResponse(data);
             }
 
-            this.searchResults = Array.from(resultsByCanvas.values()).sort(
-                (a, b) => a.canvasIndex - b.canvasIndex,
+            this.searchAnnotations = this.buildSearchAnnotations(
+                this.searchResults,
             );
-            this.searchAnnotations = this.buildSearchAnnotations(this.searchResults);
         } catch (e) {
             console.error('Search error:', e);
             this.isSearching = false;
@@ -947,6 +776,361 @@ export class ViewerState {
                 this.isSearching = false;
             }
         }
+    }
+
+    /**
+     * Discover a IIIF Content Search service from the manifest.
+     * Supports v0, v1, and v2 services. Prefers v2 when multiple are present.
+     */
+    private discoverSearchService(
+        manifest: any,
+    ): { version: 0 | 1 | 2; serviceId: string } | null {
+        // First try manifesto's getService for v1/v0
+        const v1Service =
+            manifest.getService('http://iiif.io/api/search/1/search') ||
+            manifest.getService('http://iiif.io/api/search/0/search');
+
+        // Check raw JSON for v2 (and v1/v0 fallback)
+        let v2Service: any = null;
+        let rawV1Service: any = null;
+
+        if (manifest.__jsonld && manifest.__jsonld.service) {
+            const services = Array.isArray(manifest.__jsonld.service)
+                ? manifest.__jsonld.service
+                : [manifest.__jsonld.service];
+
+            for (const s of services) {
+                const sType = s.type || s['@type'];
+                if (sType === 'SearchService2') {
+                    v2Service = s;
+                } else if (
+                    !rawV1Service &&
+                    (s.profile === 'http://iiif.io/api/search/1/search' ||
+                        sType === 'SearchService1' ||
+                        s.profile === 'http://iiif.io/api/search/0/search')
+                ) {
+                    rawV1Service = s;
+                }
+            }
+        }
+
+        // Prefer v2 over v1/v0
+        if (v2Service) {
+            return {
+                version: 2,
+                serviceId: v2Service.id || v2Service['@id'],
+            };
+        }
+
+        if (v1Service) {
+            const serviceId = v1Service.id || v1Service['@id'];
+            const profile = v1Service.profile || '';
+            const version: 0 | 1 =
+                profile === 'http://iiif.io/api/search/0/search' ? 0 : 1;
+            return { version, serviceId };
+        }
+
+        if (rawV1Service) {
+            const serviceId = rawV1Service.id || rawV1Service['@id'];
+            const profile = rawV1Service.profile || '';
+            const version: 0 | 1 =
+                profile === 'http://iiif.io/api/search/0/search' ? 0 : 1;
+            return { version, serviceId };
+        }
+
+        return null;
+    }
+
+    /** Helper to parse xywh coordinates from an annotation target */
+    private parseXywhSelector(onVal: string | any): number[] | null {
+        const val =
+            typeof onVal === 'string' ? onVal : onVal['@id'] || onVal.id;
+        if (!val) return null;
+        const parts = val.split('#xywh=');
+        if (parts.length < 2) return null;
+        const coords = parts[1].split(',').map(Number);
+        if (coords.length === 4) return coords; // [x, y, w, h]
+        return null;
+    }
+
+    /** Helper to unescape HTML-encoded mark tags */
+    private decodeMark(str: string): string {
+        if (!str) return '';
+        return str
+            .replace(/&lt;mark&gt;/g, '<mark>')
+            .replace(/&lt;\/mark&gt;/g, '</mark>');
+    }
+
+    /** Helper to resolve canvas label from a manifesto canvas object */
+    private resolveCanvasLabel(canvas: any, canvasIndex: number): string {
+        let label = 'Canvas ' + (canvasIndex + 1);
+        try {
+            if (canvas.getLabel) {
+                const l = canvas.getLabel();
+                if (Array.isArray(l) && l.length > 0) label = l[0].value;
+                else if (typeof l === 'string') label = l;
+            } else if (canvas.label) {
+                if (typeof canvas.label === 'string') label = canvas.label;
+                else if (Array.isArray(canvas.label))
+                    label = canvas.label[0]?.value;
+            }
+        } catch (_e) {
+            /* ignore */
+        }
+        return String(label);
+    }
+
+    /** Ensure a canvas group exists in the map and return it */
+    private getOrCreateCanvasGroup(
+        resultsByCanvas: SvelteMap<
+            number,
+            { canvasIndex: number; canvasLabel: string; hits: any[] }
+        >,
+        canvasIndex: number,
+    ): { canvasIndex: number; canvasLabel: string; hits: any[] } {
+        if (!resultsByCanvas.has(canvasIndex)) {
+            const canvas = this.canvases[canvasIndex];
+            resultsByCanvas.set(canvasIndex, {
+                canvasIndex,
+                canvasLabel: this.resolveCanvasLabel(canvas, canvasIndex),
+                hits: [],
+            });
+        }
+        return resultsByCanvas.get(canvasIndex)!;
+    }
+
+    /**
+     * Parse a IIIF Content Search API v0/v1 response.
+     * Handles both "hits" format (with before/match/after) and "resources"-only format.
+     */
+    private parseLegacySearchResponse(data: any): SearchResultGroup[] {
+        const resources = data.resources || [];
+        const resultsByCanvas = new SvelteMap<
+            number,
+            { canvasIndex: number; canvasLabel: string; hits: any[] }
+        >();
+
+        if (data.hits) {
+            for (const hit of data.hits) {
+                const annotations = hit.annotations || [];
+
+                let canvasIndex = -1;
+                let bounds: number[] | null = null;
+                const allBounds: number[][] = [];
+
+                for (const annoId of annotations) {
+                    const annotation = resources.find(
+                        (r: any) => r['@id'] === annoId || r.id === annoId,
+                    );
+                    if (annotation && annotation.on) {
+                        const onVal =
+                            typeof annotation.on === 'string'
+                                ? annotation.on
+                                : annotation.on['@id'] || annotation.on.id;
+                        const cleanOn = onVal.split('#')[0];
+                        const b = this.parseXywhSelector(onVal);
+
+                        const cIndex = this.canvases.findIndex(
+                            (c: any) => c.id === cleanOn,
+                        );
+
+                        if (cIndex >= 0) {
+                            if (canvasIndex === -1) {
+                                canvasIndex = cIndex;
+                            }
+                            if (b) {
+                                allBounds.push(b);
+                                if (!bounds) bounds = b;
+                            }
+                        }
+                    }
+                }
+
+                if (canvasIndex >= 0) {
+                    const group = this.getOrCreateCanvasGroup(
+                        resultsByCanvas,
+                        canvasIndex,
+                    );
+                    group.hits.push({
+                        type: 'hit',
+                        before: this.decodeMark(hit.before),
+                        match: this.decodeMark(hit.match),
+                        after: this.decodeMark(hit.after),
+                        bounds,
+                        allBounds,
+                    });
+                }
+            }
+        } else if (resources.length > 0) {
+            for (const res of resources) {
+                const onVal =
+                    typeof res.on === 'string'
+                        ? res.on
+                        : res.on['@id'] || res.on.id;
+                const cleanOn = onVal.split('#')[0];
+                const bounds = this.parseXywhSelector(onVal);
+
+                const canvasIndex = this.canvases.findIndex(
+                    (c: any) => c.id === cleanOn,
+                );
+                if (canvasIndex >= 0) {
+                    const group = this.getOrCreateCanvasGroup(
+                        resultsByCanvas,
+                        canvasIndex,
+                    );
+                    group.hits.push({
+                        type: 'resource',
+                        match: this.decodeMark(
+                            res.resource && res.resource.chars
+                                ? res.resource.chars
+                                : res.chars || '',
+                        ),
+                        bounds,
+                        allBounds: bounds ? [bounds] : [],
+                    });
+                }
+            }
+        }
+
+        return Array.from(resultsByCanvas.values()).sort(
+            (a, b) => a.canvasIndex - b.canvasIndex,
+        );
+    }
+
+    /**
+     * Parse a IIIF Content Search API v2 response.
+     * v2 returns an AnnotationPage with `items` (W3C Annotations) and optional
+     * `annotations` containing contextualizing/highlighting info via TextQuoteSelector.
+     */
+    private parseV2SearchResponse(data: any): SearchResultGroup[] {
+        const items: any[] = data.items || [];
+        const resultsByCanvas = new SvelteMap<
+            number,
+            { canvasIndex: number; canvasLabel: string; hits: any[] }
+        >();
+
+        // Build a context map from the annotations section (TextQuoteSelector info)
+        // Maps source annotation id -> { before, match, after }
+        const contextMap = new Map<
+            string,
+            { before: string; match: string; after: string }
+        >();
+
+        if (data.annotations) {
+            // annotations can be an array of AnnotationPages or a single AnnotationPage
+            const annoPages = Array.isArray(data.annotations)
+                ? data.annotations
+                : [data.annotations];
+
+            for (const page of annoPages) {
+                const pageItems = page.items || [];
+                for (const anno of pageItems) {
+                    // Each annotation targets a source annotation with a TextQuoteSelector
+                    const targets = Array.isArray(anno.target)
+                        ? anno.target
+                        : [anno.target];
+                    for (const target of targets) {
+                        if (!target || typeof target === 'string') continue;
+                        const sourceId = target.source;
+                        if (!sourceId) continue;
+
+                        const selectors = Array.isArray(target.selector)
+                            ? target.selector
+                            : target.selector
+                              ? [target.selector]
+                              : [];
+
+                        for (const sel of selectors) {
+                            if (sel.type === 'TextQuoteSelector') {
+                                // Don't overwrite if we already have context for this source
+                                // (prefer first contextualizing entry)
+                                if (!contextMap.has(sourceId)) {
+                                    contextMap.set(sourceId, {
+                                        before: sel.prefix || '',
+                                        match: sel.exact || '',
+                                        after: sel.suffix || '',
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Process each result annotation in items
+        for (const item of items) {
+            const annoId = item.id || item['@id'];
+
+            // Resolve target -> canvas ID and bounds
+            const target = item.target;
+            let targetStr: string | null = null;
+
+            if (typeof target === 'string') {
+                targetStr = target;
+            } else if (target && typeof target === 'object') {
+                targetStr = target.id || target['@id'] || null;
+                // Handle SpecificResource with source
+                if (!targetStr && target.source) {
+                    targetStr =
+                        typeof target.source === 'string'
+                            ? target.source
+                            : target.source.id || target.source['@id'];
+                }
+            }
+
+            if (!targetStr) continue;
+
+            const cleanTarget = targetStr.split('#')[0];
+            const bounds = this.parseXywhSelector(targetStr);
+
+            const canvasIndex = this.canvases.findIndex(
+                (c: any) => c.id === cleanTarget,
+            );
+            if (canvasIndex < 0) continue;
+
+            // Extract text from body
+            let bodyText = '';
+            if (item.body) {
+                const body = Array.isArray(item.body)
+                    ? item.body[0]
+                    : item.body;
+                if (body && typeof body === 'object') {
+                    bodyText = body.value || '';
+                } else if (typeof body === 'string') {
+                    bodyText = body;
+                }
+            }
+
+            const group = this.getOrCreateCanvasGroup(
+                resultsByCanvas,
+                canvasIndex,
+            );
+
+            // Check if we have contextualizing/highlighting info for this annotation
+            const context = contextMap.get(annoId);
+            if (context) {
+                group.hits.push({
+                    type: 'hit',
+                    before: this.decodeMark(context.before),
+                    match: this.decodeMark(context.match),
+                    after: this.decodeMark(context.after),
+                    bounds,
+                    allBounds: bounds ? [bounds] : [],
+                });
+            } else {
+                group.hits.push({
+                    type: 'resource',
+                    match: this.decodeMark(bodyText),
+                    bounds,
+                    allBounds: bounds ? [bounds] : [],
+                });
+            }
+        }
+
+        return Array.from(resultsByCanvas.values()).sort(
+            (a, b) => a.canvasIndex - b.canvasIndex,
+        );
     }
 
     private buildSearchAnnotations(searchResults: SearchResultGroup[]): any[] {
