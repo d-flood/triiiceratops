@@ -125,7 +125,9 @@
                         hasChoice = true;
                     }
                 }
-            } catch {}
+            } catch {
+                hasChoice = false;
+            }
 
             return {
                 id: canvas.id,
@@ -537,7 +539,7 @@
             >
                 {#if viewerState.viewingMode === 'paged'}
                     <!-- grouped thumbnail display -->
-                    {#each groupedThumbnails as thumbGroup}
+                    {#each groupedThumbnails as thumbGroup (thumbGroup.id)}
                         {@const isGroupSelected = (() => {
                             const idx = thumbGroup.index;
                             const first = thumbnails[idx];
@@ -559,12 +561,13 @@
                                 !isHorizontal &&
                                     thumbGroup.srcs.length > 1 &&
                                     'col-span-2',
-                                isGroupSelected &&
-                                    'ring-2 ring-primary bg-primary/5',
+                                isGroupSelected && 'bg-primary/5',
                             ]}
-                            style={isHorizontal
-                                ? `height: ${fixedHeight + (thumbGroup.labels.length > 1 ? 40 : 24)}px`
-                                : ''}
+                            style="{isHorizontal
+                                ? `height: ${fixedHeight + (thumbGroup.labels.length > 1 ? 40 : 24)}px;`
+                                : ''}{isGroupSelected
+                                ? 'outline: 2px solid var(--color-primary); outline-offset: -2px;'
+                                : ''}"
                             onclick={() => selectCanvas(thumbGroup.id)}
                             data-id={thumbGroup.id}
                             aria-label="Select canvas {thumbGroup.labels.join(
@@ -696,17 +699,19 @@
                         </button>
                     {/each}
                 {:else}
-                    {#each thumbnails as thumb}
+                    {#each thumbnails as thumb (thumb.id)}
                         <button
                             class={[
                                 'group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0',
                                 isHorizontal && 'w-auto',
                                 viewerState.canvasId === thumb.id &&
-                                    'ring-2 ring-primary bg-primary/5',
+                                    'bg-primary/5',
                             ]}
-                            style={isHorizontal
-                                ? `height: ${fixedHeight + 24}px`
-                                : ''}
+                            style="{isHorizontal
+                                ? `height: ${fixedHeight + 24}px;`
+                                : ''}{viewerState.canvasId === thumb.id
+                                ? 'outline: 2px solid var(--color-primary); outline-offset: -2px;'
+                                : ''}"
                             onclick={() => selectCanvas(thumb.id)}
                             data-id={thumb.id}
                             aria-label="Select canvas {thumb.label}"
