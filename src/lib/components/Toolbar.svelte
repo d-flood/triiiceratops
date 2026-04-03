@@ -7,6 +7,8 @@
     import ChatCenteredText from 'phosphor-svelte/lib/ChatCenteredText';
     import Info from 'phosphor-svelte/lib/Info';
     import List from 'phosphor-svelte/lib/List';
+    import ListBullets from 'phosphor-svelte/lib/ListBullets';
+    import Folder from 'phosphor-svelte/lib/Folder';
     import BookOpen from 'phosphor-svelte/lib/BookOpen';
     import Scroll from 'phosphor-svelte/lib/Scroll';
     import File from 'phosphor-svelte/lib/File';
@@ -55,6 +57,13 @@
     const showAnnotations = $derived(toolbarConfig.showAnnotations !== false);
     const showInfo = $derived(toolbarConfig.showInfo !== false);
     const showViewingMode = $derived(toolbarConfig.showViewingMode !== false);
+    const showStructures = $derived(
+        toolbarConfig.showStructures !== false &&
+            viewerState.structures.length > 0,
+    );
+    const showCollection = $derived(
+        toolbarConfig.showCollection !== false && viewerState.hasCollection,
+    );
 
     // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
@@ -133,6 +142,24 @@
 
             <!-- --- Standard Actions --- -->
 
+            {#if showCollection}
+                <li>
+                    <button
+                        class={[
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.showCollectionPanel &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
+                        ]}
+                        data-tip={m.collection_title()}
+                        aria-label={m.toggle_collection()}
+                        onclick={() => viewerState.toggleCollectionPanel()}
+                    >
+                        <Folder size={24} />
+                    </button>
+                </li>
+            {/if}
+
             {#if showSearch}
                 <li>
                     <button
@@ -169,6 +196,24 @@
                         onclick={() => viewerState.toggleThumbnailGallery()}
                     >
                         <Slideshow size={24} />
+                    </button>
+                </li>
+            {/if}
+
+            {#if showStructures}
+                <li>
+                    <button
+                        class={[
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.showStructuresPanel &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
+                        ]}
+                        data-tip={m.structures_title()}
+                        aria-label={m.toggle_structures()}
+                        onclick={() => viewerState.toggleStructuresPanel()}
+                    >
+                        <ListBullets size={24} />
                     </button>
                 </li>
             {/if}
@@ -342,7 +387,7 @@
             {/if}
 
             <!-- Separator if both groups exist -->
-            {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode) && sortedPluginButtons.length > 0}
+            {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode || showStructures || showCollection) && sortedPluginButtons.length > 0}
                 <div
                     class={[
                         'divider',

@@ -93,7 +93,7 @@
     "change_theme_label": "Change Theme",
     "theme_menu_title": "Theme",
     "error_prefix": "Error: ",
-    "no_image_found": "No image found",
+    "no_image_found": "No Image Available",
     "settings_panel_width": "Panel Width",
     "annotation_editor_title": "Annotation Editor",
     "annotation_editor_edit_mode": "Edit",
@@ -143,5 +143,17 @@
     "reset_config": "Reset Config",
     "share_current_state": "Share Current State",
     "link_copied": "Link Copied!",
-    "error_auth_required": "This image requires authentication. Please log in or request access to view this content."
+    "error_auth_required": "This image requires authentication. Please log in or request access to view this content.",
+    "structures_title": "Table of Contents",
+    "structures_empty": "No table of contents available.",
+    "toggle_structures": "Toggle Table of Contents",
+    "collection_title": "Collection",
+    "collection_empty": "No items in this collection.",
+    "collection_items_count": "{count} Items",
+    "collection_type_collection": "Sub-collection",
+    "toggle_collection": "Toggle Collection",
+    "settings_toggle_show_structures": "Show Structures",
+    "settings_toggle_show_collection": "Show Collection",
+    "settings_submenu_structures": "Structures / TOC",
+    "settings_submenu_collection": "Collection"
 }

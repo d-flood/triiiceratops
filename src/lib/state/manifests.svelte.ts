@@ -57,6 +57,26 @@ export class ManifestsState {
 
     // === Manifest Fetching ===
 
+    /**
+     * Fetch a IIIF resource by URL and return the raw JSON.
+     * Does not register it as a manifest. Used for collection detection.
+     */
+    async fetchResource(
+        url: string,
+        requestConfig?: RequestConfig,
+    ): Promise<any> {
+        const response = await fetch(url, {
+            headers: requestConfig?.headers,
+            credentials: requestConfig?.withCredentials
+                ? 'include'
+                : 'same-origin',
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    }
+
     async fetchManifest(manifestId: string, requestConfig?: RequestConfig) {
         const existing = this.manifests[manifestId];
         if (
