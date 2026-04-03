@@ -94,6 +94,9 @@ export function createMockManifest(config: {
                 profile === 'http://iiif.io/api/search/1/search' ||
                 profile === 'http://iiif.io/api/search/0/search'
             ) {
+                // Only return for v0/v1 profile-based lookups, not v2
+                const sType = (config.searchService as any)?.type;
+                if (sType === 'SearchService2') return null;
                 return config.searchService;
             }
             return null;
