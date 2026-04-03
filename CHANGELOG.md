@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.19.1
+
+### Patch Changes
+
+- 5c0a47f: Use inline styles for gallery thumbnails because Tailwind v4 is using @property which isn't working for the web component (presumeably because of shadow dom weirdness)
+
 ## 0.19.0
 
 ### Minor Changes
