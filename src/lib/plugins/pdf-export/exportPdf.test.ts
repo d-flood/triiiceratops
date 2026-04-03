@@ -40,6 +40,50 @@ describe('buildPdfFilename', () => {
             }),
         ).toBe('manifest-json-3-6.pdf');
     });
+
+    it('prefers manifestLabel over manifestId when provided', () => {
+        expect(
+            buildPdfFilename({
+                manifestId: 'https://example.org/iiif/book-1/manifest.json',
+                manifestLabel: 'The Great Book of Examples',
+                startIndex: 0,
+                endIndex: 3,
+            }),
+        ).toBe('The-Great-Book-of-Examples-1-4.pdf');
+    });
+
+    it('falls back to manifestId when manifestLabel is null', () => {
+        expect(
+            buildPdfFilename({
+                manifestId: 'https://example.org/iiif/book-1/manifest.json',
+                manifestLabel: null,
+                startIndex: 0,
+                endIndex: 0,
+            }),
+        ).toBe('manifest-json-1-1.pdf');
+    });
+
+    it('falls back to manifestId when manifestLabel is empty', () => {
+        expect(
+            buildPdfFilename({
+                manifestId: 'https://example.org/iiif/book-1/manifest.json',
+                manifestLabel: '',
+                startIndex: 0,
+                endIndex: 0,
+            }),
+        ).toBe('manifest-json-1-1.pdf');
+    });
+
+    it('sanitizes special characters in manifestLabel', () => {
+        expect(
+            buildPdfFilename({
+                manifestId: 'https://example.org/manifest.json',
+                manifestLabel: 'Böök: A Title! (Vol. 3)',
+                startIndex: 0,
+                endIndex: 1,
+            }),
+        ).toBe('B-k-A-Title-Vol-3-1-2.pdf');
+    });
 });
 
 describe('buildCoverSheetFields', () => {

@@ -59,6 +59,7 @@ type ExportCanvasRangeAsPdfParams = {
     endIndex: number;
     targetWidth: number;
     manifestId: string | null;
+    manifestLabel?: string | null;
     getSelectedChoice?: (canvasId: string) => string | undefined;
     getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
     imageRequest?: PdfImageRequestConfig;
@@ -106,7 +107,15 @@ function sanitizeFilenamePart(value: string): string {
         .replace(/^-|-$/g, '');
 }
 
-function getManifestFilenameBase(manifestId: string | null): string {
+function getManifestFilenameBase(
+    manifestId: string | null,
+    manifestLabel?: string | null,
+): string {
+    if (manifestLabel) {
+        const sanitized = sanitizeFilenamePart(manifestLabel);
+        if (sanitized) return sanitized;
+    }
+
     if (!manifestId) {
         return 'iiif-canvases';
     }
@@ -362,10 +371,14 @@ export function buildCoverSheetFields(
 
 export function buildPdfFilename(params: {
     manifestId: string | null;
+    manifestLabel?: string | null;
     startIndex: number;
     endIndex: number;
 }): string {
-    const base = getManifestFilenameBase(params.manifestId);
+    const base = getManifestFilenameBase(
+        params.manifestId,
+        params.manifestLabel,
+    );
     return `${base}-${params.startIndex + 1}-${params.endIndex + 1}.pdf`;
 }
 
@@ -682,6 +695,7 @@ export async function exportCanvasRangeAsPdf({
     endIndex,
     targetWidth,
     manifestId,
+    manifestLabel,
     getSelectedChoice,
     getCanvasAnnotations,
     imageRequest,
@@ -794,6 +808,7 @@ export async function exportCanvasRangeAsPdf({
         filename ||
         buildPdfFilename({
             manifestId,
+            manifestLabel,
             startIndex: range.startIndex,
             endIndex: range.endIndex,
         });
