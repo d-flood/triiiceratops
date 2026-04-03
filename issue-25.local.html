@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Issue #25 - Thumbnail Selection Test</title>
+        <link
+            rel="stylesheet"
+            href="./dist/triiiceratops-element.css?v=2"
+        />
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+            }
+            triiiceratops-viewer {
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            manifest-id="https://docuver.se/iiif/p3tgsk8jqt/manifest.json"
+            canvas-id=""
+            theme="light"
+            config='{
+              "openSeadragonConfig": {
+                "maxZoomPixelRatio": 4,
+                "zoomPerScroll": 1.5,
+                "animationTime": 1
+              },
+              "showToggle": true,
+              "toolbarOpen": false,
+              "showCanvasNav": true,
+              "showZoomControls": true,
+              "viewingMode": "individuals",
+              "toolbar": {
+                "showSearch": false,
+                "showGallery": true,
+                "showAnnotations": false,
+                "showFullscreen": true,
+                "showInfo": true,
+                "showViewingMode": true
+              },
+              "gallery": {
+                "open": true,
+                "draggable": false,
+                "showCloseButton": false,
+                "dockPosition": "bottom",
+                "fixedHeight": 102
+              },
+              "search": {
+                "open": false,
+                "showCloseButton": true,
+                "query": ""
+              },
+              "annotations": {
+                "open": false,
+                "visible": false
+              },
+              "transparentBackground": false
+            }'
+        >
+        </triiiceratops-viewer>
+        <script src="./dist/triiiceratops-element.iife.js?v=2"></script>
+    </body>
+</html>

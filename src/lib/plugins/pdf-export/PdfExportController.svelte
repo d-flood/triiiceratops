@@ -137,12 +137,16 @@
         progressMessage = 'Preparing export...';
 
         try {
+            const manifest = viewerState.manifest;
+            const manifestLabel = manifest?.getLabel()?.[0]?.value || null;
+
             const result = await exportCanvasRangeAsPdf({
                 canvases: viewerState.canvases,
                 startIndex: normalizedRange.startIndex,
                 endIndex: normalizedRange.endIndex,
                 targetWidth: getTargetWidth(),
                 manifestId: viewerState.manifestId,
+                manifestLabel,
                 coverSheet: config.coverSheet,
                 imageRequest: config.imageRequest,
                 loadImageBlob: config.loadImageBlob,
