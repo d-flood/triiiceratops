@@ -12,6 +12,9 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
 - **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
 - **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL support)
+- **Start Canvas**: Supports the IIIF `start` property to open the manifest at a specific canvas
+- **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical table of contents navigation
+- **Collections**: Browse IIIF Collections and navigate between manifests within a collection
 - **Annotations**:
     - Renders IIIF annotations from embedded or external annotation lists
     - Supports rectangle (xywh) and polygon (SVG selector) geometries
@@ -37,9 +40,7 @@ This project is actively developed. The following IIIF features are not yet supp
 
 ### Navigation
 
-- **Collections**: Cannot browse IIIF Collections or navigate between manifests
-- **Ranges/Structures**: No table of contents or hierarchical navigation (book chapters, sections)
-- **`start` property**: Cannot specify initial canvas or temporal position
+- **Nested collections**: Only the first level of a Collection is navigable; deeply nested sub-collections are listed but not yet browsable
 - **`navDate`**: No date-based navigation for newspapers/journals
 
 ### Annotations

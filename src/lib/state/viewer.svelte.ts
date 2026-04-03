@@ -8,6 +8,13 @@ import type {
 } from '../types/config';
 
 import type { PluginMenuButton, PluginPanel, PluginDef } from '../types/plugin';
+import { parseStructures, type StructureNode } from '../utils/structures';
+import {
+    isCollection,
+    parseCollection,
+    getCollectionLabel,
+    type CollectionItem,
+} from '../utils/collections';
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -20,6 +27,7 @@ export interface ViewerStateSnapshot {
     showAnnotations: boolean;
     showThumbnailGallery: boolean;
     showSearchPanel: boolean;
+    showStructuresPanel: boolean;
     toolbarOpen: boolean;
     searchQuery: string;
     isFullScreen: boolean;
@@ -44,6 +52,7 @@ export class ViewerState {
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
     showMetadataDialog = $state(false);
+    showStructuresPanel = $state(false);
     dockSide = $state('bottom');
     visibleAnnotationIds = new SvelteSet<string>();
     hoveredAnnotationId = $state<string | null>(null);
@@ -53,6 +62,12 @@ export class ViewerState {
 
     // Map of canvasId -> selected choiceId (Content State)
     selectedChoices = new SvelteMap<string, string>();
+
+    // Collection state
+    collectionId: string | null = $state(null);
+    collectionLabel: string = $state('');
+    collectionItems: CollectionItem[] = $state([]);
+    showCollectionPanel = $state(false);
 
     private _viewingDirection = $state<
         'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top'
@@ -166,6 +181,7 @@ export class ViewerState {
             showAnnotations: this.showAnnotations,
             showThumbnailGallery: this.showThumbnailGallery,
             showSearchPanel: this.showSearchPanel,
+            showStructuresPanel: this.showStructuresPanel,
             toolbarOpen: this.toolbarOpen,
             searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
@@ -350,117 +366,261 @@ export class ViewerState {
     ): Promise<void> {
         this.manifestId = manifestId;
         this.canvasId = null;
+        this.startCanvasId = null;
         await manifestsState.registerManifest(manifestId, manifestJson);
+
+        // Parse start canvas from the raw JSON
+        try {
+            const startObj = manifestJson?.start;
+            if (startObj) {
+                let startId: string | null = null;
+                if (typeof startObj === 'string') {
+                    startId = startObj;
+                } else if (startObj.id) {
+                    startId = startObj.id;
+                } else if (startObj['@id']) {
+                    startId = startObj['@id'];
+                }
+                if (startId) {
+                    const canvasIdFromStart = startId.split('#')[0];
+                    const canvases = manifestsState.getCanvases(manifestId);
+                    const exists = canvases.some(
+                        (c: any) =>
+                            c.id === canvasIdFromStart ||
+                            c['@id'] === canvasIdFromStart,
+                    );
+                    if (exists) {
+                        this.startCanvasId = canvasIdFromStart;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing start canvas from manifest data', e);
+        }
     }
+
+    /**
+     * The canvas ID specified by the manifest's `start` property (IIIF Presentation 3.0).
+     * Used during auto-selection to navigate to the correct initial canvas.
+     * Only set once per manifest load; cleared when a new manifest is set.
+     */
+    startCanvasId: string | null = $state(null);
 
     async setManifest(
         manifestId: string,
         options?: { requestConfig?: RequestConfig },
     ) {
+        this.manifestRequestConfig = options?.requestConfig;
+
+        // Fetch the raw JSON first to detect if it's a Collection
+        let json: any;
+        try {
+            json = await manifestsState.fetchResource(
+                manifestId,
+                this.manifestRequestConfig,
+            );
+        } catch (error: any) {
+            // If fetch fails, fall back to normal flow which will handle the error
+            this.manifestId = manifestId;
+            this.canvasId = null;
+            this.startCanvasId = null;
+            await manifestsState.fetchManifest(
+                manifestId,
+                this.manifestRequestConfig,
+            );
+            this.dispatchStateChange('manifestchange');
+            return;
+        }
+
+        // Check if the resource is a Collection
+        if (isCollection(json)) {
+            this.collectionId = manifestId;
+            this.collectionLabel = getCollectionLabel(json);
+            this.collectionItems = parseCollection(json);
+
+            // Auto-load the first manifest in the collection
+            const firstManifest = this.collectionItems.find(
+                (item) => item.type === 'Manifest',
+            );
+            if (firstManifest) {
+                await this._loadManifest(firstManifest.id);
+            }
+            this.dispatchStateChange('manifestchange');
+            return;
+        }
+
+        // Normal manifest flow: register the already-fetched JSON
         this.manifestId = manifestId;
         this.canvasId = null;
-        this.manifestRequestConfig = options?.requestConfig;
+        this.startCanvasId = null;
+        await manifestsState.registerManifest(manifestId, json);
+        this._applyManifestSettings(manifestId);
+        this.dispatchStateChange('manifestchange');
+    }
+
+    /**
+     * Load a manifest by ID within the current collection context,
+     * or directly if no collection is active.
+     */
+    async loadCollectionManifest(manifestId: string) {
+        await this._loadManifest(manifestId);
+        this.dispatchStateChange('manifestchange');
+    }
+
+    /**
+     * Internal: load a manifest by ID and apply its settings.
+     */
+    private async _loadManifest(manifestId: string) {
+        this.manifestId = manifestId;
+        this.canvasId = null;
+        this.startCanvasId = null;
         await manifestsState.fetchManifest(
             manifestId,
             this.manifestRequestConfig,
         );
+        this._applyManifestSettings(manifestId);
+    }
 
-        // Auto-detect settings from Manifest
+    /**
+     * Apply manifest-level settings (start canvas, viewing direction, behavior).
+     */
+    private _applyManifestSettings(manifestId: string) {
         const manifest = this.manifest;
-        if (manifest) {
-            // 1. Viewing Direction
-            let direction: string | null = null;
+        if (!manifest) return;
+
+        // 0. Start Canvas (IIIF Presentation 3.0 `start` property)
+        try {
+            let startId: string | null = null;
+
+            // Check raw JSON first (most reliable for IIIF v3)
+            if (manifest.__jsonld?.start) {
+                const startObj = manifest.__jsonld.start;
+                if (typeof startObj === 'string') {
+                    startId = startObj;
+                } else if (startObj.id) {
+                    startId = startObj.id;
+                } else if (startObj['@id']) {
+                    startId = startObj['@id'];
+                }
+            }
+
+            // Fallback: check manifesto accessor
+            if (!startId && manifest.getStartCanvas) {
+                const sc = manifest.getStartCanvas();
+                if (sc) {
+                    startId = sc.id || sc['@id'] || null;
+                }
+            }
+
+            if (startId) {
+                // The start property may reference a canvas directly or include
+                // a fragment selector (e.g. canvas#t=...). Extract the canvas ID.
+                const canvasIdFromStart = startId.split('#')[0];
+                // Verify this canvas exists in the manifest
+                const canvases = manifestsState.getCanvases(manifestId);
+                const exists = canvases.some(
+                    (c: any) =>
+                        c.id === canvasIdFromStart ||
+                        c['@id'] === canvasIdFromStart,
+                );
+                if (exists) {
+                    this.startCanvasId = canvasIdFromStart;
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing start canvas', e);
+        }
+
+        // 1. Viewing Direction
+        let direction: string | null = null;
+        try {
+            // Check manifest root first
+            if (manifest.getViewingDirection) {
+                const d = manifest.getViewingDirection();
+                if (d) direction = String(d);
+            }
+            if (!direction && manifest.__jsonld) {
+                direction = manifest.__jsonld.viewingDirection;
+            }
+            // Check sequence if not found (IIIF v2)
+            if (!direction) {
+                const seq = manifest.getSequences()?.[0];
+                if (seq) {
+                    if (seq.getViewingDirection) {
+                        const d = seq.getViewingDirection();
+                        if (d) direction = String(d);
+                    }
+                    if (!direction && seq.__jsonld) {
+                        direction = seq.__jsonld.viewingDirection;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing viewing direction', e);
+        }
+
+        if (
+            direction &&
+            [
+                'left-to-right',
+                'right-to-left',
+                'top-to-bottom',
+                'bottom-to-top',
+            ].includes(direction)
+        ) {
+            this.viewingDirection = direction as any;
+        } else {
+            this.viewingDirection = 'left-to-right'; // Default
+        }
+
+        // 2. Viewing Mode (Behavior)
+        // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
+        if (!this._viewingModeUserConfigured) {
+            let behaviors: string[] = [];
             try {
-                // Check manifest root first
-                if (manifest.getViewingDirection) {
-                    const d = manifest.getViewingDirection();
-                    if (d) direction = String(d);
+                // Check manifest root
+                if (manifest.__jsonld && manifest.__jsonld.behavior) {
+                    const b = manifest.__jsonld.behavior;
+                    behaviors = Array.isArray(b) ? b : [b];
                 }
-                if (!direction && manifest.__jsonld) {
-                    direction = manifest.__jsonld.viewingDirection;
+
+                // Manifesto accessor
+                if (behaviors.length === 0 && manifest.getBehavior) {
+                    const b = manifest.getBehavior();
+                    if (b) behaviors = [String(b)];
                 }
-                // Check sequence if not found (IIIF v2)
-                if (!direction) {
-                    const seq = manifest.getSequences()?.[0];
-                    if (seq) {
-                        if (seq.getViewingDirection) {
-                            const d = seq.getViewingDirection();
-                            if (d) direction = String(d);
-                        }
-                        if (!direction && seq.__jsonld) {
-                            direction = seq.__jsonld.viewingDirection;
-                        }
+
+                // Check sequence behavior
+                const seq = manifest.getSequences()?.[0];
+                if (seq) {
+                    if (seq.__jsonld && seq.__jsonld.behavior) {
+                        const b = seq.__jsonld.behavior;
+                        behaviors = behaviors.concat(
+                            Array.isArray(b) ? b : [b],
+                        );
                     }
                 }
             } catch (e) {
-                console.warn('Error parsing viewing direction', e);
+                console.warn('Error parsing behavior', e);
             }
 
-            if (
-                direction &&
-                [
-                    'left-to-right',
-                    'right-to-left',
-                    'top-to-bottom',
-                    'bottom-to-top',
-                ].includes(direction)
+            if (behaviors.includes('continuous')) {
+                this.viewingMode = 'continuous';
+            } else if (
+                behaviors.includes('individuals') ||
+                behaviors.includes('non-paged')
             ) {
-                this.viewingDirection = direction as any;
+                this.viewingMode = 'individuals';
+            } else if (
+                behaviors.includes('paged') ||
+                behaviors.includes('facing-pages')
+            ) {
+                this.viewingMode = 'paged';
             } else {
-                this.viewingDirection = 'left-to-right'; // Default
-            }
-
-            // 2. Viewing Mode (Behavior)
-            // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
-            if (!this._viewingModeUserConfigured) {
-                let behaviors: string[] = [];
-                try {
-                    // Check manifest root
-                    if (manifest.__jsonld && manifest.__jsonld.behavior) {
-                        const b = manifest.__jsonld.behavior;
-                        behaviors = Array.isArray(b) ? b : [b];
-                    }
-
-                    // Manifesto accessor
-                    if (behaviors.length === 0 && manifest.getBehavior) {
-                        const b = manifest.getBehavior();
-                        if (b) behaviors = [String(b)];
-                    }
-
-                    // Check sequence behavior
-                    const seq = manifest.getSequences()?.[0];
-                    if (seq) {
-                        if (seq.__jsonld && seq.__jsonld.behavior) {
-                            const b = seq.__jsonld.behavior;
-                            behaviors = behaviors.concat(
-                                Array.isArray(b) ? b : [b],
-                            );
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Error parsing behavior', e);
-                }
-
-                if (behaviors.includes('continuous')) {
-                    this.viewingMode = 'continuous';
-                } else if (
-                    behaviors.includes('individuals') ||
-                    behaviors.includes('non-paged')
-                ) {
-                    this.viewingMode = 'individuals';
-                } else if (
-                    behaviors.includes('paged') ||
-                    behaviors.includes('facing-pages')
-                ) {
-                    this.viewingMode = 'paged';
-                } else {
-                    // Default to 'individuals' when no behavior is specified in manifest
-                    this.viewingMode = 'individuals';
-                }
+                // Default to 'individuals' when no behavior is specified in manifest
+                this.viewingMode = 'individuals';
             }
         }
-
-        this.dispatchStateChange('manifestchange');
     }
 
     setCanvas(canvasId: string) {
@@ -553,6 +713,18 @@ export class ViewerState {
                 this.showAnnotations = newConfig.annotations.open;
             }
         }
+
+        if (newConfig.structures) {
+            if (newConfig.structures.open !== undefined) {
+                this.showStructuresPanel = newConfig.structures.open;
+            }
+        }
+
+        if (newConfig.collection) {
+            if (newConfig.collection.open !== undefined) {
+                this.showCollectionPanel = newConfig.collection.open;
+            }
+        }
         // NOTE: We intentionally do NOT dispatch events here.
         // Config updates are external configuration, not user-initiated state changes.
         // Dispatching here would cause infinite loops when the consumer re-renders.
@@ -605,6 +777,31 @@ export class ViewerState {
 
     toggleMetadataDialog() {
         this.showMetadataDialog = !this.showMetadataDialog;
+    }
+
+    toggleStructuresPanel() {
+        this.showStructuresPanel = !this.showStructuresPanel;
+        this.dispatchStateChange();
+    }
+
+    toggleCollectionPanel() {
+        this.showCollectionPanel = !this.showCollectionPanel;
+        this.dispatchStateChange();
+    }
+
+    /** Whether the viewer is currently showing a collection */
+    get hasCollection(): boolean {
+        return this.collectionId !== null && this.collectionItems.length > 0;
+    }
+
+    /**
+     * Parsed IIIF structures (ranges / table of contents) from the current manifest.
+     * Returns an empty array if no structures exist.
+     */
+    get structures(): StructureNode[] {
+        const manifest = this.manifest;
+        if (!manifest) return [];
+        return parseStructures(manifest);
     }
 
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {

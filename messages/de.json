@@ -92,7 +92,7 @@
     "change_theme_label": "Design ändern",
     "theme_menu_title": "Design",
     "error_prefix": "Fehler: ",
-    "no_image_found": "Kein Bild gefunden",
+    "no_image_found": "Kein Bild verfügbar",
     "settings_panel_width": "Panelbreite",
     "annotation_editor_title": "Anmerkungs-Editor",
     "annotation_editor_edit_mode": "Bearbeiten",
@@ -146,5 +146,17 @@
     "reset_config": "Konfiguration zurücksetzen",
     "share_current_state": "Aktuellen Zustand teilen",
     "link_copied": "Link kopiert!",
-    "error_auth_required": "Dieses Bild erfordert eine Authentifizierung. Bitte melden Sie sich an oder beantragen Sie Zugang, um diesen Inhalt anzuzeigen."
+    "error_auth_required": "Dieses Bild erfordert eine Authentifizierung. Bitte melden Sie sich an oder beantragen Sie Zugang, um diesen Inhalt anzuzeigen.",
+    "structures_title": "Inhaltsverzeichnis",
+    "structures_empty": "Kein Inhaltsverzeichnis verfügbar.",
+    "toggle_structures": "Inhaltsverzeichnis umschalten",
+    "collection_title": "Sammlung",
+    "collection_empty": "Keine Einträge in dieser Sammlung.",
+    "collection_items_count": "{count} Einträge",
+    "collection_type_collection": "Untersammlung",
+    "toggle_collection": "Sammlung umschalten",
+    "settings_toggle_show_structures": "Strukturen anzeigen",
+    "settings_toggle_show_collection": "Sammlung anzeigen",
+    "settings_submenu_structures": "Strukturen / Inhaltsverzeichnis",
+    "settings_submenu_collection": "Sammlung"
 }

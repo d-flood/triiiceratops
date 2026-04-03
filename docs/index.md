@@ -14,6 +14,9 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 - **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
 - **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
 - **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL support)
+- **Start Canvas**: Supports the IIIF `start` property to open the manifest at a specific canvas
+- **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical table of contents navigation
+- **Collections**: Browse IIIF Collections and navigate between manifests within a collection
 - **Annotations**:
     - Renders IIIF annotations from embedded or external annotation lists
     - Supports rectangle (xywh) and polygon (SVG selector) geometries
@@ -31,7 +34,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 ## Current Limitations
 
 !!! warning "Work in Progress"
-    This project is actively developed. The following IIIF features are not yet supported:
+This project is actively developed. The following IIIF features are not yet supported:
 
 ### Content
 
@@ -40,9 +43,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
 ### Navigation
 
-- **Collections**: Cannot browse IIIF Collections or navigate between manifests
-- **Ranges/Structures**: No table of contents or hierarchical navigation (book chapters, sections)
-- **`start` property**: Cannot specify initial canvas or temporal position
+- **Nested collections**: Only the first level of a Collection is navigable; deeply nested sub-collections are listed but not yet browsable
 - **`navDate`**: No date-based navigation for newspapers/journals
 
 ### Annotations
@@ -146,7 +147,7 @@ The `annotation-editor` plugin supports pluggable persistence and host extension
 
 ## Configuration
 
-Triiiceratops is highly configurable, allowing you to customize the UI layout, enable/disable specialized panels (search, annotations), and control the thumbnail gallery behavior.
+Triiiceratops is highly configurable, allowing you to customize the UI layout, enable/disable specialized panels (search, annotations, table of contents, collection navigation), and control the thumbnail gallery behavior.
 
 [**Read the Configuration Guide**](./configuration.md){ .md-button }
 

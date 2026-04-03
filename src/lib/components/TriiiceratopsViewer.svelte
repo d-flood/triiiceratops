@@ -10,11 +10,14 @@
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
+    import CollectionPanel from './CollectionPanel.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import OSDViewer from './OSDViewer.svelte';
     import SearchPanel from './SearchPanel.svelte';
+    import StructuresPanel from './StructuresPanel.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
+    import ImageBroken from 'phosphor-svelte/lib/ImageBroken';
     import ViewerControls from './ViewerControls.svelte';
 
     // SSR-safe browser detection for library consumers
@@ -88,6 +91,16 @@
         }
 
         if (manifestId && manifestId !== internalViewerState.manifestId) {
+            // Don't re-trigger setManifest if the prop points to the active collection.
+            // When a collection is loaded, internalViewerState.manifestId is the
+            // currently-selected manifest inside the collection, which differs from
+            // the collection URL passed as the prop.
+            if (
+                internalViewerState.collectionId &&
+                manifestId === internalViewerState.collectionId
+            ) {
+                return;
+            }
             internalViewerState.setManifest(manifestId, {
                 requestConfig: config?.requests,
             });
@@ -205,6 +218,8 @@
                 internalViewerState.config.annotations?.position !== 'left') ||
             (internalViewerState.showThumbnailGallery &&
                 internalViewerState.dockSide === 'right') ||
+            internalViewerState.showStructuresPanel ||
+            internalViewerState.showCollectionPanel ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'right' && p.isVisible(),
             ),
@@ -233,7 +248,7 @@
         }
     });
 
-    // Auto-select first canvas if none selected AND no canvasId prop was provided
+    // Auto-select initial canvas: prefer start canvas from manifest, then first canvas
     $effect(() => {
         if (
             canvases &&
@@ -242,11 +257,20 @@
             !manifestData?.isFetching &&
             !canvasId // Don't auto-select if a canvasId prop is provided
         ) {
-            console.log(
-                '[Viewer] Auto-selecting first canvas:',
-                canvases[0].id,
-            );
-            internalViewerState.setCanvas(canvases[0].id);
+            const startCanvas = internalViewerState.startCanvasId;
+            if (startCanvas) {
+                console.log(
+                    '[Viewer] Auto-selecting start canvas:',
+                    startCanvas,
+                );
+                internalViewerState.setCanvas(startCanvas);
+            } else {
+                console.log(
+                    '[Viewer] Auto-selecting first canvas:',
+                    canvases[0].id,
+                );
+                internalViewerState.setCanvas(canvases[0].id);
+            }
         }
     });
 
@@ -438,9 +462,25 @@
                 {/if}
             {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div
-                    class="w-full h-full flex items-center justify-center text-base-content/50"
+                    class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
+                    role="status"
                 >
-                    {m.no_image_found()}
+                    {#if currentCanvasThumbnail}
+                        <img
+                            src={currentCanvasThumbnail}
+                            alt=""
+                            class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-40"
+                        />
+                        <div class="absolute inset-0 bg-base-100/50"></div>
+                    {/if}
+                    <div
+                        class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
+                    >
+                        <ImageBroken class="w-12 h-12 text-warning" />
+                        <p class="text-base-content text-sm font-semibold">
+                            {m.no_image_found()}
+                        </p>
+                    </div>
                 </div>
             {/if}
 
@@ -513,6 +553,20 @@
             {#if internalViewerState.showAnnotations && internalViewerState.config.annotations?.position !== 'left'}
                 <div class="h-full relative pointer-events-auto">
                     <AnnotationPanel />
+                </div>
+            {/if}
+
+            <!-- Structures / Table of Contents Panel -->
+            {#if internalViewerState.showStructuresPanel}
+                <div class="h-full relative pointer-events-auto">
+                    <StructuresPanel />
+                </div>
+            {/if}
+
+            <!-- Collection Panel -->
+            {#if internalViewerState.showCollectionPanel}
+                <div class="h-full relative pointer-events-auto">
+                    <CollectionPanel />
                 </div>
             {/if}
 

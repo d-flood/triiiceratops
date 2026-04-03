@@ -269,6 +269,40 @@
                 </li>
                 <li>
                     <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_show_structures()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="checkbox checkbox-xs"
+                            checked={config.toolbar?.showStructures ?? true}
+                            onchange={(e) => {
+                                if (!config.toolbar) config.toolbar = {};
+                                config.toolbar.showStructures =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_show_collection()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="checkbox checkbox-xs"
+                            checked={config.toolbar?.showCollection ?? true}
+                            onchange={(e) => {
+                                if (!config.toolbar) config.toolbar = {};
+                                config.toolbar.showCollection =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
                         <span class="label-text">{m.viewing_mode_label()}</span>
                         <select
                             class="select select-bordered select-xs"
@@ -659,6 +693,99 @@
             </ul>
         </details>
     </li>
+
+    <li>
+        <details>
+            <summary>{m.settings_submenu_structures()}</summary>
+            <ul>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_panel_open()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.structures?.open ?? false}
+                            onchange={(e) => {
+                                if (!config.structures) config.structures = {};
+                                config.structures.open =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1 gap-2">
+                        <span class="label-text"
+                            >{m.settings_panel_width()}</span
+                        >
+                        <input
+                            type="range"
+                            min="200"
+                            max="800"
+                            value={parseInt(config.structures?.width ?? '320')}
+                            class="range range-xs range-primary w-32"
+                            oninput={(e) => {
+                                if (!config.structures) config.structures = {};
+                                config.structures.width = `${e.currentTarget.value}px`;
+                            }}
+                        />
+                        <span class="text-xs opacity-50 w-8 text-right"
+                            >{config.structures?.width ?? '320px'}</span
+                        >
+                    </label>
+                </li>
+            </ul>
+        </details>
+    </li>
+
+    <li>
+        <details>
+            <summary>{m.settings_submenu_collection()}</summary>
+            <ul>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_panel_open()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.collection?.open ?? false}
+                            onchange={(e) => {
+                                if (!config.collection) config.collection = {};
+                                config.collection.open =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1 gap-2">
+                        <span class="label-text"
+                            >{m.settings_panel_width()}</span
+                        >
+                        <input
+                            type="range"
+                            min="200"
+                            max="800"
+                            value={parseInt(config.collection?.width ?? '320')}
+                            class="range range-xs range-primary w-32"
+                            oninput={(e) => {
+                                if (!config.collection) config.collection = {};
+                                config.collection.width = `${e.currentTarget.value}px`;
+                            }}
+                        />
+                        <span class="text-xs opacity-50 w-8 text-right"
+                            >{config.collection?.width ?? '320px'}</span
+                        >
+                    </label>
+                </li>
+            </ul>
+        </details>
+    </li>
+
     <div class="divider my-1"></div>
     {#if onReset}
         <li>

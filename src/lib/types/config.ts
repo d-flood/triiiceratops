@@ -135,6 +135,32 @@ export interface AnnotationsConfig {
     width?: string;
 }
 
+export interface StructuresConfig {
+    /**
+     * Whether the structures/TOC panel is currently open.
+     * @default false
+     */
+    open?: boolean;
+    /**
+     * Width of the structures panel.
+     * @default '320px'
+     */
+    width?: string;
+}
+
+export interface CollectionConfig {
+    /**
+     * Whether the collection panel is currently open.
+     * @default false
+     */
+    open?: boolean;
+    /**
+     * Width of the collection panel.
+     * @default '320px'
+     */
+    width?: string;
+}
+
 export interface ToolbarConfig {
     /**
      * Whether the Search button is shown in this menu.
@@ -166,6 +192,18 @@ export interface ToolbarConfig {
      * @default true
      */
     showViewingMode?: boolean;
+    /**
+     * Whether the Table of Contents (Structures) button is shown in this menu.
+     * Only visible when the manifest has structures/ranges.
+     * @default true
+     */
+    showStructures?: boolean;
+    /**
+     * Whether the Collection button is shown in this menu.
+     * Only visible when a collection is loaded.
+     * @default true
+     */
+    showCollection?: boolean;
 }
 
 export interface ViewerConfig {
@@ -221,6 +259,16 @@ export interface ViewerConfig {
      * Configuration for annotations.
      */
     annotations?: AnnotationsConfig;
+
+    /**
+     * Configuration for the structures / table of contents pane.
+     */
+    structures?: StructuresConfig;
+
+    /**
+     * Configuration for the collection navigation pane.
+     */
+    collection?: CollectionConfig;
 
     /**
      * Configuration for network requests (manifests, etc)
