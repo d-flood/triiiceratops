@@ -46,6 +46,28 @@
         return Math.min(Math.max(0, value), count - 1);
     }
 
+    function hasConfiguredCoverSheetFields(fields: unknown): boolean {
+        if (Array.isArray(fields)) {
+            return fields.some(
+                (field) =>
+                    (Array.isArray(field) && field.length >= 2) ||
+                    (!!field &&
+                        typeof field === 'object' &&
+                        'label' in field &&
+                        'value' in field),
+            );
+        }
+
+        if (!fields || typeof fields !== 'object') {
+            return false;
+        }
+
+        return (
+            ('label' in fields && 'value' in fields) ||
+            Object.keys(fields).length > 0
+        );
+    }
+
     let canvasOptions = $derived(
         viewerState.canvases.map((canvas: any, index: number) => ({
             id: canvas.id || canvas['@id'] || `canvas-${index}`,
@@ -94,7 +116,9 @@
     let canExport = $derived(
         !isExporting && !disabledReason && !!normalizedRange,
     );
-    let hasCoverSheet = $derived(!!config.coverSheet?.fields.length);
+    let hasCoverSheet = $derived(
+        hasConfiguredCoverSheetFields(config.coverSheet?.fields),
+    );
 
     function updateStartIndex(value: number | null) {
         startSelection = value;

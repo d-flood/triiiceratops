@@ -139,6 +139,52 @@ function formatCreationDate(createdAt: Date): string {
     });
 }
 
+function isPdfCoverSheetField(value: unknown): value is PdfCoverSheetField {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const field = value as Record<string, unknown>;
+    return typeof field.label === 'string' && typeof field.value === 'string';
+}
+
+function normalizeCoverSheetFields(fields: unknown): PdfCoverSheetField[] {
+    if (Array.isArray(fields)) {
+        return fields.flatMap((field) => {
+            if (isPdfCoverSheetField(field)) {
+                return [{ ...field }];
+            }
+
+            if (Array.isArray(field) && field.length >= 2) {
+                return [
+                    {
+                        label: String(field[0]),
+                        value: String(field[1]),
+                    },
+                ];
+            }
+
+            return [];
+        });
+    }
+
+    if (isPdfCoverSheetField(fields)) {
+        return [{ ...fields }];
+    }
+
+    if (fields && typeof fields === 'object') {
+        return Object.entries(fields).flatMap(([label, value]) => {
+            if (value == null) {
+                return [];
+            }
+
+            return [{ label, value: String(value) }];
+        });
+    }
+
+    return [];
+}
+
 function getMotivations(annotation: any): string[] {
     const raw =
         annotation?.motivation ||
@@ -352,7 +398,7 @@ export function buildCoverSheetFields(
     coverSheet: PdfCoverSheetConfig,
     runtimeValues: CoverSheetRuntimeValues,
 ): PdfCoverSheetField[] {
-    const fields = [...coverSheet.fields];
+    const fields = normalizeCoverSheetFields(coverSheet.fields);
 
     fields.push({
         label: 'Created',
@@ -716,7 +762,9 @@ export async function exportCanvasRangeAsPdf({
     const failedCanvases: string[] = [];
     let exportedCount = 0;
 
-    if (coverSheet?.fields.length) {
+    const coverSheetFields = normalizeCoverSheetFields(coverSheet?.fields);
+
+    if (coverSheet && coverSheetFields.length > 0) {
         onProgress?.('Preparing cover sheet...');
         await addCoverSheetPage(
             pdfDoc,

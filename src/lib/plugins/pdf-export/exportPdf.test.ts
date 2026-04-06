@@ -129,6 +129,87 @@ describe('buildCoverSheetFields', () => {
             { label: 'Created', value: expect.any(String) },
         ]);
     });
+
+    it('supports a single field object at runtime', () => {
+        expect(
+            buildCoverSheetFields(
+                {
+                    fields: {
+                        label: 'Repository',
+                        value: 'triiiceratops',
+                    },
+                } as any,
+                {
+                    createdAt: new Date('2026-04-01T12:00:00Z'),
+                    currentUrl: null,
+                },
+            ),
+        ).toEqual([
+            { label: 'Repository', value: 'triiiceratops' },
+            { label: 'Created', value: expect.any(String) },
+        ]);
+    });
+
+    it('supports tuple entries at runtime', () => {
+        expect(
+            buildCoverSheetFields(
+                {
+                    fields: [['Repository', 'triiiceratops']],
+                } as any,
+                {
+                    createdAt: new Date('2026-04-01T12:00:00Z'),
+                    currentUrl: null,
+                },
+            ),
+        ).toEqual([
+            { label: 'Repository', value: 'triiiceratops' },
+            { label: 'Created', value: expect.any(String) },
+        ]);
+    });
+
+    it('supports object maps at runtime', () => {
+        expect(
+            buildCoverSheetFields(
+                {
+                    fields: {
+                        Repository: 'triiiceratops',
+                        Collection: 'Example collection',
+                    },
+                } as any,
+                {
+                    createdAt: new Date('2026-04-01T12:00:00Z'),
+                    currentUrl: null,
+                },
+            ),
+        ).toEqual([
+            { label: 'Repository', value: 'triiiceratops' },
+            { label: 'Collection', value: 'Example collection' },
+            { label: 'Created', value: expect.any(String) },
+        ]);
+    });
+
+    it('falls back to runtime fields when fields is missing', () => {
+        expect(
+            buildCoverSheetFields({} as any, {
+                createdAt: new Date('2026-04-01T12:00:00Z'),
+                currentUrl: null,
+            }),
+        ).toEqual([{ label: 'Created', value: expect.any(String) }]);
+    });
+
+    it('ignores unsupported field values at runtime', () => {
+        expect(
+            buildCoverSheetFields(
+                {
+                    fields: 'not-valid',
+                } as any,
+                {
+                    createdAt: new Date('2026-04-01T12:00:00Z'),
+                    currentUrl: null,
+                },
+            ),
+        ).toEqual([{ label: 'Created', value: expect.any(String) }]);
+    });
 });
 
 describe('buildImageRequestInit', () => {
