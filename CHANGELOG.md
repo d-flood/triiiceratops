@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.19.4
+
+### Patch Changes
+
+- c217cf6: add logging to pdf export
+
 ## 0.19.3
 
 ### Patch Changes
