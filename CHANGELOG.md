@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.19.2
+
+### Patch Changes
+
+- 0b103ab: harden pdf export plugin coversheet data shape
+
 ## 0.19.1
 
 ### Patch Changes
