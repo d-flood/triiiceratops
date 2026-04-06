@@ -148,8 +148,27 @@ function isPdfCoverSheetField(value: unknown): value is PdfCoverSheetField {
     return typeof field.label === 'string' && typeof field.value === 'string';
 }
 
+function describeValueShape(value: unknown): string {
+    if (Array.isArray(value)) {
+        return `array(${value.length})`;
+    }
+
+    if (value === null) {
+        return 'null';
+    }
+
+    return typeof value;
+}
+
 function normalizeCoverSheetFields(fields: unknown): PdfCoverSheetField[] {
     if (Array.isArray(fields)) {
+        console.debug(
+            '[PDF export] Normalizing cover sheet fields from array',
+            {
+                length: fields.length,
+            },
+        );
+
         return fields.flatMap((field) => {
             if (isPdfCoverSheetField(field)) {
                 return [{ ...field }];
@@ -164,21 +183,42 @@ function normalizeCoverSheetFields(fields: unknown): PdfCoverSheetField[] {
                 ];
             }
 
+            console.warn(
+                '[PDF export] Ignoring unsupported cover sheet entry',
+                {
+                    shape: describeValueShape(field),
+                    entry: field,
+                },
+            );
             return [];
         });
     }
 
     if (isPdfCoverSheetField(fields)) {
+        console.debug('[PDF export] Normalizing cover sheet field object');
         return [{ ...fields }];
     }
 
     if (fields && typeof fields === 'object') {
+        console.debug(
+            '[PDF export] Normalizing cover sheet fields from object map',
+            {
+                keys: Object.keys(fields),
+            },
+        );
         return Object.entries(fields).flatMap(([label, value]) => {
             if (value == null) {
                 return [];
             }
 
             return [{ label, value: String(value) }];
+        });
+    }
+
+    if (fields !== undefined) {
+        console.warn('[PDF export] Unsupported cover sheet fields input', {
+            shape: describeValueShape(fields),
+            fields,
         });
     }
 
@@ -752,6 +792,15 @@ export async function exportCanvasRangeAsPdf({
     currentUrl,
     onProgress,
 }: ExportCanvasRangeAsPdfParams): Promise<ExportCanvasRangeAsPdfResult> {
+    console.debug('[PDF export] Starting export', {
+        canvasCount: canvases.length,
+        startIndex,
+        endIndex,
+        manifestId,
+        hasCoverSheet: !!coverSheet,
+        coverSheetFieldShape: describeValueShape(coverSheet?.fields),
+    });
+
     const range = normalizeCanvasRange(startIndex, endIndex, canvases.length);
     if (!range) {
         throw new Error('No canvases available to export.');
@@ -765,17 +814,30 @@ export async function exportCanvasRangeAsPdf({
     const coverSheetFields = normalizeCoverSheetFields(coverSheet?.fields);
 
     if (coverSheet && coverSheetFields.length > 0) {
+        console.debug('[PDF export] Adding cover sheet page', {
+            fieldCount: coverSheetFields.length,
+            title: coverSheet.title || 'Export Summary',
+        });
         onProgress?.('Preparing cover sheet...');
         await addCoverSheetPage(
             pdfDoc,
             coverSheet,
             getRuntimeValues(createdAt, currentUrl),
         );
+    } else if (coverSheet) {
+        console.debug(
+            '[PDF export] Skipping cover sheet page because no usable fields were found',
+        );
     }
 
     for (const [offset, index] of range.indices.entries()) {
         const canvas = canvases[index];
         const label = getCanvasLabel(canvas, index);
+        console.debug('[PDF export] Exporting canvas', {
+            offset,
+            index,
+            label,
+        });
         onProgress?.(
             `Exporting ${offset + 1} of ${range.indices.length}: ${label}`,
         );
@@ -844,6 +906,11 @@ export async function exportCanvasRangeAsPdf({
                     'PDF export is not available for this item because the image source does not allow direct browser download access.',
                 );
             }
+            console.error('[PDF export] Failed to export canvas', {
+                index,
+                label,
+                error,
+            });
             failedCanvases.push(label);
         }
     }
@@ -862,6 +929,11 @@ export async function exportCanvasRangeAsPdf({
         });
 
     onProgress?.(`Preparing download: ${finalFilename}`);
+    console.debug('[PDF export] Saving PDF document', {
+        filename: finalFilename,
+        exportedCount,
+        failedCount: failedCanvases.length,
+    });
     const pdfBytes = await pdfDoc.save();
     const pdfArray = Uint8Array.from(pdfBytes);
     downloadBlob(

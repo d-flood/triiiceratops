@@ -163,6 +163,14 @@
         try {
             const manifest = viewerState.manifest;
             const manifestLabel = manifest?.getLabel()?.[0]?.value || null;
+            console.debug('[PDF export] Dispatching export from controller', {
+                manifestId: viewerState.manifestId,
+                manifestLabel,
+                startIndex: normalizedRange.startIndex,
+                endIndex: normalizedRange.endIndex,
+                canvasCount: viewerState.canvases.length,
+                coverSheet: config.coverSheet,
+            });
 
             const result = await exportCanvasRangeAsPdf({
                 canvases: viewerState.canvases,
@@ -195,11 +203,16 @@
                 ? `Downloaded ${result.exportedCount} canvas(es). Skipped ${result.failedCanvases.length}.`
                 : `Downloaded ${result.exportedCount} canvas(es) as ${result.filename}.`;
         } catch (error) {
+            console.error('[PDF export] Export failed in controller', {
+                error,
+                manifestId: viewerState.manifestId,
+                startIndex: normalizedRange.startIndex,
+                endIndex: normalizedRange.endIndex,
+                coverSheet: config.coverSheet,
+            });
             progressMessage = '';
             errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : 'Unable to export canvases.';
+                'Unable to export PDF. Check the browser console for details.';
         } finally {
             isExporting = false;
         }
