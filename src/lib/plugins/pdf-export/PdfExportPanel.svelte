@@ -41,6 +41,15 @@
         onExport: () => void;
         onClose: () => void;
     } = $props();
+
+    function parseCanvasIndex(value: string): number | null {
+        if (value === '') {
+            return null;
+        }
+
+        const parsed = Number(value);
+        return Number.isInteger(parsed) ? parsed : null;
+    }
 </script>
 
 <div
@@ -83,11 +92,16 @@
                     id="pdf-export-start-canvas"
                     class="select select-bordered w-full"
                     disabled={!canvasOptions.length || isExporting}
-                    bind:value={() => startIndex, onStartIndexChange}
+                    value={startIndex ?? ''}
+                    onchange={(event) =>
+                        onStartIndexChange(
+                            parseCanvasIndex(
+                                (event.currentTarget as HTMLSelectElement)
+                                    .value,
+                            ),
+                        )}
                 >
-                    <option value={null} disabled>
-                        Select a start canvas
-                    </option>
+                    <option value="" disabled> Select a start canvas </option>
                     {#each canvasOptions as option (option.id)}
                         <option
                             value={option.index}
@@ -108,11 +122,16 @@
                     id="pdf-export-end-canvas"
                     class="select select-bordered w-full"
                     disabled={!canvasOptions.length || isExporting}
-                    bind:value={() => endIndex, onEndIndexChange}
+                    value={endIndex ?? ''}
+                    onchange={(event) =>
+                        onEndIndexChange(
+                            parseCanvasIndex(
+                                (event.currentTarget as HTMLSelectElement)
+                                    .value,
+                            ),
+                        )}
                 >
-                    <option value={null} disabled>
-                        Select an end canvas
-                    </option>
+                    <option value="" disabled> Select an end canvas </option>
                     {#each canvasOptions as option (option.id)}
                         <option
                             value={option.index}
