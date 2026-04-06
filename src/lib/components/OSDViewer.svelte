@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { SvelteSet } from 'svelte/reactivity';
+    import { SvelteMap, SvelteSet } from 'svelte/reactivity';
     import {
         DEFAULT_MIN_PIXEL_RATIO,
         DEFAULT_MIN_ZOOM_IMAGE_RATIO,
@@ -177,17 +177,17 @@
 
             OSD = osdModule.default || osdModule;
             const userAgent = navigator.userAgent || '';
-            const consumerOverrides = viewerState.config?.openSeadragonConfig ?? {};
+            const consumerOverrides =
+                viewerState.config?.openSeadragonConfig ?? {};
 
             // Prefer canvas first on mobile unless consumer overrides drawer.
             // This avoids known WebGL tile rendering issues on some devices.
-            const defaultDrawer =
-                shouldUseMobileDrawerFallback({
-                    userAgent,
-                    drawerOverride: consumerOverrides.drawer,
-                })
-                    ? { drawer: [...MOBILE_DRAWER_FALLBACK] }
-                    : {};
+            const defaultDrawer = shouldUseMobileDrawerFallback({
+                userAgent,
+                drawerOverride: consumerOverrides.drawer,
+            })
+                ? { drawer: [...MOBILE_DRAWER_FALLBACK] }
+                : {};
 
             // Initialize OpenSeadragon viewer
             viewer = OSD({
@@ -215,17 +215,30 @@
 
             viewer.addHandler('open', () => {
                 const overrides = viewerState.config?.openSeadragonConfig ?? {};
-                if (overrides.minZoomLevel !== undefined) return;
-
-                // Keep a conservative floor below home zoom to avoid over-zoomed
-                // empty/unstable ranges while preserving normal navigation.
-                const homeZoom = viewer.viewport.getHomeZoom();
-                const floorFactor =
-                    viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
-                viewer.viewport.minZoomLevel = homeZoom * floorFactor;
+                if (overrides.minZoomLevel === undefined) {
+                    // Keep a conservative floor below home zoom to avoid over-zoomed
+                    // empty/unstable ranges while preserving normal navigation.
+                    const homeZoom = viewer.viewport.getHomeZoom();
+                    const floorFactor =
+                        viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
+                    viewer.viewport.minZoomLevel = homeZoom * floorFactor;
+                }
 
                 if (overrides.minPixelRatio === undefined) {
                     viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
+                }
+
+                const region = viewerState.initialCanvasRegion;
+                const tiledImage = viewer.world.getItemAt(0);
+                if (region && tiledImage) {
+                    const viewportRect = tiledImage.imageToViewportRectangle(
+                        region.x,
+                        region.y,
+                        region.width,
+                        region.height,
+                    );
+                    viewer.viewport.fitBounds(viewportRect, true);
+                    viewerState.setInitialCanvasRegion(null);
                 }
             });
 
@@ -314,6 +327,9 @@
               ? [tileSources]
               : [];
 
+        const isPositionedSource = (source: any) =>
+            !!source && typeof source === 'object' && 'tileSource' in source;
+
         if (sources.length === 0) {
             viewer.close();
             viewerState.tileSourceError = null;
@@ -361,17 +377,43 @@
                 const gap = 0.025;
 
                 // Build position info for all sources
+                const canvasOrder = new SvelteMap<string, number>();
+                let nextCanvasOrder = 0;
+
                 const allPositions = resolvedSources.map((source, index) => {
                     let x = 0;
                     let y = 0;
-                    if (isVertical) {
-                        const yPos = index * (1 + gap);
-                        y = isBTT ? -yPos : yPos;
-                    } else {
-                        const xPos = index * (1 + gap);
-                        x = isRTL ? -xPos : xPos;
+                    const canvasId = isPositionedSource(source)
+                        ? source.canvasId
+                        : `canvas-${index}`;
+                    if (!canvasOrder.has(canvasId)) {
+                        canvasOrder.set(canvasId, nextCanvasOrder++);
                     }
-                    return { tileSource: source, x, y, width: 1.0 };
+                    const canvasIndex = canvasOrder.get(canvasId) ?? index;
+                    const localX = isPositionedSource(source) ? source.x : 0;
+                    const localY = isPositionedSource(source) ? source.y : 0;
+                    const localWidth = isPositionedSource(source)
+                        ? source.width
+                        : 1.0;
+                    const actualTileSource = isPositionedSource(source)
+                        ? source.tileSource
+                        : source;
+
+                    if (isVertical) {
+                        const yPos = canvasIndex * (1 + gap);
+                        y = (isBTT ? -yPos : yPos) + localY;
+                        x = localX;
+                    } else {
+                        const xPos = canvasIndex * (1 + gap);
+                        x = (isRTL ? -xPos : xPos) + localX;
+                        y = localY;
+                    }
+                    return {
+                        tileSource: actualTileSource,
+                        x,
+                        y,
+                        width: localWidth,
+                    };
                 });
 
                 // Only open a window of canvases around the active one for fast initial load.
@@ -400,12 +442,10 @@
                         ...allPositions
                             .slice(0, startIdx)
                             .map((pos, i) => ({ ...pos, originalIndex: i })),
-                        ...allPositions
-                            .slice(endIdx)
-                            .map((pos, i) => ({
-                                ...pos,
-                                originalIndex: endIdx + i,
-                            })),
+                        ...allPositions.slice(endIdx).map((pos, i) => ({
+                            ...pos,
+                            originalIndex: endIdx + i,
+                        })),
                     ];
 
                     const BATCH_SIZE = 5;
@@ -482,37 +522,63 @@
             viewerState.tileSourceError = null;
             const resolvedSources = result.resolved;
 
-            if (mode === 'paged' && resolvedSources.length === 2) {
+            if (mode === 'paged') {
                 const gap = 0.025;
                 const offset = 1 + gap;
-
-                // Two pages.
-                // If LTR: [0] at 0, [1] at 1.025
-                // If RTL: [0] at 1.025, [1] at 0
-                const firstX = isPagedRTL ? offset : 0;
-                const secondX = isPagedRTL ? 0 : offset;
-
-                const spread = [
-                    {
-                        tileSource: resolvedSources[0],
-                        x: firstX,
-                        y: 0,
-                        width: 1.0,
-                    },
-                    {
-                        tileSource: resolvedSources[1],
-                        x: secondX,
-                        y: 0,
-                        width: 1.0,
-                    },
+                const canvasIds = [
+                    ...new Set(
+                        resolvedSources.map((source, index) =>
+                            isPositionedSource(source)
+                                ? source.canvasId
+                                : `canvas-${index}`,
+                        ),
+                    ),
                 ];
-                viewer.open(spread);
-            } else {
-                // Individuals or single paged or fallback
+                const canvasOffsets = new SvelteMap<string, number>();
+
+                canvasIds.forEach((canvasId, index) => {
+                    if (canvasIds.length === 1) {
+                        canvasOffsets.set(canvasId, 0);
+                        return;
+                    }
+
+                    if (index === 0) {
+                        canvasOffsets.set(canvasId, isPagedRTL ? offset : 0);
+                    } else {
+                        canvasOffsets.set(canvasId, isPagedRTL ? 0 : offset);
+                    }
+                });
+
+                const positioned = resolvedSources.map((source) =>
+                    isPositionedSource(source)
+                        ? {
+                              tileSource: source.tileSource,
+                              x:
+                                  source.x +
+                                  (canvasOffsets.get(source.canvasId) ?? 0),
+                              y: source.y,
+                              width: source.width,
+                          }
+                        : source,
+                );
+
                 viewer.open(
-                    resolvedSources.length === 1
-                        ? resolvedSources[0]
-                        : resolvedSources,
+                    positioned.length === 1 ? positioned[0] : positioned,
+                );
+            } else {
+                const positioned = resolvedSources.map((source) =>
+                    isPositionedSource(source)
+                        ? {
+                              tileSource: source.tileSource,
+                              x: source.x,
+                              y: source.y,
+                              width: source.width,
+                          }
+                        : source,
+                );
+
+                viewer.open(
+                    positioned.length === 1 ? positioned[0] : positioned,
                 );
             }
         });

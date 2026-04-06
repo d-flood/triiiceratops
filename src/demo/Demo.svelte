@@ -9,6 +9,10 @@
     import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
     import { AnnotationEditorPlugin } from '../lib/plugins/annotation-editor';
     import { PdfExportPlugin } from '../lib/plugins/pdf-export';
+    import {
+        parseContentState,
+        type CanvasRegion,
+    } from '../lib/utils/contentState';
 
     // Initialize state from URL if present
     const urlParams = new URLSearchParams(window.location.search);
@@ -16,12 +20,30 @@
     let manifestUrl = $state(urlParams.get('manifest') || '');
     let currentManifest = $state(urlParams.get('manifest') || '');
     let canvasId = $state(urlParams.get('canvas') || '');
+    let initialCanvasRegion = $state<CanvasRegion | null>(null);
+
+    const iiifContentParam = urlParams.get('iiif-content');
+    const initialManifestUrl = urlParams.get('manifest') || '';
+    if (iiifContentParam && !initialManifestUrl) {
+        const parsed = parseContentState(iiifContentParam);
+        if (parsed?.manifestId) {
+            manifestUrl = parsed.manifestId;
+            currentManifest = parsed.manifestId;
+            if (parsed.canvasId) {
+                canvasId = parsed.canvasId;
+            }
+            if (parsed.region) {
+                initialCanvasRegion = parsed.region;
+            }
+        }
+    }
 
     const defaultConfig: import('../lib/types/config').ViewerConfig = {
         showToggle: true,
         toolbarOpen: false,
         showCanvasNav: true,
         showZoomControls: true,
+        enableDragDrop: true,
         viewingMode: 'individuals',
         toolbar: {
             showSearch: true,
@@ -100,7 +122,7 @@
     }
 
     async function shareState() {
-        const params = new URLSearchParams();
+        const params = new SvelteURLSearchParams();
         params.set('mode', viewerMode);
         if (manifestUrl) params.set('manifest', manifestUrl);
         if (canvasId) params.set('canvas', canvasId);
@@ -349,6 +371,7 @@
                     <TriiiceratopsViewer
                         manifestId={currentManifest}
                         {canvasId}
+                        {initialCanvasRegion}
                         {config}
                         bind:viewerState={svelteViewerState}
                         plugins={enabledPlugins}
@@ -358,6 +381,9 @@
                     <triiiceratops-viewer
                         manifest-id={currentManifest}
                         canvas-id={canvasId}
+                        initial-canvas-region={initialCanvasRegion
+                            ? JSON.stringify(initialCanvasRegion)
+                            : undefined}
                         theme-config={viewerMode === 'custom-theme'
                             ? customThemeConfig
                             : undefined}

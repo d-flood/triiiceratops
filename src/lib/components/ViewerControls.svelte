@@ -8,11 +8,13 @@
     import MagnifyingGlassPlus from 'phosphor-svelte/lib/MagnifyingGlassPlus';
     import MagnifyingGlassMinus from 'phosphor-svelte/lib/MagnifyingGlassMinus';
     import { m } from '../state/i18n.svelte';
+    import { resolveLanguageValue } from '../utils/languageMap';
     import {
         getVisibleChoiceGroups,
         shouldUseAbbreviatedChoiceLabels,
         type ChoiceGroup,
     } from './viewerControls';
+    import CanvasInfoPopover from './CanvasInfoPopover.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -33,7 +35,8 @@
             viewingMode: viewerState.viewingMode,
             pagedOffset: viewerState.pagedOffset,
             viewingDirection: viewerState.viewingDirection,
-            getSelectedChoice: (canvasId) => viewerState.getSelectedChoice(canvasId),
+            getSelectedChoice: (canvasId) =>
+                viewerState.getSelectedChoice(canvasId),
         });
     });
 
@@ -63,22 +66,16 @@
     }
 
     function getChoiceLabel(choice: any, index: number) {
+        // Try manifesto accessor
         if (choice.getLabel) {
             const l = choice.getLabel();
-            if (Array.isArray(l) && l.length > 0) return l[0].value;
-            if (typeof l === 'string') return l;
+            const resolved = resolveLanguageValue(l);
+            if (resolved) return resolved;
         }
+        // Try raw label property
         if (choice.label) {
-            if (
-                typeof choice.label === 'object' &&
-                !Array.isArray(choice.label)
-            ) {
-                const keys = Object.keys(choice.label);
-                if (keys.includes('en')) return choice.label.en[0];
-                if (keys.includes('none')) return choice.label.none[0];
-                if (keys.length > 0) return choice.label[keys[0]][0];
-            }
-            if (typeof choice.label === 'string') return choice.label;
+            const resolved = resolveLanguageValue(choice.label);
+            if (resolved) return resolved;
         }
         return `Option ${index + 1}`;
     }
@@ -91,7 +88,6 @@
         if (abbreviated) return `${index + 1}`;
         return getChoiceLabel(choice, index);
     }
-
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
@@ -105,7 +101,11 @@
                 {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                     {@const id = choice.id || choice['@id']}
                     {@const label = getChoiceLabel(choice, i)}
-                    {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                    {@const displayLabel = getChoiceDisplayLabel(
+                        choice,
+                        i,
+                        abbreviated,
+                    )}
                     {@const isSelected = group.selectedChoiceId
                         ? group.selectedChoiceId === id
                         : i === 0}
@@ -127,13 +127,17 @@
                 class="select select-bordered select-xs rounded-full max-w-xs hidden sm:flex"
                 onchange={(e) => {
                     const idx = e.currentTarget.selectedIndex;
-                    if (idx >= 0) selectChoice(group.canvasId, group.choices[idx]);
+                    if (idx >= 0)
+                        selectChoice(group.canvasId, group.choices[idx]);
                 }}
             >
                 {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                     {@const id = choice.id || choice['@id']}
-                    {@const label = getChoiceLabel(choice, i)}
-                    {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                    {@const displayLabel = getChoiceDisplayLabel(
+                        choice,
+                        i,
+                        abbreviated,
+                    )}
                     {@const isSelected = group.selectedChoiceId
                         ? group.selectedChoiceId === id
                         : i === 0}
@@ -148,7 +152,11 @@
             {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                 {@const id = choice.id || choice['@id']}
                 {@const label = getChoiceLabel(choice, i)}
-                {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                {@const displayLabel = getChoiceDisplayLabel(
+                    choice,
+                    i,
+                    abbreviated,
+                )}
                 {@const isSelected = group.selectedChoiceId
                     ? group.selectedChoiceId === id
                     : i === 0}
@@ -181,7 +189,10 @@
         class="select-none absolute left-1/2 -translate-x-1/2 bg-base-200/70 backdrop-blur rounded-full shadow-lg flex items-center gap-2 z-10 border border-base-300 transition-all duration-200 bottom-4 px-2"
     >
         {#if leftChoiceGroup}
-            {@render choiceControls(leftChoiceGroup, useAbbreviatedChoiceLabels)}
+            {@render choiceControls(
+                leftChoiceGroup,
+                useAbbreviatedChoiceLabels,
+            )}
         {/if}
 
         {#if leftChoiceGroup && (hasCenterControls || rightChoiceGroup)}
@@ -225,10 +236,14 @@
                             <CaretLeft size={18} />
                         </button>
 
-                        <span class="text-sm font-mono tabular-nums text-nowrap px-1">
-                            {viewerState.currentCanvasIndex + 1} / {viewerState.canvases
-                                .length}
+                        <span
+                            class="text-sm font-mono tabular-nums text-nowrap px-1"
+                        >
+                            {viewerState.currentCanvasIndex + 1} / {viewerState
+                                .canvases.length}
                         </span>
+
+                        <CanvasInfoPopover />
 
                         <button
                             class="btn btn-circle btn-sm btn-ghost"
@@ -248,7 +263,10 @@
         {/if}
 
         {#if rightChoiceGroup}
-            {@render choiceControls(rightChoiceGroup, useAbbreviatedChoiceLabels)}
+            {@render choiceControls(
+                rightChoiceGroup,
+                useAbbreviatedChoiceLabels,
+            )}
         {/if}
     </div>
 {/if}

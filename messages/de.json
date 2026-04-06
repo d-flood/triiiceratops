@@ -158,5 +158,14 @@
     "settings_toggle_show_structures": "Strukturen anzeigen",
     "settings_toggle_show_collection": "Sammlung anzeigen",
     "settings_submenu_structures": "Strukturen / Inhaltsverzeichnis",
-    "settings_submenu_collection": "Sammlung"
+    "settings_submenu_collection": "Sammlung",
+    "summary": "Zusammenfassung",
+    "provider": "Anbieter",
+    "homepage": "Webseite",
+    "rendering": "Alternative Formate",
+    "see_also": "Verwandte Ressourcen",
+    "canvas_info": "Canvas-Info",
+    "canvas_info_tooltip": "Canvas-Informationen",
+    "sequence_label": "Sequenz",
+    "drop_manifest_hint": "IIIF-Manifest-URL ablegen"
 }

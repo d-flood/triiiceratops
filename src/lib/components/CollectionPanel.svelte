@@ -7,10 +7,33 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let items = $derived(viewerState.collectionItems);
+    let items = $derived.by(() => {
+        const collectionItems = [...viewerState.collectionItems];
+
+        return collectionItems.sort((a, b) => {
+            if (a.navDate && b.navDate) {
+                return a.navDate.localeCompare(b.navDate);
+            }
+            if (a.navDate) return -1;
+            if (b.navDate) return 1;
+            return a.label.localeCompare(b.label);
+        });
+    });
     let collectionLabel = $derived(viewerState.collectionLabel);
     let currentManifestId = $derived(viewerState.manifestId);
     let panelWidth = $derived(viewerState.config.collection?.width ?? '320px');
+
+    function formatNavDate(value?: string): string {
+        if (!value) return '';
+
+        try {
+            return new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+            }).format(new Date(value));
+        } catch {
+            return value;
+        }
+    }
 
     async function selectManifest(manifestId: string) {
         await viewerState.loadCollectionManifest(manifestId);
@@ -97,6 +120,10 @@
                         {#if item.type === 'Collection'}
                             <span class="text-xs opacity-40"
                                 >{m.collection_type_collection()}</span
+                            >
+                        {:else if item.navDate}
+                            <span class="text-xs opacity-50"
+                                >{formatNavDate(item.navDate)}</span
                             >
                         {/if}
                     </div>

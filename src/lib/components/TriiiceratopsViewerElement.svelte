@@ -33,6 +33,11 @@
                 type: 'String',
                 reflect: false,
             },
+            initialCanvasRegion: {
+                attribute: 'initial-canvas-region',
+                type: 'String',
+                reflect: false,
+            },
         },
     }}
 />
@@ -45,6 +50,7 @@
     import type { ViewerConfig } from '../types/config';
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
     import type { ViewerState } from '../state/viewer.svelte';
+    import type { CanvasRegion } from '../utils/contentState';
 
     let {
         manifestId = '',
@@ -54,6 +60,7 @@
         theme = undefined as string | undefined,
         themeConfig = undefined as string | ThemeConfig | undefined,
         config = undefined as string | ViewerConfig | undefined,
+        initialCanvasRegion = undefined as string | CanvasRegion | undefined,
     }: {
         manifestId?: string;
         manifestJson?: string | Record<string, any>;
@@ -75,6 +82,7 @@
          * Configuration options for the viewer UI.
          */
         config?: string | ViewerConfig;
+        initialCanvasRegion?: string | CanvasRegion;
     } = $props();
 
     // Reference to host element for event dispatch
@@ -130,25 +138,42 @@
         return config;
     });
 
-    let parsedManifestJson = $derived.by(():
-        | Record<string, any>
-        | undefined => {
-        if (!manifestJson) return undefined;
-        if (typeof manifestJson === 'string') {
-            try {
-                const parsed = JSON.parse(manifestJson);
-                return parsed && typeof parsed === 'object'
-                    ? (parsed as Record<string, any>)
-                    : undefined;
-            } catch {
-                console.warn(
-                    `Invalid manifest-json JSON: "${manifestJson}". Ignoring.`,
-                );
-                return undefined;
+    let parsedManifestJson = $derived.by(
+        (): Record<string, any> | undefined => {
+            if (!manifestJson) return undefined;
+            if (typeof manifestJson === 'string') {
+                try {
+                    const parsed = JSON.parse(manifestJson);
+                    return parsed && typeof parsed === 'object'
+                        ? (parsed as Record<string, any>)
+                        : undefined;
+                } catch {
+                    console.warn(
+                        `Invalid manifest-json JSON: "${manifestJson}". Ignoring.`,
+                    );
+                    return undefined;
+                }
             }
-        }
-        return manifestJson;
-    });
+            return manifestJson;
+        },
+    );
+
+    let parsedInitialCanvasRegion = $derived.by(
+        (): CanvasRegion | null | undefined => {
+            if (!initialCanvasRegion) return null;
+            if (typeof initialCanvasRegion === 'string') {
+                try {
+                    return JSON.parse(initialCanvasRegion) as CanvasRegion;
+                } catch {
+                    console.warn(
+                        `Invalid initial-canvas-region JSON: "${initialCanvasRegion}". Ignoring.`,
+                    );
+                    return null;
+                }
+            }
+            return initialCanvasRegion;
+        },
+    );
 </script>
 
 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -163,6 +188,7 @@
         theme={validatedTheme}
         themeConfig={parsedThemeConfig}
         config={parsedConfig}
+        initialCanvasRegion={parsedInitialCanvasRegion}
         bind:viewerState={internalViewerState}
     />
 </div>

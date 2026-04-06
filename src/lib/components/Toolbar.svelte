@@ -64,6 +64,7 @@
     const showCollection = $derived(
         toolbarConfig.showCollection !== false && viewerState.hasCollection,
     );
+    const showSequencePicker = $derived(viewerState.sequenceCount > 1);
 
     // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
@@ -317,6 +318,29 @@
                             </li>
                         {/if}
                     </ul>
+                </li>
+            {/if}
+
+            {#if showSequencePicker}
+                <li class="px-1">
+                    <label class="input input-sm flex items-center gap-2">
+                        <span class="text-xs opacity-70"
+                            >{m.sequence_label()}</span
+                        >
+                        <select
+                            class="bg-transparent text-sm"
+                            value={viewerState.selectedSequenceIndex}
+                            onchange={(event) =>
+                                viewerState.setSequenceIndex(
+                                    Number(event.currentTarget.value),
+                                )}
+                            aria-label={m.sequence_label()}
+                        >
+                            {#each Array.from( { length: viewerState.sequenceCount }, ) as _, index (index)}
+                                <option value={index}>{index + 1}</option>
+                            {/each}
+                        </select>
+                    </label>
                 </li>
             {/if}
 

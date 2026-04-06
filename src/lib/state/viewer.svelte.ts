@@ -15,6 +15,7 @@ import {
     getCollectionLabel,
     type CollectionItem,
 } from '../utils/collections';
+import type { CanvasRegion } from '../utils/contentState';
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -52,7 +53,9 @@ export class ViewerState {
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
     showMetadataDialog = $state(false);
+    showCanvasInfo = $state(false);
     showStructuresPanel = $state(false);
+    initialCanvasRegion = $state<CanvasRegion | null>(null);
     dockSide = $state('bottom');
     visibleAnnotationIds = new SvelteSet<string>();
     hoveredAnnotationId = $state<string | null>(null);
@@ -62,6 +65,7 @@ export class ViewerState {
 
     // Map of canvasId -> selected choiceId (Content State)
     selectedChoices = new SvelteMap<string, string>();
+    selectedSequenceIndex = $state(0);
 
     // Collection state
     collectionId: string | null = $state(null);
@@ -252,11 +256,19 @@ export class ViewerState {
 
     get canvases() {
         if (!this.manifestId) return [];
-        const canvases = manifestsState.getCanvases(this.manifestId);
+        const canvases = manifestsState.getCanvases(
+            this.manifestId,
+            this.selectedSequenceIndex,
+        );
 
         // Auto-initialize canvasId to first canvas if not set
 
         return canvases;
+    }
+
+    get sequenceCount() {
+        if (!this.manifestId) return 0;
+        return manifestsState.getSequenceCount(this.manifestId);
     }
 
     get currentCanvasIndex() {
@@ -367,6 +379,7 @@ export class ViewerState {
         this.manifestId = manifestId;
         this.canvasId = null;
         this.startCanvasId = null;
+        this.selectedSequenceIndex = 0;
         await manifestsState.registerManifest(manifestId, manifestJson);
 
         // Parse start canvas from the raw JSON
@@ -383,7 +396,7 @@ export class ViewerState {
                 }
                 if (startId) {
                     const canvasIdFromStart = startId.split('#')[0];
-                    const canvases = manifestsState.getCanvases(manifestId);
+                    const canvases = manifestsState.getCanvases(manifestId, 0);
                     const exists = canvases.some(
                         (c: any) =>
                             c.id === canvasIdFromStart ||
@@ -419,11 +432,12 @@ export class ViewerState {
                 manifestId,
                 this.manifestRequestConfig,
             );
-        } catch (error: any) {
+        } catch (_error: any) {
             // If fetch fails, fall back to normal flow which will handle the error
             this.manifestId = manifestId;
             this.canvasId = null;
             this.startCanvasId = null;
+            this.selectedSequenceIndex = 0;
             await manifestsState.fetchManifest(
                 manifestId,
                 this.manifestRequestConfig,
@@ -474,6 +488,7 @@ export class ViewerState {
         this.manifestId = manifestId;
         this.canvasId = null;
         this.startCanvasId = null;
+        this.selectedSequenceIndex = 0;
         await manifestsState.fetchManifest(
             manifestId,
             this.manifestRequestConfig,
@@ -777,6 +792,30 @@ export class ViewerState {
 
     toggleMetadataDialog() {
         this.showMetadataDialog = !this.showMetadataDialog;
+    }
+
+    toggleCanvasInfo() {
+        this.showCanvasInfo = !this.showCanvasInfo;
+    }
+
+    setSequenceIndex(index: number) {
+        const maxIndex = Math.max(0, this.sequenceCount - 1);
+        this.selectedSequenceIndex = Math.max(0, Math.min(index, maxIndex));
+
+        const nextCanvases = this.canvases;
+        const firstCanvas = nextCanvases[0];
+        this.canvasId = firstCanvas
+            ? firstCanvas.id ||
+              firstCanvas['@id'] ||
+              (firstCanvas.getCanvasId ? firstCanvas.getCanvasId() : null) ||
+              (firstCanvas.getId ? firstCanvas.getId() : null)
+            : null;
+        this.startCanvasId = null;
+        this.dispatchStateChange();
+    }
+
+    setInitialCanvasRegion(region: CanvasRegion | null) {
+        this.initialCanvasRegion = region;
     }
 
     toggleStructuresPanel() {
@@ -1208,7 +1247,7 @@ export class ViewerState {
 
         // Build a context map from the annotations section (TextQuoteSelector info)
         // Maps source annotation id -> { before, match, after }
-        const contextMap = new Map<
+        const contextMap = new SvelteMap<
             string,
             { before: string; match: string; after: string }
         >();

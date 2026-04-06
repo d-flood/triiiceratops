@@ -9,6 +9,8 @@
  * `canvases` / `ranges` arrays.
  */
 
+import { resolveLanguageValue } from './languageMap';
+
 export interface StructureNode {
     /** Range id */
     id: string;
@@ -22,38 +24,9 @@ export interface StructureNode {
     children: StructureNode[];
 }
 
-/**
- * Resolve a IIIF label value to a plain string.
- * Handles v3 language maps (`{ "en": ["..."] }`) and v2 plain strings.
- */
+/** Resolve a IIIF label value to a plain string. */
 function resolveLabel(label: any): string {
-    if (!label) return '';
-    if (typeof label === 'string') return label;
-
-    // v3 language map: { "en": ["Chapter 1"], "fr": ["Chapitre 1"] }
-    if (typeof label === 'object' && !Array.isArray(label)) {
-        // Prefer English, then 'none', then first available language
-        const langs = Object.keys(label);
-        const preferred = ['en', 'none'];
-        for (const lang of preferred) {
-            if (label[lang]) {
-                const values = label[lang];
-                return Array.isArray(values) ? values[0] : String(values);
-            }
-        }
-        if (langs.length > 0) {
-            const values = label[langs[0]];
-            return Array.isArray(values) ? values[0] : String(values);
-        }
-    }
-
-    // Array of language value objects (manifesto style)
-    if (Array.isArray(label) && label.length > 0) {
-        if (typeof label[0] === 'string') return label[0];
-        if (label[0].value) return label[0].value;
-    }
-
-    return String(label);
+    return resolveLanguageValue(label);
 }
 
 /**
