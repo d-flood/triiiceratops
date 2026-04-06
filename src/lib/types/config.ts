@@ -312,4 +312,10 @@ export interface ViewerConfig {
      * @see https://openseadragon.github.io/docs/OpenSeadragon.html#.Options
      */
     openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+
+    /**
+     * Enable drag-and-drop loading of IIIF manifest URLs/content state text.
+     * @default false
+     */
+    enableDragDrop?: boolean;
 }

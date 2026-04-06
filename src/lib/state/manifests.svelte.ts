@@ -1,4 +1,4 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import type { RequestConfig } from '../types/config';
 import { loadManifestoModule } from './manifestoRuntime';
@@ -148,7 +148,7 @@ export class ManifestsState {
     }
 
     private getCanvasAnnotationListRefs(canvasJson: any): string[] {
-        const ids = new Set<string>();
+        const ids = new SvelteSet<string>();
 
         canvasJson?.otherContent?.forEach((content: any) => {
             const id = content['@id'] || content.id;
@@ -199,14 +199,28 @@ export class ManifestsState {
         return this.getAnnotations(manifestId, canvasId, sourceId);
     }
 
-    getCanvases(manifestId: string) {
+    getSequenceCount(manifestId: string) {
+        const m = this.getManifest(manifestId);
+        if (!m) {
+            return 0;
+        }
+
+        const sequences = m.getSequences();
+        return Array.isArray(sequences) ? sequences.length : 0;
+    }
+
+    getCanvases(manifestId: string, sequenceIndex: number = 0) {
         const m = this.getManifest(manifestId);
         if (!m) {
             return [];
         }
         const sequences = m.getSequences();
         if (!sequences || !sequences.length) return [];
-        const canvases = sequences[0].getCanvases();
+        const sequence =
+            sequences[
+                Math.max(0, Math.min(sequenceIndex, sequences.length - 1))
+            ];
+        const canvases = sequence?.getCanvases?.() || [];
         return canvases;
     }
 
@@ -243,8 +257,12 @@ export class ManifestsState {
         const parseList = (listJson: any) => {
             // manifesto.create is not available in 4.3.0 or not exported nicely?
             // Just return raw resources.
-            return listJson.resources || listJson.items || [];
+            const raw = listJson.resources || listJson.items || [];
+            return Array.isArray(raw) ? raw : [raw];
         };
+
+        const ensureArray = (val: any): any[] =>
+            Array.isArray(val) ? val : val ? [val] : [];
 
         // IIIF v2 otherContent
         if (canvasJson.otherContent) {
@@ -265,13 +283,7 @@ export class ManifestsState {
                         this.fetchAnnotationList(id);
                     }
                 } else if (content.resources) {
-                    // It's embedded
-                    // We can wrap this in manifesto.create too if we wrap it in a list structure?
-                    // Or just use raw for embedded for now, but mixed types might be annoying.
-                    // Let's rely on the robust parsing I added to Overlay for raw/mixed.
-                    // But the user wants library usage.
-                    // const r = manifesto.create(content); // might work?
-                    annotations.push(...content.resources);
+                    annotations.push(...ensureArray(content.resources));
                 }
             });
         }
@@ -295,7 +307,7 @@ export class ManifestsState {
                         this.fetchAnnotationList(id);
                     }
                 } else if (content.items) {
-                    annotations.push(...content.items);
+                    annotations.push(...ensureArray(content.items));
                 }
             });
         }

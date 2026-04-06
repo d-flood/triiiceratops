@@ -87,23 +87,46 @@ export function getCanvasChoices(canvas: any) {
     return [];
 }
 
+export function getCanvasBehaviors(canvas: any): string[] {
+    const raw =
+        canvas?.behavior ||
+        canvas?.__jsonld?.behavior ||
+        (typeof canvas?.getBehavior === 'function' ? canvas.getBehavior() : []);
+
+    if (!raw) return [];
+    const behaviors = Array.isArray(raw) ? raw : [raw];
+    return behaviors.map((value) => String(value));
+}
+
 export function getVisibleCanvasEntries({
     canvases,
     currentCanvasId,
     currentCanvasIndex,
     viewingMode,
     pagedOffset,
-}: Omit<VisibleChoiceGroupArgs, 'viewingDirection' | 'getSelectedChoice'>):
-    VisibleCanvasEntry[] {
+}: Omit<
+    VisibleChoiceGroupArgs,
+    'viewingDirection' | 'getSelectedChoice'
+>): VisibleCanvasEntry[] {
     if (!currentCanvasId) return [];
-    if (currentCanvasIndex < 0 || currentCanvasIndex >= canvases.length) return [];
+    if (currentCanvasIndex < 0 || currentCanvasIndex >= canvases.length)
+        return [];
 
     const visibleCanvases: VisibleCanvasEntry[] = [];
     const currentCanvas = canvases[currentCanvasIndex];
 
     if (!currentCanvas) return visibleCanvases;
 
-    if (viewingMode !== 'paged' || currentCanvasIndex < pagedOffset) {
+    const currentBehaviors = getCanvasBehaviors(currentCanvas);
+    const forceSinglePage =
+        currentBehaviors.includes('non-paged') ||
+        currentBehaviors.includes('facing-pages');
+
+    if (
+        viewingMode !== 'paged' ||
+        currentCanvasIndex < pagedOffset ||
+        forceSinglePage
+    ) {
         visibleCanvases.push({
             canvasId: currentCanvasId,
             canvas: currentCanvas,
@@ -127,8 +150,14 @@ export function getVisibleCanvasEntries({
 
     const secondCanvas = canvases[spreadStartIndex + 1];
     const secondCanvasId = getCanvasId(secondCanvas);
+    const secondBehaviors = getCanvasBehaviors(secondCanvas);
 
-    if (secondCanvas && secondCanvasId) {
+    if (
+        secondCanvas &&
+        secondCanvasId &&
+        !secondBehaviors.includes('non-paged') &&
+        !secondBehaviors.includes('facing-pages')
+    ) {
         visibleCanvases.push({
             canvasId: secondCanvasId,
             canvas: secondCanvas,
@@ -157,7 +186,8 @@ export function getVisibleChoiceGroups({
 
     if (!visibleCanvases.length) return [];
 
-    const isPagedRTL = viewingMode === 'paged' && viewingDirection === 'right-to-left';
+    const isPagedRTL =
+        viewingMode === 'paged' && viewingDirection === 'right-to-left';
     const sideByCanvasId: Record<string, 'left' | 'right'> = {};
 
     if (viewingMode === 'paged' && visibleCanvases.length === 2) {
@@ -165,7 +195,9 @@ export function getVisibleChoiceGroups({
         sideByCanvasId[first.canvasId] = isPagedRTL ? 'right' : 'left';
         sideByCanvasId[second.canvasId] = isPagedRTL ? 'left' : 'right';
     } else {
-        sideByCanvasId[visibleCanvases[0].canvasId] = isPagedRTL ? 'right' : 'left';
+        sideByCanvasId[visibleCanvases[0].canvasId] = isPagedRTL
+            ? 'right'
+            : 'left';
     }
 
     return visibleCanvases

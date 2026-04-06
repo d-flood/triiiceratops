@@ -8,6 +8,8 @@
  * and/or `collections` arrays.
  */
 
+import { resolveLanguageValue } from './languageMap';
+
 export interface CollectionItem {
     /** The manifest or collection id (URI) */
     id: string;
@@ -17,38 +19,13 @@ export interface CollectionItem {
     label: string;
     /** Optional thumbnail URL */
     thumbnail?: string;
+    /** Optional navDate (ISO 8601) for chronological navigation */
+    navDate?: string;
 }
 
-/**
- * Resolve a IIIF label value to a plain string.
- */
+/** Resolve a IIIF label value to a plain string. */
 function resolveLabel(label: any): string {
-    if (!label) return '';
-    if (typeof label === 'string') return label;
-
-    // v3 language map
-    if (typeof label === 'object' && !Array.isArray(label)) {
-        const langs = Object.keys(label);
-        const preferred = ['en', 'none'];
-        for (const lang of preferred) {
-            if (label[lang]) {
-                const values = label[lang];
-                return Array.isArray(values) ? values[0] : String(values);
-            }
-        }
-        if (langs.length > 0) {
-            const values = label[langs[0]];
-            return Array.isArray(values) ? values[0] : String(values);
-        }
-    }
-
-    // Array of language value objects
-    if (Array.isArray(label) && label.length > 0) {
-        if (typeof label[0] === 'string') return label[0];
-        if (label[0].value) return label[0].value;
-    }
-
-    return String(label);
+    return resolveLanguageValue(label);
 }
 
 /**
@@ -68,6 +45,11 @@ function extractThumbnail(item: any): string | undefined {
     }
 
     return undefined;
+}
+
+function extractNavDate(item: any): string | undefined {
+    const navDate = item?.navDate;
+    return typeof navDate === 'string' && navDate ? navDate : undefined;
 }
 
 /**
@@ -105,6 +87,7 @@ export function parseCollection(json: any): CollectionItem[] {
                     type: type === 'Collection' ? 'Collection' : 'Manifest',
                     label: resolveLabel(item.label),
                     thumbnail: extractThumbnail(item),
+                    navDate: extractNavDate(item),
                 });
             }
         }
@@ -118,6 +101,7 @@ export function parseCollection(json: any): CollectionItem[] {
                 type: 'Manifest',
                 label: resolveLabel(item.label),
                 thumbnail: extractThumbnail(item),
+                navDate: extractNavDate(item),
             });
         }
     }
@@ -129,6 +113,7 @@ export function parseCollection(json: any): CollectionItem[] {
                 type: 'Collection',
                 label: resolveLabel(item.label),
                 thumbnail: extractThumbnail(item),
+                navDate: extractNavDate(item),
             });
         }
     }
@@ -151,6 +136,7 @@ export function parseCollection(json: any): CollectionItem[] {
                             : 'Manifest',
                     label: resolveLabel(item.label),
                     thumbnail: extractThumbnail(item),
+                    navDate: extractNavDate(item),
                 });
             }
         }

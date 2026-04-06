@@ -6,8 +6,10 @@
     import type { DaisyUITheme, ThemeConfig } from '../theme/types';
     import type { SearchProvider, ViewerConfig } from '../types/config';
     import type { PluginDef } from '../types/plugin';
+    import type { CanvasRegion } from '../utils/contentState';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
+    import { parseContentState } from '../utils/contentState';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
@@ -37,6 +39,7 @@
         searchProvider?: SearchProvider | null;
         /** Bindable viewer state instance for external access (Svelte consumers) */
         viewerState?: ViewerState;
+        initialCanvasRegion?: CanvasRegion | null;
     }
 
     let {
@@ -49,9 +52,11 @@
         config = {},
         searchProvider = null,
         viewerState = $bindable(),
+        initialCanvasRegion = null,
     }: Props = $props();
 
     let plugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
+    let isDragOver = $state(false);
 
     // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
@@ -83,6 +88,58 @@
     $effect(() => {
         internalViewerState.setSearchProvider(searchProvider);
     });
+
+    $effect(() => {
+        internalViewerState.setInitialCanvasRegion(initialCanvasRegion);
+    });
+
+    function clearDragState() {
+        isDragOver = false;
+    }
+
+    function handleDragOver(event: DragEvent) {
+        if (!internalViewerState.config.enableDragDrop) return;
+        event.preventDefault();
+        isDragOver = true;
+    }
+
+    function handleDragLeave(event: DragEvent) {
+        if (!internalViewerState.config.enableDragDrop) return;
+        if (event.currentTarget === event.target) {
+            isDragOver = false;
+        }
+    }
+
+    async function handleDrop(event: DragEvent) {
+        if (!internalViewerState.config.enableDragDrop) return;
+        event.preventDefault();
+        clearDragState();
+
+        const text = event.dataTransfer?.getData('text/plain')?.trim();
+        if (!text) return;
+
+        const parsed = parseContentState(text);
+        if (parsed?.manifestId) {
+            internalViewerState.setInitialCanvasRegion(parsed.region ?? null);
+            if (parsed.canvasId) {
+                internalViewerState.setCanvas(parsed.canvasId);
+            }
+            await internalViewerState.setManifest(parsed.manifestId, {
+                requestConfig: config?.requests,
+            });
+            if (parsed.canvasId) {
+                internalViewerState.setCanvas(parsed.canvasId);
+            }
+            return;
+        }
+
+        if (/^https?:\/\//i.test(text)) {
+            internalViewerState.setInitialCanvasRegion(null);
+            await internalViewerState.setManifest(text, {
+                requestConfig: config?.requests,
+            });
+        }
+    }
 
     $effect(() => {
         if (manifestId && manifestJson) {
@@ -398,6 +455,12 @@
                 .config.transparentBackground
                 ? ''
                 : 'bg-base-100'}"
+            role={internalViewerState.config.enableDragDrop
+                ? 'region'
+                : undefined}
+            ondragover={handleDragOver}
+            ondragleave={handleDragLeave}
+            ondrop={handleDrop}
         >
             {#if manifestData?.isFetching}
                 <div class="w-full h-full flex items-center justify-center">
@@ -504,6 +567,18 @@
 
             <!-- Viewer Controls (Canvas Navigation + Zoom + IIIF Choice Selector) -->
             <ViewerControls />
+
+            {#if internalViewerState.config.enableDragDrop && isDragOver}
+                <div
+                    class="absolute inset-0 z-45 pointer-events-none flex items-center justify-center bg-base-100/70 backdrop-blur-sm"
+                >
+                    <div
+                        class="rounded-box border-2 border-dashed border-primary bg-base-100/90 px-6 py-4 text-sm font-medium text-base-content shadow-lg"
+                    >
+                        {m.drop_manifest_hint()}
+                    </div>
+                </div>
+            {/if}
 
             <!-- Float-mode Gallery -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'none'}

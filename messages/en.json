@@ -155,5 +155,14 @@
     "settings_toggle_show_structures": "Show Structures",
     "settings_toggle_show_collection": "Show Collection",
     "settings_submenu_structures": "Structures / TOC",
-    "settings_submenu_collection": "Collection"
+    "settings_submenu_collection": "Collection",
+    "summary": "Summary",
+    "provider": "Provider",
+    "homepage": "Homepage",
+    "rendering": "Alternative Formats",
+    "see_also": "Related Resources",
+    "canvas_info": "Canvas Info",
+    "canvas_info_tooltip": "Canvas Information",
+    "sequence_label": "Sequence",
+    "drop_manifest_hint": "Drop IIIF manifest URL"
 }

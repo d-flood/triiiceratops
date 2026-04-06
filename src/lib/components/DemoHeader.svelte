@@ -35,8 +35,124 @@
             url: 'https://zavicajna.digitalna.rs/iiif/api/presentation/3/96571949-03d6-478e-ab44-a2d5ad68f935%252F00000001%252Fostalo01%252F00000071/manifest',
         },
         {
-            label: 'IIIF Cookbook: Choice (0033)',
+            label: '0001 Simplest Manifest - Single Image',
+            url: 'https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json',
+        },
+        {
+            label: '0005 IIIF Image Service',
+            url: 'https://iiif.io/api/cookbook/recipe/0005-image-service/manifest.json',
+        },
+        {
+            label: '0006 Internationalization and Multi-language Values',
+            url: 'https://iiif.io/api/cookbook/recipe/0006-text-language/manifest.json',
+        },
+        {
+            label: '0009 Simple Manifest - Book',
+            url: 'https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json',
+        },
+        {
+            label: '0010 Viewing Direction (RTL)',
+            url: 'https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/manifest-rtl.json',
+        },
+        {
+            label: '0011 Book Behavior Variations (Continuous)',
+            url: 'https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/manifest-continuous.json',
+        },
+        {
+            label: '0019 HTML in Annotations',
+            url: 'https://iiif.io/api/cookbook/recipe/0019-html-in-annotations/manifest.json',
+        },
+        {
+            label: '0021 Simple Annotation - Tagging',
+            url: 'https://iiif.io/api/cookbook/recipe/0021-tagging/manifest.json',
+        },
+        {
+            label: '0024 Table of Contents',
+            url: 'https://iiif.io/api/cookbook/recipe/0024-book-4-toc/manifest.json',
+        },
+        {
+            label: '0027 Alternative Page Sequences',
+            url: 'https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/manifest.json',
+        },
+        {
+            label: '0029 Metadata on Any Resource',
+            url: 'https://iiif.io/api/cookbook/recipe/0029-metadata-anywhere/manifest.json',
+        },
+        {
+            label: '0030 Multi-volume Work',
+            url: 'https://iiif.io/api/cookbook/recipe/0030-multi-volume/collection.json',
+        },
+        {
+            label: '0031 Multiple Volumes in a Single Bound Volume',
+            url: 'https://iiif.io/api/cookbook/recipe/0031-bound-multivolume/manifest.json',
+        },
+        {
+            label: '0032 Simple Collection',
+            url: 'https://iiif.io/api/cookbook/recipe/0032-collection/collection.json',
+        },
+        {
+            label: '0033 Multiple Choice of Images',
             url: 'https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json',
+        },
+        {
+            label: '0035 Foldouts, Flaps, and Maps',
+            url: 'https://iiif.io/api/cookbook/recipe/0035-foldouts/manifest.json',
+        },
+        {
+            label: '0036 Composition from Multiple Images',
+            url: 'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json',
+        },
+        {
+            label: '0046 Alternative Representations',
+            url: 'https://iiif.io/api/cookbook/recipe/0046-rendering/manifest.json',
+        },
+        {
+            label: '0047 Homepage',
+            url: 'https://iiif.io/api/cookbook/recipe/0047-homepage/manifest.json',
+        },
+        {
+            label: '0053 seeAlso',
+            url: 'https://iiif.io/api/cookbook/recipe/0053-seeAlso/manifest.json',
+        },
+        {
+            label: '0117 Manifest Thumbnail',
+            url: 'https://iiif.io/api/cookbook/recipe/0117-add-image-thumbnail/manifest.json',
+        },
+        {
+            label: '0118 Multiple Values with Language Maps',
+            url: 'https://iiif.io/api/cookbook/recipe/0118-multivalue/manifest.json',
+        },
+        {
+            label: '0135 Annotating a Specific Point',
+            url: 'https://iiif.io/api/cookbook/recipe/0135-annotating-point-in-canvas/manifest.json',
+        },
+        {
+            label: '0202 Start Canvas',
+            url: 'https://iiif.io/api/cookbook/recipe/0202-start-canvas/manifest.json',
+        },
+        {
+            label: '0230 Navigation by Chronology',
+            url: 'https://iiif.io/api/cookbook/recipe/0230-navdate/navdate-collection.json',
+        },
+        {
+            label: '0234 Provider',
+            url: 'https://iiif.io/api/cookbook/recipe/0234-provider/manifest.json',
+        },
+        {
+            label: '0261 Non-Rectangular Polygon Annotation',
+            url: 'https://iiif.io/api/cookbook/recipe/0261-non-rectangular-commenting/manifest.json',
+        },
+        {
+            label: '0266 Full-Canvas Annotation',
+            url: 'https://iiif.io/api/cookbook/recipe/0266-full-canvas-annotation/manifest.json',
+        },
+        {
+            label: '0269 Embedded or Referenced Annotations',
+            url: 'https://iiif.io/api/cookbook/recipe/0269-embedded-or-referenced-annotations/manifest.json',
+        },
+        {
+            label: '0283 Missing Images in a Sequence',
+            url: 'https://iiif.io/api/cookbook/recipe/0283-missing-image/manifest.json',
         },
     ];
 
@@ -268,7 +384,7 @@
             <div class="flex gap-2 items-center">
                 <select
                     id="manifest-select"
-                    class="select select-bordered select-xs max-w-xs"
+                    class="select select-bordered select-xs w-[28rem] max-w-[60vw]"
                     value={isCustom ? 'custom' : manifestUrl}
                     onchange={handleSelectChange}
                 >

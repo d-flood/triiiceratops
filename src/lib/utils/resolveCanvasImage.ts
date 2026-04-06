@@ -1,6 +1,15 @@
 import { getVisibleCanvasEntries } from '../components/viewerControls';
+import { resolveLanguageValue } from './languageMap';
 
 export type TileSource = string | { type: 'image'; url: string };
+
+export type PositionedTileSource = {
+    canvasId: string;
+    tileSource: TileSource;
+    x: number;
+    y: number;
+    width: number;
+};
 
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
@@ -22,6 +31,14 @@ export type ResolvedCanvasImage = {
     resourceId: string | null;
     serviceId: string | null;
     serviceProfile: string | null;
+    x: number;
+    y: number;
+    width: number;
+};
+
+type CanvasDimensions = {
+    width: number;
+    height: number;
 };
 
 function getId(thing: any): string | null {
@@ -72,6 +89,45 @@ function getCanvasAnnotations(canvas: any): any[] {
         annotations = canvas.getContent();
     }
     return annotations || [];
+}
+
+function getCanvasDimensions(canvas: any): CanvasDimensions | null {
+    const width =
+        canvas?.width ||
+        canvas?.__jsonld?.width ||
+        (typeof canvas?.getWidth === 'function' ? canvas.getWidth() : null);
+    const height =
+        canvas?.height ||
+        canvas?.__jsonld?.height ||
+        (typeof canvas?.getHeight === 'function' ? canvas.getHeight() : null);
+
+    if (typeof width !== 'number' || typeof height !== 'number') {
+        return null;
+    }
+
+    return { width, height };
+}
+
+function parseTargetRegion(annotation: any): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+} | null {
+    const target = annotation?.target || annotation?.__jsonld?.target;
+    const targetId =
+        (typeof target === 'string' ? target : target?.id || target?.['@id']) ||
+        '';
+    const xywhMatch = targetId.match(/#xywh=(\d+),(\d+),(\d+),(\d+)/);
+
+    if (!xywhMatch) return null;
+
+    return {
+        x: Number(xywhMatch[1]),
+        y: Number(xywhMatch[2]),
+        width: Number(xywhMatch[3]),
+        height: Number(xywhMatch[4]),
+    };
 }
 
 function hasResourceContent(resource: any): boolean {
@@ -244,20 +300,16 @@ export function getCanvasLabel(canvas: any, fallbackIndex?: number): string {
     try {
         const label = canvas.getLabel?.();
         if (Array.isArray(label) && label.length > 0) {
-            return label[0]?.value || fallback;
+            return resolveLanguageValue(label) || fallback;
         }
     } catch {
         // ignore malformed labels
     }
 
     const rawLabel = canvas.label || canvas.__jsonld?.label;
-    if (typeof rawLabel === 'string') {
-        return rawLabel;
-    }
-
-    const localizedLabel = rawLabel?.none || rawLabel?.en;
-    if (Array.isArray(localizedLabel) && localizedLabel.length > 0) {
-        return localizedLabel[0];
+    if (rawLabel) {
+        const resolved = resolveLanguageValue(rawLabel);
+        if (resolved) return resolved;
     }
 
     return fallback;
@@ -271,40 +323,60 @@ export function resolveCanvasImage(
     canvas: any,
     options: ResolveCanvasImageOptions = {},
 ): ResolvedCanvasImage | null {
+    const allResolved = resolveAllCanvasImages(canvas, options);
+    return allResolved[0] || null;
+}
+
+export function resolveAllCanvasImages(
+    canvas: any,
+    options: ResolveCanvasImageOptions = {},
+): ResolvedCanvasImage[] {
     const canvasId = getCanvasId(canvas);
     if (!canvasId) {
-        return null;
+        return [];
+    }
+
+    const canvasDimensions = getCanvasDimensions(canvas);
+    if (!canvasDimensions) {
+        return [];
     }
 
     const annotations = getCanvasAnnotations(canvas);
     if (!annotations.length) {
-        return null;
+        return [];
     }
 
-    const annotation = annotations[0];
-    const resource = getAnnotationResource(
-        annotation,
-        canvasId,
-        options.getSelectedChoice,
-    );
+    return annotations
+        .map((annotation) => {
+            const resource = getAnnotationResource(
+                annotation,
+                canvasId,
+                options.getSelectedChoice,
+            );
 
-    if (!resource) {
-        return null;
-    }
+            if (!resource) {
+                return null;
+            }
 
-    const resourceId = getId(resource);
-    const serviceDetails = getImageServiceDetails(resource);
-    const serviceId =
-        serviceDetails.serviceId || getHeuristicServiceId(resourceId);
+            const resourceId = getId(resource);
+            const serviceDetails = getImageServiceDetails(resource);
+            const serviceId =
+                serviceDetails.serviceId || getHeuristicServiceId(resourceId);
+            const region = parseTargetRegion(annotation);
 
-    return {
-        canvasId,
-        annotation,
-        resource,
-        resourceId,
-        serviceId,
-        serviceProfile: serviceDetails.serviceProfile,
-    };
+            return {
+                canvasId,
+                annotation,
+                resource,
+                resourceId,
+                serviceId,
+                serviceProfile: serviceDetails.serviceProfile,
+                x: region ? region.x / canvasDimensions.width : 0,
+                y: region ? region.y / canvasDimensions.width : 0,
+                width: region ? region.width / canvasDimensions.width : 1,
+            } satisfies ResolvedCanvasImage;
+        })
+        .filter((result): result is ResolvedCanvasImage => result !== null);
 }
 
 export function getCanvasTileSource(
@@ -327,6 +399,35 @@ export function getCanvasTileSource(
     return null;
 }
 
+export function getCanvasTileSources(
+    canvas: any,
+    options: ResolveCanvasImageOptions = {},
+): PositionedTileSource[] {
+    return resolveAllCanvasImages(canvas, options)
+        .map((resolved) => {
+            let tileSource: TileSource | null = null;
+
+            if (resolved.serviceId) {
+                tileSource = `${resolved.serviceId}/info.json`;
+            } else if (resolved.resourceId) {
+                tileSource = { type: 'image', url: resolved.resourceId };
+            }
+
+            if (!tileSource) {
+                return null;
+            }
+
+            return {
+                canvasId: resolved.canvasId,
+                tileSource,
+                x: resolved.x,
+                y: resolved.y,
+                width: resolved.width,
+            } satisfies PositionedTileSource;
+        })
+        .filter((result): result is PositionedTileSource => result !== null);
+}
+
 export function buildIiifImageRequestUrl(
     serviceId: string,
     options: { width: number; quality?: string; format?: string } = {
@@ -346,7 +447,7 @@ export function getViewerTileSources({
     viewingMode,
     pagedOffset,
     getSelectedChoice,
-}: GetViewerTileSourcesParams): TileSource[] | null {
+}: GetViewerTileSourcesParams): PositionedTileSource[] | null {
     if (
         !canvases.length ||
         currentCanvasIndex < 0 ||
@@ -369,9 +470,9 @@ export function getViewerTileSources({
         }).map(({ canvas }) => canvas);
     }
 
-    const tileSources = visibleCanvases
-        .map((canvas) => getCanvasTileSource(canvas, { getSelectedChoice }))
-        .filter((source): source is TileSource => source !== null);
+    const tileSources = visibleCanvases.flatMap((canvas) =>
+        getCanvasTileSources(canvas, { getSelectedChoice }),
+    );
 
     return tileSources.length ? tileSources : null;
 }
