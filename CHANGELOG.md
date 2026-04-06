@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.19.3
+
+### Patch Changes
+
+- f7b86b6: fix: improve canvas index handling in PDF export panel
+
 ## 0.19.2
 
 ### Patch Changes
