@@ -127,7 +127,14 @@ function getManifestFilenameBase(
             sanitizeFilenamePart(lastSegment || 'iiif-canvases') ||
             'iiif-canvases'
         );
-    } catch {
+    } catch (error) {
+        console.debug(
+            '[PDF export] Falling back to raw manifest id for filename',
+            {
+                manifestId,
+                error,
+            },
+        );
         return sanitizeFilenamePart(manifestId) || 'iiif-canvases';
     }
 }
@@ -890,7 +897,16 @@ export async function exportCanvasRangeAsPdf({
                         extractOcrTextOverlays(annotations),
                         canvasDimensions,
                     );
-                } catch {
+                } catch (error) {
+                    console.error(
+                        '[PDF export] Failed to add selectable OCR text layer',
+                        {
+                            canvasId,
+                            label,
+                            annotationCount: annotations.length,
+                            error,
+                        },
+                    );
                     // Keep the raster page export even if OCR text embedding fails.
                 }
             }
