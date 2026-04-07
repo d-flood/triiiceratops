@@ -7,6 +7,7 @@
     } from '../../state/viewer.svelte';
     import { getCanvasLabel } from '../../utils/resolveCanvasImage';
     import type {
+        PdfCanvasOcrOverlayProvider,
         PdfCoverSheetConfig,
         PdfImageLoader,
         PdfImageRequestConfig,
@@ -24,6 +25,7 @@
         config?: {
             coverSheet?: PdfCoverSheetConfig;
             ocrAnnotationSource?: string;
+            getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
             imageRequest?: PdfImageRequestConfig;
             loadImageBlob?: PdfImageLoader;
         };
@@ -182,6 +184,7 @@
                 coverSheet: config.coverSheet,
                 imageRequest: config.imageRequest,
                 loadImageBlob: config.loadImageBlob,
+                getCanvasOcrOverlays: config.getCanvasOcrOverlays,
                 getSelectedChoice: (canvasId) =>
                     viewerState.getSelectedChoice(canvasId),
                 getCanvasAnnotations: async (canvasId) =>
