@@ -168,6 +168,20 @@ export interface ToolbarConfig {
     showViewingMode?: boolean;
 }
 
+export interface PluginUiConfig {
+    /**
+     * Whether the plugin's toolbar button is visible.
+     * @default true
+     */
+    visible?: boolean;
+
+    /**
+     * Whether the plugin panel is currently open.
+     * @default false
+     */
+    open?: boolean;
+}
+
 export interface ViewerConfig {
     /**
      * Whether to show the canvas navigation arrows/controls.
@@ -255,6 +269,16 @@ export interface ViewerConfig {
      * Configuration for the toolbar items.
      */
     toolbar?: ToolbarConfig;
+
+    /**
+     * Per-plugin UI overrides keyed by plugin ID.
+     *
+     * Example:
+     * {
+     *   "pdf-export": { "visible": true, "open": false }
+     * }
+     */
+    plugins?: Record<string, PluginUiConfig>;
 
     /**
      * Additional OpenSeadragon viewer options.
