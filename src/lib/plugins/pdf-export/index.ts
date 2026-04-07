@@ -6,6 +6,9 @@ import type {
     PdfCoverSheetConfig,
     PdfImageLoader,
     PdfImageRequestConfig,
+    PdfOcrPlacementMode,
+    PdfOcrSizingMode,
+    PdfOcrVisibilityMode,
 } from './exportPdf';
 
 export type PdfExportConfig = {
@@ -14,6 +17,9 @@ export type PdfExportConfig = {
     getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
     imageRequest?: PdfImageRequestConfig;
     loadImageBlob?: PdfImageLoader;
+    ocrPlacementMode?: PdfOcrPlacementMode;
+    ocrSizingMode?: PdfOcrSizingMode;
+    ocrVisibilityMode?: PdfOcrVisibilityMode;
 };
 
 export function createPdfExportPlugin(config: PdfExportConfig = {}): PluginDef {
@@ -38,6 +44,9 @@ export type {
     PdfImageLoader,
     PdfImageLoaderParams,
     PdfImageRequestConfig,
+    PdfOcrPlacementMode,
+    PdfOcrSizingMode,
+    PdfOcrVisibilityMode,
     PdfTextOverlay,
 } from './exportPdf';
 export {

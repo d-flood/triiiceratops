@@ -7,10 +7,22 @@ vi.mock('pdf-lib', () => ({
         Helvetica: 'Helvetica',
         HelveticaBold: 'HelveticaBold',
     },
+    TextRenderingMode: {
+        Invisible: 'Invisible',
+    },
     PDFDocument: {
         create: vi.fn(async () => mockPdfDoc),
     },
+    popGraphicsState: vi.fn(() => ({ op: 'popGraphicsState' })),
+    pushGraphicsState: vi.fn(() => ({ op: 'pushGraphicsState' })),
+    rgb: vi.fn((r: number, g: number, b: number) => ({ type: 'rgb', r, g, b })),
+    setTextRenderingMode: vi.fn((mode: string) => ({
+        op: 'setTextRenderingMode',
+        mode,
+    })),
 }));
+
+import { TextRenderingMode } from 'pdf-lib';
 
 import {
     buildCoverSheetFields,
@@ -26,12 +38,13 @@ function createMockPage() {
         drawImage: vi.fn(),
         drawText: vi.fn(),
         getSize: () => ({ width: 1000, height: 500 }),
+        pushOperators: vi.fn(),
     };
 }
 
 function createMockPdfDoc(page = createMockPage()) {
     const font = {
-        heightAtSize: (size: number) => size,
+        heightAtSize: (size: number) => size * 0.8,
         widthOfTextAtSize: (text: string, size: number) =>
             Math.max(1, text.length * size * 0.5),
     };
@@ -64,6 +77,29 @@ function createCanvas(id: string, label = id) {
     };
 }
 
+function createIiifCanvas(
+    id: string,
+    dimensions: { width: number; height: number },
+) {
+    return {
+        id,
+        width: dimensions.width,
+        height: dimensions.height,
+        getContent: () => [
+            {
+                getBody: () => ({
+                    id: `https://example.org/static/${encodeURIComponent(id)}.jpg`,
+                    type: 'Image',
+                    service: {
+                        id: `https://example.org/iiif/${encodeURIComponent(id)}`,
+                        type: 'ImageService3',
+                    },
+                }),
+            },
+        ],
+    };
+}
+
 function createOcrAnnotation(text: string) {
     return {
         id: `ocr-${text}`,
@@ -85,6 +121,11 @@ function createImageBlob() {
 
 function getDrawnTexts(page: { drawText: ReturnType<typeof vi.fn> }) {
     return page.drawText.mock.calls.map(([text]) => text);
+}
+
+function getLastDrawTextOptions(page: { drawText: ReturnType<typeof vi.fn> }) {
+    const lastCall = page.drawText.mock.calls.at(-1);
+    return lastCall?.[1];
 }
 
 describe('exportCanvasRangeAsPdf', () => {
@@ -260,6 +301,186 @@ describe('exportCanvasRangeAsPdf', () => {
         expect(getCanvasOcrOverlays).toHaveBeenNthCalledWith(
             2,
             expect.objectContaining({ canvasId: 'canvas-3', canvasIndex: 2 }),
+        );
+    });
+
+    it('preserves the default fit-box OCR placement behavior', async () => {
+        await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1')],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'significantly longer text',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 10,
+                y: 448.96,
+                size: 27.599999999999998,
+                opacity: 0.001,
+            }),
+        );
+    });
+
+    it('supports word-anchor placement with height-only sizing', async () => {
+        await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1')],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            ocrPlacementMode: 'word-anchor',
+            ocrSizingMode: 'height-only',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'significantly longer text',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 10,
+                y: 440,
+                size: 50,
+                opacity: 0.001,
+            }),
+        );
+    });
+
+    it('draws OCR text visibly in debug mode', async () => {
+        await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1')],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            ocrVisibilityMode: 'debug',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'debug text',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                opacity: 1,
+                color: { type: 'rgb', r: 1, g: 0, b: 0 },
+            }),
+        );
+    });
+
+    it('uses invisible text rendering mode when requested', async () => {
+        await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1')],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            ocrVisibilityMode: 'invisible',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'hidden text',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(mockPdfDoc.page.pushOperators).toHaveBeenCalledWith(
+            expect.objectContaining({ op: 'pushGraphicsState' }),
+            expect.objectContaining({
+                op: 'setTextRenderingMode',
+                mode: TextRenderingMode.Invisible,
+            }),
+        );
+        expect(mockPdfDoc.page.pushOperators).toHaveBeenLastCalledWith(
+            expect.objectContaining({ op: 'popGraphicsState' }),
+        );
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 10,
+                y: 440,
+                size: 50,
+            }),
+        );
+        expect(
+            getLastDrawTextOptions(mockPdfDoc.page)?.opacity,
+        ).toBeUndefined();
+    });
+
+    it('requests spread canvases by height to preserve more raster detail', async () => {
+        const loadImageBlob = vi.fn(() => createImageBlob());
+
+        await exportCanvasRangeAsPdf({
+            canvases: [
+                createIiifCanvas('spread-canvas', {
+                    width: 3000,
+                    height: 1500,
+                }),
+            ],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1800,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+        });
+
+        expect(loadImageBlob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                imageUrl:
+                    'https://example.org/iiif/spread-canvas/full/,1500/0/default.jpg',
+            }),
+        );
+    });
+
+    it('keeps portrait IIIF canvas requests width-constrained', async () => {
+        const loadImageBlob = vi.fn(() => createImageBlob());
+
+        await exportCanvasRangeAsPdf({
+            canvases: [
+                createIiifCanvas('portrait-canvas', {
+                    width: 1200,
+                    height: 3000,
+                }),
+            ],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1800,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+        });
+
+        expect(loadImageBlob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                imageUrl:
+                    'https://example.org/iiif/portrait-canvas/full/1200,/0/default.jpg',
+            }),
         );
     });
 

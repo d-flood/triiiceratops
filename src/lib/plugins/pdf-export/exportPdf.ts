@@ -1,4 +1,11 @@
-import { StandardFonts } from 'pdf-lib';
+import {
+    popGraphicsState,
+    pushGraphicsState,
+    rgb,
+    setTextRenderingMode,
+    StandardFonts,
+    TextRenderingMode,
+} from 'pdf-lib';
 
 import { parseAnnotation } from '../../utils/annotationAdapter';
 import { getThumbnailSrc } from '../../utils/getThumbnailSrc';
@@ -68,6 +75,18 @@ export type PdfCanvasOcrOverlayProvider = (
     | null
     | undefined;
 
+export type PdfOcrPlacementMode = 'fit-box' | 'word-anchor';
+
+export type PdfOcrSizingMode = 'fit-box' | 'height-only';
+
+export type PdfOcrVisibilityMode = 'transparent' | 'invisible' | 'debug';
+
+type PdfOcrRenderOptions = {
+    placementMode: PdfOcrPlacementMode;
+    sizingMode: PdfOcrSizingMode;
+    visibilityMode: PdfOcrVisibilityMode;
+};
+
 type ExportCanvasRangeAsPdfParams = {
     canvases: any[];
     startIndex: number;
@@ -80,6 +99,9 @@ type ExportCanvasRangeAsPdfParams = {
     getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
     imageRequest?: PdfImageRequestConfig;
     loadImageBlob?: PdfImageLoader;
+    ocrPlacementMode?: PdfOcrPlacementMode;
+    ocrSizingMode?: PdfOcrSizingMode;
+    ocrVisibilityMode?: PdfOcrVisibilityMode;
     filename?: string;
     coverSheet?: PdfCoverSheetConfig;
     createdAt?: Date;
@@ -109,12 +131,26 @@ type WrappedLine = {
     width: number;
 };
 
+type OcrWordLayout = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    fontSize: number;
+    renderedHeight: number;
+};
+
 const COVER_PAGE_SIZE: [number, number] = [612, 792];
 const COVER_MARGIN_X = 56;
 const COVER_MARGIN_Y = 64;
 const COVER_LABEL_SIZE = 11;
 const COVER_VALUE_SIZE = 12;
 const COVER_TITLE_SIZE = 22;
+const DEFAULT_OCR_RENDER_OPTIONS: PdfOcrRenderOptions = {
+    placementMode: 'fit-box',
+    sizingMode: 'fit-box',
+    visibilityMode: 'transparent',
+};
 
 function sanitizeFilenamePart(value: string): string {
     return value
@@ -352,6 +388,7 @@ function getFontSizeToFit(
     text: string,
     width: number,
     height: number,
+    sizingMode: PdfOcrSizingMode = 'fit-box',
 ): number {
     if (width <= 0 || height <= 0) {
         return 0;
@@ -363,6 +400,11 @@ function getFontSizeToFit(
     );
     const unitWidth = Math.max(0.001, font.widthOfTextAtSize(text, 1));
     const heightBasedSize = height / unitHeight;
+
+    if (sizingMode === 'height-only') {
+        return Math.max(1, heightBasedSize);
+    }
+
     const widthBasedSize = width / unitWidth;
 
     if (text.trim().length <= 3) {
@@ -378,6 +420,7 @@ function getCanvasExportResource(
     getSelectedChoice?: (canvasId: string) => string | undefined,
 ): { imageUrl: string | null; resolvedImage: ResolvedCanvasImage | null } {
     const resolved = resolveCanvasImage(canvas, { getSelectedChoice });
+    const canvasDimensions = getCanvasDimensions(canvas);
     if (
         resolved?.resourceId &&
         (resolved.serviceProfile === 'level0' ||
@@ -387,10 +430,31 @@ function getCanvasExportResource(
     }
 
     if (resolved?.serviceId) {
+        const isWideCanvas =
+            !!canvasDimensions &&
+            canvasDimensions.width > canvasDimensions.height;
+        const constrainedSize = canvasDimensions
+            ? Math.max(
+                  1,
+                  Math.round(
+                      Math.min(
+                          isWideCanvas
+                              ? canvasDimensions.height
+                              : canvasDimensions.width,
+                          targetWidth,
+                      ),
+                  ),
+              )
+            : Math.max(1, Math.round(targetWidth));
+
         return {
-            imageUrl: buildIiifImageRequestUrl(resolved.serviceId, {
-                width: targetWidth,
-            }),
+            imageUrl: isWideCanvas
+                ? buildIiifImageRequestUrl(resolved.serviceId, {
+                      height: constrainedSize,
+                  })
+                : buildIiifImageRequestUrl(resolved.serviceId, {
+                      width: constrainedSize,
+                  }),
             resolvedImage: resolved,
         };
     }
@@ -787,6 +851,7 @@ async function addSelectableTextLayer(
     pdfDoc: any,
     overlays: PdfTextOverlay[],
     canvasDimensions: { width: number; height: number },
+    ocrOptions: PdfOcrRenderOptions,
 ): Promise<void> {
     if (!overlays.length) {
         return;
@@ -799,28 +864,145 @@ async function addSelectableTextLayer(
 
     // Ensure overlays is a plain array (might be Svelte proxy)
     for (const overlay of Array.from(overlays)) {
-        const width = overlay.width * scaleX;
-        const height = overlay.height * scaleY;
-        const x = overlay.x * scaleX;
-        const y = pageHeight - (overlay.y + overlay.height) * scaleY;
-        const fontSize = getFontSizeToFit(font, overlay.text, width, height);
+        const layout = getOcrWordLayout({
+            overlay,
+            font,
+            pageHeight,
+            scaleX,
+            scaleY,
+            placementMode: ocrOptions.placementMode,
+            sizingMode: ocrOptions.sizingMode,
+        });
 
-        if (fontSize < 1) {
+        if (layout.fontSize < 1) {
             continue;
         }
 
-        const renderedHeight = font.heightAtSize(fontSize, {
-            descender: false,
-        });
-
-        page.drawText(overlay.text, {
-            x,
-            y: y + Math.max(0, (height - renderedHeight) * 0.5),
-            size: fontSize,
+        drawOcrText(page, overlay.text, {
+            x: layout.x,
+            y: layout.y,
+            size: layout.fontSize,
             font,
-            opacity: 0.001,
+            visibilityMode: ocrOptions.visibilityMode,
         });
     }
+}
+
+function normalizeOcrRenderOptions(options: {
+    ocrPlacementMode?: PdfOcrPlacementMode;
+    ocrSizingMode?: PdfOcrSizingMode;
+    ocrVisibilityMode?: PdfOcrVisibilityMode;
+}): PdfOcrRenderOptions {
+    return {
+        placementMode:
+            options.ocrPlacementMode ||
+            DEFAULT_OCR_RENDER_OPTIONS.placementMode,
+        sizingMode:
+            options.ocrSizingMode || DEFAULT_OCR_RENDER_OPTIONS.sizingMode,
+        visibilityMode:
+            options.ocrVisibilityMode ||
+            DEFAULT_OCR_RENDER_OPTIONS.visibilityMode,
+    };
+}
+
+function getOcrWordLayout({
+    overlay,
+    font,
+    pageHeight,
+    scaleX,
+    scaleY,
+    placementMode,
+    sizingMode,
+}: {
+    overlay: PdfTextOverlay;
+    font: any;
+    pageHeight: number;
+    scaleX: number;
+    scaleY: number;
+    placementMode: PdfOcrPlacementMode;
+    sizingMode: PdfOcrSizingMode;
+}): OcrWordLayout {
+    const width = overlay.width * scaleX;
+    const height = overlay.height * scaleY;
+    const x = overlay.x * scaleX;
+    const fontSize = getFontSizeToFit(
+        font,
+        overlay.text,
+        width,
+        height,
+        sizingMode,
+    );
+    const renderedHeight = font.heightAtSize(fontSize, {
+        descender: false,
+    });
+
+    if (placementMode === 'word-anchor') {
+        return {
+            x,
+            y: pageHeight - overlay.y * scaleY - renderedHeight,
+            width,
+            height,
+            fontSize,
+            renderedHeight,
+        };
+    }
+
+    const y = pageHeight - (overlay.y + overlay.height) * scaleY;
+
+    return {
+        x,
+        y: y + Math.max(0, (height - renderedHeight) * 0.5),
+        width,
+        height,
+        fontSize,
+        renderedHeight,
+    };
+}
+
+function drawOcrText(
+    page: any,
+    text: string,
+    options: {
+        x: number;
+        y: number;
+        size: number;
+        font: any;
+        visibilityMode: PdfOcrVisibilityMode;
+    },
+): void {
+    const drawOptions = {
+        x: options.x,
+        y: options.y,
+        size: options.size,
+        font: options.font,
+    };
+
+    if (options.visibilityMode === 'debug') {
+        page.drawText(text, {
+            ...drawOptions,
+            color: rgb(1, 0, 0),
+            opacity: 1,
+        });
+        return;
+    }
+
+    if (
+        options.visibilityMode === 'invisible' &&
+        typeof page.pushOperators === 'function'
+    ) {
+        page.pushOperators(
+            pushGraphicsState(),
+            setTextRenderingMode(TextRenderingMode.Invisible),
+        );
+        page.drawText(text, drawOptions);
+        page.pushOperators(popGraphicsState());
+        return;
+    }
+
+    page.drawText(text, {
+        ...drawOptions,
+        opacity: 0.001,
+    });
 }
 
 async function resolveCanvasOcrOverlays({
@@ -911,6 +1093,9 @@ export async function exportCanvasRangeAsPdf({
     getCanvasAnnotations,
     imageRequest,
     loadImageBlob,
+    ocrPlacementMode,
+    ocrSizingMode,
+    ocrVisibilityMode,
     filename,
     coverSheet,
     createdAt,
@@ -940,6 +1125,11 @@ export async function exportCanvasRangeAsPdf({
         const pdfDoc = await PDFDocument.create();
         const failedCanvases: string[] = [];
         let exportedCount = 0;
+        const ocrRenderOptions = normalizeOcrRenderOptions({
+            ocrPlacementMode,
+            ocrSizingMode,
+            ocrVisibilityMode,
+        });
 
         const coverSheetFields = normalizeCoverSheetFields(coverSheet?.fields);
 
@@ -1034,6 +1224,7 @@ export async function exportCanvasRangeAsPdf({
                             pdfDoc,
                             overlays,
                             canvasDimensions,
+                            ocrRenderOptions,
                         );
                     } catch (error) {
                         console.error(

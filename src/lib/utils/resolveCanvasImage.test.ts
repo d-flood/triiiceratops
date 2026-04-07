@@ -144,4 +144,12 @@ describe('buildIiifImageRequestUrl', () => {
             ),
         ).toBe('https://example.org/iiif/image-1/full/1400,/0/default.jpg');
     });
+
+    it('supports height-constrained requests for wide canvas exports', () => {
+        expect(
+            buildIiifImageRequestUrl('https://example.org/iiif/image-1', {
+                height: 1500,
+            }),
+        ).toBe('https://example.org/iiif/image-1/full/,1500/0/default.jpg');
+    });
 });

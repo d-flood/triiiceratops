@@ -25,6 +25,9 @@
         config?: {
             coverSheet?: PdfCoverSheetConfig;
             ocrAnnotationSource?: string;
+            ocrPlacementMode?: 'fit-box' | 'word-anchor';
+            ocrSizingMode?: 'fit-box' | 'height-only';
+            ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
             getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
             imageRequest?: PdfImageRequestConfig;
             loadImageBlob?: PdfImageLoader;
@@ -184,6 +187,9 @@
                 coverSheet: config.coverSheet,
                 imageRequest: config.imageRequest,
                 loadImageBlob: config.loadImageBlob,
+                ocrPlacementMode: config.ocrPlacementMode,
+                ocrSizingMode: config.ocrSizingMode,
+                ocrVisibilityMode: config.ocrVisibilityMode,
                 getCanvasOcrOverlays: config.getCanvasOcrOverlays,
                 getSelectedChoice: (canvasId) =>
                     viewerState.getSelectedChoice(canvasId),
@@ -199,7 +205,7 @@
                 onProgress: (message) => {
                     progressMessage = message;
                 },
-            });
+            } as Parameters<typeof exportCanvasRangeAsPdf>[0]);
 
             progressMessage = '';
             resultMessage = result.failedCanvases.length
