@@ -329,14 +329,29 @@ export function getCanvasTileSource(
 
 export function buildIiifImageRequestUrl(
     serviceId: string,
-    options: { width: number; quality?: string; format?: string } = {
+    options: {
+        width?: number;
+        height?: number;
+        quality?: string;
+        format?: string;
+    } = {
         width: 1600,
     },
 ): string {
     const base = normalizeServiceId(serviceId);
     const quality = options.quality || 'default';
     const format = options.format || 'jpg';
-    return `${base}/full/${Math.max(1, Math.round(options.width))},/0/${quality}.${format}`;
+    const width =
+        typeof options.width === 'number'
+            ? Math.max(1, Math.round(options.width))
+            : null;
+    const height =
+        typeof options.height === 'number'
+            ? Math.max(1, Math.round(options.height))
+            : null;
+    const size = width ? `${width},` : `,${height || 1600}`;
+
+    return `${base}/full/${size}/0/${quality}.${format}`;
 }
 
 export function getViewerTileSources({

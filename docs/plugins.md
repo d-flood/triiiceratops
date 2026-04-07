@@ -445,6 +445,9 @@ type PdfExportConfig = {
         fields: { label: string; value: string }[];
     };
     ocrAnnotationSource?: string;
+    ocrPlacementMode?: 'fit-box' | 'word-anchor';
+    ocrSizingMode?: 'fit-box' | 'height-only';
+    ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
     getCanvasOcrOverlays?: (context: {
         manifestId: string | null;
         canvasId: string;
@@ -526,6 +529,36 @@ Callback result semantics:
 - return `null` or `undefined` to fall back to manifest-based OCR loading
 - if the callback throws, the export logs a PDF-scoped warning and falls back to manifest-based OCR loading
 
+OCR rendering options:
+
+- `ocrPlacementMode: 'fit-box'` preserves the existing box-fitting behavior
+- `ocrPlacementMode: 'word-anchor'` keeps each word anchored to its supplied `x` and top-origin `y` position without vertical recentering
+- `ocrSizingMode: 'fit-box'` uses both overlay width and height to size the text
+- `ocrSizingMode: 'height-only'` sizes from overlay height only and does not stretch words to fill the OCR width
+- `ocrVisibilityMode: 'transparent'` uses the existing near-transparent text layer behavior
+- `ocrVisibilityMode: 'invisible'` prefers PDF invisible text rendering semantics when supported by the PDF layer
+- `ocrVisibilityMode: 'debug'` draws OCR text visibly for placement checks
+
+Default OCR rendering behavior remains backward-compatible:
+
+```ts
+{
+    ocrPlacementMode: 'fit-box',
+    ocrSizingMode: 'fit-box',
+    ocrVisibilityMode: 'transparent',
+}
+```
+
+Recommended settings for word-level OCR overlays:
+
+```ts
+{
+    ocrPlacementMode: 'word-anchor',
+    ocrSizingMode: 'height-only',
+    ocrVisibilityMode: 'invisible',
+}
+```
+
 To make exported PDF text selectable, provide OCR as canvas-linked IIIF annotations with these properties:
 
 - the canvas `width` and `height` must use the same coordinate space as the OCR bounding boxes
@@ -587,12 +620,14 @@ Example OCR annotation page:
 Tesseract guidance:
 
 - convert each OCR line or word into one IIIF annotation item
-- line-level annotations are the easiest starting point for usable PDF text selection
+- line-level annotations are the easiest starting point for usable PDF text selection, but word-level overlays are also supported
 - if your Tesseract boxes are in raw image pixels, make sure the canvas `width` and `height` match that same pixel space, or scale the boxes during annotation generation
 
 #### Image Request Notes
 
 The plugin fetches canvas images with `credentials: "same-origin"` by default. This avoids common CORS failures on public IIIF servers that respond with `Access-Control-Allow-Origin: *`.
+
+For IIIF-backed exports, the plugin automatically requests wide or spread canvases by height instead of width so landscape pages are not capped by the viewer-width-derived export size. Portrait and square canvases continue to use width-constrained requests.
 
 For IIIF Image API level 0 services, the plugin prefers the painting body's declared image URL instead of synthesizing an arbitrary sized IIIF image request. This is more compatible with services that expose only a fixed image URL alongside a level 0 service description.
 
