@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.19.5
+
+### Patch Changes
+
+- 1b20277: fix pdf export cover page data parsing
+
 ## 0.19.4
 
 ### Patch Changes
