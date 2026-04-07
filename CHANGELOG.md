@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.20.0
+
+### Minor Changes
+
+- 2953dca: Change plugin configuration so that their visibility and state can be controlled through the config like core toolbar tools
+
 ## 0.19.5
 
 ### Patch Changes
