@@ -53,6 +53,21 @@ export type PdfTextOverlay = {
     height: number;
 };
 
+export type PdfExportOcrProviderContext = {
+    manifestId: string | null;
+    canvasId: string;
+    canvas: any;
+    canvasIndex: number;
+};
+
+export type PdfCanvasOcrOverlayProvider = (
+    context: PdfExportOcrProviderContext,
+) =>
+    | Promise<PdfTextOverlay[] | null | undefined>
+    | PdfTextOverlay[]
+    | null
+    | undefined;
+
 type ExportCanvasRangeAsPdfParams = {
     canvases: any[];
     startIndex: number;
@@ -61,6 +76,7 @@ type ExportCanvasRangeAsPdfParams = {
     manifestId: string | null;
     manifestLabel?: string | null;
     getSelectedChoice?: (canvasId: string) => string | undefined;
+    getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
     getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
     imageRequest?: PdfImageRequestConfig;
     loadImageBlob?: PdfImageLoader;
@@ -807,6 +823,67 @@ async function addSelectableTextLayer(
     }
 }
 
+async function resolveCanvasOcrOverlays({
+    canvas,
+    canvasId,
+    canvasIndex,
+    manifestId,
+    label,
+    getCanvasOcrOverlays,
+    getCanvasAnnotations,
+}: {
+    canvas: any;
+    canvasId: string;
+    canvasIndex: number;
+    manifestId: string | null;
+    label: string;
+    getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
+    getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
+}): Promise<PdfTextOverlay[]> {
+    if (getCanvasOcrOverlays) {
+        try {
+            const overlays = await getCanvasOcrOverlays({
+                manifestId,
+                canvasId,
+                canvas,
+                canvasIndex,
+            });
+            if (overlays != null) {
+                if (!Array.isArray(overlays)) {
+                    console.warn(
+                        '[PDF export] Ignoring invalid OCR overlay provider result',
+                        {
+                            canvasId,
+                            canvasIndex,
+                            label,
+                            shape: describeValueShape(overlays),
+                        },
+                    );
+                    return [];
+                }
+
+                return Array.from(overlays);
+            }
+        } catch (error) {
+            console.warn(
+                '[PDF export] OCR overlay provider failed; falling back to manifest annotations',
+                {
+                    canvasId,
+                    canvasIndex,
+                    label,
+                    error,
+                },
+            );
+        }
+    }
+
+    if (!getCanvasAnnotations) {
+        return [];
+    }
+
+    return extractOcrTextOverlays(await getCanvasAnnotations(canvasId));
+}
+
 function getRuntimeValues(
     createdAt?: Date,
     currentUrl?: string | null,
@@ -830,6 +907,7 @@ export async function exportCanvasRangeAsPdf({
     manifestId,
     manifestLabel,
     getSelectedChoice,
+    getCanvasOcrOverlays,
     getCanvasAnnotations,
     imageRequest,
     loadImageBlob,
@@ -937,16 +1015,24 @@ export async function exportCanvasRangeAsPdf({
                 });
 
                 const canvasDimensions = getCanvasDimensions(canvas);
-                const annotations =
-                    canvasId && getCanvasAnnotations
-                        ? await getCanvasAnnotations(canvasId)
+                const overlays =
+                    canvasId && (getCanvasOcrOverlays || getCanvasAnnotations)
+                        ? await resolveCanvasOcrOverlays({
+                              canvas,
+                              canvasId,
+                              canvasIndex: index,
+                              manifestId,
+                              label,
+                              getCanvasOcrOverlays,
+                              getCanvasAnnotations,
+                          })
                         : [];
-                if (canvasDimensions && annotations.length) {
+                if (canvasDimensions && overlays.length) {
                     try {
                         await addSelectableTextLayer(
                             page,
                             pdfDoc,
-                            extractOcrTextOverlays(annotations),
+                            overlays,
                             canvasDimensions,
                         );
                     } catch (error) {
@@ -955,7 +1041,7 @@ export async function exportCanvasRangeAsPdf({
                             {
                                 canvasId,
                                 label,
-                                annotationCount: annotations.length,
+                                overlayCount: overlays.length,
                                 error,
                             },
                         );
