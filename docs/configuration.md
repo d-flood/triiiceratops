@@ -43,6 +43,14 @@ interface ViewerConfig {
         showViewingMode?: boolean; // Default: true
     };
 
+    // Plugin UI Settings (keyed by plugin id)
+    plugins?: {
+      [pluginId: string]: {
+        visible?: boolean; // Default: true (Toolbar button visible)
+        open?: boolean; // Default: false (Plugin panel open)
+      };
+    };
+
     // Thumbnail Gallery Settings
     gallery?: {
         open?: boolean; // Default: false
@@ -84,6 +92,27 @@ interface ViewerConfig {
     openSeadragonConfig?: Partial<OpenSeadragon.Options>;
 }
 ```
+
+### Plugin UI Control
+
+Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's `id` as the key:
+
+```typescript
+const config = {
+  plugins: {
+    'pdf-export': {
+      visible: true,
+      open: false
+    },
+    'image-manipulation': {
+      visible: false,
+      open: false
+    }
+  }
+};
+```
+
+`visible` controls whether the plugin's toolbar button is rendered, and `open` controls whether the plugin panel is expanded.
 
 ## Usage
 

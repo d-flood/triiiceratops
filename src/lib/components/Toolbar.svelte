@@ -59,9 +59,9 @@
     // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
         void language.current;
-        return [...viewerState.pluginMenuButtons].sort(
-            (a, b) => (a.order ?? 100) - (b.order ?? 100),
-        );
+        return viewerState.pluginMenuButtons
+            .filter((button) => button.isVisible?.() !== false)
+            .sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
     });
 
     function toggleOpen() {

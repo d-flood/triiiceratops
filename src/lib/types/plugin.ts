@@ -20,6 +20,9 @@ export interface PluginMenuButton {
     /** Reactive getter for active/pressed state */
     isActive?: () => boolean;
 
+    /** Reactive getter for visibility */
+    isVisible?: () => boolean;
+
     /** CSS class when active (default: 'btn-primary') */
     activeClass?: string;
 

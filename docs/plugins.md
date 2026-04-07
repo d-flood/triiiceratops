@@ -124,6 +124,86 @@ interface PluginDef {
 }
 ```
 
+If you plan to control plugin UI state through `config.plugins`, set an explicit, stable `id` on each plugin. Auto-generated IDs are not stable across re-registration.
+
+## Controlling Plugin UI Through Config
+
+Plugin toolbar button visibility and plugin panel open/closed state can be controlled through the same `config` object used for built-in panes.
+
+Configuration shape:
+
+```ts
+type ViewerConfig = {
+  plugins?: Record<
+    string,
+    {
+      visible?: boolean; // show/hide the plugin toolbar button
+      open?: boolean; // open/close the plugin panel
+    }
+  >;
+};
+```
+
+### Live Updates In Svelte
+
+Update `config.plugins` reactively to change plugin UI at runtime.
+
+```svelte
+<script lang="ts">
+  import { TriiiceratopsViewer } from 'triiiceratops';
+  import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+
+  let config = $state({
+    plugins: {
+      'pdf-export': {
+        visible: true,
+        open: false,
+      },
+    },
+  });
+
+  function hidePdfButtonAndOpenPanel() {
+    config.plugins['pdf-export'] = {
+      visible: false,
+      open: true,
+    };
+  }
+</script>
+
+<button onclick={hidePdfButtonAndOpenPanel}>
+  Hide PDF button + open PDF panel
+</button>
+
+<TriiiceratopsViewer manifestId="..." plugins={[PdfExportPlugin]} {config} />
+```
+
+### Live Updates In Web Component Hosts
+
+When using `<triiiceratops-viewer>`, assign a new `config` object from JavaScript.
+
+```html
+<triiiceratops-viewer id="viewer"></triiiceratops-viewer>
+
+<script>
+  const viewer = document.getElementById('viewer');
+
+  viewer.config = {
+    plugins: {
+      'pdf-export': {
+        visible: false,
+        open: true,
+      },
+    },
+  };
+</script>
+```
+
+Notes:
+
+- `visible: false` hides only the plugin toolbar button.
+- `open: true` keeps the panel open if the plugin is registered.
+- `config.plugins` keys must match each plugin's `id`.
+
 ---
 
 ## Adding Plugins
