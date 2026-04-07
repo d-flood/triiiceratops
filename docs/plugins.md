@@ -134,13 +134,13 @@ Configuration shape:
 
 ```ts
 type ViewerConfig = {
-  plugins?: Record<
-    string,
-    {
-      visible?: boolean; // show/hide the plugin toolbar button
-      open?: boolean; // open/close the plugin panel
-    }
-  >;
+    plugins?: Record<
+        string,
+        {
+            visible?: boolean; // show/hide the plugin toolbar button
+            open?: boolean; // open/close the plugin panel
+        }
+    >;
 };
 ```
 
@@ -150,28 +150,28 @@ Update `config.plugins` reactively to change plugin UI at runtime.
 
 ```svelte
 <script lang="ts">
-  import { TriiiceratopsViewer } from 'triiiceratops';
-  import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
 
-  let config = $state({
-    plugins: {
-      'pdf-export': {
-        visible: true,
-        open: false,
-      },
-    },
-  });
+    let config = $state({
+        plugins: {
+            'pdf-export': {
+                visible: true,
+                open: false,
+            },
+        },
+    });
 
-  function hidePdfButtonAndOpenPanel() {
-    config.plugins['pdf-export'] = {
-      visible: false,
-      open: true,
-    };
-  }
+    function hidePdfButtonAndOpenPanel() {
+        config.plugins['pdf-export'] = {
+            visible: false,
+            open: true,
+        };
+    }
 </script>
 
 <button onclick={hidePdfButtonAndOpenPanel}>
-  Hide PDF button + open PDF panel
+    Hide PDF button + open PDF panel
 </button>
 
 <TriiiceratopsViewer manifestId="..." plugins={[PdfExportPlugin]} {config} />
@@ -185,16 +185,16 @@ When using `<triiiceratops-viewer>`, assign a new `config` object from JavaScrip
 <triiiceratops-viewer id="viewer"></triiiceratops-viewer>
 
 <script>
-  const viewer = document.getElementById('viewer');
+    const viewer = document.getElementById('viewer');
 
-  viewer.config = {
-    plugins: {
-      'pdf-export': {
-        visible: false,
-        open: true,
-      },
-    },
-  };
+    viewer.config = {
+        plugins: {
+            'pdf-export': {
+                visible: false,
+                open: true,
+            },
+        },
+    };
 </script>
 ```
 
@@ -372,7 +372,7 @@ By default, `PdfExportPlugin` uses:
 
 #### Configuring The Plugin
 
-Use `createPdfExportPlugin(...)` when you want a cover sheet, a specific OCR annotation source, or custom image request behavior.
+Use `createPdfExportPlugin(...)` when you want a cover sheet, a specific OCR annotation source, export-only OCR overlays, or custom image request behavior.
 
 ```ts
 import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
@@ -386,6 +386,16 @@ const pdfExportPlugin = createPdfExportPlugin({
         ],
     },
     ocrAnnotationSource: 'https://example.org/canvas/1/ocr',
+    async getCanvasOcrOverlays({ canvasId }) {
+        const response = await fetch(
+            `/api/ocr-overlays?canvas=${encodeURIComponent(canvasId)}`,
+        );
+        if (!response.ok) {
+            return [];
+        }
+
+        return response.json();
+    },
     imageRequest: {
         credentials: 'same-origin',
     },
@@ -435,6 +445,32 @@ type PdfExportConfig = {
         fields: { label: string; value: string }[];
     };
     ocrAnnotationSource?: string;
+    getCanvasOcrOverlays?: (context: {
+        manifestId: string | null;
+        canvasId: string;
+        canvas: any;
+        canvasIndex: number;
+    }) =>
+        | Promise<
+              | {
+                    text: string;
+                    x: number;
+                    y: number;
+                    width: number;
+                    height: number;
+                }[]
+              | null
+              | undefined
+          >
+        | {
+              text: string;
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+          }[]
+        | null
+        | undefined;
     imageRequest?: {
         credentials?: RequestCredentials;
         headers?: HeadersInit;
@@ -471,12 +507,24 @@ When a canvas includes IIIF OCR annotations, the plugin embeds selectable text i
 
 The plugin reads OCR from IIIF annotation data, not from IIIF Search responses. Search hits alone are not enough because the PDF export needs stable text plus canvas-relative bounding boxes.
 
+If your app stores OCR outside the IIIF manifest, configure `getCanvasOcrOverlays` to supply PDF text overlays directly during export. This callback runs only for canvases included in the selected PDF export range. It is not used during normal canvas navigation, search, thumbnail rendering, or viewer startup.
+
 Supported OCR annotation patterns include:
 
 - IIIF Presentation 3 annotations using `TextualBody` plus `motivation: "supplementing"`
 - legacy IIIF Presentation 2 text annotation lists in `otherContent`, including `cnt:ContentAsText` bodies that use `sc:painting` for line text
 
-If a canvas exposes multiple annotation pages or lists, set `ocrAnnotationSource` to the specific annotation page/list `id` you want the PDF export to use for selectable text. When omitted, the plugin reads OCR-compatible annotations from every available canvas annotation source.
+OCR is resolved in this order during export:
+
+- if `getCanvasOcrOverlays` returns a non-null value, that result is used and manifest OCR is skipped for that canvas
+- otherwise, if `ocrAnnotationSource` is set, the plugin loads OCR from that specific annotation page/list `id`
+- otherwise, the plugin reads OCR-compatible annotations from every available canvas annotation source
+
+Callback result semantics:
+
+- return `[]` to mark the canvas as handled and export it without OCR text
+- return `null` or `undefined` to fall back to manifest-based OCR loading
+- if the callback throws, the export logs a PDF-scoped warning and falls back to manifest-based OCR loading
 
 To make exported PDF text selectable, provide OCR as canvas-linked IIIF annotations with these properties:
 

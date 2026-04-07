@@ -2,6 +2,7 @@ import type { PluginDef } from '../../types/plugin';
 import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
 import PdfExportController from './PdfExportController.svelte';
 import type {
+    PdfCanvasOcrOverlayProvider,
     PdfCoverSheetConfig,
     PdfImageLoader,
     PdfImageRequestConfig,
@@ -10,6 +11,7 @@ import type {
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;
     ocrAnnotationSource?: string;
+    getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
     imageRequest?: PdfImageRequestConfig;
     loadImageBlob?: PdfImageLoader;
 };
@@ -29,11 +31,14 @@ export const PdfExportPlugin: PluginDef = createPdfExportPlugin();
 
 export { PdfExportController, DownloadSimple };
 export type {
+    PdfCanvasOcrOverlayProvider,
     PdfCoverSheetConfig,
     PdfCoverSheetField,
+    PdfExportOcrProviderContext,
     PdfImageLoader,
     PdfImageLoaderParams,
     PdfImageRequestConfig,
+    PdfTextOverlay,
 } from './exportPdf';
 export {
     buildCoverSheetFields,
