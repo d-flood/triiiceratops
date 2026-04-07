@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.20.1
+
+### Patch Changes
+
+- c67ca74: Add hook for consuming application to add OCR text to canvases during PDF Export plugin export
+
 ## 0.20.0
 
 ### Minor Changes
