@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.20.2
+
+### Patch Changes
+
+- 287db30: extend pdf export plugin
+
 ## 0.20.1
 
 ### Patch Changes
