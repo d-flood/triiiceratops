@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 0.20.3
+
+### Patch Changes
+
+- 674d5c6: more accurate OCR text on PDF positioning
+
 ## 0.20.2
 
 ### Patch Changes
