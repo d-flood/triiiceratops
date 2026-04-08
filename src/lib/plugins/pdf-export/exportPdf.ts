@@ -58,6 +58,7 @@ export type PdfTextOverlay = {
     y: number;
     width: number;
     height: number;
+    coordinateSpace?: 'canvas' | 'image';
 };
 
 export type PdfExportOcrProviderContext = {
@@ -587,7 +588,7 @@ export function normalizeCanvasRange(
 
 export function extractOcrTextOverlays(annotations: any[]): PdfTextOverlay[] {
     return annotations
-        .map((annotation, index) => {
+        .map((annotation, index): PdfTextOverlay | null => {
             const parsed = parseAnnotation(annotation, index);
             if (!parsed || parsed.geometry.type !== 'RECTANGLE') {
                 return null;
@@ -613,9 +614,50 @@ export function extractOcrTextOverlays(annotations: any[]): PdfTextOverlay[] {
                 y: parsed.geometry.y,
                 width: parsed.geometry.w,
                 height: parsed.geometry.h,
+                coordinateSpace: 'image',
             };
         })
         .filter((overlay): overlay is PdfTextOverlay => overlay !== null);
+}
+
+function getResolvedImageDimensions(
+    resolvedImage: ResolvedCanvasImage | null | undefined,
+): { width: number; height: number } | null {
+    if (
+        typeof resolvedImage?.resourceWidth !== 'number' ||
+        typeof resolvedImage?.resourceHeight !== 'number'
+    ) {
+        return null;
+    }
+
+    return {
+        width: resolvedImage.resourceWidth,
+        height: resolvedImage.resourceHeight,
+    };
+}
+
+function normalizeOverlayToCanvasSpace({
+    overlay,
+    canvasDimensions,
+    imageDimensions,
+}: {
+    overlay: PdfTextOverlay;
+    canvasDimensions: { width: number; height: number };
+    imageDimensions: { width: number; height: number } | null;
+}): PdfTextOverlay {
+    if (overlay.coordinateSpace !== 'image' || !imageDimensions) {
+        return overlay;
+    }
+
+    return {
+        ...overlay,
+        x: (overlay.x * canvasDimensions.width) / imageDimensions.width,
+        y: (overlay.y * canvasDimensions.height) / imageDimensions.height,
+        width: (overlay.width * canvasDimensions.width) / imageDimensions.width,
+        height:
+            (overlay.height * canvasDimensions.height) / imageDimensions.height,
+        coordinateSpace: 'canvas',
+    };
 }
 
 async function loadImage(blob: Blob): Promise<HTMLImageElement> {
@@ -852,6 +894,11 @@ async function addSelectableTextLayer(
     overlays: PdfTextOverlay[],
     canvasDimensions: { width: number; height: number },
     ocrOptions: PdfOcrRenderOptions,
+    options: {
+        canvasId?: string;
+        label?: string;
+        resolvedImage?: ResolvedCanvasImage | null;
+    } = {},
 ): Promise<void> {
     if (!overlays.length) {
         return;
@@ -861,11 +908,34 @@ async function addSelectableTextLayer(
     const { width: pageWidth, height: pageHeight } = page.getSize();
     const scaleX = pageWidth / canvasDimensions.width;
     const scaleY = pageHeight / canvasDimensions.height;
+    const imageDimensions = getResolvedImageDimensions(options.resolvedImage);
+    let hasLoggedMissingImageDimensions = false;
 
     // Ensure overlays is a plain array (might be Svelte proxy)
     for (const overlay of Array.from(overlays)) {
-        const layout = getOcrWordLayout({
+        if (
+            overlay.coordinateSpace === 'image' &&
+            !imageDimensions &&
+            !hasLoggedMissingImageDimensions
+        ) {
+            console.warn(
+                '[PDF export] Missing source image dimensions for image-space OCR overlay; using legacy canvas-space placement',
+                {
+                    canvasId: options.canvasId,
+                    label: options.label,
+                    overlayCount: overlays.length,
+                },
+            );
+            hasLoggedMissingImageDimensions = true;
+        }
+
+        const normalizedOverlay = normalizeOverlayToCanvasSpace({
             overlay,
+            canvasDimensions,
+            imageDimensions,
+        });
+        const layout = getOcrWordLayout({
+            overlay: normalizedOverlay,
             font,
             pageHeight,
             scaleX,
@@ -1225,6 +1295,11 @@ export async function exportCanvasRangeAsPdf({
                             overlays,
                             canvasDimensions,
                             ocrRenderOptions,
+                            {
+                                canvasId,
+                                label,
+                                resolvedImage,
+                            },
                         );
                     } catch (error) {
                         console.error(

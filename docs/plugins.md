@@ -394,7 +394,14 @@ const pdfExportPlugin = createPdfExportPlugin({
             return [];
         }
 
-        return response.json();
+        const overlays = await response.json();
+
+        return overlays.map((overlay) => ({
+            ...overlay,
+            // Use 'image' when your OCR API returns coordinates in the
+            // selected source image's pixel space instead of canvas pixels.
+            coordinateSpace: 'image',
+        }));
     },
     imageRequest: {
         credentials: 'same-origin',
@@ -461,6 +468,7 @@ type PdfExportConfig = {
                     y: number;
                     width: number;
                     height: number;
+                    coordinateSpace?: 'canvas' | 'image';
                 }[]
               | null
               | undefined
@@ -471,6 +479,7 @@ type PdfExportConfig = {
               y: number;
               width: number;
               height: number;
+              coordinateSpace?: 'canvas' | 'image';
           }[]
         | null
         | undefined;
@@ -510,7 +519,11 @@ When a canvas includes IIIF OCR annotations, the plugin embeds selectable text i
 
 The plugin reads OCR from IIIF annotation data, not from IIIF Search responses. Search hits alone are not enough because the PDF export needs stable text plus canvas-relative bounding boxes.
 
+Manifest OCR annotations are normalized automatically when their `xywh` boxes are in the selected source image's pixel space instead of the canvas pixel space.
+
 If your app stores OCR outside the IIIF manifest, configure `getCanvasOcrOverlays` to supply PDF text overlays directly during export. This callback runs only for canvases included in the selected PDF export range. It is not used during normal canvas navigation, search, thumbnail rendering, or viewer startup.
+
+Provider overlay coordinates default to canvas space for backward compatibility. If your provider returns original image pixel coordinates, set `coordinateSpace: 'image'` on each overlay so the exporter can normalize them before PDF placement.
 
 Supported OCR annotation patterns include:
 

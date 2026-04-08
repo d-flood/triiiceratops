@@ -71,6 +71,31 @@ function createCanvas(id: string, label = id) {
                     id: `https://example.org/${encodeURIComponent(id)}.png`,
                     type: 'Image',
                     format: 'image/png',
+                    width: 1000,
+                    height: 500,
+                },
+            },
+        ],
+    };
+}
+
+function createCanvasWithImage(
+    id: string,
+    canvasDimensions: { width: number; height: number },
+    imageDimensions?: { width: number; height: number },
+) {
+    return {
+        id,
+        label: id,
+        width: canvasDimensions.width,
+        height: canvasDimensions.height,
+        getImages: () => [
+            {
+                body: {
+                    id: `https://example.org/${encodeURIComponent(id)}.png`,
+                    type: 'Image',
+                    format: 'image/png',
+                    ...(imageDimensions || {}),
                 },
             },
         ],
@@ -301,6 +326,195 @@ describe('exportCanvasRangeAsPdf', () => {
         expect(getCanvasOcrOverlays).toHaveBeenNthCalledWith(
             2,
             expect.objectContaining({ canvasId: 'canvas-3', canvasIndex: 2 }),
+        );
+    });
+
+    it('normalizes manifest OCR overlays from image coordinates', async () => {
+        const getCanvasAnnotations = vi.fn(() => [
+            createOcrAnnotation('manifest image-space text'),
+        ]);
+
+        await exportCanvasRangeAsPdf({
+            canvases: [
+                createCanvasWithImage(
+                    'canvas-1',
+                    { width: 2000, height: 1000 },
+                    { width: 1000, height: 500 },
+                ),
+            ],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            getCanvasAnnotations,
+            ocrPlacementMode: 'word-anchor',
+            ocrSizingMode: 'height-only',
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 10,
+                y: 440,
+                size: 50,
+                opacity: 0.001,
+            }),
+        );
+    });
+
+    it('keeps provider overlays without coordinateSpace in legacy canvas space', async () => {
+        await exportCanvasRangeAsPdf({
+            canvases: [
+                createCanvasWithImage(
+                    'canvas-1',
+                    { width: 2000, height: 1000 },
+                    { width: 1000, height: 500 },
+                ),
+            ],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            ocrPlacementMode: 'word-anchor',
+            ocrSizingMode: 'height-only',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'legacy provider text',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 5,
+                y: 470,
+                size: 25,
+                opacity: 0.001,
+            }),
+        );
+    });
+
+    it('normalizes provider overlays marked as image-space', async () => {
+        await exportCanvasRangeAsPdf({
+            canvases: [
+                createCanvasWithImage(
+                    'canvas-1',
+                    { width: 2000, height: 1000 },
+                    { width: 1000, height: 500 },
+                ),
+            ],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            ocrPlacementMode: 'word-anchor',
+            ocrSizingMode: 'height-only',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'image provider text',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                    coordinateSpace: 'image',
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 10,
+                y: 440,
+                size: 50,
+                opacity: 0.001,
+            }),
+        );
+    });
+
+    it('uses per-axis scaling for image-space overlays', async () => {
+        await exportCanvasRangeAsPdf({
+            canvases: [
+                createCanvasWithImage(
+                    'canvas-1',
+                    { width: 2000, height: 1000 },
+                    { width: 1000, height: 400 },
+                ),
+            ],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            ocrPlacementMode: 'word-anchor',
+            ocrSizingMode: 'height-only',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'aspect test',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                    coordinateSpace: 'image',
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 10,
+                y: 425,
+                size: 62.5,
+                opacity: 0.001,
+            }),
+        );
+    });
+
+    it('warns and falls back when image-space overlays lack source dimensions', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        await exportCanvasRangeAsPdf({
+            canvases: [
+                createCanvasWithImage('canvas-1', {
+                    width: 2000,
+                    height: 1000,
+                }),
+            ],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            ocrPlacementMode: 'word-anchor',
+            ocrSizingMode: 'height-only',
+            getCanvasOcrOverlays: () => [
+                {
+                    text: 'fallback text',
+                    x: 10,
+                    y: 20,
+                    width: 300,
+                    height: 40,
+                    coordinateSpace: 'image',
+                },
+            ],
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[PDF export] Missing source image dimensions for image-space OCR overlay; using legacy canvas-space placement',
+            expect.objectContaining({ canvasId: 'canvas-1' }),
+        );
+        expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
+            expect.objectContaining({
+                x: 5,
+                y: 470,
+                size: 25,
+                opacity: 0.001,
+            }),
         );
     });
 
@@ -750,6 +964,7 @@ describe('extractOcrTextOverlays', () => {
                 y: 20,
                 width: 300,
                 height: 40,
+                coordinateSpace: 'image',
             },
         ]);
     });
@@ -789,6 +1004,7 @@ describe('extractOcrTextOverlays', () => {
                 y: 60,
                 width: 70,
                 height: 20,
+                coordinateSpace: 'image',
             },
         ]);
     });
@@ -814,6 +1030,7 @@ describe('extractOcrTextOverlays', () => {
                 y: 240,
                 width: 640,
                 height: 38,
+                coordinateSpace: 'image',
             },
         ]);
     });

@@ -20,6 +20,8 @@ export type ResolvedCanvasImage = {
     annotation: any;
     resource: any;
     resourceId: string | null;
+    resourceWidth: number | null;
+    resourceHeight: number | null;
     serviceId: string | null;
     serviceProfile: string | null;
 };
@@ -38,6 +40,34 @@ function normalizeServiceId(serviceId: string): string {
     return serviceId.endsWith('/info.json')
         ? serviceId.slice(0, -'/info.json'.length)
         : serviceId;
+}
+
+function getNumericDimension(value: unknown): number | null {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+        ? value
+        : null;
+}
+
+function getResourceDimensions(resource: any): {
+    width: number | null;
+    height: number | null;
+} {
+    const resourceJson = resource?.__jsonld || resource;
+
+    return {
+        width:
+            getNumericDimension(resource?.width) ||
+            getNumericDimension(resourceJson?.width) ||
+            (typeof resource?.getWidth === 'function'
+                ? getNumericDimension(resource.getWidth())
+                : null),
+        height:
+            getNumericDimension(resource?.height) ||
+            getNumericDimension(resourceJson?.height) ||
+            (typeof resource?.getHeight === 'function'
+                ? getNumericDimension(resource.getHeight())
+                : null),
+    };
 }
 
 function isChoiceBody(body: any, rawBody: any): boolean {
@@ -64,6 +94,40 @@ function getChoiceItems(body: any, rawBody: any): any[] {
     }
 
     return [];
+}
+
+function getSelectedChoiceResource({
+    body,
+    rawBody,
+    canvasId,
+    getSelectedChoice,
+}: {
+    body: any;
+    rawBody: any;
+    canvasId: string;
+    getSelectedChoice?: (canvasId: string) => string | undefined;
+}): any | null {
+    const bodyItems = Array.isArray(body) ? body : getChoiceItems(body, null);
+    const rawItems = getChoiceItems(null, rawBody);
+    const selectedId = getSelectedChoice?.(canvasId);
+
+    if (selectedId) {
+        const selectedBodyItem = bodyItems.find(
+            (item: any) => getId(item) === selectedId,
+        );
+        if (selectedBodyItem) {
+            return selectedBodyItem;
+        }
+
+        const selectedRawIndex = rawItems.findIndex(
+            (item: any) => getId(item) === selectedId,
+        );
+        if (selectedRawIndex >= 0) {
+            return bodyItems[selectedRawIndex] || rawItems[selectedRawIndex];
+        }
+    }
+
+    return bodyItems[0] || rawItems[0] || null;
 }
 
 function getCanvasAnnotations(canvas: any): any[] {
@@ -98,13 +162,12 @@ function getAnnotationResource(
         const rawBody = annotation.__jsonld?.body || annotation.body;
 
         if (isChoiceBody(body, rawBody)) {
-            const items = getChoiceItems(body, rawBody);
-            const selectedId = getSelectedChoice?.(canvasId);
-            const selectedItem = selectedId
-                ? items.find((item: any) => getId(item) === selectedId)
-                : null;
-
-            resource = selectedItem || items[0] || null;
+            resource = getSelectedChoiceResource({
+                body,
+                rawBody,
+                canvasId,
+                getSelectedChoice,
+            });
         } else if (Array.isArray(body) && body.length > 0) {
             resource = body[0];
         } else if (body) {
@@ -293,6 +356,7 @@ export function resolveCanvasImage(
     }
 
     const resourceId = getId(resource);
+    const resourceDimensions = getResourceDimensions(resource);
     const serviceDetails = getImageServiceDetails(resource);
     const serviceId =
         serviceDetails.serviceId || getHeuristicServiceId(resourceId);
@@ -302,6 +366,8 @@ export function resolveCanvasImage(
         annotation,
         resource,
         resourceId,
+        resourceWidth: resourceDimensions.width,
+        resourceHeight: resourceDimensions.height,
         serviceId,
         serviceProfile: serviceDetails.serviceProfile,
     };
