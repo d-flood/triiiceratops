@@ -10,11 +10,34 @@ export type VisibleCanvasEntry = {
     canvas: any;
 };
 
+export type CanvasNavDirection = 'previous' | 'next';
+
+export type CanvasNavLayout = {
+    leftButton: CanvasNavDirection;
+    rightButton: CanvasNavDirection;
+};
+
 export function shouldUseAbbreviatedChoiceLabels(
     viewingMode: ViewingMode,
     visibleChoiceGroups: ChoiceGroup[],
 ) {
     return viewingMode === 'paged' && visibleChoiceGroups.length > 1;
+}
+
+export function getCanvasNavLayout(
+    viewingDirection: ViewingDirection,
+): CanvasNavLayout {
+    if (viewingDirection === 'right-to-left') {
+        return {
+            leftButton: 'next',
+            rightButton: 'previous',
+        };
+    }
+
+    return {
+        leftButton: 'previous',
+        rightButton: 'next',
+    };
 }
 
 type ViewingMode = 'individuals' | 'paged' | 'continuous';

@@ -10,6 +10,7 @@
     import { m, language } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
     import {
+        getCanvasNavLayout,
         getVisibleChoiceGroups,
         shouldUseAbbreviatedChoiceLabels,
         type ChoiceGroup,
@@ -59,6 +60,9 @@
             viewerState.viewingMode,
             visibleChoiceGroups,
         ),
+    );
+    let canvasNavLayout = $derived(
+        getCanvasNavLayout(viewerState.viewingDirection),
     );
 
     function selectChoice(canvasId: string, item: any) {
@@ -232,9 +236,17 @@
                     <div class="flex items-center gap-1">
                         <button
                             class="btn btn-circle btn-sm btn-ghost"
-                            disabled={!viewerState.hasPrevious}
-                            onclick={() => viewerState.previousCanvas()}
-                            aria-label={m.previous_canvas()}
+                            disabled={canvasNavLayout.leftButton === 'previous'
+                                ? !viewerState.hasPrevious
+                                : !viewerState.hasNext}
+                            onclick={() =>
+                                canvasNavLayout.leftButton === 'previous'
+                                    ? viewerState.previousCanvas()
+                                    : viewerState.nextCanvas()}
+                            aria-label={canvasNavLayout.leftButton ===
+                            'previous'
+                                ? m.previous_canvas()
+                                : m.next_canvas()}
                         >
                             <CaretLeft size={18} />
                         </button>
@@ -250,9 +262,16 @@
 
                         <button
                             class="btn btn-circle btn-sm btn-ghost"
-                            disabled={!viewerState.hasNext}
-                            onclick={() => viewerState.nextCanvas()}
-                            aria-label={m.next_canvas()}
+                            disabled={canvasNavLayout.rightButton === 'next'
+                                ? !viewerState.hasNext
+                                : !viewerState.hasPrevious}
+                            onclick={() =>
+                                canvasNavLayout.rightButton === 'next'
+                                    ? viewerState.nextCanvas()
+                                    : viewerState.previousCanvas()}
+                            aria-label={canvasNavLayout.rightButton === 'next'
+                                ? m.next_canvas()
+                                : m.previous_canvas()}
                         >
                             <CaretRight size={18} />
                         </button>
