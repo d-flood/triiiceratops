@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     getCanvasNavLayout,
     getCanvasChoices,
+    getPagedCanvasGroups,
     getVisibleCanvasEntries,
     getVisibleChoiceGroups,
     shouldUseAbbreviatedChoiceLabels,
@@ -53,6 +54,13 @@ function createImageCanvas(canvasId: string) {
                 },
             },
         ],
+    };
+}
+
+function createBehaviorCanvas(canvasId: string, behavior: string | string[]) {
+    return {
+        ...createImageCanvas(canvasId),
+        behavior,
     };
 }
 
@@ -411,6 +419,42 @@ describe('viewerControls helpers', () => {
             expect(
                 shouldUseAbbreviatedChoiceLabels('individuals', pagedGroups),
             ).toBe(false);
+        });
+    });
+
+    describe('paged canvas grouping', () => {
+        it('treats non-paged canvases as their own spread', () => {
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                createBehaviorCanvas('canvas-2', 'non-paged'),
+                createImageCanvas('canvas-3'),
+                createImageCanvas('canvas-4'),
+            ];
+
+            expect(
+                getPagedCanvasGroups(canvases, 1).map((group) =>
+                    group.entries.map((entry) => entry.canvasId),
+                ),
+            ).toEqual([['canvas-1'], ['canvas-2'], ['canvas-3', 'canvas-4']]);
+        });
+
+        it('shows only the non-paged canvas when it is selected in paged mode', () => {
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                createBehaviorCanvas('canvas-2', 'non-paged'),
+                createImageCanvas('canvas-3'),
+                createImageCanvas('canvas-4'),
+            ];
+
+            expect(
+                getVisibleCanvasEntries({
+                    canvases,
+                    currentCanvasId: 'canvas-2',
+                    currentCanvasIndex: 1,
+                    viewingMode: 'paged',
+                    pagedOffset: 1,
+                }).map((entry) => entry.canvasId),
+            ).toEqual(['canvas-2']);
         });
     });
 

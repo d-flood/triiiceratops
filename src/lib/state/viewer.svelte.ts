@@ -17,7 +17,11 @@ import {
     type CollectionItem,
 } from '../utils/collections';
 import type { CanvasRegion } from '../utils/contentState';
-import { getCanvasId } from '../components/viewerControls';
+import {
+    getCanvasId,
+    getPagedCanvasGroups,
+    getVisibleCanvasEntries,
+} from '../components/viewerControls';
 
 function normalizeIiifBehavior(value: unknown): string {
     const normalized = String(value).trim().toLowerCase();
@@ -296,34 +300,50 @@ export class ViewerState {
         });
     }
 
+    private getCurrentPagedCanvasGroupIndex(): number {
+        if (this.viewingMode !== 'paged' || this.currentCanvasIndex < 0) {
+            return -1;
+        }
+
+        const groups = getPagedCanvasGroups(this.canvases, this.pagedOffset);
+        return groups.findIndex(
+            ({ startIndex, endIndex }) =>
+                this.currentCanvasIndex >= startIndex &&
+                this.currentCanvasIndex <= endIndex,
+        );
+    }
+
     get hasNext() {
         if (this.viewingMode === 'paged') {
-            // Account for paged offset: with offset 1, page 1 is single, pairs start at 2+3
-            const singlePages = this.pagedOffset;
-            if (this.currentCanvasIndex < singlePages) {
-                return this.currentCanvasIndex < this.canvases.length - 1;
-            }
-            return this.currentCanvasIndex < this.canvases.length - 2;
+            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+            const groups = getPagedCanvasGroups(
+                this.canvases,
+                this.pagedOffset,
+            );
+            return groupIndex >= 0 && groupIndex < groups.length - 1;
         } else {
             return this.currentCanvasIndex < this.canvases.length - 1;
         }
     }
 
     get hasPrevious() {
+        if (this.viewingMode === 'paged') {
+            return this.getCurrentPagedCanvasGroupIndex() > 0;
+        }
+
         return this.currentCanvasIndex > 0;
     }
 
     nextCanvas() {
         if (this.hasNext) {
             if (this.viewingMode === 'paged') {
-                // Single pages at the start: pagedOffset (default 0, shifted = 1)
-                const singlePages = this.pagedOffset;
-                const nextIndex =
-                    this.currentCanvasIndex < singlePages
-                        ? this.currentCanvasIndex + 1
-                        : this.currentCanvasIndex + 2;
-                const canvas = this.canvases[nextIndex];
-                const canvasId = getCanvasId(canvas);
+                const groups = getPagedCanvasGroups(
+                    this.canvases,
+                    this.pagedOffset,
+                );
+                const canvasId =
+                    groups[this.getCurrentPagedCanvasGroupIndex() + 1]
+                        ?.entries[0]?.canvasId;
                 if (canvasId) this.setCanvas(canvasId);
             } else {
                 const nextIndex = this.currentCanvasIndex + 1;
@@ -337,21 +357,13 @@ export class ViewerState {
     previousCanvas() {
         if (this.hasPrevious) {
             if (this.viewingMode === 'paged') {
-                // Single pages at the start: pagedOffset (default 0, shifted = 1)
-                const singlePages = this.pagedOffset;
-                let prevIndex: number;
-                if (this.currentCanvasIndex <= singlePages) {
-                    // Going back within single pages or to a single page
-                    prevIndex = this.currentCanvasIndex - 1;
-                } else {
-                    // Going back in paired pages, but don't go past the last single page
-                    prevIndex = Math.max(
-                        this.currentCanvasIndex - 2,
-                        singlePages,
-                    );
-                }
-                const canvas = this.canvases[prevIndex];
-                const canvasId = getCanvasId(canvas);
+                const groups = getPagedCanvasGroups(
+                    this.canvases,
+                    this.pagedOffset,
+                );
+                const canvasId =
+                    groups[this.getCurrentPagedCanvasGroupIndex() - 1]
+                        ?.entries[0]?.canvasId;
                 if (canvasId) this.setCanvas(canvasId);
             } else {
                 const prevIndex = this.currentCanvasIndex - 1;
@@ -872,19 +884,16 @@ export class ViewerState {
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {
         this.viewingMode = mode;
         if (mode === 'paged') {
-            const singlePages = this.pagedOffset;
-            // If we're past the single pages, check if we're on a right-hand page
-            if (this.currentCanvasIndex >= singlePages) {
-                // Calculate position relative to where pairs start
-                const pairPosition =
-                    (this.currentCanvasIndex - singlePages) % 2;
-                if (pairPosition === 1) {
-                    // We're on a right-hand page, move back one
-                    const newIndex = this.currentCanvasIndex - 1;
-                    const canvas = this.canvases[newIndex];
-                    const canvasId = getCanvasId(canvas);
-                    if (canvasId) this.setCanvas(canvasId);
-                }
+            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+            const canvasId =
+                groupIndex >= 0
+                    ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
+                          groupIndex
+                      ]?.entries[0]?.canvasId
+                    : null;
+
+            if (canvasId && this.canvasId !== canvasId) {
+                this.setCanvas(canvasId);
             }
         }
         this.dispatchStateChange();
@@ -893,17 +902,16 @@ export class ViewerState {
     togglePagedOffset() {
         this.pagedOffset = this.pagedOffset === 0 ? 1 : 0;
         this.config.pagedViewOffset = this.pagedOffset === 1;
-        // Adjust current canvas position if needed
-        const singlePages = this.pagedOffset;
-        if (this.currentCanvasIndex >= singlePages) {
-            const pairPosition = (this.currentCanvasIndex - singlePages) % 2;
-            if (pairPosition === 1) {
-                // We're now on a right-hand page after the shift, move back
-                const newIndex = this.currentCanvasIndex - 1;
-                const canvas = this.canvases[newIndex];
-                const canvasId = getCanvasId(canvas);
-                if (canvasId) this.setCanvas(canvasId);
-            }
+        const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+        const canvasId =
+            groupIndex >= 0
+                ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
+                      groupIndex
+                  ]?.entries[0]?.canvasId
+                : null;
+
+        if (canvasId && this.canvasId !== canvasId) {
+            this.setCanvas(canvasId);
         }
         this.dispatchStateChange();
     }
@@ -931,36 +939,40 @@ export class ViewerState {
     get currentCanvasSearchAnnotations() {
         if (!this.canvasId) return [];
         if (this.viewingMode === 'paged') {
-            let annotations = this.searchAnnotations.filter(
-                (a) => a.canvasId === this.canvasId,
-            );
-            const currentIndex = this.currentCanvasIndex;
-            const singlePages = this.pagedOffset;
-            // Only include next canvas annotations if we're in a two-page spread
-            if (currentIndex >= singlePages) {
-                const nextIndex = currentIndex + 1;
-                if (nextIndex < this.canvases.length) {
-                    const nextCanvas = this.canvases[nextIndex];
-                    const nextCanvasId = nextCanvas.id || nextCanvas['@id'];
-                    const xOffset = 1.025; // account for small gap between pages
-                    const annoOffset =
-                        this.canvases[currentIndex].getWidth() * xOffset;
-                    const nextAnnotations = this.searchAnnotations.filter(
-                        (a) => a.canvasId === nextCanvasId,
-                    );
+            const visibleEntries = getVisibleCanvasEntries({
+                canvases: this.canvases,
+                currentCanvasId: this.canvasId,
+                currentCanvasIndex: this.currentCanvasIndex,
+                viewingMode: this.viewingMode,
+                pagedOffset: this.pagedOffset,
+            });
 
-                    // update x coordinates for display on the right side in two-page mode
-                    const nextAnnotationsUpdated = nextAnnotations.map((a) => {
-                        const parts = a.on.split('#xywh=');
-                        const coords = parts[1].split(',').map(Number);
-                        const shiftedX = coords[0] + annoOffset;
-                        return {
-                            ...a,
-                            on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
-                        };
-                    });
-                    annotations = annotations.concat(nextAnnotationsUpdated);
-                }
+            if (!visibleEntries.length) {
+                return [];
+            }
+
+            const [firstEntry, secondEntry] = visibleEntries;
+            let annotations = this.searchAnnotations.filter(
+                (a) => a.canvasId === firstEntry.canvasId,
+            );
+
+            if (secondEntry) {
+                const xOffset = 1.025; // account for small gap between pages
+                const annoOffset = firstEntry.canvas.getWidth() * xOffset;
+                const nextAnnotations = this.searchAnnotations.filter(
+                    (a) => a.canvasId === secondEntry.canvasId,
+                );
+
+                const nextAnnotationsUpdated = nextAnnotations.map((a) => {
+                    const parts = a.on.split('#xywh=');
+                    const coords = parts[1].split(',').map(Number);
+                    const shiftedX = coords[0] + annoOffset;
+                    return {
+                        ...a,
+                        on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
+                    };
+                });
+                annotations = annotations.concat(nextAnnotationsUpdated);
             }
             return annotations;
         } else {
