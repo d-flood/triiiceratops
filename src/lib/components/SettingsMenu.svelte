@@ -7,11 +7,13 @@
 
     let {
         config = $bindable(),
+        availableLocales = [],
         class: className = '',
         onReset,
         onShare,
     }: {
         config: any;
+        availableLocales?: string[];
         class?: string;
         onReset?: () => void;
         onShare?: () => Promise<void>;
@@ -19,6 +21,11 @@
 
     let copied = $state(false);
     let shared = $state(false);
+    let viewerLocaleOptions = $derived.by(() => {
+        return [...new Set(availableLocales)].sort((a, b) =>
+            a.localeCompare(b),
+        );
+    });
 
     function copyConfig() {
         navigator.clipboard.writeText(JSON.stringify(config, null, 2));
@@ -73,6 +80,31 @@
                 bind:checked={config.showZoomControls}
             />
         </label>
+    </li>
+    <div class="divider my-1"></div>
+
+    <li class="menu-title px-4 py-2">Viewer Language</li>
+    <li>
+        <div class="px-4 py-2">
+            <label class="label py-1" for="viewer-locale-select">
+                <span class="label-text">Viewer locale (IIIF)</span>
+            </label>
+            <select
+                id="viewer-locale-select"
+                class="select select-bordered select-sm w-full"
+                value={config.locale ?? ''}
+                onchange={(e) => {
+                    const value = (e.currentTarget as HTMLSelectElement).value;
+                    config.locale = value || undefined;
+                }}
+                aria-label="Viewer locale"
+            >
+                <option value="">Follow app</option>
+                {#each viewerLocaleOptions as locale (locale)}
+                    <option value={locale}>{locale}</option>
+                {/each}
+            </select>
+        </div>
     </li>
 
     <div class="divider my-1"></div>

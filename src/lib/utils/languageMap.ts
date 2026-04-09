@@ -57,27 +57,46 @@ export function resolveLanguageValue(
         // Array of { value, locale/language } objects
         const items = value as Array<{
             value?: string;
+            _value?: string;
             locale?: string;
+            _locale?: string;
             language?: string;
         }>;
 
+        const getItemValue = (item?: { value?: string; _value?: string }) =>
+            item?.value ?? item?._value;
+
         const findByLocale = (locale: string) =>
-            items.find((x) => x.locale === locale || x.language === locale);
+            items.find(
+                (x) =>
+                    x.locale === locale ||
+                    x._locale === locale ||
+                    x.language === locale,
+            );
 
         if (preferredLocale) {
             const match = findByLocale(preferredLocale);
-            if (match?.value) return match.value;
+            const value = getItemValue(match);
+            if (value) return value;
         }
 
         const enMatch = findByLocale('en');
-        if (enMatch?.value) return enMatch.value;
+        {
+            const value = getItemValue(enMatch);
+            if (value) return value;
+        }
 
         // Unset locale
-        const noneMatch = items.find((x) => !x.locale && !x.language);
-        if (noneMatch?.value) return noneMatch.value;
+        const noneMatch = items.find(
+            (x) => !x.locale && !x._locale && !x.language,
+        );
+        {
+            const value = getItemValue(noneMatch);
+            if (value) return value;
+        }
 
         // First available
-        return items[0]?.value ?? '';
+        return getItemValue(items[0]) ?? '';
     }
 
     return String(value);
@@ -130,14 +149,24 @@ export function resolveAllLanguageValues(
 
         const items = value as Array<{
             value?: string;
+            _value?: string;
             locale?: string;
+            _locale?: string;
             language?: string;
         }>;
 
+        const getItemValue = (item: { value?: string; _value?: string }) =>
+            item.value ?? item._value ?? '';
+
         const filterByLocale = (locale: string) =>
             items
-                .filter((x) => x.locale === locale || x.language === locale)
-                .map((x) => x.value ?? '');
+                .filter(
+                    (x) =>
+                        x.locale === locale ||
+                        x._locale === locale ||
+                        x.language === locale,
+                )
+                .map(getItemValue);
 
         if (preferredLocale) {
             const result = filterByLocale(preferredLocale);
@@ -148,11 +177,11 @@ export function resolveAllLanguageValues(
         if (enResult.length) return enResult;
 
         const noneResult = items
-            .filter((x) => !x.locale && !x.language)
-            .map((x) => x.value ?? '');
+            .filter((x) => !x.locale && !x._locale && !x.language)
+            .map(getItemValue);
         if (noneResult.length) return noneResult;
 
-        return items.map((x) => x.value ?? '');
+        return items.map(getItemValue);
     }
 
     return [String(value)];

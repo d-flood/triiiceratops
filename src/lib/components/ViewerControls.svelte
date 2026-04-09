@@ -7,7 +7,7 @@
     import CaretRight from 'phosphor-svelte/lib/CaretRight';
     import MagnifyingGlassPlus from 'phosphor-svelte/lib/MagnifyingGlassPlus';
     import MagnifyingGlassMinus from 'phosphor-svelte/lib/MagnifyingGlassMinus';
-    import { m } from '../state/i18n.svelte';
+    import { m, language } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
     import {
         getVisibleChoiceGroups,
@@ -17,6 +17,9 @@
     import CanvasInfoPopover from './CanvasInfoPopover.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    let viewerLocale = $derived(
+        (viewerState.config as { locale?: string }).locale || language.current,
+    );
 
     // Canvas navigation state
     let showNav = $derived(
@@ -69,12 +72,12 @@
         // Try manifesto accessor
         if (choice.getLabel) {
             const l = choice.getLabel();
-            const resolved = resolveLanguageValue(l);
+            const resolved = resolveLanguageValue(l, viewerLocale);
             if (resolved) return resolved;
         }
         // Try raw label property
         if (choice.label) {
-            const resolved = resolveLanguageValue(choice.label);
+            const resolved = resolveLanguageValue(choice.label, viewerLocale);
             if (resolved) return resolved;
         }
         return `Option ${index + 1}`;
