@@ -104,5 +104,38 @@ describe('annotationAdapter', () => {
             const result = parseAnnotation(invalidAnno, 3);
             expect(result).toBeNull();
         });
+
+        it('should fallback to a full-canvas rectangle for canvas-target annotations', () => {
+            const annotation = {
+                id: 'canvas-note',
+                target: 'http://example.org/canvas1',
+                body: {
+                    type: 'TextualBody',
+                    format: 'text/html',
+                    value: '<p>Hello</p>',
+                },
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            const result = parseAnnotation(annotation, 4);
+
+            expect(result).not.toBeNull();
+            expect(result?.geometry).toEqual({
+                type: 'RECTANGLE',
+                x: 0,
+                y: 0,
+                w: 800,
+                h: 600,
+            });
+            expect(result?.body[0]).toMatchObject({
+                value: '<p>Hello</p>',
+                isHtml: true,
+                format: 'text/html',
+            });
+        });
     });
 });

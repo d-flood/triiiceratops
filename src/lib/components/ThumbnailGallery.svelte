@@ -6,6 +6,7 @@
     import { language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { resolveLanguageValue } from '../utils/languageMap';
+    import { getCanvasId } from './viewerControls';
 
     // Minimal canvas/annotation types covering methods used here
     type ManifestService = {
@@ -135,7 +136,7 @@
             }
 
             return {
-                id: canvas.id,
+                id: getCanvasId(canvas) || `canvas-${index}`,
                 label:
                     resolveLanguageValue(canvas.getLabel?.(), viewerLocale) ||
                     `Canvas ${index + 1}`,
@@ -255,7 +256,9 @@
                 } else {
                     // Right-hand page, select the left page of this pair
                     const prevCanvas = thumbnails[canvasIndex - 1];
-                    viewerState.setCanvas(prevCanvas.id);
+                    if (prevCanvas?.id) {
+                        viewerState.setCanvas(prevCanvas.id);
+                    }
                 }
             }
         } else {

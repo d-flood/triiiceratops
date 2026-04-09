@@ -10,6 +10,7 @@
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
+    import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
@@ -331,11 +332,14 @@
                 );
                 internalViewerState.setCanvas(startCanvas);
             } else {
+                const firstCanvasId = getCanvasId(canvases[0]);
                 console.log(
                     '[Viewer] Auto-selecting first canvas:',
-                    canvases[0].id,
+                    firstCanvasId,
                 );
-                internalViewerState.setCanvas(canvases[0].id);
+                if (firstCanvasId) {
+                    internalViewerState.setCanvas(firstCanvasId);
+                }
             }
         }
     });

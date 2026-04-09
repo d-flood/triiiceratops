@@ -137,14 +137,59 @@ export class ManifestsState {
         }
     }
 
+    private findCanvasInJson(resource: any, canvasId: string): any | null {
+        if (!resource || typeof resource !== 'object') {
+            return null;
+        }
+
+        const resourceId = resource.id || resource['@id'];
+        const resourceType = resource.type || resource['@type'];
+
+        if (
+            resourceId === canvasId &&
+            (resourceType === 'Canvas' || resourceType === 'sc:Canvas')
+        ) {
+            return resource;
+        }
+
+        const childCollections = [
+            resource.items,
+            resource.canvases,
+            resource.sequences,
+            resource.members,
+        ];
+
+        for (const collection of childCollections) {
+            if (!Array.isArray(collection)) {
+                continue;
+            }
+
+            for (const item of collection) {
+                const match = this.findCanvasInJson(item, canvasId);
+                if (match) {
+                    return match;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private getCanvasJson(manifestId: string, canvasId: string): any | null {
         const manifestoObject = this.getManifest(manifestId);
-        if (!manifestoObject) return null;
+        const manifestEntry = this.getManifestEntry(manifestId);
 
-        const canvas = manifestoObject
-            .getSequences()[0]
-            .getCanvasById(canvasId);
-        return canvas?.__jsonld || null;
+        if (manifestoObject) {
+            const sequences = manifestoObject.getSequences?.() || [];
+            for (const sequence of sequences) {
+                const canvas = sequence?.getCanvasById?.(canvasId);
+                if (canvas?.__jsonld) {
+                    return canvas.__jsonld;
+                }
+            }
+        }
+
+        return this.findCanvasInJson(manifestEntry?.json, canvasId);
     }
 
     private getCanvasAnnotationListRefs(canvasJson: any): string[] {
@@ -253,16 +298,34 @@ export class ManifestsState {
 
         const annotations: any[] = [];
 
+        const attachCanvasContext = (annotation: any) => {
+            if (!annotation || typeof annotation !== 'object') {
+                return annotation;
+            }
+
+            return {
+                ...annotation,
+                __triiiceratopsCanvas: {
+                    id: canvasJson.id || canvasJson['@id'] || canvasId,
+                    width: canvasJson.width,
+                    height: canvasJson.height,
+                },
+            };
+        };
+
         // Helper to parse list using Manifesto
         const parseList = (listJson: any) => {
             // manifesto.create is not available in 4.3.0 or not exported nicely?
             // Just return raw resources.
             const raw = listJson.resources || listJson.items || [];
-            return Array.isArray(raw) ? raw : [raw];
+            const items = Array.isArray(raw) ? raw : [raw];
+            return items.map(attachCanvasContext);
         };
 
         const ensureArray = (val: any): any[] =>
-            Array.isArray(val) ? val : val ? [val] : [];
+            (Array.isArray(val) ? val : val ? [val] : []).map(
+                attachCanvasContext,
+            );
 
         // IIIF v2 otherContent
         if (canvasJson.otherContent) {
