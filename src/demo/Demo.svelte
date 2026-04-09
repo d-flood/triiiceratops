@@ -45,7 +45,6 @@
         showCanvasNav: true,
         showZoomControls: true,
         enableDragDrop: true,
-        viewingMode: 'individuals',
         toolbar: {
             showSearch: true,
             showGallery: true,
@@ -87,6 +86,12 @@
     }
 
     let config = $state(initialConfig);
+
+    function shouldSyncViewingMode(
+        mode: 'individuals' | 'paged' | 'continuous',
+    ) {
+        return config.viewingMode !== undefined || mode !== 'individuals';
+    }
 
     // Initialize mode from URL, default to 'image'
     // const urlParams = new URLSearchParams(window.location.search); // Already defined above
@@ -325,7 +330,10 @@
                         hasChanges = true;
                     }
 
-                    if (config.viewingMode !== state.viewingMode) {
+                    if (
+                        shouldSyncViewingMode(state.viewingMode) &&
+                        config.viewingMode !== state.viewingMode
+                    ) {
                         config.viewingMode = state.viewingMode;
                         hasChanges = true;
                     }
@@ -370,7 +378,10 @@
             config.annotations.open = svelteViewerState.showAnnotations;
         }
         config.toolbarOpen = svelteViewerState.toolbarOpen;
-        config.viewingMode = svelteViewerState.viewingMode;
+
+        if (shouldSyncViewingMode(svelteViewerState.viewingMode)) {
+            config.viewingMode = svelteViewerState.viewingMode;
+        }
 
         // Sync canvas ID back to the dropdown
         if (

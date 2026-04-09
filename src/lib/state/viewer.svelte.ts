@@ -18,6 +18,12 @@ import {
 } from '../utils/collections';
 import type { CanvasRegion } from '../utils/contentState';
 
+function normalizeIiifBehavior(value: unknown): string {
+    const normalized = String(value).trim().toLowerCase();
+    const segments = normalized.split(/[#/:]/);
+    return segments[segments.length - 1] || normalized;
+}
+
 /**
  * Snapshot of viewer state for external consumers.
  * Used by web component events to expose state without Svelte reactivity.
@@ -382,35 +388,7 @@ export class ViewerState {
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
         await manifestsState.registerManifest(manifestId, manifestJson);
-
-        // Parse start canvas from the raw JSON
-        try {
-            const startObj = manifestJson?.start;
-            if (startObj) {
-                let startId: string | null = null;
-                if (typeof startObj === 'string') {
-                    startId = startObj;
-                } else if (startObj.id) {
-                    startId = startObj.id;
-                } else if (startObj['@id']) {
-                    startId = startObj['@id'];
-                }
-                if (startId) {
-                    const canvasIdFromStart = startId.split('#')[0];
-                    const canvases = manifestsState.getCanvases(manifestId, 0);
-                    const exists = canvases.some(
-                        (c: any) =>
-                            c.id === canvasIdFromStart ||
-                            c['@id'] === canvasIdFromStart,
-                    );
-                    if (exists) {
-                        this.startCanvasId = canvasIdFromStart;
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('Error parsing start canvas from manifest data', e);
-        }
+        this._applyManifestSettings(manifestId);
     }
 
     /**
@@ -606,12 +584,23 @@ export class ViewerState {
                 // Manifesto accessor
                 if (behaviors.length === 0 && manifest.getBehavior) {
                     const b = manifest.getBehavior();
-                    if (b) behaviors = [String(b)];
+                    if (b) {
+                        behaviors = Array.isArray(b) ? b : [b];
+                    }
                 }
 
                 // Check sequence behavior
                 const seq = manifest.getSequences()?.[0];
                 if (seq) {
+                    if (seq.getBehavior) {
+                        const b = seq.getBehavior();
+                        if (b) {
+                            behaviors = behaviors.concat(
+                                Array.isArray(b) ? b : [b],
+                            );
+                        }
+                    }
+
                     if (seq.__jsonld && seq.__jsonld.behavior) {
                         const b = seq.__jsonld.behavior;
                         behaviors = behaviors.concat(
@@ -619,6 +608,8 @@ export class ViewerState {
                         );
                     }
                 }
+
+                behaviors = behaviors.map(normalizeIiifBehavior);
             } catch (e) {
                 console.warn('Error parsing behavior', e);
             }
