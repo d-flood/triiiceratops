@@ -54,4 +54,28 @@ describe('ViewerState manifest behavior', () => {
         expect(state.viewingDirection).toBe('right-to-left');
         expect(state.viewingMode).toBe('continuous');
     });
+
+    it('navigates paged spreads around non-paged canvases', () => {
+        const canvases = [
+            { id: 'canvas-1' },
+            { id: 'canvas-2', behavior: ['non-paged'] },
+            { id: 'canvas-3' },
+            { id: 'canvas-4' },
+        ];
+
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        state.manifestId = 'manifest-1';
+        state.viewingMode = 'paged';
+        state.canvasId = 'canvas-1';
+
+        state.nextCanvas();
+        expect(state.canvasId).toBe('canvas-2');
+
+        state.nextCanvas();
+        expect(state.canvasId).toBe('canvas-3');
+
+        state.previousCanvas();
+        expect(state.canvasId).toBe('canvas-2');
+    });
 });

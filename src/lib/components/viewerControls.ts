@@ -10,6 +10,12 @@ export type VisibleCanvasEntry = {
     canvas: any;
 };
 
+export type PagedCanvasGroup = {
+    startIndex: number;
+    endIndex: number;
+    entries: VisibleCanvasEntry[];
+};
+
 export type CanvasNavDirection = 'previous' | 'next';
 
 export type CanvasNavLayout = {
@@ -118,7 +124,70 @@ export function getCanvasBehaviors(canvas: any): string[] {
 
     if (!raw) return [];
     const behaviors = Array.isArray(raw) ? raw : [raw];
-    return behaviors.map((value) => String(value));
+    return behaviors.map((value) => {
+        const normalized = String(value).trim().toLowerCase();
+        const segments = normalized.split(/[#/:]/);
+        return segments[segments.length - 1] || normalized;
+    });
+}
+
+function isSinglePageCanvas(canvas: any): boolean {
+    const behaviors = getCanvasBehaviors(canvas);
+    return (
+        behaviors.includes('non-paged') || behaviors.includes('facing-pages')
+    );
+}
+
+export function getPagedCanvasGroups(
+    canvases: any[],
+    pagedOffset: number,
+): PagedCanvasGroup[] {
+    const groups: PagedCanvasGroup[] = [];
+
+    for (
+        let index = 0;
+        index < Math.min(pagedOffset, canvases.length);
+        index++
+    ) {
+        const canvas = canvases[index];
+        const canvasId = getCanvasId(canvas);
+
+        groups.push({
+            startIndex: index,
+            endIndex: index,
+            entries: canvasId ? [{ canvasId, canvas }] : [],
+        });
+    }
+
+    for (let index = pagedOffset; index < canvases.length; ) {
+        const firstCanvas = canvases[index];
+        const firstCanvasId = getCanvasId(firstCanvas);
+        const nextCanvas = canvases[index + 1];
+        const nextCanvasId = getCanvasId(nextCanvas);
+        const shouldPair =
+            !!nextCanvas &&
+            !!firstCanvasId &&
+            !!nextCanvasId &&
+            !isSinglePageCanvas(firstCanvas) &&
+            !isSinglePageCanvas(nextCanvas);
+
+        groups.push({
+            startIndex: index,
+            endIndex: shouldPair ? index + 1 : index,
+            entries: [
+                ...(firstCanvasId
+                    ? [{ canvasId: firstCanvasId, canvas: firstCanvas }]
+                    : []),
+                ...(shouldPair
+                    ? [{ canvasId: nextCanvasId, canvas: nextCanvas }]
+                    : []),
+            ],
+        });
+
+        index += shouldPair ? 2 : 1;
+    }
+
+    return groups;
 }
 
 export function getVisibleCanvasEntries({
@@ -140,16 +209,7 @@ export function getVisibleCanvasEntries({
 
     if (!currentCanvas) return visibleCanvases;
 
-    const currentBehaviors = getCanvasBehaviors(currentCanvas);
-    const forceSinglePage =
-        currentBehaviors.includes('non-paged') ||
-        currentBehaviors.includes('facing-pages');
-
-    if (
-        viewingMode !== 'paged' ||
-        currentCanvasIndex < pagedOffset ||
-        forceSinglePage
-    ) {
+    if (viewingMode !== 'paged') {
         visibleCanvases.push({
             canvasId: currentCanvasId,
             canvas: currentCanvas,
@@ -157,37 +217,12 @@ export function getVisibleCanvasEntries({
         return visibleCanvases;
     }
 
-    const pairPosition = (currentCanvasIndex - pagedOffset) % 2;
-    const spreadStartIndex =
-        pairPosition === 0 ? currentCanvasIndex : currentCanvasIndex - 1;
+    const group = getPagedCanvasGroups(canvases, pagedOffset).find(
+        ({ startIndex, endIndex }) =>
+            currentCanvasIndex >= startIndex && currentCanvasIndex <= endIndex,
+    );
 
-    const firstCanvas = canvases[spreadStartIndex];
-    const firstCanvasId = getCanvasId(firstCanvas);
-
-    if (!firstCanvas || !firstCanvasId) return visibleCanvases;
-
-    visibleCanvases.push({
-        canvasId: firstCanvasId,
-        canvas: firstCanvas,
-    });
-
-    const secondCanvas = canvases[spreadStartIndex + 1];
-    const secondCanvasId = getCanvasId(secondCanvas);
-    const secondBehaviors = getCanvasBehaviors(secondCanvas);
-
-    if (
-        secondCanvas &&
-        secondCanvasId &&
-        !secondBehaviors.includes('non-paged') &&
-        !secondBehaviors.includes('facing-pages')
-    ) {
-        visibleCanvases.push({
-            canvasId: secondCanvasId,
-            canvas: secondCanvas,
-        });
-    }
-
-    return visibleCanvases;
+    return group?.entries ?? visibleCanvases;
 }
 
 export function getVisibleChoiceGroups({
