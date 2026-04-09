@@ -1,5 +1,53 @@
 # triiiceratops
 
+## 0.20.3
+
+### Patch Changes
+
+- 674d5c6: more accurate OCR text on PDF positioning
+
+## 0.20.2
+
+### Patch Changes
+
+- 287db30: extend pdf export plugin
+
+## 0.20.1
+
+### Patch Changes
+
+- c67ca74: Add hook for consuming application to add OCR text to canvases during PDF Export plugin export
+
+## 0.20.0
+
+### Minor Changes
+
+- 2953dca: Change plugin configuration so that their visibility and state can be controlled through the config like core toolbar tools
+
+## 0.19.5
+
+### Patch Changes
+
+- 1b20277: fix pdf export cover page data parsing
+
+## 0.19.4
+
+### Patch Changes
+
+- c217cf6: add logging to pdf export
+
+## 0.19.3
+
+### Patch Changes
+
+- f7b86b6: fix: improve canvas index handling in PDF export panel
+
+## 0.19.2
+
+### Patch Changes
+
+- 0b103ab: harden pdf export plugin coversheet data shape
+
 ## 0.19.1
 
 ### Patch Changes

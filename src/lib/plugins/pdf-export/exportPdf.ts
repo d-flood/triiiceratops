@@ -1,14 +1,21 @@
-import { StandardFonts } from 'pdf-lib';
+import {
+    popGraphicsState,
+    pushGraphicsState,
+    rgb,
+    setTextRenderingMode,
+    StandardFonts,
+    TextRenderingMode,
+} from 'pdf-lib';
 
 import { parseAnnotation } from '../../utils/annotationAdapter';
 import { getThumbnailSrc } from '../../utils/getThumbnailSrc';
+import type { ResolvedCanvasImage } from '../../utils/resolveCanvasImage';
 import {
     buildIiifImageRequestUrl,
     getCanvasId,
     getCanvasLabel,
     resolveCanvasImage,
 } from '../../utils/resolveCanvasImage';
-import type { ResolvedCanvasImage } from '../../utils/resolveCanvasImage';
 
 type NormalizeCanvasRangeResult = {
     startIndex: number;
@@ -51,6 +58,34 @@ export type PdfTextOverlay = {
     y: number;
     width: number;
     height: number;
+    coordinateSpace?: 'canvas' | 'image';
+};
+
+export type PdfExportOcrProviderContext = {
+    manifestId: string | null;
+    canvasId: string;
+    canvas: any;
+    canvasIndex: number;
+};
+
+export type PdfCanvasOcrOverlayProvider = (
+    context: PdfExportOcrProviderContext,
+) =>
+    | Promise<PdfTextOverlay[] | null | undefined>
+    | PdfTextOverlay[]
+    | null
+    | undefined;
+
+export type PdfOcrPlacementMode = 'fit-box' | 'word-anchor';
+
+export type PdfOcrSizingMode = 'fit-box' | 'height-only';
+
+export type PdfOcrVisibilityMode = 'transparent' | 'invisible' | 'debug';
+
+type PdfOcrRenderOptions = {
+    placementMode: PdfOcrPlacementMode;
+    sizingMode: PdfOcrSizingMode;
+    visibilityMode: PdfOcrVisibilityMode;
 };
 
 type ExportCanvasRangeAsPdfParams = {
@@ -61,9 +96,13 @@ type ExportCanvasRangeAsPdfParams = {
     manifestId: string | null;
     manifestLabel?: string | null;
     getSelectedChoice?: (canvasId: string) => string | undefined;
+    getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
     getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
     imageRequest?: PdfImageRequestConfig;
     loadImageBlob?: PdfImageLoader;
+    ocrPlacementMode?: PdfOcrPlacementMode;
+    ocrSizingMode?: PdfOcrSizingMode;
+    ocrVisibilityMode?: PdfOcrVisibilityMode;
     filename?: string;
     coverSheet?: PdfCoverSheetConfig;
     createdAt?: Date;
@@ -93,12 +132,26 @@ type WrappedLine = {
     width: number;
 };
 
+type OcrWordLayout = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    fontSize: number;
+    renderedHeight: number;
+};
+
 const COVER_PAGE_SIZE: [number, number] = [612, 792];
 const COVER_MARGIN_X = 56;
 const COVER_MARGIN_Y = 64;
 const COVER_LABEL_SIZE = 11;
 const COVER_VALUE_SIZE = 12;
 const COVER_TITLE_SIZE = 22;
+const DEFAULT_OCR_RENDER_OPTIONS: PdfOcrRenderOptions = {
+    placementMode: 'fit-box',
+    sizingMode: 'fit-box',
+    visibilityMode: 'transparent',
+};
 
 function sanitizeFilenamePart(value: string): string {
     return value
@@ -127,7 +180,14 @@ function getManifestFilenameBase(
             sanitizeFilenamePart(lastSegment || 'iiif-canvases') ||
             'iiif-canvases'
         );
-    } catch {
+    } catch (error) {
+        console.debug(
+            '[PDF export] Falling back to raw manifest id for filename',
+            {
+                manifestId,
+                error,
+            },
+        );
         return sanitizeFilenamePart(manifestId) || 'iiif-canvases';
     }
 }
@@ -137,6 +197,92 @@ function formatCreationDate(createdAt: Date): string {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
+}
+
+function isPdfCoverSheetField(value: unknown): value is PdfCoverSheetField {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const field = value as Record<string, unknown>;
+    return typeof field.label === 'string' && typeof field.value === 'string';
+}
+
+function describeValueShape(value: unknown): string {
+    if (Array.isArray(value)) {
+        return `array(${value.length})`;
+    }
+
+    if (value === null) {
+        return 'null';
+    }
+
+    return typeof value;
+}
+
+function normalizeCoverSheetFields(fields: unknown): PdfCoverSheetField[] {
+    if (Array.isArray(fields)) {
+        console.debug(
+            '[PDF export] Normalizing cover sheet fields from array',
+            {
+                length: fields.length,
+            },
+        );
+
+        return fields.flatMap((field) => {
+            if (isPdfCoverSheetField(field)) {
+                return [{ ...field }];
+            }
+
+            if (Array.isArray(field) && field.length >= 2) {
+                return [
+                    {
+                        label: String(field[0]),
+                        value: String(field[1]),
+                    },
+                ];
+            }
+
+            console.warn(
+                '[PDF export] Ignoring unsupported cover sheet entry',
+                {
+                    shape: describeValueShape(field),
+                    entry: field,
+                },
+            );
+            return [];
+        });
+    }
+
+    if (isPdfCoverSheetField(fields)) {
+        console.debug('[PDF export] Normalizing cover sheet field object');
+        return [{ ...fields }];
+    }
+
+    if (fields && typeof fields === 'object') {
+        console.debug(
+            '[PDF export] Normalizing cover sheet fields from object map',
+            {
+                keys: Object.keys(fields),
+            },
+        );
+        return Object.entries(fields).flatMap(([label, value]) => {
+            if (value == null) {
+                return [];
+            }
+
+            return [{ label, value: String(value) }];
+        });
+    }
+
+    if (fields !== undefined) {
+        console.warn('[PDF export] Unsupported cover sheet fields input', {
+            shape: describeValueShape(fields),
+            fields,
+        });
+    }
+
+    return [];
 }
 
 function getMotivations(annotation: any): string[] {
@@ -243,6 +389,7 @@ function getFontSizeToFit(
     text: string,
     width: number,
     height: number,
+    sizingMode: PdfOcrSizingMode = 'fit-box',
 ): number {
     if (width <= 0 || height <= 0) {
         return 0;
@@ -254,6 +401,11 @@ function getFontSizeToFit(
     );
     const unitWidth = Math.max(0.001, font.widthOfTextAtSize(text, 1));
     const heightBasedSize = height / unitHeight;
+
+    if (sizingMode === 'height-only') {
+        return Math.max(1, heightBasedSize);
+    }
+
     const widthBasedSize = width / unitWidth;
 
     if (text.trim().length <= 3) {
@@ -269,6 +421,7 @@ function getCanvasExportResource(
     getSelectedChoice?: (canvasId: string) => string | undefined,
 ): { imageUrl: string | null; resolvedImage: ResolvedCanvasImage | null } {
     const resolved = resolveCanvasImage(canvas, { getSelectedChoice });
+    const canvasDimensions = getCanvasDimensions(canvas);
     if (
         resolved?.resourceId &&
         (resolved.serviceProfile === 'level0' ||
@@ -278,10 +431,31 @@ function getCanvasExportResource(
     }
 
     if (resolved?.serviceId) {
+        const isWideCanvas =
+            !!canvasDimensions &&
+            canvasDimensions.width > canvasDimensions.height;
+        const constrainedSize = canvasDimensions
+            ? Math.max(
+                  1,
+                  Math.round(
+                      Math.min(
+                          isWideCanvas
+                              ? canvasDimensions.height
+                              : canvasDimensions.width,
+                          targetWidth,
+                      ),
+                  ),
+              )
+            : Math.max(1, Math.round(targetWidth));
+
         return {
-            imageUrl: buildIiifImageRequestUrl(resolved.serviceId, {
-                width: targetWidth,
-            }),
+            imageUrl: isWideCanvas
+                ? buildIiifImageRequestUrl(resolved.serviceId, {
+                      height: constrainedSize,
+                  })
+                : buildIiifImageRequestUrl(resolved.serviceId, {
+                      width: constrainedSize,
+                  }),
             resolvedImage: resolved,
         };
     }
@@ -313,10 +487,13 @@ function wrapText(
     size: number,
     maxWidth: number,
 ): WrappedLine[] {
-    const paragraphs = text.split(/\r?\n/);
+    // Force text to plain string to avoid Svelte proxy issues
+    const plainText = String(text);
+    const paragraphs = plainText.split(/\r?\n/);
     const lines: WrappedLine[] = [];
 
-    for (const paragraph of paragraphs) {
+    // Ensure paragraphs is a plain array (might be Svelte proxy)
+    for (const paragraph of Array.from(paragraphs)) {
         const words = paragraph.split(/\s+/).filter(Boolean);
         if (!words.length) {
             lines.push({ text: '', width: 0 });
@@ -352,17 +529,17 @@ export function buildCoverSheetFields(
     coverSheet: PdfCoverSheetConfig,
     runtimeValues: CoverSheetRuntimeValues,
 ): PdfCoverSheetField[] {
-    const fields = [...coverSheet.fields];
+    const fields = normalizeCoverSheetFields(coverSheet.fields);
 
     fields.push({
         label: 'Created',
-        value: formatCreationDate(runtimeValues.createdAt),
+        value: String(formatCreationDate(runtimeValues.createdAt)),
     });
 
     if (runtimeValues.currentUrl) {
         fields.push({
             label: 'Source URL',
-            value: runtimeValues.currentUrl,
+            value: String(runtimeValues.currentUrl),
         });
     }
 
@@ -411,7 +588,7 @@ export function normalizeCanvasRange(
 
 export function extractOcrTextOverlays(annotations: any[]): PdfTextOverlay[] {
     return annotations
-        .map((annotation, index) => {
+        .map((annotation, index): PdfTextOverlay | null => {
             const parsed = parseAnnotation(annotation, index);
             if (!parsed || parsed.geometry.type !== 'RECTANGLE') {
                 return null;
@@ -437,9 +614,50 @@ export function extractOcrTextOverlays(annotations: any[]): PdfTextOverlay[] {
                 y: parsed.geometry.y,
                 width: parsed.geometry.w,
                 height: parsed.geometry.h,
+                coordinateSpace: 'image',
             };
         })
         .filter((overlay): overlay is PdfTextOverlay => overlay !== null);
+}
+
+function getResolvedImageDimensions(
+    resolvedImage: ResolvedCanvasImage | null | undefined,
+): { width: number; height: number } | null {
+    if (
+        typeof resolvedImage?.resourceWidth !== 'number' ||
+        typeof resolvedImage?.resourceHeight !== 'number'
+    ) {
+        return null;
+    }
+
+    return {
+        width: resolvedImage.resourceWidth,
+        height: resolvedImage.resourceHeight,
+    };
+}
+
+function normalizeOverlayToCanvasSpace({
+    overlay,
+    canvasDimensions,
+    imageDimensions,
+}: {
+    overlay: PdfTextOverlay;
+    canvasDimensions: { width: number; height: number };
+    imageDimensions: { width: number; height: number } | null;
+}): PdfTextOverlay {
+    if (overlay.coordinateSpace !== 'image' || !imageDimensions) {
+        return overlay;
+    }
+
+    return {
+        ...overlay,
+        x: (overlay.x * canvasDimensions.width) / imageDimensions.width,
+        y: (overlay.y * canvasDimensions.height) / imageDimensions.height,
+        width: (overlay.width * canvasDimensions.width) / imageDimensions.width,
+        height:
+            (overlay.height * canvasDimensions.height) / imageDimensions.height,
+        coordinateSpace: 'canvas',
+    };
 }
 
 async function loadImage(blob: Blob): Promise<HTMLImageElement> {
@@ -567,70 +785,106 @@ async function addCoverSheetPage(
     coverSheet: PdfCoverSheetConfig,
     runtimeValues: CoverSheetRuntimeValues,
 ): Promise<void> {
-    const page = pdfDoc.addPage(COVER_PAGE_SIZE);
-    const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const labelFont = titleFont;
-    const valueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const [pageWidth, pageHeight] = page.getSize();
-    const contentWidth = pageWidth - COVER_MARGIN_X * 2;
-    const labelColumnWidth = 140;
-    const valueColumnWidth = contentWidth - labelColumnWidth - 24;
-    let y = pageHeight - COVER_MARGIN_Y;
+    try {
+        const page = pdfDoc.addPage(COVER_PAGE_SIZE);
+        const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const labelFont = titleFont;
+        const valueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        const contentWidth = pageWidth - COVER_MARGIN_X * 2;
+        const labelColumnWidth = 140;
+        const valueColumnWidth = contentWidth - labelColumnWidth - 24;
+        let y = pageHeight - COVER_MARGIN_Y;
 
-    page.drawText(coverSheet.title || 'Export Summary', {
-        x: COVER_MARGIN_X,
-        y,
-        size: COVER_TITLE_SIZE,
-        font: titleFont,
-    });
-    y -= 26;
+        page.drawText(coverSheet.title || 'Export Summary', {
+            x: COVER_MARGIN_X,
+            y,
+            size: COVER_TITLE_SIZE,
+            font: titleFont,
+        });
+        y -= 26;
 
-    page.drawLine({
-        start: { x: COVER_MARGIN_X, y },
-        end: { x: pageWidth - COVER_MARGIN_X, y },
-        thickness: 1,
-    });
-    y -= 28;
+        page.drawLine({
+            start: { x: COVER_MARGIN_X, y },
+            end: { x: pageWidth - COVER_MARGIN_X, y },
+            thickness: 1,
+        });
+        y -= 28;
 
-    for (const field of buildCoverSheetFields(coverSheet, runtimeValues)) {
-        const labelLines = wrapText(
-            field.label,
-            labelFont,
-            COVER_LABEL_SIZE,
-            labelColumnWidth,
-        );
-        const valueLines = wrapText(
-            field.value,
-            valueFont,
-            COVER_VALUE_SIZE,
-            valueColumnWidth,
-        );
-        const rowLines = Math.max(labelLines.length, valueLines.length);
-        const rowHeight = rowLines * 16 + 12;
-
-        if (y - rowHeight < COVER_MARGIN_Y) {
-            break;
+        // Ensure buildCoverSheetFields result is a plain array (might be Svelte proxy)
+        let fields: PdfCoverSheetField[];
+        try {
+            fields = Array.from(
+                buildCoverSheetFields(coverSheet, runtimeValues),
+            );
+        } catch (fieldsError) {
+            console.error('[PDF export] Error building cover sheet fields', {
+                fieldsError,
+                coverSheetKeys: Object.keys(coverSheet || {}),
+            });
+            throw fieldsError;
         }
 
-        labelLines.forEach((line, index) => {
-            page.drawText(line.text, {
-                x: COVER_MARGIN_X,
-                y: y - index * 16,
-                size: COVER_LABEL_SIZE,
-                font: labelFont,
-            });
+        console.debug('[PDF export] Processing fields', {
+            fieldCount: fields.length,
         });
 
-        valueLines.forEach((line, index) => {
-            page.drawText(line.text, {
-                x: COVER_MARGIN_X + labelColumnWidth + 24,
-                y: y - index * 16,
-                size: COVER_VALUE_SIZE,
-                font: valueFont,
+        for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) {
+            const field = fields[fieldIndex];
+            console.debug('[PDF export] Processing field', {
+                fieldIndex,
+                fieldLabel: typeof field?.label,
+                fieldValue: typeof field?.value,
             });
-        });
 
-        y -= rowHeight;
+            const labelLines = wrapText(
+                field.label,
+                labelFont,
+                COVER_LABEL_SIZE,
+                labelColumnWidth,
+            );
+            const valueLines = wrapText(
+                field.value,
+                valueFont,
+                COVER_VALUE_SIZE,
+                valueColumnWidth,
+            );
+            const rowLines = Math.max(labelLines.length, valueLines.length);
+            const rowHeight = rowLines * 16 + 12;
+
+            if (y - rowHeight < COVER_MARGIN_Y) {
+                break;
+            }
+
+            labelLines.forEach((line, index) => {
+                page.drawText(line.text, {
+                    x: COVER_MARGIN_X,
+                    y: y - index * 16,
+                    size: COVER_LABEL_SIZE,
+                    font: labelFont,
+                });
+            });
+
+            valueLines.forEach((line, index) => {
+                page.drawText(line.text, {
+                    x: COVER_MARGIN_X + labelColumnWidth + 24,
+                    y: y - index * 16,
+                    size: COVER_VALUE_SIZE,
+                    font: valueFont,
+                });
+            });
+
+            y -= rowHeight;
+        }
+    } catch (pageError) {
+        console.error('[PDF export] Error in addCoverSheetPage', {
+            message:
+                pageError instanceof Error
+                    ? pageError.message
+                    : String(pageError),
+            stack: pageError instanceof Error ? pageError.stack : undefined,
+        });
+        throw pageError;
     }
 }
 
@@ -639,6 +893,12 @@ async function addSelectableTextLayer(
     pdfDoc: any,
     overlays: PdfTextOverlay[],
     canvasDimensions: { width: number; height: number },
+    ocrOptions: PdfOcrRenderOptions,
+    options: {
+        canvasId?: string;
+        label?: string;
+        resolvedImage?: ResolvedCanvasImage | null;
+    } = {},
 ): Promise<void> {
     if (!overlays.length) {
         return;
@@ -648,30 +908,232 @@ async function addSelectableTextLayer(
     const { width: pageWidth, height: pageHeight } = page.getSize();
     const scaleX = pageWidth / canvasDimensions.width;
     const scaleY = pageHeight / canvasDimensions.height;
+    const imageDimensions = getResolvedImageDimensions(options.resolvedImage);
+    let hasLoggedMissingImageDimensions = false;
 
-    for (const overlay of overlays) {
-        const width = overlay.width * scaleX;
-        const height = overlay.height * scaleY;
-        const x = overlay.x * scaleX;
-        const y = pageHeight - (overlay.y + overlay.height) * scaleY;
-        const fontSize = getFontSizeToFit(font, overlay.text, width, height);
+    // Ensure overlays is a plain array (might be Svelte proxy)
+    for (const overlay of Array.from(overlays)) {
+        if (
+            overlay.coordinateSpace === 'image' &&
+            !imageDimensions &&
+            !hasLoggedMissingImageDimensions
+        ) {
+            console.warn(
+                '[PDF export] Missing source image dimensions for image-space OCR overlay; using legacy canvas-space placement',
+                {
+                    canvasId: options.canvasId,
+                    label: options.label,
+                    overlayCount: overlays.length,
+                },
+            );
+            hasLoggedMissingImageDimensions = true;
+        }
 
-        if (fontSize < 1) {
+        const normalizedOverlay = normalizeOverlayToCanvasSpace({
+            overlay,
+            canvasDimensions,
+            imageDimensions,
+        });
+        const layout = getOcrWordLayout({
+            overlay: normalizedOverlay,
+            font,
+            pageHeight,
+            scaleX,
+            scaleY,
+            placementMode: ocrOptions.placementMode,
+            sizingMode: ocrOptions.sizingMode,
+        });
+
+        if (layout.fontSize < 1) {
             continue;
         }
 
-        const renderedHeight = font.heightAtSize(fontSize, {
-            descender: false,
-        });
-
-        page.drawText(overlay.text, {
-            x,
-            y: y + Math.max(0, (height - renderedHeight) * 0.5),
-            size: fontSize,
+        drawOcrText(page, overlay.text, {
+            x: layout.x,
+            y: layout.y,
+            size: layout.fontSize,
             font,
-            opacity: 0.001,
+            visibilityMode: ocrOptions.visibilityMode,
         });
     }
+}
+
+function normalizeOcrRenderOptions(options: {
+    ocrPlacementMode?: PdfOcrPlacementMode;
+    ocrSizingMode?: PdfOcrSizingMode;
+    ocrVisibilityMode?: PdfOcrVisibilityMode;
+}): PdfOcrRenderOptions {
+    return {
+        placementMode:
+            options.ocrPlacementMode ||
+            DEFAULT_OCR_RENDER_OPTIONS.placementMode,
+        sizingMode:
+            options.ocrSizingMode || DEFAULT_OCR_RENDER_OPTIONS.sizingMode,
+        visibilityMode:
+            options.ocrVisibilityMode ||
+            DEFAULT_OCR_RENDER_OPTIONS.visibilityMode,
+    };
+}
+
+function getOcrWordLayout({
+    overlay,
+    font,
+    pageHeight,
+    scaleX,
+    scaleY,
+    placementMode,
+    sizingMode,
+}: {
+    overlay: PdfTextOverlay;
+    font: any;
+    pageHeight: number;
+    scaleX: number;
+    scaleY: number;
+    placementMode: PdfOcrPlacementMode;
+    sizingMode: PdfOcrSizingMode;
+}): OcrWordLayout {
+    const width = overlay.width * scaleX;
+    const height = overlay.height * scaleY;
+    const x = overlay.x * scaleX;
+    const fontSize = getFontSizeToFit(
+        font,
+        overlay.text,
+        width,
+        height,
+        sizingMode,
+    );
+    const renderedHeight = font.heightAtSize(fontSize, {
+        descender: false,
+    });
+
+    if (placementMode === 'word-anchor') {
+        return {
+            x,
+            y: pageHeight - overlay.y * scaleY - renderedHeight,
+            width,
+            height,
+            fontSize,
+            renderedHeight,
+        };
+    }
+
+    const y = pageHeight - (overlay.y + overlay.height) * scaleY;
+
+    return {
+        x,
+        y: y + Math.max(0, (height - renderedHeight) * 0.5),
+        width,
+        height,
+        fontSize,
+        renderedHeight,
+    };
+}
+
+function drawOcrText(
+    page: any,
+    text: string,
+    options: {
+        x: number;
+        y: number;
+        size: number;
+        font: any;
+        visibilityMode: PdfOcrVisibilityMode;
+    },
+): void {
+    const drawOptions = {
+        x: options.x,
+        y: options.y,
+        size: options.size,
+        font: options.font,
+    };
+
+    if (options.visibilityMode === 'debug') {
+        page.drawText(text, {
+            ...drawOptions,
+            color: rgb(1, 0, 0),
+            opacity: 1,
+        });
+        return;
+    }
+
+    if (
+        options.visibilityMode === 'invisible' &&
+        typeof page.pushOperators === 'function'
+    ) {
+        page.pushOperators(
+            pushGraphicsState(),
+            setTextRenderingMode(TextRenderingMode.Invisible),
+        );
+        page.drawText(text, drawOptions);
+        page.pushOperators(popGraphicsState());
+        return;
+    }
+
+    page.drawText(text, {
+        ...drawOptions,
+        opacity: 0.001,
+    });
+}
+
+async function resolveCanvasOcrOverlays({
+    canvas,
+    canvasId,
+    canvasIndex,
+    manifestId,
+    label,
+    getCanvasOcrOverlays,
+    getCanvasAnnotations,
+}: {
+    canvas: any;
+    canvasId: string;
+    canvasIndex: number;
+    manifestId: string | null;
+    label: string;
+    getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
+    getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
+}): Promise<PdfTextOverlay[]> {
+    if (getCanvasOcrOverlays) {
+        try {
+            const overlays = await getCanvasOcrOverlays({
+                manifestId,
+                canvasId,
+                canvas,
+                canvasIndex,
+            });
+            if (overlays != null) {
+                if (!Array.isArray(overlays)) {
+                    console.warn(
+                        '[PDF export] Ignoring invalid OCR overlay provider result',
+                        {
+                            canvasId,
+                            canvasIndex,
+                            label,
+                            shape: describeValueShape(overlays),
+                        },
+                    );
+                    return [];
+                }
+
+                return Array.from(overlays);
+            }
+        } catch (error) {
+            console.warn(
+                '[PDF export] OCR overlay provider failed; falling back to manifest annotations',
+                {
+                    canvasId,
+                    canvasIndex,
+                    label,
+                    error,
+                },
+            );
+        }
+    }
+
+    if (!getCanvasAnnotations) {
+        return [];
+    }
+
+    return extractOcrTextOverlays(await getCanvasAnnotations(canvasId));
 }
 
 function getRuntimeValues(
@@ -697,133 +1159,228 @@ export async function exportCanvasRangeAsPdf({
     manifestId,
     manifestLabel,
     getSelectedChoice,
+    getCanvasOcrOverlays,
     getCanvasAnnotations,
     imageRequest,
     loadImageBlob,
+    ocrPlacementMode,
+    ocrSizingMode,
+    ocrVisibilityMode,
     filename,
     coverSheet,
     createdAt,
     currentUrl,
     onProgress,
 }: ExportCanvasRangeAsPdfParams): Promise<ExportCanvasRangeAsPdfResult> {
-    const range = normalizeCanvasRange(startIndex, endIndex, canvases.length);
-    if (!range) {
-        throw new Error('No canvases available to export.');
-    }
-
-    const { PDFDocument } = await import('pdf-lib');
-    const pdfDoc = await PDFDocument.create();
-    const failedCanvases: string[] = [];
-    let exportedCount = 0;
-
-    if (coverSheet?.fields.length) {
-        onProgress?.('Preparing cover sheet...');
-        await addCoverSheetPage(
-            pdfDoc,
-            coverSheet,
-            getRuntimeValues(createdAt, currentUrl),
-        );
-    }
-
-    for (const [offset, index] of range.indices.entries()) {
-        const canvas = canvases[index];
-        const label = getCanvasLabel(canvas, index);
-        onProgress?.(
-            `Exporting ${offset + 1} of ${range.indices.length}: ${label}`,
-        );
-
-        try {
-            const { imageUrl, resolvedImage } = getCanvasExportResource(
-                canvas,
-                targetWidth,
-                getSelectedChoice,
-            );
-
-            if (!imageUrl) {
-                throw new Error('No exportable image found for this canvas.');
-            }
-
-            const canvasId = getCanvasId(canvas);
-            const requestInit = buildImageRequestInit(imageRequest);
-            const blob = await loadCanvasImageBlob({
-                canvas,
-                canvasId,
-                imageUrl,
-                manifestId,
-                targetWidth,
-                imageRequest: requestInit,
-                resolvedImage,
-                loadImageBlob,
-            });
-            const embeddedImage = await embedImage(pdfDoc, blob);
-            const page = pdfDoc.addPage([
-                embeddedImage.width,
-                embeddedImage.height,
-            ]);
-            page.drawImage(embeddedImage, {
-                x: 0,
-                y: 0,
-                width: embeddedImage.width,
-                height: embeddedImage.height,
-            });
-
-            const canvasDimensions = getCanvasDimensions(canvas);
-            const annotations =
-                canvasId && getCanvasAnnotations
-                    ? await getCanvasAnnotations(canvasId)
-                    : [];
-            if (canvasDimensions && annotations.length) {
-                try {
-                    await addSelectableTextLayer(
-                        page,
-                        pdfDoc,
-                        extractOcrTextOverlays(annotations),
-                        canvasDimensions,
-                    );
-                } catch {
-                    // Keep the raster page export even if OCR text embedding fails.
-                }
-            }
-
-            exportedCount += 1;
-        } catch (error) {
-            if (isLikelyCorsOrAuthFailure(error)) {
-                console.warn(
-                    'PDF export blocked by image source access policy.',
-                    error,
-                );
-                throw new Error(
-                    'PDF export is not available for this item because the image source does not allow direct browser download access.',
-                );
-            }
-            failedCanvases.push(label);
-        }
-    }
-
-    if (!exportedCount) {
-        throw new Error('Unable to export any canvases to PDF.');
-    }
-
-    const finalFilename =
-        filename ||
-        buildPdfFilename({
+    try {
+        console.debug('[PDF export] Starting export', {
+            canvasCount: canvases.length,
+            startIndex,
+            endIndex,
             manifestId,
-            manifestLabel,
-            startIndex: range.startIndex,
-            endIndex: range.endIndex,
+            hasCoverSheet: !!coverSheet,
+            coverSheetFieldShape: describeValueShape(coverSheet?.fields),
         });
 
-    onProgress?.(`Preparing download: ${finalFilename}`);
-    const pdfBytes = await pdfDoc.save();
-    const pdfArray = Uint8Array.from(pdfBytes);
-    downloadBlob(
-        new Blob([pdfArray.buffer], { type: 'application/pdf' }),
-        finalFilename,
-    );
+        const range = normalizeCanvasRange(
+            startIndex,
+            endIndex,
+            canvases.length,
+        );
+        if (!range) {
+            throw new Error('No canvases available to export.');
+        }
 
-    return {
-        exportedCount,
-        failedCanvases,
-        filename: finalFilename,
-    };
+        const { PDFDocument } = await import('pdf-lib');
+        const pdfDoc = await PDFDocument.create();
+        const failedCanvases: string[] = [];
+        let exportedCount = 0;
+        const ocrRenderOptions = normalizeOcrRenderOptions({
+            ocrPlacementMode,
+            ocrSizingMode,
+            ocrVisibilityMode,
+        });
+
+        const coverSheetFields = normalizeCoverSheetFields(coverSheet?.fields);
+
+        if (coverSheet && coverSheetFields.length > 0) {
+            console.debug('[PDF export] Adding cover sheet page', {
+                fieldCount: coverSheetFields.length,
+                title: coverSheet.title || 'Export Summary',
+            });
+            onProgress?.('Preparing cover sheet...');
+            await addCoverSheetPage(
+                pdfDoc,
+                coverSheet,
+                getRuntimeValues(createdAt, currentUrl),
+            );
+        } else if (coverSheet) {
+            console.debug(
+                '[PDF export] Skipping cover sheet page because no usable fields were found',
+            );
+        }
+
+        // Ensure indices is a plain array (might be Svelte proxy or reactive wrapper)
+        const plainIndices = Array.isArray(range.indices)
+            ? Array.from(range.indices)
+            : [];
+
+        for (const [offset, index] of plainIndices.entries()) {
+            const canvas = canvases[index];
+            const label = getCanvasLabel(canvas, index);
+            console.debug('[PDF export] Exporting canvas', {
+                offset,
+                index,
+                label,
+            });
+            onProgress?.(
+                `Exporting ${offset + 1} of ${plainIndices.length}: ${label}`,
+            );
+
+            try {
+                const { imageUrl, resolvedImage } = getCanvasExportResource(
+                    canvas,
+                    targetWidth,
+                    getSelectedChoice,
+                );
+
+                if (!imageUrl) {
+                    throw new Error(
+                        'No exportable image found for this canvas.',
+                    );
+                }
+
+                const canvasId = getCanvasId(canvas);
+                const requestInit = buildImageRequestInit(imageRequest);
+                const blob = await loadCanvasImageBlob({
+                    canvas,
+                    canvasId,
+                    imageUrl,
+                    manifestId,
+                    targetWidth,
+                    imageRequest: requestInit,
+                    resolvedImage,
+                    loadImageBlob,
+                });
+                const embeddedImage = await embedImage(pdfDoc, blob);
+                const page = pdfDoc.addPage([
+                    embeddedImage.width,
+                    embeddedImage.height,
+                ]);
+                page.drawImage(embeddedImage, {
+                    x: 0,
+                    y: 0,
+                    width: embeddedImage.width,
+                    height: embeddedImage.height,
+                });
+
+                const canvasDimensions = getCanvasDimensions(canvas);
+                const overlays =
+                    canvasId && (getCanvasOcrOverlays || getCanvasAnnotations)
+                        ? await resolveCanvasOcrOverlays({
+                              canvas,
+                              canvasId,
+                              canvasIndex: index,
+                              manifestId,
+                              label,
+                              getCanvasOcrOverlays,
+                              getCanvasAnnotations,
+                          })
+                        : [];
+                if (canvasDimensions && overlays.length) {
+                    try {
+                        await addSelectableTextLayer(
+                            page,
+                            pdfDoc,
+                            overlays,
+                            canvasDimensions,
+                            ocrRenderOptions,
+                            {
+                                canvasId,
+                                label,
+                                resolvedImage,
+                            },
+                        );
+                    } catch (error) {
+                        console.error(
+                            '[PDF export] Failed to add selectable OCR text layer',
+                            {
+                                canvasId,
+                                label,
+                                overlayCount: overlays.length,
+                                error,
+                            },
+                        );
+                        // Keep the raster page export even if OCR text embedding fails.
+                    }
+                }
+
+                exportedCount += 1;
+            } catch (error) {
+                if (isLikelyCorsOrAuthFailure(error)) {
+                    console.warn(
+                        'PDF export blocked by image source access policy.',
+                        error,
+                    );
+                    throw new Error(
+                        'PDF export is not available for this item because the image source does not allow direct browser download access.',
+                    );
+                }
+                console.error('[PDF export] Failed to export canvas', {
+                    index,
+                    label,
+                    error,
+                });
+                failedCanvases.push(label);
+            }
+        }
+
+        if (!exportedCount) {
+            throw new Error('Unable to export any canvases to PDF.');
+        }
+
+        const finalFilename =
+            filename ||
+            buildPdfFilename({
+                manifestId,
+                manifestLabel,
+                startIndex: range.startIndex,
+                endIndex: range.endIndex,
+            });
+
+        onProgress?.(`Preparing download: ${finalFilename}`);
+        console.debug('[PDF export] Saving PDF document', {
+            filename: finalFilename,
+            exportedCount,
+            failedCount: failedCanvases.length,
+        });
+        const pdfBytes = await pdfDoc.save();
+        const pdfArray = Uint8Array.from(pdfBytes);
+        downloadBlob(
+            new Blob([pdfArray.buffer], { type: 'application/pdf' }),
+            finalFilename,
+        );
+
+        return {
+            exportedCount,
+            failedCanvases,
+            filename: finalFilename,
+        };
+    } catch (error) {
+        const errorMessage =
+            error instanceof Error ? error.message : String(error);
+        const errorStack =
+            error instanceof Error ? error.stack : 'No stack trace';
+        console.error('[PDF export] Critical export error', {
+            message: errorMessage,
+            stack: errorStack,
+            name: error instanceof Error ? error.name : 'Unknown',
+            cause: error instanceof Error ? error.cause : undefined,
+            canvasCount: canvases.length,
+            startIndex,
+            endIndex,
+            coverSheetFieldCount: coverSheet?.fields?.length ?? 0,
+        });
+        throw error;
+    }
 }
