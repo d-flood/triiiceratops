@@ -1031,4 +1031,41 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.isSearching).toBe(false);
         });
     });
+
+    describe('Config updates', () => {
+        it('applies structures and collection panel config without dropping plugin UI config', () => {
+            state.registerPlugin({
+                id: 'plugin-a',
+                name: 'Plugin A',
+                icon: {} as any,
+                panel: {} as any,
+            });
+
+            state.updateConfig({
+                plugins: {
+                    'plugin-a': {
+                        open: true,
+                        visible: false,
+                    },
+                },
+            });
+
+            state.updateConfig({
+                structures: { open: true },
+                collection: { open: true },
+                plugins: {
+                    'plugin-a': {
+                        open: true,
+                        visible: false,
+                    },
+                },
+            });
+
+            expect(state.showStructuresPanel).toBe(true);
+            expect(state.showCollectionPanel).toBe(true);
+            expect(state.pluginMenuButtons[0]?.isActive?.()).toBe(true);
+            expect(state.pluginMenuButtons[0]?.isVisible?.()).toBe(false);
+            expect(state.pluginPanels[0]?.isVisible()).toBe(true);
+        });
+    });
 });
