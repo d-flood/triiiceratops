@@ -149,6 +149,9 @@ describe('ManifestsState', () => {
                         {
                             getCanvasById: () => ({
                                 __jsonld: {
+                                    id: 'canvas1',
+                                    width: 800,
+                                    height: 600,
                                     otherContent: [
                                         { '@id': 'http://example.org/list1' },
                                     ],
@@ -191,6 +194,56 @@ describe('ManifestsState', () => {
             );
             expect(annos).toHaveLength(1);
             expect(annos[0]['@id']).toBe('anno1');
+            expect(annos[0].__triiiceratopsCanvas).toEqual({
+                id: 'canvas1',
+                width: 800,
+                height: 600,
+            });
+        });
+
+        it('falls back to raw manifest JSON when manifesto canvas lookup is unavailable', () => {
+            state.manifests['http://example.org/manifest'] = {
+                json: {
+                    id: 'http://example.org/manifest',
+                    type: 'Manifest',
+                    items: [
+                        {
+                            id: 'canvas1',
+                            type: 'Canvas',
+                            width: 800,
+                            height: 600,
+                            annotations: [
+                                {
+                                    id: 'http://example.org/page/1',
+                                    type: 'AnnotationPage',
+                                    items: [
+                                        {
+                                            id: 'anno-inline',
+                                            type: 'Annotation',
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                manifesto: {
+                    getSequences: () => [],
+                },
+            };
+
+            const annos = state.manualGetAnnotations(
+                'http://example.org/manifest',
+                'canvas1',
+            );
+
+            expect(annos).toHaveLength(1);
+            expect(annos[0].id).toBe('anno-inline');
+            expect(annos[0].__triiiceratopsCanvas).toEqual({
+                id: 'canvas1',
+                width: 800,
+                height: 600,
+            });
         });
     });
 

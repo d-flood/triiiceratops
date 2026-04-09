@@ -26,6 +26,12 @@ export interface PolygonGeometry {
     points: [number, number][];
 }
 
+interface CanvasContext {
+    id?: string;
+    width?: number;
+    height?: number;
+}
+
 /**
  * Helper to extract ID from annotation object
  * Handles Manifesto objects and raw JSON
@@ -85,7 +91,85 @@ function extractGeometry(
         };
     }
 
+    const canvasRect = extractWholeCanvasGeometry(annotation);
+    if (canvasRect) {
+        return canvasRect;
+    }
+
     return null;
+}
+
+function getCanvasContext(annotation: any): CanvasContext | null {
+    const canvas = annotation?.__triiiceratopsCanvas;
+    if (!canvas || typeof canvas !== 'object') {
+        return null;
+    }
+
+    return canvas;
+}
+
+function getTargetId(target: any): string | null {
+    if (!target) return null;
+
+    if (typeof target === 'string') {
+        return target.split('#')[0];
+    }
+
+    if (Array.isArray(target)) {
+        for (const item of target) {
+            const id = getTargetId(item);
+            if (id) return id;
+        }
+        return null;
+    }
+
+    if (target.source) {
+        return getTargetId(target.source);
+    }
+
+    return target.id || target['@id'] || null;
+}
+
+function hasTargetSelector(target: any): boolean {
+    if (!target) return false;
+
+    if (Array.isArray(target)) {
+        return target.some(hasTargetSelector);
+    }
+
+    if (typeof target === 'string') {
+        return target.includes('#');
+    }
+
+    if (target.selector) {
+        return true;
+    }
+
+    return Boolean(target.source && hasTargetSelector(target.source));
+}
+
+function extractWholeCanvasGeometry(annotation: any): RectangleGeometry | null {
+    const canvas = getCanvasContext(annotation);
+    if (!canvas?.id || !canvas.width || !canvas.height) {
+        return null;
+    }
+
+    const target = annotation.target || annotation.on;
+    if (hasTargetSelector(target)) {
+        return null;
+    }
+
+    if (getTargetId(target) !== canvas.id) {
+        return null;
+    }
+
+    return {
+        type: 'RECTANGLE',
+        x: 0,
+        y: 0,
+        w: canvas.width,
+        h: canvas.height,
+    };
 }
 
 /**

@@ -17,6 +17,7 @@ import {
     type CollectionItem,
 } from '../utils/collections';
 import type { CanvasRegion } from '../utils/contentState';
+import { getCanvasId } from '../components/viewerControls';
 
 function normalizeIiifBehavior(value: unknown): string {
     const normalized = String(value).trim().toLowerCase();
@@ -322,11 +323,13 @@ export class ViewerState {
                         ? this.currentCanvasIndex + 1
                         : this.currentCanvasIndex + 2;
                 const canvas = this.canvases[nextIndex];
-                this.setCanvas(canvas.id);
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
             } else {
                 const nextIndex = this.currentCanvasIndex + 1;
                 const canvas = this.canvases[nextIndex];
-                this.setCanvas(canvas.id);
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
             }
         }
     }
@@ -348,11 +351,13 @@ export class ViewerState {
                     );
                 }
                 const canvas = this.canvases[prevIndex];
-                this.setCanvas(canvas.id);
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
             } else {
                 const prevIndex = this.currentCanvasIndex - 1;
                 const canvas = this.canvases[prevIndex];
-                this.setCanvas(canvas.id);
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
             }
         }
     }
@@ -389,6 +394,7 @@ export class ViewerState {
         this.selectedSequenceIndex = 0;
         await manifestsState.registerManifest(manifestId, manifestJson);
         this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
     }
 
     /**
@@ -451,6 +457,7 @@ export class ViewerState {
         this.startCanvasId = null;
         await manifestsState.registerManifest(manifestId, json);
         this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
         this.dispatchStateChange('manifestchange');
     }
 
@@ -476,6 +483,28 @@ export class ViewerState {
             this.manifestRequestConfig,
         );
         this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
+    }
+
+    private ensureInitialCanvasSelection() {
+        if (this.canvasId) {
+            return;
+        }
+
+        const canvases = this.canvases;
+        if (!canvases.length) {
+            return;
+        }
+
+        if (this.startCanvasId) {
+            this.setCanvas(this.startCanvasId);
+            return;
+        }
+
+        const firstCanvasId = getCanvasId(canvases[0]);
+        if (firstCanvasId) {
+            this.setCanvas(firstCanvasId);
+        }
     }
 
     /**
@@ -853,7 +882,8 @@ export class ViewerState {
                     // We're on a right-hand page, move back one
                     const newIndex = this.currentCanvasIndex - 1;
                     const canvas = this.canvases[newIndex];
-                    this.setCanvas(canvas.id);
+                    const canvasId = getCanvasId(canvas);
+                    if (canvasId) this.setCanvas(canvasId);
                 }
             }
         }
@@ -871,7 +901,8 @@ export class ViewerState {
                 // We're now on a right-hand page after the shift, move back
                 const newIndex = this.currentCanvasIndex - 1;
                 const canvas = this.canvases[newIndex];
-                this.setCanvas(canvas.id);
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
             }
         }
         this.dispatchStateChange();
