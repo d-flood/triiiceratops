@@ -23,6 +23,51 @@
     let OSD: any | undefined = $state();
 
     const MULTI_CANVAS_GAP = 0.0125;
+    const POINT_MARKER_SIZE = 10;
+
+    type ViewerTileSourceError =
+        | { type: 'auth' }
+        | { type: 'load'; message?: string; details?: string };
+
+    function setTileSourceError(error: ViewerTileSourceError | null) {
+        (viewerState as any).tileSourceError = error;
+    }
+
+    function getErrorText(value: unknown): string | null {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+        if (value instanceof Error && value.message.trim()) {
+            return value.message.trim();
+        }
+        if (!value || typeof value !== 'object') return null;
+
+        const record = value as Record<string, unknown>;
+        for (const key of [
+            'message',
+            'detail',
+            'statusText',
+            'url',
+            'src',
+            '_id',
+        ]) {
+            const text = record[key];
+            if (typeof text === 'string' && text.trim()) return text.trim();
+        }
+
+        return null;
+    }
+
+    function createLoadError(event: any): ViewerTileSourceError {
+        const message =
+            getErrorText(event?.message) || 'Unable to load this image.';
+        const details =
+            getErrorText(event?.detail) ||
+            getErrorText(event?.source) ||
+            getErrorText(event?.tileSource);
+
+        return details && details !== message
+            ? { type: 'load', message, details }
+            : { type: 'load', message };
+    }
 
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
@@ -80,6 +125,10 @@
         const isEditorOpen = editorPanel ? editorPanel.isVisible() : false;
 
         for (const anno of parsedAnnotations) {
+            const geometry = anno.geometry as
+                | typeof anno.geometry
+                | { type: 'POINT'; x: number; y: number };
+
             // Filter based on visibility
             if (anno.isSearchHit) {
                 // Search hits are always visible
@@ -87,13 +136,13 @@
                 continue;
             }
 
-            if (anno.geometry.type === 'RECTANGLE') {
+            if (geometry.type === 'RECTANGLE') {
                 // Convert image coordinates to viewport coordinates
                 const viewportRect = tiledImage.imageToViewportRectangle(
-                    anno.geometry.x,
-                    anno.geometry.y,
-                    anno.geometry.w,
-                    anno.geometry.h,
+                    geometry.x,
+                    geometry.y,
+                    geometry.w,
+                    geometry.h,
                 );
 
                 // Convert viewport to pixel coordinates
@@ -116,9 +165,9 @@
                     // Disable pointer events if editor is open so blue annotations can be selected
                     pointerEvents: isEditorOpen ? 'none' : 'auto',
                 });
-            } else if (anno.geometry.type === 'POLYGON') {
+            } else if (geometry.type === 'POLYGON') {
                 // Convert each point from image to viewport to pixel
-                const pixelPoints = anno.geometry.points.map((point) => {
+                const pixelPoints = geometry.points.map((point) => {
                     const viewportPoint = tiledImage.imageToViewportCoordinates(
                         new OSD.Point(point[0], point[1]),
                     );
@@ -157,6 +206,26 @@
                         height: maxY - minY,
                     },
                     points: relativePoints,
+                    isSearchHit: anno.isSearchHit,
+                    tooltip: anno.body.map((b) => b.value).join(' '),
+                    pointerEvents: isEditorOpen ? 'none' : 'auto',
+                });
+            } else if (geometry.type === 'POINT') {
+                const viewportPoint = tiledImage.imageToViewportCoordinates(
+                    new OSD.Point(geometry.x, geometry.y),
+                );
+                const pixelPoint =
+                    viewer.viewport.viewportToViewerElementCoordinates(
+                        viewportPoint,
+                    );
+
+                results.push({
+                    id: anno.id,
+                    type: 'POINT' as const,
+                    point: {
+                        x: pixelPoint.x,
+                        y: pixelPoint.y,
+                    },
                     isSearchHit: anno.isSearchHit,
                     tooltip: anno.body.map((b) => b.value).join(' '),
                     pointerEvents: isEditorOpen ? 'none' : 'auto',
@@ -214,6 +283,14 @@
                     dblClickToZoom: true,
                 },
             });
+
+            const handleTileSourceFailure = (event: any) => {
+                setTileSourceError(createLoadError(event));
+                viewer?.close();
+            };
+
+            viewer.addHandler('open-failed', handleTileSourceFailure);
+            viewer.addHandler('add-item-failed', handleTileSourceFailure);
 
             viewer.addHandler('open', () => {
                 const overrides = viewerState.config?.openSeadragonConfig ?? {};
@@ -298,7 +375,7 @@
         // stale tiles immediately and allow the same source to reopen later.
         if (!tileSources) {
             viewer.close();
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
             lastTileSourceStr = '';
             return;
         }
@@ -334,7 +411,7 @@
 
         if (sources.length === 0) {
             viewer.close();
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
             lastTileSourceStr = '';
             return;
         }
@@ -347,7 +424,7 @@
             // Remove current world immediately so stale canvases are not shown
             // while async source resolution is in progress.
             viewer.close();
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
 
             if (overrides.minPixelRatio === undefined) {
                 viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
@@ -368,12 +445,12 @@
                 if (capturedKey !== lastTileSourceStr) return;
 
                 if (!result.ok) {
-                    viewerState.tileSourceError = result.error;
+                    setTileSourceError(result.error);
                     viewer.close();
                     return;
                 }
 
-                viewerState.tileSourceError = null;
+                setTileSourceError(null);
                 const resolvedSources = result.resolved;
 
                 // Build position info for all sources
@@ -492,7 +569,7 @@
         // In paged/individual modes, clear the current image immediately so
         // users don't see stale content while tile sources are being prepared.
         viewer.close();
-        viewerState.tileSourceError = null;
+        setTileSourceError(null);
 
         // Restore less aggressive defaults outside continuous mode unless user-overridden.
         if (overrides.minPixelRatio === undefined) {
@@ -514,12 +591,12 @@
             if (capturedKey !== lastTileSourceStr) return;
 
             if (!result.ok) {
-                viewerState.tileSourceError = result.error;
+                setTileSourceError(result.error);
                 viewer.close();
                 return;
             }
 
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
             const resolvedSources = result.resolved;
 
             if (mode === 'paged') {
@@ -680,6 +757,21 @@
                     stroke-width="2"
                 />
             </svg>
+        {:else if anno.type === 'POINT'}
+            <div
+                id="annotation-visual-{anno.id}"
+                class="absolute rounded-full border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
+                    ? 'border-yellow-400 bg-yellow-400 hover:bg-yellow-400/80'
+                    : 'border-red-500 bg-red-500 hover:bg-red-500/80'}"
+                style="
+		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
+		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
+		  width: {POINT_MARKER_SIZE}px;
+		  height: {POINT_MARKER_SIZE}px;
+		  pointer-events: {anno.pointerEvents};
+		"
+                title={anno.tooltip}
+            ></div>
         {/if}
     {/each}
 </div>

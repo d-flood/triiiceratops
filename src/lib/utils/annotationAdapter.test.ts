@@ -137,5 +137,38 @@ describe('annotationAdapter', () => {
                 format: 'text/html',
             });
         });
+
+        it('should extract PointSelector geometry', () => {
+            const annotation = {
+                id: 'point-note',
+                target: {
+                    type: 'SpecificResource',
+                    source: 'http://example.org/canvas1',
+                    selector: {
+                        type: 'PointSelector',
+                        x: 3385,
+                        y: 1464,
+                    },
+                },
+                body: {
+                    type: 'TextualBody',
+                    value: 'Town Creek Aqueduct',
+                    format: 'text/plain',
+                },
+            };
+
+            const result = parseAnnotation(annotation, 5);
+
+            expect(result).not.toBeNull();
+            expect(result?.geometry).toEqual({
+                type: 'POINT',
+                x: 3385,
+                y: 1464,
+            });
+            expect(result?.body[0]).toMatchObject({
+                value: 'Town Creek Aqueduct',
+                format: 'text/plain',
+            });
+        });
     });
 });

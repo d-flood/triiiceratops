@@ -43,6 +43,11 @@
         initialCanvasRegion?: CanvasRegion | null;
     }
 
+    type ViewerTileSourceError =
+        | { type: 'auth' }
+        | { type: 'load'; message?: string; details?: string }
+        | null;
+
     let {
         manifestId,
         manifestJson,
@@ -391,6 +396,22 @@
         );
         return tileSourcesArray;
     });
+
+    let tileSourceError = $derived(
+        internalViewerState.tileSourceError as ViewerTileSourceError,
+    );
+    let tileSourceErrorMessage = $derived(
+        tileSourceError?.type === 'load'
+            ? tileSourceError.message || 'Unable to load this image.'
+            : null,
+    );
+    let tileSourceErrorDetails = $derived(
+        tileSourceError?.type === 'load' &&
+            tileSourceError.details &&
+            tileSourceError.details !== tileSourceErrorMessage
+            ? tileSourceError.details
+            : null,
+    );
 </script>
 
 <div
@@ -489,7 +510,7 @@
                     {manifestData.error}
                 </div>
             {:else if tileSources}
-                {#if internalViewerState.tileSourceError}
+                {#if tileSourceError}
                     <div
                         class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
                         role="alert"
@@ -505,29 +526,45 @@
                         <div
                             class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="w-12 h-12 text-warning"
-                            >
-                                <rect
-                                    x="3"
-                                    y="11"
-                                    width="18"
-                                    height="11"
-                                    rx="2"
-                                    ry="2"
-                                />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            <p class="text-base-content text-sm">
-                                {m.error_auth_required()}
-                            </p>
+                            {#if tileSourceError.type === 'auth'}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="w-12 h-12 text-warning"
+                                >
+                                    <rect
+                                        x="3"
+                                        y="11"
+                                        width="18"
+                                        height="11"
+                                        rx="2"
+                                        ry="2"
+                                    />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                <p class="text-base-content text-sm">
+                                    {m.error_auth_required()}
+                                </p>
+                            {:else}
+                                <ImageBroken class="w-12 h-12 text-warning" />
+                                <p
+                                    class="text-base-content text-sm font-semibold"
+                                >
+                                    {tileSourceErrorMessage}
+                                </p>
+                                {#if tileSourceErrorDetails}
+                                    <p
+                                        class="text-base-content/70 text-xs break-words max-w-xs"
+                                    >
+                                        {tileSourceErrorDetails}
+                                    </p>
+                                {/if}
+                            {/if}
                         </div>
                     </div>
                 {:else}
