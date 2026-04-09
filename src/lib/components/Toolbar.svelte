@@ -17,6 +17,7 @@
     import ArrowsLeftRight from 'phosphor-svelte/lib/ArrowsLeftRight';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
+    import { manifestsState } from '../state/manifests.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -65,6 +66,23 @@
         toolbarConfig.showCollection !== false && viewerState.hasCollection,
     );
     const showSequencePicker = $derived(viewerState.sequenceCount > 1);
+    const annotationCount = $derived.by(() => {
+        if (!viewerState.manifestId || !viewerState.canvasId) {
+            return 0;
+        }
+
+        return manifestsState.getAnnotations(
+            viewerState.manifestId,
+            viewerState.canvasId,
+        ).length;
+    });
+    const annotationsTooltip = $derived.by(() => {
+        const base = viewerState.showAnnotations
+            ? m.hide_annotations()
+            : m.show_annotations();
+
+        return annotationCount > 0 ? `${base} (${annotationCount})` : base;
+    });
 
     // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
@@ -375,18 +393,21 @@
                     <button
                         class={[
                             ...tooltipClasses,
-                            'tooltip-sm',
+                            'tooltip-sm indicator',
                             viewerState.showAnnotations &&
                                 'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
-                        data-tip={viewerState.showAnnotations
-                            ? m.hide_annotations()
-                            : m.show_annotations()}
-                        aria-label={viewerState.showAnnotations
-                            ? m.hide_annotations()
-                            : m.show_annotations()}
+                        data-tip={annotationsTooltip}
+                        aria-label={annotationsTooltip}
                         onclick={() => viewerState.toggleAnnotations()}
                     >
+                        {#if !viewerState.showAnnotations && annotationCount > 0}
+                            <span
+                                class="indicator-item badge badge-primary badge-sm min-w-5 px-1"
+                            >
+                                {annotationCount > 99 ? '99+' : annotationCount}
+                            </span>
+                        {/if}
                         <ChatCenteredText size={24} />
                     </button>
                 </li>
