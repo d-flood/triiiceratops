@@ -1,6 +1,7 @@
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { manifestsState } from './manifests.svelte.js';
 import type {
+    PluginUiConfig,
     RequestConfig,
     SearchProvider,
     SearchResultGroup,
@@ -740,6 +741,8 @@ export class ViewerState {
                 this.showCollectionPanel = newConfig.collection.open;
             }
         }
+
+        this.applyPluginUiConfigToAll();
         // NOTE: We intentionally do NOT dispatch events here.
         // Config updates are external configuration, not user-initiated state changes.
         // Dispatching here would cause infinite loops when the consumer re-renders.
@@ -1415,6 +1418,69 @@ export class ViewerState {
         Set<(data: unknown) => void>
     >();
 
+    /**
+     * Internal plugin UI state keyed by plugin ID.
+     * Keeps panel open state and toolbar visibility in one reactive place.
+     */
+    private pluginUiState = new SvelteMap<
+        string,
+        { open: boolean; visible: boolean }
+    >();
+
+    private getPluginUiConfig(pluginId: string): PluginUiConfig | undefined {
+        return this.config.plugins?.[pluginId];
+    }
+
+    private ensurePluginUiState(pluginId: string): void {
+        if (!this.pluginUiState.has(pluginId)) {
+            const config = this.getPluginUiConfig(pluginId);
+            this.pluginUiState.set(pluginId, {
+                open: config?.open ?? false,
+                visible: config?.visible ?? true,
+            });
+            return;
+        }
+
+        this.applyPluginUiConfig(pluginId);
+    }
+
+    private applyPluginUiConfig(pluginId: string): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current) return;
+
+        const config = this.getPluginUiConfig(pluginId);
+        this.pluginUiState.set(pluginId, {
+            open: config?.open ?? current.open,
+            visible: config?.visible ?? current.visible,
+        });
+    }
+
+    private applyPluginUiConfigToAll(): void {
+        for (const pluginId of this.pluginUiState.keys()) {
+            this.applyPluginUiConfig(pluginId);
+        }
+    }
+
+    private setPluginOpen(pluginId: string, open: boolean): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current) return;
+
+        this.pluginUiState.set(pluginId, {
+            ...current,
+            open,
+        });
+    }
+
+    private togglePluginOpen(pluginId: string): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current) return;
+
+        this.pluginUiState.set(pluginId, {
+            ...current,
+            open: !current.open,
+        });
+    }
+
     // ==================== PLUGIN METHODS ====================
 
     /**
@@ -1425,9 +1491,7 @@ export class ViewerState {
         const id =
             def.id || `plugin-${Math.random().toString(36).substr(2, 9)}`;
 
-        // Create reactive state for this plugin's panel
-        // Svelte 5's $state works fine in closures if consumed in reactive context
-        let isOpen = $state(false);
+        this.ensurePluginUiState(id);
 
         // Register Menu Button
         const button: PluginMenuButton = {
@@ -1435,9 +1499,10 @@ export class ViewerState {
             icon: def.icon,
             tooltip: def.name,
             onClick: () => {
-                isOpen = !isOpen;
+                this.togglePluginOpen(id);
             },
-            isActive: () => isOpen,
+            isActive: () => this.pluginUiState.get(id)?.open ?? false,
+            isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
             order: 200, // Default order for simple plugins
         };
 
@@ -1446,12 +1511,12 @@ export class ViewerState {
             id: `${id}:panel`,
             component: def.panel,
             position: def.position || 'left',
-            isVisible: () => isOpen,
+            isVisible: () => this.pluginUiState.get(id)?.open ?? false,
             props: {
                 ...def.props,
                 // Pass closer to component
                 close: () => {
-                    isOpen = false;
+                    this.setPluginOpen(id, false);
                 },
             },
         };
@@ -1479,6 +1544,7 @@ export class ViewerState {
         this.pluginPanels = this.pluginPanels.filter(
             (p) => !p.id.startsWith(`${pluginId}:`),
         );
+        this.pluginUiState.delete(pluginId);
     }
 
     /**
@@ -1497,6 +1563,7 @@ export class ViewerState {
     destroyAllPlugins(): void {
         this.pluginMenuButtons = [];
         this.pluginPanels = [];
+        this.pluginUiState.clear();
         this.pluginEventHandlers.clear();
     }
 }

@@ -124,6 +124,86 @@ interface PluginDef {
 }
 ```
 
+If you plan to control plugin UI state through `config.plugins`, set an explicit, stable `id` on each plugin. Auto-generated IDs are not stable across re-registration.
+
+## Controlling Plugin UI Through Config
+
+Plugin toolbar button visibility and plugin panel open/closed state can be controlled through the same `config` object used for built-in panes.
+
+Configuration shape:
+
+```ts
+type ViewerConfig = {
+    plugins?: Record<
+        string,
+        {
+            visible?: boolean; // show/hide the plugin toolbar button
+            open?: boolean; // open/close the plugin panel
+        }
+    >;
+};
+```
+
+### Live Updates In Svelte
+
+Update `config.plugins` reactively to change plugin UI at runtime.
+
+```svelte
+<script lang="ts">
+    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+
+    let config = $state({
+        plugins: {
+            'pdf-export': {
+                visible: true,
+                open: false,
+            },
+        },
+    });
+
+    function hidePdfButtonAndOpenPanel() {
+        config.plugins['pdf-export'] = {
+            visible: false,
+            open: true,
+        };
+    }
+</script>
+
+<button onclick={hidePdfButtonAndOpenPanel}>
+    Hide PDF button + open PDF panel
+</button>
+
+<TriiiceratopsViewer manifestId="..." plugins={[PdfExportPlugin]} {config} />
+```
+
+### Live Updates In Web Component Hosts
+
+When using `<triiiceratops-viewer>`, assign a new `config` object from JavaScript.
+
+```html
+<triiiceratops-viewer id="viewer"></triiiceratops-viewer>
+
+<script>
+    const viewer = document.getElementById('viewer');
+
+    viewer.config = {
+        plugins: {
+            'pdf-export': {
+                visible: false,
+                open: true,
+            },
+        },
+    };
+</script>
+```
+
+Notes:
+
+- `visible: false` hides only the plugin toolbar button.
+- `open: true` keeps the panel open if the plugin is registered.
+- `config.plugins` keys must match each plugin's `id`.
+
 ---
 
 ## Adding Plugins
@@ -292,7 +372,7 @@ By default, `PdfExportPlugin` uses:
 
 #### Configuring The Plugin
 
-Use `createPdfExportPlugin(...)` when you want a cover sheet, a specific OCR annotation source, or custom image request behavior.
+Use `createPdfExportPlugin(...)` when you want a cover sheet, a specific OCR annotation source, export-only OCR overlays, or custom image request behavior.
 
 ```ts
 import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
@@ -306,6 +386,23 @@ const pdfExportPlugin = createPdfExportPlugin({
         ],
     },
     ocrAnnotationSource: 'https://example.org/canvas/1/ocr',
+    async getCanvasOcrOverlays({ canvasId }) {
+        const response = await fetch(
+            `/api/ocr-overlays?canvas=${encodeURIComponent(canvasId)}`,
+        );
+        if (!response.ok) {
+            return [];
+        }
+
+        const overlays = await response.json();
+
+        return overlays.map((overlay) => ({
+            ...overlay,
+            // Use 'image' when your OCR API returns coordinates in the
+            // selected source image's pixel space instead of canvas pixels.
+            coordinateSpace: 'image',
+        }));
+    },
     imageRequest: {
         credentials: 'same-origin',
     },
@@ -355,6 +452,37 @@ type PdfExportConfig = {
         fields: { label: string; value: string }[];
     };
     ocrAnnotationSource?: string;
+    ocrPlacementMode?: 'fit-box' | 'word-anchor';
+    ocrSizingMode?: 'fit-box' | 'height-only';
+    ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
+    getCanvasOcrOverlays?: (context: {
+        manifestId: string | null;
+        canvasId: string;
+        canvas: any;
+        canvasIndex: number;
+    }) =>
+        | Promise<
+              | {
+                    text: string;
+                    x: number;
+                    y: number;
+                    width: number;
+                    height: number;
+                    coordinateSpace?: 'canvas' | 'image';
+                }[]
+              | null
+              | undefined
+          >
+        | {
+              text: string;
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+              coordinateSpace?: 'canvas' | 'image';
+          }[]
+        | null
+        | undefined;
     imageRequest?: {
         credentials?: RequestCredentials;
         headers?: HeadersInit;
@@ -391,12 +519,58 @@ When a canvas includes IIIF OCR annotations, the plugin embeds selectable text i
 
 The plugin reads OCR from IIIF annotation data, not from IIIF Search responses. Search hits alone are not enough because the PDF export needs stable text plus canvas-relative bounding boxes.
 
+Manifest OCR annotations are normalized automatically when their `xywh` boxes are in the selected source image's pixel space instead of the canvas pixel space.
+
+If your app stores OCR outside the IIIF manifest, configure `getCanvasOcrOverlays` to supply PDF text overlays directly during export. This callback runs only for canvases included in the selected PDF export range. It is not used during normal canvas navigation, search, thumbnail rendering, or viewer startup.
+
+Provider overlay coordinates default to canvas space for backward compatibility. If your provider returns original image pixel coordinates, set `coordinateSpace: 'image'` on each overlay so the exporter can normalize them before PDF placement.
+
 Supported OCR annotation patterns include:
 
 - IIIF Presentation 3 annotations using `TextualBody` plus `motivation: "supplementing"`
 - legacy IIIF Presentation 2 text annotation lists in `otherContent`, including `cnt:ContentAsText` bodies that use `sc:painting` for line text
 
-If a canvas exposes multiple annotation pages or lists, set `ocrAnnotationSource` to the specific annotation page/list `id` you want the PDF export to use for selectable text. When omitted, the plugin reads OCR-compatible annotations from every available canvas annotation source.
+OCR is resolved in this order during export:
+
+- if `getCanvasOcrOverlays` returns a non-null value, that result is used and manifest OCR is skipped for that canvas
+- otherwise, if `ocrAnnotationSource` is set, the plugin loads OCR from that specific annotation page/list `id`
+- otherwise, the plugin reads OCR-compatible annotations from every available canvas annotation source
+
+Callback result semantics:
+
+- return `[]` to mark the canvas as handled and export it without OCR text
+- return `null` or `undefined` to fall back to manifest-based OCR loading
+- if the callback throws, the export logs a PDF-scoped warning and falls back to manifest-based OCR loading
+
+OCR rendering options:
+
+- `ocrPlacementMode: 'fit-box'` preserves the existing box-fitting behavior
+- `ocrPlacementMode: 'word-anchor'` keeps each word anchored to its supplied `x` and top-origin `y` position without vertical recentering
+- `ocrSizingMode: 'fit-box'` uses both overlay width and height to size the text
+- `ocrSizingMode: 'height-only'` sizes from overlay height only and does not stretch words to fill the OCR width
+- `ocrVisibilityMode: 'transparent'` uses the existing near-transparent text layer behavior
+- `ocrVisibilityMode: 'invisible'` prefers PDF invisible text rendering semantics when supported by the PDF layer
+- `ocrVisibilityMode: 'debug'` draws OCR text visibly for placement checks
+
+Default OCR rendering behavior remains backward-compatible:
+
+```ts
+{
+    ocrPlacementMode: 'fit-box',
+    ocrSizingMode: 'fit-box',
+    ocrVisibilityMode: 'transparent',
+}
+```
+
+Recommended settings for word-level OCR overlays:
+
+```ts
+{
+    ocrPlacementMode: 'word-anchor',
+    ocrSizingMode: 'height-only',
+    ocrVisibilityMode: 'invisible',
+}
+```
 
 To make exported PDF text selectable, provide OCR as canvas-linked IIIF annotations with these properties:
 
@@ -459,12 +633,14 @@ Example OCR annotation page:
 Tesseract guidance:
 
 - convert each OCR line or word into one IIIF annotation item
-- line-level annotations are the easiest starting point for usable PDF text selection
+- line-level annotations are the easiest starting point for usable PDF text selection, but word-level overlays are also supported
 - if your Tesseract boxes are in raw image pixels, make sure the canvas `width` and `height` match that same pixel space, or scale the boxes during annotation generation
 
 #### Image Request Notes
 
 The plugin fetches canvas images with `credentials: "same-origin"` by default. This avoids common CORS failures on public IIIF servers that respond with `Access-Control-Allow-Origin: *`.
+
+For IIIF-backed exports, the plugin automatically requests wide or spread canvases by height instead of width so landscape pages are not capped by the viewer-width-derived export size. Portrait and square canvases continue to use width-constrained requests.
 
 For IIIF Image API level 0 services, the plugin prefers the painting body's declared image URL instead of synthesizing an arbitrary sized IIIF image request. This is more compatible with services that expose only a fixed image URL alongside a level 0 service description.
 

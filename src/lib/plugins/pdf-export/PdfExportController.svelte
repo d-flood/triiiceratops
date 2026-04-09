@@ -7,6 +7,7 @@
     } from '../../state/viewer.svelte';
     import { getCanvasLabel } from '../../utils/resolveCanvasImage';
     import type {
+        PdfCanvasOcrOverlayProvider,
         PdfCoverSheetConfig,
         PdfImageLoader,
         PdfImageRequestConfig,
@@ -24,6 +25,10 @@
         config?: {
             coverSheet?: PdfCoverSheetConfig;
             ocrAnnotationSource?: string;
+            ocrPlacementMode?: 'fit-box' | 'word-anchor';
+            ocrSizingMode?: 'fit-box' | 'height-only';
+            ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
+            getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
             imageRequest?: PdfImageRequestConfig;
             loadImageBlob?: PdfImageLoader;
         };
@@ -44,6 +49,28 @@
 
     function clampIndex(value: number, count: number): number {
         return Math.min(Math.max(0, value), count - 1);
+    }
+
+    function hasConfiguredCoverSheetFields(fields: unknown): boolean {
+        if (Array.isArray(fields)) {
+            return fields.some(
+                (field) =>
+                    (Array.isArray(field) && field.length >= 2) ||
+                    (!!field &&
+                        typeof field === 'object' &&
+                        'label' in field &&
+                        'value' in field),
+            );
+        }
+
+        if (!fields || typeof fields !== 'object') {
+            return false;
+        }
+
+        return (
+            ('label' in fields && 'value' in fields) ||
+            Object.keys(fields).length > 0
+        );
     }
 
     let canvasOptions = $derived(
@@ -94,7 +121,9 @@
     let canExport = $derived(
         !isExporting && !disabledReason && !!normalizedRange,
     );
-    let hasCoverSheet = $derived(!!config.coverSheet?.fields.length);
+    let hasCoverSheet = $derived(
+        hasConfiguredCoverSheetFields(config.coverSheet?.fields),
+    );
 
     function updateStartIndex(value: number | null) {
         startSelection = value;
@@ -139,6 +168,14 @@
         try {
             const manifest = viewerState.manifest;
             const manifestLabel = manifest?.getLabel()?.[0]?.value || null;
+            console.debug('[PDF export] Dispatching export from controller', {
+                manifestId: viewerState.manifestId,
+                manifestLabel,
+                startIndex: normalizedRange.startIndex,
+                endIndex: normalizedRange.endIndex,
+                canvasCount: viewerState.canvases.length,
+                coverSheet: config.coverSheet,
+            });
 
             const result = await exportCanvasRangeAsPdf({
                 canvases: viewerState.canvases,
@@ -150,6 +187,10 @@
                 coverSheet: config.coverSheet,
                 imageRequest: config.imageRequest,
                 loadImageBlob: config.loadImageBlob,
+                ocrPlacementMode: config.ocrPlacementMode,
+                ocrSizingMode: config.ocrSizingMode,
+                ocrVisibilityMode: config.ocrVisibilityMode,
+                getCanvasOcrOverlays: config.getCanvasOcrOverlays,
                 getSelectedChoice: (canvasId) =>
                     viewerState.getSelectedChoice(canvasId),
                 getCanvasAnnotations: async (canvasId) =>
@@ -164,18 +205,23 @@
                 onProgress: (message) => {
                     progressMessage = message;
                 },
-            });
+            } as Parameters<typeof exportCanvasRangeAsPdf>[0]);
 
             progressMessage = '';
             resultMessage = result.failedCanvases.length
                 ? `Downloaded ${result.exportedCount} canvas(es). Skipped ${result.failedCanvases.length}.`
                 : `Downloaded ${result.exportedCount} canvas(es) as ${result.filename}.`;
         } catch (error) {
+            console.error('[PDF export] Export failed in controller', {
+                error,
+                manifestId: viewerState.manifestId,
+                startIndex: normalizedRange.startIndex,
+                endIndex: normalizedRange.endIndex,
+                coverSheet: config.coverSheet,
+            });
             progressMessage = '';
             errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : 'Unable to export canvases.';
+                'Unable to export PDF. Check the browser console for details.';
         } finally {
             isExporting = false;
         }
