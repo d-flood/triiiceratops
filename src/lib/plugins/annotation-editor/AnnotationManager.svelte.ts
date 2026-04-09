@@ -668,6 +668,5 @@ export class AnnotationManager {
     destroy(): void {
         this.annotorious?.destroy();
         this.annotorious = null;
-        this.adapter.destroy?.();
     }
 }
