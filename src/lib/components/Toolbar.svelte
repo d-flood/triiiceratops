@@ -12,6 +12,7 @@
     import BookOpen from 'phosphor-svelte/lib/BookOpen';
     import Scroll from 'phosphor-svelte/lib/Scroll';
     import File from 'phosphor-svelte/lib/File';
+    import Stack from 'phosphor-svelte/lib/Stack';
     import Check from 'phosphor-svelte/lib/Check';
     import X from 'phosphor-svelte/lib/X';
     import ArrowsLeftRight from 'phosphor-svelte/lib/ArrowsLeftRight';
@@ -58,14 +59,40 @@
     const showAnnotations = $derived(toolbarConfig.showAnnotations !== false);
     const showInfo = $derived(toolbarConfig.showInfo !== false);
     const showViewingMode = $derived(toolbarConfig.showViewingMode !== false);
+    const sequenceStructures = $derived(
+        viewerState.structures.filter((node: any) =>
+            node.behaviors?.includes('sequence'),
+        ),
+    );
+    const nonSequenceStructures = $derived(
+        viewerState.structures.filter(
+            (node: any) => !node.behaviors?.includes('sequence'),
+        ),
+    );
     const showStructures = $derived(
         toolbarConfig.showStructures !== false &&
-            viewerState.structures.length > 0,
+            nonSequenceStructures.length > 0,
     );
     const showCollection = $derived(
         toolbarConfig.showCollection !== false && viewerState.hasCollection,
     );
     const showSequencePicker = $derived(viewerState.sequenceCount > 1);
+    const sequenceOptions = $derived.by(() => {
+        if (sequenceStructures.length > 0) {
+            return sequenceStructures.map((node, index) => ({
+                index,
+                label: node.label || `${m.sequence_label()} ${index + 1}`,
+            }));
+        }
+
+        return Array.from(
+            { length: viewerState.sequenceCount },
+            (_, index) => ({
+                index,
+                label: `${m.sequence_label()} ${index + 1}`,
+            }),
+        );
+    });
     const annotationCount = $derived.by(() => {
         if (!viewerState.manifestId || !viewerState.canvasId) {
             return 0;
@@ -340,25 +367,58 @@
             {/if}
 
             {#if showSequencePicker}
-                <li class="px-1">
-                    <label class="input input-sm flex items-center gap-2">
-                        <span class="text-xs opacity-70"
-                            >{m.sequence_label()}</span
+                <li>
+                    <button
+                        class={[...tooltipClasses, 'tooltip-sm indicator']}
+                        data-tip={m.sequence_label()}
+                        popovertarget="toolbar-sequence-picker"
+                        style="anchor-name:--anchor-sequence-picker"
+                        aria-label={m.sequence_label()}
+                    >
+                        <span
+                            class="indicator-item badge badge-primary badge-sm min-w-5 px-1"
                         >
-                        <select
-                            class="bg-transparent text-sm"
-                            value={viewerState.selectedSequenceIndex}
-                            onchange={(event) =>
-                                viewerState.setSequenceIndex(
-                                    Number(event.currentTarget.value),
-                                )}
-                            aria-label={m.sequence_label()}
-                        >
-                            {#each Array.from( { length: viewerState.sequenceCount }, ) as _, index (index)}
-                                <option value={index}>{index + 1}</option>
-                            {/each}
-                        </select>
-                    </label>
+                            {viewerState.sequenceCount > 99
+                                ? '99+'
+                                : viewerState.sequenceCount}
+                        </span>
+                        <Stack size={24} />
+                    </button>
+                    <ul
+                        popover
+                        id="toolbar-sequence-picker"
+                        class={[
+                            'dropdown menu menu-sm rounded-box bg-base-100 shadow-sm border border-base-200 min-w-56',
+                            isTop && 'mt-2 -translate-x-1/2',
+                            position === 'left' && 'ms-10',
+                            position === 'right' && '-translate-x-full -ms-2',
+                        ]}
+                        style={`
+                            position-anchor: --anchor-sequence-picker;
+                        `}
+                    >
+                        {#each sequenceOptions as option (option.index)}
+                            <li>
+                                <button
+                                    class={[
+                                        viewerState.selectedSequenceIndex ===
+                                            option.index &&
+                                            'menu-active bg-primary text-primary-content cursor-pointer',
+                                    ]}
+                                    onclick={() =>
+                                        viewerState.setSequenceIndex(
+                                            option.index,
+                                        )}
+                                >
+                                    <Stack size={16} />
+                                    <span>{option.label}</span>
+                                    {#if viewerState.selectedSequenceIndex === option.index}
+                                        <Check size={16} />
+                                    {/if}
+                                </button>
+                            </li>
+                        {/each}
+                    </ul>
                 </li>
             {/if}
 

@@ -137,6 +137,75 @@ export class ManifestsState {
         }
     }
 
+    private getStructureSequences(manifestId: string): any[][] {
+        const manifestEntry = this.getManifestEntry(manifestId);
+        const manifestoObject = this.getManifest(manifestId);
+        const structures = manifestEntry?.json?.structures;
+
+        if (
+            !Array.isArray(structures) ||
+            !structures.length ||
+            !manifestoObject
+        ) {
+            return [];
+        }
+
+        const sequenceRanges = structures.filter((range: any) => {
+            const rawBehavior = range?.behavior;
+            const behaviors = Array.isArray(rawBehavior)
+                ? rawBehavior
+                : rawBehavior
+                  ? [rawBehavior]
+                  : [];
+
+            return behaviors.some(
+                (value: unknown) =>
+                    String(value).trim().toLowerCase() === 'sequence',
+            );
+        });
+
+        if (!sequenceRanges.length) {
+            return [];
+        }
+
+        const canvasById = new Map<string, any>();
+        const manifestoSequences = manifestoObject.getSequences?.() || [];
+
+        for (const sequence of manifestoSequences) {
+            const canvases = sequence?.getCanvases?.() || [];
+            for (const canvas of canvases) {
+                const canvasId =
+                    canvas?.id ||
+                    canvas?.['@id'] ||
+                    canvas?.getCanvasId?.() ||
+                    canvas?.getId?.();
+
+                if (canvasId && !canvasById.has(canvasId)) {
+                    canvasById.set(canvasId, canvas);
+                }
+            }
+        }
+
+        return sequenceRanges
+            .map((range: any) => {
+                const items = Array.isArray(range?.items) ? range.items : [];
+                return items
+                    .map((item: any) => {
+                        const canvasId =
+                            typeof item === 'string'
+                                ? item
+                                : item?.type === 'Canvas' ||
+                                    item?.['@type'] === 'Canvas'
+                                  ? item.id || item['@id']
+                                  : null;
+
+                        return canvasId ? canvasById.get(canvasId) : null;
+                    })
+                    .filter(Boolean);
+            })
+            .filter((sequence) => sequence.length > 0);
+    }
+
     private findCanvasInJson(resource: any, canvasId: string): any | null {
         if (!resource || typeof resource !== 'object') {
             return null;
@@ -245,6 +314,11 @@ export class ManifestsState {
     }
 
     getSequenceCount(manifestId: string) {
+        const structureSequences = this.getStructureSequences(manifestId);
+        if (structureSequences.length) {
+            return structureSequences.length;
+        }
+
         const m = this.getManifest(manifestId);
         if (!m) {
             return 0;
@@ -255,6 +329,16 @@ export class ManifestsState {
     }
 
     getCanvases(manifestId: string, sequenceIndex: number = 0) {
+        const structureSequences = this.getStructureSequences(manifestId);
+        if (structureSequences.length) {
+            return structureSequences[
+                Math.max(
+                    0,
+                    Math.min(sequenceIndex, structureSequences.length - 1),
+                )
+            ];
+        }
+
         const m = this.getManifest(manifestId);
         if (!m) {
             return [];

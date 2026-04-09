@@ -10,18 +10,20 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let structures = $derived(viewerState.structures);
+    let structures = $derived(
+        viewerState.structures.filter(
+            (node: any) => !node.behaviors?.includes('sequence'),
+        ),
+    );
     let hasStructures = $derived(structures.length > 0);
     let panelWidth = $derived(viewerState.config.structures?.width ?? '320px');
+    let autoExpandedId = $derived(
+        structures.length === 1 && structures[0].children.length > 0
+            ? structures[0].id
+            : null,
+    );
 
     const expandedIds = new SvelteSet<string>();
-
-    // Auto-expand the sole top-level node when there is exactly one
-    $effect(() => {
-        if (structures.length === 1 && structures[0].children.length > 0) {
-            expandedIds.add(structures[0].id);
-        }
-    });
 
     function toggleExpanded(id: string) {
         if (expandedIds.has(id)) {
@@ -38,14 +40,16 @@
     }
 
     function isActive(node: StructureNode): boolean {
-        if (!viewerState.canvasId) return false;
-        return node.canvasIds.includes(viewerState.canvasId);
+        return viewerState.canvasId
+            ? node.canvasIds.includes(viewerState.canvasId)
+            : false;
     }
 </script>
 
 {#snippet rangeTree(nodes: StructureNode[])}
     {#each nodes as node (node.id)}
-        {@const expanded = expandedIds.has(node.id)}
+        {@const expanded =
+            autoExpandedId === node.id || expandedIds.has(node.id)}
         {@const active = isActive(node)}
         {@const hasChildren = node.children.length > 0}
         <div>
