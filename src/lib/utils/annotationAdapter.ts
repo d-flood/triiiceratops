@@ -3,7 +3,7 @@
  */
 export interface ParsedAnnotation {
     id: string;
-    geometry: RectangleGeometry | PolygonGeometry;
+    geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
     body: {
         value: string;
         isHtml: boolean;
@@ -24,6 +24,12 @@ export interface RectangleGeometry {
 export interface PolygonGeometry {
     type: 'POLYGON';
     points: [number, number][];
+}
+
+export interface PointGeometry {
+    type: 'POINT';
+    x: number;
+    y: number;
 }
 
 interface CanvasContext {
@@ -72,11 +78,16 @@ function parseXywh(
  */
 function extractGeometry(
     annotation: any,
-): RectangleGeometry | PolygonGeometry | null {
+): RectangleGeometry | PolygonGeometry | PointGeometry | null {
     // Try to find SVG selector first
     const svgSelector = findSvgSelector(annotation);
     if (svgSelector) {
         return convertSvgToPolygon(svgSelector);
+    }
+
+    const pointSelector = findPointSelector(annotation);
+    if (pointSelector) {
+        return pointSelector;
     }
 
     // Extract xywh from target
@@ -97,6 +108,67 @@ function extractGeometry(
     }
 
     return null;
+}
+
+function findPointSelector(annotation: any): PointGeometry | null {
+    if (typeof annotation.getTarget === 'function') {
+        const rawTarget =
+            annotation.__jsonld?.on || annotation.__jsonld?.target;
+        if (rawTarget) {
+            return extractPointFromTarget(rawTarget);
+        }
+    }
+
+    const target = annotation.target || annotation.on;
+    if (target) {
+        return extractPointFromTarget(target);
+    }
+
+    return null;
+}
+
+function extractPointFromTarget(target: any): PointGeometry | null {
+    if (!target) return null;
+
+    if (Array.isArray(target)) {
+        for (const item of target) {
+            const point = extractPointFromTarget(item);
+            if (point) return point;
+        }
+        return null;
+    }
+
+    if (target.selector) {
+        const selectors = Array.isArray(target.selector)
+            ? target.selector
+            : [target.selector];
+
+        for (const selector of selectors) {
+            const point = extractPointFromSelector(selector);
+            if (point) return point;
+        }
+    }
+
+    return target.source ? extractPointFromTarget(target.source) : null;
+}
+
+function extractPointFromSelector(selector: any): PointGeometry | null {
+    const item = selector?.item || selector;
+    if (item?.type !== 'PointSelector') {
+        return null;
+    }
+
+    const x = Number(item.x);
+    const y = Number(item.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+    }
+
+    return {
+        type: 'POINT',
+        x,
+        y,
+    };
 }
 
 function getCanvasContext(annotation: any): CanvasContext | null {
