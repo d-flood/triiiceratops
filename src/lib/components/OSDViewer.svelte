@@ -22,6 +22,8 @@
     let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
 
+    const MULTI_CANVAS_GAP = 0.0125;
+
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
     // Track last opened tile source to prevent unnecessary resets
@@ -374,8 +376,6 @@
                 viewerState.tileSourceError = null;
                 const resolvedSources = result.resolved;
 
-                const gap = 0.025;
-
                 // Build position info for all sources
                 const canvasOrder = new SvelteMap<string, number>();
                 let nextCanvasOrder = 0;
@@ -400,11 +400,11 @@
                         : source;
 
                     if (isVertical) {
-                        const yPos = canvasIndex * (1 + gap);
+                        const yPos = canvasIndex * (1 + MULTI_CANVAS_GAP);
                         y = (isBTT ? -yPos : yPos) + localY;
                         x = localX;
                     } else {
-                        const xPos = canvasIndex * (1 + gap);
+                        const xPos = canvasIndex * (1 + MULTI_CANVAS_GAP);
                         x = (isRTL ? -xPos : xPos) + localX;
                         y = localY;
                     }
@@ -523,8 +523,7 @@
             const resolvedSources = result.resolved;
 
             if (mode === 'paged') {
-                const gap = 0.025;
-                const offset = 1 + gap;
+                const offset = 1 + MULTI_CANVAS_GAP;
                 const canvasIds = [
                     ...new Set(
                         resolvedSources.map((source, index) =>
@@ -606,15 +605,14 @@
         const isBTT = direction === 'bottom-to-top';
         const isRTL =
             direction === 'right-to-left' || direction === 'bottom-to-top';
-        const gap = 0.025;
 
         const expectedPos = isVertical
             ? isBTT
-                ? -(currentIndex * (1 + gap))
-                : currentIndex * (1 + gap)
+                ? -(currentIndex * (1 + MULTI_CANVAS_GAP))
+                : currentIndex * (1 + MULTI_CANVAS_GAP)
             : isRTL
-              ? -(currentIndex * (1 + gap))
-              : currentIndex * (1 + gap);
+              ? -(currentIndex * (1 + MULTI_CANVAS_GAP))
+              : currentIndex * (1 + MULTI_CANVAS_GAP);
 
         // Find the world item at the expected position
         const itemCount = viewer.world.getItemCount();
