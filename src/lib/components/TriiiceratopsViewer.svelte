@@ -698,11 +698,14 @@
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-track) {
         background: transparent;
+        border-radius: 9999px;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
         background-color: var(--fallback-bc, oklch(var(--bc) / 0.2));
         border-radius: 9999px;
+        border: 1px solid transparent;
+        background-clip: padding-box;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
@@ -711,5 +714,6 @@
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {
         background: transparent;
+        border-radius: 9999px;
     }
 </style>

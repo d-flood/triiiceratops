@@ -41,7 +41,7 @@
 
     const defaultConfig: import('../lib/types/config').ViewerConfig = {
         showToggle: true,
-        toolbarOpen: false,
+        toolbarOpen: true,
         showCanvasNav: true,
         showZoomControls: true,
         enableDragDrop: true,

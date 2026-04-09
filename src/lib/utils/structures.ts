@@ -16,6 +16,8 @@ export interface StructureNode {
     id: string;
     /** Human-readable label */
     label: string;
+    /** Normalized IIIF behaviors applied to this range */
+    behaviors: string[];
     /** Depth in the tree (0 = top-level) */
     depth: number;
     /** Canvas IDs directly referenced by this range (not children) */
@@ -29,12 +31,25 @@ function resolveLabel(label: any): string {
     return resolveLanguageValue(label);
 }
 
+function normalizeBehavior(value: unknown): string {
+    return String(value).trim().toLowerCase();
+}
+
+function getBehaviors(resource: any): string[] {
+    const raw = resource?.behavior ?? resource?.viewingHint;
+    if (!raw) return [];
+
+    const behaviors = Array.isArray(raw) ? raw : [raw];
+    return behaviors.map(normalizeBehavior).filter(Boolean);
+}
+
 /**
  * Parse a single IIIF v3 Range object into a StructureNode.
  */
 function parseV3Range(range: any, depth: number): StructureNode {
     const id = range.id || range['@id'] || '';
     const label = resolveLabel(range.label);
+    const behaviors = getBehaviors(range);
     const canvasIds: string[] = [];
     const children: StructureNode[] = [];
 
@@ -56,7 +71,7 @@ function parseV3Range(range: any, depth: number): StructureNode {
         }
     }
 
-    return { id, label, depth, canvasIds, children };
+    return { id, label, behaviors, depth, canvasIds, children };
 }
 
 /**
@@ -70,6 +85,7 @@ function parseV2Range(
 ): StructureNode {
     const id = range['@id'] || range.id || '';
     const label = resolveLabel(range.label);
+    const behaviors = getBehaviors(range);
     const canvasIds: string[] = [];
     const children: StructureNode[] = [];
 
@@ -116,7 +132,7 @@ function parseV2Range(
         }
     }
 
-    return { id, label, depth, canvasIds, children };
+    return { id, label, behaviors, depth, canvasIds, children };
 }
 
 /**
@@ -172,4 +188,29 @@ export function findRangeForCanvas(
         if (found) return found;
     }
     return null;
+}
+
+/**
+ * Whether a structure node directly contains the given canvas.
+ */
+export function isStructureNodeActive(
+    node: StructureNode,
+    canvasId: string | null,
+): boolean {
+    if (!canvasId) return false;
+    return node.canvasIds.includes(canvasId);
+}
+
+/**
+ * Get the top-level sequence node index for a structure node id.
+ */
+export function getSequenceNodeIndexById(
+    nodes: StructureNode[],
+    nodeId: string,
+): number | undefined {
+    const sequenceNodes = nodes.filter((node) =>
+        node.behaviors.includes('sequence'),
+    );
+    const index = sequenceNodes.findIndex((node) => node.id === nodeId);
+    return index >= 0 ? index : undefined;
 }
