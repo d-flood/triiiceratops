@@ -268,6 +268,11 @@
             ),
     );
 
+    let showCollectionSidebar = $derived(
+        internalViewerState.showCollectionPanel &&
+            internalViewerState.hasCollection,
+    );
+
     let isRightSidebarVisible = $derived(
         (internalViewerState.showSearchPanel &&
             internalViewerState.config.search?.position !== 'left') ||
@@ -276,7 +281,7 @@
             (internalViewerState.showThumbnailGallery &&
                 internalViewerState.dockSide === 'right') ||
             internalViewerState.showStructuresPanel ||
-            internalViewerState.showCollectionPanel ||
+            showCollectionSidebar ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'right' && p.isVisible(),
             ),
@@ -639,7 +644,7 @@
             {/if}
 
             <!-- Collection Panel -->
-            {#if internalViewerState.showCollectionPanel}
+            {#if showCollectionSidebar}
                 <div class="h-full relative pointer-events-auto">
                     <CollectionPanel />
                 </div>

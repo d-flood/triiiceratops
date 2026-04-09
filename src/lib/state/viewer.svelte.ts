@@ -465,6 +465,9 @@ export class ViewerState {
         }
 
         // Normal manifest flow: register the already-fetched JSON
+        this.collectionId = null;
+        this.collectionLabel = '';
+        this.collectionItems = [];
         this.manifestId = manifestId;
         this.canvasId = null;
         this.startCanvasId = null;
