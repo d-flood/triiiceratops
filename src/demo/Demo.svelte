@@ -2,6 +2,7 @@
     import DemoHeader from '../lib/components/DemoHeader.svelte';
     import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
     import SettingsMenu from '../lib/components/SettingsMenu.svelte';
+    import { manifestsState } from '../lib/state/manifests.svelte';
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
     import { m } from '../lib/state/i18n.svelte';
@@ -161,6 +162,61 @@
         PdfExportPlugin,
     ];
 
+    function isLanguageMapKey(key: string): boolean {
+        return (
+            key === 'none' || /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(key)
+        );
+    }
+
+    function isLanguageMapEntry(value: unknown): boolean {
+        return (
+            typeof value === 'string' ||
+            (Array.isArray(value) &&
+                value.every((item) => typeof item === 'string'))
+        );
+    }
+
+    function addLocale(locales: string[], locale: string) {
+        if (!locales.includes(locale)) {
+            locales.push(locale);
+        }
+    }
+
+    function extractManifestLocales(value: unknown, found: string[] = []) {
+        if (!value || typeof value !== 'object') {
+            return found;
+        }
+
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                extractManifestLocales(item, found);
+            }
+            return found;
+        }
+
+        const record = value as Record<string, unknown>;
+        const entries = Object.entries(record);
+
+        if (
+            entries.length > 0 &&
+            entries.every(
+                ([key, entry]) =>
+                    isLanguageMapKey(key) && isLanguageMapEntry(entry),
+            )
+        ) {
+            for (const [key] of entries) {
+                addLocale(found, key);
+            }
+            return found;
+        }
+
+        for (const entry of Object.values(record)) {
+            extractManifestLocales(entry, found);
+        }
+
+        return found;
+    }
+
     // Derived active plugins based on mode
     let activePlugins = $derived(
         viewerMode === 'image' ||
@@ -169,6 +225,15 @@
             ? enabledPlugins
             : [],
     );
+    let availableViewerLocales = $derived.by(() => {
+        const manifestJson = currentManifest
+            ? manifestsState.getManifestEntry(currentManifest)?.json
+            : null;
+
+        return extractManifestLocales(manifestJson).sort((a, b) =>
+            a.localeCompare(b),
+        );
+    });
 
     $effect(() => {
         if (viewerMode !== 'svelte') {
@@ -340,6 +405,7 @@
         bind:viewerMode
         bind:canvasId
         bind:config
+        availableLocales={availableViewerLocales}
         onLoad={loadManifest}
         onReset={resetConfig}
         onShare={shareState}
@@ -392,6 +458,7 @@
                 <div class="flex-1 overflow-y-auto">
                     <SettingsMenu
                         bind:config
+                        availableLocales={availableViewerLocales}
                         onReset={resetConfig}
                         onShare={shareState}
                         class="menu p-2 flex-nowrap w-full"

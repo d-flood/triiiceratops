@@ -57,6 +57,10 @@
 
     let plugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
     let isDragOver = $state(false);
+    let viewerLocale = $derived(
+        (config as ViewerConfig & { locale?: string })?.locale ||
+            language.current,
+    );
 
     // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
@@ -431,7 +435,7 @@
                     <div class="h-full relative pointer-events-auto">
                         <panel.component
                             {...panel.props ?? {}}
-                            locale={language.current}
+                            locale={viewerLocale}
                         />
                     </div>
                 {/if}
@@ -564,7 +568,7 @@
                     <div class="absolute inset-0 z-40 pointer-events-none">
                         <panel.component
                             {...panel.props ?? {}}
-                            locale={language.current}
+                            locale={viewerLocale}
                         />
                     </div>
                 {/if}
@@ -607,7 +611,7 @@
                 <div class="relative w-full z-40 pointer-events-auto">
                     <panel.component
                         {...panel.props ?? {}}
-                        locale={language.current}
+                        locale={viewerLocale}
                     />
                 </div>
             {/if}
@@ -667,7 +671,7 @@
                     <div class="h-full relative pointer-events-auto">
                         <panel.component
                             {...panel.props ?? {}}
-                            locale={language.current}
+                            locale={viewerLocale}
                         />
                     </div>
                 {/if}

@@ -7,6 +7,9 @@
     import { resolveLanguageValue } from '../utils/languageMap';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    let viewerLocale = $derived(
+        (viewerState.config as { locale?: string }).locale || language.current,
+    );
 
     let canvas = $derived.by(() => {
         const idx = viewerState.currentCanvasIndex;
@@ -17,16 +20,16 @@
 
     let label = $derived.by(() => {
         if (!json) return '';
-        return resolveLanguageValue(json.label, language.current);
+        return resolveLanguageValue(json.label, viewerLocale);
     });
 
     let summary = $derived.by(() => {
         if (!json?.summary) return '';
-        return resolveLanguageValue(json.summary, language.current);
+        return resolveLanguageValue(json.summary, viewerLocale);
     });
 
     let metadata = $derived.by(() => {
-        const currentLang = language.current;
+        const currentLang = viewerLocale;
         if (!json?.metadata) return [];
         const raw = Array.isArray(json.metadata) ? json.metadata : [];
         return raw.map((item: any) => ({
@@ -46,7 +49,7 @@
                 if (typeof item === 'string') return { id: item, label: item };
                 const id = item.id || item['@id'] || '';
                 const itemLabel =
-                    resolveLanguageValue(item.label, language.current) ||
+                    resolveLanguageValue(item.label, viewerLocale) ||
                     item.format ||
                     id;
                 return { id, label: itemLabel, format: item.format };

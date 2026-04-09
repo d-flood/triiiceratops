@@ -162,6 +162,7 @@
         viewerMode = $bindable('core'),
         canvasId = $bindable(''),
         config = $bindable({}),
+        availableLocales = [],
         onReset,
         onShare,
     }: {
@@ -170,6 +171,7 @@
         viewerMode: string;
         canvasId: string;
         config: any;
+        availableLocales?: string[];
         onReset?: () => void;
         onShare?: () => Promise<void>;
     } = $props();
@@ -351,6 +353,7 @@
             </div>
             <SettingsMenu
                 bind:config
+                {availableLocales}
                 {onReset}
                 {onShare}
                 class="dropdown-content z-20 menu bg-base-100 rounded-box w-80 p-2 shadow border border-base-300 max-h-[80vh] overflow-y-auto block invisible pointer-events-none group-focus-within:visible group-focus-within:pointer-events-auto"

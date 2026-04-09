@@ -222,6 +222,12 @@ export interface PluginUiConfig {
 
 export interface ViewerConfig {
     /**
+     * Preferred locale for resolving IIIF language maps.
+     * When unset, the viewer follows the app locale.
+     */
+    locale?: string;
+
+    /**
      * Whether to show the canvas navigation arrows/controls.
      * @default true
      */

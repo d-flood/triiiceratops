@@ -5,6 +5,9 @@
     import { resolveLanguageValue } from '../utils/languageMap';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    let viewerLocale = $derived(
+        (viewerState.config as { locale?: string }).locale || language.current,
+    );
 
     let manifest = $derived(viewerState.manifest);
     let json = $derived(manifest?.__jsonld);
@@ -13,7 +16,7 @@
     let title = $derived.by(() => {
         if (!manifest) return m.loading();
         const label = manifest.getLabel?.();
-        const resolved = resolveLanguageValue(label, language.current);
+        const resolved = resolveLanguageValue(label, viewerLocale);
         return resolved || m.metadata_label_fallback();
     });
 
@@ -30,33 +33,33 @@
     let summary = $derived.by(() => {
         if (!manifest) return '';
         if (json?.summary) {
-            return resolveLanguageValue(json.summary, language.current);
+            return resolveLanguageValue(json.summary, viewerLocale);
         }
         return manifest.getDescription?.() || '';
     });
 
     // --- Metadata entries ---
     let metadata = $derived.by(() => {
-        const currentLang = language.current;
-        if (!manifest) return [];
-
-        const rawMetadata = manifest.getMetadata();
+        const currentLang = viewerLocale;
+        const rawMetadata = json?.metadata || manifest?.getMetadata?.();
         if (!rawMetadata) return [];
 
         return rawMetadata.map((item: any) => {
             let label = '';
             let value = '';
 
-            if (item.getLabel) {
+            const source = item?.__jsonld || item;
+
+            if (source.label) {
+                label = resolveLanguageValue(source.label, currentLang);
+            } else if (item.getLabel) {
                 label = resolveLanguageValue(item.getLabel(), currentLang);
-            } else if (item.label) {
-                label = resolveLanguageValue(item.label, currentLang);
             }
 
-            if (item.getValue) {
+            if (source.value) {
+                value = resolveLanguageValue(source.value, currentLang);
+            } else if (item.getValue) {
                 value = resolveLanguageValue(item.getValue(), currentLang);
-            } else if (item.value) {
-                value = resolveLanguageValue(item.value, currentLang);
             }
 
             return { label, value };
@@ -64,9 +67,23 @@
     });
 
     // --- Attribution (requiredStatement) ---
-    let attribution = $derived(
-        manifest ? manifest.getRequiredStatement()?.getValue() : '',
-    );
+    let attributionLabel = $derived.by(() => {
+        const statement = json?.requiredStatement;
+        if (!statement?.label) return m.attribution();
+        return (
+            resolveLanguageValue(statement.label, viewerLocale) ||
+            m.attribution()
+        );
+    });
+
+    let attribution = $derived.by(() => {
+        const statement = json?.requiredStatement;
+        if (statement?.value) {
+            return resolveLanguageValue(statement.value, viewerLocale);
+        }
+
+        return manifest ? manifest.getRequiredStatement()?.getValue() : '';
+    });
 
     // --- License / Rights ---
     let license = $derived.by(() => {
@@ -86,7 +103,7 @@
                 if (typeof item === 'string') return { id: item, label: item };
                 const id = item.id || item['@id'] || '';
                 const label =
-                    resolveLanguageValue(item.label, language.current) ||
+                    resolveLanguageValue(item.label, viewerLocale) ||
                     item.format ||
                     id;
                 return { id, label, format: item.format };
@@ -101,7 +118,7 @@
             ? json.provider
             : [json.provider];
         return raw.map((p: any) => {
-            const label = resolveLanguageValue(p.label, language.current) || '';
+            const label = resolveLanguageValue(p.label, viewerLocale) || '';
             const homepages = normaliseLinks(p.homepage);
             const logos = (
                 Array.isArray(p.logo) ? p.logo : p.logo ? [p.logo] : []
@@ -160,7 +177,7 @@
             <dl>
                 {#if attribution}
                     <dt class="font-bold text-lg opacity-70 mt-6">
-                        {m.attribution()}
+                        {attributionLabel}
                     </dt>
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                     <dd class="text-sm ps-4">{@html attribution}</dd>

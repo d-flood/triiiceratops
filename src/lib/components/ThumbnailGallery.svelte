@@ -3,7 +3,9 @@
     import X from 'phosphor-svelte/lib/X';
     import Stack from 'phosphor-svelte/lib/Stack';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+    import { language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
+    import { resolveLanguageValue } from '../utils/languageMap';
 
     // Minimal canvas/annotation types covering methods used here
     type ManifestService = {
@@ -45,6 +47,9 @@
         | any;
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    let viewerLocale = $derived(
+        (viewerState.config as { locale?: string }).locale || language.current,
+    );
 
     // Config shorthands
     let draggable = $derived(viewerState.config.gallery?.draggable ?? true);
@@ -131,9 +136,9 @@
 
             return {
                 id: canvas.id,
-                label: canvas.getLabel().length
-                    ? canvas.getLabel()[0].value
-                    : `Canvas ${index + 1}`,
+                label:
+                    resolveLanguageValue(canvas.getLabel?.(), viewerLocale) ||
+                    `Canvas ${index + 1}`,
                 src,
                 index,
                 hasChoice,
