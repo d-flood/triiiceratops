@@ -89,16 +89,16 @@ export class ViewerState {
     }
 
     showCurrentCanvasAnnotations() {
-        this.visibleAnnotationIds.clear();
+        this.clearAnnotationVisibility();
 
         if (!this.manifestId || !this.canvasId) {
             return;
         }
 
-        const annotations = [
-            ...manifestsState.getAnnotations(this.manifestId, this.canvasId),
-            ...this.currentCanvasSearchAnnotations,
-        ];
+        const annotations = manifestsState.getAnnotations(
+            this.manifestId,
+            this.canvasId,
+        );
 
         annotations.forEach((annotation: any) => {
             const id = this.getAnnotationId(annotation);
@@ -106,6 +106,20 @@ export class ViewerState {
                 this.visibleAnnotationIds.add(id);
             }
         });
+    }
+
+    private clearAnnotationVisibility() {
+        this.annotationVisibilityTouched = false;
+        this.visibleAnnotationIds.clear();
+    }
+
+    private setAnnotationsPanelOpen(isOpen: boolean) {
+        this.showAnnotations = isOpen;
+        this.clearAnnotationVisibility();
+
+        if (isOpen) {
+            this.showCurrentCanvasAnnotations();
+        }
     }
 
     // Error state for tile source fetching and image load failures.
@@ -755,6 +769,11 @@ export class ViewerState {
     setCanvas(canvasId: string) {
         this.canvasId = canvasId;
         this.tileSourceError = null;
+
+        if (this.showAnnotations) {
+            this.clearAnnotationVisibility();
+        }
+
         this.dispatchStateChange('canvaschange');
     }
 
@@ -839,9 +858,10 @@ export class ViewerState {
 
         if (newConfig.annotations) {
             if (newConfig.annotations.open !== undefined) {
-                this.showAnnotations = newConfig.annotations.open;
-                if (this.showAnnotations && !this.annotationVisibilityTouched) {
-                    this.showCurrentCanvasAnnotations();
+                if (newConfig.annotations.open !== this.showAnnotations) {
+                    this.setAnnotationsPanelOpen(newConfig.annotations.open);
+                } else {
+                    this.showAnnotations = newConfig.annotations.open;
                 }
             }
         }
@@ -871,10 +891,7 @@ export class ViewerState {
     }
 
     toggleAnnotations() {
-        this.showAnnotations = !this.showAnnotations;
-        if (this.showAnnotations && !this.annotationVisibilityTouched) {
-            this.showCurrentCanvasAnnotations();
-        }
+        this.setAnnotationsPanelOpen(!this.showAnnotations);
         this.dispatchStateChange();
     }
 

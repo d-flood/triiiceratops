@@ -77,8 +77,7 @@ interface ViewerConfig {
 
     // Annotations Settings
     annotations?: {
-        open?: boolean; // Default: false (Sidebar panel)
-        visible?: boolean; // Default: false (Overlay visibility)
+        open?: boolean; // Default: false (Sidebar panel, opening also shows annotations)
         showCloseButton?: boolean; // Default: true
         position?: 'left' | 'right'; // Default: 'right'
         width?: string; // Default: '320px'

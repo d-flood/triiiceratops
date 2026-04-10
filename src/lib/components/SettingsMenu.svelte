@@ -640,24 +640,6 @@
                 <li>
                     <label class="label cursor-pointer py-1">
                         <span class="label-text"
-                            >{m.settings_toggle_visible_by_default()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
-                            checked={config.annotations?.visible ?? true}
-                            onchange={(e) => {
-                                if (!config.annotations)
-                                    config.annotations = {};
-                                config.annotations.visible =
-                                    e.currentTarget.checked;
-                            }}
-                        />
-                    </label>
-                </li>
-                <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
                             >{m.settings_toggle_close_button()}</span
                         >
                         <input

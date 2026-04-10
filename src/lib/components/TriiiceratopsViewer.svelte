@@ -153,7 +153,13 @@
 
     $effect(() => {
         if (manifestId && manifestJson) {
-            void internalViewerState.setManifestData(manifestId, manifestJson);
+            void (async () => {
+                await internalViewerState.setManifestData(
+                    manifestId,
+                    manifestJson,
+                );
+                lastAppliedCanvasId = '';
+            })();
             return;
         }
 
@@ -168,9 +174,26 @@
             ) {
                 return;
             }
-            internalViewerState.setManifest(manifestId, {
-                requestConfig: config?.requests,
-            });
+            void (async () => {
+                const requestedManifestId = manifestId;
+                const requestedCanvasId = canvasId;
+                await internalViewerState.setManifest(manifestId, {
+                    requestConfig: config?.requests,
+                });
+                lastAppliedCanvasId = '';
+
+                // Manifest loading clears the active canvas before it picks a default.
+                // Re-apply the requested prop value once the manifest is ready.
+                if (
+                    requestedManifestId === manifestId &&
+                    requestedCanvasId &&
+                    requestedCanvasId === canvasId &&
+                    requestedCanvasId !== internalViewerState.canvasId
+                ) {
+                    lastAppliedCanvasId = requestedCanvasId;
+                    internalViewerState.setCanvas(requestedCanvasId);
+                }
+            })();
         }
     });
 

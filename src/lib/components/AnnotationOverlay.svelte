@@ -21,6 +21,13 @@
         return [...manifestAnnotations, ...searchAnnotations];
     });
 
+    let toggleableAnnotationIds = $derived.by(() => {
+        return annotations
+            .filter((anno: any) => !anno.isSearchHit)
+            .map((anno: any) => getAnnotationId(anno))
+            .filter(Boolean);
+    });
+
     // Helper to get ID from annotation object
     function getAnnotationId(anno: any): string {
         return (
@@ -31,33 +38,17 @@
         );
     }
 
-    function showAllAnnotations() {
-        viewerState.visibleAnnotationIds.clear();
-        annotations.forEach((a: any) => {
-            const id = getAnnotationId(a);
-            if (id) viewerState.visibleAnnotationIds.add(id);
-        });
-    }
-
-    // Effect to initialize visibility when annotations load
     $effect(() => {
-        // When annotations array changes (e.g. canvas change)
-        if (annotations.length > 0) {
-            const visibleByConfig =
-                viewerState.config.annotations?.visible ?? true;
-            const shouldBeVisible =
-                visibleByConfig ||
-                (viewerState.showAnnotations &&
-                    !viewerState.annotationVisibilityTouched);
+        if (
+            !viewerState.showAnnotations ||
+            viewerState.annotationVisibilityTouched ||
+            viewerState.visibleAnnotationIds.size > 0
+        ) {
+            return;
+        }
 
-            viewerState.annotationVisibilityTouched = false;
-            viewerState.visibleAnnotationIds.clear();
-            if (shouldBeVisible) {
-                showAllAnnotations();
-            }
-        } else {
-            viewerState.annotationVisibilityTouched = false;
-            viewerState.visibleAnnotationIds.clear();
+        if (toggleableAnnotationIds.length > 0) {
+            viewerState.showCurrentCanvasAnnotations();
         }
     });
 

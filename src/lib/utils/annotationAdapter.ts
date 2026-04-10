@@ -4,6 +4,7 @@
 export interface ParsedAnnotation {
     id: string;
     geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
+    coordinateSpace: 'canvas' | 'image';
     isFullCanvasTarget: boolean;
     body: {
         value: string;
@@ -38,6 +39,8 @@ interface CanvasContext {
     width?: number;
     height?: number;
 }
+
+type AnnotationOrigin = 'manifest' | 'user';
 
 /**
  * Helper to extract ID from annotation object
@@ -181,6 +184,18 @@ function getCanvasContext(annotation: any): CanvasContext | null {
     return canvas;
 }
 
+function getAnnotationTarget(annotation: any): any {
+    return (
+        annotation?.__jsonld?.on ||
+        annotation?.__jsonld?.target ||
+        annotation?.target ||
+        annotation?.on ||
+        (typeof annotation?.getTarget === 'function'
+            ? annotation.getTarget()
+            : null)
+    );
+}
+
 function getTargetId(target: any): string | null {
     if (!target) return null;
 
@@ -247,6 +262,36 @@ function extractWholeCanvasGeometry(annotation: any): RectangleGeometry | null {
 
 export function isFullCanvasAnnotation(annotation: any): boolean {
     return extractWholeCanvasGeometry(annotation) !== null;
+}
+
+function resolveCoordinateSpace(
+    annotation: any,
+    isFullCanvasTarget: boolean,
+): 'canvas' | 'image' {
+    if (isFullCanvasTarget) {
+        return 'canvas';
+    }
+
+    const origin = annotation?.__triiiceratopsAnnotationOrigin as
+        | AnnotationOrigin
+        | undefined;
+
+    if (origin === 'user') {
+        return 'canvas';
+    }
+
+    if (origin === 'manifest') {
+        return 'image';
+    }
+
+    const canvas = getCanvasContext(annotation);
+    const targetId = getTargetId(getAnnotationTarget(annotation));
+
+    if (canvas?.id && targetId === canvas.id) {
+        return 'canvas';
+    }
+
+    return 'image';
 }
 
 /**
@@ -644,6 +689,10 @@ export function parseAnnotation(
     const id = getAnnotationId(annotation) || `anno-${index}`;
     const geometry = extractGeometry(annotation);
     const isFullCanvasTarget = isFullCanvasAnnotation(annotation);
+    const coordinateSpace = resolveCoordinateSpace(
+        annotation,
+        isFullCanvasTarget,
+    );
 
     // Skip annotations without geometry
     if (!geometry) {
@@ -655,6 +704,7 @@ export function parseAnnotation(
     return {
         id,
         geometry,
+        coordinateSpace,
         isFullCanvasTarget,
         body,
         isSearchHit,
