@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
     buildIiifImageRequestUrl,
+    getCanvasTileSources,
     getCanvasTileSource,
     resolveCanvasImage,
 } from './resolveCanvasImage';
@@ -10,6 +11,8 @@ describe('resolveCanvasImage', () => {
     it('resolves an IIIF image service from a v3 body', () => {
         const canvas = {
             id: 'canvas-1',
+            width: 1600,
+            height: 2400,
             getContent: () => [
                 {
                     getBody: () => ({
@@ -44,6 +47,8 @@ describe('resolveCanvasImage', () => {
     it('uses the selected Choice item when provided', () => {
         const canvas = {
             id: 'canvas-2',
+            width: 1200,
+            height: 1800,
             getImages: () => [
                 {
                     getBody: () => [
@@ -103,6 +108,8 @@ describe('resolveCanvasImage', () => {
     it('falls back to a direct image URL when no IIIF service exists', () => {
         const canvas = {
             id: 'canvas-3',
+            width: 1000,
+            height: 1000,
             getImages: () => [
                 {
                     getResource: () => ({
@@ -121,6 +128,8 @@ describe('resolveCanvasImage', () => {
     it('captures level0 service profiles for export fallbacks', () => {
         const canvas = {
             id: 'canvas-4',
+            width: 2000,
+            height: 3000,
             getContent: () => [
                 {
                     getBody: () => ({
@@ -147,6 +156,137 @@ describe('resolveCanvasImage', () => {
             }),
         );
     });
+
+    it('preserves crop positioning alongside export dimensions', () => {
+        const canvas = {
+            id: 'canvas-5',
+            width: 1000,
+            height: 2000,
+            getContent: () => [
+                {
+                    target: 'https://example.org/canvas/5#xywh=100,250,400,800',
+                    getBody: () => ({
+                        id: 'https://example.org/image/crop.jpg',
+                        width: 400,
+                        height: 800,
+                        service: {
+                            id: 'https://example.org/iiif/crop-image',
+                            type: 'ImageService3',
+                        },
+                    }),
+                },
+            ],
+        };
+
+        expect(resolveCanvasImage(canvas)).toEqual(
+            expect.objectContaining({
+                resourceWidth: 400,
+                resourceHeight: 800,
+                x: 0.1,
+                y: 0.25,
+                width: 0.4,
+            }),
+        );
+
+        expect(getCanvasTileSources(canvas)).toEqual([
+            expect.objectContaining({
+                tileSource: 'https://example.org/iiif/crop-image/info.json',
+                x: 0.1,
+                y: 0.25,
+                width: 0.4,
+            }),
+        ]);
+    });
+
+    it('unwraps SpecificResource bodies and applies ImageApiSelector regions', () => {
+        const canvas = {
+            id: 'canvas-6',
+            width: 1768,
+            height: 2080,
+            getContent: () => [
+                {
+                    getBody: () => ({
+                        id: 'https://example.org/body/1',
+                        type: 'SpecificResource',
+                        source: {
+                            id: 'https://example.org/image/full/max/0/default.jpg',
+                            width: 3536,
+                            height: 4999,
+                            service: {
+                                id: 'https://example.org/iiif/newspaper',
+                                type: 'ImageService3',
+                            },
+                        },
+                        selector: {
+                            type: 'ImageApiSelector',
+                            region: '1768,2423,1768,2080',
+                        },
+                    }),
+                },
+            ],
+        };
+
+        expect(resolveCanvasImage(canvas)).toEqual(
+            expect.objectContaining({
+                resourceId: 'https://example.org/image/full/max/0/default.jpg',
+                resourceWidth: 1768,
+                resourceHeight: 2080,
+                serviceId: 'https://example.org/iiif/newspaper',
+                imageApiRegion: {
+                    x: 1768,
+                    y: 2423,
+                    width: 1768,
+                    height: 2080,
+                },
+            }),
+        );
+
+        expect(getCanvasTileSource(canvas)).toEqual({
+            type: 'image',
+            url: 'https://example.org/iiif/newspaper/1768,2423,1768,2080/max/0/default.jpg',
+        });
+    });
+
+    it('supports percentage-based ImageApiSelector regions', () => {
+        const canvas = {
+            id: 'canvas-7',
+            width: 200,
+            height: 100,
+            getContent: () => [
+                {
+                    getBody: () => ({
+                        type: 'SpecificResource',
+                        source: {
+                            id: 'https://example.org/image/full/max/0/default.jpg',
+                            width: 1000,
+                            height: 500,
+                            service: {
+                                id: 'https://example.org/iiif/percent-region',
+                                type: 'ImageService3',
+                            },
+                        },
+                        selector: {
+                            type: 'ImageApiSelector',
+                            region: 'pct:10,20,30,40',
+                        },
+                    }),
+                },
+            ],
+        };
+
+        expect(resolveCanvasImage(canvas)).toEqual(
+            expect.objectContaining({
+                resourceWidth: 300,
+                resourceHeight: 200,
+                imageApiRegion: {
+                    x: 100,
+                    y: 100,
+                    width: 300,
+                    height: 200,
+                },
+            }),
+        );
+    });
 });
 
 describe('buildIiifImageRequestUrl', () => {
@@ -165,5 +305,16 @@ describe('buildIiifImageRequestUrl', () => {
                 height: 1500,
             }),
         ).toBe('https://example.org/iiif/image-1/full/,1500/0/default.jpg');
+    });
+
+    it('supports region-constrained requests', () => {
+        expect(
+            buildIiifImageRequestUrl('https://example.org/iiif/image-1', {
+                region: '10,20,300,400',
+                size: 'max',
+            }),
+        ).toBe(
+            'https://example.org/iiif/image-1/10,20,300,400/max/0/default.jpg',
+        );
     });
 });

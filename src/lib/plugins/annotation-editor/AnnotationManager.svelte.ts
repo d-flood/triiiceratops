@@ -19,6 +19,10 @@ import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
  * Instantiated within the controller component.
  */
 export class AnnotationManager {
+    private static readonly POINT_SELECTOR_RENDER_SIZE = 6;
+    private static readonly ACTIVE_EDIT_ID_EVENT =
+        'triiiceratops:annotation-editor:active-edit-id';
+
     private config: AnnotationEditorConfig;
     private adapter: AnnotationStorageAdapter;
     private annotorious: OpenSeadragonAnnotator<
@@ -37,6 +41,8 @@ export class AnnotationManager {
     // Current canvas tracking
     private currentManifestId: string | null = null;
     private currentCanvasId: string | null = null;
+    private persistedAnnotations = new Map<string, W3CAnnotation>();
+    private activeEditingAnnotationId: string | null = null;
 
     // Internal state tracking
     private isDrawingEnabled = false;
@@ -131,8 +137,7 @@ export class AnnotationManager {
                     strokeWidth: 2,
                 },
                 formatter: (annotation: any) => {
-                    // Check if this is a 'point' annotation
-                    if (annotation.id && annotation.id.startsWith('point-')) {
+                    if (this.isPointAnnotation(annotation)) {
                         return 'point-annotation';
                     }
                     return ''; // No class for normal annotations
@@ -293,6 +298,103 @@ export class AnnotationManager {
         // We also do NOT isolate events, so that MouseDown/Up bubble to OSD for Panning.
     }
 
+    private isPointAnnotation(annotation: any): boolean {
+        const selector = annotation?.target?.selector;
+
+        return (
+            annotation?.id?.startsWith?.('point-') ||
+            selector?.type === 'PointSelector'
+        );
+    }
+
+    private getPointCoordinates(
+        annotation: any,
+    ): { x: number; y: number } | null {
+        const selector = annotation?.target?.selector;
+
+        if (
+            selector?.type === 'PointSelector' &&
+            typeof selector.x === 'number' &&
+            typeof selector.y === 'number'
+        ) {
+            return { x: selector.x, y: selector.y };
+        }
+
+        if (
+            selector?.type === 'FragmentSelector' &&
+            typeof selector.value === 'string'
+        ) {
+            const match = selector.value.match(
+                /^xywh=([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+)$/,
+            );
+
+            if (match) {
+                const [, x, y, width, height] = match;
+
+                return {
+                    x: Number(x) + Number(width) / 2,
+                    y: Number(y) + Number(height) / 2,
+                };
+            }
+        }
+
+        return null;
+    }
+
+    private toPointSelectorTarget(annotation: W3CAnnotation): W3CAnnotation {
+        if (!this.isPointAnnotation(annotation)) {
+            return annotation;
+        }
+
+        const point = this.getPointCoordinates(annotation);
+        if (!point) {
+            return annotation;
+        }
+
+        return {
+            ...annotation,
+            target: {
+                type: 'SpecificResource',
+                source:
+                    annotation.target?.source ??
+                    this.currentCanvasId ??
+                    'unknown',
+                selector: {
+                    type: 'PointSelector',
+                    x: point.x,
+                    y: point.y,
+                },
+            },
+        } as W3CAnnotation;
+    }
+
+    private toAnnotoriousTarget(annotation: W3CAnnotation): W3CAnnotation {
+        const selector = annotation?.target?.selector as any;
+
+        if (selector?.type !== 'PointSelector') {
+            return annotation;
+        }
+
+        const size = AnnotationManager.POINT_SELECTOR_RENDER_SIZE;
+        const x = selector.x - size / 2;
+        const y = selector.y - size / 2;
+
+        return {
+            ...annotation,
+            target: {
+                source:
+                    annotation.target?.source ??
+                    this.currentCanvasId ??
+                    'unknown',
+                selector: {
+                    type: 'FragmentSelector',
+                    conformsTo: 'http://www.w3.org/TR/media-frags/',
+                    value: `xywh=${x},${y},${size},${size}`,
+                },
+            },
+        } as W3CAnnotation;
+    }
+
     setTool(tool: DrawingTool): void {
         this.activeTool = tool;
         // Re-evaluate drawing mode to enable/disable native drawing
@@ -360,6 +462,14 @@ export class AnnotationManager {
                 pointer-events: visiblePainted; 
             }
 
+            /* Render point annotations as circular markers even though
+               Annotorious edits them via a tiny fragment rectangle. */
+            .a9s-annotation.point-annotation rect,
+            .point-selected .a9s-osd-selectionlayer rect {
+                rx: 999px;
+                ry: 999px;
+            }
+
             /* HIDE resize handles for point annotations using robust container class */
             .point-selected .a9s-handle,
             .point-selected .a9s-edge-handle {
@@ -411,12 +521,16 @@ export class AnnotationManager {
         this.annotorious.on('selectionChanged', (annotations) => {
             const selected =
                 annotations.length > 0
-                    ? (annotations[0] as unknown as W3CAnnotation)
+                    ? this.toPointSelectorTarget(
+                          annotations[0] as unknown as W3CAnnotation,
+                      )
                     : null;
             this.selectedAnnotation = selected;
 
+            this.setActiveEditingAnnotationId(selected?.id ?? null);
+
             // Robustly toggle a class on the viewer container
-            if (selected && selected.id && selected.id.startsWith('point-')) {
+            if (this.isPointAnnotation(selected)) {
                 this.osdViewer.element.classList.add('point-selected');
             } else {
                 this.osdViewer.element.classList.remove('point-selected');
@@ -428,9 +542,85 @@ export class AnnotationManager {
             if (selected?.id) {
                 void this.hydrateAnnotation(selected.id);
             } else {
+                this.clearAnnotoriousEditingAnnotation();
                 this.onAnnotationHydrationChange?.(false);
             }
         });
+    }
+
+    private setActiveEditingAnnotationId(annotationId: string | null): void {
+        this.activeEditingAnnotationId = annotationId;
+
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.dispatchEvent(
+            new CustomEvent(AnnotationManager.ACTIVE_EDIT_ID_EVENT, {
+                detail: { annotationId },
+            }),
+        );
+    }
+
+    private cachePersistedAnnotations(annotations: W3CAnnotation[]): void {
+        this.persistedAnnotations = new Map(
+            annotations.map((annotation) => [annotation.id, annotation]),
+        );
+    }
+
+    private async resolvePersistedAnnotation(
+        annotationId: string,
+    ): Promise<W3CAnnotation | null> {
+        const cached = this.persistedAnnotations.get(annotationId);
+
+        if (cached?.__fullBodyLoaded !== false) {
+            return cached ?? null;
+        }
+
+        if (
+            cached &&
+            this.adapter.hydrate &&
+            this.currentManifestId &&
+            this.currentCanvasId
+        ) {
+            const hydrated = await this.adapter.hydrate(
+                this.currentManifestId,
+                this.currentCanvasId,
+                annotationId,
+            );
+
+            if (hydrated) {
+                this.persistedAnnotations.set(annotationId, hydrated);
+                return hydrated;
+            }
+        }
+
+        if (!cached && this.currentManifestId && this.currentCanvasId) {
+            const annotations = await this.adapter.load(
+                this.currentManifestId,
+                this.currentCanvasId,
+            );
+            this.cachePersistedAnnotations(annotations);
+            return this.persistedAnnotations.get(annotationId) ?? null;
+        }
+
+        return cached ?? null;
+    }
+
+    private clearAnnotoriousEditingAnnotation(): void {
+        this.selectedAnnotation = null;
+        this.osdViewer?.element?.classList.remove('point-selected');
+        this.setActiveEditingAnnotationId(null);
+
+        if (!this.annotorious) {
+            return;
+        }
+
+        const annotations = this.annotorious.getAnnotations() ?? [];
+
+        if (annotations.length > 0) {
+            this.annotorious.clearAnnotations();
+        }
     }
 
     private updateUndoRedoState(): void {
@@ -452,6 +642,7 @@ export class AnnotationManager {
 
         this.currentManifestId = manifestId;
         this.currentCanvasId = canvasId;
+        this.persistedAnnotations.clear();
         this.selectedAnnotation = null;
         this.onSelectionChange?.(null);
         this.notifyExtensionSelectionChange(null);
@@ -468,16 +659,13 @@ export class AnnotationManager {
         }
 
         try {
-            this.annotorious.clearAnnotations();
+            this.clearAnnotoriousEditingAnnotation();
 
             const annotations = await this.adapter.load(
                 this.currentManifestId,
                 this.currentCanvasId,
             );
-
-            if (annotations.length > 0) {
-                this.annotorious.setAnnotations(annotations, true);
-            }
+            this.cachePersistedAnnotations(annotations);
 
             this.updateUndoRedoState();
         } catch (error) {
@@ -492,8 +680,10 @@ export class AnnotationManager {
         if (!this.currentManifestId || !this.currentCanvasId) return;
 
         const w3cAnnotation = await this.applyBeforeSave(
-            this.ensureTargetSource(annotation),
+            this.toPointSelectorTarget(this.ensureTargetSource(annotation)),
         );
+
+        this.persistedAnnotations.set(w3cAnnotation.id, w3cAnnotation);
 
         try {
             const existing = await this.adapter.load(
@@ -536,16 +726,23 @@ export class AnnotationManager {
     private prepareAnnotation(annotation: any): W3CAnnotation {
         const base = this.ensureTargetSource(annotation);
         const prepared = this.config.extension?.prepareDraft
-            ? this.config.extension.prepareDraft(base, this.getRuntimeContext(null))
+            ? this.config.extension.prepareDraft(
+                  base,
+                  this.getRuntimeContext(null),
+              )
             : this.config.prepareAnnotation
               ? this.config.prepareAnnotation(base)
               : base;
-        const clone = JSON.parse(JSON.stringify(prepared));
+        const clone = this.toPointSelectorTarget(
+            JSON.parse(JSON.stringify(prepared)),
+        );
         clone.__fullBodyLoaded = true;
         return clone;
     }
 
-    private async applyBeforeSave(annotation: W3CAnnotation): Promise<W3CAnnotation> {
+    private async applyBeforeSave(
+        annotation: W3CAnnotation,
+    ): Promise<W3CAnnotation> {
         if (this.config.extension?.beforeSave) {
             return await this.config.extension.beforeSave(
                 annotation,
@@ -568,7 +765,9 @@ export class AnnotationManager {
         };
     }
 
-    private notifyExtensionSelectionChange(annotation: W3CAnnotation | null): void {
+    private notifyExtensionSelectionChange(
+        annotation: W3CAnnotation | null,
+    ): void {
         this.config.extension?.onSelectionChange?.(
             annotation,
             this.getRuntimeContext(annotation),
@@ -586,7 +785,9 @@ export class AnnotationManager {
         }
 
         const annotations = this.annotorious.getAnnotations() ?? [];
-        const selected = annotations.find((entry: any) => entry.id === annotationId);
+        const selected = annotations.find(
+            (entry: any) => entry.id === annotationId,
+        );
         if (!selected || selected.__fullBodyLoaded !== false) {
             this.onAnnotationHydrationChange?.(false);
             return;
@@ -594,20 +795,25 @@ export class AnnotationManager {
 
         this.onAnnotationHydrationChange?.(true);
 
-		try {
-			const hydrated = await this.adapter.hydrate(
-				this.currentManifestId,
-				this.currentCanvasId,
-				annotationId,
-			);
-			if (!hydrated) return;
+        try {
+            const hydrated = await this.adapter.hydrate(
+                this.currentManifestId,
+                this.currentCanvasId,
+                annotationId,
+            );
+            if (!hydrated) return;
 
-			const current = this.annotorious.getAnnotations() ?? [];
-			const stillPresent = current.some((entry: any) => entry.id === annotationId);
-			if (!stillPresent) return;
-			this.onSelectionChange?.(hydrated);
-		} catch (error) {
-            console.error('[AnnotationEditor] Failed to hydrate annotation body:', error);
+            const current = this.annotorious.getAnnotations() ?? [];
+            const stillPresent = current.some(
+                (entry: any) => entry.id === annotationId,
+            );
+            if (!stillPresent) return;
+            this.onSelectionChange?.(hydrated);
+        } catch (error) {
+            console.error(
+                '[AnnotationEditor] Failed to hydrate annotation body:',
+                error,
+            );
         } finally {
             this.onAnnotationHydrationChange?.(false);
         }
@@ -622,7 +828,15 @@ export class AnnotationManager {
                 this.currentCanvasId,
                 annotationId,
             );
+            this.persistedAnnotations.delete(annotationId);
             this.annotorious?.removeAnnotation(annotationId);
+
+            if (this.activeEditingAnnotationId === annotationId) {
+                this.clearAnnotoriousEditingAnnotation();
+                this.onSelectionChange?.(null);
+                this.notifyExtensionSelectionChange(null);
+            }
+
             this.updateUndoRedoState();
         } catch (error) {
             console.error(
@@ -645,14 +859,54 @@ export class AnnotationManager {
                 body: bodies.length === 1 ? bodies[0] : bodies,
             };
             await this.saveAnnotation(updated);
+            this.persistedAnnotations.set(
+                annotationId,
+                this.toPointSelectorTarget(this.ensureTargetSource(updated)),
+            );
             // Cast to any to avoid type conflicts with Annotorious internals
             this.annotorious?.updateAnnotation(updated as any);
         }
     }
 
+    async selectAnnotationById(annotationId: string): Promise<void> {
+        if (
+            !this.annotorious ||
+            !this.currentManifestId ||
+            !this.currentCanvasId
+        ) {
+            return;
+        }
+
+        const annotation = await this.resolvePersistedAnnotation(annotationId);
+
+        if (!annotation) {
+            console.warn(
+                '[AnnotationEditor] Could not resolve annotation for editing:',
+                annotationId,
+            );
+            return;
+        }
+
+        const editableAnnotation = this.toAnnotoriousTarget(annotation);
+
+        this.clearAnnotoriousEditingAnnotation();
+        this.annotorious.setAnnotations(
+            [editableAnnotation] as Partial<W3CImageAnnotation>[],
+            true,
+        );
+        this.setActiveEditingAnnotationId(annotationId);
+
+        setTimeout(() => {
+            (this.annotorious as any)?.setSelected(annotationId);
+        }, 0);
+    }
+
     cancelSelection(): void {
         this.selectedAnnotation = null;
-        this.annotorious?.cancelSelected();
+        this.onSelectionChange?.(null);
+        this.notifyExtensionSelectionChange(null);
+        this.onAnnotationHydrationChange?.(false);
+        this.clearAnnotoriousEditingAnnotation();
     }
 
     undo(): void {
@@ -666,6 +920,7 @@ export class AnnotationManager {
     }
 
     destroy(): void {
+        this.clearAnnotoriousEditingAnnotation();
         this.annotorious?.destroy();
         this.annotorious = null;
     }

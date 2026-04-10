@@ -5,16 +5,24 @@
     import Stack from 'phosphor-svelte/lib/Stack';
     import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
     import CaretRight from 'phosphor-svelte/lib/CaretRight';
+    import CaretUp from 'phosphor-svelte/lib/CaretUp';
+    import CaretDown from 'phosphor-svelte/lib/CaretDown';
     import MagnifyingGlassPlus from 'phosphor-svelte/lib/MagnifyingGlassPlus';
     import MagnifyingGlassMinus from 'phosphor-svelte/lib/MagnifyingGlassMinus';
-    import { m } from '../state/i18n.svelte';
+    import { m, language } from '../state/i18n.svelte';
+    import { resolveLanguageValue } from '../utils/languageMap';
     import {
+        getCanvasNavLayout,
         getVisibleChoiceGroups,
         shouldUseAbbreviatedChoiceLabels,
         type ChoiceGroup,
     } from './viewerControls';
+    import CanvasInfoPopover from './CanvasInfoPopover.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    let viewerLocale = $derived(
+        (viewerState.config as { locale?: string }).locale || language.current,
+    );
 
     // Canvas navigation state
     let showNav = $derived(
@@ -33,7 +41,8 @@
             viewingMode: viewerState.viewingMode,
             pagedOffset: viewerState.pagedOffset,
             viewingDirection: viewerState.viewingDirection,
-            getSelectedChoice: (canvasId) => viewerState.getSelectedChoice(canvasId),
+            getSelectedChoice: (canvasId) =>
+                viewerState.getSelectedChoice(canvasId),
         });
     });
 
@@ -54,6 +63,9 @@
             visibleChoiceGroups,
         ),
     );
+    let canvasNavLayout = $derived(
+        getCanvasNavLayout(viewerState.viewingDirection),
+    );
 
     function selectChoice(canvasId: string, item: any) {
         if (canvasId) {
@@ -63,22 +75,16 @@
     }
 
     function getChoiceLabel(choice: any, index: number) {
+        // Try manifesto accessor
         if (choice.getLabel) {
             const l = choice.getLabel();
-            if (Array.isArray(l) && l.length > 0) return l[0].value;
-            if (typeof l === 'string') return l;
+            const resolved = resolveLanguageValue(l, viewerLocale);
+            if (resolved) return resolved;
         }
+        // Try raw label property
         if (choice.label) {
-            if (
-                typeof choice.label === 'object' &&
-                !Array.isArray(choice.label)
-            ) {
-                const keys = Object.keys(choice.label);
-                if (keys.includes('en')) return choice.label.en[0];
-                if (keys.includes('none')) return choice.label.none[0];
-                if (keys.length > 0) return choice.label[keys[0]][0];
-            }
-            if (typeof choice.label === 'string') return choice.label;
+            const resolved = resolveLanguageValue(choice.label, viewerLocale);
+            if (resolved) return resolved;
         }
         return `Option ${index + 1}`;
     }
@@ -92,6 +98,21 @@
         return getChoiceLabel(choice, index);
     }
 
+    function getNavIcon(icon: 'left' | 'right' | 'up' | 'down') {
+        switch (icon) {
+            case 'up':
+                return CaretUp;
+            case 'down':
+                return CaretDown;
+            case 'right':
+                return CaretRight;
+            default:
+                return CaretLeft;
+        }
+    }
+
+    let LeftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
+    let RightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
@@ -105,7 +126,11 @@
                 {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                     {@const id = choice.id || choice['@id']}
                     {@const label = getChoiceLabel(choice, i)}
-                    {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                    {@const displayLabel = getChoiceDisplayLabel(
+                        choice,
+                        i,
+                        abbreviated,
+                    )}
                     {@const isSelected = group.selectedChoiceId
                         ? group.selectedChoiceId === id
                         : i === 0}
@@ -127,13 +152,17 @@
                 class="select select-bordered select-xs rounded-full max-w-xs hidden sm:flex"
                 onchange={(e) => {
                     const idx = e.currentTarget.selectedIndex;
-                    if (idx >= 0) selectChoice(group.canvasId, group.choices[idx]);
+                    if (idx >= 0)
+                        selectChoice(group.canvasId, group.choices[idx]);
                 }}
             >
                 {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                     {@const id = choice.id || choice['@id']}
-                    {@const label = getChoiceLabel(choice, i)}
-                    {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                    {@const displayLabel = getChoiceDisplayLabel(
+                        choice,
+                        i,
+                        abbreviated,
+                    )}
                     {@const isSelected = group.selectedChoiceId
                         ? group.selectedChoiceId === id
                         : i === 0}
@@ -148,7 +177,11 @@
             {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                 {@const id = choice.id || choice['@id']}
                 {@const label = getChoiceLabel(choice, i)}
-                {@const displayLabel = getChoiceDisplayLabel(choice, i, abbreviated)}
+                {@const displayLabel = getChoiceDisplayLabel(
+                    choice,
+                    i,
+                    abbreviated,
+                )}
                 {@const isSelected = group.selectedChoiceId
                     ? group.selectedChoiceId === id
                     : i === 0}
@@ -181,7 +214,10 @@
         class="select-none absolute left-1/2 -translate-x-1/2 bg-base-200/70 backdrop-blur rounded-full shadow-lg flex items-center gap-2 z-10 border border-base-300 transition-all duration-200 bottom-4 px-2"
     >
         {#if leftChoiceGroup}
-            {@render choiceControls(leftChoiceGroup, useAbbreviatedChoiceLabels)}
+            {@render choiceControls(
+                leftChoiceGroup,
+                useAbbreviatedChoiceLabels,
+            )}
         {/if}
 
         {#if leftChoiceGroup && (hasCenterControls || rightChoiceGroup)}
@@ -218,25 +254,44 @@
                     <div class="flex items-center gap-1">
                         <button
                             class="btn btn-circle btn-sm btn-ghost"
-                            disabled={!viewerState.hasPrevious}
-                            onclick={() => viewerState.previousCanvas()}
-                            aria-label={m.previous_canvas()}
+                            disabled={canvasNavLayout.leftButton === 'previous'
+                                ? !viewerState.hasPrevious
+                                : !viewerState.hasNext}
+                            onclick={() =>
+                                canvasNavLayout.leftButton === 'previous'
+                                    ? viewerState.previousCanvas()
+                                    : viewerState.nextCanvas()}
+                            aria-label={canvasNavLayout.leftButton ===
+                            'previous'
+                                ? m.previous_canvas()
+                                : m.next_canvas()}
                         >
-                            <CaretLeft size={18} />
+                            <LeftNavIcon size={18} />
                         </button>
 
-                        <span class="text-sm font-mono tabular-nums text-nowrap px-1">
-                            {viewerState.currentCanvasIndex + 1} / {viewerState.canvases
-                                .length}
+                        <span
+                            class="text-sm font-mono tabular-nums text-nowrap px-1"
+                        >
+                            {viewerState.currentCanvasIndex + 1} / {viewerState
+                                .canvases.length}
                         </span>
+
+                        <CanvasInfoPopover />
 
                         <button
                             class="btn btn-circle btn-sm btn-ghost"
-                            disabled={!viewerState.hasNext}
-                            onclick={() => viewerState.nextCanvas()}
-                            aria-label={m.next_canvas()}
+                            disabled={canvasNavLayout.rightButton === 'next'
+                                ? !viewerState.hasNext
+                                : !viewerState.hasPrevious}
+                            onclick={() =>
+                                canvasNavLayout.rightButton === 'next'
+                                    ? viewerState.nextCanvas()
+                                    : viewerState.previousCanvas()}
+                            aria-label={canvasNavLayout.rightButton === 'next'
+                                ? m.next_canvas()
+                                : m.previous_canvas()}
                         >
-                            <CaretRight size={18} />
+                            <RightNavIcon size={18} />
                         </button>
                     </div>
                 {/if}
@@ -248,7 +303,10 @@
         {/if}
 
         {#if rightChoiceGroup}
-            {@render choiceControls(rightChoiceGroup, useAbbreviatedChoiceLabels)}
+            {@render choiceControls(
+                rightChoiceGroup,
+                useAbbreviatedChoiceLabels,
+            )}
         {/if}
     </div>
 {/if}

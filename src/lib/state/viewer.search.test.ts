@@ -80,9 +80,12 @@ import { manifestsState } from './manifests.svelte';
 vi.mock('./manifests.svelte', () => ({
     manifestsState: {
         fetchManifest: vi.fn(),
+        fetchResource: vi.fn(),
+        registerManifest: vi.fn(),
         getManifest: vi.fn(),
         getManifestEntry: vi.fn(),
         getCanvases: vi.fn(() => []),
+        getSequenceCount: vi.fn(() => 0),
     },
 }));
 
@@ -1029,6 +1032,95 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.searchResults).toEqual([]);
             expect(state.searchAnnotations).toEqual([]);
             expect(state.isSearching).toBe(false);
+        });
+    });
+
+    describe('Config updates', () => {
+        it('applies information, structures, and collection panel config without dropping plugin UI config', () => {
+            state.registerPlugin({
+                id: 'plugin-a',
+                name: 'Plugin A',
+                icon: {} as any,
+                panel: {} as any,
+            });
+
+            state.updateConfig({
+                plugins: {
+                    'plugin-a': {
+                        open: true,
+                        visible: false,
+                    },
+                },
+            });
+
+            state.updateConfig({
+                information: { open: true },
+                structures: { open: true },
+                collection: { open: true },
+                plugins: {
+                    'plugin-a': {
+                        open: true,
+                        visible: false,
+                    },
+                },
+            });
+
+            expect(state.showMetadataDialog).toBe(true);
+            expect(state.showStructuresPanel).toBe(true);
+            expect(state.showCollectionPanel).toBe(true);
+            expect(state.pluginMenuButtons[0]?.isActive?.()).toBe(true);
+            expect(state.pluginMenuButtons[0]?.isVisible?.()).toBe(false);
+            expect(state.pluginPanels[0]?.isVisible()).toBe(true);
+        });
+
+        it('clears collection state when switching from a collection to a plain manifest', async () => {
+            vi.mocked(manifestsState.fetchResource)
+                .mockResolvedValueOnce({
+                    id: 'http://example.org/collection',
+                    type: 'Collection',
+                    label: { none: ['Test collection'] },
+                    items: [
+                        {
+                            id: 'http://example.org/manifest/in-collection',
+                            type: 'Manifest',
+                            label: { none: ['Manifest in collection'] },
+                        },
+                    ],
+                })
+                .mockResolvedValueOnce({
+                    id: 'http://example.org/plain-manifest',
+                    type: 'Manifest',
+                    label: { none: ['Plain manifest'] },
+                    items: [],
+                });
+
+            vi.mocked(manifestsState.fetchManifest).mockResolvedValue();
+            vi.mocked(manifestsState.registerManifest).mockResolvedValue();
+            vi.mocked(manifestsState.getManifest).mockReturnValue(null);
+
+            state.updateConfig({
+                collection: { open: true },
+            });
+
+            await state.setManifest('http://example.org/collection');
+
+            expect(state.showCollectionPanel).toBe(true);
+            expect(state.collectionId).toBe('http://example.org/collection');
+            expect(state.collectionLabel).toBe('Test collection');
+            expect(state.collectionItems).toHaveLength(1);
+            expect(state.hasCollection).toBe(true);
+            expect(state.manifestId).toBe(
+                'http://example.org/manifest/in-collection',
+            );
+
+            await state.setManifest('http://example.org/plain-manifest');
+
+            expect(state.showCollectionPanel).toBe(true);
+            expect(state.collectionId).toBeNull();
+            expect(state.collectionLabel).toBe('');
+            expect(state.collectionItems).toEqual([]);
+            expect(state.hasCollection).toBe(false);
+            expect(state.manifestId).toBe('http://example.org/plain-manifest');
         });
     });
 });

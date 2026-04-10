@@ -5,6 +5,7 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
     import { SvelteSet } from 'svelte/reactivity';
+    import { getCanvasId } from './viewerControls';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -34,8 +35,9 @@
 
     function navigate(canvasIndex: number) {
         const canvas = viewerState.canvases[canvasIndex];
-        if (canvas) {
-            viewerState.setCanvas(canvas.id);
+        const canvasId = getCanvasId(canvas);
+        if (canvasId) {
+            viewerState.setCanvas(canvasId);
         }
     }
     let width = $derived(viewerState.config.search?.width ?? '320px');

@@ -3,7 +3,8 @@
  */
 export interface ParsedAnnotation {
     id: string;
-    geometry: RectangleGeometry | PolygonGeometry;
+    geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
+    isFullCanvasTarget: boolean;
     body: {
         value: string;
         isHtml: boolean;
@@ -24,6 +25,18 @@ export interface RectangleGeometry {
 export interface PolygonGeometry {
     type: 'POLYGON';
     points: [number, number][];
+}
+
+export interface PointGeometry {
+    type: 'POINT';
+    x: number;
+    y: number;
+}
+
+interface CanvasContext {
+    id?: string;
+    width?: number;
+    height?: number;
 }
 
 /**
@@ -66,11 +79,16 @@ function parseXywh(
  */
 function extractGeometry(
     annotation: any,
-): RectangleGeometry | PolygonGeometry | null {
+): RectangleGeometry | PolygonGeometry | PointGeometry | null {
     // Try to find SVG selector first
     const svgSelector = findSvgSelector(annotation);
     if (svgSelector) {
         return convertSvgToPolygon(svgSelector);
+    }
+
+    const pointSelector = findPointSelector(annotation);
+    if (pointSelector) {
+        return pointSelector;
     }
 
     // Extract xywh from target
@@ -85,7 +103,150 @@ function extractGeometry(
         };
     }
 
+    const canvasRect = extractWholeCanvasGeometry(annotation);
+    if (canvasRect) {
+        return canvasRect;
+    }
+
     return null;
+}
+
+function findPointSelector(annotation: any): PointGeometry | null {
+    if (typeof annotation.getTarget === 'function') {
+        const rawTarget =
+            annotation.__jsonld?.on || annotation.__jsonld?.target;
+        if (rawTarget) {
+            return extractPointFromTarget(rawTarget);
+        }
+    }
+
+    const target = annotation.target || annotation.on;
+    if (target) {
+        return extractPointFromTarget(target);
+    }
+
+    return null;
+}
+
+function extractPointFromTarget(target: any): PointGeometry | null {
+    if (!target) return null;
+
+    if (Array.isArray(target)) {
+        for (const item of target) {
+            const point = extractPointFromTarget(item);
+            if (point) return point;
+        }
+        return null;
+    }
+
+    if (target.selector) {
+        const selectors = Array.isArray(target.selector)
+            ? target.selector
+            : [target.selector];
+
+        for (const selector of selectors) {
+            const point = extractPointFromSelector(selector);
+            if (point) return point;
+        }
+    }
+
+    return target.source ? extractPointFromTarget(target.source) : null;
+}
+
+function extractPointFromSelector(selector: any): PointGeometry | null {
+    const item = selector?.item || selector;
+    if (item?.type !== 'PointSelector') {
+        return null;
+    }
+
+    const x = Number(item.x);
+    const y = Number(item.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+    }
+
+    return {
+        type: 'POINT',
+        x,
+        y,
+    };
+}
+
+function getCanvasContext(annotation: any): CanvasContext | null {
+    const canvas = annotation?.__triiiceratopsCanvas;
+    if (!canvas || typeof canvas !== 'object') {
+        return null;
+    }
+
+    return canvas;
+}
+
+function getTargetId(target: any): string | null {
+    if (!target) return null;
+
+    if (typeof target === 'string') {
+        return target.split('#')[0];
+    }
+
+    if (Array.isArray(target)) {
+        for (const item of target) {
+            const id = getTargetId(item);
+            if (id) return id;
+        }
+        return null;
+    }
+
+    if (target.source) {
+        return getTargetId(target.source);
+    }
+
+    return target.id || target['@id'] || null;
+}
+
+function hasTargetSelector(target: any): boolean {
+    if (!target) return false;
+
+    if (Array.isArray(target)) {
+        return target.some(hasTargetSelector);
+    }
+
+    if (typeof target === 'string') {
+        return target.includes('#');
+    }
+
+    if (target.selector) {
+        return true;
+    }
+
+    return Boolean(target.source && hasTargetSelector(target.source));
+}
+
+function extractWholeCanvasGeometry(annotation: any): RectangleGeometry | null {
+    const canvas = getCanvasContext(annotation);
+    if (!canvas?.id || !canvas.width || !canvas.height) {
+        return null;
+    }
+
+    const target = annotation.target || annotation.on;
+    if (hasTargetSelector(target)) {
+        return null;
+    }
+
+    if (getTargetId(target) !== canvas.id) {
+        return null;
+    }
+
+    return {
+        type: 'RECTANGLE',
+        x: 0,
+        y: 0,
+        w: canvas.width,
+        h: canvas.height,
+    };
+}
+
+export function isFullCanvasAnnotation(annotation: any): boolean {
+    return extractWholeCanvasGeometry(annotation) !== null;
 }
 
 /**
@@ -482,6 +643,7 @@ export function parseAnnotation(
 ): ParsedAnnotation | null {
     const id = getAnnotationId(annotation) || `anno-${index}`;
     const geometry = extractGeometry(annotation);
+    const isFullCanvasTarget = isFullCanvasAnnotation(annotation);
 
     // Skip annotations without geometry
     if (!geometry) {
@@ -493,6 +655,7 @@ export function parseAnnotation(
     return {
         id,
         geometry,
+        isFullCanvasTarget,
         body,
         isSearchHit,
     };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAnnotation } from './annotationAdapter';
+import { isFullCanvasAnnotation, parseAnnotation } from './annotationAdapter';
 
 describe('annotationAdapter', () => {
     describe('parseAnnotation', () => {
@@ -103,6 +103,90 @@ describe('annotationAdapter', () => {
 
             const result = parseAnnotation(invalidAnno, 3);
             expect(result).toBeNull();
+        });
+
+        it('should fallback to a full-canvas rectangle for canvas-target annotations', () => {
+            const annotation = {
+                id: 'canvas-note',
+                target: 'http://example.org/canvas1',
+                body: {
+                    type: 'TextualBody',
+                    format: 'text/html',
+                    value: '<p>Hello</p>',
+                },
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            const result = parseAnnotation(annotation, 4);
+
+            expect(result).not.toBeNull();
+            expect(result?.geometry).toEqual({
+                type: 'RECTANGLE',
+                x: 0,
+                y: 0,
+                w: 800,
+                h: 600,
+            });
+            expect(result?.isFullCanvasTarget).toBe(true);
+            expect(result?.body[0]).toMatchObject({
+                value: '<p>Hello</p>',
+                isHtml: true,
+                format: 'text/html',
+            });
+        });
+
+        it('should not treat fragment-target annotations as full-canvas', () => {
+            const annotation = {
+                id: 'fragment-note',
+                target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            expect(isFullCanvasAnnotation(annotation)).toBe(false);
+            expect(parseAnnotation(annotation, 6)?.isFullCanvasTarget).toBe(
+                false,
+            );
+        });
+
+        it('should extract PointSelector geometry', () => {
+            const annotation = {
+                id: 'point-note',
+                target: {
+                    type: 'SpecificResource',
+                    source: 'http://example.org/canvas1',
+                    selector: {
+                        type: 'PointSelector',
+                        x: 3385,
+                        y: 1464,
+                    },
+                },
+                body: {
+                    type: 'TextualBody',
+                    value: 'Town Creek Aqueduct',
+                    format: 'text/plain',
+                },
+            };
+
+            const result = parseAnnotation(annotation, 5);
+
+            expect(result).not.toBeNull();
+            expect(result?.geometry).toEqual({
+                type: 'POINT',
+                x: 3385,
+                y: 1464,
+            });
+            expect(result?.body[0]).toMatchObject({
+                value: 'Town Creek Aqueduct',
+                format: 'text/plain',
+            });
         });
     });
 });

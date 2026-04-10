@@ -2,6 +2,7 @@
     import DemoHeader from '../lib/components/DemoHeader.svelte';
     import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
     import SettingsMenu from '../lib/components/SettingsMenu.svelte';
+    import { manifestsState } from '../lib/state/manifests.svelte';
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
     import { m } from '../lib/state/i18n.svelte';
@@ -9,6 +10,10 @@
     import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
     import { AnnotationEditorPlugin } from '../lib/plugins/annotation-editor';
     import { PdfExportPlugin } from '../lib/plugins/pdf-export';
+    import {
+        parseContentState,
+        type CanvasRegion,
+    } from '../lib/utils/contentState';
 
     // Initialize state from URL if present
     const urlParams = new URLSearchParams(window.location.search);
@@ -16,13 +21,30 @@
     let manifestUrl = $state(urlParams.get('manifest') || '');
     let currentManifest = $state(urlParams.get('manifest') || '');
     let canvasId = $state(urlParams.get('canvas') || '');
+    let initialCanvasRegion = $state<CanvasRegion | null>(null);
+
+    const iiifContentParam = urlParams.get('iiif-content');
+    const initialManifestUrl = urlParams.get('manifest') || '';
+    if (iiifContentParam && !initialManifestUrl) {
+        const parsed = parseContentState(iiifContentParam);
+        if (parsed?.manifestId) {
+            manifestUrl = parsed.manifestId;
+            currentManifest = parsed.manifestId;
+            if (parsed.canvasId) {
+                canvasId = parsed.canvasId;
+            }
+            if (parsed.region) {
+                initialCanvasRegion = parsed.region;
+            }
+        }
+    }
 
     const defaultConfig: import('../lib/types/config').ViewerConfig = {
         showToggle: true,
-        toolbarOpen: false,
+        toolbarOpen: true,
         showCanvasNav: true,
         showZoomControls: true,
-        viewingMode: 'individuals',
+        enableDragDrop: true,
         toolbar: {
             showSearch: true,
             showGallery: true,
@@ -51,6 +73,12 @@
             open: false,
             visible: false,
         },
+        information: {
+            open: false,
+            showCloseButton: true,
+            position: 'right' as 'left' | 'right',
+            width: '320px',
+        },
     };
 
     let initialConfig = defaultConfig;
@@ -64,6 +92,12 @@
     }
 
     let config = $state(initialConfig);
+
+    function shouldSyncViewingMode(
+        mode: 'individuals' | 'paged' | 'continuous',
+    ) {
+        return config.viewingMode !== undefined || mode !== 'individuals';
+    }
 
     // Initialize mode from URL, default to 'image'
     // const urlParams = new URLSearchParams(window.location.search); // Already defined above
@@ -83,24 +117,12 @@
     // This defines <triiiceratops-viewer>
     import('../lib/custom-element');
 
-    // Persist state to URL (mode, manifest, canvas, config)
-    $effect(() => {
-        const params = new SvelteURLSearchParams();
-        params.set('mode', viewerMode);
-        if (manifestUrl) params.set('manifest', manifestUrl);
-        if (canvasId) params.set('canvas', canvasId);
-        params.set('config', JSON.stringify(config));
-
-        const newUrl = `${window.location.pathname}?${params.toString()}`;
-        window.history.replaceState({}, '', newUrl);
-    });
-
     function resetConfig() {
         config = JSON.parse(JSON.stringify(defaultConfig));
     }
 
     async function shareState() {
-        const params = new URLSearchParams();
+        const params = new SvelteURLSearchParams();
         params.set('mode', viewerMode);
         if (manifestUrl) params.set('manifest', manifestUrl);
         if (canvasId) params.set('canvas', canvasId);
@@ -151,6 +173,61 @@
         PdfExportPlugin,
     ];
 
+    function isLanguageMapKey(key: string): boolean {
+        return (
+            key === 'none' || /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(key)
+        );
+    }
+
+    function isLanguageMapEntry(value: unknown): boolean {
+        return (
+            typeof value === 'string' ||
+            (Array.isArray(value) &&
+                value.every((item) => typeof item === 'string'))
+        );
+    }
+
+    function addLocale(locales: string[], locale: string) {
+        if (!locales.includes(locale)) {
+            locales.push(locale);
+        }
+    }
+
+    function extractManifestLocales(value: unknown, found: string[] = []) {
+        if (!value || typeof value !== 'object') {
+            return found;
+        }
+
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                extractManifestLocales(item, found);
+            }
+            return found;
+        }
+
+        const record = value as Record<string, unknown>;
+        const entries = Object.entries(record);
+
+        if (
+            entries.length > 0 &&
+            entries.every(
+                ([key, entry]) =>
+                    isLanguageMapKey(key) && isLanguageMapEntry(entry),
+            )
+        ) {
+            for (const [key] of entries) {
+                addLocale(found, key);
+            }
+            return found;
+        }
+
+        for (const entry of Object.values(record)) {
+            extractManifestLocales(entry, found);
+        }
+
+        return found;
+    }
+
     // Derived active plugins based on mode
     let activePlugins = $derived(
         viewerMode === 'image' ||
@@ -159,6 +236,15 @@
             ? enabledPlugins
             : [],
     );
+    let availableViewerLocales = $derived.by(() => {
+        const manifestJson = currentManifest
+            ? manifestsState.getManifestEntry(currentManifest)?.json
+            : null;
+
+        return extractManifestLocales(manifestJson).sort((a, b) =>
+            a.localeCompare(b),
+        );
+    });
 
     $effect(() => {
         if (viewerMode !== 'svelte') {
@@ -245,12 +331,21 @@
                         hasChanges = true;
                     }
 
+                    const newInformation = { ...config.information };
+                    if (newInformation.open !== state.showInformationPanel) {
+                        newInformation.open = state.showInformationPanel;
+                        hasChanges = true;
+                    }
+
                     if (config.toolbarOpen !== state.toolbarOpen) {
                         config.toolbarOpen = state.toolbarOpen;
                         hasChanges = true;
                     }
 
-                    if (config.viewingMode !== state.viewingMode) {
+                    if (
+                        shouldSyncViewingMode(state.viewingMode) &&
+                        config.viewingMode !== state.viewingMode
+                    ) {
                         config.viewingMode = state.viewingMode;
                         hasChanges = true;
                     }
@@ -259,6 +354,7 @@
                         config.gallery = newGallery;
                         config.search = newSearch;
                         config.annotations = newAnnotations;
+                        config.information = newInformation;
                     }
 
                     // Sync canvas ID back to the dropdown
@@ -294,8 +390,14 @@
         if (config.annotations) {
             config.annotations.open = svelteViewerState.showAnnotations;
         }
+        if (config.information) {
+            config.information.open = svelteViewerState.showMetadataDialog;
+        }
         config.toolbarOpen = svelteViewerState.toolbarOpen;
-        config.viewingMode = svelteViewerState.viewingMode;
+
+        if (shouldSyncViewingMode(svelteViewerState.viewingMode)) {
+            config.viewingMode = svelteViewerState.viewingMode;
+        }
 
         // Sync canvas ID back to the dropdown
         if (
@@ -330,6 +432,7 @@
         bind:viewerMode
         bind:canvasId
         bind:config
+        availableLocales={availableViewerLocales}
         onLoad={loadManifest}
         onReset={resetConfig}
         onShare={shareState}
@@ -349,6 +452,7 @@
                     <TriiiceratopsViewer
                         manifestId={currentManifest}
                         {canvasId}
+                        {initialCanvasRegion}
                         {config}
                         bind:viewerState={svelteViewerState}
                         plugins={enabledPlugins}
@@ -358,6 +462,9 @@
                     <triiiceratops-viewer
                         manifest-id={currentManifest}
                         canvas-id={canvasId}
+                        initial-canvas-region={initialCanvasRegion
+                            ? JSON.stringify(initialCanvasRegion)
+                            : undefined}
                         theme-config={viewerMode === 'custom-theme'
                             ? customThemeConfig
                             : undefined}
@@ -378,6 +485,7 @@
                 <div class="flex-1 overflow-y-auto">
                     <SettingsMenu
                         bind:config
+                        availableLocales={availableViewerLocales}
                         onReset={resetConfig}
                         onShare={shareState}
                         class="menu p-2 flex-nowrap w-full"

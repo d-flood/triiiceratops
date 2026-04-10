@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { SvelteSet } from 'svelte/reactivity';
+    import { SvelteMap, SvelteSet } from 'svelte/reactivity';
     import {
         DEFAULT_MIN_PIXEL_RATIO,
         DEFAULT_MIN_ZOOM_IMAGE_RATIO,
@@ -12,6 +12,10 @@
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
 
+    const REQUEST_EDIT_EVENT = 'triiiceratops:annotation-editor:request-edit';
+    const ACTIVE_EDIT_ID_EVENT =
+        'triiiceratops:annotation-editor:active-edit-id';
+
     let {
         tileSources,
         viewerState,
@@ -21,6 +25,179 @@
     let container: HTMLElement | undefined = $state();
     let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
+    let activeEditAnnotationId = $state<string | null>(null);
+    let readonlyTooltip = $state<{
+        id: string;
+        text: string;
+        x: number;
+        y: number;
+        side: 'top' | 'bottom' | 'left' | 'right';
+    } | null>(null);
+
+    const MULTI_CANVAS_GAP = 0.0125;
+    const POINT_MARKER_SIZE = 10;
+
+    type ViewerTileSourceError =
+        | { type: 'auth' }
+        | { type: 'load'; message?: string; details?: string };
+
+    function setTileSourceError(error: ViewerTileSourceError | null) {
+        (viewerState as any).tileSourceError = error;
+    }
+
+    function getErrorText(value: unknown): string | null {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+        if (value instanceof Error && value.message.trim()) {
+            return value.message.trim();
+        }
+        if (!value || typeof value !== 'object') return null;
+
+        const record = value as Record<string, unknown>;
+        for (const key of [
+            'message',
+            'detail',
+            'statusText',
+            'url',
+            'src',
+            '_id',
+        ]) {
+            const text = record[key];
+            if (typeof text === 'string' && text.trim()) return text.trim();
+        }
+
+        return null;
+    }
+
+    function createLoadError(event: any): ViewerTileSourceError {
+        const message =
+            getErrorText(event?.message) || 'Unable to load this image.';
+        const details =
+            getErrorText(event?.detail) ||
+            getErrorText(event?.source) ||
+            getErrorText(event?.tileSource);
+
+        return details && details !== message
+            ? { type: 'load', message, details }
+            : { type: 'load', message };
+    }
+
+    function handleAnnotationOverlayKeydown(
+        annotationId: string,
+        event: KeyboardEvent,
+    ) {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+        }
+
+        event.preventDefault();
+        requestAnnotationEdit(annotationId, event);
+    }
+
+    function isEditableOverlayAnnotation(anno: { isSearchHit?: boolean }) {
+        return annotationEditorOpen && !anno.isSearchHit;
+    }
+
+    function shouldShowOverlayTooltip(anno: {
+        isFullCanvasTarget?: boolean;
+        tooltip?: string;
+    }) {
+        return !anno.isFullCanvasTarget && !!anno.tooltip;
+    }
+
+    function pointInPolygon(
+        x: number,
+        y: number,
+        points: Array<[number, number]>,
+    ) {
+        let inside = false;
+
+        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+            const [xi, yi] = points[i];
+            const [xj, yj] = points[j];
+            const intersects =
+                yi > y !== yj > y &&
+                x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+
+            if (intersects) {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    function annotationContainsPoint(anno: any, x: number, y: number) {
+        if (anno.type === 'RECTANGLE') {
+            return (
+                x >= anno.rect.x &&
+                x <= anno.rect.x + anno.rect.width &&
+                y >= anno.rect.y &&
+                y <= anno.rect.y + anno.rect.height
+            );
+        }
+
+        if (anno.type === 'POINT') {
+            const centerX = anno.point.x;
+            const centerY = anno.point.y;
+            const radius = POINT_MARKER_SIZE / 2;
+
+            return (x - centerX) ** 2 + (y - centerY) ** 2 <= radius ** 2;
+        }
+
+        if (anno.type === 'POLYGON') {
+            return pointInPolygon(
+                x - anno.bounds.x,
+                y - anno.bounds.y,
+                anno.points,
+            );
+        }
+
+        return false;
+    }
+
+    function getTooltipSide(clientX: number, clientY: number) {
+        if (clientY < 72) return 'bottom';
+        if (clientX > window.innerWidth - 160) return 'left';
+        if (clientX < 160) return 'right';
+        return 'top';
+    }
+
+    function updateReadonlyTooltip(event: PointerEvent) {
+        if (!container) {
+            readonlyTooltip = null;
+            return;
+        }
+
+        const rect = container.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const hoveredAnnotation = [...renderedAnnotations]
+            .reverse()
+            .find(
+                (anno) =>
+                    !isEditableOverlayAnnotation(anno) &&
+                    shouldShowOverlayTooltip(anno) &&
+                    annotationContainsPoint(anno, x, y),
+            );
+
+        if (!hoveredAnnotation) {
+            readonlyTooltip = null;
+            return;
+        }
+
+        readonlyTooltip = {
+            id: hoveredAnnotation.id,
+            text: hoveredAnnotation.tooltip,
+            x: Math.min(Math.max(event.clientX, 16), window.innerWidth - 16),
+            y: Math.min(Math.max(event.clientY, 16), window.innerHeight - 16),
+            side: getTooltipSide(event.clientX, event.clientY),
+        };
+    }
+
+    function clearReadonlyTooltip() {
+        readonlyTooltip = null;
+    }
 
     // Track OSD state changes for reactivity
     let osdVersion = $state(0);
@@ -55,6 +232,14 @@
         return parseAnnotations(allAnnotations, searchHitIds);
     });
 
+    let annotationEditorOpen = $derived.by(() => {
+        const editorPanel = viewerState.pluginPanels.find(
+            (panel) => panel.id === 'annotation-editor:panel',
+        );
+
+        return editorPanel?.isVisible() ?? false;
+    });
+
     // Rendered annotations with pixel coordinates
     let renderedAnnotations = $derived.by(() => {
         // Depend on osdVersion to trigger updates
@@ -71,13 +256,11 @@
 
         const results: any[] = [];
 
-        // Check if annotation editor is open to prevent double rendering
-        const editorPanel = viewerState.pluginPanels.find(
-            (p) => p.id === 'annotation-editor:panel',
-        );
-        const isEditorOpen = editorPanel ? editorPanel.isVisible() : false;
-
         for (const anno of parsedAnnotations) {
+            const geometry = anno.geometry as
+                | typeof anno.geometry
+                | { type: 'POINT'; x: number; y: number };
+
             // Filter based on visibility
             if (anno.isSearchHit) {
                 // Search hits are always visible
@@ -85,13 +268,17 @@
                 continue;
             }
 
-            if (anno.geometry.type === 'RECTANGLE') {
+            if (anno.id === activeEditAnnotationId) {
+                continue;
+            }
+
+            if (geometry.type === 'RECTANGLE') {
                 // Convert image coordinates to viewport coordinates
                 const viewportRect = tiledImage.imageToViewportRectangle(
-                    anno.geometry.x,
-                    anno.geometry.y,
-                    anno.geometry.w,
-                    anno.geometry.h,
+                    geometry.x,
+                    geometry.y,
+                    geometry.w,
+                    geometry.h,
                 );
 
                 // Convert viewport to pixel coordinates
@@ -103,6 +290,7 @@
                 results.push({
                     id: anno.id,
                     type: 'RECTANGLE' as const,
+                    isFullCanvasTarget: anno.isFullCanvasTarget,
                     rect: {
                         x: pixelRect.x,
                         y: pixelRect.y,
@@ -111,12 +299,10 @@
                     },
                     isSearchHit: anno.isSearchHit,
                     tooltip: anno.body.map((b) => b.value).join(' '),
-                    // Disable pointer events if editor is open so blue annotations can be selected
-                    pointerEvents: isEditorOpen ? 'none' : 'auto',
                 });
-            } else if (anno.geometry.type === 'POLYGON') {
+            } else if (geometry.type === 'POLYGON') {
                 // Convert each point from image to viewport to pixel
-                const pixelPoints = anno.geometry.points.map((point) => {
+                const pixelPoints = geometry.points.map((point) => {
                     const viewportPoint = tiledImage.imageToViewportCoordinates(
                         new OSD.Point(point[0], point[1]),
                     );
@@ -148,6 +334,7 @@
                 results.push({
                     id: anno.id,
                     type: 'POLYGON' as const,
+                    isFullCanvasTarget: anno.isFullCanvasTarget,
                     bounds: {
                         x: minX,
                         y: minY,
@@ -157,7 +344,26 @@
                     points: relativePoints,
                     isSearchHit: anno.isSearchHit,
                     tooltip: anno.body.map((b) => b.value).join(' '),
-                    pointerEvents: isEditorOpen ? 'none' : 'auto',
+                });
+            } else if (geometry.type === 'POINT') {
+                const viewportPoint = tiledImage.imageToViewportCoordinates(
+                    new OSD.Point(geometry.x, geometry.y),
+                );
+                const pixelPoint =
+                    viewer.viewport.viewportToViewerElementCoordinates(
+                        viewportPoint,
+                    );
+
+                results.push({
+                    id: anno.id,
+                    type: 'POINT' as const,
+                    isFullCanvasTarget: anno.isFullCanvasTarget,
+                    point: {
+                        x: pixelPoint.x,
+                        y: pixelPoint.y,
+                    },
+                    isSearchHit: anno.isSearchHit,
+                    tooltip: anno.body.map((b) => b.value).join(' '),
                 });
             }
         }
@@ -170,6 +376,17 @@
 
         let mounted = true;
 
+        const handleActiveEditAnnotation = (event: Event) => {
+            activeEditAnnotationId =
+                (event as CustomEvent<{ annotationId?: string | null }>).detail
+                    ?.annotationId ?? null;
+        };
+
+        window.addEventListener(
+            ACTIVE_EDIT_ID_EVENT,
+            handleActiveEditAnnotation,
+        );
+
         (async () => {
             // Dynamically import OpenSeadragon to avoid SSR issues
             const osdModule = await import('openseadragon');
@@ -177,17 +394,17 @@
 
             OSD = osdModule.default || osdModule;
             const userAgent = navigator.userAgent || '';
-            const consumerOverrides = viewerState.config?.openSeadragonConfig ?? {};
+            const consumerOverrides =
+                viewerState.config?.openSeadragonConfig ?? {};
 
             // Prefer canvas first on mobile unless consumer overrides drawer.
             // This avoids known WebGL tile rendering issues on some devices.
-            const defaultDrawer =
-                shouldUseMobileDrawerFallback({
-                    userAgent,
-                    drawerOverride: consumerOverrides.drawer,
-                })
-                    ? { drawer: [...MOBILE_DRAWER_FALLBACK] }
-                    : {};
+            const defaultDrawer = shouldUseMobileDrawerFallback({
+                userAgent,
+                drawerOverride: consumerOverrides.drawer,
+            })
+                ? { drawer: [...MOBILE_DRAWER_FALLBACK] }
+                : {};
 
             // Initialize OpenSeadragon viewer
             viewer = OSD({
@@ -213,19 +430,40 @@
                 },
             });
 
+            const handleTileSourceFailure = (event: any) => {
+                setTileSourceError(createLoadError(event));
+                viewer?.close();
+            };
+
+            viewer.addHandler('open-failed', handleTileSourceFailure);
+            viewer.addHandler('add-item-failed', handleTileSourceFailure);
+
             viewer.addHandler('open', () => {
                 const overrides = viewerState.config?.openSeadragonConfig ?? {};
-                if (overrides.minZoomLevel !== undefined) return;
-
-                // Keep a conservative floor below home zoom to avoid over-zoomed
-                // empty/unstable ranges while preserving normal navigation.
-                const homeZoom = viewer.viewport.getHomeZoom();
-                const floorFactor =
-                    viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
-                viewer.viewport.minZoomLevel = homeZoom * floorFactor;
+                if (overrides.minZoomLevel === undefined) {
+                    // Keep a conservative floor below home zoom to avoid over-zoomed
+                    // empty/unstable ranges while preserving normal navigation.
+                    const homeZoom = viewer.viewport.getHomeZoom();
+                    const floorFactor =
+                        viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
+                    viewer.viewport.minZoomLevel = homeZoom * floorFactor;
+                }
 
                 if (overrides.minPixelRatio === undefined) {
                     viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
+                }
+
+                const region = viewerState.initialCanvasRegion;
+                const tiledImage = viewer.world.getItemAt(0);
+                if (region && tiledImage) {
+                    const viewportRect = tiledImage.imageToViewportRectangle(
+                        region.x,
+                        region.y,
+                        region.width,
+                        region.height,
+                    );
+                    viewer.viewport.fitBounds(viewportRect, true);
+                    viewerState.setInitialCanvasRegion(null);
                 }
             });
 
@@ -235,10 +473,34 @@
 
         return () => {
             mounted = false;
+            window.removeEventListener(
+                ACTIVE_EDIT_ID_EVENT,
+                handleActiveEditAnnotation,
+            );
             viewer?.destroy();
             viewerState.osdViewer = null;
         };
     });
+
+    function requestAnnotationEdit(
+        annotationId: string,
+        event: MouseEvent | KeyboardEvent,
+    ) {
+        const editorPanel = viewerState.pluginPanels.find(
+            (p) => p.id === 'annotation-editor:panel',
+        );
+
+        if (!editorPanel?.isVisible()) {
+            return;
+        }
+
+        event.stopPropagation();
+        window.dispatchEvent(
+            new CustomEvent(REQUEST_EDIT_EVENT, {
+                detail: { annotationId },
+            }),
+        );
+    }
 
     // Subscribe to OSD events for reactivity
     $effect(() => {
@@ -283,7 +545,7 @@
         // stale tiles immediately and allow the same source to reopen later.
         if (!tileSources) {
             viewer.close();
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
             lastTileSourceStr = '';
             return;
         }
@@ -314,9 +576,12 @@
               ? [tileSources]
               : [];
 
+        const isPositionedSource = (source: any) =>
+            !!source && typeof source === 'object' && 'tileSource' in source;
+
         if (sources.length === 0) {
             viewer.close();
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
             lastTileSourceStr = '';
             return;
         }
@@ -329,7 +594,7 @@
             // Remove current world immediately so stale canvases are not shown
             // while async source resolution is in progress.
             viewer.close();
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
 
             if (overrides.minPixelRatio === undefined) {
                 viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
@@ -350,28 +615,52 @@
                 if (capturedKey !== lastTileSourceStr) return;
 
                 if (!result.ok) {
-                    viewerState.tileSourceError = result.error;
+                    setTileSourceError(result.error);
                     viewer.close();
                     return;
                 }
 
-                viewerState.tileSourceError = null;
+                setTileSourceError(null);
                 const resolvedSources = result.resolved;
 
-                const gap = 0.025;
-
                 // Build position info for all sources
+                const canvasOrder = new SvelteMap<string, number>();
+                let nextCanvasOrder = 0;
+
                 const allPositions = resolvedSources.map((source, index) => {
                     let x = 0;
                     let y = 0;
-                    if (isVertical) {
-                        const yPos = index * (1 + gap);
-                        y = isBTT ? -yPos : yPos;
-                    } else {
-                        const xPos = index * (1 + gap);
-                        x = isRTL ? -xPos : xPos;
+                    const canvasId = isPositionedSource(source)
+                        ? source.canvasId
+                        : `canvas-${index}`;
+                    if (!canvasOrder.has(canvasId)) {
+                        canvasOrder.set(canvasId, nextCanvasOrder++);
                     }
-                    return { tileSource: source, x, y, width: 1.0 };
+                    const canvasIndex = canvasOrder.get(canvasId) ?? index;
+                    const localX = isPositionedSource(source) ? source.x : 0;
+                    const localY = isPositionedSource(source) ? source.y : 0;
+                    const localWidth = isPositionedSource(source)
+                        ? source.width
+                        : 1.0;
+                    const actualTileSource = isPositionedSource(source)
+                        ? source.tileSource
+                        : source;
+
+                    if (isVertical) {
+                        const yPos = canvasIndex * (1 + MULTI_CANVAS_GAP);
+                        y = (isBTT ? -yPos : yPos) + localY;
+                        x = localX;
+                    } else {
+                        const xPos = canvasIndex * (1 + MULTI_CANVAS_GAP);
+                        x = (isRTL ? -xPos : xPos) + localX;
+                        y = localY;
+                    }
+                    return {
+                        tileSource: actualTileSource,
+                        x,
+                        y,
+                        width: localWidth,
+                    };
                 });
 
                 // Only open a window of canvases around the active one for fast initial load.
@@ -400,12 +689,10 @@
                         ...allPositions
                             .slice(0, startIdx)
                             .map((pos, i) => ({ ...pos, originalIndex: i })),
-                        ...allPositions
-                            .slice(endIdx)
-                            .map((pos, i) => ({
-                                ...pos,
-                                originalIndex: endIdx + i,
-                            })),
+                        ...allPositions.slice(endIdx).map((pos, i) => ({
+                            ...pos,
+                            originalIndex: endIdx + i,
+                        })),
                     ];
 
                     const BATCH_SIZE = 5;
@@ -452,7 +739,7 @@
         // In paged/individual modes, clear the current image immediately so
         // users don't see stale content while tile sources are being prepared.
         viewer.close();
-        viewerState.tileSourceError = null;
+        setTileSourceError(null);
 
         // Restore less aggressive defaults outside continuous mode unless user-overridden.
         if (overrides.minPixelRatio === undefined) {
@@ -474,45 +761,70 @@
             if (capturedKey !== lastTileSourceStr) return;
 
             if (!result.ok) {
-                viewerState.tileSourceError = result.error;
+                setTileSourceError(result.error);
                 viewer.close();
                 return;
             }
 
-            viewerState.tileSourceError = null;
+            setTileSourceError(null);
             const resolvedSources = result.resolved;
 
-            if (mode === 'paged' && resolvedSources.length === 2) {
-                const gap = 0.025;
-                const offset = 1 + gap;
-
-                // Two pages.
-                // If LTR: [0] at 0, [1] at 1.025
-                // If RTL: [0] at 1.025, [1] at 0
-                const firstX = isPagedRTL ? offset : 0;
-                const secondX = isPagedRTL ? 0 : offset;
-
-                const spread = [
-                    {
-                        tileSource: resolvedSources[0],
-                        x: firstX,
-                        y: 0,
-                        width: 1.0,
-                    },
-                    {
-                        tileSource: resolvedSources[1],
-                        x: secondX,
-                        y: 0,
-                        width: 1.0,
-                    },
+            if (mode === 'paged') {
+                const offset = 1 + MULTI_CANVAS_GAP;
+                const canvasIds = [
+                    ...new Set(
+                        resolvedSources.map((source, index) =>
+                            isPositionedSource(source)
+                                ? source.canvasId
+                                : `canvas-${index}`,
+                        ),
+                    ),
                 ];
-                viewer.open(spread);
-            } else {
-                // Individuals or single paged or fallback
+                const canvasOffsets = new SvelteMap<string, number>();
+
+                canvasIds.forEach((canvasId, index) => {
+                    if (canvasIds.length === 1) {
+                        canvasOffsets.set(canvasId, 0);
+                        return;
+                    }
+
+                    if (index === 0) {
+                        canvasOffsets.set(canvasId, isPagedRTL ? offset : 0);
+                    } else {
+                        canvasOffsets.set(canvasId, isPagedRTL ? 0 : offset);
+                    }
+                });
+
+                const positioned = resolvedSources.map((source) =>
+                    isPositionedSource(source)
+                        ? {
+                              tileSource: source.tileSource,
+                              x:
+                                  source.x +
+                                  (canvasOffsets.get(source.canvasId) ?? 0),
+                              y: source.y,
+                              width: source.width,
+                          }
+                        : source,
+                );
+
                 viewer.open(
-                    resolvedSources.length === 1
-                        ? resolvedSources[0]
-                        : resolvedSources,
+                    positioned.length === 1 ? positioned[0] : positioned,
+                );
+            } else {
+                const positioned = resolvedSources.map((source) =>
+                    isPositionedSource(source)
+                        ? {
+                              tileSource: source.tileSource,
+                              x: source.x,
+                              y: source.y,
+                              width: source.width,
+                          }
+                        : source,
+                );
+
+                viewer.open(
+                    positioned.length === 1 ? positioned[0] : positioned,
                 );
             }
         });
@@ -540,15 +852,14 @@
         const isBTT = direction === 'bottom-to-top';
         const isRTL =
             direction === 'right-to-left' || direction === 'bottom-to-top';
-        const gap = 0.025;
 
         const expectedPos = isVertical
             ? isBTT
-                ? -(currentIndex * (1 + gap))
-                : currentIndex * (1 + gap)
+                ? -(currentIndex * (1 + MULTI_CANVAS_GAP))
+                : currentIndex * (1 + MULTI_CANVAS_GAP)
             : isRTL
-              ? -(currentIndex * (1 + gap))
-              : currentIndex * (1 + gap);
+              ? -(currentIndex * (1 + MULTI_CANVAS_GAP))
+              : currentIndex * (1 + MULTI_CANVAS_GAP);
 
         // Find the world item at the expected position
         const itemCount = viewer.world.getItemCount();
@@ -569,7 +880,11 @@
     });
 </script>
 
-<div class="w-full h-full relative">
+<div
+    class="w-full h-full relative"
+    onpointermove={updateReadonlyTooltip}
+    onpointerleave={clearReadonlyTooltip}
+>
     <div
         bind:this={container}
         class="w-full h-full osd-background {viewerState.config
@@ -580,42 +895,188 @@
 
     <!-- Render annotations -->
     {#each renderedAnnotations as anno (anno.id)}
-        {#if anno.type === 'RECTANGLE'}
-            <div
-                id="annotation-visual-{anno.id}"
-                class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
-                    ? 'border-yellow-400 bg-yellow-400/40 hover:bg-yellow-400/60'
-                    : 'border-red-500 bg-red-500/20 hover:bg-red-500/40'}"
-                style="
+        {#if !anno.isFullCanvasTarget || viewerState.hoveredAnnotationId === anno.id}
+            {#if anno.type === 'RECTANGLE'}
+                {#if isEditableOverlayAnnotation(anno)}
+                    <button
+                        type="button"
+                        id="annotation-visual-{anno.id}"
+                        class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {shouldShowOverlayTooltip(
+                            anno,
+                        )
+                            ? 'tooltip tooltip-primary '
+                            : ''}{anno.isSearchHit
+                            ? 'border-yellow-400 bg-yellow-400/40 hover:bg-yellow-400/60'
+                            : 'border-red-500 bg-red-500/20 hover:bg-red-500/40'}"
+                        data-tip={shouldShowOverlayTooltip(anno)
+                            ? anno.tooltip
+                            : undefined}
+                        aria-label={anno.tooltip}
+                        style="
           left: {anno.rect.x}px;
           top: {anno.rect.y}px;
           width: {anno.rect.width}px;
           height: {anno.rect.height}px;
-          pointer-events: {anno.pointerEvents};
-        "
-                title={anno.tooltip}
-            ></div>
-        {:else if anno.type === 'POLYGON'}
-            <svg
-                class="absolute pointer-events-auto"
-                style="
+                 "
+                        onclick={(event) =>
+                            requestAnnotationEdit(anno.id, event)}
+                        onkeydown={(event) =>
+                            handleAnnotationOverlayKeydown(anno.id, event)}
+                    ></button>
+                {:else}
+                    <div
+                        id="annotation-visual-{anno.id}"
+                        class="absolute pointer-events-none"
+                        style="
+          left: {anno.rect.x}px;
+          top: {anno.rect.y}px;
+          width: {anno.rect.width}px;
+          height: {anno.rect.height}px;
+                 "
+                    >
+                        <div
+                            class="pointer-events-none absolute inset-0 border-2 transition-colors {anno.isSearchHit
+                                ? readonlyTooltip?.id === anno.id
+                                    ? 'border-yellow-400 bg-yellow-400/60'
+                                    : 'border-yellow-400 bg-yellow-400/40'
+                                : readonlyTooltip?.id === anno.id
+                                  ? 'border-red-500 bg-red-500/40'
+                                  : 'border-red-500 bg-red-500/20'}"
+                        ></div>
+                    </div>
+                {/if}
+            {:else if anno.type === 'POLYGON'}
+                {#if isEditableOverlayAnnotation(anno)}
+                    <button
+                        type="button"
+                        class="absolute pointer-events-auto border-0 bg-transparent p-0 {shouldShowOverlayTooltip(
+                            anno,
+                        )
+                            ? 'tooltip tooltip-primary'
+                            : ''}"
+                        data-tip={shouldShowOverlayTooltip(anno)
+                            ? anno.tooltip
+                            : undefined}
+                        aria-label={anno.tooltip}
+                        style="
           left: {anno.bounds.x}px;
           top: {anno.bounds.y}px;
           width: {anno.bounds.width}px;
           height: {anno.bounds.height}px;
-          pointer-events: {anno.pointerEvents};
         "
-            >
-                <title>{anno.tooltip}</title>
-                <polygon
-                    id="annotation-visual-{anno.id}"
-                    points={anno.points.map((p: any) => p.join(',')).join(' ')}
-                    class="cursor-pointer transition-colors {anno.isSearchHit
-                        ? 'fill-yellow-400/40 stroke-yellow-400 hover:fill-yellow-400/60'
-                        : 'fill-red-500/20 stroke-red-500 hover:fill-red-500/40'}"
-                    stroke-width="2"
-                />
-            </svg>
+                        onclick={(event) =>
+                            requestAnnotationEdit(anno.id, event)}
+                        onkeydown={(event) =>
+                            handleAnnotationOverlayKeydown(anno.id, event)}
+                    >
+                        <svg class="absolute inset-0 h-full w-full">
+                            <polygon
+                                id="annotation-visual-{anno.id}"
+                                points={anno.points
+                                    .map((p: any) => p.join(','))
+                                    .join(' ')}
+                                class="cursor-pointer transition-colors {anno.isSearchHit
+                                    ? 'fill-yellow-400/40 stroke-yellow-400 hover:fill-yellow-400/60'
+                                    : 'fill-red-500/20 stroke-red-500 hover:fill-red-500/40'}"
+                                stroke-width="2"
+                            />
+                        </svg>
+                    </button>
+                {:else}
+                    <div
+                        class="absolute pointer-events-none"
+                        style="
+          left: {anno.bounds.x}px;
+          top: {anno.bounds.y}px;
+          width: {anno.bounds.width}px;
+          height: {anno.bounds.height}px;
+        "
+                    >
+                        <svg
+                            class="pointer-events-none absolute inset-0 h-full w-full"
+                        >
+                            <polygon
+                                id="annotation-visual-{anno.id}"
+                                points={anno.points
+                                    .map((p: any) => p.join(','))
+                                    .join(' ')}
+                                class="transition-colors {anno.isSearchHit
+                                    ? readonlyTooltip?.id === anno.id
+                                        ? 'fill-yellow-400/60 stroke-yellow-400'
+                                        : 'fill-yellow-400/40 stroke-yellow-400'
+                                    : readonlyTooltip?.id === anno.id
+                                      ? 'fill-red-500/40 stroke-red-500'
+                                      : 'fill-red-500/20 stroke-red-500'}"
+                                stroke-width="2"
+                            />
+                        </svg>
+                    </div>
+                {/if}
+            {:else if anno.type === 'POINT'}
+                {#if isEditableOverlayAnnotation(anno)}
+                    <button
+                        type="button"
+                        id="annotation-visual-{anno.id}"
+                        class="absolute rounded-full border-2 transition-colors cursor-pointer pointer-events-auto {shouldShowOverlayTooltip(
+                            anno,
+                        )
+                            ? 'tooltip tooltip-primary '
+                            : ''}{anno.isSearchHit
+                            ? 'border-yellow-400 bg-yellow-400 hover:bg-yellow-400/80'
+                            : 'border-red-500 bg-red-500 hover:bg-red-500/80'}"
+                        data-tip={shouldShowOverlayTooltip(anno)
+                            ? anno.tooltip
+                            : undefined}
+                        aria-label={anno.tooltip}
+                        style="
+		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
+		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
+		  width: {POINT_MARKER_SIZE}px;
+		  height: {POINT_MARKER_SIZE}px;
+		"
+                        onclick={(event) =>
+                            requestAnnotationEdit(anno.id, event)}
+                        onkeydown={(event) =>
+                            handleAnnotationOverlayKeydown(anno.id, event)}
+                    ></button>
+                {:else}
+                    <div
+                        id="annotation-visual-{anno.id}"
+                        class="absolute pointer-events-none"
+                        style="
+		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
+		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
+		  width: {POINT_MARKER_SIZE}px;
+		  height: {POINT_MARKER_SIZE}px;
+		"
+                    >
+                        <div
+                            class="pointer-events-none absolute inset-0 rounded-full border-2 transition-colors {anno.isSearchHit
+                                ? readonlyTooltip?.id === anno.id
+                                    ? 'border-yellow-400 bg-yellow-400/80'
+                                    : 'border-yellow-400 bg-yellow-400'
+                                : readonlyTooltip?.id === anno.id
+                                  ? 'border-red-500 bg-red-500/80'
+                                  : 'border-red-500 bg-red-500'}"
+                        ></div>
+                    </div>
+                {/if}
+            {/if}
         {/if}
     {/each}
+
+    {#if readonlyTooltip}
+        <div
+            class={[
+                'tooltip tooltip-open tooltip-primary fixed z-50 pointer-events-none',
+                readonlyTooltip.side === 'top' && 'tooltip-top',
+                readonlyTooltip.side === 'bottom' && 'tooltip-bottom',
+                readonlyTooltip.side === 'left' && 'tooltip-left',
+                readonlyTooltip.side === 'right' && 'tooltip-right',
+            ]}
+            data-tip={readonlyTooltip.text}
+            aria-hidden="true"
+            style="left: {readonlyTooltip.x}px; top: {readonlyTooltip.y}px; width: 0; height: 0;"
+        ></div>
+    {/if}
 </div>

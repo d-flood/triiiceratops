@@ -9,6 +9,26 @@ import type {
 } from '../types/config';
 
 import type { PluginMenuButton, PluginPanel, PluginDef } from '../types/plugin';
+import { parseStructures, type StructureNode } from '../utils/structures';
+import {
+    isCollection,
+    parseCollection,
+    getCollectionLabel,
+    sortCollectionItems,
+    type CollectionItem,
+} from '../utils/collections';
+import type { CanvasRegion } from '../utils/contentState';
+import {
+    getCanvasId,
+    getPagedCanvasGroups,
+    getVisibleCanvasEntries,
+} from '../components/viewerControls';
+
+function normalizeIiifBehavior(value: unknown): string {
+    const normalized = String(value).trim().toLowerCase();
+    const segments = normalized.split(/[#/:]/);
+    return segments[segments.length - 1] || normalized;
+}
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -19,8 +39,10 @@ export interface ViewerStateSnapshot {
     canvasId: string | null;
     currentCanvasIndex: number;
     showAnnotations: boolean;
+    showInformationPanel: boolean;
     showThumbnailGallery: boolean;
     showSearchPanel: boolean;
+    showStructuresPanel: boolean;
     toolbarOpen: boolean;
     searchQuery: string;
     isFullScreen: boolean;
@@ -45,15 +67,60 @@ export class ViewerState {
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
     showMetadataDialog = $state(false);
+    showCanvasInfo = $state(false);
+    showStructuresPanel = $state(false);
+    initialCanvasRegion = $state<CanvasRegion | null>(null);
     dockSide = $state('bottom');
     visibleAnnotationIds = new SvelteSet<string>();
+    annotationVisibilityTouched = $state(false);
     hoveredAnnotationId = $state<string | null>(null);
 
-    // Error state for tile source fetching (e.g. 401 auth required)
-    tileSourceError: { type: 'auth' } | null = $state(null);
+    private getAnnotationId(annotation: any): string {
+        return (
+            annotation?.id ||
+            annotation?.['@id'] ||
+            (typeof annotation?.getId === 'function'
+                ? annotation.getId()
+                : '') ||
+            ''
+        );
+    }
+
+    showCurrentCanvasAnnotations() {
+        this.visibleAnnotationIds.clear();
+
+        if (!this.manifestId || !this.canvasId) {
+            return;
+        }
+
+        const annotations = [
+            ...manifestsState.getAnnotations(this.manifestId, this.canvasId),
+            ...this.currentCanvasSearchAnnotations,
+        ];
+
+        annotations.forEach((annotation: any) => {
+            const id = this.getAnnotationId(annotation);
+            if (id) {
+                this.visibleAnnotationIds.add(id);
+            }
+        });
+    }
+
+    // Error state for tile source fetching and image load failures.
+    tileSourceError:
+        | { type: 'auth' }
+        | { type: 'load'; message?: string; details?: string }
+        | null = $state(null);
 
     // Map of canvasId -> selected choiceId (Content State)
     selectedChoices = new SvelteMap<string, string>();
+    selectedSequenceIndex = $state(0);
+
+    // Collection state
+    collectionId: string | null = $state(null);
+    collectionLabel: string = $state('');
+    collectionItems: CollectionItem[] = $state([]);
+    showCollectionPanel = $state(false);
 
     private _viewingDirection = $state<
         'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top'
@@ -165,8 +232,10 @@ export class ViewerState {
             canvasId: this.canvasId,
             currentCanvasIndex: canvasIndex,
             showAnnotations: this.showAnnotations,
+            showInformationPanel: this.showMetadataDialog,
             showThumbnailGallery: this.showThumbnailGallery,
             showSearchPanel: this.showSearchPanel,
+            showStructuresPanel: this.showStructuresPanel,
             toolbarOpen: this.toolbarOpen,
             searchQuery: this.searchQuery,
             isFullScreen: this.isFullScreen,
@@ -237,11 +306,19 @@ export class ViewerState {
 
     get canvases() {
         if (!this.manifestId) return [];
-        const canvases = manifestsState.getCanvases(this.manifestId);
+        const canvases = manifestsState.getCanvases(
+            this.manifestId,
+            this.selectedSequenceIndex,
+        );
 
         // Auto-initialize canvasId to first canvas if not set
 
         return canvases;
+    }
+
+    get sequenceCount() {
+        if (!this.manifestId) return 0;
+        return manifestsState.getSequenceCount(this.manifestId);
     }
 
     get currentCanvasIndex() {
@@ -261,38 +338,56 @@ export class ViewerState {
         });
     }
 
+    private getCurrentPagedCanvasGroupIndex(): number {
+        if (this.viewingMode !== 'paged' || this.currentCanvasIndex < 0) {
+            return -1;
+        }
+
+        const groups = getPagedCanvasGroups(this.canvases, this.pagedOffset);
+        return groups.findIndex(
+            ({ startIndex, endIndex }) =>
+                this.currentCanvasIndex >= startIndex &&
+                this.currentCanvasIndex <= endIndex,
+        );
+    }
+
     get hasNext() {
         if (this.viewingMode === 'paged') {
-            // Account for paged offset: with offset 1, page 1 is single, pairs start at 2+3
-            const singlePages = this.pagedOffset;
-            if (this.currentCanvasIndex < singlePages) {
-                return this.currentCanvasIndex < this.canvases.length - 1;
-            }
-            return this.currentCanvasIndex < this.canvases.length - 2;
+            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+            const groups = getPagedCanvasGroups(
+                this.canvases,
+                this.pagedOffset,
+            );
+            return groupIndex >= 0 && groupIndex < groups.length - 1;
         } else {
             return this.currentCanvasIndex < this.canvases.length - 1;
         }
     }
 
     get hasPrevious() {
+        if (this.viewingMode === 'paged') {
+            return this.getCurrentPagedCanvasGroupIndex() > 0;
+        }
+
         return this.currentCanvasIndex > 0;
     }
 
     nextCanvas() {
         if (this.hasNext) {
             if (this.viewingMode === 'paged') {
-                // Single pages at the start: pagedOffset (default 0, shifted = 1)
-                const singlePages = this.pagedOffset;
-                const nextIndex =
-                    this.currentCanvasIndex < singlePages
-                        ? this.currentCanvasIndex + 1
-                        : this.currentCanvasIndex + 2;
-                const canvas = this.canvases[nextIndex];
-                this.setCanvas(canvas.id);
+                const groups = getPagedCanvasGroups(
+                    this.canvases,
+                    this.pagedOffset,
+                );
+                const canvasId =
+                    groups[this.getCurrentPagedCanvasGroupIndex() + 1]
+                        ?.entries[0]?.canvasId;
+                if (canvasId) this.setCanvas(canvasId);
             } else {
                 const nextIndex = this.currentCanvasIndex + 1;
                 const canvas = this.canvases[nextIndex];
-                this.setCanvas(canvas.id);
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
             }
         }
     }
@@ -300,25 +395,19 @@ export class ViewerState {
     previousCanvas() {
         if (this.hasPrevious) {
             if (this.viewingMode === 'paged') {
-                // Single pages at the start: pagedOffset (default 0, shifted = 1)
-                const singlePages = this.pagedOffset;
-                let prevIndex: number;
-                if (this.currentCanvasIndex <= singlePages) {
-                    // Going back within single pages or to a single page
-                    prevIndex = this.currentCanvasIndex - 1;
-                } else {
-                    // Going back in paired pages, but don't go past the last single page
-                    prevIndex = Math.max(
-                        this.currentCanvasIndex - 2,
-                        singlePages,
-                    );
-                }
-                const canvas = this.canvases[prevIndex];
-                this.setCanvas(canvas.id);
+                const groups = getPagedCanvasGroups(
+                    this.canvases,
+                    this.pagedOffset,
+                );
+                const canvasId =
+                    groups[this.getCurrentPagedCanvasGroupIndex() - 1]
+                        ?.entries[0]?.canvasId;
+                if (canvasId) this.setCanvas(canvasId);
             } else {
                 const prevIndex = this.currentCanvasIndex - 1;
                 const canvas = this.canvases[prevIndex];
-                this.setCanvas(canvas.id);
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
             }
         }
     }
@@ -351,117 +440,276 @@ export class ViewerState {
     ): Promise<void> {
         this.manifestId = manifestId;
         this.canvasId = null;
+        this.startCanvasId = null;
+        this.selectedSequenceIndex = 0;
         await manifestsState.registerManifest(manifestId, manifestJson);
+        this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
     }
+
+    /**
+     * The canvas ID specified by the manifest's `start` property (IIIF Presentation 3.0).
+     * Used during auto-selection to navigate to the correct initial canvas.
+     * Only set once per manifest load; cleared when a new manifest is set.
+     */
+    startCanvasId: string | null = $state(null);
 
     async setManifest(
         manifestId: string,
         options?: { requestConfig?: RequestConfig },
     ) {
+        this.manifestRequestConfig = options?.requestConfig;
+
+        // Fetch the raw JSON first to detect if it's a Collection
+        let json: any;
+        try {
+            json = await manifestsState.fetchResource(
+                manifestId,
+                this.manifestRequestConfig,
+            );
+        } catch (_error: any) {
+            // If fetch fails, fall back to normal flow which will handle the error
+            this.manifestId = manifestId;
+            this.canvasId = null;
+            this.startCanvasId = null;
+            this.selectedSequenceIndex = 0;
+            await manifestsState.fetchManifest(
+                manifestId,
+                this.manifestRequestConfig,
+            );
+            this.dispatchStateChange('manifestchange');
+            return;
+        }
+
+        // Check if the resource is a Collection
+        if (isCollection(json)) {
+            this.collectionId = manifestId;
+            this.collectionLabel = getCollectionLabel(json);
+            this.collectionItems = sortCollectionItems(parseCollection(json));
+
+            // Auto-load the first manifest in the collection
+            const firstManifest = this.collectionItems.find(
+                (item) => item.type === 'Manifest',
+            );
+            if (firstManifest) {
+                await this._loadManifest(firstManifest.id);
+            }
+            this.dispatchStateChange('manifestchange');
+            return;
+        }
+
+        // Normal manifest flow: register the already-fetched JSON
+        this.collectionId = null;
+        this.collectionLabel = '';
+        this.collectionItems = [];
         this.manifestId = manifestId;
         this.canvasId = null;
-        this.manifestRequestConfig = options?.requestConfig;
+        this.startCanvasId = null;
+        await manifestsState.registerManifest(manifestId, json);
+        this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
+        this.dispatchStateChange('manifestchange');
+    }
+
+    /**
+     * Load a manifest by ID within the current collection context,
+     * or directly if no collection is active.
+     */
+    async loadCollectionManifest(manifestId: string) {
+        await this._loadManifest(manifestId);
+        this.dispatchStateChange('manifestchange');
+    }
+
+    /**
+     * Internal: load a manifest by ID and apply its settings.
+     */
+    private async _loadManifest(manifestId: string) {
+        this.manifestId = manifestId;
+        this.canvasId = null;
+        this.startCanvasId = null;
+        this.selectedSequenceIndex = 0;
         await manifestsState.fetchManifest(
             manifestId,
             this.manifestRequestConfig,
         );
+        this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
+    }
 
-        // Auto-detect settings from Manifest
+    private ensureInitialCanvasSelection() {
+        if (this.canvasId) {
+            return;
+        }
+
+        const canvases = this.canvases;
+        if (!canvases.length) {
+            return;
+        }
+
+        if (this.startCanvasId) {
+            this.setCanvas(this.startCanvasId);
+            return;
+        }
+
+        const firstCanvasId = getCanvasId(canvases[0]);
+        if (firstCanvasId) {
+            this.setCanvas(firstCanvasId);
+        }
+    }
+
+    /**
+     * Apply manifest-level settings (start canvas, viewing direction, behavior).
+     */
+    private _applyManifestSettings(manifestId: string) {
         const manifest = this.manifest;
-        if (manifest) {
-            // 1. Viewing Direction
-            let direction: string | null = null;
-            try {
-                // Check manifest root first
-                if (manifest.getViewingDirection) {
-                    const d = manifest.getViewingDirection();
-                    if (d) direction = String(d);
+        if (!manifest) return;
+
+        // 0. Start Canvas (IIIF Presentation 3.0 `start` property)
+        try {
+            let startId: string | null = null;
+
+            // Check raw JSON first (most reliable for IIIF v3)
+            if (manifest.__jsonld?.start) {
+                const startObj = manifest.__jsonld.start;
+                if (typeof startObj === 'string') {
+                    startId = startObj;
+                } else if (startObj.id) {
+                    startId = startObj.id;
+                } else if (startObj['@id']) {
+                    startId = startObj['@id'];
                 }
-                if (!direction && manifest.__jsonld) {
-                    direction = manifest.__jsonld.viewingDirection;
+            }
+
+            // Fallback: check manifesto accessor
+            if (!startId && manifest.getStartCanvas) {
+                const sc = manifest.getStartCanvas();
+                if (sc) {
+                    startId = sc.id || sc['@id'] || null;
                 }
-                // Check sequence if not found (IIIF v2)
-                if (!direction) {
-                    const seq = manifest.getSequences()?.[0];
-                    if (seq) {
-                        if (seq.getViewingDirection) {
-                            const d = seq.getViewingDirection();
-                            if (d) direction = String(d);
-                        }
-                        if (!direction && seq.__jsonld) {
-                            direction = seq.__jsonld.viewingDirection;
-                        }
+            }
+
+            if (startId) {
+                // The start property may reference a canvas directly or include
+                // a fragment selector (e.g. canvas#t=...). Extract the canvas ID.
+                const canvasIdFromStart = startId.split('#')[0];
+                // Verify this canvas exists in the manifest
+                const canvases = manifestsState.getCanvases(manifestId);
+                const exists = canvases.some(
+                    (c: any) =>
+                        c.id === canvasIdFromStart ||
+                        c['@id'] === canvasIdFromStart,
+                );
+                if (exists) {
+                    this.startCanvasId = canvasIdFromStart;
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing start canvas', e);
+        }
+
+        // 1. Viewing Direction
+        let direction: string | null = null;
+        try {
+            // Check manifest root first
+            if (manifest.getViewingDirection) {
+                const d = manifest.getViewingDirection();
+                if (d) direction = String(d);
+            }
+            if (!direction && manifest.__jsonld) {
+                direction = manifest.__jsonld.viewingDirection;
+            }
+            // Check sequence if not found (IIIF v2)
+            if (!direction) {
+                const seq = manifest.getSequences()?.[0];
+                if (seq) {
+                    if (seq.getViewingDirection) {
+                        const d = seq.getViewingDirection();
+                        if (d) direction = String(d);
+                    }
+                    if (!direction && seq.__jsonld) {
+                        direction = seq.__jsonld.viewingDirection;
                     }
                 }
-            } catch (e) {
-                console.warn('Error parsing viewing direction', e);
             }
+        } catch (e) {
+            console.warn('Error parsing viewing direction', e);
+        }
 
-            if (
-                direction &&
-                [
-                    'left-to-right',
-                    'right-to-left',
-                    'top-to-bottom',
-                    'bottom-to-top',
-                ].includes(direction)
-            ) {
-                this.viewingDirection = direction as any;
-            } else {
-                this.viewingDirection = 'left-to-right'; // Default
-            }
+        if (
+            direction &&
+            [
+                'left-to-right',
+                'right-to-left',
+                'top-to-bottom',
+                'bottom-to-top',
+            ].includes(direction)
+        ) {
+            this.viewingDirection = direction as any;
+        } else {
+            this.viewingDirection = 'left-to-right'; // Default
+        }
 
-            // 2. Viewing Mode (Behavior)
-            // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
-            if (!this._viewingModeUserConfigured) {
-                let behaviors: string[] = [];
-                try {
-                    // Check manifest root
-                    if (manifest.__jsonld && manifest.__jsonld.behavior) {
-                        const b = manifest.__jsonld.behavior;
+        // 2. Viewing Mode (Behavior)
+        // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
+        if (!this._viewingModeUserConfigured) {
+            let behaviors: string[] = [];
+            try {
+                // Check manifest root
+                if (manifest.__jsonld && manifest.__jsonld.behavior) {
+                    const b = manifest.__jsonld.behavior;
+                    behaviors = Array.isArray(b) ? b : [b];
+                }
+
+                // Manifesto accessor
+                if (behaviors.length === 0 && manifest.getBehavior) {
+                    const b = manifest.getBehavior();
+                    if (b) {
                         behaviors = Array.isArray(b) ? b : [b];
                     }
+                }
 
-                    // Manifesto accessor
-                    if (behaviors.length === 0 && manifest.getBehavior) {
-                        const b = manifest.getBehavior();
-                        if (b) behaviors = [String(b)];
-                    }
-
-                    // Check sequence behavior
-                    const seq = manifest.getSequences()?.[0];
-                    if (seq) {
-                        if (seq.__jsonld && seq.__jsonld.behavior) {
-                            const b = seq.__jsonld.behavior;
+                // Check sequence behavior
+                const seq = manifest.getSequences()?.[0];
+                if (seq) {
+                    if (seq.getBehavior) {
+                        const b = seq.getBehavior();
+                        if (b) {
                             behaviors = behaviors.concat(
                                 Array.isArray(b) ? b : [b],
                             );
                         }
                     }
-                } catch (e) {
-                    console.warn('Error parsing behavior', e);
+
+                    if (seq.__jsonld && seq.__jsonld.behavior) {
+                        const b = seq.__jsonld.behavior;
+                        behaviors = behaviors.concat(
+                            Array.isArray(b) ? b : [b],
+                        );
+                    }
                 }
 
-                if (behaviors.includes('continuous')) {
-                    this.viewingMode = 'continuous';
-                } else if (
-                    behaviors.includes('individuals') ||
-                    behaviors.includes('non-paged')
-                ) {
-                    this.viewingMode = 'individuals';
-                } else if (
-                    behaviors.includes('paged') ||
-                    behaviors.includes('facing-pages')
-                ) {
-                    this.viewingMode = 'paged';
-                } else {
-                    // Default to 'individuals' when no behavior is specified in manifest
-                    this.viewingMode = 'individuals';
-                }
+                behaviors = behaviors.map(normalizeIiifBehavior);
+            } catch (e) {
+                console.warn('Error parsing behavior', e);
+            }
+
+            if (behaviors.includes('continuous')) {
+                this.viewingMode = 'continuous';
+            } else if (
+                behaviors.includes('individuals') ||
+                behaviors.includes('non-paged')
+            ) {
+                this.viewingMode = 'individuals';
+            } else if (
+                behaviors.includes('paged') ||
+                behaviors.includes('facing-pages')
+            ) {
+                this.viewingMode = 'paged';
+            } else {
+                // Default to 'individuals' when no behavior is specified in manifest
+                this.viewingMode = 'individuals';
             }
         }
-
-        this.dispatchStateChange('manifestchange');
     }
 
     setCanvas(canvasId: string) {
@@ -552,6 +800,27 @@ export class ViewerState {
         if (newConfig.annotations) {
             if (newConfig.annotations.open !== undefined) {
                 this.showAnnotations = newConfig.annotations.open;
+                if (this.showAnnotations && !this.annotationVisibilityTouched) {
+                    this.showCurrentCanvasAnnotations();
+                }
+            }
+        }
+
+        if (newConfig.information) {
+            if (newConfig.information.open !== undefined) {
+                this.showMetadataDialog = newConfig.information.open;
+            }
+        }
+
+        if (newConfig.structures) {
+            if (newConfig.structures.open !== undefined) {
+                this.showStructuresPanel = newConfig.structures.open;
+            }
+        }
+
+        if (newConfig.collection) {
+            if (newConfig.collection.open !== undefined) {
+                this.showCollectionPanel = newConfig.collection.open;
             }
         }
 
@@ -563,6 +832,9 @@ export class ViewerState {
 
     toggleAnnotations() {
         this.showAnnotations = !this.showAnnotations;
+        if (this.showAnnotations && !this.annotationVisibilityTouched) {
+            this.showCurrentCanvasAnnotations();
+        }
         this.dispatchStateChange();
     }
 
@@ -608,23 +880,71 @@ export class ViewerState {
 
     toggleMetadataDialog() {
         this.showMetadataDialog = !this.showMetadataDialog;
+        this.dispatchStateChange();
+    }
+
+    toggleCanvasInfo() {
+        this.showCanvasInfo = !this.showCanvasInfo;
+    }
+
+    setSequenceIndex(index: number) {
+        const maxIndex = Math.max(0, this.sequenceCount - 1);
+        this.selectedSequenceIndex = Math.max(0, Math.min(index, maxIndex));
+
+        const nextCanvases = this.canvases;
+        const firstCanvas = nextCanvases[0];
+        this.canvasId = firstCanvas
+            ? firstCanvas.id ||
+              firstCanvas['@id'] ||
+              (firstCanvas.getCanvasId ? firstCanvas.getCanvasId() : null) ||
+              (firstCanvas.getId ? firstCanvas.getId() : null)
+            : null;
+        this.startCanvasId = null;
+        this.dispatchStateChange();
+    }
+
+    setInitialCanvasRegion(region: CanvasRegion | null) {
+        this.initialCanvasRegion = region;
+    }
+
+    toggleStructuresPanel() {
+        this.showStructuresPanel = !this.showStructuresPanel;
+        this.dispatchStateChange();
+    }
+
+    toggleCollectionPanel() {
+        this.showCollectionPanel = !this.showCollectionPanel;
+        this.dispatchStateChange();
+    }
+
+    /** Whether the viewer is currently showing a collection */
+    get hasCollection(): boolean {
+        return this.collectionId !== null && this.collectionItems.length > 0;
+    }
+
+    /**
+     * Parsed IIIF structures (ranges / table of contents) from the current manifest.
+     * Returns an empty array if no structures exist.
+     */
+    get structures(): StructureNode[] {
+        const manifest = this.manifest;
+        if (!manifest) return [];
+        return parseStructures(manifest);
     }
 
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {
         this.viewingMode = mode;
         if (mode === 'paged') {
-            const singlePages = this.pagedOffset;
-            // If we're past the single pages, check if we're on a right-hand page
-            if (this.currentCanvasIndex >= singlePages) {
-                // Calculate position relative to where pairs start
-                const pairPosition =
-                    (this.currentCanvasIndex - singlePages) % 2;
-                if (pairPosition === 1) {
-                    // We're on a right-hand page, move back one
-                    const newIndex = this.currentCanvasIndex - 1;
-                    const canvas = this.canvases[newIndex];
-                    this.setCanvas(canvas.id);
-                }
+            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+            const canvasId =
+                groupIndex >= 0
+                    ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
+                          groupIndex
+                      ]?.entries[0]?.canvasId
+                    : null;
+
+            if (canvasId && this.canvasId !== canvasId) {
+                this.setCanvas(canvasId);
             }
         }
         this.dispatchStateChange();
@@ -633,16 +953,16 @@ export class ViewerState {
     togglePagedOffset() {
         this.pagedOffset = this.pagedOffset === 0 ? 1 : 0;
         this.config.pagedViewOffset = this.pagedOffset === 1;
-        // Adjust current canvas position if needed
-        const singlePages = this.pagedOffset;
-        if (this.currentCanvasIndex >= singlePages) {
-            const pairPosition = (this.currentCanvasIndex - singlePages) % 2;
-            if (pairPosition === 1) {
-                // We're now on a right-hand page after the shift, move back
-                const newIndex = this.currentCanvasIndex - 1;
-                const canvas = this.canvases[newIndex];
-                this.setCanvas(canvas.id);
-            }
+        const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+        const canvasId =
+            groupIndex >= 0
+                ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
+                      groupIndex
+                  ]?.entries[0]?.canvasId
+                : null;
+
+        if (canvasId && this.canvasId !== canvasId) {
+            this.setCanvas(canvasId);
         }
         this.dispatchStateChange();
     }
@@ -670,36 +990,40 @@ export class ViewerState {
     get currentCanvasSearchAnnotations() {
         if (!this.canvasId) return [];
         if (this.viewingMode === 'paged') {
-            let annotations = this.searchAnnotations.filter(
-                (a) => a.canvasId === this.canvasId,
-            );
-            const currentIndex = this.currentCanvasIndex;
-            const singlePages = this.pagedOffset;
-            // Only include next canvas annotations if we're in a two-page spread
-            if (currentIndex >= singlePages) {
-                const nextIndex = currentIndex + 1;
-                if (nextIndex < this.canvases.length) {
-                    const nextCanvas = this.canvases[nextIndex];
-                    const nextCanvasId = nextCanvas.id || nextCanvas['@id'];
-                    const xOffset = 1.025; // account for small gap between pages
-                    const annoOffset =
-                        this.canvases[currentIndex].getWidth() * xOffset;
-                    const nextAnnotations = this.searchAnnotations.filter(
-                        (a) => a.canvasId === nextCanvasId,
-                    );
+            const visibleEntries = getVisibleCanvasEntries({
+                canvases: this.canvases,
+                currentCanvasId: this.canvasId,
+                currentCanvasIndex: this.currentCanvasIndex,
+                viewingMode: this.viewingMode,
+                pagedOffset: this.pagedOffset,
+            });
 
-                    // update x coordinates for display on the right side in two-page mode
-                    const nextAnnotationsUpdated = nextAnnotations.map((a) => {
-                        const parts = a.on.split('#xywh=');
-                        const coords = parts[1].split(',').map(Number);
-                        const shiftedX = coords[0] + annoOffset;
-                        return {
-                            ...a,
-                            on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
-                        };
-                    });
-                    annotations = annotations.concat(nextAnnotationsUpdated);
-                }
+            if (!visibleEntries.length) {
+                return [];
+            }
+
+            const [firstEntry, secondEntry] = visibleEntries;
+            let annotations = this.searchAnnotations.filter(
+                (a) => a.canvasId === firstEntry.canvasId,
+            );
+
+            if (secondEntry) {
+                const xOffset = 1.025; // account for small gap between pages
+                const annoOffset = firstEntry.canvas.getWidth() * xOffset;
+                const nextAnnotations = this.searchAnnotations.filter(
+                    (a) => a.canvasId === secondEntry.canvasId,
+                );
+
+                const nextAnnotationsUpdated = nextAnnotations.map((a) => {
+                    const parts = a.on.split('#xywh=');
+                    const coords = parts[1].split(',').map(Number);
+                    const shiftedX = coords[0] + annoOffset;
+                    return {
+                        ...a,
+                        on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
+                    };
+                });
+                annotations = annotations.concat(nextAnnotationsUpdated);
             }
             return annotations;
         } else {

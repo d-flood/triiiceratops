@@ -13,49 +13,27 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 - **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
 - **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
 - **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
-- **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL support)
+- **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom support)
+- **Start Canvas**: Supports the IIIF `start` property to open the manifest at a specific canvas
+- **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical table of contents navigation
+- **Collections**: Browse IIIF Collections and navigate between manifests within a collection; collection items with `navDate` are sorted chronologically
+- **Multiple Sequences**: Manifests with more than one sequence (including alternative page sequences via `behavior: sequence` ranges) show a sequence picker in the toolbar
 - **Annotations**:
     - Renders IIIF annotations from embedded or external annotation lists
-    - Supports rectangle (xywh) and polygon (SVG selector) geometries
-    - Toggle annotation visibility on/off
+    - Supports rectangle (`xywh`), polygon (SVG selector), and point (`PointSelector`) geometries
+    - Tagging annotations displayed as badges; full-canvas annotations listed without an overlay
+    - Toggle per-annotation or all-annotations visibility
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
+- **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
 - **IIIF Search**: Full Content Search API support with hit highlighting
+- **Content State API**: Accepts the `iiif-content` URL parameter (base64-encoded JSON or plain URL) to open a manifest at a specific canvas and region
 - **Direct Manifest Injection**: Svelte and web component integrations can pass manifest JSON directly to the viewer
 - **Custom Search Providers**: Svelte integrations can feed search results from local state, SQLite, or app services
-- **Metadata Display**: Shows manifest metadata, description, attribution, and license/rights
+- **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
-- **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom
+- **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
 - **Theming**: 35 built-in DaisyUI themes plus custom theme configuration
 - **Plugin System**: Extensible component architecture
-
-## Current Limitations
-
-!!! warning "Work in Progress"
-    This project is actively developed. The following IIIF features are not yet supported:
-
-### Content
-
-- **Audio/Video**: Time-based media (canvases with `duration`) not supported
-- **Multiple sequences**: Only the first sequence is read
-
-### Navigation
-
-- **Collections**: Cannot browse IIIF Collections or navigate between manifests
-- **Ranges/Structures**: No table of contents or hierarchical navigation (book chapters, sections)
-- **`start` property**: Cannot specify initial canvas or temporal position
-- **`navDate`**: No date-based navigation for newspapers/journals
-
-### Annotations
-
-- **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
-- **Motivation differentiation**: All annotations rendered similarly regardless of motivation type
-
-The `annotation-editor` plugin supports pluggable persistence and host extension hooks so applications can add workflows like lazy body hydration or selection-aware drafting without modifying the core viewer.
-
-### Other
-
-- **`rendering` property**: No links to alternative formats (PDF, etc.)
-- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported
 
 ## Usage
 
@@ -146,7 +124,7 @@ The `annotation-editor` plugin supports pluggable persistence and host extension
 
 ## Configuration
 
-Triiiceratops is highly configurable, allowing you to customize the UI layout, enable/disable specialized panels (search, annotations), and control the thumbnail gallery behavior.
+Triiiceratops is highly configurable, allowing you to customize the UI layout, enable/disable specialized panels (search, annotations, table of contents, collection navigation), and control the thumbnail gallery behavior.
 
 [**Read the Configuration Guide**](./configuration.md){ .md-button }
 

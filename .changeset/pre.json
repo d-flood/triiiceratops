@@ -1,0 +1,10 @@
+{
+  "mode": "pre",
+  "tag": "rc",
+  "initialVersions": {
+    "triiiceratops": "0.20.3"
+  },
+  "changesets": [
+    "free-adults-love"
+  ]
+}

@@ -8,6 +8,10 @@ type ResolveTileSourcesParams = {
     viewport?: { width: number; height: number };
 };
 
+function isPositionedSource(source: any): boolean {
+    return !!source && typeof source === 'object' && 'tileSource' in source;
+}
+
 type AuthErrorMarker = { __authError: true };
 
 function isAuthErrorMarker(value: unknown): value is AuthErrorMarker {
@@ -83,7 +87,14 @@ function applyLevel0LowZoomFullImageStrategy(
 
     if (originalGetNumTiles) {
         tileSource.getNumTiles = function (level: number) {
-            if (shouldHideLevel(level, tiledOnlyMinLevel, advertisedScaleFactors, this)) {
+            if (
+                shouldHideLevel(
+                    level,
+                    tiledOnlyMinLevel,
+                    advertisedScaleFactors,
+                    this,
+                )
+            ) {
                 return { x: 0, y: 0 };
             }
             if (
@@ -107,8 +118,16 @@ function applyLevel0LowZoomFullImageStrategy(
     }
 
     tileSource.getTileUrl = function (level: number, x: number, y: number) {
-        if (shouldHideLevel(level, tiledOnlyMinLevel, advertisedScaleFactors, this)) {
-            const safeLevel = tiledOnlyMinLevel >= 0 ? tiledOnlyMinLevel : level;
+        if (
+            shouldHideLevel(
+                level,
+                tiledOnlyMinLevel,
+                advertisedScaleFactors,
+                this,
+            )
+        ) {
+            const safeLevel =
+                tiledOnlyMinLevel >= 0 ? tiledOnlyMinLevel : level;
             return originalGetTileUrl(safeLevel, x, y);
         }
         if (
@@ -161,7 +180,11 @@ function getTiledOnlyMinLevel(
         return -1;
     if (advertisedScaleFactors.size === 0) return -1;
 
-    for (let level = tileSource.minLevel; level <= tileSource.maxLevel; level++) {
+    for (
+        let level = tileSource.minLevel;
+        level <= tileSource.maxLevel;
+        level++
+    ) {
         if (!isAdvertisedTileLevel(tileSource, level, advertisedScaleFactors)) {
             continue;
         }
@@ -201,10 +224,7 @@ function isAdvertisedTileLevel(
     advertisedScaleFactors: Set<number>,
 ): boolean {
     if (advertisedScaleFactors.size === 0) return true;
-    if (
-        typeof tileSource?.maxLevel !== 'number' ||
-        typeof level !== 'number'
-    ) {
+    if (typeof tileSource?.maxLevel !== 'number' || typeof level !== 'number') {
         return true;
     }
     const scaleFactor = Math.pow(2, tileSource.maxLevel - level);
@@ -226,7 +246,11 @@ function getFitMaxLevel(
         return -1;
 
     let fitMaxLevel = -1;
-    for (let level = tileSource.minLevel; level <= tileSource.maxLevel; level++) {
+    for (
+        let level = tileSource.minLevel;
+        level <= tileSource.maxLevel;
+        level++
+    ) {
         const scale = tileSource.getLevelScale(level);
         const levelWidth = Math.ceil(tileSource.width * scale);
         const levelHeight = Math.ceil(tileSource.height * scale);
@@ -266,10 +290,14 @@ export async function resolveTileSources(
     const { sources, osd, viewport } = params;
     const resolved = await Promise.all(
         sources.map(async (source) => {
-            if (typeof source !== 'string') return source;
+            const rawSource = isPositionedSource(source)
+                ? source.tileSource
+                : source;
+
+            if (typeof rawSource !== 'string') return source;
 
             try {
-                const response = await fetch(source);
+                const response = await fetch(rawSource);
                 if (response.status === 401) {
                     return { __authError: true };
                 }
@@ -282,7 +310,15 @@ export async function resolveTileSources(
                     return source;
                 }
 
-                return createIiifTileSource(osd, data, source, viewport);
+                const prepared = createIiifTileSource(
+                    osd,
+                    data,
+                    rawSource,
+                    viewport,
+                );
+                return isPositionedSource(source)
+                    ? { ...source, tileSource: prepared }
+                    : prepared;
             } catch {
                 // Network errors: pass through and let OSD handle it.
                 return source;
