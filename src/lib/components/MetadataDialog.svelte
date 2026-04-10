@@ -6,6 +6,7 @@
     import { m, language } from '../state/i18n.svelte';
     import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
     import { resolveLanguageValue } from '../utils/languageMap';
+    import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let viewerLocale = $derived(
@@ -191,10 +192,11 @@
             {/if}
 
             {#if summary}
-                <div class="mb-6 prose">
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    <p>{@html summary}</p>
-                </div>
+                <SanitizedHtml
+                    tag="div"
+                    html={summary}
+                    class="viewer-html mb-6 prose"
+                />
             {/if}
 
             <dl>
@@ -202,8 +204,11 @@
                     <dt class="font-bold text-lg opacity-70 mt-6">
                         {attributionLabel}
                     </dt>
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    <dd class="text-sm ps-4">{@html attribution}</dd>
+                    <SanitizedHtml
+                        tag="dd"
+                        html={attribution}
+                        class="viewer-html text-sm ps-4"
+                    />
                 {/if}
 
                 {#if license}
@@ -224,8 +229,11 @@
                     <dt class="font-bold text-lg opacity-70 mt-6">
                         {item.label}
                     </dt>
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    <dd class="text-sm ps-4">{@html item.value}</dd>
+                    <SanitizedHtml
+                        tag="dd"
+                        html={item.value}
+                        class="viewer-html text-sm ps-4"
+                    />
                 {/each}
 
                 <!-- Provider (0234) -->
