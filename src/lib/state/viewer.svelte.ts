@@ -71,7 +71,39 @@ export class ViewerState {
     initialCanvasRegion = $state<CanvasRegion | null>(null);
     dockSide = $state('bottom');
     visibleAnnotationIds = new SvelteSet<string>();
+    annotationVisibilityTouched = $state(false);
     hoveredAnnotationId = $state<string | null>(null);
+
+    private getAnnotationId(annotation: any): string {
+        return (
+            annotation?.id ||
+            annotation?.['@id'] ||
+            (typeof annotation?.getId === 'function'
+                ? annotation.getId()
+                : '') ||
+            ''
+        );
+    }
+
+    showCurrentCanvasAnnotations() {
+        this.visibleAnnotationIds.clear();
+
+        if (!this.manifestId || !this.canvasId) {
+            return;
+        }
+
+        const annotations = [
+            ...manifestsState.getAnnotations(this.manifestId, this.canvasId),
+            ...this.currentCanvasSearchAnnotations,
+        ];
+
+        annotations.forEach((annotation: any) => {
+            const id = this.getAnnotationId(annotation);
+            if (id) {
+                this.visibleAnnotationIds.add(id);
+            }
+        });
+    }
 
     // Error state for tile source fetching and image load failures.
     tileSourceError:
@@ -766,6 +798,9 @@ export class ViewerState {
         if (newConfig.annotations) {
             if (newConfig.annotations.open !== undefined) {
                 this.showAnnotations = newConfig.annotations.open;
+                if (this.showAnnotations && !this.annotationVisibilityTouched) {
+                    this.showCurrentCanvasAnnotations();
+                }
             }
         }
 
@@ -789,6 +824,9 @@ export class ViewerState {
 
     toggleAnnotations() {
         this.showAnnotations = !this.showAnnotations;
+        if (this.showAnnotations && !this.annotationVisibilityTouched) {
+            this.showCurrentCanvasAnnotations();
+        }
         this.dispatchStateChange();
     }
 
