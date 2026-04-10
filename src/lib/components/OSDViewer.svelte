@@ -26,6 +26,13 @@
     let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
     let activeEditAnnotationId = $state<string | null>(null);
+    let readonlyTooltip = $state<{
+        id: string;
+        text: string;
+        x: number;
+        y: number;
+        side: 'top' | 'bottom' | 'left' | 'right';
+    } | null>(null);
 
     const MULTI_CANVAS_GAP = 0.0125;
     const POINT_MARKER_SIZE = 10;
@@ -87,7 +94,102 @@
     }
 
     function isEditableOverlayAnnotation(anno: { isSearchHit?: boolean }) {
-        return !anno.isSearchHit;
+        return annotationEditorOpen && !anno.isSearchHit;
+    }
+
+    function pointInPolygon(
+        x: number,
+        y: number,
+        points: Array<[number, number]>,
+    ) {
+        let inside = false;
+
+        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+            const [xi, yi] = points[i];
+            const [xj, yj] = points[j];
+            const intersects =
+                yi > y !== yj > y &&
+                x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+
+            if (intersects) {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    function annotationContainsPoint(anno: any, x: number, y: number) {
+        if (anno.type === 'RECTANGLE') {
+            return (
+                x >= anno.rect.x &&
+                x <= anno.rect.x + anno.rect.width &&
+                y >= anno.rect.y &&
+                y <= anno.rect.y + anno.rect.height
+            );
+        }
+
+        if (anno.type === 'POINT') {
+            const centerX = anno.point.x;
+            const centerY = anno.point.y;
+            const radius = POINT_MARKER_SIZE / 2;
+
+            return (x - centerX) ** 2 + (y - centerY) ** 2 <= radius ** 2;
+        }
+
+        if (anno.type === 'POLYGON') {
+            return pointInPolygon(
+                x - anno.bounds.x,
+                y - anno.bounds.y,
+                anno.points,
+            );
+        }
+
+        return false;
+    }
+
+    function getTooltipSide(clientX: number, clientY: number) {
+        if (clientY < 72) return 'bottom';
+        if (clientX > window.innerWidth - 160) return 'left';
+        if (clientX < 160) return 'right';
+        return 'top';
+    }
+
+    function updateReadonlyTooltip(event: PointerEvent) {
+        if (!container) {
+            readonlyTooltip = null;
+            return;
+        }
+
+        const rect = container.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const hoveredAnnotation = [...renderedAnnotations]
+            .reverse()
+            .find(
+                (anno) =>
+                    !isEditableOverlayAnnotation(anno) &&
+                    !!anno.tooltip &&
+                    annotationContainsPoint(anno, x, y),
+            );
+
+        if (!hoveredAnnotation) {
+            readonlyTooltip = null;
+            return;
+        }
+
+        readonlyTooltip = {
+            id: hoveredAnnotation.id,
+            text: hoveredAnnotation.tooltip,
+            x: Math.min(Math.max(event.clientX, 16), window.innerWidth - 16),
+            y: Math.min(Math.max(event.clientY, 16), window.innerHeight - 16),
+            side: getTooltipSide(event.clientX, event.clientY),
+        };
+    }
+
+    function clearReadonlyTooltip() {
+        readonlyTooltip = null;
     }
 
     // Track OSD state changes for reactivity
@@ -121,6 +223,14 @@
     // Parse annotations
     let parsedAnnotations = $derived.by(() => {
         return parseAnnotations(allAnnotations, searchHitIds);
+    });
+
+    let annotationEditorOpen = $derived.by(() => {
+        const editorPanel = viewerState.pluginPanels.find(
+            (panel) => panel.id === 'annotation-editor:panel',
+        );
+
+        return editorPanel?.isVisible() ?? false;
     });
 
     // Rendered annotations with pixel coordinates
@@ -181,7 +291,6 @@
                     },
                     isSearchHit: anno.isSearchHit,
                     tooltip: anno.body.map((b) => b.value).join(' '),
-                    pointerEvents: 'auto',
                 });
             } else if (geometry.type === 'POLYGON') {
                 // Convert each point from image to viewport to pixel
@@ -226,7 +335,6 @@
                     points: relativePoints,
                     isSearchHit: anno.isSearchHit,
                     tooltip: anno.body.map((b) => b.value).join(' '),
-                    pointerEvents: 'auto',
                 });
             } else if (geometry.type === 'POINT') {
                 const viewportPoint = tiledImage.imageToViewportCoordinates(
@@ -246,7 +354,6 @@
                     },
                     isSearchHit: anno.isSearchHit,
                     tooltip: anno.body.map((b) => b.value).join(' '),
-                    pointerEvents: 'auto',
                 });
             }
         }
@@ -763,7 +870,11 @@
     });
 </script>
 
-<div class="w-full h-full relative">
+<div
+    class="w-full h-full relative"
+    onpointermove={updateReadonlyTooltip}
+    onpointerleave={clearReadonlyTooltip}
+>
     <div
         bind:this={container}
         class="w-full h-full osd-background {viewerState.config
@@ -779,17 +890,17 @@
                 <button
                     type="button"
                     id="annotation-visual-{anno.id}"
-                    class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
+                    class="tooltip tooltip-primary absolute border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
                         ? 'border-yellow-400 bg-yellow-400/40 hover:bg-yellow-400/60'
                         : 'border-red-500 bg-red-500/20 hover:bg-red-500/40'}"
+                    data-tip={anno.tooltip}
+                    aria-label={anno.tooltip}
                     style="
           left: {anno.rect.x}px;
           top: {anno.rect.y}px;
           width: {anno.rect.width}px;
           height: {anno.rect.height}px;
-          pointer-events: {anno.pointerEvents};
-                "
-                    title={anno.tooltip}
+                 "
                     onclick={(event) => requestAnnotationEdit(anno.id, event)}
                     onkeydown={(event) =>
                         handleAnnotationOverlayKeydown(anno.id, event)}
@@ -797,32 +908,38 @@
             {:else}
                 <div
                     id="annotation-visual-{anno.id}"
-                    class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
-                        ? 'border-yellow-400 bg-yellow-400/40 hover:bg-yellow-400/60'
-                        : 'border-red-500 bg-red-500/20 hover:bg-red-500/40'}"
+                    class="absolute pointer-events-none"
                     style="
           left: {anno.rect.x}px;
           top: {anno.rect.y}px;
           width: {anno.rect.width}px;
           height: {anno.rect.height}px;
-          pointer-events: {anno.pointerEvents};
-                "
-                    title={anno.tooltip}
-                ></div>
+                 "
+                >
+                    <div
+                        class="pointer-events-none absolute inset-0 border-2 transition-colors {anno.isSearchHit
+                            ? readonlyTooltip?.id === anno.id
+                                ? 'border-yellow-400 bg-yellow-400/60'
+                                : 'border-yellow-400 bg-yellow-400/40'
+                            : readonlyTooltip?.id === anno.id
+                              ? 'border-red-500 bg-red-500/40'
+                              : 'border-red-500 bg-red-500/20'}"
+                    ></div>
+                </div>
             {/if}
         {:else if anno.type === 'POLYGON'}
             {#if isEditableOverlayAnnotation(anno)}
                 <button
                     type="button"
-                    class="absolute pointer-events-auto border-0 bg-transparent p-0"
+                    class="tooltip tooltip-primary absolute pointer-events-auto border-0 bg-transparent p-0"
+                    data-tip={anno.tooltip}
+                    aria-label={anno.tooltip}
                     style="
           left: {anno.bounds.x}px;
           top: {anno.bounds.y}px;
           width: {anno.bounds.width}px;
           height: {anno.bounds.height}px;
-          pointer-events: {anno.pointerEvents};
         "
-                    title={anno.tooltip}
                     onclick={(event) => requestAnnotationEdit(anno.id, event)}
                     onkeydown={(event) =>
                         handleAnnotationOverlayKeydown(anno.id, event)}
@@ -841,45 +958,51 @@
                     </svg>
                 </button>
             {:else}
-                <svg
-                    class="absolute pointer-events-auto"
+                <div
+                    class="absolute pointer-events-none"
                     style="
           left: {anno.bounds.x}px;
           top: {anno.bounds.y}px;
           width: {anno.bounds.width}px;
           height: {anno.bounds.height}px;
-          pointer-events: {anno.pointerEvents};
         "
                 >
-                    <title>{anno.tooltip}</title>
-                    <polygon
-                        id="annotation-visual-{anno.id}"
-                        points={anno.points
-                            .map((p: any) => p.join(','))
-                            .join(' ')}
-                        class="cursor-pointer transition-colors {anno.isSearchHit
-                            ? 'fill-yellow-400/40 stroke-yellow-400 hover:fill-yellow-400/60'
-                            : 'fill-red-500/20 stroke-red-500 hover:fill-red-500/40'}"
-                        stroke-width="2"
-                    />
-                </svg>
+                    <svg
+                        class="pointer-events-none absolute inset-0 h-full w-full"
+                    >
+                        <polygon
+                            id="annotation-visual-{anno.id}"
+                            points={anno.points
+                                .map((p: any) => p.join(','))
+                                .join(' ')}
+                            class="transition-colors {anno.isSearchHit
+                                ? readonlyTooltip?.id === anno.id
+                                    ? 'fill-yellow-400/60 stroke-yellow-400'
+                                    : 'fill-yellow-400/40 stroke-yellow-400'
+                                : readonlyTooltip?.id === anno.id
+                                  ? 'fill-red-500/40 stroke-red-500'
+                                  : 'fill-red-500/20 stroke-red-500'}"
+                            stroke-width="2"
+                        />
+                    </svg>
+                </div>
             {/if}
         {:else if anno.type === 'POINT'}
             {#if isEditableOverlayAnnotation(anno)}
                 <button
                     type="button"
                     id="annotation-visual-{anno.id}"
-                    class="absolute rounded-full border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
+                    class="tooltip tooltip-primary absolute rounded-full border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
                         ? 'border-yellow-400 bg-yellow-400 hover:bg-yellow-400/80'
                         : 'border-red-500 bg-red-500 hover:bg-red-500/80'}"
+                    data-tip={anno.tooltip}
+                    aria-label={anno.tooltip}
                     style="
 		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
 		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
 		  width: {POINT_MARKER_SIZE}px;
 		  height: {POINT_MARKER_SIZE}px;
-		  pointer-events: {anno.pointerEvents};
 		"
-                    title={anno.tooltip}
                     onclick={(event) => requestAnnotationEdit(anno.id, event)}
                     onkeydown={(event) =>
                         handleAnnotationOverlayKeydown(anno.id, event)}
@@ -887,19 +1010,40 @@
             {:else}
                 <div
                     id="annotation-visual-{anno.id}"
-                    class="absolute rounded-full border-2 transition-colors cursor-pointer pointer-events-auto {anno.isSearchHit
-                        ? 'border-yellow-400 bg-yellow-400 hover:bg-yellow-400/80'
-                        : 'border-red-500 bg-red-500 hover:bg-red-500/80'}"
+                    class="absolute pointer-events-none"
                     style="
 		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
 		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
 		  width: {POINT_MARKER_SIZE}px;
 		  height: {POINT_MARKER_SIZE}px;
-		  pointer-events: {anno.pointerEvents};
 		"
-                    title={anno.tooltip}
-                ></div>
+                >
+                    <div
+                        class="pointer-events-none absolute inset-0 rounded-full border-2 transition-colors {anno.isSearchHit
+                            ? readonlyTooltip?.id === anno.id
+                                ? 'border-yellow-400 bg-yellow-400/80'
+                                : 'border-yellow-400 bg-yellow-400'
+                            : readonlyTooltip?.id === anno.id
+                              ? 'border-red-500 bg-red-500/80'
+                              : 'border-red-500 bg-red-500'}"
+                    ></div>
+                </div>
             {/if}
         {/if}
     {/each}
+
+    {#if readonlyTooltip}
+        <div
+            class={[
+                'tooltip tooltip-open tooltip-primary fixed z-50 pointer-events-none',
+                readonlyTooltip.side === 'top' && 'tooltip-top',
+                readonlyTooltip.side === 'bottom' && 'tooltip-bottom',
+                readonlyTooltip.side === 'left' && 'tooltip-left',
+                readonlyTooltip.side === 'right' && 'tooltip-right',
+            ]}
+            data-tip={readonlyTooltip.text}
+            aria-hidden="true"
+            style="left: {readonlyTooltip.x}px; top: {readonlyTooltip.y}px; width: 0; height: 0;"
+        ></div>
+    {/if}
 </div>
