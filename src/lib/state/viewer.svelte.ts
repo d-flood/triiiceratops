@@ -24,6 +24,7 @@ import {
     getPagedCanvasGroups,
     getVisibleCanvasEntries,
 } from '../components/viewerControls';
+import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 
 function normalizeIiifBehavior(value: unknown): string {
     const normalized = String(value).trim().toLowerCase();
@@ -123,6 +124,7 @@ export class ViewerState {
     collectionThumbnail: string = $state('');
     collectionItems: CollectionItem[] = $state([]);
     showCollectionPanel = $state(false);
+    private collectionThumbnailHydrationId = 0;
 
     private _viewingDirection = $state<
         'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top'
@@ -489,6 +491,7 @@ export class ViewerState {
             this.collectionLabel = getCollectionLabel(json);
             this.collectionThumbnail = getCollectionThumbnail(json) || '';
             this.collectionItems = sortCollectionItems(parseCollection(json));
+            void this.hydrateCollectionItemThumbnails(manifestId);
 
             // Auto-load the first manifest in the collection
             const firstManifest = this.collectionItems.find(
@@ -506,6 +509,7 @@ export class ViewerState {
         this.collectionLabel = '';
         this.collectionThumbnail = '';
         this.collectionItems = [];
+        this.collectionThumbnailHydrationId += 1;
         this.manifestId = manifestId;
         this.canvasId = null;
         this.startCanvasId = null;
@@ -559,6 +563,38 @@ export class ViewerState {
         if (firstCanvasId) {
             this.setCanvas(firstCanvasId);
         }
+    }
+
+    private async hydrateCollectionItemThumbnails(collectionId: string) {
+        const hydrationId = ++this.collectionThumbnailHydrationId;
+        const manifestItems = this.collectionItems.filter(
+            (item) => item.type === 'Manifest' && !item.thumbnail,
+        );
+
+        await Promise.allSettled(
+            manifestItems.map(async (item) => {
+                await manifestsState.fetchManifest(
+                    item.id,
+                    this.manifestRequestConfig,
+                );
+
+                if (
+                    this.collectionId !== collectionId ||
+                    this.collectionThumbnailHydrationId !== hydrationId
+                ) {
+                    return;
+                }
+
+                const firstCanvas = manifestsState.getCanvases(item.id)[0];
+                const thumbnail = firstCanvas
+                    ? getThumbnailSrc(firstCanvas)
+                    : '';
+
+                if (thumbnail) {
+                    item.thumbnail = thumbnail;
+                }
+            }),
+        );
     }
 
     /**
