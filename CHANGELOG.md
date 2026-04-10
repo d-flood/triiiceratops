@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.1
+
+### Patch Changes
+
+- f70ebe0: fallback to first canvas thumbnail if manifest level thumbnail not present and use for collections pane
+
 ## 1.0.0-rc.0
 
 ### Major Changes
