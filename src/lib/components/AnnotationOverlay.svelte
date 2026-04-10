@@ -2,6 +2,7 @@
     import { getContext } from 'svelte';
     import { manifestsState } from '../state/manifests.svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+    import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -53,9 +54,23 @@
     let toolbarContainer: HTMLElement | undefined = $state();
     let lineCoords: { x1: number; y1: number; x2: number; y2: number } | null =
         $state(null);
+    let hoveredAnnotationIsFullCanvas = $derived.by(() => {
+        if (!viewerState.hoveredAnnotationId) {
+            return false;
+        }
+
+        const hoveredAnnotation = annotations.find(
+            (anno: any) =>
+                getAnnotationId(anno) === viewerState.hoveredAnnotationId,
+        );
+
+        return hoveredAnnotation
+            ? isFullCanvasAnnotation(hoveredAnnotation)
+            : false;
+    });
 
     $effect(() => {
-        if (!viewerState.hoveredAnnotationId) {
+        if (!viewerState.hoveredAnnotationId || hoveredAnnotationIsFullCanvas) {
             lineCoords = null;
             return;
         }

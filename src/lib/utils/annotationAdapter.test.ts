@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAnnotation } from './annotationAdapter';
+import { isFullCanvasAnnotation, parseAnnotation } from './annotationAdapter';
 
 describe('annotationAdapter', () => {
     describe('parseAnnotation', () => {
@@ -131,11 +131,29 @@ describe('annotationAdapter', () => {
                 w: 800,
                 h: 600,
             });
+            expect(result?.isFullCanvasTarget).toBe(true);
             expect(result?.body[0]).toMatchObject({
                 value: '<p>Hello</p>',
                 isHtml: true,
                 format: 'text/html',
             });
+        });
+
+        it('should not treat fragment-target annotations as full-canvas', () => {
+            const annotation = {
+                id: 'fragment-note',
+                target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            expect(isFullCanvasAnnotation(annotation)).toBe(false);
+            expect(parseAnnotation(annotation, 6)?.isFullCanvasTarget).toBe(
+                false,
+            );
         });
 
         it('should extract PointSelector geometry', () => {

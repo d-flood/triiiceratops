@@ -4,6 +4,7 @@
 export interface ParsedAnnotation {
     id: string;
     geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
+    isFullCanvasTarget: boolean;
     body: {
         value: string;
         isHtml: boolean;
@@ -242,6 +243,10 @@ function extractWholeCanvasGeometry(annotation: any): RectangleGeometry | null {
         w: canvas.width,
         h: canvas.height,
     };
+}
+
+export function isFullCanvasAnnotation(annotation: any): boolean {
+    return extractWholeCanvasGeometry(annotation) !== null;
 }
 
 /**
@@ -638,6 +643,7 @@ export function parseAnnotation(
 ): ParsedAnnotation | null {
     const id = getAnnotationId(annotation) || `anno-${index}`;
     const geometry = extractGeometry(annotation);
+    const isFullCanvasTarget = isFullCanvasAnnotation(annotation);
 
     // Skip annotations without geometry
     if (!geometry) {
@@ -649,6 +655,7 @@ export function parseAnnotation(
     return {
         id,
         geometry,
+        isFullCanvasTarget,
         body,
         isSearchHit,
     };
