@@ -25,7 +25,7 @@ export type PdfExportConfig = {
 export function createPdfExportPlugin(config: PdfExportConfig = {}): PluginDef {
     return {
         id: 'pdf-export',
-        name: 'PDF export',
+        name: 'pdf_export_title',
         icon: DownloadSimple,
         panel: PdfExportController,
         position: 'left',

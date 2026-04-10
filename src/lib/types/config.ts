@@ -135,6 +135,29 @@ export interface AnnotationsConfig {
     width?: string;
 }
 
+export interface InformationConfig {
+    /**
+     * Whether the information panel is currently open.
+     * @default false
+     */
+    open?: boolean;
+    /**
+     * Whether to show the close button.
+     * @default true
+     */
+    showCloseButton?: boolean;
+    /**
+     * Where the information panel should appear.
+     * @default 'right'
+     */
+    position?: 'left' | 'right';
+    /**
+     * Width of the information panel.
+     * @default '320px'
+     */
+    width?: string;
+}
+
 export interface StructuresConfig {
     /**
      * Whether the structures/TOC panel is currently open.
@@ -279,6 +302,11 @@ export interface ViewerConfig {
      * Configuration for annotations.
      */
     annotations?: AnnotationsConfig;
+
+    /**
+     * Configuration for the information pane.
+     */
+    information?: InformationConfig;
 
     /**
      * Configuration for the structures / table of contents pane.

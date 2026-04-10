@@ -122,6 +122,16 @@
     function toggleOpen() {
         viewerState.toggleToolbar();
     }
+
+    function resolvePluginTooltip(tooltip: string) {
+        void language.current;
+
+        // @ts-expect-error - m[tooltip] might be a function
+        return typeof m[tooltip] === 'function'
+            ? // @ts-expect-error - m[tooltip] is a function
+              m[tooltip]()
+            : tooltip;
+    }
 </script>
 
 <div
@@ -512,30 +522,27 @@
             {/if}
 
             <!-- --- Plugin Actions --- -->
-            {#each sortedPluginButtons as button (button.id)}
-                {@const Icon = button.icon}
-                {@const tooltipText =
-                    // @ts-expect-error - m[button.tooltip] might be a function
-                    typeof m[button.tooltip] === 'function'
-                        ? // @ts-expect-error - m[button.tooltip] is a function
-                          m[button.tooltip]()
-                        : button.tooltip}
-                <li>
-                    <button
-                        class={[
-                            ...tooltipClasses,
-                            'tooltip-sm',
-                            button.isActive?.() &&
-                                'menu-active bg-primary text-primary-content cursor-pointer',
-                        ]}
-                        data-tip={tooltipText}
-                        aria-label={tooltipText}
-                        onclick={() => button.onClick()}
-                    >
-                        <Icon size={24} />
-                    </button>
-                </li>
-            {/each}
+            {#key language.current}
+                {#each sortedPluginButtons as button (button.id)}
+                    {@const Icon = button.icon}
+                    {@const tooltipText = resolvePluginTooltip(button.tooltip)}
+                    <li>
+                        <button
+                            class={[
+                                ...tooltipClasses,
+                                'tooltip-sm',
+                                button.isActive?.() &&
+                                    'menu-active bg-primary text-primary-content cursor-pointer',
+                            ]}
+                            data-tip={tooltipText}
+                            aria-label={tooltipText}
+                            onclick={() => button.onClick()}
+                        >
+                            <Icon size={24} />
+                        </button>
+                    </li>
+                {/each}
+            {/key}
         </ul>
     </div>
 

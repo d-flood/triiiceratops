@@ -1,5 +1,7 @@
 <script lang="ts">
     import { getContext } from 'svelte';
+    import Info from 'phosphor-svelte/lib/Info';
+    import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
@@ -139,24 +141,49 @@
 
     // --- See Also (0053) ---
     let seeAlso = $derived(normaliseLinks(json?.seeAlso));
+
+    let panelWidth = $derived(viewerState.config.information?.width ?? '320px');
+    let position = $derived(
+        viewerState.config.information?.position ?? 'right',
+    );
+    let showCloseButton = $derived(
+        viewerState.config.information?.showCloseButton ?? true,
+    );
 </script>
 
-<!-- Modal -->
-<dialog class="modal" open={viewerState.showMetadataDialog}>
-    <div class="modal-box w-11/12 max-w-5xl">
-        <form method="dialog">
-            <button
-                class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-                onclick={() => viewerState.toggleMetadataDialog()}
-                >&#x2715;</button
-            >
-        </form>
+{#if viewerState.showMetadataDialog}
+    <div
+        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 {viewerState
+            .config.transparentBackground
+            ? ''
+            : position === 'left'
+              ? 'border-r border-base-300'
+              : 'border-l border-base-300'}"
+        style="width: {panelWidth}"
+        role="dialog"
+        aria-label={m.metadata()}
+    >
+        <div
+            class="flex items-center justify-between gap-3 p-4 border-b border-base-300"
+        >
+            <div class="flex items-center gap-2 min-w-0">
+                <Info size={20} weight="bold" class="shrink-0" />
+                <h2 class="font-bold text-lg truncate">{m.metadata()}</h2>
+            </div>
+            {#if showCloseButton}
+                <button
+                    class="btn btn-sm btn-circle btn-ghost shrink-0"
+                    onclick={() => viewerState.toggleMetadataDialog()}
+                    aria-label={m.close()}
+                >
+                    <X size={20} />
+                </button>
+            {/if}
+        </div>
 
-        <h3 class="font-bold text-lg mb-4">
-            {title}
-        </h3>
+        <div class="flex-1 overflow-y-auto p-4">
+            <h3 class="font-bold text-lg mb-4 break-words">{title}</h3>
 
-        <div class="py-4 overflow-y-auto max-h-[70vh]">
             {#if manifestThumbnail}
                 <div class="mb-4">
                     <img
@@ -313,20 +340,5 @@
                 {/if}
             </dl>
         </div>
-
-        <div class="modal-action">
-            <form method="dialog">
-                <button
-                    class="btn"
-                    onclick={() => viewerState.toggleMetadataDialog()}
-                    >{m.close()}</button
-                >
-            </form>
-        </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button onclick={() => viewerState.toggleMetadataDialog()}
-            >{m.close()}</button
-        >
-    </form>
-</dialog>
+{/if}

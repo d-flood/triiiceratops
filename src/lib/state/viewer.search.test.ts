@@ -1036,7 +1036,7 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Config updates', () => {
-        it('applies structures and collection panel config without dropping plugin UI config', () => {
+        it('applies information, structures, and collection panel config without dropping plugin UI config', () => {
             state.registerPlugin({
                 id: 'plugin-a',
                 name: 'Plugin A',
@@ -1054,6 +1054,7 @@ describe('ViewerState - IIIF Search', () => {
             });
 
             state.updateConfig({
+                information: { open: true },
                 structures: { open: true },
                 collection: { open: true },
                 plugins: {
@@ -1064,6 +1065,7 @@ describe('ViewerState - IIIF Search', () => {
                 },
             });
 
+            expect(state.showMetadataDialog).toBe(true);
             expect(state.showStructuresPanel).toBe(true);
             expect(state.showCollectionPanel).toBe(true);
             expect(state.pluginMenuButtons[0]?.isActive?.()).toBe(true);

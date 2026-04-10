@@ -273,6 +273,8 @@
                 internalViewerState.config.search?.position === 'left') ||
             (internalViewerState.showAnnotations &&
                 internalViewerState.config.annotations?.position === 'left') ||
+            (internalViewerState.showMetadataDialog &&
+                internalViewerState.config.information?.position === 'left') ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'left' && p.isVisible(),
             ),
@@ -290,6 +292,8 @@
                 internalViewerState.config.annotations?.position !== 'left') ||
             (internalViewerState.showThumbnailGallery &&
                 internalViewerState.dockSide === 'right') ||
+            (internalViewerState.showMetadataDialog &&
+                internalViewerState.config.information?.position !== 'left') ||
             internalViewerState.showStructuresPanel ||
             showCollectionSidebar ||
             internalViewerState.pluginPanels.some(
@@ -441,6 +445,12 @@
             {#if internalViewerState.showAnnotations && internalViewerState.config.annotations?.position === 'left'}
                 <div class="h-full relative pointer-events-auto">
                     <AnnotationPanel />
+                </div>
+            {/if}
+
+            {#if internalViewerState.showMetadataDialog && internalViewerState.config.information?.position === 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <MetadataDialog />
                 </div>
             {/if}
 
@@ -598,7 +608,6 @@
             {/if}
 
             <AnnotationOverlay />
-            <MetadataDialog />
 
             <!-- Floating Toolbar (Replaced Unified Side Menu) -->
             <Toolbar />
@@ -682,6 +691,12 @@
             {/if}
 
             <!-- Structures / Table of Contents Panel -->
+            {#if internalViewerState.showMetadataDialog && internalViewerState.config.information?.position !== 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <MetadataDialog />
+                </div>
+            {/if}
+
             {#if internalViewerState.showStructuresPanel}
                 <div class="h-full relative pointer-events-auto">
                     <StructuresPanel />
