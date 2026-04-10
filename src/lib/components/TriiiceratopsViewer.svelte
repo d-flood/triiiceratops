@@ -559,7 +559,7 @@
                                 </p>
                                 {#if tileSourceErrorDetails}
                                     <p
-                                        class="text-base-content/70 text-xs break-words max-w-xs"
+                                        class="text-base-content/70 text-xs wrap-break-word max-w-xs"
                                     >
                                         {tileSourceErrorDetails}
                                     </p>

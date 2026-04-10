@@ -39,12 +39,24 @@
             url: 'https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json',
         },
         {
+            label: '0004 Image and Canvas with Differing Dimensions',
+            url: 'https://iiif.io/api/cookbook/recipe/0004-canvas-size/manifest.json',
+        },
+        {
             label: '0005 IIIF Image Service',
             url: 'https://iiif.io/api/cookbook/recipe/0005-image-service/manifest.json',
         },
         {
             label: '0006 Internationalization and Multi-language Values',
             url: 'https://iiif.io/api/cookbook/recipe/0006-text-language/manifest.json',
+        },
+        {
+            label: '0007 Embedding HTML in Descriptive Properties',
+            url: 'https://iiif.io/api/cookbook/recipe/0007-string-formats/manifest.json',
+        },
+        {
+            label: '0008 Rights Statement',
+            url: 'https://iiif.io/api/cookbook/recipe/0008-rights/manifest.json',
         },
         {
             label: '0009 Simple Manifest - Book',
@@ -61,6 +73,10 @@
         {
             label: '0011 Book Behavior Variations (Continuous)',
             url: 'https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/manifest-continuous.json',
+        },
+        {
+            label: '0011 Book Behavior Variations (Individuals)',
+            url: 'https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/manifest-individuals.json',
         },
         {
             label: '0019 HTML in Annotations',
@@ -395,7 +411,7 @@
             <div class="flex gap-2 items-center">
                 <select
                     id="manifest-select"
-                    class="select select-bordered select-xs w-[28rem] max-w-[60vw]"
+                    class="select select-bordered select-xs w-md max-w-[60vw]"
                     value={isCustom ? 'custom' : manifestUrl}
                     onchange={handleSelectChange}
                 >
