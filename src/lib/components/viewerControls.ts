@@ -10,11 +10,66 @@ export type VisibleCanvasEntry = {
     canvas: any;
 };
 
+export type PagedCanvasGroup = {
+    startIndex: number;
+    endIndex: number;
+    entries: VisibleCanvasEntry[];
+};
+
+export type CanvasNavDirection = 'previous' | 'next';
+
+export type CanvasNavIcon = 'left' | 'right' | 'up' | 'down';
+
+export type CanvasNavLayout = {
+    leftButton: CanvasNavDirection;
+    rightButton: CanvasNavDirection;
+    leftIcon: CanvasNavIcon;
+    rightIcon: CanvasNavIcon;
+};
+
 export function shouldUseAbbreviatedChoiceLabels(
     viewingMode: ViewingMode,
     visibleChoiceGroups: ChoiceGroup[],
 ) {
     return viewingMode === 'paged' && visibleChoiceGroups.length > 1;
+}
+
+export function getCanvasNavLayout(
+    viewingDirection: ViewingDirection,
+): CanvasNavLayout {
+    if (viewingDirection === 'right-to-left') {
+        return {
+            leftButton: 'next',
+            rightButton: 'previous',
+            leftIcon: 'left',
+            rightIcon: 'right',
+        };
+    }
+
+    if (viewingDirection === 'top-to-bottom') {
+        return {
+            leftButton: 'previous',
+            rightButton: 'next',
+            leftIcon: 'up',
+            rightIcon: 'down',
+        };
+    }
+
+    if (viewingDirection === 'bottom-to-top') {
+        return {
+            leftButton: 'next',
+            rightButton: 'previous',
+            leftIcon: 'up',
+            rightIcon: 'down',
+        };
+    }
+
+    return {
+        leftButton: 'previous',
+        rightButton: 'next',
+        leftIcon: 'left',
+        rightIcon: 'right',
+    };
 }
 
 type ViewingMode = 'individuals' | 'paged' | 'continuous';
@@ -87,23 +142,100 @@ export function getCanvasChoices(canvas: any) {
     return [];
 }
 
+export function getCanvasBehaviors(canvas: any): string[] {
+    const raw =
+        canvas?.behavior ||
+        canvas?.__jsonld?.behavior ||
+        (typeof canvas?.getBehavior === 'function' ? canvas.getBehavior() : []);
+
+    if (!raw) return [];
+    const behaviors = Array.isArray(raw) ? raw : [raw];
+    return behaviors.map((value) => {
+        const normalized = String(value).trim().toLowerCase();
+        const segments = normalized.split(/[#/:]/);
+        return segments[segments.length - 1] || normalized;
+    });
+}
+
+function isSinglePageCanvas(canvas: any): boolean {
+    const behaviors = getCanvasBehaviors(canvas);
+    return (
+        behaviors.includes('non-paged') || behaviors.includes('facing-pages')
+    );
+}
+
+export function getPagedCanvasGroups(
+    canvases: any[],
+    pagedOffset: number,
+): PagedCanvasGroup[] {
+    const groups: PagedCanvasGroup[] = [];
+
+    for (
+        let index = 0;
+        index < Math.min(pagedOffset, canvases.length);
+        index++
+    ) {
+        const canvas = canvases[index];
+        const canvasId = getCanvasId(canvas);
+
+        groups.push({
+            startIndex: index,
+            endIndex: index,
+            entries: canvasId ? [{ canvasId, canvas }] : [],
+        });
+    }
+
+    for (let index = pagedOffset; index < canvases.length; ) {
+        const firstCanvas = canvases[index];
+        const firstCanvasId = getCanvasId(firstCanvas);
+        const nextCanvas = canvases[index + 1];
+        const nextCanvasId = getCanvasId(nextCanvas);
+        const shouldPair =
+            !!nextCanvas &&
+            !!firstCanvasId &&
+            !!nextCanvasId &&
+            !isSinglePageCanvas(firstCanvas) &&
+            !isSinglePageCanvas(nextCanvas);
+
+        groups.push({
+            startIndex: index,
+            endIndex: shouldPair ? index + 1 : index,
+            entries: [
+                ...(firstCanvasId
+                    ? [{ canvasId: firstCanvasId, canvas: firstCanvas }]
+                    : []),
+                ...(shouldPair
+                    ? [{ canvasId: nextCanvasId, canvas: nextCanvas }]
+                    : []),
+            ],
+        });
+
+        index += shouldPair ? 2 : 1;
+    }
+
+    return groups;
+}
+
 export function getVisibleCanvasEntries({
     canvases,
     currentCanvasId,
     currentCanvasIndex,
     viewingMode,
     pagedOffset,
-}: Omit<VisibleChoiceGroupArgs, 'viewingDirection' | 'getSelectedChoice'>):
-    VisibleCanvasEntry[] {
+}: Omit<
+    VisibleChoiceGroupArgs,
+    'viewingDirection' | 'getSelectedChoice'
+>): VisibleCanvasEntry[] {
     if (!currentCanvasId) return [];
-    if (currentCanvasIndex < 0 || currentCanvasIndex >= canvases.length) return [];
+    if (currentCanvasIndex < 0 || currentCanvasIndex >= canvases.length)
+        return [];
 
     const visibleCanvases: VisibleCanvasEntry[] = [];
     const currentCanvas = canvases[currentCanvasIndex];
 
     if (!currentCanvas) return visibleCanvases;
 
-    if (viewingMode !== 'paged' || currentCanvasIndex < pagedOffset) {
+    if (viewingMode !== 'paged') {
         visibleCanvases.push({
             canvasId: currentCanvasId,
             canvas: currentCanvas,
@@ -111,31 +243,12 @@ export function getVisibleCanvasEntries({
         return visibleCanvases;
     }
 
-    const pairPosition = (currentCanvasIndex - pagedOffset) % 2;
-    const spreadStartIndex =
-        pairPosition === 0 ? currentCanvasIndex : currentCanvasIndex - 1;
+    const group = getPagedCanvasGroups(canvases, pagedOffset).find(
+        ({ startIndex, endIndex }) =>
+            currentCanvasIndex >= startIndex && currentCanvasIndex <= endIndex,
+    );
 
-    const firstCanvas = canvases[spreadStartIndex];
-    const firstCanvasId = getCanvasId(firstCanvas);
-
-    if (!firstCanvas || !firstCanvasId) return visibleCanvases;
-
-    visibleCanvases.push({
-        canvasId: firstCanvasId,
-        canvas: firstCanvas,
-    });
-
-    const secondCanvas = canvases[spreadStartIndex + 1];
-    const secondCanvasId = getCanvasId(secondCanvas);
-
-    if (secondCanvas && secondCanvasId) {
-        visibleCanvases.push({
-            canvasId: secondCanvasId,
-            canvas: secondCanvas,
-        });
-    }
-
-    return visibleCanvases;
+    return group?.entries ?? visibleCanvases;
 }
 
 export function getVisibleChoiceGroups({
@@ -157,7 +270,8 @@ export function getVisibleChoiceGroups({
 
     if (!visibleCanvases.length) return [];
 
-    const isPagedRTL = viewingMode === 'paged' && viewingDirection === 'right-to-left';
+    const isPagedRTL =
+        viewingMode === 'paged' && viewingDirection === 'right-to-left';
     const sideByCanvasId: Record<string, 'left' | 'right'> = {};
 
     if (viewingMode === 'paged' && visibleCanvases.length === 2) {
@@ -165,7 +279,9 @@ export function getVisibleChoiceGroups({
         sideByCanvasId[first.canvasId] = isPagedRTL ? 'right' : 'left';
         sideByCanvasId[second.canvasId] = isPagedRTL ? 'left' : 'right';
     } else {
-        sideByCanvasId[visibleCanvases[0].canvasId] = isPagedRTL ? 'right' : 'left';
+        sideByCanvasId[visibleCanvases[0].canvasId] = isPagedRTL
+            ? 'right'
+            : 'left';
     }
 
     return visibleCanvases

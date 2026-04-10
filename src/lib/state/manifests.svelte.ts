@@ -1,4 +1,4 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import type { RequestConfig } from '../types/config';
 import { loadManifestoModule } from './manifestoRuntime';
@@ -56,6 +56,26 @@ export class ManifestsState {
     }
 
     // === Manifest Fetching ===
+
+    /**
+     * Fetch a IIIF resource by URL and return the raw JSON.
+     * Does not register it as a manifest. Used for collection detection.
+     */
+    async fetchResource(
+        url: string,
+        requestConfig?: RequestConfig,
+    ): Promise<any> {
+        const response = await fetch(url, {
+            headers: requestConfig?.headers,
+            credentials: requestConfig?.withCredentials
+                ? 'include'
+                : 'same-origin',
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    }
 
     async fetchManifest(manifestId: string, requestConfig?: RequestConfig) {
         const existing = this.manifests[manifestId];
@@ -117,18 +137,132 @@ export class ManifestsState {
         }
     }
 
+    private getStructureSequences(manifestId: string): any[][] {
+        const manifestEntry = this.getManifestEntry(manifestId);
+        const manifestoObject = this.getManifest(manifestId);
+        const structures = manifestEntry?.json?.structures;
+
+        if (
+            !Array.isArray(structures) ||
+            !structures.length ||
+            !manifestoObject
+        ) {
+            return [];
+        }
+
+        const sequenceRanges = structures.filter((range: any) => {
+            const rawBehavior = range?.behavior;
+            const behaviors = Array.isArray(rawBehavior)
+                ? rawBehavior
+                : rawBehavior
+                  ? [rawBehavior]
+                  : [];
+
+            return behaviors.some(
+                (value: unknown) =>
+                    String(value).trim().toLowerCase() === 'sequence',
+            );
+        });
+
+        if (!sequenceRanges.length) {
+            return [];
+        }
+
+        const canvasById = new Map<string, any>();
+        const manifestoSequences = manifestoObject.getSequences?.() || [];
+
+        for (const sequence of manifestoSequences) {
+            const canvases = sequence?.getCanvases?.() || [];
+            for (const canvas of canvases) {
+                const canvasId =
+                    canvas?.id ||
+                    canvas?.['@id'] ||
+                    canvas?.getCanvasId?.() ||
+                    canvas?.getId?.();
+
+                if (canvasId && !canvasById.has(canvasId)) {
+                    canvasById.set(canvasId, canvas);
+                }
+            }
+        }
+
+        return sequenceRanges
+            .map((range: any) => {
+                const items = Array.isArray(range?.items) ? range.items : [];
+                return items
+                    .map((item: any) => {
+                        const canvasId =
+                            typeof item === 'string'
+                                ? item
+                                : item?.type === 'Canvas' ||
+                                    item?.['@type'] === 'Canvas'
+                                  ? item.id || item['@id']
+                                  : null;
+
+                        return canvasId ? canvasById.get(canvasId) : null;
+                    })
+                    .filter(Boolean);
+            })
+            .filter((sequence) => sequence.length > 0);
+    }
+
+    private findCanvasInJson(resource: any, canvasId: string): any | null {
+        if (!resource || typeof resource !== 'object') {
+            return null;
+        }
+
+        const resourceId = resource.id || resource['@id'];
+        const resourceType = resource.type || resource['@type'];
+
+        if (
+            resourceId === canvasId &&
+            (resourceType === 'Canvas' || resourceType === 'sc:Canvas')
+        ) {
+            return resource;
+        }
+
+        const childCollections = [
+            resource.items,
+            resource.canvases,
+            resource.sequences,
+            resource.members,
+        ];
+
+        for (const collection of childCollections) {
+            if (!Array.isArray(collection)) {
+                continue;
+            }
+
+            for (const item of collection) {
+                const match = this.findCanvasInJson(item, canvasId);
+                if (match) {
+                    return match;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private getCanvasJson(manifestId: string, canvasId: string): any | null {
         const manifestoObject = this.getManifest(manifestId);
-        if (!manifestoObject) return null;
+        const manifestEntry = this.getManifestEntry(manifestId);
 
-        const canvas = manifestoObject
-            .getSequences()[0]
-            .getCanvasById(canvasId);
-        return canvas?.__jsonld || null;
+        if (manifestoObject) {
+            const sequences = manifestoObject.getSequences?.() || [];
+            for (const sequence of sequences) {
+                const canvas = sequence?.getCanvasById?.(canvasId);
+                if (canvas?.__jsonld) {
+                    return canvas.__jsonld;
+                }
+            }
+        }
+
+        return this.findCanvasInJson(manifestEntry?.json, canvasId);
     }
 
     private getCanvasAnnotationListRefs(canvasJson: any): string[] {
-        const ids = new Set<string>();
+        const ids = new SvelteSet<string>();
 
         canvasJson?.otherContent?.forEach((content: any) => {
             const id = content['@id'] || content.id;
@@ -179,14 +313,43 @@ export class ManifestsState {
         return this.getAnnotations(manifestId, canvasId, sourceId);
     }
 
-    getCanvases(manifestId: string) {
+    getSequenceCount(manifestId: string) {
+        const structureSequences = this.getStructureSequences(manifestId);
+        if (structureSequences.length) {
+            return structureSequences.length;
+        }
+
+        const m = this.getManifest(manifestId);
+        if (!m) {
+            return 0;
+        }
+
+        const sequences = m.getSequences();
+        return Array.isArray(sequences) ? sequences.length : 0;
+    }
+
+    getCanvases(manifestId: string, sequenceIndex: number = 0) {
+        const structureSequences = this.getStructureSequences(manifestId);
+        if (structureSequences.length) {
+            return structureSequences[
+                Math.max(
+                    0,
+                    Math.min(sequenceIndex, structureSequences.length - 1),
+                )
+            ];
+        }
+
         const m = this.getManifest(manifestId);
         if (!m) {
             return [];
         }
         const sequences = m.getSequences();
         if (!sequences || !sequences.length) return [];
-        const canvases = sequences[0].getCanvases();
+        const sequence =
+            sequences[
+                Math.max(0, Math.min(sequenceIndex, sequences.length - 1))
+            ];
+        const canvases = sequence?.getCanvases?.() || [];
         return canvases;
     }
 
@@ -219,12 +382,34 @@ export class ManifestsState {
 
         const annotations: any[] = [];
 
+        const attachCanvasContext = (annotation: any) => {
+            if (!annotation || typeof annotation !== 'object') {
+                return annotation;
+            }
+
+            return {
+                ...annotation,
+                __triiiceratopsCanvas: {
+                    id: canvasJson.id || canvasJson['@id'] || canvasId,
+                    width: canvasJson.width,
+                    height: canvasJson.height,
+                },
+            };
+        };
+
         // Helper to parse list using Manifesto
         const parseList = (listJson: any) => {
             // manifesto.create is not available in 4.3.0 or not exported nicely?
             // Just return raw resources.
-            return listJson.resources || listJson.items || [];
+            const raw = listJson.resources || listJson.items || [];
+            const items = Array.isArray(raw) ? raw : [raw];
+            return items.map(attachCanvasContext);
         };
+
+        const ensureArray = (val: any): any[] =>
+            (Array.isArray(val) ? val : val ? [val] : []).map(
+                attachCanvasContext,
+            );
 
         // IIIF v2 otherContent
         if (canvasJson.otherContent) {
@@ -245,13 +430,7 @@ export class ManifestsState {
                         this.fetchAnnotationList(id);
                     }
                 } else if (content.resources) {
-                    // It's embedded
-                    // We can wrap this in manifesto.create too if we wrap it in a list structure?
-                    // Or just use raw for embedded for now, but mixed types might be annoying.
-                    // Let's rely on the robust parsing I added to Overlay for raw/mixed.
-                    // But the user wants library usage.
-                    // const r = manifesto.create(content); // might work?
-                    annotations.push(...content.resources);
+                    annotations.push(...ensureArray(content.resources));
                 }
             });
         }
@@ -275,7 +454,7 @@ export class ManifestsState {
                         this.fetchAnnotationList(id);
                     }
                 } else if (content.items) {
-                    annotations.push(...content.items);
+                    annotations.push(...ensureArray(content.items));
                 }
             });
         }

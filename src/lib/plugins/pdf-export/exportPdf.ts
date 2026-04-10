@@ -16,6 +16,7 @@ import {
     getCanvasLabel,
     resolveCanvasImage,
 } from '../../utils/resolveCanvasImage';
+import { m } from '../../state/i18n.svelte';
 
 type NormalizeCanvasRangeResult = {
     startIndex: number;
@@ -451,9 +452,29 @@ function getCanvasExportResource(
         return {
             imageUrl: isWideCanvas
                 ? buildIiifImageRequestUrl(resolved.serviceId, {
+                      region: resolved.imageApiRegion
+                          ? [
+                                resolved.imageApiRegion.x,
+                                resolved.imageApiRegion.y,
+                                resolved.imageApiRegion.width,
+                                resolved.imageApiRegion.height,
+                            ]
+                                .map((value) => Math.round(value))
+                                .join(',')
+                          : undefined,
                       height: constrainedSize,
                   })
                 : buildIiifImageRequestUrl(resolved.serviceId, {
+                      region: resolved.imageApiRegion
+                          ? [
+                                resolved.imageApiRegion.x,
+                                resolved.imageApiRegion.y,
+                                resolved.imageApiRegion.width,
+                                resolved.imageApiRegion.height,
+                            ]
+                                .map((value) => Math.round(value))
+                                .join(',')
+                          : undefined,
                       width: constrainedSize,
                   }),
             resolvedImage: resolved,
@@ -1188,7 +1209,7 @@ export async function exportCanvasRangeAsPdf({
             canvases.length,
         );
         if (!range) {
-            throw new Error('No canvases available to export.');
+            throw new Error(m.pdf_export_error_no_canvases());
         }
 
         const { PDFDocument } = await import('pdf-lib');
@@ -1208,7 +1229,7 @@ export async function exportCanvasRangeAsPdf({
                 fieldCount: coverSheetFields.length,
                 title: coverSheet.title || 'Export Summary',
             });
-            onProgress?.('Preparing cover sheet...');
+            onProgress?.(m.pdf_export_progress_cover_sheet());
             await addCoverSheetPage(
                 pdfDoc,
                 coverSheet,
@@ -1234,7 +1255,11 @@ export async function exportCanvasRangeAsPdf({
                 label,
             });
             onProgress?.(
-                `Exporting ${offset + 1} of ${plainIndices.length}: ${label}`,
+                m.pdf_export_progress_canvas({
+                    current: offset + 1,
+                    total: plainIndices.length,
+                    label,
+                }),
             );
 
             try {
@@ -1322,9 +1347,7 @@ export async function exportCanvasRangeAsPdf({
                         'PDF export blocked by image source access policy.',
                         error,
                     );
-                    throw new Error(
-                        'PDF export is not available for this item because the image source does not allow direct browser download access.',
-                    );
+                    throw new Error(m.pdf_export_error_not_available());
                 }
                 console.error('[PDF export] Failed to export canvas', {
                     index,
@@ -1336,7 +1359,7 @@ export async function exportCanvasRangeAsPdf({
         }
 
         if (!exportedCount) {
-            throw new Error('Unable to export any canvases to PDF.');
+            throw new Error(m.pdf_export_error_no_canvases_exported());
         }
 
         const finalFilename =
@@ -1348,7 +1371,9 @@ export async function exportCanvasRangeAsPdf({
                 endIndex: range.endIndex,
             });
 
-        onProgress?.(`Preparing download: ${finalFilename}`);
+        onProgress?.(
+            m.pdf_export_progress_download({ filename: finalFilename }),
+        );
         console.debug('[PDF export] Saving PDF document', {
             filename: finalFilename,
             exportedCount,

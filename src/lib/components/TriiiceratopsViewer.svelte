@@ -6,15 +6,21 @@
     import type { DaisyUITheme, ThemeConfig } from '../theme/types';
     import type { SearchProvider, ViewerConfig } from '../types/config';
     import type { PluginDef } from '../types/plugin';
+    import type { CanvasRegion } from '../utils/contentState';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
+    import { parseContentState } from '../utils/contentState';
+    import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
+    import CollectionPanel from './CollectionPanel.svelte';
     import MetadataDialog from './MetadataDialog.svelte';
     import OSDViewer from './OSDViewer.svelte';
     import SearchPanel from './SearchPanel.svelte';
+    import StructuresPanel from './StructuresPanel.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
+    import ImageBroken from 'phosphor-svelte/lib/ImageBroken';
     import ViewerControls from './ViewerControls.svelte';
 
     // SSR-safe browser detection for library consumers
@@ -34,7 +40,13 @@
         searchProvider?: SearchProvider | null;
         /** Bindable viewer state instance for external access (Svelte consumers) */
         viewerState?: ViewerState;
+        initialCanvasRegion?: CanvasRegion | null;
     }
+
+    type ViewerTileSourceError =
+        | { type: 'auth' }
+        | { type: 'load'; message?: string; details?: string }
+        | null;
 
     let {
         manifestId,
@@ -46,9 +58,15 @@
         config = {},
         searchProvider = null,
         viewerState = $bindable(),
+        initialCanvasRegion = null,
     }: Props = $props();
 
     let plugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
+    let isDragOver = $state(false);
+    let viewerLocale = $derived(
+        (config as ViewerConfig & { locale?: string })?.locale ||
+            language.current,
+    );
 
     // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
@@ -82,12 +100,74 @@
     });
 
     $effect(() => {
+        internalViewerState.setInitialCanvasRegion(initialCanvasRegion);
+    });
+
+    function clearDragState() {
+        isDragOver = false;
+    }
+
+    function handleDragOver(event: DragEvent) {
+        if (!internalViewerState.config.enableDragDrop) return;
+        event.preventDefault();
+        isDragOver = true;
+    }
+
+    function handleDragLeave(event: DragEvent) {
+        if (!internalViewerState.config.enableDragDrop) return;
+        if (event.currentTarget === event.target) {
+            isDragOver = false;
+        }
+    }
+
+    async function handleDrop(event: DragEvent) {
+        if (!internalViewerState.config.enableDragDrop) return;
+        event.preventDefault();
+        clearDragState();
+
+        const text = event.dataTransfer?.getData('text/plain')?.trim();
+        if (!text) return;
+
+        const parsed = parseContentState(text);
+        if (parsed?.manifestId) {
+            internalViewerState.setInitialCanvasRegion(parsed.region ?? null);
+            if (parsed.canvasId) {
+                internalViewerState.setCanvas(parsed.canvasId);
+            }
+            await internalViewerState.setManifest(parsed.manifestId, {
+                requestConfig: config?.requests,
+            });
+            if (parsed.canvasId) {
+                internalViewerState.setCanvas(parsed.canvasId);
+            }
+            return;
+        }
+
+        if (/^https?:\/\//i.test(text)) {
+            internalViewerState.setInitialCanvasRegion(null);
+            await internalViewerState.setManifest(text, {
+                requestConfig: config?.requests,
+            });
+        }
+    }
+
+    $effect(() => {
         if (manifestId && manifestJson) {
             void internalViewerState.setManifestData(manifestId, manifestJson);
             return;
         }
 
         if (manifestId && manifestId !== internalViewerState.manifestId) {
+            // Don't re-trigger setManifest if the prop points to the active collection.
+            // When a collection is loaded, internalViewerState.manifestId is the
+            // currently-selected manifest inside the collection, which differs from
+            // the collection URL passed as the prop.
+            if (
+                internalViewerState.collectionId &&
+                manifestId === internalViewerState.collectionId
+            ) {
+                return;
+            }
             internalViewerState.setManifest(manifestId, {
                 requestConfig: config?.requests,
             });
@@ -193,9 +273,16 @@
                 internalViewerState.config.search?.position === 'left') ||
             (internalViewerState.showAnnotations &&
                 internalViewerState.config.annotations?.position === 'left') ||
+            (internalViewerState.showMetadataDialog &&
+                internalViewerState.config.information?.position === 'left') ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'left' && p.isVisible(),
             ),
+    );
+
+    let showCollectionSidebar = $derived(
+        internalViewerState.showCollectionPanel &&
+            internalViewerState.hasCollection,
     );
 
     let isRightSidebarVisible = $derived(
@@ -205,6 +292,10 @@
                 internalViewerState.config.annotations?.position !== 'left') ||
             (internalViewerState.showThumbnailGallery &&
                 internalViewerState.dockSide === 'right') ||
+            (internalViewerState.showMetadataDialog &&
+                internalViewerState.config.information?.position !== 'left') ||
+            internalViewerState.showStructuresPanel ||
+            showCollectionSidebar ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'right' && p.isVisible(),
             ),
@@ -233,7 +324,7 @@
         }
     });
 
-    // Auto-select first canvas if none selected AND no canvasId prop was provided
+    // Auto-select initial canvas: prefer start canvas from manifest, then first canvas
     $effect(() => {
         if (
             canvases &&
@@ -242,11 +333,23 @@
             !manifestData?.isFetching &&
             !canvasId // Don't auto-select if a canvasId prop is provided
         ) {
-            console.log(
-                '[Viewer] Auto-selecting first canvas:',
-                canvases[0].id,
-            );
-            internalViewerState.setCanvas(canvases[0].id);
+            const startCanvas = internalViewerState.startCanvasId;
+            if (startCanvas) {
+                console.log(
+                    '[Viewer] Auto-selecting start canvas:',
+                    startCanvas,
+                );
+                internalViewerState.setCanvas(startCanvas);
+            } else {
+                const firstCanvasId = getCanvasId(canvases[0]);
+                console.log(
+                    '[Viewer] Auto-selecting first canvas:',
+                    firstCanvasId,
+                );
+                if (firstCanvasId) {
+                    internalViewerState.setCanvas(firstCanvasId);
+                }
+            }
         }
     });
 
@@ -297,6 +400,22 @@
         );
         return tileSourcesArray;
     });
+
+    let tileSourceError = $derived(
+        internalViewerState.tileSourceError as ViewerTileSourceError,
+    );
+    let tileSourceErrorMessage = $derived(
+        tileSourceError?.type === 'load'
+            ? tileSourceError.message || 'Unable to load this image.'
+            : null,
+    );
+    let tileSourceErrorDetails = $derived(
+        tileSourceError?.type === 'load' &&
+            tileSourceError.details &&
+            tileSourceError.details !== tileSourceErrorMessage
+            ? tileSourceError.details
+            : null,
+    );
 </script>
 
 <div
@@ -329,6 +448,12 @@
                 </div>
             {/if}
 
+            {#if internalViewerState.showMetadataDialog && internalViewerState.config.information?.position === 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <MetadataDialog />
+                </div>
+            {/if}
+
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
                 <div
@@ -345,7 +470,7 @@
                     <div class="h-full relative pointer-events-auto">
                         <panel.component
                             {...panel.props ?? {}}
-                            locale={language.current}
+                            locale={viewerLocale}
                         />
                     </div>
                 {/if}
@@ -374,6 +499,12 @@
                 .config.transparentBackground
                 ? ''
                 : 'bg-base-100'}"
+            role={internalViewerState.config.enableDragDrop
+                ? 'region'
+                : undefined}
+            ondragover={handleDragOver}
+            ondragleave={handleDragLeave}
+            ondrop={handleDrop}
         >
             {#if manifestData?.isFetching}
                 <div class="w-full h-full flex items-center justify-center">
@@ -389,7 +520,7 @@
                     {manifestData.error}
                 </div>
             {:else if tileSources}
-                {#if internalViewerState.tileSourceError}
+                {#if tileSourceError}
                     <div
                         class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
                         role="alert"
@@ -405,29 +536,45 @@
                         <div
                             class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="w-12 h-12 text-warning"
-                            >
-                                <rect
-                                    x="3"
-                                    y="11"
-                                    width="18"
-                                    height="11"
-                                    rx="2"
-                                    ry="2"
-                                />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            <p class="text-base-content text-sm">
-                                {m.error_auth_required()}
-                            </p>
+                            {#if tileSourceError.type === 'auth'}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="w-12 h-12 text-warning"
+                                >
+                                    <rect
+                                        x="3"
+                                        y="11"
+                                        width="18"
+                                        height="11"
+                                        rx="2"
+                                        ry="2"
+                                    />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                <p class="text-base-content text-sm">
+                                    {m.error_auth_required()}
+                                </p>
+                            {:else}
+                                <ImageBroken class="w-12 h-12 text-warning" />
+                                <p
+                                    class="text-base-content text-sm font-semibold"
+                                >
+                                    {tileSourceErrorMessage}
+                                </p>
+                                {#if tileSourceErrorDetails}
+                                    <p
+                                        class="text-base-content/70 text-xs wrap-break-word max-w-xs"
+                                    >
+                                        {tileSourceErrorDetails}
+                                    </p>
+                                {/if}
+                            {/if}
                         </div>
                     </div>
                 {:else}
@@ -438,14 +585,29 @@
                 {/if}
             {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div
-                    class="w-full h-full flex items-center justify-center text-base-content/50"
+                    class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
+                    role="status"
                 >
-                    {m.no_image_found()}
+                    {#if currentCanvasThumbnail}
+                        <img
+                            src={currentCanvasThumbnail}
+                            alt=""
+                            class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-40"
+                        />
+                        <div class="absolute inset-0 bg-base-100/50"></div>
+                    {/if}
+                    <div
+                        class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
+                    >
+                        <ImageBroken class="w-12 h-12 text-warning" />
+                        <p class="text-base-content text-sm font-semibold">
+                            {m.no_image_found()}
+                        </p>
+                    </div>
                 </div>
             {/if}
 
             <AnnotationOverlay />
-            <MetadataDialog />
 
             <!-- Floating Toolbar (Replaced Unified Side Menu) -->
             <Toolbar />
@@ -456,7 +618,7 @@
                     <div class="absolute inset-0 z-40 pointer-events-none">
                         <panel.component
                             {...panel.props ?? {}}
-                            locale={language.current}
+                            locale={viewerLocale}
                         />
                     </div>
                 {/if}
@@ -464,6 +626,18 @@
 
             <!-- Viewer Controls (Canvas Navigation + Zoom + IIIF Choice Selector) -->
             <ViewerControls />
+
+            {#if internalViewerState.config.enableDragDrop && isDragOver}
+                <div
+                    class="absolute inset-0 z-45 pointer-events-none flex items-center justify-center bg-base-100/70 backdrop-blur-sm"
+                >
+                    <div
+                        class="rounded-box border-2 border-dashed border-primary bg-base-100/90 px-6 py-4 text-sm font-medium text-base-content shadow-lg"
+                    >
+                        {m.drop_manifest_hint()}
+                    </div>
+                </div>
+            {/if}
 
             <!-- Float-mode Gallery -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'none'}
@@ -487,7 +661,7 @@
                 <div class="relative w-full z-40 pointer-events-auto">
                     <panel.component
                         {...panel.props ?? {}}
-                        locale={language.current}
+                        locale={viewerLocale}
                     />
                 </div>
             {/if}
@@ -516,6 +690,26 @@
                 </div>
             {/if}
 
+            <!-- Structures / Table of Contents Panel -->
+            {#if internalViewerState.showMetadataDialog && internalViewerState.config.information?.position !== 'left'}
+                <div class="h-full relative pointer-events-auto">
+                    <MetadataDialog />
+                </div>
+            {/if}
+
+            {#if internalViewerState.showStructuresPanel}
+                <div class="h-full relative pointer-events-auto">
+                    <StructuresPanel />
+                </div>
+            {/if}
+
+            <!-- Collection Panel -->
+            {#if showCollectionSidebar}
+                <div class="h-full relative pointer-events-auto">
+                    <CollectionPanel />
+                </div>
+            {/if}
+
             <!-- Gallery (when docked right) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
                 <div
@@ -533,7 +727,7 @@
                     <div class="h-full relative pointer-events-auto">
                         <panel.component
                             {...panel.props ?? {}}
-                            locale={language.current}
+                            locale={viewerLocale}
                         />
                     </div>
                 {/if}
@@ -556,11 +750,14 @@
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-track) {
         background: transparent;
+        border-radius: 9999px;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
         background-color: var(--fallback-bc, oklch(var(--bc) / 0.2));
         border-radius: 9999px;
+        border: 1px solid transparent;
+        background-clip: padding-box;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
@@ -569,5 +766,6 @@
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {
         background: transparent;
+        border-radius: 9999px;
     }
 </style>

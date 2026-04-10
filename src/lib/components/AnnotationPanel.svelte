@@ -70,6 +70,7 @@
     });
 
     function toggleAnnotation(id: string) {
+        viewerState.annotationVisibilityTouched = true;
         if (viewerState.visibleAnnotationIds.has(id)) {
             viewerState.visibleAnnotationIds.delete(id);
         } else {
@@ -77,7 +78,20 @@
         }
     }
 
+    function shouldIgnoreRowToggle(target: EventTarget | null): boolean {
+        if (!(target instanceof Element)) {
+            return false;
+        }
+
+        return Boolean(
+            target.closest(
+                'a, button, input, select, textarea, summary, [role="button"], [data-annotation-interactive="true"]',
+            ),
+        );
+    }
+
     function toggleAllAnnotations() {
+        viewerState.annotationVisibilityTouched = true;
         if (isAllVisible) {
             // Hide all
             viewerState.visibleAnnotationIds.clear();
@@ -169,6 +183,9 @@
                     onmouseleave={() =>
                         (viewerState.hoveredAnnotationId = null)}
                     onclick={(e) => {
+                        if (shouldIgnoreRowToggle(e.target)) {
+                            return;
+                        }
                         e.preventDefault();
                         toggleAnnotation(anno.id);
                     }}
@@ -194,7 +211,7 @@
                         {/if}
                     </button>
 
-                    <div class="flex-1 min-w-0 pointer-events-none">
+                    <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between mb-1">
                             <span class="font-bold text-sm text-primary"
                                 >#{i + 1}</span
@@ -211,9 +228,7 @@
                             class="text-sm prose prose-sm max-w-none prose-p:my-0 prose-a:text-blue-500 wrap-break-word text-left space-y-2"
                         >
                             {#each anno.bodies as body, i (i)}
-                                <div
-                                    class="flex flex-wrap gap-2 pointer-events-auto"
-                                >
+                                <div class="flex flex-wrap gap-2">
                                     {#if body.purpose === 'tagging'}
                                         <span
                                             class="badge badge-primary badge-outline badge-sm"

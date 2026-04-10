@@ -134,6 +134,53 @@ describe('ManifestsState', () => {
             expect(canvases).toEqual(['mockCanvas1', 'mockCanvas2']);
         });
 
+        it('returns canvases in structure sequence order when sequence ranges are present', () => {
+            const canvas1 = { id: 'canvas1' };
+            const canvas2 = { id: 'canvas2' };
+
+            state.manifests['http://example.org/manifest'] = {
+                json: {
+                    structures: [
+                        {
+                            id: 'range-physical',
+                            type: 'Range',
+                            behavior: ['sequence'],
+                            items: [
+                                { id: 'canvas1', type: 'Canvas' },
+                                { id: 'canvas2', type: 'Canvas' },
+                            ],
+                        },
+                        {
+                            id: 'range-author',
+                            type: 'Range',
+                            behavior: ['sequence'],
+                            items: [
+                                { id: 'canvas2', type: 'Canvas' },
+                                { id: 'canvas1', type: 'Canvas' },
+                            ],
+                        },
+                    ],
+                },
+                manifesto: {
+                    getSequences: () => [
+                        {
+                            getCanvases: () => [canvas1, canvas2],
+                        },
+                    ],
+                },
+            };
+
+            expect(state.getSequenceCount('http://example.org/manifest')).toBe(
+                2,
+            );
+            expect(state.getCanvases('http://example.org/manifest', 0)).toEqual(
+                [canvas1, canvas2],
+            );
+            expect(state.getCanvases('http://example.org/manifest', 1)).toEqual(
+                [canvas2, canvas1],
+            );
+        });
+
         it('should return empty array if manifest not found', () => {
             const canvases = state.getCanvases('http://example.org/missing');
             expect(canvases).toEqual([]);
@@ -149,6 +196,9 @@ describe('ManifestsState', () => {
                         {
                             getCanvasById: () => ({
                                 __jsonld: {
+                                    id: 'canvas1',
+                                    width: 800,
+                                    height: 600,
                                     otherContent: [
                                         { '@id': 'http://example.org/list1' },
                                     ],
@@ -191,6 +241,56 @@ describe('ManifestsState', () => {
             );
             expect(annos).toHaveLength(1);
             expect(annos[0]['@id']).toBe('anno1');
+            expect(annos[0].__triiiceratopsCanvas).toEqual({
+                id: 'canvas1',
+                width: 800,
+                height: 600,
+            });
+        });
+
+        it('falls back to raw manifest JSON when manifesto canvas lookup is unavailable', () => {
+            state.manifests['http://example.org/manifest'] = {
+                json: {
+                    id: 'http://example.org/manifest',
+                    type: 'Manifest',
+                    items: [
+                        {
+                            id: 'canvas1',
+                            type: 'Canvas',
+                            width: 800,
+                            height: 600,
+                            annotations: [
+                                {
+                                    id: 'http://example.org/page/1',
+                                    type: 'AnnotationPage',
+                                    items: [
+                                        {
+                                            id: 'anno-inline',
+                                            type: 'Annotation',
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                manifesto: {
+                    getSequences: () => [],
+                },
+            };
+
+            const annos = state.manualGetAnnotations(
+                'http://example.org/manifest',
+                'canvas1',
+            );
+
+            expect(annos).toHaveLength(1);
+            expect(annos[0].id).toBe('anno-inline');
+            expect(annos[0].__triiiceratopsCanvas).toEqual({
+                id: 'canvas1',
+                width: 800,
+                height: 600,
+            });
         });
     });
 

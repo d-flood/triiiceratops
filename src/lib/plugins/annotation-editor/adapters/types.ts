@@ -7,11 +7,14 @@ export interface W3CAnnotation {
     type: 'Annotation';
     body?: W3CAnnotationBody | W3CAnnotationBody[];
     target: {
+        type?: string;
         source: string;
         selector?: {
             type: string;
             value?: string;
             conformsTo?: string;
+            x?: number;
+            y?: number;
         };
     };
     creator?: {

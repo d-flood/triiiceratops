@@ -7,14 +7,18 @@
     import ChatCenteredText from 'phosphor-svelte/lib/ChatCenteredText';
     import Info from 'phosphor-svelte/lib/Info';
     import List from 'phosphor-svelte/lib/List';
+    import ListBullets from 'phosphor-svelte/lib/ListBullets';
+    import Folder from 'phosphor-svelte/lib/Folder';
     import BookOpen from 'phosphor-svelte/lib/BookOpen';
     import Scroll from 'phosphor-svelte/lib/Scroll';
     import File from 'phosphor-svelte/lib/File';
+    import Stack from 'phosphor-svelte/lib/Stack';
     import Check from 'phosphor-svelte/lib/Check';
     import X from 'phosphor-svelte/lib/X';
     import ArrowsLeftRight from 'phosphor-svelte/lib/ArrowsLeftRight';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
+    import { manifestsState } from '../state/manifests.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -55,6 +59,57 @@
     const showAnnotations = $derived(toolbarConfig.showAnnotations !== false);
     const showInfo = $derived(toolbarConfig.showInfo !== false);
     const showViewingMode = $derived(toolbarConfig.showViewingMode !== false);
+    const sequenceStructures = $derived(
+        viewerState.structures.filter((node: any) =>
+            node.behaviors?.includes('sequence'),
+        ),
+    );
+    const nonSequenceStructures = $derived(
+        viewerState.structures.filter(
+            (node: any) => !node.behaviors?.includes('sequence'),
+        ),
+    );
+    const showStructures = $derived(
+        toolbarConfig.showStructures !== false &&
+            nonSequenceStructures.length > 0,
+    );
+    const showCollection = $derived(
+        toolbarConfig.showCollection !== false && viewerState.hasCollection,
+    );
+    const showSequencePicker = $derived(viewerState.sequenceCount > 1);
+    const sequenceOptions = $derived.by(() => {
+        if (sequenceStructures.length > 0) {
+            return sequenceStructures.map((node, index) => ({
+                index,
+                label: node.label || `${m.sequence_label()} ${index + 1}`,
+            }));
+        }
+
+        return Array.from(
+            { length: viewerState.sequenceCount },
+            (_, index) => ({
+                index,
+                label: `${m.sequence_label()} ${index + 1}`,
+            }),
+        );
+    });
+    const annotationCount = $derived.by(() => {
+        if (!viewerState.manifestId || !viewerState.canvasId) {
+            return 0;
+        }
+
+        return manifestsState.getAnnotations(
+            viewerState.manifestId,
+            viewerState.canvasId,
+        ).length;
+    });
+    const annotationsTooltip = $derived.by(() => {
+        const base = viewerState.showAnnotations
+            ? m.hide_annotations()
+            : m.show_annotations();
+
+        return annotationCount > 0 ? `${base} (${annotationCount})` : base;
+    });
 
     // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
@@ -66,6 +121,16 @@
 
     function toggleOpen() {
         viewerState.toggleToolbar();
+    }
+
+    function resolvePluginTooltip(tooltip: string) {
+        void language.current;
+
+        // @ts-expect-error - m[tooltip] might be a function
+        return typeof m[tooltip] === 'function'
+            ? // @ts-expect-error - m[tooltip] is a function
+              m[tooltip]()
+            : tooltip;
     }
 </script>
 
@@ -133,6 +198,33 @@
 
             <!-- --- Standard Actions --- -->
 
+            {#if showCollection}
+                <li>
+                    <button
+                        class={[
+                            ...tooltipClasses,
+                            'tooltip-sm indicator',
+                            viewerState.showCollectionPanel &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
+                        ]}
+                        data-tip={m.collection_title()}
+                        aria-label={m.toggle_collection()}
+                        onclick={() => viewerState.toggleCollectionPanel()}
+                    >
+                        {#if !viewerState.showCollectionPanel && viewerState.collectionItems.length > 0}
+                            <span
+                                class="indicator-item badge badge-primary badge-sm min-w-5 px-1"
+                            >
+                                {viewerState.collectionItems.length > 99
+                                    ? '99+'
+                                    : viewerState.collectionItems.length}
+                            </span>
+                        {/if}
+                        <Folder size={24} />
+                    </button>
+                </li>
+            {/if}
+
             {#if showSearch}
                 <li>
                     <button
@@ -169,6 +261,24 @@
                         onclick={() => viewerState.toggleThumbnailGallery()}
                     >
                         <Slideshow size={24} />
+                    </button>
+                </li>
+            {/if}
+
+            {#if showStructures}
+                <li>
+                    <button
+                        class={[
+                            ...tooltipClasses,
+                            'tooltip-sm',
+                            viewerState.showStructuresPanel &&
+                                'menu-active bg-primary text-primary-content cursor-pointer',
+                        ]}
+                        data-tip={m.structures_title()}
+                        aria-label={m.toggle_structures()}
+                        onclick={() => viewerState.toggleStructuresPanel()}
+                    >
+                        <ListBullets size={24} />
                     </button>
                 </li>
             {/if}
@@ -275,6 +385,62 @@
                 </li>
             {/if}
 
+            {#if showSequencePicker}
+                <li>
+                    <button
+                        class={[...tooltipClasses, 'tooltip-sm indicator']}
+                        data-tip={m.sequence_label()}
+                        popovertarget="toolbar-sequence-picker"
+                        style="anchor-name:--anchor-sequence-picker"
+                        aria-label={m.sequence_label()}
+                    >
+                        <span
+                            class="indicator-item badge badge-primary badge-sm min-w-5 px-1"
+                        >
+                            {viewerState.sequenceCount > 99
+                                ? '99+'
+                                : viewerState.sequenceCount}
+                        </span>
+                        <Stack size={24} />
+                    </button>
+                    <ul
+                        popover
+                        id="toolbar-sequence-picker"
+                        class={[
+                            'dropdown menu menu-sm rounded-box bg-base-100 shadow-sm border border-base-200 min-w-56',
+                            isTop && 'mt-2 -translate-x-1/2',
+                            position === 'left' && 'ms-10',
+                            position === 'right' && '-translate-x-full -ms-2',
+                        ]}
+                        style={`
+                            position-anchor: --anchor-sequence-picker;
+                        `}
+                    >
+                        {#each sequenceOptions as option (option.index)}
+                            <li>
+                                <button
+                                    class={[
+                                        viewerState.selectedSequenceIndex ===
+                                            option.index &&
+                                            'menu-active bg-primary text-primary-content cursor-pointer',
+                                    ]}
+                                    onclick={() =>
+                                        viewerState.setSequenceIndex(
+                                            option.index,
+                                        )}
+                                >
+                                    <Stack size={16} />
+                                    <span>{option.label}</span>
+                                    {#if viewerState.selectedSequenceIndex === option.index}
+                                        <Check size={16} />
+                                    {/if}
+                                </button>
+                            </li>
+                        {/each}
+                    </ul>
+                </li>
+            {/if}
+
             {#if showFullscreen}
                 <li>
                     <button
@@ -306,18 +472,21 @@
                     <button
                         class={[
                             ...tooltipClasses,
-                            'tooltip-sm',
+                            'tooltip-sm indicator',
                             viewerState.showAnnotations &&
                                 'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
-                        data-tip={viewerState.showAnnotations
-                            ? m.hide_annotations()
-                            : m.show_annotations()}
-                        aria-label={viewerState.showAnnotations
-                            ? m.hide_annotations()
-                            : m.show_annotations()}
+                        data-tip={annotationsTooltip}
+                        aria-label={annotationsTooltip}
                         onclick={() => viewerState.toggleAnnotations()}
                     >
+                        {#if !viewerState.showAnnotations && annotationCount > 0}
+                            <span
+                                class="indicator-item badge badge-primary badge-sm min-w-5 px-1"
+                            >
+                                {annotationCount > 99 ? '99+' : annotationCount}
+                            </span>
+                        {/if}
                         <ChatCenteredText size={24} />
                     </button>
                 </li>
@@ -342,7 +511,7 @@
             {/if}
 
             <!-- Separator if both groups exist -->
-            {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode) && sortedPluginButtons.length > 0}
+            {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode || showStructures || showCollection) && sortedPluginButtons.length > 0}
                 <div
                     class={[
                         'divider',
@@ -353,30 +522,27 @@
             {/if}
 
             <!-- --- Plugin Actions --- -->
-            {#each sortedPluginButtons as button (button.id)}
-                {@const Icon = button.icon}
-                {@const tooltipText =
-                    // @ts-expect-error - m[button.tooltip] might be a function
-                    typeof m[button.tooltip] === 'function'
-                        ? // @ts-expect-error - m[button.tooltip] is a function
-                          m[button.tooltip]()
-                        : button.tooltip}
-                <li>
-                    <button
-                        class={[
-                            ...tooltipClasses,
-                            'tooltip-sm',
-                            button.isActive?.() &&
-                                'menu-active bg-primary text-primary-content cursor-pointer',
-                        ]}
-                        data-tip={tooltipText}
-                        aria-label={tooltipText}
-                        onclick={() => button.onClick()}
-                    >
-                        <Icon size={24} />
-                    </button>
-                </li>
-            {/each}
+            {#key language.current}
+                {#each sortedPluginButtons as button (button.id)}
+                    {@const Icon = button.icon}
+                    {@const tooltipText = resolvePluginTooltip(button.tooltip)}
+                    <li>
+                        <button
+                            class={[
+                                ...tooltipClasses,
+                                'tooltip-sm',
+                                button.isActive?.() &&
+                                    'menu-active bg-primary text-primary-content cursor-pointer',
+                            ]}
+                            data-tip={tooltipText}
+                            aria-label={tooltipText}
+                            onclick={() => button.onClick()}
+                        >
+                            <Icon size={24} />
+                        </button>
+                    </li>
+                {/each}
+            {/key}
         </ul>
     </div>
 

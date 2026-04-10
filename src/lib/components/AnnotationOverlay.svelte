@@ -2,6 +2,7 @@
     import { getContext } from 'svelte';
     import { manifestsState } from '../state/manifests.svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+    import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -30,21 +31,32 @@
         );
     }
 
+    function showAllAnnotations() {
+        viewerState.visibleAnnotationIds.clear();
+        annotations.forEach((a: any) => {
+            const id = getAnnotationId(a);
+            if (id) viewerState.visibleAnnotationIds.add(id);
+        });
+    }
+
     // Effect to initialize visibility when annotations load
     $effect(() => {
         // When annotations array changes (e.g. canvas change)
         if (annotations.length > 0) {
-            const shouldBeVisible =
+            const visibleByConfig =
                 viewerState.config.annotations?.visible ?? true;
+            const shouldBeVisible =
+                visibleByConfig ||
+                (viewerState.showAnnotations &&
+                    !viewerState.annotationVisibilityTouched);
 
+            viewerState.annotationVisibilityTouched = false;
             viewerState.visibleAnnotationIds.clear();
             if (shouldBeVisible) {
-                annotations.forEach((a: any) => {
-                    const id = getAnnotationId(a);
-                    if (id) viewerState.visibleAnnotationIds.add(id);
-                });
+                showAllAnnotations();
             }
         } else {
+            viewerState.annotationVisibilityTouched = false;
             viewerState.visibleAnnotationIds.clear();
         }
     });
@@ -53,9 +65,23 @@
     let toolbarContainer: HTMLElement | undefined = $state();
     let lineCoords: { x1: number; y1: number; x2: number; y2: number } | null =
         $state(null);
+    let hoveredAnnotationIsFullCanvas = $derived.by(() => {
+        if (!viewerState.hoveredAnnotationId) {
+            return false;
+        }
+
+        const hoveredAnnotation = annotations.find(
+            (anno: any) =>
+                getAnnotationId(anno) === viewerState.hoveredAnnotationId,
+        );
+
+        return hoveredAnnotation
+            ? isFullCanvasAnnotation(hoveredAnnotation)
+            : false;
+    });
 
     $effect(() => {
-        if (!viewerState.hoveredAnnotationId) {
+        if (!viewerState.hoveredAnnotationId || hoveredAnnotationIsFullCanvas) {
             lineCoords = null;
             return;
         }

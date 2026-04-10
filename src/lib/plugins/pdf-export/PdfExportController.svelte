@@ -1,6 +1,7 @@
 <script lang="ts">
     import { getContext } from 'svelte';
     import { manifestsState } from '../../state/manifests.svelte';
+    import { m, language } from '../../state/i18n.svelte';
     import {
         VIEWER_STATE_KEY,
         type ViewerState,
@@ -103,16 +104,18 @@
 
     let selectedCount = $derived(normalizedRange?.indices.length ?? 0);
     let disabledReason = $derived.by(() => {
+        void language.current;
+
         if (!viewerState.manifestId) {
-            return 'Load a manifest to export canvases.';
+            return m.pdf_export_disabled_no_manifest();
         }
 
         if (!canvasOptions.length) {
-            return 'No canvases are available to export.';
+            return m.pdf_export_disabled_no_canvases();
         }
 
         if (selectedStartIndex === null || selectedEndIndex === null) {
-            return 'Select a valid start and end canvas to export.';
+            return m.pdf_export_disabled_invalid_range();
         }
 
         return null;
@@ -163,7 +166,7 @@
         isExporting = true;
         errorMessage = '';
         resultMessage = '';
-        progressMessage = 'Preparing export...';
+        progressMessage = m.pdf_export_progress_preparing();
 
         try {
             const manifest = viewerState.manifest;
@@ -209,8 +212,14 @@
 
             progressMessage = '';
             resultMessage = result.failedCanvases.length
-                ? `Downloaded ${result.exportedCount} canvas(es). Skipped ${result.failedCanvases.length}.`
-                : `Downloaded ${result.exportedCount} canvas(es) as ${result.filename}.`;
+                ? m.pdf_export_result_partial({
+                      exportedCount: result.exportedCount,
+                      failedCount: result.failedCanvases.length,
+                  })
+                : m.pdf_export_result_downloaded({
+                      count: result.exportedCount,
+                      filename: result.filename,
+                  });
         } catch (error) {
             console.error('[PDF export] Export failed in controller', {
                 error,
@@ -221,7 +230,10 @@
             });
             progressMessage = '';
             errorMessage =
-                'Unable to export PDF. Check the browser console for details.';
+                error instanceof Error &&
+                error.message === m.pdf_export_error_not_available()
+                    ? error.message
+                    : m.pdf_export_error_failed();
         } finally {
             isExporting = false;
         }

@@ -41,14 +41,16 @@ interface ViewerConfig {
         showFullscreen?: boolean; // Default: true
         showInfo?: boolean; // Default: true
         showViewingMode?: boolean; // Default: true
+        showStructures?: boolean; // Default: true (only visible when manifest has structures)
+        showCollection?: boolean; // Default: true (only visible when a collection is loaded)
     };
 
     // Plugin UI Settings (keyed by plugin id)
     plugins?: {
-      [pluginId: string]: {
-        visible?: boolean; // Default: true (Toolbar button visible)
-        open?: boolean; // Default: false (Plugin panel open)
-      };
+        [pluginId: string]: {
+            visible?: boolean; // Default: true (Toolbar button visible)
+            open?: boolean; // Default: false (Plugin panel open)
+        };
     };
 
     // Thumbnail Gallery Settings
@@ -82,6 +84,18 @@ interface ViewerConfig {
         width?: string; // Default: '320px'
     };
 
+    // Structures / Table of Contents Settings
+    structures?: {
+        open?: boolean; // Default: false
+        width?: string; // Default: '320px'
+    };
+
+    // Collection Navigation Settings
+    collection?: {
+        open?: boolean; // Default: false
+        width?: string; // Default: '320px'
+    };
+
     // Network Requests
     requests?: {
         headers?: Record<string, string>; // Extra headers for manifest requests
@@ -99,16 +113,16 @@ Plugin UI can be controlled from the same `config` object used for built-in pane
 
 ```typescript
 const config = {
-  plugins: {
-    'pdf-export': {
-      visible: true,
-      open: false
+    plugins: {
+        'pdf-export': {
+            visible: true,
+            open: false,
+        },
+        'image-manipulation': {
+            visible: false,
+            open: false,
+        },
     },
-    'image-manipulation': {
-      visible: false,
-      open: false
-    }
-  }
 };
 ```
 
@@ -168,6 +182,27 @@ const config = {
     *   `manifestchange`: Fired when a new manifest is loaded.
 
     The event `detail` contains a `ViewerStateSnapshot`:
+
+    ```typescript
+    interface ViewerStateSnapshot {
+        manifestId: string | null;
+        canvasId: string | null;
+        currentCanvasIndex: number;
+        showAnnotations: boolean;
+        showThumbnailGallery: boolean;
+        showSearchPanel: boolean;
+        showStructuresPanel: boolean;
+        toolbarOpen: boolean;
+        searchQuery: string;
+        isFullScreen: boolean;
+        dockSide: string;
+        viewingMode: 'individuals' | 'paged' | 'continuous';
+        viewingDirection: 'left-to-right' | 'right-to-left'
+            | 'top-to-bottom' | 'bottom-to-top';
+        galleryPosition: { x: number; y: number };
+        gallerySize: { width: number; height: number };
+    }
+    ```
 
     ```typescript
     viewer.addEventListener('statechange', (e) => {
@@ -303,46 +338,48 @@ Svelte integrations can pass a `searchProvider` prop to supply search results fr
 
 ```typescript
 type SearchProvider = (
-  query: string,
-  context: {
-    manifestId: string;
-    manifest: any;
-    canvases: any[];
-    canvasId: string | null;
-  }
-) => Promise<Array<{
-  canvasIndex: number;
-  canvasLabel: string;
-  hits: Array<{
-    type: 'hit' | 'resource';
-    before?: string;
-    match: string;
-    after?: string;
-    bounds?: number[] | null;
-    allBounds?: number[][];
-  }>;
-}>>;
+    query: string,
+    context: {
+        manifestId: string;
+        manifest: any;
+        canvases: any[];
+        canvasId: string | null;
+    },
+) => Promise<
+    Array<{
+        canvasIndex: number;
+        canvasLabel: string;
+        hits: Array<{
+            type: 'hit' | 'resource';
+            before?: string;
+            match: string;
+            after?: string;
+            bounds?: number[] | null;
+            allBounds?: number[][];
+        }>;
+    }>
+>;
 ```
 
 ```svelte
 <script>
-  import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops';
 
-  const searchProvider = async (query, context) => {
-    return [
-      {
-        canvasIndex: 0,
-        canvasLabel: 'Page 1',
-        hits: [{ type: 'hit', before: '', match: query, after: '' }]
-      }
-    ];
-  };
+    const searchProvider = async (query, context) => {
+        return [
+            {
+                canvasIndex: 0,
+                canvasLabel: 'Page 1',
+                hits: [{ type: 'hit', before: '', match: query, after: '' }],
+            },
+        ];
+    };
 </script>
 
 <TriiiceratopsViewer
-  manifestId="urn:example:manifest"
-  {manifestJson}
-  {searchProvider}
+    manifestId="urn:example:manifest"
+    {manifestJson}
+    {searchProvider}
 />
 ```
 
@@ -415,9 +452,115 @@ config = {
         maxZoomPixelRatio: 4,
         zoomPerScroll: 1.5,
         animationTime: 0.3,
-    }
+    },
 };
 ```
+
+## IIIF Collections
+
+Triiiceratops supports [IIIF Collections](https://iiif.io/api/presentation/3.0/#51-collection). When you pass a Collection URL as the `manifest-id` (or `manifestId`), the viewer automatically:
+
+1. Detects that the resource is a Collection (not a Manifest)
+2. Parses the collection's list of Manifests
+3. Loads the first Manifest automatically
+4. Shows a **Collection** button in the toolbar to browse and switch between Manifests
+
+Both IIIF Presentation API v2 (`sc:Collection`) and v3 (`Collection`) formats are supported.
+
+=== "Web Component"
+
+    ```html
+    <triiiceratops-viewer
+      manifest-id="https://iiif.io/api/cookbook/recipe/0032-collection/collection.json"
+    ></triiiceratops-viewer>
+    ```
+
+=== "Svelte Component"
+
+    ```svelte
+    <TriiiceratopsViewer
+      manifestId="https://iiif.io/api/cookbook/recipe/0032-collection/collection.json"
+    />
+    ```
+
+### Collection Configuration
+
+Control the collection panel via config:
+
+```javascript
+config = {
+    collection: {
+        open: true, // Open the collection panel on load
+        width: '400px', // Custom panel width
+    },
+    toolbar: {
+        showCollection: false, // Hide the collection toolbar button
+    },
+};
+```
+
+!!! note "Nested Collections"
+Sub-collections within a collection are listed but not yet browsable. Only Manifests can be selected and loaded.
+
+## Structures / Table of Contents
+
+Triiiceratops supports the IIIF [Structures](https://iiif.io/api/presentation/3.0/#54-range) property (also known as Ranges). When a manifest includes a `structures` array, the viewer:
+
+1. Parses the hierarchical range tree
+2. Shows a **Table of Contents** button in the toolbar
+3. Renders a collapsible tree panel for navigating between sections/chapters
+
+Clicking a range entry navigates to its first canvas. The currently active range is highlighted based on the displayed canvas.
+
+Both IIIF Presentation API v2 (`sc:Range`) and v3 (`Range`) structures are supported, including nested ranges.
+
+### Structures Configuration
+
+Control the structures panel via config:
+
+```javascript
+config = {
+    structures: {
+        open: true, // Open the TOC panel on load
+        width: '350px', // Custom panel width
+    },
+    toolbar: {
+        showStructures: false, // Hide the TOC toolbar button
+    },
+};
+```
+
+!!! tip "Single Root Range"
+When the manifest has only one top-level range, it is automatically expanded so you immediately see its children.
+
+## Start Canvas
+
+Triiiceratops supports the IIIF [`start`](https://iiif.io/api/presentation/3.0/#start) property. When a manifest specifies a `start` canvas, the viewer opens to that canvas instead of the first canvas in the sequence.
+
+This is automatic — no configuration is needed. The `start` property is read from both v2 and v3 manifests. If a `canvasId` prop is explicitly provided, it takes priority over the manifest's `start` property.
+
+## Content State API
+
+Triiiceratops supports the [IIIF Content State](https://iiif.io/api/content-state/) specification via the `iiif-content` URL parameter. This allows links that open the viewer at a specific manifest, canvas, and optional spatial region.
+
+The `iiif-content` value can be:
+
+- A plain HTTPS URL (used directly as the manifest ID)
+- A base64url-encoded JSON object following the Content State specification
+
+```
+https://your-site.com/demo?iiif-content=<base64url-encoded-content-state>
+```
+
+The viewer extracts the manifest URL, canvas ID, and `xywh` region from the decoded value and opens the viewer at that location. If a `manifest` query parameter is also present, it takes priority over `iiif-content`.
+
+## Multiple Sequences / Alternative Page Sequences
+
+When a manifest contains more than one sequence — either via multiple IIIF v2 `sequences` entries or IIIF v3 ranges with `behavior: sequence` (cookbook 0027 Alternative Page Sequences) — the toolbar shows a **sequence picker** button with a count badge.
+
+Clicking the button opens a popover listing all available sequences by label. Selecting a sequence navigates to its first canvas. The sequence picker is hidden automatically for single-sequence manifests.
+
+No configuration is required. The sequence picker appears automatically when `sequenceCount > 1`.
 
 ## Best Practices
 

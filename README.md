@@ -11,18 +11,25 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
 - **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
 - **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
-- **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL support)
+- **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom support)
+- **Start Canvas**: Supports the IIIF `start` property to open the manifest at a specific canvas
+- **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical table of contents navigation
+- **Collections**: Browse IIIF Collections and navigate between manifests within a collection; collection items with `navDate` are sorted chronologically
+- **Multiple Sequences**: Manifests with more than one sequence (including alternative page sequences via `behavior: sequence` ranges) show a sequence picker in the toolbar
 - **Annotations**:
     - Renders IIIF annotations from embedded or external annotation lists
-    - Supports rectangle (xywh) and polygon (SVG selector) geometries
-    - Toggle annotation visibility on/off
+    - Supports rectangle (`xywh`), polygon (SVG selector), and point (`PointSelector`) geometries
+    - Tagging annotations displayed as badges; full-canvas annotations listed without an overlay
+    - Toggle per-annotation or all-annotations visibility
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
+- **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
 - **IIIF Search**: Full Content Search API support with hit highlighting
+- **Content State API**: Accepts the `iiif-content` URL parameter (base64-encoded JSON or plain URL) to open a manifest at a specific canvas and region
 - **Direct Manifest Injection**: Svelte and web component consumers can pass manifest JSON directly instead of loading over HTTP
 - **Custom Search Providers**: Svelte consumers can supply local or app-backed search results without exposing an HTTP IIIF Search endpoint
-- **Metadata Display**: Shows manifest metadata, description, attribution, and license/rights
+- **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
-- **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom
+- **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
 - **Theming**: 35 built-in DaisyUI themes plus custom theme configuration
 - **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
 
@@ -33,19 +40,15 @@ This project is actively developed. The following IIIF features are not yet supp
 ### Content
 
 - **Audio/Video**: Time-based media (canvases with `duration`) not supported
-- **Multiple sequences**: Only the first sequence is read
 
 ### Navigation
 
-- **Collections**: Cannot browse IIIF Collections or navigate between manifests
-- **Ranges/Structures**: No table of contents or hierarchical navigation (book chapters, sections)
-- **`start` property**: Cannot specify initial canvas or temporal position
-- **`navDate`**: No date-based navigation for newspapers/journals
+- **Nested collections**: Only the first level of a Collection is navigable; deeply nested sub-collections are listed but not yet browsable
+- **`navDate` within manifests**: Collection items with `navDate` are sorted chronologically, but date-based browsing within a manifest (e.g., a newspaper date picker) is not yet implemented
 
 ### Annotations
 
 - **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
-- **Motivation differentiation**: All annotations rendered similarly regardless of motivation type
 
 The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
 
@@ -53,7 +56,6 @@ There is also an optional `pdf-export` plugin for downloading a selected flat ra
 
 ### Other
 
-- **`rendering` property**: No links to alternative formats (PDF, etc.)
 - **`placeholderCanvas`/`accompanyingCanvas`**: Not supported
 
 The goal is to support all IIIF client mandatory features with pluggable optional features. The footprint of Triiiceratops, despite the name, is intended to remain considerably smaller than other fully featured viewers while attaining feature parity.

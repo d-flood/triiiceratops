@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+    getCanvasNavLayout,
     getCanvasChoices,
+    getPagedCanvasGroups,
     getVisibleCanvasEntries,
     getVisibleChoiceGroups,
     shouldUseAbbreviatedChoiceLabels,
@@ -55,6 +57,13 @@ function createImageCanvas(canvasId: string) {
     };
 }
 
+function createBehaviorCanvas(canvasId: string, behavior: string | string[]) {
+    return {
+        ...createImageCanvas(canvasId),
+        behavior,
+    };
+}
+
 function createMixedCanvas(
     canvasId: string,
     options: { choiceIds: string[]; choiceIndex: number },
@@ -100,7 +109,10 @@ function createMixedCanvas(
 describe('viewerControls helpers', () => {
     describe('getCanvasChoices', () => {
         it('returns Choice items from the first painting annotation', () => {
-            const canvas = createChoiceCanvas('canvas-1', ['choice-a', 'choice-b']);
+            const canvas = createChoiceCanvas('canvas-1', [
+                'choice-a',
+                'choice-b',
+            ]);
 
             expect(getCanvasChoices(canvas)).toHaveLength(2);
         });
@@ -236,10 +248,12 @@ describe('viewerControls helpers', () => {
                 getSelectedChoice: () => undefined,
             });
 
-            expect(groups.map((group) => [group.canvasId, group.side])).toEqual([
-                ['canvas-2', 'left'],
-                ['canvas-3', 'right'],
-            ]);
+            expect(groups.map((group) => [group.canvasId, group.side])).toEqual(
+                [
+                    ['canvas-2', 'left'],
+                    ['canvas-3', 'right'],
+                ],
+            );
         });
 
         it('renders both choice groups when the selected canvas is the right page', () => {
@@ -260,10 +274,12 @@ describe('viewerControls helpers', () => {
                 getSelectedChoice: () => undefined,
             });
 
-            expect(groups.map((group) => [group.canvasId, group.side])).toEqual([
-                ['canvas-2', 'left'],
-                ['canvas-3', 'right'],
-            ]);
+            expect(groups.map((group) => [group.canvasId, group.side])).toEqual(
+                [
+                    ['canvas-2', 'left'],
+                    ['canvas-3', 'right'],
+                ],
+            );
         });
 
         it('renders only the right-side controls when only the right page has choices and it is selected', () => {
@@ -357,10 +373,12 @@ describe('viewerControls helpers', () => {
                 getSelectedChoice: () => undefined,
             });
 
-            expect(groups.map((group) => [group.canvasId, group.side])).toEqual([
-                ['canvas-2', 'right'],
-                ['canvas-3', 'left'],
-            ]);
+            expect(groups.map((group) => [group.canvasId, group.side])).toEqual(
+                [
+                    ['canvas-2', 'right'],
+                    ['canvas-3', 'left'],
+                ],
+            );
         });
 
         it('uses abbreviated labels only when both paged sides have choices', () => {
@@ -392,15 +410,89 @@ describe('viewerControls helpers', () => {
                 getSelectedChoice: () => undefined,
             });
 
-            expect(
-                shouldUseAbbreviatedChoiceLabels('paged', pagedGroups),
-            ).toBe(true);
-            expect(
-                shouldUseAbbreviatedChoiceLabels('paged', singleGroup),
-            ).toBe(false);
+            expect(shouldUseAbbreviatedChoiceLabels('paged', pagedGroups)).toBe(
+                true,
+            );
+            expect(shouldUseAbbreviatedChoiceLabels('paged', singleGroup)).toBe(
+                false,
+            );
             expect(
                 shouldUseAbbreviatedChoiceLabels('individuals', pagedGroups),
             ).toBe(false);
+        });
+    });
+
+    describe('paged canvas grouping', () => {
+        it('treats non-paged canvases as their own spread', () => {
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                createBehaviorCanvas('canvas-2', 'non-paged'),
+                createImageCanvas('canvas-3'),
+                createImageCanvas('canvas-4'),
+            ];
+
+            expect(
+                getPagedCanvasGroups(canvases, 1).map((group) =>
+                    group.entries.map((entry) => entry.canvasId),
+                ),
+            ).toEqual([['canvas-1'], ['canvas-2'], ['canvas-3', 'canvas-4']]);
+        });
+
+        it('shows only the non-paged canvas when it is selected in paged mode', () => {
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                createBehaviorCanvas('canvas-2', 'non-paged'),
+                createImageCanvas('canvas-3'),
+                createImageCanvas('canvas-4'),
+            ];
+
+            expect(
+                getVisibleCanvasEntries({
+                    canvases,
+                    currentCanvasId: 'canvas-2',
+                    currentCanvasIndex: 1,
+                    viewingMode: 'paged',
+                    pagedOffset: 1,
+                }).map((entry) => entry.canvasId),
+            ).toEqual(['canvas-2']);
+        });
+    });
+
+    describe('getCanvasNavLayout', () => {
+        it('keeps left previous and right next in LTR', () => {
+            expect(getCanvasNavLayout('left-to-right')).toEqual({
+                leftButton: 'previous',
+                rightButton: 'next',
+                leftIcon: 'left',
+                rightIcon: 'right',
+            });
+        });
+
+        it('mirrors visual nav buttons in RTL', () => {
+            expect(getCanvasNavLayout('right-to-left')).toEqual({
+                leftButton: 'next',
+                rightButton: 'previous',
+                leftIcon: 'left',
+                rightIcon: 'right',
+            });
+        });
+
+        it('uses up and down icons for top-to-bottom navigation', () => {
+            expect(getCanvasNavLayout('top-to-bottom')).toEqual({
+                leftButton: 'previous',
+                rightButton: 'next',
+                leftIcon: 'up',
+                rightIcon: 'down',
+            });
+        });
+
+        it('reverses actions while keeping up/down icons in bottom-to-top', () => {
+            expect(getCanvasNavLayout('bottom-to-top')).toEqual({
+                leftButton: 'next',
+                rightButton: 'previous',
+                leftIcon: 'up',
+                rightIcon: 'down',
+            });
         });
     });
 });
