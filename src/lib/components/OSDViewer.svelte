@@ -196,7 +196,10 @@
             id: hoveredAnnotation.id,
             text: hoveredAnnotation.tooltip,
             x: Math.min(Math.max(event.clientX, 16), window.innerWidth - 16),
-            y: Math.min(Math.max(event.clientY, 16), window.innerHeight - 16),
+            y: Math.min(
+                Math.max(event.clientY - 10, 16),
+                window.innerHeight - 16,
+            ),
             side: getTooltipSide(event.clientX, event.clientY),
         };
     }
