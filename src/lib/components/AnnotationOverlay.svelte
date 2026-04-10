@@ -31,21 +31,32 @@
         );
     }
 
+    function showAllAnnotations() {
+        viewerState.visibleAnnotationIds.clear();
+        annotations.forEach((a: any) => {
+            const id = getAnnotationId(a);
+            if (id) viewerState.visibleAnnotationIds.add(id);
+        });
+    }
+
     // Effect to initialize visibility when annotations load
     $effect(() => {
         // When annotations array changes (e.g. canvas change)
         if (annotations.length > 0) {
-            const shouldBeVisible =
+            const visibleByConfig =
                 viewerState.config.annotations?.visible ?? true;
+            const shouldBeVisible =
+                visibleByConfig ||
+                (viewerState.showAnnotations &&
+                    !viewerState.annotationVisibilityTouched);
 
+            viewerState.annotationVisibilityTouched = false;
             viewerState.visibleAnnotationIds.clear();
             if (shouldBeVisible) {
-                annotations.forEach((a: any) => {
-                    const id = getAnnotationId(a);
-                    if (id) viewerState.visibleAnnotationIds.add(id);
-                });
+                showAllAnnotations();
             }
         } else {
+            viewerState.annotationVisibilityTouched = false;
             viewerState.visibleAnnotationIds.clear();
         }
     });

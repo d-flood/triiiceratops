@@ -11,6 +11,7 @@ vi.mock('./manifests.svelte', () => ({
         registerManifest: vi.fn(),
         getManifest: vi.fn(),
         getManifestEntry: vi.fn(),
+        getAnnotations: vi.fn(() => []),
         getCanvases: vi.fn(() => []),
         getSequenceCount: vi.fn(() => 0),
     },
@@ -123,5 +124,28 @@ describe('ViewerState manifest behavior', () => {
             undefined,
         );
         expect(state.manifestId).toBe('http://example.org/manifest/1986');
+    });
+
+    it('shows current canvas annotations when opening the panel unless visibility was manually changed', () => {
+        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
+            { id: 'anno-1' },
+            { '@id': 'anno-2' },
+        ]);
+
+        state.manifestId = 'manifest-1';
+        state.canvasId = 'canvas-1';
+
+        state.toggleAnnotations();
+
+        expect(state.showAnnotations).toBe(true);
+        expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
+
+        state.visibleAnnotationIds.clear();
+        state.annotationVisibilityTouched = true;
+        state.toggleAnnotations();
+        state.toggleAnnotations();
+
+        expect(state.showAnnotations).toBe(true);
+        expect([...state.visibleAnnotationIds]).toEqual([]);
     });
 });

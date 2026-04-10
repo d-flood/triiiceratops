@@ -70,6 +70,7 @@
     });
 
     function toggleAnnotation(id: string) {
+        viewerState.annotationVisibilityTouched = true;
         if (viewerState.visibleAnnotationIds.has(id)) {
             viewerState.visibleAnnotationIds.delete(id);
         } else {
@@ -90,6 +91,7 @@
     }
 
     function toggleAllAnnotations() {
+        viewerState.annotationVisibilityTouched = true;
         if (isAllVisible) {
             // Hide all
             viewerState.visibleAnnotationIds.clear();
