@@ -463,6 +463,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('left-to-right')).toEqual({
                 leftButton: 'previous',
                 rightButton: 'next',
+                leftIcon: 'left',
+                rightIcon: 'right',
             });
         });
 
@@ -470,6 +472,26 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('right-to-left')).toEqual({
                 leftButton: 'next',
                 rightButton: 'previous',
+                leftIcon: 'left',
+                rightIcon: 'right',
+            });
+        });
+
+        it('uses up and down icons for top-to-bottom navigation', () => {
+            expect(getCanvasNavLayout('top-to-bottom')).toEqual({
+                leftButton: 'previous',
+                rightButton: 'next',
+                leftIcon: 'up',
+                rightIcon: 'down',
+            });
+        });
+
+        it('reverses actions while keeping up/down icons in bottom-to-top', () => {
+            expect(getCanvasNavLayout('bottom-to-top')).toEqual({
+                leftButton: 'next',
+                rightButton: 'previous',
+                leftIcon: 'up',
+                rightIcon: 'down',
             });
         });
     });

@@ -27,12 +27,12 @@ describe('ViewerState manifest behavior', () => {
         vi.restoreAllMocks();
     });
 
-    it('applies manifest settings when loading manifest data directly', async () => {
+    it('applies root manifest viewing direction when loading manifest data directly', async () => {
         const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
         const manifest = {
             __jsonld: {
                 start: { id: 'canvas-2' },
-                viewingDirection: 'right-to-left',
+                viewingDirection: 'top-to-bottom',
             },
             getBehavior: () => ['continuous'],
             getSequences: () => [
@@ -52,8 +52,33 @@ describe('ViewerState manifest behavior', () => {
             { id: 'manifest-1' },
         );
         expect(state.startCanvasId).toBe('canvas-2');
-        expect(state.viewingDirection).toBe('right-to-left');
+        expect(state.viewingDirection).toBe('top-to-bottom');
         expect(state.viewingMode).toBe('continuous');
+    });
+
+    it('falls back to the first sequence viewing direction when the manifest root omits it', async () => {
+        const manifest = {
+            __jsonld: {
+                start: { id: 'canvas-1' },
+            },
+            getBehavior: () => ['individuals'],
+            getSequences: () => [
+                {
+                    __jsonld: {
+                        viewingDirection: 'bottom-to-top',
+                    },
+                },
+            ],
+        };
+
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue([
+            { id: 'canvas-1' },
+        ]);
+
+        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+
+        expect(state.viewingDirection).toBe('bottom-to-top');
     });
 
     it('navigates paged spreads around non-paged canvases', () => {

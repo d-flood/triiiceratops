@@ -3,6 +3,13 @@ import { resolveLanguageValue } from './languageMap';
 
 export type TileSource = string | { type: 'image'; url: string };
 
+type RegionRect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
 export type PositionedTileSource = {
     canvasId: string;
     tileSource: TileSource;
@@ -33,6 +40,7 @@ export type ResolvedCanvasImage = {
     resourceHeight: number | null;
     serviceId: string | null;
     serviceProfile: string | null;
+    imageApiRegion: RegionRect | null;
     x: number;
     y: number;
     width: number;
@@ -85,6 +93,13 @@ function getResourceDimensions(resource: any): {
                 ? getNumericDimension(resource.getHeight())
                 : null),
     };
+}
+
+function getSpecificResourceSource(resource: any): any | null {
+    const resourceJson = resource?.__jsonld || resource;
+    return resourceJson?.type === 'SpecificResource' && resourceJson?.source
+        ? resourceJson.source
+        : null;
 }
 
 function isChoiceBody(body: any, rawBody: any): boolean {
@@ -194,13 +209,78 @@ function parseTargetRegion(annotation: any): {
     };
 }
 
+function parseImageApiRegionValue(
+    value: unknown,
+    resourceDimensions: { width: number | null; height: number | null },
+): RegionRect | null {
+    if (typeof value !== 'string' || !value.trim()) {
+        return null;
+    }
+
+    const trimmed = value.trim();
+    const isPercent = trimmed.startsWith('pct:');
+    const raw = isPercent ? trimmed.slice(4) : trimmed;
+    const parts = raw.split(',').map((part) => Number(part.trim()));
+
+    if (
+        parts.length !== 4 ||
+        parts.some((part) => !Number.isFinite(part) || part < 0)
+    ) {
+        return null;
+    }
+
+    if (!isPercent) {
+        return {
+            x: parts[0],
+            y: parts[1],
+            width: parts[2],
+            height: parts[3],
+        };
+    }
+
+    if (
+        typeof resourceDimensions.width !== 'number' ||
+        typeof resourceDimensions.height !== 'number'
+    ) {
+        return null;
+    }
+
+    return {
+        x: (parts[0] / 100) * resourceDimensions.width,
+        y: (parts[1] / 100) * resourceDimensions.height,
+        width: (parts[2] / 100) * resourceDimensions.width,
+        height: (parts[3] / 100) * resourceDimensions.height,
+    };
+}
+
+function parseImageApiSelectorRegion(
+    resource: any,
+    resourceDimensions: { width: number | null; height: number | null },
+): RegionRect | null {
+    const resourceJson = resource?.__jsonld || resource;
+    return parseImageApiRegionValue(
+        resourceJson?.selector?.type === 'ImageApiSelector'
+            ? resourceJson.selector.region
+            : null,
+        resourceDimensions,
+    );
+}
+
+function getRegionString(region: RegionRect): string {
+    return [region.x, region.y, region.width, region.height]
+        .map((value) => Math.round(value))
+        .join(',');
+}
+
 function hasResourceContent(resource: any): boolean {
     const resourceJson = resource?.__jsonld || resource;
+    const specificResourceSource = getSpecificResourceSource(resource);
     return !!(
         resource &&
         (resource.id ||
             resource['@id'] ||
             resourceJson?.service ||
+            specificResourceSource ||
             resourceJson?.id ||
             resourceJson?.['@id'])
     );
@@ -411,11 +491,13 @@ export function resolveAllCanvasImages(
 
     return annotations
         .map((annotation) => {
-            const resource = getAnnotationResource(
+            const rawResource = getAnnotationResource(
                 annotation,
                 canvasId,
                 options.getSelectedChoice,
             );
+            const resource =
+                getSpecificResourceSource(rawResource) || rawResource;
 
             if (!resource) {
                 return null;
@@ -427,16 +509,23 @@ export function resolveAllCanvasImages(
             const serviceId =
                 serviceDetails.serviceId || getHeuristicServiceId(resourceId);
             const region = parseTargetRegion(annotation);
+            const imageApiRegion = parseImageApiSelectorRegion(
+                rawResource,
+                resourceDimensions,
+            );
 
             return {
                 canvasId,
                 annotation,
                 resource,
                 resourceId,
-                resourceWidth: resourceDimensions.width,
-                resourceHeight: resourceDimensions.height,
+                resourceWidth:
+                    imageApiRegion?.width || resourceDimensions.width,
+                resourceHeight:
+                    imageApiRegion?.height || resourceDimensions.height,
                 serviceId,
                 serviceProfile: serviceDetails.serviceProfile,
+                imageApiRegion,
                 x: region ? region.x / canvasDimensions.width : 0,
                 y: region ? region.y / canvasDimensions.width : 0,
                 width: region ? region.width / canvasDimensions.width : 1,
@@ -452,6 +541,16 @@ export function getCanvasTileSource(
     const resolved = resolveCanvasImage(canvas, options);
     if (!resolved) {
         return null;
+    }
+
+    if (resolved.serviceId && resolved.imageApiRegion) {
+        return {
+            type: 'image',
+            url: buildIiifImageRequestUrl(resolved.serviceId, {
+                region: getRegionString(resolved.imageApiRegion),
+                size: 'max',
+            }),
+        };
     }
 
     if (resolved.serviceId) {
@@ -473,7 +572,15 @@ export function getCanvasTileSources(
         .map((resolved) => {
             let tileSource: TileSource | null = null;
 
-            if (resolved.serviceId) {
+            if (resolved.serviceId && resolved.imageApiRegion) {
+                tileSource = {
+                    type: 'image',
+                    url: buildIiifImageRequestUrl(resolved.serviceId, {
+                        region: getRegionString(resolved.imageApiRegion),
+                        size: 'max',
+                    }),
+                };
+            } else if (resolved.serviceId) {
                 tileSource = `${resolved.serviceId}/info.json`;
             } else if (resolved.resourceId) {
                 tileSource = { type: 'image', url: resolved.resourceId };
@@ -497,6 +604,8 @@ export function getCanvasTileSources(
 export function buildIiifImageRequestUrl(
     serviceId: string,
     options: {
+        region?: string;
+        size?: string;
         width?: number;
         height?: number;
         quality?: string;
@@ -506,6 +615,7 @@ export function buildIiifImageRequestUrl(
     },
 ): string {
     const base = normalizeServiceId(serviceId);
+    const region = options.region || 'full';
     const quality = options.quality || 'default';
     const format = options.format || 'jpg';
     const width =
@@ -516,9 +626,9 @@ export function buildIiifImageRequestUrl(
         typeof options.height === 'number'
             ? Math.max(1, Math.round(options.height))
             : null;
-    const size = width ? `${width},` : `,${height || 1600}`;
+    const size = options.size || (width ? `${width},` : `,${height || 1600}`);
 
-    return `${base}/full/${size}/0/${quality}.${format}`;
+    return `${base}/${region}/${size}/0/${quality}.${format}`;
 }
 
 export function getViewerTileSources({
