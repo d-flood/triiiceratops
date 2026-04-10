@@ -101,3 +101,4 @@ storybook-static/
 __pycache__
 site/
 docs/demo*
+docs/viewer*

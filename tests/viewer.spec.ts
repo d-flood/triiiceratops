@@ -35,5 +35,20 @@ test.describe('Triiiceratops Viewer', () => {
         if (await toggleButton.isVisible()) {
             await expect(toggleButton).toBeVisible();
         }
+
+        const annotationsButton = page
+            .locator(
+                '#triiiceratops-viewer button[aria-label*="annotations" i]',
+            )
+            .first();
+        if (await annotationsButton.isVisible()) {
+            const panel = page.getByRole('dialog', { name: 'Annotations' });
+
+            await annotationsButton.click();
+            await expect(panel).toBeVisible();
+
+            await annotationsButton.click();
+            await expect(panel).toBeHidden();
+        }
     });
 });

@@ -314,15 +314,23 @@
             }
 
             if (geometry.type === 'RECTANGLE') {
-                const imageRect = canvasRectToImageRect(
-                    {
-                        x: geometry.x,
-                        y: geometry.y,
-                        width: geometry.w,
-                        height: geometry.h,
-                    },
-                    currentCanvasImageDimensions,
-                );
+                const imageRect =
+                    anno.coordinateSpace === 'canvas'
+                        ? canvasRectToImageRect(
+                              {
+                                  x: geometry.x,
+                                  y: geometry.y,
+                                  width: geometry.w,
+                                  height: geometry.h,
+                              },
+                              currentCanvasImageDimensions,
+                          )
+                        : {
+                              x: geometry.x,
+                              y: geometry.y,
+                              width: geometry.w,
+                              height: geometry.h,
+                          };
 
                 // Convert image coordinates to viewport coordinates
                 const viewportRect = tiledImage.imageToViewportRectangle(
@@ -353,10 +361,15 @@
                 });
             } else if (geometry.type === 'POLYGON') {
                 // Convert each point from image to viewport to pixel
-                const pixelPoints = canvasPointsToImagePoints(
-                    geometry.points,
-                    currentCanvasImageDimensions,
-                ).map((point) => {
+                const imagePoints =
+                    anno.coordinateSpace === 'canvas'
+                        ? canvasPointsToImagePoints(
+                              geometry.points,
+                              currentCanvasImageDimensions,
+                          )
+                        : geometry.points;
+
+                const pixelPoints = imagePoints.map((point) => {
                     const viewportPoint = tiledImage.imageToViewportCoordinates(
                         new OSD.Point(point[0], point[1]),
                     );
@@ -400,10 +413,13 @@
                     tooltip: anno.body.map((b) => b.value).join(' '),
                 });
             } else if (geometry.type === 'POINT') {
-                const imagePoint = canvasPointToImagePoint(
-                    { x: geometry.x, y: geometry.y },
-                    currentCanvasImageDimensions,
-                );
+                const imagePoint =
+                    anno.coordinateSpace === 'canvas'
+                        ? canvasPointToImagePoint(
+                              { x: geometry.x, y: geometry.y },
+                              currentCanvasImageDimensions,
+                          )
+                        : { x: geometry.x, y: geometry.y };
                 const viewportPoint = tiledImage.imageToViewportCoordinates(
                     new OSD.Point(imagePoint.x, imagePoint.y),
                 );

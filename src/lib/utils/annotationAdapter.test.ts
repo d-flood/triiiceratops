@@ -31,6 +31,8 @@ describe('annotationAdapter', () => {
                     'Geometry should be RECTANGLE type with x, y, w, h',
                 );
             }
+
+            expect(result.coordinateSpace).toBe('image');
         });
 
         it('should extract SVG selector geometry', () => {
@@ -93,6 +95,7 @@ describe('annotationAdapter', () => {
             }
 
             expect(result?.body[0].value).toBe('Manifesto Body');
+            expect(result?.coordinateSpace).toBe('image');
         });
 
         it('should return null for invalid annotations with no geometry', () => {
@@ -132,6 +135,7 @@ describe('annotationAdapter', () => {
                 h: 600,
             });
             expect(result?.isFullCanvasTarget).toBe(true);
+            expect(result?.coordinateSpace).toBe('canvas');
             expect(result?.body[0]).toMatchObject({
                 value: '<p>Hello</p>',
                 isHtml: true,
@@ -153,6 +157,9 @@ describe('annotationAdapter', () => {
             expect(isFullCanvasAnnotation(annotation)).toBe(false);
             expect(parseAnnotation(annotation, 6)?.isFullCanvasTarget).toBe(
                 false,
+            );
+            expect(parseAnnotation(annotation, 6)?.coordinateSpace).toBe(
+                'canvas',
             );
         });
 
@@ -187,6 +194,56 @@ describe('annotationAdapter', () => {
                 value: 'Town Creek Aqueduct',
                 format: 'text/plain',
             });
+        });
+
+        it('should keep image-target fragment annotations in image space', () => {
+            const annotation = {
+                id: 'image-fragment',
+                target: 'http://example.org/image1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            expect(parseAnnotation(annotation, 7)?.coordinateSpace).toBe(
+                'image',
+            );
+        });
+
+        it('should treat manifest annotations as image space by default', () => {
+            const annotation = {
+                id: 'manifest-fragment',
+                target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+                __triiiceratopsAnnotationOrigin: 'manifest',
+            };
+
+            expect(parseAnnotation(annotation, 8)?.coordinateSpace).toBe(
+                'image',
+            );
+        });
+
+        it('should treat user annotations as canvas space by default', () => {
+            const annotation = {
+                id: 'user-fragment',
+                target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+                __triiiceratopsAnnotationOrigin: 'user',
+            };
+
+            expect(parseAnnotation(annotation, 9)?.coordinateSpace).toBe(
+                'canvas',
+            );
         });
     });
 });
