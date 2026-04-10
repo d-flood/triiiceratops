@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.3
+
+### Patch Changes
+
+- 5bbc06f: fix annotations and demo url state
+
 ## 1.0.0-rc.2
 
 ### Patch Changes
