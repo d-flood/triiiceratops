@@ -1079,6 +1079,19 @@ describe('ViewerState - IIIF Search', () => {
                     id: 'http://example.org/collection',
                     type: 'Collection',
                     label: { none: ['Test collection'] },
+                    thumbnail: [
+                        {
+                            id: 'http://example.org/collection-thumb/full/max/0/default.jpg',
+                            type: 'Image',
+                            service: [
+                                {
+                                    id: 'http://example.org/collection-thumb',
+                                    type: 'ImageService3',
+                                    profile: 'level1',
+                                },
+                            ],
+                        },
+                    ],
                     items: [
                         {
                             id: 'http://example.org/manifest/in-collection',
@@ -1107,6 +1120,9 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.showCollectionPanel).toBe(true);
             expect(state.collectionId).toBe('http://example.org/collection');
             expect(state.collectionLabel).toBe('Test collection');
+            expect(state.collectionThumbnail).toBe(
+                'http://example.org/collection-thumb/full/200,/0/default.jpg',
+            );
             expect(state.collectionItems).toHaveLength(1);
             expect(state.hasCollection).toBe(true);
             expect(state.manifestId).toBe(
@@ -1118,6 +1134,7 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.showCollectionPanel).toBe(true);
             expect(state.collectionId).toBeNull();
             expect(state.collectionLabel).toBe('');
+            expect(state.collectionThumbnail).toBe('');
             expect(state.collectionItems).toEqual([]);
             expect(state.hasCollection).toBe(false);
             expect(state.manifestId).toBe('http://example.org/plain-manifest');

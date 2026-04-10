@@ -9,6 +9,7 @@
  */
 
 import { resolveLanguageValue } from './languageMap';
+import { resolveThumbnailResourceSrc } from './getThumbnailSrc';
 
 export interface CollectionItem {
     /** The manifest or collection id (URI) */
@@ -34,17 +35,7 @@ function resolveLabel(label: any): string {
 function extractThumbnail(item: any): string | undefined {
     if (!item.thumbnail) return undefined;
 
-    const thumbs = Array.isArray(item.thumbnail)
-        ? item.thumbnail
-        : [item.thumbnail];
-
-    for (const t of thumbs) {
-        if (typeof t === 'string') return t;
-        if (t.id) return t.id;
-        if (t['@id']) return t['@id'];
-    }
-
-    return undefined;
+    return resolveThumbnailResourceSrc(item.thumbnail) || undefined;
 }
 
 function extractNavDate(item: any): string | undefined {
@@ -66,6 +57,13 @@ export function isCollection(json: any): boolean {
  */
 export function getCollectionLabel(json: any): string {
     return resolveLabel(json?.label) || 'Collection';
+}
+
+/**
+ * Get the thumbnail of a collection from its JSON.
+ */
+export function getCollectionThumbnail(json: any): string | undefined {
+    return extractThumbnail(json);
 }
 
 /**

@@ -14,6 +14,7 @@ import {
     isCollection,
     parseCollection,
     getCollectionLabel,
+    getCollectionThumbnail,
     sortCollectionItems,
     type CollectionItem,
 } from '../utils/collections';
@@ -119,6 +120,7 @@ export class ViewerState {
     // Collection state
     collectionId: string | null = $state(null);
     collectionLabel: string = $state('');
+    collectionThumbnail: string = $state('');
     collectionItems: CollectionItem[] = $state([]);
     showCollectionPanel = $state(false);
 
@@ -485,6 +487,7 @@ export class ViewerState {
         if (isCollection(json)) {
             this.collectionId = manifestId;
             this.collectionLabel = getCollectionLabel(json);
+            this.collectionThumbnail = getCollectionThumbnail(json) || '';
             this.collectionItems = sortCollectionItems(parseCollection(json));
 
             // Auto-load the first manifest in the collection
@@ -501,6 +504,7 @@ export class ViewerState {
         // Normal manifest flow: register the already-fetched JSON
         this.collectionId = null;
         this.collectionLabel = '';
+        this.collectionThumbnail = '';
         this.collectionItems = [];
         this.manifestId = manifestId;
         this.canvasId = null;
