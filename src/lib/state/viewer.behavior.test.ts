@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { collectionV3WithNavDates } from '../test/fixtures/manifests';
 import { ViewerState } from './viewer.svelte';
 import { manifestsState } from './manifests.svelte';
 
@@ -77,5 +78,25 @@ describe('ViewerState manifest behavior', () => {
 
         state.previousCanvas();
         expect(state.canvasId).toBe('canvas-2');
+    });
+
+    it('auto-loads the earliest manifest when opening a chronology collection', async () => {
+        vi.mocked(manifestsState.fetchResource).mockResolvedValue(
+            collectionV3WithNavDates,
+        );
+
+        await state.setManifest('http://example.org/collection/navdate');
+
+        expect(state.collectionItems.map((item) => item.id)).toEqual([
+            'http://example.org/manifest/1986',
+            'http://example.org/manifest/1987',
+            'http://example.org/collection/subcollection',
+            'http://example.org/manifest/undated',
+        ]);
+        expect(manifestsState.fetchManifest).toHaveBeenCalledWith(
+            'http://example.org/manifest/1986',
+            undefined,
+        );
+        expect(state.manifestId).toBe('http://example.org/manifest/1986');
     });
 });
