@@ -112,6 +112,7 @@
         "@annotorious/openseadragon": "^3.7.19",
         "@tailwindcss/vite": "^4.1.17",
         "daisyui": "^5.5.8",
+        "dompurify": "^3.3.3",
         "manifesto.js": "^4.3.0",
         "openseadragon": "^5.0.1",
         "pdf-lib": "^1.17.1",

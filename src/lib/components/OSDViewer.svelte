@@ -9,6 +9,12 @@
     } from './osdDefaults';
     import { resolveTileSources } from './osdTileSources';
     import { parseAnnotations } from '../utils/annotationAdapter';
+    import {
+        canvasPointToImagePoint,
+        canvasPointsToImagePoints,
+        canvasRectToImageRect,
+    } from '../utils/canvasImageSpace';
+    import { resolveCanvasImage } from '../utils/resolveCanvasImage';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
 
@@ -240,6 +246,41 @@
         return editorPanel?.isVisible() ?? false;
     });
 
+    let currentCanvasImageDimensions = $derived.by(() => {
+        if (!viewerState.manifestId || !viewerState.canvasId) {
+            return null;
+        }
+
+        const canvas = manifestsState
+            .getCanvases(viewerState.manifestId)
+            .find((entry: any) => {
+                const id =
+                    entry?.id ||
+                    entry?.['@id'] ||
+                    entry?.__jsonld?.id ||
+                    entry?.__jsonld?.['@id'] ||
+                    entry?.getCanvasId?.() ||
+                    entry?.getId?.();
+                return id === viewerState.canvasId;
+            });
+
+        const resolved = canvas ? resolveCanvasImage(canvas) : null;
+        if (
+            !resolved ||
+            typeof resolved.resourceWidth !== 'number' ||
+            typeof resolved.resourceHeight !== 'number'
+        ) {
+            return null;
+        }
+
+        return {
+            canvasWidth: resolved.canvasWidth,
+            canvasHeight: resolved.canvasHeight,
+            imageWidth: resolved.resourceWidth,
+            imageHeight: resolved.resourceHeight,
+        };
+    });
+
     // Rendered annotations with pixel coordinates
     let renderedAnnotations = $derived.by(() => {
         // Depend on osdVersion to trigger updates
@@ -273,12 +314,22 @@
             }
 
             if (geometry.type === 'RECTANGLE') {
+                const imageRect = canvasRectToImageRect(
+                    {
+                        x: geometry.x,
+                        y: geometry.y,
+                        width: geometry.w,
+                        height: geometry.h,
+                    },
+                    currentCanvasImageDimensions,
+                );
+
                 // Convert image coordinates to viewport coordinates
                 const viewportRect = tiledImage.imageToViewportRectangle(
-                    geometry.x,
-                    geometry.y,
-                    geometry.w,
-                    geometry.h,
+                    imageRect.x,
+                    imageRect.y,
+                    imageRect.width,
+                    imageRect.height,
                 );
 
                 // Convert viewport to pixel coordinates
@@ -302,7 +353,10 @@
                 });
             } else if (geometry.type === 'POLYGON') {
                 // Convert each point from image to viewport to pixel
-                const pixelPoints = geometry.points.map((point) => {
+                const pixelPoints = canvasPointsToImagePoints(
+                    geometry.points,
+                    currentCanvasImageDimensions,
+                ).map((point) => {
                     const viewportPoint = tiledImage.imageToViewportCoordinates(
                         new OSD.Point(point[0], point[1]),
                     );
@@ -346,8 +400,12 @@
                     tooltip: anno.body.map((b) => b.value).join(' '),
                 });
             } else if (geometry.type === 'POINT') {
+                const imagePoint = canvasPointToImagePoint(
+                    { x: geometry.x, y: geometry.y },
+                    currentCanvasImageDimensions,
+                );
                 const viewportPoint = tiledImage.imageToViewportCoordinates(
-                    new OSD.Point(geometry.x, geometry.y),
+                    new OSD.Point(imagePoint.x, imagePoint.y),
                 );
                 const pixelPoint =
                     viewer.viewport.viewportToViewerElementCoordinates(
@@ -456,11 +514,15 @@
                 const region = viewerState.initialCanvasRegion;
                 const tiledImage = viewer.world.getItemAt(0);
                 if (region && tiledImage) {
+                    const imageRect = canvasRectToImageRect(
+                        region,
+                        currentCanvasImageDimensions,
+                    );
                     const viewportRect = tiledImage.imageToViewportRectangle(
-                        region.x,
-                        region.y,
-                        region.width,
-                        region.height,
+                        imageRect.x,
+                        imageRect.y,
+                        imageRect.width,
+                        imageRect.height,
                     );
                     viewer.viewport.fitBounds(viewportRect, true);
                     viewerState.setInitialCanvasRegion(null);
