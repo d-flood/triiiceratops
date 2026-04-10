@@ -5,7 +5,10 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
     import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import {
+        resolveAllLanguageValues,
+        resolveLanguageValue,
+    } from '../utils/languageMap';
     import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -27,6 +30,10 @@
     let manifestThumbnail = $derived.by(() => {
         return resolveThumbnailResourceSrc(json?.thumbnail);
     });
+
+    function resolveHtmlValues(value: unknown, locale?: string): string {
+        return resolveAllLanguageValues(value, locale).join('<br />');
+    }
 
     // --- Summary (v3) or Description (v2) ---
     let summary = $derived.by(() => {
@@ -56,9 +63,9 @@
             }
 
             if (source.value) {
-                value = resolveLanguageValue(source.value, currentLang);
+                value = resolveHtmlValues(source.value, currentLang);
             } else if (item.getValue) {
-                value = resolveLanguageValue(item.getValue(), currentLang);
+                value = resolveHtmlValues(item.getValue(), currentLang);
             }
 
             return { label, value };
@@ -78,7 +85,7 @@
     let attribution = $derived.by(() => {
         const statement = json?.requiredStatement;
         if (statement?.value) {
-            return resolveLanguageValue(statement.value, viewerLocale);
+            return resolveHtmlValues(statement.value, viewerLocale);
         }
 
         return manifest ? manifest.getRequiredStatement()?.getValue() : '';
