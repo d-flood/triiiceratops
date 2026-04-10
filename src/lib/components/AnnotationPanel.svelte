@@ -53,6 +53,7 @@
             return {
                 id: getAnnotationId(anno),
                 bodies,
+                isSearchHit: Boolean(anno.isSearchHit),
                 label:
                     (typeof anno.getLabel === 'function'
                         ? anno.getLabel()
@@ -61,21 +62,28 @@
         });
     });
 
+    let toggleableAnnotations = $derived(
+        renderedAnnotations.filter((anno) => !anno.isSearchHit),
+    );
+
     // Derived state for "All Visible" status
     let isAllVisible = $derived.by(() => {
-        if (annotations.length === 0) return false;
-        return annotations.every((a: any) => {
-            const id = getAnnotationId(a);
-            return !id || viewerState.visibleAnnotationIds.has(id);
+        if (toggleableAnnotations.length === 0) return false;
+        return toggleableAnnotations.every((anno) => {
+            return !anno.id || viewerState.visibleAnnotationIds.has(anno.id);
         });
     });
 
-    function toggleAnnotation(id: string) {
+    function toggleAnnotation(anno: { id: string; isSearchHit: boolean }) {
+        if (anno.isSearchHit || !anno.id) {
+            return;
+        }
+
         viewerState.annotationVisibilityTouched = true;
-        if (viewerState.visibleAnnotationIds.has(id)) {
-            viewerState.visibleAnnotationIds.delete(id);
+        if (viewerState.visibleAnnotationIds.has(anno.id)) {
+            viewerState.visibleAnnotationIds.delete(anno.id);
         } else {
-            viewerState.visibleAnnotationIds.add(id);
+            viewerState.visibleAnnotationIds.add(anno.id);
         }
     }
 
@@ -99,9 +107,8 @@
         } else {
             // Show all
             viewerState.visibleAnnotationIds.clear();
-            annotations.forEach((a: any) => {
-                const id = getAnnotationId(a);
-                if (id) viewerState.visibleAnnotationIds.add(id);
+            toggleableAnnotations.forEach((anno) => {
+                if (anno.id) viewerState.visibleAnnotationIds.add(anno.id);
             });
         }
     }
@@ -151,7 +158,7 @@
             <button
                 class="btn btn-sm btn-ghost gap-2"
                 onclick={toggleAllAnnotations}
-                disabled={annotations.length === 0}
+                disabled={toggleableAnnotations.length === 0}
             >
                 {#if isAllVisible}
                     <Eye size={16} />
@@ -168,16 +175,19 @@
             class="flex-1 overflow-y-auto p-0 flex flex-col divide-y divide-base-300"
         >
             {#each renderedAnnotations as anno, i (anno.id)}
-                {@const isVisible = viewerState.visibleAnnotationIds.has(
-                    anno.id,
-                )}
+                {@const isVisible =
+                    anno.isSearchHit ||
+                    viewerState.visibleAnnotationIds.has(anno.id)}
                 <!-- List Item Row -->
                 <div
-                    class="w-full text-left p-4 hover:bg-base-100 transition-colors cursor-pointer flex gap-3 group/item items-start focus:outline-none focus:bg-base-100 relative {isVisible
+                    class="w-full text-left p-4 hover:bg-base-100 transition-colors flex gap-3 group/item items-start focus:outline-none focus:bg-base-100 relative {anno.isSearchHit
+                        ? 'cursor-default'
+                        : 'cursor-pointer'} {isVisible
                         ? ''
                         : 'opacity-60 bg-base-200/50'}"
                     role="button"
                     tabindex="0"
+                    aria-disabled={anno.isSearchHit}
                     id="annotation-list-item-{anno.id}"
                     onmouseenter={() =>
                         (viewerState.hoveredAnnotationId = anno.id)}
@@ -188,21 +198,25 @@
                             return;
                         }
                         e.preventDefault();
-                        toggleAnnotation(anno.id);
+                        toggleAnnotation(anno);
                     }}
                     onkeypress={(e) => {
+                        if (anno.isSearchHit) {
+                            return;
+                        }
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            toggleAnnotation(anno.id);
+                            toggleAnnotation(anno);
                         }
                     }}
                 >
                     <!-- Visual Toggle Indicator (eye icon button) -->
                     <button
                         class="btn btn-xs btn-circle btn-ghost mt-0.5 shrink-0"
+                        disabled={anno.isSearchHit}
                         onclick={(e) => {
                             e.stopPropagation();
-                            toggleAnnotation(anno.id);
+                            toggleAnnotation(anno);
                         }}
                     >
                         {#if isVisible}

@@ -114,11 +114,6 @@ export interface AnnotationsConfig {
      */
     open?: boolean;
     /**
-     * Whether annotations are currently visible on the canvas.
-     * @default false
-     */
-    visible?: boolean;
-    /**
      * Whether to show the close button.
      * @default true
      */

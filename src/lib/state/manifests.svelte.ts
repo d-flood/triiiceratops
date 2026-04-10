@@ -366,7 +366,18 @@ export class ManifestsState {
         }
 
         // Get user-created annotations
-        const userAnnos = this.getUserAnnotations(manifestId, canvasId);
+        const userAnnos = this.getUserAnnotations(manifestId, canvasId).map(
+            (annotation) => {
+                if (!annotation || typeof annotation !== 'object') {
+                    return annotation;
+                }
+
+                return {
+                    ...annotation,
+                    __triiiceratopsAnnotationOrigin: 'user',
+                };
+            },
+        );
         // Merge both sources
         return [...manifestAnnos, ...userAnnos];
     }
@@ -394,6 +405,7 @@ export class ManifestsState {
                     width: canvasJson.width,
                     height: canvasJson.height,
                 },
+                __triiiceratopsAnnotationOrigin: 'manifest',
             };
         };
 

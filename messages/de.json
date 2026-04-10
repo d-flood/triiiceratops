@@ -80,7 +80,6 @@
     "settings_submenu_search": "Suche",
     "settings_submenu_annotations": "Annotationen",
     "settings_toggle_panel_open": "Panel geöffnet",
-    "settings_toggle_visible_by_default": "Sichtbar",
     "copy_config": "Konfiguration kopieren",
     "copied": "Kopiert!",
     "viewer_variant_svelte_component_tooltip": "Svelte-Komponente (keine Web-Komponente)",
