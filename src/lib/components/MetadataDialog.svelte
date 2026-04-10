@@ -4,6 +4,7 @@
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
+    import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
     import { resolveLanguageValue } from '../utils/languageMap';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -23,12 +24,7 @@
     });
 
     let manifestThumbnail = $derived.by(() => {
-        const thumbnail = json?.thumbnail;
-        if (!thumbnail) return '';
-
-        const first = Array.isArray(thumbnail) ? thumbnail[0] : thumbnail;
-        if (typeof first === 'string') return first;
-        return first?.id || first?.['@id'] || '';
+        return resolveThumbnailResourceSrc(json?.thumbnail);
     });
 
     // --- Summary (v3) or Description (v2) ---
@@ -182,7 +178,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-4">
-            <h3 class="font-bold text-lg mb-4 break-words">{title}</h3>
+            <h3 class="font-bold text-lg mb-4 wrap-break-word">{title}</h3>
 
             {#if manifestThumbnail}
                 <div class="mb-4">

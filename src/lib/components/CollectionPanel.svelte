@@ -6,10 +6,13 @@
     import { m } from '../state/i18n.svelte';
     import { sortCollectionItems } from '../utils/collections';
 
-    const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    const viewerState = getContext<
+        ViewerState & { collectionThumbnail: string }
+    >(VIEWER_STATE_KEY);
 
     let items = $derived(sortCollectionItems(viewerState.collectionItems));
     let collectionLabel = $derived(viewerState.collectionLabel);
+    let collectionThumbnail = $derived(viewerState.collectionThumbnail);
     let currentManifestId = $derived(viewerState.manifestId);
     let panelWidth = $derived(viewerState.config.collection?.width ?? '320px');
 
@@ -42,7 +45,15 @@
             class="flex items-center justify-between p-4 border-b border-base-300"
         >
             <div class="flex items-center gap-2 min-w-0">
-                <Folder size={20} weight="bold" class="shrink-0" />
+                {#if collectionThumbnail}
+                    <img
+                        src={collectionThumbnail}
+                        alt=""
+                        class="w-8 h-8 object-cover rounded-md shrink-0 border border-base-300 bg-base-100"
+                    />
+                {:else}
+                    <Folder size={20} weight="bold" class="shrink-0" />
+                {/if}
                 <h2 class="font-bold text-lg truncate">
                     {collectionLabel || m.collection_title()}
                 </h2>
