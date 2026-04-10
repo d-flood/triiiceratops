@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { collectionV3WithNavDates } from '../test/fixtures/manifests';
 import {
+    getCollectionThumbnail,
     parseCollection,
     sortCollectionItems,
     type CollectionItem,
@@ -104,6 +105,65 @@ describe('collection helpers', () => {
                 navDate: undefined,
             },
         ]);
+    });
+
+    it('resolves collection item thumbnails through their image service', () => {
+        const collection = {
+            type: 'Collection',
+            items: [
+                {
+                    id: 'http://example.org/manifest/a',
+                    type: 'Manifest',
+                    label: { en: ['Manifest A'] },
+                    thumbnail: [
+                        {
+                            id: 'http://example.org/thumb/full/max/0/default.jpg',
+                            type: 'Image',
+                            service: [
+                                {
+                                    id: 'http://example.org/thumb',
+                                    type: 'ImageService3',
+                                    profile: 'level1',
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(parseCollection(collection)).toEqual([
+            {
+                id: 'http://example.org/manifest/a',
+                type: 'Manifest',
+                label: 'Manifest A',
+                thumbnail: 'http://example.org/thumb/full/200,/0/default.jpg',
+                navDate: undefined,
+            },
+        ]);
+    });
+
+    it('resolves the collection thumbnail through its image service', () => {
+        const collection = {
+            type: 'Collection',
+            thumbnail: [
+                {
+                    id: 'http://example.org/collection-thumb/full/max/0/default.jpg',
+                    type: 'Image',
+                    service: [
+                        {
+                            id: 'http://example.org/collection-thumb',
+                            type: 'ImageService3',
+                            profile: 'level1',
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(getCollectionThumbnail(collection)).toBe(
+            'http://example.org/collection-thumb/full/200,/0/default.jpg',
+        );
     });
 
     it('sorts items chronologically and places undated items last', () => {

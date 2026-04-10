@@ -1,3 +1,61 @@
+function normalizeServiceId(serviceId: string): string {
+    return serviceId.endsWith('/info.json')
+        ? serviceId.slice(0, -'/info.json'.length)
+        : serviceId;
+}
+
+function getThumbnailServiceUrl(service: any, size: number): string {
+    let profile: unknown = '';
+    try {
+        profile = service?.getProfile
+            ? service.getProfile()
+            : (service?.profile as unknown) || '';
+        if (typeof profile === 'object' && profile) {
+            const pObj = profile as Record<string, unknown>;
+            profile =
+                (pObj.value as string | undefined) ||
+                (pObj.id as string | undefined) ||
+                (pObj['@id'] as string | undefined) ||
+                JSON.stringify(pObj);
+        }
+    } catch {
+        // ignore
+    }
+
+    const pStr = String(profile ?? '').toLowerCase();
+    const isLevel0 = pStr.includes('level0') || pStr.includes('level-0');
+    const serviceId = normalizeServiceId(service?.id || service?.['@id'] || '');
+
+    return !isLevel0 && serviceId
+        ? `${serviceId}/full/${size},/0/default.jpg`
+        : '';
+}
+
+export function resolveThumbnailResourceSrc(
+    thumbnail: any,
+    size = 200,
+): string {
+    if (!thumbnail) return '';
+
+    const resource = Array.isArray(thumbnail) ? thumbnail[0] : thumbnail;
+    if (!resource) return '';
+    if (typeof resource === 'string') return resource;
+
+    const resourceJson = resource.__jsonld || resource;
+    const services = resourceJson?.service
+        ? Array.isArray(resourceJson.service)
+            ? resourceJson.service
+            : [resourceJson.service]
+        : resource?.getServices?.() || [];
+
+    for (const service of services) {
+        const url = getThumbnailServiceUrl(service, size);
+        if (url) return url;
+    }
+
+    return resourceJson?.id || resourceJson?.['@id'] || '';
+}
+
 /**
  * Extract a thumbnail URL from a Manifesto canvas object.
  *
@@ -14,10 +72,7 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
         if (canvas.getThumbnail) {
             const thumb = canvas.getThumbnail();
             if (thumb) {
-                src =
-                    typeof thumb === 'string'
-                        ? thumb
-                        : thumb.id || thumb['@id'] || '';
+                src = resolveThumbnailResourceSrc(thumb, size);
             }
         }
     } catch {
@@ -42,15 +97,13 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
             // v3 fallback: getBody
             if (!resource && annotation.getBody) {
                 const body = annotation.getBody();
-                const rawBody =
-                    annotation.__jsonld?.body || annotation.body;
+                const rawBody = annotation.__jsonld?.body || annotation.body;
                 const isChoiceBody =
                     rawBody?.type === 'Choice' ||
                     rawBody?.type === 'oa:Choice' ||
                     (body &&
                         !Array.isArray(body) &&
-                        (body.type === 'Choice' ||
-                            body.type === 'oa:Choice'));
+                        (body.type === 'Choice' || body.type === 'oa:Choice'));
 
                 if (isChoiceBody) {
                     let items: any[] = [];
@@ -75,8 +128,7 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
                 resource &&
                 !resource.id &&
                 !resource.__jsonld &&
-                (!resource.getServices ||
-                    resource.getServices().length === 0)
+                (!resource.getServices || resource.getServices().length === 0)
             ) {
                 resource = null;
             }
@@ -85,10 +137,7 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
                 const json = annotation.__jsonld || annotation;
                 if (json.body) {
                     let body = json.body;
-                    if (
-                        body.type === 'Choice' ||
-                        body.type === 'oa:Choice'
-                    ) {
+                    if (body.type === 'Choice' || body.type === 'oa:Choice') {
                         const items = body.items || body.item || [];
                         body = items[0] || null;
                     }
@@ -116,31 +165,9 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
 
                 const services = getServices();
                 if (services.length > 0) {
-                    const service = services[0];
-                    let profile: unknown = '';
-                    try {
-                        profile = service.getProfile
-                            ? service.getProfile()
-                            : (service.profile as unknown) || '';
-                        if (typeof profile === 'object' && profile) {
-                            const pObj = profile as Record<string, unknown>;
-                            profile =
-                                (pObj.value as string | undefined) ||
-                                (pObj.id as string | undefined) ||
-                                (pObj['@id'] as string | undefined) ||
-                                JSON.stringify(pObj);
-                        }
-                    } catch {
-                        // ignore
-                    }
-
-                    const pStr = String(profile ?? '').toLowerCase();
-                    const isLevel0 =
-                        pStr.includes('level0') || pStr.includes('level-0');
-
-                    const serviceId = service.id || service['@id'];
-                    if (!isLevel0 && serviceId) {
-                        return `${serviceId}/full/${size},/0/default.jpg`;
+                    const url = getThumbnailServiceUrl(services[0], size);
+                    if (url) {
+                        return url;
                     }
                 }
 
@@ -167,8 +194,7 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
                             bodyObj.type === 'Choice' ||
                             bodyObj.type === 'oa:Choice'
                         ) {
-                            const items =
-                                bodyObj.items || bodyObj.item || [];
+                            const items = bodyObj.items || bodyObj.item || [];
                             bodyObj = items[0] || bodyObj;
                         }
                         src = bodyObj.id || bodyObj['@id'] || '';

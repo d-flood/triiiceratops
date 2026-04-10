@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ViewerState } from './viewer.svelte';
 import * as manifesto from 'manifesto.js';
+import { createMockCanvas } from '../test/utils/mockManifesto';
 import {
     searchResponseWithHits,
     searchResponseWithResourcesOnly,
@@ -1079,6 +1080,19 @@ describe('ViewerState - IIIF Search', () => {
                     id: 'http://example.org/collection',
                     type: 'Collection',
                     label: { none: ['Test collection'] },
+                    thumbnail: [
+                        {
+                            id: 'http://example.org/collection-thumb/full/max/0/default.jpg',
+                            type: 'Image',
+                            service: [
+                                {
+                                    id: 'http://example.org/collection-thumb',
+                                    type: 'ImageService3',
+                                    profile: 'level1',
+                                },
+                            ],
+                        },
+                    ],
                     items: [
                         {
                             id: 'http://example.org/manifest/in-collection',
@@ -1107,6 +1121,9 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.showCollectionPanel).toBe(true);
             expect(state.collectionId).toBe('http://example.org/collection');
             expect(state.collectionLabel).toBe('Test collection');
+            expect(state.collectionThumbnail).toBe(
+                'http://example.org/collection-thumb/full/200,/0/default.jpg',
+            );
             expect(state.collectionItems).toHaveLength(1);
             expect(state.hasCollection).toBe(true);
             expect(state.manifestId).toBe(
@@ -1118,9 +1135,62 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.showCollectionPanel).toBe(true);
             expect(state.collectionId).toBeNull();
             expect(state.collectionLabel).toBe('');
+            expect(state.collectionThumbnail).toBe('');
             expect(state.collectionItems).toEqual([]);
             expect(state.hasCollection).toBe(false);
             expect(state.manifestId).toBe('http://example.org/plain-manifest');
+        });
+
+        it('hydrates missing collection item thumbnails from the first canvas', async () => {
+            const firstCanvas = createMockCanvas({
+                id: 'http://example.org/canvas/1',
+                thumbnail: {
+                    id: 'http://example.org/thumb/full/max/0/default.jpg',
+                    type: 'Image',
+                    service: [
+                        {
+                            id: 'http://example.org/thumb',
+                            type: 'ImageService3',
+                            profile: 'level1',
+                        },
+                    ],
+                },
+            });
+
+            vi.mocked(manifestsState.fetchResource).mockResolvedValueOnce({
+                id: 'http://example.org/collection',
+                type: 'Collection',
+                label: { none: ['Test collection'] },
+                items: [
+                    {
+                        id: 'http://example.org/manifest/in-collection',
+                        type: 'Manifest',
+                        label: { none: ['Manifest in collection'] },
+                    },
+                ],
+            });
+            vi.mocked(manifestsState.fetchManifest).mockResolvedValue();
+            vi.mocked(manifestsState.registerManifest).mockResolvedValue();
+            vi.mocked(manifestsState.getManifest).mockReturnValue(null);
+            vi.mocked(manifestsState.getCanvases).mockImplementation(
+                (manifestId: string) => {
+                    if (
+                        manifestId ===
+                        'http://example.org/manifest/in-collection'
+                    ) {
+                        return [firstCanvas];
+                    }
+                    return [];
+                },
+            );
+
+            await state.setManifest('http://example.org/collection');
+
+            await vi.waitFor(() => {
+                expect(state.collectionItems[0]?.thumbnail).toBe(
+                    'http://example.org/thumb/full/200,/0/default.jpg',
+                );
+            });
         });
     });
 });

@@ -11,7 +11,7 @@ The web component and the Svelte component share the same UI configuration objec
 ## Configuration Object
 
 !!! tip "Interactive Configuration"
-You can experiment with these settings in the [Live Demo](./demo/){target=\_blank}. Open the settings menu (gear icon), tweak the configuration, and then click **"Copy Config"** to get the JSON for your project.
+You can experiment with these settings in the [Live Demo](./viewer/){target=\_blank}. Open the settings menu (gear icon), tweak the configuration, and then click **"Copy Config"** to get the JSON for your project.
 
 The viewer accepts a configuration object to customize the UI and behavior. Below is the structure of the configuration object with default values:
 
