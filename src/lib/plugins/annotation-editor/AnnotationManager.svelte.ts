@@ -3,6 +3,7 @@ import type {
     W3CImageAnnotation,
 } from '@annotorious/openseadragon';
 import type { ImageAnnotation } from '@annotorious/annotorious';
+import { SvelteMap } from 'svelte/reactivity';
 
 import type {
     AnnotationEditorConfig,
@@ -13,6 +14,13 @@ import type {
 } from './types';
 import type { W3CAnnotation } from './adapters/types';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
+import { manifestsState } from '../../state/manifests.svelte';
+import {
+    transformAnnotationToCanvasSpace,
+    transformAnnotationToImageSpace,
+    type CanvasImageSpaceDimensions,
+} from '../../utils/canvasImageSpace';
+import { resolveCanvasImage } from '../../utils/resolveCanvasImage';
 
 /**
  * Manages the Annotorious instance and annotation CRUD operations.
@@ -41,7 +49,7 @@ export class AnnotationManager {
     // Current canvas tracking
     private currentManifestId: string | null = null;
     private currentCanvasId: string | null = null;
-    private persistedAnnotations = new Map<string, W3CAnnotation>();
+    private persistedAnnotations = new SvelteMap<string, W3CAnnotation>();
     private activeEditingAnnotationId: string | null = null;
 
     // Internal state tracking
@@ -216,7 +224,7 @@ export class AnnotationManager {
         const width = size;
         const height = size;
 
-        // Center the rectangle on the click
+        // Center the rectangle on the click in image coordinates for Annotorious.
         const x = Math.round(imagePoint.x - width / 2);
         const y = Math.round(imagePoint.y - height / 2);
 
@@ -395,6 +403,41 @@ export class AnnotationManager {
         } as W3CAnnotation;
     }
 
+    private getCurrentCanvasImageDimensions(): CanvasImageSpaceDimensions | null {
+        if (!this.currentManifestId || !this.currentCanvasId) {
+            return null;
+        }
+
+        const canvas = manifestsState
+            .getCanvases(this.currentManifestId)
+            .find((entry: any) => {
+                const id =
+                    entry?.id ||
+                    entry?.['@id'] ||
+                    entry?.__jsonld?.id ||
+                    entry?.__jsonld?.['@id'] ||
+                    entry?.getCanvasId?.() ||
+                    entry?.getId?.();
+                return id === this.currentCanvasId;
+            });
+
+        const resolved = canvas ? resolveCanvasImage(canvas) : null;
+        if (
+            !resolved ||
+            typeof resolved.resourceWidth !== 'number' ||
+            typeof resolved.resourceHeight !== 'number'
+        ) {
+            return null;
+        }
+
+        return {
+            canvasWidth: resolved.canvasWidth,
+            canvasHeight: resolved.canvasHeight,
+            imageWidth: resolved.resourceWidth,
+            imageHeight: resolved.resourceHeight,
+        };
+    }
+
     setTool(tool: DrawingTool): void {
         this.activeTool = tool;
         // Re-evaluate drawing mode to enable/disable native drawing
@@ -509,7 +552,7 @@ export class AnnotationManager {
         this.annotorious.on('createAnnotation', async (annotation) => {
             const prepared = this.prepareAnnotation(annotation);
             this.onAnnotationCreated?.(prepared);
-            await this.saveAnnotation(prepared);
+            await this.saveAnnotation(annotation);
             this.updateUndoRedoState();
         });
 
@@ -521,8 +564,11 @@ export class AnnotationManager {
         this.annotorious.on('selectionChanged', (annotations) => {
             const selected =
                 annotations.length > 0
-                    ? this.toPointSelectorTarget(
-                          annotations[0] as unknown as W3CAnnotation,
+                    ? transformAnnotationToCanvasSpace(
+                          this.toPointSelectorTarget(
+                              annotations[0] as unknown as W3CAnnotation,
+                          ),
+                          this.getCurrentCanvasImageDimensions(),
                       )
                     : null;
             this.selectedAnnotation = selected;
@@ -563,7 +609,7 @@ export class AnnotationManager {
     }
 
     private cachePersistedAnnotations(annotations: W3CAnnotation[]): void {
-        this.persistedAnnotations = new Map(
+        this.persistedAnnotations = new SvelteMap(
             annotations.map((annotation) => [annotation.id, annotation]),
         );
     }
@@ -679,8 +725,12 @@ export class AnnotationManager {
     async saveAnnotation(annotation: any): Promise<void> {
         if (!this.currentManifestId || !this.currentCanvasId) return;
 
+        const dimensions = this.getCurrentCanvasImageDimensions();
         const w3cAnnotation = await this.applyBeforeSave(
-            this.toPointSelectorTarget(this.ensureTargetSource(annotation)),
+            transformAnnotationToCanvasSpace(
+                this.toPointSelectorTarget(this.ensureTargetSource(annotation)),
+                dimensions,
+            ),
         );
 
         this.persistedAnnotations.set(w3cAnnotation.id, w3cAnnotation);
@@ -736,8 +786,12 @@ export class AnnotationManager {
         const clone = this.toPointSelectorTarget(
             JSON.parse(JSON.stringify(prepared)),
         );
-        clone.__fullBodyLoaded = true;
-        return clone;
+        const canvasSpaceClone = transformAnnotationToCanvasSpace(
+            clone,
+            this.getCurrentCanvasImageDimensions(),
+        );
+        canvasSpaceClone.__fullBodyLoaded = true;
+        return canvasSpaceClone;
     }
 
     private async applyBeforeSave(
@@ -861,7 +915,12 @@ export class AnnotationManager {
             await this.saveAnnotation(updated);
             this.persistedAnnotations.set(
                 annotationId,
-                this.toPointSelectorTarget(this.ensureTargetSource(updated)),
+                transformAnnotationToCanvasSpace(
+                    this.toPointSelectorTarget(
+                        this.ensureTargetSource(updated),
+                    ),
+                    this.getCurrentCanvasImageDimensions(),
+                ),
             );
             // Cast to any to avoid type conflicts with Annotorious internals
             this.annotorious?.updateAnnotation(updated as any);
@@ -887,7 +946,10 @@ export class AnnotationManager {
             return;
         }
 
-        const editableAnnotation = this.toAnnotoriousTarget(annotation);
+        const editableAnnotation = transformAnnotationToImageSpace(
+            this.toAnnotoriousTarget(annotation),
+            this.getCurrentCanvasImageDimensions(),
+        );
 
         this.clearAnnotoriousEditingAnnotation();
         this.annotorious.setAnnotations(
