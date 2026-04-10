@@ -47,10 +47,10 @@ interface ViewerConfig {
 
     // Plugin UI Settings (keyed by plugin id)
     plugins?: {
-      [pluginId: string]: {
-        visible?: boolean; // Default: true (Toolbar button visible)
-        open?: boolean; // Default: false (Plugin panel open)
-      };
+        [pluginId: string]: {
+            visible?: boolean; // Default: true (Toolbar button visible)
+            open?: boolean; // Default: false (Plugin panel open)
+        };
     };
 
     // Thumbnail Gallery Settings
@@ -113,16 +113,16 @@ Plugin UI can be controlled from the same `config` object used for built-in pane
 
 ```typescript
 const config = {
-  plugins: {
-    'pdf-export': {
-      visible: true,
-      open: false
+    plugins: {
+        'pdf-export': {
+            visible: true,
+            open: false,
+        },
+        'image-manipulation': {
+            visible: false,
+            open: false,
+        },
     },
-    'image-manipulation': {
-      visible: false,
-      open: false
-    }
-  }
 };
 ```
 
@@ -538,6 +538,29 @@ When the manifest has only one top-level range, it is automatically expanded so 
 Triiiceratops supports the IIIF [`start`](https://iiif.io/api/presentation/3.0/#start) property. When a manifest specifies a `start` canvas, the viewer opens to that canvas instead of the first canvas in the sequence.
 
 This is automatic — no configuration is needed. The `start` property is read from both v2 and v3 manifests. If a `canvasId` prop is explicitly provided, it takes priority over the manifest's `start` property.
+
+## Content State API
+
+Triiiceratops supports the [IIIF Content State](https://iiif.io/api/content-state/) specification via the `iiif-content` URL parameter. This allows links that open the viewer at a specific manifest, canvas, and optional spatial region.
+
+The `iiif-content` value can be:
+
+- A plain HTTPS URL (used directly as the manifest ID)
+- A base64url-encoded JSON object following the Content State specification
+
+```
+https://your-site.com/demo?iiif-content=<base64url-encoded-content-state>
+```
+
+The viewer extracts the manifest URL, canvas ID, and `xywh` region from the decoded value and opens the viewer at that location. If a `manifest` query parameter is also present, it takes priority over `iiif-content`.
+
+## Multiple Sequences / Alternative Page Sequences
+
+When a manifest contains more than one sequence — either via multiple IIIF v2 `sequences` entries or IIIF v3 ranges with `behavior: sequence` (cookbook 0027 Alternative Page Sequences) — the toolbar shows a **sequence picker** button with a count badge.
+
+Clicking the button opens a popover listing all available sequences by label. Selecting a sequence navigates to its first canvas. The sequence picker is hidden automatically for single-sequence manifests.
+
+No configuration is required. The sequence picker appears automatically when `sequenceCount > 1`.
 
 ## Best Practices
 
