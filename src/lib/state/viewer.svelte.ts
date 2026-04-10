@@ -442,11 +442,11 @@ export class ViewerState {
         manifestId: string,
         manifestJson: any,
     ): Promise<void> {
-        this.manifestId = manifestId;
         this.canvasId = null;
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
         await manifestsState.registerManifest(manifestId, manifestJson);
+        this.manifestId = manifestId;
         this._applyManifestSettings(manifestId);
         this.ensureInitialCanvasSelection();
     }
@@ -473,7 +473,6 @@ export class ViewerState {
             );
         } catch (_error: any) {
             // If fetch fails, fall back to normal flow which will handle the error
-            this.manifestId = manifestId;
             this.canvasId = null;
             this.startCanvasId = null;
             this.selectedSequenceIndex = 0;
@@ -481,6 +480,9 @@ export class ViewerState {
                 manifestId,
                 this.manifestRequestConfig,
             );
+            this.manifestId = manifestId;
+            this._applyManifestSettings(manifestId);
+            this.ensureInitialCanvasSelection();
             this.dispatchStateChange('manifestchange');
             return;
         }
@@ -510,10 +512,10 @@ export class ViewerState {
         this.collectionThumbnail = '';
         this.collectionItems = [];
         this.collectionThumbnailHydrationId += 1;
-        this.manifestId = manifestId;
         this.canvasId = null;
         this.startCanvasId = null;
         await manifestsState.registerManifest(manifestId, json);
+        this.manifestId = manifestId;
         this._applyManifestSettings(manifestId);
         this.ensureInitialCanvasSelection();
         this.dispatchStateChange('manifestchange');
@@ -532,7 +534,6 @@ export class ViewerState {
      * Internal: load a manifest by ID and apply its settings.
      */
     private async _loadManifest(manifestId: string) {
-        this.manifestId = manifestId;
         this.canvasId = null;
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
@@ -540,6 +541,7 @@ export class ViewerState {
             manifestId,
             this.manifestRequestConfig,
         );
+        this.manifestId = manifestId;
         this._applyManifestSettings(manifestId);
         this.ensureInitialCanvasSelection();
     }
@@ -601,7 +603,7 @@ export class ViewerState {
      * Apply manifest-level settings (start canvas, viewing direction, behavior).
      */
     private _applyManifestSettings(manifestId: string) {
-        const manifest = this.manifest;
+        const manifest = manifestsState.getManifest(manifestId);
         if (!manifest) return;
 
         // 0. Start Canvas (IIIF Presentation 3.0 `start` property)
@@ -635,9 +637,7 @@ export class ViewerState {
                 // Verify this canvas exists in the manifest
                 const canvases = manifestsState.getCanvases(manifestId);
                 const exists = canvases.some(
-                    (c: any) =>
-                        c.id === canvasIdFromStart ||
-                        c['@id'] === canvasIdFromStart,
+                    (c: any) => getCanvasId(c) === canvasIdFromStart,
                 );
                 if (exists) {
                     this.startCanvasId = canvasIdFromStart;

@@ -7,6 +7,7 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { manifestsState } from '../state/manifests.svelte';
     import { m } from '../state/i18n.svelte';
+    import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -225,7 +226,7 @@
                             {/if}
                         </div>
                         <div
-                            class="text-sm prose prose-sm max-w-none prose-p:my-0 prose-a:text-blue-500 wrap-break-word text-left space-y-2"
+                            class="viewer-html text-sm prose prose-sm max-w-none prose-p:my-0 wrap-break-word text-left space-y-2"
                         >
                             {#each anno.bodies as body, i (i)}
                                 <div class="flex flex-wrap gap-2">
@@ -259,7 +260,7 @@
                                             >
                                         </a>
                                     {:else if body.isHtml}
-                                        {@html body.value}
+                                        <SanitizedHtml html={body.value} />
                                     {:else}
                                         {body.value || '(No content)'}
                                     {/if}

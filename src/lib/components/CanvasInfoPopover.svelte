@@ -4,7 +4,11 @@
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import {
+        resolveAllLanguageValues,
+        resolveLanguageValue,
+    } from '../utils/languageMap';
+    import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let viewerLocale = $derived(
@@ -28,13 +32,17 @@
         return resolveLanguageValue(json.summary, viewerLocale);
     });
 
+    function resolveHtmlValues(value: unknown, locale?: string): string {
+        return resolveAllLanguageValues(value, locale).join('<br />');
+    }
+
     let metadata = $derived.by(() => {
         const currentLang = viewerLocale;
         if (!json?.metadata) return [];
         const raw = Array.isArray(json.metadata) ? json.metadata : [];
         return raw.map((item: any) => ({
             label: resolveLanguageValue(item.label, currentLang),
-            value: resolveLanguageValue(item.value, currentLang),
+            value: resolveHtmlValues(item.value, currentLang),
         }));
     });
 
@@ -106,10 +114,11 @@
                 {/if}
 
                 {#if summary}
-                    <div class="text-xs opacity-80 mb-2 prose prose-sm">
-                        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                        {@html summary}
-                    </div>
+                    <SanitizedHtml
+                        tag="div"
+                        html={summary}
+                        class="viewer-html text-xs opacity-80 mb-2 prose prose-sm"
+                    />
                 {/if}
 
                 {#if metadata.length > 0}
@@ -118,8 +127,11 @@
                             <dt class="font-bold opacity-70 mt-2">
                                 {item.label}
                             </dt>
-                            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                            <dd class="ps-2">{@html item.value}</dd>
+                            <SanitizedHtml
+                                tag="dd"
+                                html={item.value}
+                                class="viewer-html ps-2"
+                            />
                         {/each}
                     </dl>
                 {/if}

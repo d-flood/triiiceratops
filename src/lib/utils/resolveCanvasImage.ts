@@ -36,6 +36,8 @@ export type ResolvedCanvasImage = {
     annotation: any;
     resource: any;
     resourceId: string | null;
+    canvasWidth: number;
+    canvasHeight: number;
     resourceWidth: number | null;
     resourceHeight: number | null;
     serviceId: string | null;
@@ -519,6 +521,8 @@ export function resolveAllCanvasImages(
                 annotation,
                 resource,
                 resourceId,
+                canvasWidth: canvasDimensions.width,
+                canvasHeight: canvasDimensions.height,
                 resourceWidth:
                     imageApiRegion?.width || resourceDimensions.width,
                 resourceHeight:

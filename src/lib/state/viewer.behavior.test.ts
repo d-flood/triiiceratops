@@ -82,6 +82,33 @@ describe('ViewerState manifest behavior', () => {
         expect(state.viewingDirection).toBe('bottom-to-top');
     });
 
+    it('applies the manifest start canvas after fetch-based loading', async () => {
+        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
+        const manifest = {
+            __jsonld: {
+                start: { id: 'canvas-2', type: 'Canvas' },
+            },
+            getBehavior: () => ['individuals'],
+            getSequences: () => [
+                {
+                    __jsonld: {},
+                },
+            ],
+        };
+
+        vi.mocked(manifestsState.fetchResource).mockResolvedValue({
+            id: 'manifest-1',
+            type: 'Manifest',
+        });
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        await state.setManifest('manifest-1');
+
+        expect(state.startCanvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe('canvas-2');
+    });
+
     it('navigates paged spreads around non-paged canvases', () => {
         const canvases = [
             { id: 'canvas-1' },
