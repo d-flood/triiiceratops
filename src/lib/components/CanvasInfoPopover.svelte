@@ -4,7 +4,10 @@
     import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import {
+        resolveAllLanguageValues,
+        resolveLanguageValue,
+    } from '../utils/languageMap';
     import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -29,13 +32,17 @@
         return resolveLanguageValue(json.summary, viewerLocale);
     });
 
+    function resolveHtmlValues(value: unknown, locale?: string): string {
+        return resolveAllLanguageValues(value, locale).join('<br />');
+    }
+
     let metadata = $derived.by(() => {
         const currentLang = viewerLocale;
         if (!json?.metadata) return [];
         const raw = Array.isArray(json.metadata) ? json.metadata : [];
         return raw.map((item: any) => ({
             label: resolveLanguageValue(item.label, currentLang),
-            value: resolveLanguageValue(item.value, currentLang),
+            value: resolveHtmlValues(item.value, currentLang),
         }));
     });
 
