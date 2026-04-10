@@ -71,7 +71,6 @@
         },
         annotations: {
             open: false,
-            visible: false,
         },
         information: {
             open: false,

@@ -153,7 +153,7 @@ describe('ViewerState manifest behavior', () => {
         expect(state.manifestId).toBe('http://example.org/manifest/1986');
     });
 
-    it('shows current canvas annotations when opening the panel unless visibility was manually changed', () => {
+    it('keeps annotations hidden by default and shows manifest annotations when the panel opens', () => {
         vi.mocked(manifestsState.getAnnotations).mockReturnValue([
             { id: 'anno-1' },
             { '@id': 'anno-2' },
@@ -161,18 +161,101 @@ describe('ViewerState manifest behavior', () => {
 
         state.manifestId = 'manifest-1';
         state.canvasId = 'canvas-1';
+        state.searchAnnotations = [{ id: 'search-1', canvasId: 'canvas-1' }];
+
+        expect(state.showAnnotations).toBe(false);
+        expect([...state.visibleAnnotationIds]).toEqual([]);
 
         state.toggleAnnotations();
 
         expect(state.showAnnotations).toBe(true);
         expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
+    });
 
-        state.visibleAnnotationIds.clear();
-        state.annotationVisibilityTouched = true;
+    it('restores all manifest annotations after closing and reopening the panel', () => {
+        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
+            { id: 'anno-1' },
+            { id: 'anno-2' },
+        ]);
+
+        state.manifestId = 'manifest-1';
+        state.canvasId = 'canvas-1';
+
         state.toggleAnnotations();
+        state.visibleAnnotationIds.delete('anno-2');
+        state.annotationVisibilityTouched = true;
+
+        state.toggleAnnotations();
+
+        expect(state.showAnnotations).toBe(false);
+        expect([...state.visibleAnnotationIds]).toEqual([]);
+        expect(state.annotationVisibilityTouched).toBe(false);
+
         state.toggleAnnotations();
 
         expect(state.showAnnotations).toBe(true);
+        expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
+        expect(state.annotationVisibilityTouched).toBe(false);
+    });
+
+    it('only resets visibility on config-driven annotation open and close transitions', () => {
+        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
+            { id: 'anno-1' },
+            { id: 'anno-2' },
+        ]);
+
+        state.manifestId = 'manifest-1';
+        state.canvasId = 'canvas-1';
+
+        state.updateConfig({ annotations: { open: true } });
+
+        expect(state.showAnnotations).toBe(true);
+        expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
+
+        state.visibleAnnotationIds.delete('anno-2');
+        state.annotationVisibilityTouched = true;
+
+        state.updateConfig({ annotations: { open: true } });
+
+        expect([...state.visibleAnnotationIds]).toEqual(['anno-1']);
+        expect(state.annotationVisibilityTouched).toBe(true);
+
+        state.updateConfig({ annotations: { open: false } });
+
+        expect(state.showAnnotations).toBe(false);
         expect([...state.visibleAnnotationIds]).toEqual([]);
+        expect(state.annotationVisibilityTouched).toBe(false);
+
+        state.updateConfig({ annotations: { open: true } });
+
+        expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
+    });
+
+    it('clears manual visibility when the canvas changes while the panel is open', () => {
+        vi.mocked(manifestsState.getAnnotations).mockImplementation(
+            (_manifestId, canvasId) => {
+                if (canvasId === 'canvas-1') {
+                    return [{ id: 'anno-1' }, { id: 'anno-2' }];
+                }
+
+                if (canvasId === 'canvas-2') {
+                    return [{ id: 'anno-3' }];
+                }
+
+                return [];
+            },
+        );
+
+        state.manifestId = 'manifest-1';
+        state.canvasId = 'canvas-1';
+        state.toggleAnnotations();
+        state.visibleAnnotationIds.delete('anno-2');
+        state.annotationVisibilityTouched = true;
+
+        state.setCanvas('canvas-2');
+
+        expect(state.canvasId).toBe('canvas-2');
+        expect([...state.visibleAnnotationIds]).toEqual([]);
+        expect(state.annotationVisibilityTouched).toBe(false);
     });
 });
