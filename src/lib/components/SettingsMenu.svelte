@@ -728,6 +728,99 @@
 
     <li>
         <details>
+            <summary>{m.settings_submenu_information()}</summary>
+            <ul>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_panel_open()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.information?.open ?? false}
+                            onchange={(e) => {
+                                if (!config.information)
+                                    config.information = {};
+                                config.information.open =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_close_button()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="checkbox checkbox-xs"
+                            checked={config.information?.showCloseButton ??
+                                true}
+                            onchange={(e) => {
+                                if (!config.information)
+                                    config.information = {};
+                                config.information.showCloseButton =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1 gap-2">
+                        <span class="label-text"
+                            >{m.settings_select_dock_position()}</span
+                        >
+                        <select
+                            class="select select-bordered select-xs w-24"
+                            value={config.information?.position ?? 'right'}
+                            onchange={(e) => {
+                                if (!config.information)
+                                    config.information = {};
+                                config.information.position = (
+                                    e.currentTarget as HTMLSelectElement
+                                ).value as 'left' | 'right';
+                            }}
+                            onclick={(e) => e.stopPropagation()}
+                        >
+                            <option value="right"
+                                >{m.settings_position_right()}</option
+                            >
+                            <option value="left"
+                                >{m.settings_position_left()}</option
+                            >
+                        </select>
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1 gap-2">
+                        <span class="label-text"
+                            >{m.settings_panel_width()}</span
+                        >
+                        <input
+                            type="range"
+                            min="200"
+                            max="800"
+                            value={parseInt(config.information?.width ?? '320')}
+                            class="range range-xs range-primary w-32"
+                            oninput={(e) => {
+                                if (!config.information)
+                                    config.information = {};
+                                config.information.width = `${e.currentTarget.value}px`;
+                            }}
+                        />
+                        <span class="text-xs opacity-50 w-8 text-right"
+                            >{config.information?.width ?? '320px'}</span
+                        >
+                    </label>
+                </li>
+            </ul>
+        </details>
+    </li>
+
+    <li>
+        <details>
             <summary>{m.settings_submenu_structures()}</summary>
             <ul>
                 <li>

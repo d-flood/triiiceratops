@@ -73,6 +73,12 @@
             open: false,
             visible: false,
         },
+        information: {
+            open: false,
+            showCloseButton: true,
+            position: 'right' as 'left' | 'right',
+            width: '320px',
+        },
     };
 
     let initialConfig = defaultConfig;
@@ -325,6 +331,12 @@
                         hasChanges = true;
                     }
 
+                    const newInformation = { ...config.information };
+                    if (newInformation.open !== state.showInformationPanel) {
+                        newInformation.open = state.showInformationPanel;
+                        hasChanges = true;
+                    }
+
                     if (config.toolbarOpen !== state.toolbarOpen) {
                         config.toolbarOpen = state.toolbarOpen;
                         hasChanges = true;
@@ -342,6 +354,7 @@
                         config.gallery = newGallery;
                         config.search = newSearch;
                         config.annotations = newAnnotations;
+                        config.information = newInformation;
                     }
 
                     // Sync canvas ID back to the dropdown
@@ -376,6 +389,9 @@
         }
         if (config.annotations) {
             config.annotations.open = svelteViewerState.showAnnotations;
+        }
+        if (config.information) {
+            config.information.open = svelteViewerState.showMetadataDialog;
         }
         config.toolbarOpen = svelteViewerState.toolbarOpen;
 

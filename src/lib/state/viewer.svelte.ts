@@ -39,6 +39,7 @@ export interface ViewerStateSnapshot {
     canvasId: string | null;
     currentCanvasIndex: number;
     showAnnotations: boolean;
+    showInformationPanel: boolean;
     showThumbnailGallery: boolean;
     showSearchPanel: boolean;
     showStructuresPanel: boolean;
@@ -231,6 +232,7 @@ export class ViewerState {
             canvasId: this.canvasId,
             currentCanvasIndex: canvasIndex,
             showAnnotations: this.showAnnotations,
+            showInformationPanel: this.showMetadataDialog,
             showThumbnailGallery: this.showThumbnailGallery,
             showSearchPanel: this.showSearchPanel,
             showStructuresPanel: this.showStructuresPanel,
@@ -804,6 +806,12 @@ export class ViewerState {
             }
         }
 
+        if (newConfig.information) {
+            if (newConfig.information.open !== undefined) {
+                this.showMetadataDialog = newConfig.information.open;
+            }
+        }
+
         if (newConfig.structures) {
             if (newConfig.structures.open !== undefined) {
                 this.showStructuresPanel = newConfig.structures.open;
@@ -872,6 +880,7 @@ export class ViewerState {
 
     toggleMetadataDialog() {
         this.showMetadataDialog = !this.showMetadataDialog;
+        this.dispatchStateChange();
     }
 
     toggleCanvasInfo() {
