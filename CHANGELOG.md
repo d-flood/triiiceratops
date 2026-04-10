@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.2
+
+### Patch Changes
+
+- 7574929: santize and style html from iiif resources, render all items of a label array, fix start canvas, better handling of canvas and image differing
+
 ## 1.0.0-rc.1
 
 ### Patch Changes
