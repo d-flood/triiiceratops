@@ -55,6 +55,10 @@
             url: 'https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/manifest-rtl.json',
         },
         {
+            label: '0010 Viewing Direction (TTB)',
+            url: 'https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/manifest-ttb.json',
+        },
+        {
             label: '0011 Book Behavior Variations (Continuous)',
             url: 'https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/manifest-continuous.json',
         },
@@ -153,6 +157,10 @@
         {
             label: '0283 Missing Images in a Sequence',
             url: 'https://iiif.io/api/cookbook/recipe/0283-missing-image/manifest.json',
+        },
+        {
+            label: '0299 Addressing a Spatial Region',
+            url: 'https://iiif.io/api/cookbook/recipe/0299-region/manifest.json',
         },
     ];
 

@@ -451,9 +451,29 @@ function getCanvasExportResource(
         return {
             imageUrl: isWideCanvas
                 ? buildIiifImageRequestUrl(resolved.serviceId, {
+                      region: resolved.imageApiRegion
+                          ? [
+                                resolved.imageApiRegion.x,
+                                resolved.imageApiRegion.y,
+                                resolved.imageApiRegion.width,
+                                resolved.imageApiRegion.height,
+                            ]
+                                .map((value) => Math.round(value))
+                                .join(',')
+                          : undefined,
                       height: constrainedSize,
                   })
                 : buildIiifImageRequestUrl(resolved.serviceId, {
+                      region: resolved.imageApiRegion
+                          ? [
+                                resolved.imageApiRegion.x,
+                                resolved.imageApiRegion.y,
+                                resolved.imageApiRegion.width,
+                                resolved.imageApiRegion.height,
+                            ]
+                                .map((value) => Math.round(value))
+                                .join(',')
+                          : undefined,
                       width: constrainedSize,
                   }),
             resolvedImage: resolved,

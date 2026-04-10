@@ -5,6 +5,8 @@
     import Stack from 'phosphor-svelte/lib/Stack';
     import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
     import CaretRight from 'phosphor-svelte/lib/CaretRight';
+    import CaretUp from 'phosphor-svelte/lib/CaretUp';
+    import CaretDown from 'phosphor-svelte/lib/CaretDown';
     import MagnifyingGlassPlus from 'phosphor-svelte/lib/MagnifyingGlassPlus';
     import MagnifyingGlassMinus from 'phosphor-svelte/lib/MagnifyingGlassMinus';
     import { m, language } from '../state/i18n.svelte';
@@ -95,6 +97,22 @@
         if (abbreviated) return `${index + 1}`;
         return getChoiceLabel(choice, index);
     }
+
+    function getNavIcon(icon: 'left' | 'right' | 'up' | 'down') {
+        switch (icon) {
+            case 'up':
+                return CaretUp;
+            case 'down':
+                return CaretDown;
+            case 'right':
+                return CaretRight;
+            default:
+                return CaretLeft;
+        }
+    }
+
+    let LeftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
+    let RightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
@@ -248,7 +266,7 @@
                                 ? m.previous_canvas()
                                 : m.next_canvas()}
                         >
-                            <CaretLeft size={18} />
+                            <LeftNavIcon size={18} />
                         </button>
 
                         <span
@@ -273,7 +291,7 @@
                                 ? m.next_canvas()
                                 : m.previous_canvas()}
                         >
-                            <CaretRight size={18} />
+                            <RightNavIcon size={18} />
                         </button>
                     </div>
                 {/if}

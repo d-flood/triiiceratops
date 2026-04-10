@@ -18,9 +18,13 @@ export type PagedCanvasGroup = {
 
 export type CanvasNavDirection = 'previous' | 'next';
 
+export type CanvasNavIcon = 'left' | 'right' | 'up' | 'down';
+
 export type CanvasNavLayout = {
     leftButton: CanvasNavDirection;
     rightButton: CanvasNavDirection;
+    leftIcon: CanvasNavIcon;
+    rightIcon: CanvasNavIcon;
 };
 
 export function shouldUseAbbreviatedChoiceLabels(
@@ -37,12 +41,34 @@ export function getCanvasNavLayout(
         return {
             leftButton: 'next',
             rightButton: 'previous',
+            leftIcon: 'left',
+            rightIcon: 'right',
+        };
+    }
+
+    if (viewingDirection === 'top-to-bottom') {
+        return {
+            leftButton: 'previous',
+            rightButton: 'next',
+            leftIcon: 'up',
+            rightIcon: 'down',
+        };
+    }
+
+    if (viewingDirection === 'bottom-to-top') {
+        return {
+            leftButton: 'next',
+            rightButton: 'previous',
+            leftIcon: 'up',
+            rightIcon: 'down',
         };
     }
 
     return {
         leftButton: 'previous',
         rightButton: 'next',
+        leftIcon: 'left',
+        rightIcon: 'right',
     };
 }
 
