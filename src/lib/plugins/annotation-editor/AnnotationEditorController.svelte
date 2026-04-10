@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext, onDestroy, untrack } from 'svelte';
+    import { getContext, onDestroy, onMount, untrack } from 'svelte';
     import {
         VIEWER_STATE_KEY,
         type ViewerState,
@@ -12,6 +12,8 @@
         DrawingTool,
         W3CAnnotationBody,
     } from './types';
+
+    const REQUEST_EDIT_EVENT = 'triiiceratops:annotation-editor:request-edit';
 
     // Props from the plugin system
     let {
@@ -108,6 +110,26 @@
         manager?.destroy();
     });
 
+    onMount(() => {
+        const handleRequestEdit = (event: Event) => {
+            const annotationId = (
+                event as CustomEvent<{ annotationId?: string | null }>
+            ).detail?.annotationId;
+
+            if (!annotationId) {
+                return;
+            }
+
+            void (manager as any)?.selectAnnotationById(annotationId);
+        };
+
+        window.addEventListener(REQUEST_EDIT_EVENT, handleRequestEdit);
+
+        return () => {
+            window.removeEventListener(REQUEST_EDIT_EVENT, handleRequestEdit);
+        };
+    });
+
     // Watch for canvas changes
     $effect(() => {
         const manifestId = viewerState?.manifestId;
@@ -176,6 +198,8 @@
     }
 
     function handleClose() {
+        selectedAnnotation = null;
+        manager?.cancelSelection();
         if (isEditing) {
             isEditing = false;
             manager?.setEditing(false);
