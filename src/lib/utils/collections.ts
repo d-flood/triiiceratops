@@ -144,3 +144,24 @@ export function parseCollection(json: any): CollectionItem[] {
 
     return items;
 }
+
+/**
+ * Return collection items in chronology-aware navigation order.
+ */
+export function sortCollectionItems(items: CollectionItem[]): CollectionItem[] {
+    return [...items].sort((a, b) => {
+        if (a.navDate && b.navDate) {
+            const dateCompare = a.navDate.localeCompare(b.navDate);
+            if (dateCompare !== 0) return dateCompare;
+        } else if (a.navDate) {
+            return -1;
+        } else if (b.navDate) {
+            return 1;
+        }
+
+        const labelCompare = a.label.localeCompare(b.label);
+        if (labelCompare !== 0) return labelCompare;
+
+        return a.id.localeCompare(b.id);
+    });
+}

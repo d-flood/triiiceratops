@@ -14,6 +14,7 @@ import {
     isCollection,
     parseCollection,
     getCollectionLabel,
+    sortCollectionItems,
     type CollectionItem,
 } from '../utils/collections';
 import type { CanvasRegion } from '../utils/contentState';
@@ -450,7 +451,7 @@ export class ViewerState {
         if (isCollection(json)) {
             this.collectionId = manifestId;
             this.collectionLabel = getCollectionLabel(json);
-            this.collectionItems = parseCollection(json);
+            this.collectionItems = sortCollectionItems(parseCollection(json));
 
             // Auto-load the first manifest in the collection
             const firstManifest = this.collectionItems.find(

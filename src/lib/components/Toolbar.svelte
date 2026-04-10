@@ -193,7 +193,7 @@
                     <button
                         class={[
                             ...tooltipClasses,
-                            'tooltip-sm',
+                            'tooltip-sm indicator',
                             viewerState.showCollectionPanel &&
                                 'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
@@ -201,6 +201,15 @@
                         aria-label={m.toggle_collection()}
                         onclick={() => viewerState.toggleCollectionPanel()}
                     >
+                        {#if !viewerState.showCollectionPanel && viewerState.collectionItems.length > 0}
+                            <span
+                                class="indicator-item badge badge-primary badge-sm min-w-5 px-1"
+                            >
+                                {viewerState.collectionItems.length > 99
+                                    ? '99+'
+                                    : viewerState.collectionItems.length}
+                            </span>
+                        {/if}
                         <Folder size={24} />
                     </button>
                 </li>

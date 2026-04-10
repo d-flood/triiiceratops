@@ -403,3 +403,35 @@ export const manifestWithThumbnails = {
         },
     ],
 };
+
+export const collectionV3WithNavDates = {
+    '@context': 'http://iiif.io/api/presentation/3/context.json',
+    id: 'http://example.org/collection/navdate',
+    type: 'Collection',
+    label: { en: ['Chronology Collection'] },
+    items: [
+        {
+            id: 'http://example.org/manifest/1987',
+            type: 'Manifest',
+            label: { en: ['1987 Map'] },
+            navDate: '1987-01-01T00:00:00Z',
+        },
+        {
+            id: 'http://example.org/manifest/undated',
+            type: 'Manifest',
+            label: { en: ['Undated Map'] },
+        },
+        {
+            id: 'http://example.org/manifest/1986',
+            type: 'Manifest',
+            label: { en: ['1986 Map'] },
+            navDate: '1986-01-01T00:00:00Z',
+        },
+        {
+            id: 'http://example.org/collection/subcollection',
+            type: 'Collection',
+            label: { en: ['Subcollection'] },
+            navDate: '1988-01-01T00:00:00Z',
+        },
+    ],
+};

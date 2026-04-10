@@ -4,21 +4,11 @@
     import Folder from 'phosphor-svelte/lib/Folder';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
+    import { sortCollectionItems } from '../utils/collections';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let items = $derived.by(() => {
-        const collectionItems = [...viewerState.collectionItems];
-
-        return collectionItems.sort((a, b) => {
-            if (a.navDate && b.navDate) {
-                return a.navDate.localeCompare(b.navDate);
-            }
-            if (a.navDate) return -1;
-            if (b.navDate) return 1;
-            return a.label.localeCompare(b.label);
-        });
-    });
+    let items = $derived(sortCollectionItems(viewerState.collectionItems));
     let collectionLabel = $derived(viewerState.collectionLabel);
     let currentManifestId = $derived(viewerState.manifestId);
     let panelWidth = $derived(viewerState.config.collection?.width ?? '320px');
