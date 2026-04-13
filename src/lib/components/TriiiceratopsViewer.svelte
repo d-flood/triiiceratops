@@ -14,7 +14,7 @@
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
-    import MetadataDialog from './MetadataDialog.svelte';
+    import MetadataPanel from './MetadataPanel.svelte';
     import OSDViewer from './OSDViewer.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import StructuresPanel from './StructuresPanel.svelte';
@@ -296,7 +296,7 @@
                 internalViewerState.config.search?.position === 'left') ||
             (internalViewerState.showAnnotations &&
                 internalViewerState.config.annotations?.position === 'left') ||
-            (internalViewerState.showMetadataDialog &&
+            (internalViewerState.showMetadataPanel &&
                 internalViewerState.config.information?.position === 'left') ||
             internalViewerState.pluginPanels.some(
                 (p) => p.position === 'left' && p.isVisible(),
@@ -315,7 +315,7 @@
                 internalViewerState.config.annotations?.position !== 'left') ||
             (internalViewerState.showThumbnailGallery &&
                 internalViewerState.dockSide === 'right') ||
-            (internalViewerState.showMetadataDialog &&
+            (internalViewerState.showMetadataPanel &&
                 internalViewerState.config.information?.position !== 'left') ||
             internalViewerState.showStructuresPanel ||
             showCollectionSidebar ||
@@ -471,9 +471,9 @@
                 </div>
             {/if}
 
-            {#if internalViewerState.showMetadataDialog && internalViewerState.config.information?.position === 'left'}
+            {#if internalViewerState.showMetadataPanel && internalViewerState.config.information?.position === 'left'}
                 <div class="h-full relative pointer-events-auto">
-                    <MetadataDialog />
+                    <MetadataPanel />
                 </div>
             {/if}
 
@@ -714,9 +714,9 @@
             {/if}
 
             <!-- Structures / Table of Contents Panel -->
-            {#if internalViewerState.showMetadataDialog && internalViewerState.config.information?.position !== 'left'}
+            {#if internalViewerState.showMetadataPanel && internalViewerState.config.information?.position !== 'left'}
                 <div class="h-full relative pointer-events-auto">
-                    <MetadataDialog />
+                    <MetadataPanel />
                 </div>
             {/if}
 
