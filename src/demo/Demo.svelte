@@ -390,7 +390,7 @@
             config.annotations.open = svelteViewerState.showAnnotations;
         }
         if (config.information) {
-            config.information.open = svelteViewerState.showMetadataDialog;
+            config.information.open = svelteViewerState.showMetadataPanel;
         }
         config.toolbarOpen = svelteViewerState.toolbarOpen;
 

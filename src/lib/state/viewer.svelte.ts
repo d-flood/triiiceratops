@@ -68,7 +68,7 @@ export class ViewerState {
     isGalleryDockedBottom = $state(false);
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
-    showMetadataDialog = $state(false);
+    showMetadataPanel = $state(false);
     showCanvasInfo = $state(false);
     showStructuresPanel = $state(false);
     initialCanvasRegion = $state<CanvasRegion | null>(null);
@@ -250,7 +250,7 @@ export class ViewerState {
             canvasId: this.canvasId,
             currentCanvasIndex: canvasIndex,
             showAnnotations: this.showAnnotations,
-            showInformationPanel: this.showMetadataDialog,
+            showInformationPanel: this.showMetadataPanel,
             showThumbnailGallery: this.showThumbnailGallery,
             showSearchPanel: this.showSearchPanel,
             showStructuresPanel: this.showStructuresPanel,
@@ -868,7 +868,7 @@ export class ViewerState {
 
         if (newConfig.information) {
             if (newConfig.information.open !== undefined) {
-                this.showMetadataDialog = newConfig.information.open;
+                this.showMetadataPanel = newConfig.information.open;
             }
         }
 
@@ -935,8 +935,8 @@ export class ViewerState {
         }
     }
 
-    toggleMetadataDialog() {
-        this.showMetadataDialog = !this.showMetadataDialog;
+    toggleMetadataPanel() {
+        this.showMetadataPanel = !this.showMetadataPanel;
         this.dispatchStateChange();
     }
 
