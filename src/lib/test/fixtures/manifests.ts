@@ -404,6 +404,79 @@ export const manifestWithThumbnails = {
     ],
 };
 
+export const manifestWithProviderHomepages = {
+    '@context': 'http://iiif.io/api/presentation/3/context.json',
+    id: 'http://example.org/manifest/provider-homepages',
+    type: 'Manifest',
+    label: { en: ['Test Manifest with Provider Homepages'] },
+    provider: [
+        {
+            id: 'https://example.org/provider/ucla',
+            type: 'Agent',
+            label: { en: ['UCLA Library'] },
+            logo: [
+                {
+                    id: 'https://example.org/provider/ucla/logo.svg',
+                    type: 'Image',
+                },
+            ],
+            homepage: [
+                {
+                    id: 'https://digital.library.ucla.edu/',
+                    type: 'Text',
+                    label: { en: ['UCLA Library Digital Collections'] },
+                },
+            ],
+            seeAlso: [
+                {
+                    id: 'https://www.loc.gov/collections/fsa-owi-black-and-white-negatives/about-this-collection/',
+                    type: 'Dataset',
+                    label: {
+                        en: [
+                            'US Library of Congress data about this collection',
+                        ],
+                    },
+                    format: 'application/xml',
+                },
+            ],
+        },
+    ],
+    items: [
+        {
+            id: 'http://example.org/canvas/provider-homepages-1',
+            type: 'Canvas',
+            label: { en: ['Page 1'] },
+            height: 1000,
+            width: 800,
+            items: [
+                {
+                    id: 'http://example.org/page/provider-homepages-1',
+                    type: 'AnnotationPage',
+                    items: [
+                        {
+                            id: 'http://example.org/annotation/provider-homepages-1',
+                            type: 'Annotation',
+                            motivation: 'painting',
+                            body: {
+                                id: 'http://example.org/image/provider-homepages-1',
+                                type: 'Image',
+                                service: [
+                                    {
+                                        id: 'http://example.org/iiif/provider-homepages-1',
+                                        type: 'ImageService3',
+                                        profile: 'level1',
+                                    },
+                                ],
+                            },
+                            target: 'http://example.org/canvas/provider-homepages-1',
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
+};
+
 export const collectionV3WithNavDates = {
     '@context': 'http://iiif.io/api/presentation/3/context.json',
     id: 'http://example.org/collection/navdate',

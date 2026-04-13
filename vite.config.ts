@@ -22,6 +22,11 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    resolve: process.env.VITEST
+        ? {
+              conditions: ['browser'],
+          }
+        : undefined,
     esbuild: {
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],
