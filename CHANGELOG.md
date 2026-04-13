@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.4
+
+### Patch Changes
+
+- 6931472: Fully support provider with nested `seeAlso` and rename `MetadataDialog` to `MetadataPanel` internally
+
 ## 1.0.0-rc.3
 
 ### Patch Changes
