@@ -1066,7 +1066,7 @@ describe('ViewerState - IIIF Search', () => {
                 },
             });
 
-            expect(state.showMetadataDialog).toBe(true);
+            expect(state.showMetadataPanel).toBe(true);
             expect(state.showStructuresPanel).toBe(true);
             expect(state.showCollectionPanel).toBe(true);
             expect(state.pluginMenuButtons[0]?.isActive?.()).toBe(true);

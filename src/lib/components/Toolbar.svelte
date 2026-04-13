@@ -498,12 +498,12 @@
                         class={[
                             ...tooltipClasses,
                             'tooltip-sm',
-                            viewerState.showMetadataDialog &&
+                            viewerState.showMetadataPanel &&
                                 'menu-active bg-primary text-primary-content cursor-pointer',
                         ]}
                         data-tip={m.metadata()}
                         aria-label={m.toggle_metadata()}
-                        onclick={() => viewerState.toggleMetadataDialog()}
+                        onclick={() => viewerState.toggleMetadataPanel()}
                     >
                         <Info size={24} />
                     </button>
