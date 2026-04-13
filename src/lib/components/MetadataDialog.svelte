@@ -125,7 +125,10 @@
             : [json.provider];
         return raw.map((p: any) => {
             const label = resolveLanguageValue(p.label, viewerLocale) || '';
-            const homepages = normaliseLinks(p.homepage);
+            const links = [
+                ...normaliseLinks(p.homepage),
+                ...normaliseLinks(p.seeAlso),
+            ];
             const logos = (
                 Array.isArray(p.logo) ? p.logo : p.logo ? [p.logo] : []
             )
@@ -133,7 +136,7 @@
                     typeof logo === 'string' ? logo : logo?.id || logo?.['@id'],
                 )
                 .filter(Boolean);
-            return { label, homepages, logos };
+            return { label, links, logos };
         });
     });
 
@@ -249,27 +252,38 @@
                         {m.provider()}
                     </dt>
                     <dd class="text-sm ps-4">
-                        {#each providers as provider, index (index)}
-                            <div class="flex items-center gap-3 mt-2">
-                                {#each provider.logos as logo, index (index)}
-                                    <img
-                                        src={logo}
-                                        alt=""
-                                        class="h-8 w-auto object-contain"
-                                    />
-                                {/each}
-                                {#if provider.homepages.length > 0}
-                                    {#each provider.homepages as hp, index (index)}
-                                        <a
-                                            href={hp.id}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            class="link link-primary"
-                                            >{provider.label || hp.label}</a
-                                        >
+                        {#each providers as provider (provider.label || provider.links[0]?.id || provider.logos[0])}
+                            <div class="flex flex-col gap-2 mt-2">
+                                <div class="flex items-center gap-3">
+                                    {#each provider.logos as logo (logo)}
+                                        <div class="flex-1 min-w-0">
+                                            <img
+                                                src={logo}
+                                                alt=""
+                                                class="h-12 w-full object-contain object-left"
+                                            />
+                                        </div>
                                     {/each}
-                                {:else}
-                                    <span>{provider.label}</span>
+
+                                    {#if provider.label}
+                                        <span class="shrink-0 font-semibold"
+                                            >{provider.label}</span
+                                        >
+                                    {/if}
+                                </div>
+
+                                {#if provider.links.length > 0}
+                                    <div class="flex flex-col gap-1">
+                                        {#each provider.links as link (link.id)}
+                                            <a
+                                                href={link.id}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                class="link link-primary break-all"
+                                                >{link.label}</a
+                                            >
+                                        {/each}
+                                    </div>
                                 {/if}
                             </div>
                         {/each}
