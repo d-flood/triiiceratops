@@ -1,10 +1,10 @@
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import MetadataDialogTestHost from './MetadataDialogTestHost.svelte';
+import MetadataPanelTestHost from './MetadataPanelTestHost.svelte';
 import { manifestWithProviderHomepages } from '../test/fixtures/manifests';
 
-describe('MetadataDialog provider rendering', () => {
+describe('MetadataPanel provider rendering', () => {
     let mounted: ReturnType<typeof mount> | null = null;
 
     afterEach(async () => {
@@ -16,7 +16,7 @@ describe('MetadataDialog provider rendering', () => {
     });
 
     it('renders all provider homepage links with their own labels', () => {
-        mounted = mount(MetadataDialogTestHost, {
+        mounted = mount(MetadataPanelTestHost, {
             target: document.body,
             props: {
                 manifest: manifestWithProviderHomepages,

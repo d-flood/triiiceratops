@@ -1,6 +1,6 @@
 <script lang="ts">
     import { setContext } from 'svelte';
-    import MetadataDialog from './MetadataDialog.svelte';
+    import MetadataPanel from './MetadataPanel.svelte';
     import { VIEWER_STATE_KEY } from '../state/viewer.svelte';
 
     let {
@@ -13,7 +13,7 @@
 
     const viewerState = {
         config: {},
-        showMetadataDialog: true,
+        showMetadataPanel: true,
         get manifestId() {
             return manifestId ?? manifest.id;
         },
@@ -26,10 +26,10 @@
                 getLicense: () => '',
             };
         },
-        toggleMetadataDialog() {},
+        toggleMetadataPanel() {},
     };
 
     setContext(VIEWER_STATE_KEY, viewerState);
 </script>
 
-<MetadataDialog />
+<MetadataPanel />

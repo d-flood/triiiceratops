@@ -158,7 +158,7 @@
     );
 </script>
 
-{#if viewerState.showMetadataDialog}
+{#if viewerState.showMetadataPanel}
     <div
         class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 {viewerState
             .config.transparentBackground
@@ -180,7 +180,7 @@
             {#if showCloseButton}
                 <button
                     class="btn btn-sm btn-circle btn-ghost shrink-0"
-                    onclick={() => viewerState.toggleMetadataDialog()}
+                    onclick={() => viewerState.toggleMetadataPanel()}
                     aria-label={m.close()}
                 >
                     <X size={20} />
