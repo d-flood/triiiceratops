@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.5
+
+### Patch Changes
+
+- cc7606c: Handle translations in v2 manifests
+
 ## 1.0.0-rc.4
 
 ### Patch Changes
