@@ -20,9 +20,19 @@ export function resolveLanguageValue(
     if (!value) return '';
     if (typeof value === 'string') return value;
 
+    // v2 JSON-LD value object: { "@language": "en", "@value": "Chapter 1" }
     // v3 language map object: { "en": ["Chapter 1"], "fr": ["Chapitre 1"] }
     if (typeof value === 'object' && !Array.isArray(value)) {
         const map = value as Record<string, unknown>;
+
+        if ('@value' in map) {
+            const entry = map['@value'];
+            if (Array.isArray(entry) && entry.length > 0) {
+                return String(entry[0]);
+            }
+            return entry === undefined ? '' : String(entry);
+        }
+
         const keys = Object.keys(map);
 
         const tryKey = (key: string): string | undefined => {
@@ -114,9 +124,16 @@ export function resolveAllLanguageValues(
     if (!value) return [];
     if (typeof value === 'string') return [value];
 
-    // v3 language map
+    // v2 JSON-LD value object or v3 language map
     if (typeof value === 'object' && !Array.isArray(value)) {
         const map = value as Record<string, unknown>;
+
+        if ('@value' in map) {
+            const entry = map['@value'];
+            if (Array.isArray(entry)) return entry.map(String);
+            return entry === undefined ? [] : [String(entry)];
+        }
+
         const keys = Object.keys(map);
 
         const getValues = (key: string): string[] | undefined => {
