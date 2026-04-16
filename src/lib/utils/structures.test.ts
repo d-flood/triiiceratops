@@ -74,4 +74,55 @@ describe('structures helpers', () => {
         expect(isStructureNodeActive(node, 'canvas-1')).toBe(true);
         expect(isStructureNodeActive(node, 'canvas-2')).toBe(false);
     });
+
+    it('resolves v2 structure labels from plain strings', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    '@id': 'range-1',
+                    '@type': 'sc:Range',
+                    label: 'Chapter 1',
+                    canvases: ['canvas-1'],
+                },
+            ],
+        });
+
+        expect(node.label).toBe('Chapter 1');
+    });
+
+    it('resolves v2 structure labels from @value objects', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    '@id': 'range-1',
+                    '@type': 'sc:Range',
+                    label: {
+                        '@language': 'ar',
+                        '@value': 'فصل',
+                    },
+                    canvases: ['canvas-1'],
+                },
+            ],
+        });
+
+        expect(node.label).toBe('فصل');
+    });
+
+    it('resolves v2 structure labels from @value arrays', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    '@id': 'range-1',
+                    '@type': 'sc:Range',
+                    label: {
+                        '@language': 'en',
+                        '@value': ['Chapter 1', 'Chapter One'],
+                    },
+                    canvases: ['canvas-1'],
+                },
+            ],
+        });
+
+        expect(node.label).toBe('Chapter 1');
+    });
 });
