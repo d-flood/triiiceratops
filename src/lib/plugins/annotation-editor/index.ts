@@ -1,4 +1,4 @@
-import type { PluginDef } from '../../types/plugin';
+import { createPanelPlugin, type PluginDef } from '../../types/plugin';
 import AnnotationEditorController from './AnnotationEditorController.svelte';
 import PencilSimple from 'phosphor-svelte/lib/PencilSimple';
 import type { AnnotationEditorConfig } from './types';
@@ -28,7 +28,7 @@ export function createAnnotationEditorPlugin(
     const adapter = config.adapter || new LocalStorageAdapter();
     const fullConfig = { ...config, adapter };
 
-    return {
+    return createPanelPlugin({
         id: 'annotation-editor',
         name: 'annotation_editor_title',
         icon: PencilSimple,
@@ -36,7 +36,7 @@ export function createAnnotationEditorPlugin(
         position: 'left',
         props: { config: fullConfig },
         onInit: createLoader(adapter),
-    };
+    });
 }
 
 /**

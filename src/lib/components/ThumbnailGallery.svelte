@@ -6,7 +6,10 @@
     import { language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { resolveLanguageValue } from '../utils/languageMap';
-    import { getCanvasId } from './viewerControls';
+    import {
+        getCanvasId,
+        getPagedCanvasGroups,
+    } from './viewerControls';
 
     // Minimal canvas/annotation types covering methods used here
     type ManifestService = {
@@ -46,84 +49,6 @@
               getContent?: () => ManifestAnnotation[];
           }
         | any;
-
-    type PagedCanvasGroup = {
-        startIndex: number;
-        endIndex: number;
-        entries: Array<{ canvasId: string }>;
-    };
-
-    function getCanvasBehaviors(canvas: any): string[] {
-        const raw =
-            canvas?.behavior ||
-            canvas?.__jsonld?.behavior ||
-            (typeof canvas?.getBehavior === 'function'
-                ? canvas.getBehavior()
-                : []);
-
-        if (!raw) return [];
-        const behaviors = Array.isArray(raw) ? raw : [raw];
-        return behaviors.map((value) => {
-            const normalized = String(value).trim().toLowerCase();
-            const segments = normalized.split(/[#/:]/);
-            return segments[segments.length - 1] || normalized;
-        });
-    }
-
-    function isSinglePageCanvas(canvas: any): boolean {
-        const behaviors = getCanvasBehaviors(canvas);
-        return (
-            behaviors.includes('non-paged') ||
-            behaviors.includes('facing-pages')
-        );
-    }
-
-    function getPagedCanvasGroups(
-        canvases: ManifestCanvas[],
-    ): PagedCanvasGroup[] {
-        const groups: PagedCanvasGroup[] = [];
-
-        for (
-            let index = 0;
-            index < Math.min(viewerState.pagedOffset, canvases.length);
-            index++
-        ) {
-            const canvas = canvases[index];
-            const canvasId = getCanvasId(canvas);
-
-            groups.push({
-                startIndex: index,
-                endIndex: index,
-                entries: canvasId ? [{ canvasId }] : [],
-            });
-        }
-
-        for (let index = viewerState.pagedOffset; index < canvases.length; ) {
-            const firstCanvas = canvases[index];
-            const firstCanvasId = getCanvasId(firstCanvas);
-            const nextCanvas = canvases[index + 1];
-            const nextCanvasId = getCanvasId(nextCanvas);
-            const shouldPair =
-                !!nextCanvas &&
-                !!firstCanvasId &&
-                !!nextCanvasId &&
-                !isSinglePageCanvas(firstCanvas) &&
-                !isSinglePageCanvas(nextCanvas);
-
-            groups.push({
-                startIndex: index,
-                endIndex: shouldPair ? index + 1 : index,
-                entries: [
-                    ...(firstCanvasId ? [{ canvasId: firstCanvasId }] : []),
-                    ...(shouldPair ? [{ canvasId: nextCanvasId }] : []),
-                ],
-            });
-
-            index += shouldPair ? 2 : 1;
-        }
-
-        return groups;
-    }
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let viewerLocale = $derived(
@@ -249,7 +174,6 @@
         // Use the stored center panel rect (captured at drag start, works with shadow DOM)
         const rect = viewerState.galleryCenterPanelRect;
         if (!rect) {
-            console.warn('[Gallery] No center panel rect available');
             return;
         }
 
@@ -277,7 +201,6 @@
     function stopDrag() {
         // If we were dragging towards a dock zone
         const dropTarget = viewerState.dragOverSide;
-        console.log('[Gallery] stopDrag. dropTarget:', dropTarget);
 
         viewerState.isGalleryDragging = false;
         viewerState.dragOverSide = null;
@@ -321,7 +244,10 @@
 
     function selectCanvas(canvasId: string) {
         if (viewerState.viewingMode === 'paged') {
-            const pagedGroups = getPagedCanvasGroups(canvases || []);
+            const pagedGroups = getPagedCanvasGroups(
+                canvases || [],
+                viewerState.pagedOffset,
+            );
             const group = pagedGroups.find((group) =>
                 group.entries.some(
                     (entry: { canvasId: string }) =>
@@ -378,7 +304,10 @@
         let targetId = viewerState.canvasId;
 
         if (viewerState.viewingMode === 'paged') {
-            const pagedGroups = getPagedCanvasGroups(canvases || []);
+            const pagedGroups = getPagedCanvasGroups(
+                canvases || [],
+                viewerState.pagedOffset,
+            );
             const group = pagedGroups.find((group) =>
                 group.entries.some(
                     (entry: { canvasId: string }) =>
@@ -454,12 +383,6 @@
         if (centerPanel) {
             viewerState.galleryCenterPanelRect =
                 centerPanel.getBoundingClientRect();
-            console.log(
-                '[Gallery] Captured center panel rect:',
-                viewerState.galleryCenterPanelRect,
-            );
-        } else {
-            console.warn('[Gallery] Could not find center panel in startDrag');
         }
 
         // CRITICAL: Set dragging state and attach listeners BEFORE changing dockSide
@@ -483,7 +406,10 @@
             hasChoice: boolean;
         }> = [];
         const thumbs = thumbnails;
-        const pagedGroups = getPagedCanvasGroups(canvases || []);
+        const pagedGroups = getPagedCanvasGroups(
+            canvases || [],
+            viewerState.pagedOffset,
+        );
 
         for (const pagedGroup of pagedGroups) {
             const i = pagedGroup.startIndex;

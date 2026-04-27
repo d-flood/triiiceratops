@@ -1,7 +1,6 @@
 <script lang="ts">
     import X from 'phosphor-svelte/lib/X';
     import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
-    import { setLocale, locales } from '../../paraglide/runtime';
     import * as m from '../../paraglide/messages';
     import type { ImageFilters } from './types';
 
@@ -10,13 +9,11 @@
         onFilterChange,
         onReset,
         onClose,
-        locale,
     }: {
         filters: ImageFilters;
         onFilterChange: (filters: ImageFilters) => void;
         onReset: () => void;
         onClose: () => void;
-        locale?: string;
     } = $props();
 
     function updateFilter<K extends keyof ImageFilters>(
@@ -26,11 +23,6 @@
         onFilterChange({ ...filters, [key]: value });
     }
 
-    $effect(() => {
-        if (locale && locales.includes(locale as any)) {
-            setLocale(locale as any);
-        }
-    });
 </script>
 
 <div

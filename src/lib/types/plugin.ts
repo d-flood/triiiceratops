@@ -1,6 +1,12 @@
 import type { Component } from 'svelte';
 import type { ViewerState } from '../state/viewer.svelte';
 
+declare global {
+    interface Window {
+        TriiiceratopsPlugins?: Record<string, unknown>;
+    }
+}
+
 /**
  * Menu button configuration for plugin UI injection.
  */
@@ -79,4 +85,17 @@ export interface PluginDef {
      * that should run regardless of whether the plugin's UI is open.
      */
     onInit?: (viewerState: ViewerState) => void;
+}
+
+export function definePlugin<T extends PluginDef>(plugin: T): T {
+    return plugin;
+}
+
+export function createPanelPlugin(plugin: PluginDef): PluginDef {
+    return definePlugin(plugin);
+}
+
+export function registerIifePlugin(name: string, plugin: PluginDef): void {
+    window.TriiiceratopsPlugins = window.TriiiceratopsPlugins || {};
+    window.TriiiceratopsPlugins[name] = plugin;
 }

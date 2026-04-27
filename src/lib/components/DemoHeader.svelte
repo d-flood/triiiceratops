@@ -8,6 +8,7 @@
     import { m, language } from '../state/i18n.svelte';
     import { manifestsState } from '../state/manifests.svelte';
     import { locales, setLocale } from '../paraglide/runtime.js';
+    import { getCanvasLabel } from '../utils/canvasLabels';
 
     import { onMount } from 'svelte';
 
@@ -214,32 +215,6 @@
     let canvases = $derived(
         manifestUrl ? manifestsState.getCanvases(manifestUrl) : [],
     );
-
-    function getCanvasLabel(canvas: any, index: number) {
-        try {
-            if (canvas.getLabel) {
-                const l = canvas.getLabel();
-                if (Array.isArray(l) && l.length > 0) return l[0].value;
-                if (typeof l === 'string') return l;
-            } else if (canvas.label) {
-                if (typeof canvas.label === 'string') return canvas.label;
-                if (
-                    typeof canvas.label === 'object' &&
-                    !Array.isArray(canvas.label)
-                ) {
-                    const keys = Object.keys(canvas.label);
-                    if (keys.length > 0) {
-                        const val = canvas.label[keys[0]];
-                        if (Array.isArray(val)) return val[0];
-                        return val;
-                    }
-                }
-            }
-        } catch {
-            /* ignore */
-        }
-        return `Canvas ${index + 1}`;
-    }
 
     function handleSelectChange(e: Event) {
         const value = (e.currentTarget as HTMLSelectElement).value;

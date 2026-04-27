@@ -7,6 +7,7 @@
     import type { SearchProvider, ViewerConfig } from '../types/config';
     import type { PluginDef } from '../types/plugin';
     import type { CanvasRegion } from '../utils/contentState';
+    import { createPluginId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
@@ -87,10 +88,6 @@
     viewerState = internalViewerState; // Expose via bindable prop
     setContext(VIEWER_STATE_KEY, internalViewerState);
 
-    onDestroy(() => {
-        internalViewerState.destroyAllPlugins();
-    });
-
     $effect(() => {
         internalViewerState.setManifestRequestConfig(config?.requests);
     });
@@ -105,6 +102,12 @@
 
     function clearDragState() {
         isDragOver = false;
+    }
+
+    function hasCanvas(canvasId: string) {
+        return internalViewerState.canvases.some(
+            (canvas: any) => getCanvasId(canvas) === canvasId,
+        );
     }
 
     function handleDragOver(event: DragEvent) {
@@ -188,7 +191,8 @@
                     requestedManifestId === manifestId &&
                     requestedCanvasId &&
                     requestedCanvasId === canvasId &&
-                    requestedCanvasId !== internalViewerState.canvasId
+                    requestedCanvasId !== internalViewerState.canvasId &&
+                    hasCanvas(requestedCanvasId)
                 ) {
                     lastAppliedCanvasId = requestedCanvasId;
                     internalViewerState.setCanvas(requestedCanvasId);
@@ -206,6 +210,13 @@
         // runs due to internal state changes
         if (canvasId && canvasId !== lastAppliedCanvasId) {
             lastAppliedCanvasId = canvasId;
+            if (
+                internalViewerState.manifestId &&
+                internalViewerState.canvases.length &&
+                !hasCanvas(canvasId)
+            ) {
+                return;
+            }
             // Only apply if different from current internal state
             if (canvasId !== internalViewerState.canvasId) {
                 internalViewerState.setCanvas(canvasId);
@@ -221,10 +232,6 @@
             const str = JSON.stringify(config);
             if (str !== lastConfigStr) {
                 lastConfigStr = str;
-                console.log(
-                    '[Viewer] updateConfig called with new config:',
-                    config,
-                );
                 internalViewerState.updateConfig(config);
             }
         }
@@ -251,9 +258,7 @@
                     continue;
                 }
 
-                const id =
-                    plugin.id ||
-                    `plugin-${Math.random().toString(36).substr(2, 9)}`;
+                const id = plugin.id || createPluginId();
                 // Create a copy with the ID to ensure stability for THIS registration
                 const defWithId = { ...plugin, id };
                 internalViewerState.registerPlugin(defWithId);
@@ -339,10 +344,6 @@
         ) {
             const query = internalViewerState.pendingSearchQuery;
             internalViewerState.pendingSearchQuery = null;
-            console.log(
-                '[Viewer] Manifest loaded, triggering deferred search:',
-                query,
-            );
             internalViewerState.search(query);
         }
     });
@@ -358,17 +359,9 @@
         ) {
             const startCanvas = internalViewerState.startCanvasId;
             if (startCanvas) {
-                console.log(
-                    '[Viewer] Auto-selecting start canvas:',
-                    startCanvas,
-                );
                 internalViewerState.setCanvas(startCanvas);
             } else {
                 const firstCanvasId = getCanvasId(canvases[0]);
-                console.log(
-                    '[Viewer] Auto-selecting first canvas:',
-                    firstCanvasId,
-                );
                 if (firstCanvasId) {
                     internalViewerState.setCanvas(firstCanvasId);
                 }

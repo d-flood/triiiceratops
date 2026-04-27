@@ -171,7 +171,6 @@
                     {@const visibleHits = isExpanded
                         ? group.hits
                         : group.hits.slice(0, INITIAL_EXCERPT_COUNT)}
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                         data-canvas-index={group.canvasIndex}
                         class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none {viewerState.currentCanvasIndex ===
@@ -206,8 +205,10 @@
                                         >{@html result.before}</span
                                     ><span
                                         class="bg-yellow-200 text-yellow-900 font-bold px-0.5 rounded"
-                                        ><!-- eslint-disable-next-line svelte/no-at-html-tags -->{@html result.match}</span
-                                    ><!-- eslint-disable-next-line svelte/no-at-html-tags --><span
+                                    >
+                                        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                                        {@html result.match}
+                                    </span><!-- eslint-disable-next-line svelte/no-at-html-tags --><span
                                         >{@html result.after}</span
                                     >{:else}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
                                         >{@html result.match}</span

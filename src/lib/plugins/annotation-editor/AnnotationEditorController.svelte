@@ -17,11 +17,9 @@
 
     // Props from the plugin system
     let {
-        isOpen: _isOpen = false,
         close,
         config,
     }: {
-        isOpen: boolean;
         close: () => void;
         config: AnnotationEditorConfig;
     } = $props();

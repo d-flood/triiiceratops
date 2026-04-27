@@ -184,8 +184,6 @@ export class AnnotationManager {
         }
     }
 
-    // ... (injectStyles remains same) ...
-
     private handlePointClick(event: any): void {
         if (!this.osdViewer || !this.annotorious) return;
 
@@ -228,22 +226,6 @@ export class AnnotationManager {
         const x = Math.round(imagePoint.x - width / 2);
         const y = Math.round(imagePoint.y - height / 2);
 
-        console.log('[PointTool] Sizing Debug:', {
-            p1,
-            p2,
-            imageDist,
-            size,
-            width,
-            height,
-        });
-
-        console.log('[PointTool] Creating Rect:', {
-            clickViewport: viewportPoint,
-            clickImage: imagePoint,
-            finalRect: { x, y, width, height },
-            imageBounds: this.osdViewer.world.getItemAt(0)?.getBounds(),
-        });
-
         const id = `point-${crypto.randomUUID()}`;
         const annotation = {
             '@context': 'http://www.w3.org/ns/anno.jsonld' as const,
@@ -268,8 +250,6 @@ export class AnnotationManager {
             (this.annotorious as any).setSelected(id);
         }, 50);
     }
-
-    // ... (injectStyles/styles/etc)
 
     // === Public API ===
 

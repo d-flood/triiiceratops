@@ -1,4 +1,4 @@
-import type { PluginDef } from '../../types/plugin';
+import { createPanelPlugin, type PluginDef } from '../../types/plugin';
 import ImageManipulationController from './ImageManipulationController.svelte';
 import SlidersIcon from 'phosphor-svelte/lib/Sliders';
 
@@ -12,13 +12,13 @@ import SlidersIcon from 'phosphor-svelte/lib/Sliders';
  * <TriiiceratopsViewer plugins={[ImageManipulationPlugin]} />
  * ```
  */
-export const ImageManipulationPlugin: PluginDef = {
+export const ImageManipulationPlugin: PluginDef = createPanelPlugin({
     id: 'image-manipulation',
     name: 'image_adjustments_title',
     icon: SlidersIcon,
     panel: ImageManipulationController,
     position: 'left',
-};
+});
 
 // Individual exports for customization
 export { ImageManipulationController, SlidersIcon };
