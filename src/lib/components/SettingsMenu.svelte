@@ -133,25 +133,6 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
-                            checked={config.annotations?.showCloseButton ??
-                                true}
-                            onchange={(e) => {
-                                if (!config.annotations)
-                                    config.annotations = {};
-                                config.annotations.showCloseButton =
-                                    e.currentTarget.checked;
-                            }}
-                        />
-                    </label>
-                </li>
-                <li>
                     <label class="label cursor-pointer py-1 gap-2">
                         <span class="label-text"
                             >{m.settings_select_dock_position()}</span

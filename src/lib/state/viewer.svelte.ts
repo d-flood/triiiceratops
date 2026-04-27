@@ -20,7 +20,12 @@ import {
 } from '../utils/collections';
 import type { CanvasRegion } from '../utils/contentState';
 import {
+    findCanvasIndexById,
+    getAnnotationId,
     getCanvasId,
+} from '../utils/iiifIds';
+import { createPluginId } from '../utils/pluginId';
+import {
     getPagedCanvasGroups,
     getVisibleCanvasEntries,
 } from '../components/viewerControls';
@@ -77,17 +82,6 @@ export class ViewerState {
     annotationVisibilityTouched = $state(false);
     hoveredAnnotationId = $state<string | null>(null);
 
-    private getAnnotationId(annotation: any): string {
-        return (
-            annotation?.id ||
-            annotation?.['@id'] ||
-            (typeof annotation?.getId === 'function'
-                ? annotation.getId()
-                : '') ||
-            ''
-        );
-    }
-
     showCurrentCanvasAnnotations() {
         this.clearAnnotationVisibility();
 
@@ -101,7 +95,7 @@ export class ViewerState {
         );
 
         annotations.forEach((annotation: any) => {
-            const id = this.getAnnotationId(annotation);
+            const id = getAnnotationId(annotation);
             if (id) {
                 this.visibleAnnotationIds.add(id);
             }
@@ -235,14 +229,7 @@ export class ViewerState {
         let canvasIndex = -1;
         if (this.manifestId && this.canvasId) {
             const canvases = manifestsState.getCanvases(this.manifestId);
-            canvasIndex = canvases.findIndex((c: any) => {
-                const id =
-                    c.id ||
-                    c['@id'] ||
-                    (c.getCanvasId ? c.getCanvasId() : null) ||
-                    (c.getId ? c.getId() : null);
-                return id === this.canvasId;
-            });
+            canvasIndex = findCanvasIndexById(canvases, this.canvasId);
         }
 
         return {
@@ -346,14 +333,7 @@ export class ViewerState {
         }
 
         // Manifesto canvases have an id property, but let's be robust and check multiple possibilities
-        return this.canvases.findIndex((c: any) => {
-            const id =
-                c.id ||
-                c['@id'] ||
-                (c.getCanvasId ? c.getCanvasId() : null) ||
-                (c.getId ? c.getId() : null);
-            return id === this.canvasId;
-        });
+        return findCanvasIndexById(this.canvases, this.canvasId);
     }
 
     private getCurrentPagedCanvasGroupIndex(): number {
@@ -1557,12 +1537,6 @@ export class ViewerState {
     /** OpenSeadragon viewer instance (set by OSDViewer) */
     osdViewer: any | null = $state.raw(null);
 
-    /** Event handlers for inter-plugin communication */
-    private pluginEventHandlers = new SvelteMap<
-        string,
-        Set<(data: unknown) => void>
-    >();
-
     /**
      * Internal plugin UI state keyed by plugin ID.
      * Keeps panel open state and toolbar visibility in one reactive place.
@@ -1633,8 +1607,7 @@ export class ViewerState {
      * Accepts a simple PluginDef object.
      */
     registerPlugin(def: PluginDef): void {
-        const id =
-            def.id || `plugin-${Math.random().toString(36).substr(2, 9)}`;
+        const id = def.id || createPluginId();
 
         this.ensurePluginUiState(id);
 
@@ -1709,7 +1682,6 @@ export class ViewerState {
         this.pluginMenuButtons = [];
         this.pluginPanels = [];
         this.pluginUiState.clear();
-        this.pluginEventHandlers.clear();
     }
 }
 

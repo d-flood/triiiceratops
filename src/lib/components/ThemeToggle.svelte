@@ -2,43 +2,10 @@
     import CaretDown from 'phosphor-svelte/lib/CaretDown';
     import { onMount } from 'svelte';
     import { m } from '../state/i18n.svelte';
+    import { DAISYUI_THEMES } from '../theme/types';
 
     let theme = $state('light');
-
-    const themes = [
-        'light',
-        'dark',
-        'cupcake',
-        'bumblebee',
-        'emerald',
-        'corporate',
-        'synthwave',
-        'retro',
-        'cyberpunk',
-        'valentine',
-        'halloween',
-        'garden',
-        'forest',
-        'aqua',
-        'lofi',
-        'pastel',
-        'fantasy',
-        'wireframe',
-        'black',
-        'luxury',
-        'dracula',
-        'cmyk',
-        'autumn',
-        'business',
-        'acid',
-        'lemonade',
-        'night',
-        'coffee',
-        'winter',
-        'dim',
-        'nord',
-        'sunset',
-    ];
+    const themes = DAISYUI_THEMES;
 
     onMount(() => {
         const storedTheme = localStorage.getItem('theme');

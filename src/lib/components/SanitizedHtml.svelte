@@ -1,11 +1,11 @@
 <script lang="ts">
     import { sanitizeHtml, sanitizeHtmlSync } from '../utils/sanitizeHtml';
-    import type { ClassValue } from 'svelte/elements';
+    import type { ClassValue, SvelteHTMLElements } from 'svelte/elements';
 
     interface Props {
         html?: string;
         class?: ClassValue;
-        tag?: keyof HTMLElementTagNameMap;
+        tag?: keyof SvelteHTMLElements;
     }
 
     let {

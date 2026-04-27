@@ -1,5 +1,6 @@
 import { getVisibleCanvasEntries } from '../components/viewerControls';
-import { resolveLanguageValue } from './languageMap';
+import { getCanvasLabel } from './canvasLabels';
+import { getCanvasId, getResourceId } from './iiifIds';
 
 export type TileSource = string | { type: 'image'; url: string };
 
@@ -52,16 +53,6 @@ type CanvasDimensions = {
     width: number;
     height: number;
 };
-
-function getId(thing: any): string | null {
-    return (
-        thing?.id ||
-        thing?.['@id'] ||
-        thing?.__jsonld?.id ||
-        thing?.__jsonld?.['@id'] ||
-        null
-    );
-}
 
 function normalizeServiceId(serviceId: string): string {
     return serviceId.endsWith('/info.json')
@@ -147,14 +138,14 @@ function getSelectedChoiceResource({
 
     if (selectedId) {
         const selectedBodyItem = bodyItems.find(
-            (item: any) => getId(item) === selectedId,
+            (item: any) => getResourceId(item) === selectedId,
         );
         if (selectedBodyItem) {
             return selectedBodyItem;
         }
 
         const selectedRawIndex = rawItems.findIndex(
-            (item: any) => getId(item) === selectedId,
+            (item: any) => getResourceId(item) === selectedId,
         );
         if (selectedRawIndex >= 0) {
             return bodyItems[selectedRawIndex] || rawItems[selectedRawIndex];
@@ -325,7 +316,7 @@ function getAnnotationResource(
                 const items = body.items || body.item || [];
                 const selectedId = getSelectedChoice?.(canvasId);
                 const selectedItem = selectedId
-                    ? items.find((item: any) => getId(item) === selectedId)
+                    ? items.find((item: any) => getResourceId(item) === selectedId)
                     : null;
                 body = selectedItem || items[0] || null;
             }
@@ -410,7 +401,7 @@ function getImageServiceDetails(resource: any): {
     serviceProfile: string | null;
 } {
     const service = getImageService(resource);
-    const serviceId = getId(service);
+    const serviceId = getResourceId(service);
     const rawProfile = service
         ? service.getProfile
             ? service.getProfile()
@@ -436,33 +427,7 @@ function getHeuristicServiceId(resourceId: string | null): string | null {
     return regionIndex > 0 ? parts.slice(0, regionIndex).join('/') : null;
 }
 
-export function getCanvasLabel(canvas: any, fallbackIndex?: number): string {
-    const fallback =
-        fallbackIndex === undefined
-            ? 'Untitled canvas'
-            : `Canvas ${fallbackIndex + 1}`;
-
-    try {
-        const label = canvas.getLabel?.();
-        if (Array.isArray(label) && label.length > 0) {
-            return resolveLanguageValue(label) || fallback;
-        }
-    } catch {
-        // ignore malformed labels
-    }
-
-    const rawLabel = canvas.label || canvas.__jsonld?.label;
-    if (rawLabel) {
-        const resolved = resolveLanguageValue(rawLabel);
-        if (resolved) return resolved;
-    }
-
-    return fallback;
-}
-
-export function getCanvasId(canvas: any): string {
-    return getId(canvas) || canvas?.getCanvasId?.() || canvas?.getId?.() || '';
-}
+export { getCanvasLabel, getCanvasId };
 
 export function resolveCanvasImage(
     canvas: any,
@@ -505,7 +470,7 @@ export function resolveAllCanvasImages(
                 return null;
             }
 
-            const resourceId = getId(resource);
+            const resourceId = getResourceId(resource);
             const resourceDimensions = getResourceDimensions(resource);
             const serviceDetails = getImageServiceDetails(resource);
             const serviceId =

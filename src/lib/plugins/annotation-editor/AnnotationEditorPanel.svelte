@@ -12,7 +12,6 @@
     import Check from 'phosphor-svelte/lib/Check';
     import type { DrawingTool, W3CAnnotationBody } from './types';
     import { W3C_PURPOSES } from './types';
-    import { setLocale, locales } from '../../paraglide/runtime';
     import { m } from '../../paraglide/messages';
 
     // Import Annotorious CSS for the drawing overlay to ensure it's loaded by Vite
@@ -39,7 +38,6 @@
         onUndo,
         onRedo,
         onClose,
-        locale,
     }: {
         isEditing: boolean;
         activeTool: DrawingTool;
@@ -60,7 +58,6 @@
         onUndo: () => void;
         onRedo: () => void;
         onClose: () => void;
-        locale?: string;
     } = $props();
 
     // Tool icons
@@ -84,12 +81,6 @@
             } else {
                 editableBodies = [];
             }
-        }
-    });
-
-    $effect(() => {
-        if (locale && locales.includes(locale as any)) {
-            setLocale(locale as any);
         }
     });
 

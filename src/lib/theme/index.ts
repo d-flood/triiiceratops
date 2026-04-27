@@ -58,9 +58,8 @@ export {
     clearThemeConfig,
     isBuiltInTheme,
     parseThemeConfig,
-    getThemeCssVariables,
-    getThemePropertyNames,
 } from './themeManager';
+export { getThemeCssVariables, getThemePropertyNames } from './introspection';
 
 // Color utilities
 export {

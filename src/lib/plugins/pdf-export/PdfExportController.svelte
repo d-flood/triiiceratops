@@ -17,11 +17,9 @@
     import PdfExportPanel from './PdfExportPanel.svelte';
 
     let {
-        isOpen: _isOpen = false,
         close,
         config = {},
     }: {
-        isOpen?: boolean;
         close: () => void;
         config?: {
             coverSheet?: PdfCoverSheetConfig;
