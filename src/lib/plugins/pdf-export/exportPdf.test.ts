@@ -739,6 +739,89 @@ describe('exportCanvasRangeAsPdf', () => {
             'custom-export.pdf',
         );
     });
+
+    it('uses getFilename for the PDF download when no explicit filename is configured', async () => {
+        const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+        const canvases = [
+            createCanvas('canvas-1'),
+            createCanvas('canvas-2'),
+            createCanvas('canvas-3'),
+        ];
+        const getFilename = vi.fn(() => 'dynamic-export.pdf');
+
+        const result = await exportCanvasRangeAsPdf({
+            canvases,
+            startIndex: 2,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            manifestLabel: 'Example Manifest',
+            getFilename,
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        const anchor = appendChildSpy.mock.calls.at(-1)?.[0];
+
+        expect(getFilename).toHaveBeenCalledWith({
+            manifestId: 'https://example.org/manifest',
+            manifestLabel: 'Example Manifest',
+            startIndex: 0,
+            endIndex: 2,
+            indices: [0, 1, 2],
+            canvases,
+            exportedCount: 3,
+            failedCanvases: [],
+            defaultFilename: 'Example-Manifest-1-3.pdf',
+        });
+        expect(result.filename).toBe('dynamic-export.pdf');
+        expect(anchor).toBeInstanceOf(HTMLAnchorElement);
+        expect((anchor as HTMLAnchorElement).download).toBe(
+            'dynamic-export.pdf',
+        );
+    });
+
+    it('prefers an explicit filename over getFilename', async () => {
+        const getFilename = vi.fn(() => 'dynamic-export.pdf');
+
+        const result = await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1')],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            filename: 'custom-export.pdf',
+            getFilename,
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        expect(getFilename).not.toHaveBeenCalled();
+        expect(result.filename).toBe('custom-export.pdf');
+    });
+
+    it.each([null, undefined, ''])(
+        'falls back to a generated filename when getFilename returns %s',
+        async (dynamicFilename) => {
+            const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+
+            const result = await exportCanvasRangeAsPdf({
+                canvases: [createCanvas('canvas-1')],
+                startIndex: 0,
+                endIndex: 0,
+                targetWidth: 1000,
+                manifestId: 'https://example.org/manifest',
+                getFilename: () => dynamicFilename,
+                loadImageBlob: () => createImageBlob(),
+            });
+
+            const anchor = appendChildSpy.mock.calls.at(-1)?.[0];
+
+            expect(result.filename).toBe('manifest-1-1.pdf');
+            expect(anchor).toBeInstanceOf(HTMLAnchorElement);
+            expect((anchor as HTMLAnchorElement).download).toBe(
+                'manifest-1-1.pdf',
+            );
+        },
+    );
 });
 
 describe('normalizeCanvasRange', () => {

@@ -4,6 +4,7 @@ import PdfExportController from './PdfExportController.svelte';
 import type {
     PdfCanvasOcrOverlayProvider,
     PdfCoverSheetConfig,
+    PdfExportFilenameProvider,
     PdfImageLoader,
     PdfImageRequestConfig,
     PdfOcrPlacementMode,
@@ -14,6 +15,7 @@ import type {
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;
     filename?: string;
+    getFilename?: PdfExportFilenameProvider;
     ocrAnnotationSource?: string;
     getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
     imageRequest?: PdfImageRequestConfig;
@@ -41,6 +43,8 @@ export type {
     PdfCanvasOcrOverlayProvider,
     PdfCoverSheetConfig,
     PdfCoverSheetField,
+    PdfExportFilenameProvider,
+    PdfExportFilenameProviderContext,
     PdfExportOcrProviderContext,
     PdfImageLoader,
     PdfImageLoaderParams,
