@@ -73,11 +73,20 @@
         },
         annotations: {
             open: false,
+            showCloseButton: true,
         },
         information: {
             open: false,
             showCloseButton: true,
             position: 'right' as 'left' | 'right',
+        },
+        structures: {
+            open: false,
+            showCloseButton: true,
+        },
+        collection: {
+            open: false,
+            showCloseButton: true,
         },
     };
 

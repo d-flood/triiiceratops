@@ -46,7 +46,7 @@ export interface InformationConfig
     open?: boolean;
 }
 
-export interface StructuresConfig {
+export interface StructuresConfig extends ClosablePanelConfig {
     /**
      * Whether the structures/TOC panel is currently open.
      * @default false
@@ -54,7 +54,7 @@ export interface StructuresConfig {
     open?: boolean;
 }
 
-export interface CollectionConfig {
+export interface CollectionConfig extends ClosablePanelConfig {
     /**
      * Whether the collection panel is currently open.
      * @default false

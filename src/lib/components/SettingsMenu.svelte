@@ -566,6 +566,23 @@
                     </label>
                 </li>
                 <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_close_button()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.search?.showCloseButton ?? true}
+                            onchange={(e) => {
+                                if (!config.search) config.search = {};
+                                config.search.showCloseButton =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
                     <label class="label cursor-pointer py-1 gap-2">
                         <span class="label-text"
                             >{m.settings_select_dock_position()}</span
@@ -611,6 +628,24 @@
                                 if (!config.annotations)
                                     config.annotations = {};
                                 config.annotations.open =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_close_button()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.annotations?.showCloseButton ?? true}
+                            onchange={(e) => {
+                                if (!config.annotations)
+                                    config.annotations = {};
+                                config.annotations.showCloseButton =
                                     e.currentTarget.checked;
                             }}
                         />
@@ -669,6 +704,24 @@
                     </label>
                 </li>
                 <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_close_button()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.information?.showCloseButton ?? true}
+                            onchange={(e) => {
+                                if (!config.information)
+                                    config.information = {};
+                                config.information.showCloseButton =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
                     <label class="label cursor-pointer py-1 gap-2">
                         <span class="label-text"
                             >{m.settings_select_dock_position()}</span
@@ -719,6 +772,23 @@
                         />
                     </label>
                 </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_close_button()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.structures?.showCloseButton ?? true}
+                            onchange={(e) => {
+                                if (!config.structures) config.structures = {};
+                                config.structures.showCloseButton =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
             </ul>
         </details>
     </li>
@@ -739,6 +809,23 @@
                             onchange={(e) => {
                                 if (!config.collection) config.collection = {};
                                 config.collection.open =
+                                    e.currentTarget.checked;
+                            }}
+                        />
+                    </label>
+                </li>
+                <li>
+                    <label class="label cursor-pointer py-1">
+                        <span class="label-text"
+                            >{m.settings_toggle_close_button()}</span
+                        >
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-xs"
+                            checked={config.collection?.showCloseButton ?? true}
+                            onchange={(e) => {
+                                if (!config.collection) config.collection = {};
+                                config.collection.showCloseButton =
                                     e.currentTarget.checked;
                             }}
                         />

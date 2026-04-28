@@ -312,6 +312,18 @@
         internalViewerState.config.rightPanelWidth ?? '320px',
     );
 
+    function getPluginPanelClose(
+        props: Record<string, unknown> | undefined,
+    ): (() => void) | undefined {
+        return typeof props?.close === 'function'
+            ? (props.close as () => void)
+            : undefined;
+    }
+
+    function showPanelCloseButton(showCloseButton: boolean | undefined) {
+        return showCloseButton ?? true;
+    }
+
     let visiblePanelsLeft = $derived.by<PanelStackItem[]>(() => {
         const panels: PanelStackItem[] = [];
 
@@ -324,6 +336,11 @@
                 title: m.search(),
                 icon: MagnifyingGlass,
                 component: SearchPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.search?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleSearchPanel()
+                    : undefined,
             });
         }
         if (
@@ -335,6 +352,11 @@
                 title: m.settings_submenu_annotations(),
                 icon: ChatCenteredText,
                 component: AnnotationPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.annotations?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleAnnotations()
+                    : undefined,
             });
         }
         if (
@@ -346,13 +368,18 @@
                 title: m.metadata(),
                 icon: Info,
                 component: MetadataPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.information?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleMetadataPanel()
+                    : undefined,
             });
         }
 
         for (const panel of internalViewerState.pluginPanels) {
             if (panel.isVisible() && panel.position === 'left') {
                 const resolveTitle = (
-                    m as Record<string, (() => string) | undefined>
+                    m as unknown as Record<string, (() => string) | undefined>
                 )[panel.name];
                 panels.push({
                     id: panel.id,
@@ -360,6 +387,7 @@
                     icon: panel.icon,
                     component: panel.component,
                     props: { ...(panel.props ?? {}), locale: viewerLocale },
+                    close: getPluginPanelClose(panel.props),
                 });
             }
         }
@@ -379,6 +407,11 @@
                 title: m.search(),
                 icon: MagnifyingGlass,
                 component: SearchPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.search?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleSearchPanel()
+                    : undefined,
             });
         }
         if (
@@ -390,6 +423,11 @@
                 title: m.settings_submenu_annotations(),
                 icon: ChatCenteredText,
                 component: AnnotationPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.annotations?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleAnnotations()
+                    : undefined,
             });
         }
         if (
@@ -401,6 +439,11 @@
                 title: m.metadata(),
                 icon: Info,
                 component: MetadataPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.information?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleMetadataPanel()
+                    : undefined,
             });
         }
         if (internalViewerState.showStructuresPanel) {
@@ -409,6 +452,11 @@
                 title: m.structures_title(),
                 icon: ListBullets,
                 component: StructuresPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.structures?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleStructuresPanel()
+                    : undefined,
             });
         }
         if (showCollectionSidebar) {
@@ -417,13 +465,18 @@
                 title: m.collection_title(),
                 icon: Folder,
                 component: CollectionPanel,
+                close: showPanelCloseButton(
+                    internalViewerState.config.collection?.showCloseButton,
+                )
+                    ? () => internalViewerState.toggleCollectionPanel()
+                    : undefined,
             });
         }
 
         for (const panel of internalViewerState.pluginPanels) {
             if (panel.isVisible() && panel.position === 'right') {
                 const resolveTitle = (
-                    m as Record<string, (() => string) | undefined>
+                    m as unknown as Record<string, (() => string) | undefined>
                 )[panel.name];
                 panels.push({
                     id: panel.id,
@@ -431,6 +484,7 @@
                     icon: panel.icon,
                     component: panel.component,
                     props: { ...(panel.props ?? {}), locale: viewerLocale },
+                    close: getPluginPanelClose(panel.props),
                 });
             }
         }
