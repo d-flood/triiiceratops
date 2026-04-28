@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.7
+
+### Patch Changes
+
+- b9797c4: restore close buttons on panels and on config
+
 ## 1.0.0-rc.6
 
 ### Patch Changes
