@@ -126,6 +126,8 @@ interface PluginDef {
 
 If you plan to control plugin UI state through `config.plugins`, set an explicit, stable `id` on each plugin. Auto-generated IDs are not stable across re-registration.
 
+Plugin panels render in the same left and right sidebar stacks as built-in panels. When multiple panels are assigned to the same side, they stack vertically. Sidebar width is configured per side with `leftPanelWidth` and `rightPanelWidth` in the viewer configuration; plugin UI config does not define a per-plugin or per-panel width.
+
 ## Controlling Plugin UI Through Config
 
 Plugin toolbar button visibility and plugin panel open/closed state can be controlled through the same `config` object used for built-in panes.
