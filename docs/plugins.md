@@ -338,7 +338,7 @@ Feature summary:
 
 - range-based export from the plugin panel
 - one PDF page per selected canvas
-- optional consumer-provided download filename
+- optional static or dynamic consumer-provided download filename
 - optional cover sheet with consumer-provided label/value metadata
 - selectable OCR text when the canvas exposes IIIF OCR annotations
 - configurable browser image request settings for public or authenticated image services
@@ -382,7 +382,10 @@ Use `createPdfExportPlugin(...)` when you want a custom filename, a cover sheet,
 import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
 
 const pdfExportPlugin = createPdfExportPlugin({
-    filename: 'digitization-summary.pdf',
+    getFilename: ({ manifestLabel, startIndex, endIndex, defaultFilename }) =>
+        manifestLabel
+            ? `${manifestLabel}-${startIndex + 1}-${endIndex + 1}.pdf`
+            : defaultFilename,
     coverSheet: {
         title: 'Digitization Summary',
         fields: [
@@ -453,6 +456,17 @@ Configuration shape:
 ```ts
 type PdfExportConfig = {
     filename?: string;
+    getFilename?: (context: {
+        manifestId: string | null;
+        manifestLabel?: string | null;
+        startIndex: number;
+        endIndex: number;
+        indices: number[];
+        canvases: any[];
+        exportedCount: number;
+        failedCanvases: string[];
+        defaultFilename: string;
+    }) => Promise<string | null | undefined> | string | null | undefined;
     coverSheet?: {
         title?: string;
         fields: { label: string; value: string }[];
@@ -509,9 +523,13 @@ type PdfExportConfig = {
 
 #### Filename
 
-Set `filename` when the consuming application should control the downloaded PDF name. The value is passed directly to the browser download link, so include the `.pdf` extension when you want it shown in the saved file name.
+Set `filename` when the consuming application should control the downloaded PDF name with a static value. The value is passed directly to the browser download link, so include the `.pdf` extension when you want it shown in the saved file name.
 
-When `filename` is omitted, the plugin generates a PDF filename from the manifest label or identifier and the selected canvas range.
+Set `getFilename` when the consuming application should compute the downloaded PDF name for each export. The callback receives the manifest identifier and label, normalized selected range, selected canvases, export counts, failed canvas labels, and the generated `defaultFilename`.
+
+If both `filename` and `getFilename` are configured, `filename` takes precedence and `getFilename` is not called. If `getFilename` returns `null`, `undefined`, or an empty string, the plugin uses the generated filename fallback.
+
+When both `filename` and `getFilename` are omitted, the plugin generates a PDF filename from the manifest label or identifier and the selected canvas range.
 
 #### Cover Sheet
 

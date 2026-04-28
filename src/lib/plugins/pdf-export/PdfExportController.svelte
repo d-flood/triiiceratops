@@ -10,6 +10,7 @@
     import type {
         PdfCanvasOcrOverlayProvider,
         PdfCoverSheetConfig,
+        PdfExportFilenameProvider,
         PdfImageLoader,
         PdfImageRequestConfig,
     } from './exportPdf';
@@ -27,6 +28,7 @@
             ocrSizingMode?: 'fit-box' | 'height-only';
             ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
             filename?: string;
+            getFilename?: PdfExportFilenameProvider;
             getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
             imageRequest?: PdfImageRequestConfig;
             loadImageBlob?: PdfImageLoader;
@@ -187,6 +189,7 @@
                 manifestId: viewerState.manifestId,
                 manifestLabel,
                 filename: config.filename,
+                getFilename: config.getFilename,
                 coverSheet: config.coverSheet,
                 imageRequest: config.imageRequest,
                 loadImageBlob: config.loadImageBlob,

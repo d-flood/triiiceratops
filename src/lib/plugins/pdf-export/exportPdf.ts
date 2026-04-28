@@ -77,6 +77,22 @@ export type PdfCanvasOcrOverlayProvider = (
     | null
     | undefined;
 
+export type PdfExportFilenameProviderContext = {
+    manifestId: string | null;
+    manifestLabel?: string | null;
+    startIndex: number;
+    endIndex: number;
+    indices: number[];
+    canvases: any[];
+    exportedCount: number;
+    failedCanvases: string[];
+    defaultFilename: string;
+};
+
+export type PdfExportFilenameProvider = (
+    context: PdfExportFilenameProviderContext,
+) => Promise<string | null | undefined> | string | null | undefined;
+
 export type PdfOcrPlacementMode = 'fit-box' | 'word-anchor';
 
 export type PdfOcrSizingMode = 'fit-box' | 'height-only';
@@ -105,6 +121,7 @@ type ExportCanvasRangeAsPdfParams = {
     ocrSizingMode?: PdfOcrSizingMode;
     ocrVisibilityMode?: PdfOcrVisibilityMode;
     filename?: string;
+    getFilename?: PdfExportFilenameProvider;
     coverSheet?: PdfCoverSheetConfig;
     createdAt?: Date;
     currentUrl?: string | null;
@@ -1188,6 +1205,7 @@ export async function exportCanvasRangeAsPdf({
     ocrSizingMode,
     ocrVisibilityMode,
     filename,
+    getFilename,
     coverSheet,
     createdAt,
     currentUrl,
@@ -1362,14 +1380,30 @@ export async function exportCanvasRangeAsPdf({
             throw new Error(m.pdf_export_error_no_canvases_exported());
         }
 
+        const defaultFilename = buildPdfFilename({
+            manifestId,
+            manifestLabel,
+            startIndex: range.startIndex,
+            endIndex: range.endIndex,
+        });
+        const dynamicFilename = filename
+            ? null
+            : await getFilename?.({
+                  manifestId,
+                  manifestLabel,
+                  startIndex: range.startIndex,
+                  endIndex: range.endIndex,
+                  indices: plainIndices,
+                  canvases: plainIndices.map((index) => canvases[index]),
+                  exportedCount,
+                  failedCanvases,
+                  defaultFilename,
+              });
         const finalFilename =
             filename ||
-            buildPdfFilename({
-                manifestId,
-                manifestLabel,
-                startIndex: range.startIndex,
-                endIndex: range.endIndex,
-            });
+            (typeof dynamicFilename === 'string' && dynamicFilename
+                ? dynamicFilename
+                : defaultFilename);
 
         onProgress?.(
             m.pdf_export_progress_download({ filename: finalFilename }),

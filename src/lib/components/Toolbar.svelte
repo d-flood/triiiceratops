@@ -70,7 +70,8 @@
         ),
     );
     const showStructures = $derived(
-        toolbarConfig.showStructures !== false &&
+        viewerState.config.showStructures !== false &&
+            toolbarConfig.showStructures !== false &&
             nonSequenceStructures.length > 0,
     );
     const showCollection = $derived(

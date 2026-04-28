@@ -132,6 +132,13 @@ export interface ViewerConfig {
     toolbar?: ToolbarConfig;
 
     /**
+     * Whether the Table of Contents (Structures) toolbar button is shown.
+     * Prefer `toolbar.showStructures` for new configurations.
+     * @default true
+     */
+    showStructures?: boolean;
+
+    /**
      * Per-plugin UI overrides keyed by plugin ID.
      *
      * Example:
