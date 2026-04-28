@@ -1,7 +1,6 @@
 <script lang="ts">
     import { getContext } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
-    import X from 'phosphor-svelte/lib/X';
     import ListBullets from 'phosphor-svelte/lib/ListBullets';
     import CaretRight from 'phosphor-svelte/lib/CaretRight';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
@@ -9,6 +8,7 @@
     import type { StructureNode } from '../utils/structures';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    let { embedded = false }: { embedded?: boolean } = $props();
 
     let structures = $derived(
         viewerState.structures.filter(
@@ -16,7 +16,6 @@
         ),
     );
     let hasStructures = $derived(structures.length > 0);
-    let panelWidth = $derived(viewerState.config.structures?.width ?? '320px');
     let autoExpandedId = $derived(
         structures.length === 1 && structures[0].children.length > 0
             ? structures[0].id
@@ -98,37 +97,38 @@
 
 {#if viewerState.showStructuresPanel}
     <div
-        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 border-l border-base-300"
-        style="width: {panelWidth}"
+        class="min-h-0 flex flex-col {embedded
+            ? ''
+            : 'h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 border-l border-base-300'}"
         role="dialog"
         aria-label={m.structures_title()}
     >
-        <!-- Header -->
-        <div
-            class="flex items-center justify-between p-4 border-b border-base-300"
-        >
+        {#if !embedded}
+        <div class="flex items-center justify-between p-4 border-b border-base-300">
             <div class="flex items-center gap-2">
                 <ListBullets size={20} weight="bold" />
                 <h2 class="font-bold text-lg">
                     {m.structures_title()}
                 </h2>
             </div>
-            <button
-                class="btn btn-sm btn-circle btn-ghost"
-                onclick={() => viewerState.toggleStructuresPanel()}
-                aria-label={m.close()}
-            >
-                <X size={20} />
-            </button>
         </div>
+        {/if}
 
         <!-- Tree Content -->
         {#if hasStructures}
-            <div class="flex-1 overflow-y-auto p-0 flex flex-col">
+            <div
+                class="p-0 flex flex-col {embedded
+                    ? ''
+                    : 'flex-1 overflow-y-auto'}"
+            >
                 {@render rangeTree(structures)}
             </div>
         {:else}
-            <div class="flex-1 flex items-center justify-center p-8">
+            <div
+                class="flex items-center justify-center p-8 {embedded
+                    ? ''
+                    : 'flex-1'}"
+            >
                 <p class="text-sm opacity-50">{m.structures_empty()}</p>
             </div>
         {/if}

@@ -189,17 +189,3 @@ export function applyTheme(
         applyThemeConfig(element, config);
     }
 }
-
-/**
- * Get all CSS variable names that can be customized
- */
-export function getThemeCssVariables(): string[] {
-    return Object.values(CSS_VAR_MAP).filter((v) => v !== 'color-scheme');
-}
-
-/**
- * Get all customizable theme property names
- */
-export function getThemePropertyNames(): (keyof ThemeConfig)[] {
-    return Object.keys(CSS_VAR_MAP) as (keyof ThemeConfig)[];
-}

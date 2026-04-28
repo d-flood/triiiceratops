@@ -1,6 +1,7 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import type { RequestConfig } from '../types/config';
+import { fetchJson } from '../utils/fetchJson';
 import { loadManifestoModule } from './manifestoRuntime';
 
 export interface ManifestEntry {
@@ -15,8 +16,6 @@ export class ManifestsState {
 
     // User-created annotations (from plugins like annotation editor)
     userAnnotations: SvelteMap<string, any[]> = new SvelteMap();
-
-    constructor() {}
 
     async registerManifest(manifestId: string, json: any): Promise<void> {
         const manifestoModule = await loadManifestoModule();
@@ -65,16 +64,7 @@ export class ManifestsState {
         url: string,
         requestConfig?: RequestConfig,
     ): Promise<any> {
-        const response = await fetch(url, {
-            headers: requestConfig?.headers,
-            credentials: requestConfig?.withCredentials
-                ? 'include'
-                : 'same-origin',
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
+        return fetchJson(url, requestConfig);
     }
 
     async fetchManifest(manifestId: string, requestConfig?: RequestConfig) {
@@ -89,16 +79,7 @@ export class ManifestsState {
         this.manifests[manifestId] = { isFetching: true };
 
         try {
-            const response = await fetch(manifestId, {
-                headers: requestConfig?.headers,
-                credentials: requestConfig?.withCredentials
-                    ? 'include'
-                    : 'same-origin',
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const json = await response.json();
+            const json = await fetchJson(manifestId, requestConfig);
             await this.registerManifest(manifestId, json);
         } catch (error: any) {
             this.manifests[manifestId] = {
@@ -168,7 +149,7 @@ export class ManifestsState {
             return [];
         }
 
-        const canvasById = new Map<string, any>();
+        const canvasById = new SvelteMap<string, any>();
         const manifestoSequences = manifestoObject.getSequences?.() || [];
 
         for (const sequence of manifestoSequences) {

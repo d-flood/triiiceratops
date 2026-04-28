@@ -12,7 +12,6 @@
     import Check from 'phosphor-svelte/lib/Check';
     import type { DrawingTool, W3CAnnotationBody } from './types';
     import { W3C_PURPOSES } from './types';
-    import { setLocale, locales } from '../../paraglide/runtime';
     import { m } from '../../paraglide/messages';
 
     // Import Annotorious CSS for the drawing overlay to ensure it's loaded by Vite
@@ -38,8 +37,7 @@
         onCancelDelete,
         onUndo,
         onRedo,
-        onClose,
-        locale,
+        embedded = false,
     }: {
         isEditing: boolean;
         activeTool: DrawingTool;
@@ -59,8 +57,7 @@
         onCancelDelete: () => void;
         onUndo: () => void;
         onRedo: () => void;
-        onClose: () => void;
-        locale?: string;
+        embedded?: boolean;
     } = $props();
 
     // Tool icons
@@ -87,12 +84,6 @@
         }
     });
 
-    $effect(() => {
-        if (locale && locales.includes(locale as any)) {
-            setLocale(locale as any);
-        }
-    });
-
     function addBody() {
         editableBodies = [
             ...editableBodies,
@@ -112,24 +103,20 @@
 </script>
 
 <div
-    class="w-80 h-full bg-base-200 border-r border-base-300 shadow-xl flex flex-col"
+    class="min-h-0 flex flex-col {embedded
+        ? 'w-full'
+        : 'h-full w-80 bg-base-200 border-r border-base-300 shadow-xl'}"
 >
-    <!-- Header -->
-    <div class="flex items-center justify-between p-4 border-b border-base-300">
-        <h2 class="text-lg font-semibold flex items-center gap-2">
-            <PencilSimple size={20} />
-            {m.annotation_editor_title()}
-        </h2>
-        <button
-            class="btn btn-sm btn-ghost btn-circle"
-            onclick={onClose}
-            aria-label={m.close()}
-        >
-            <X size={20} />
-        </button>
-    </div>
+    {#if !embedded}
+        <div class="flex items-center p-4 border-b border-base-300">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+                <PencilSimple size={20} />
+                {m.annotation_editor_title()}
+            </h2>
+        </div>
+    {/if}
 
-    <div class="flex-1 overflow-y-auto p-4 space-y-6">
+    <div class="w-full p-4 space-y-6 {embedded ? '' : 'flex-1 overflow-y-auto'}">
         <!-- Drawing Mode Toggle -->
         <div class="flex flex-col gap-2">
             <div class="join grid grid-cols-2 w-full">
@@ -232,7 +219,11 @@
                     </div>
                 </div>
 
-                <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+                <div
+                    class="space-y-3 pr-1 {embedded
+                        ? ''
+                        : 'max-h-[40vh] overflow-y-auto'}"
+                >
                     {#each editableBodies as body, i (i)}
                         <div class="card bg-base-200 p-2 space-y-2">
                             <div class="flex items-center gap-2">

@@ -126,6 +126,8 @@ interface PluginDef {
 
 If you plan to control plugin UI state through `config.plugins`, set an explicit, stable `id` on each plugin. Auto-generated IDs are not stable across re-registration.
 
+Plugin panels render in the same left and right sidebar stacks as built-in panels. When multiple panels are assigned to the same side, they stack vertically. Sidebar width is configured per side with `leftPanelWidth` and `rightPanelWidth` in the viewer configuration; plugin UI config does not define a per-plugin or per-panel width.
+
 ## Controlling Plugin UI Through Config
 
 Plugin toolbar button visibility and plugin panel open/closed state can be controlled through the same `config` object used for built-in panes.
@@ -336,12 +338,14 @@ Feature summary:
 
 - range-based export from the plugin panel
 - one PDF page per selected canvas
+- optional consumer-provided download filename
 - optional cover sheet with consumer-provided label/value metadata
 - selectable OCR text when the canvas exposes IIIF OCR annotations
 - configurable browser image request settings for public or authenticated image services
 
 By default, `PdfExportPlugin` uses:
 
+- an automatically generated filename based on the manifest and selected canvas range
 - no cover sheet
 - public-friendly image fetching with `credentials: "same-origin"`
 - OCR text embedding only when suitable IIIF OCR annotations are present
@@ -372,12 +376,13 @@ By default, `PdfExportPlugin` uses:
 
 #### Configuring The Plugin
 
-Use `createPdfExportPlugin(...)` when you want a cover sheet, a specific OCR annotation source, export-only OCR overlays, or custom image request behavior.
+Use `createPdfExportPlugin(...)` when you want a custom filename, a cover sheet, a specific OCR annotation source, export-only OCR overlays, or custom image request behavior.
 
 ```ts
 import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
 
 const pdfExportPlugin = createPdfExportPlugin({
+    filename: 'digitization-summary.pdf',
     coverSheet: {
         title: 'Digitization Summary',
         fields: [
@@ -447,6 +452,7 @@ Configuration shape:
 
 ```ts
 type PdfExportConfig = {
+    filename?: string;
     coverSheet?: {
         title?: string;
         fields: { label: string; value: string }[];
@@ -500,6 +506,12 @@ type PdfExportConfig = {
     }) => Promise<Blob> | Blob;
 };
 ```
+
+#### Filename
+
+Set `filename` when the consuming application should control the downloaded PDF name. The value is passed directly to the browser download link, so include the `.pdf` extension when you want it shown in the saved file name.
+
+When `filename` is omitted, the plugin generates a PDF filename from the manifest label or identifier and the selected canvas range.
 
 #### Cover Sheet
 

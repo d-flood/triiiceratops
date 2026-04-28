@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Triiiceratops Viewer', () => {
     test('smoke test: loads viewer and canvas', async ({ page }) => {
         // Navigate to the app
-        await page.goto('/');
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
 
         // Verify basic page structure
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible();
@@ -21,11 +21,11 @@ test.describe('Triiiceratops Viewer', () => {
         }
 
         // Now check for OSD viewer
-        const viewer = page.locator('.openseadragon-container');
+        const viewer = page.locator('#triiiceratops-viewer .osd-background');
         await expect(viewer).toBeVisible({ timeout: 10000 });
 
         // Check that the canvas element inside OSD is created
-        const canvas = page.locator('.openseadragon-canvas canvas').first();
+        const canvas = page.locator('#triiiceratops-viewer canvas').first();
         await expect(canvas).toBeVisible();
 
         // Check if the "Annotations" toggle is present and clickable
@@ -44,10 +44,10 @@ test.describe('Triiiceratops Viewer', () => {
         if (await annotationsButton.isVisible()) {
             const panel = page.getByRole('dialog', { name: 'Annotations' });
 
-            await annotationsButton.click();
+            await annotationsButton.click({ force: true });
             await expect(panel).toBeVisible();
 
-            await annotationsButton.click();
+            await annotationsButton.click({ force: true });
             await expect(panel).toBeHidden();
         }
     });

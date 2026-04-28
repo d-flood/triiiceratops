@@ -103,28 +103,22 @@
                 // If list is on left half, connect to its right edge.
                 const isRightPanel = listRect.left > window.innerWidth / 2;
 
-                let startX, startY, endX, endY;
+                let startX, startY;
 
                 if (isRightPanel) {
                     // Panel is on right, connect from left edge of list item
                     startX = listRect.left;
                     startY = listRect.top + listRect.height / 2;
 
-                    // Connect to right edge of visual
-                    endX = visualRect.right;
-                    endY = visualRect.top + visualRect.height / 2;
                 } else {
                     // Panel is on left, connect from right edge of list item
                     startX = listRect.right;
                     startY = listRect.top + listRect.height / 2;
 
-                    // Connect to left edge of visual
-                    endX = visualRect.left;
-                    endY = visualRect.top + visualRect.height / 2;
                 }
 
-                endX = visualRect.left + visualRect.width / 2;
-                endY = visualRect.top + visualRect.height / 2;
+                const endX = visualRect.left + visualRect.width / 2;
+                const endY = visualRect.top + visualRect.height / 2;
 
                 lineCoords = { x1: startX, y1: startY, x2: endX, y2: endY };
             } else {

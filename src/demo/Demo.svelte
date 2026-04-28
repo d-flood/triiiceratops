@@ -45,6 +45,8 @@
         showCanvasNav: true,
         showZoomControls: true,
         enableDragDrop: true,
+        leftPanelWidth: '320px',
+        rightPanelWidth: '320px',
         toolbar: {
             showSearch: true,
             showGallery: true,
@@ -76,7 +78,6 @@
             open: false,
             showCloseButton: true,
             position: 'right' as 'left' | 'right',
-            width: '320px',
         },
     };
 

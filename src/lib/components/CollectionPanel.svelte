@@ -1,6 +1,5 @@
 <script lang="ts">
     import { getContext } from 'svelte';
-    import X from 'phosphor-svelte/lib/X';
     import Folder from 'phosphor-svelte/lib/Folder';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
@@ -9,12 +8,12 @@
     const viewerState = getContext<
         ViewerState & { collectionThumbnail: string }
     >(VIEWER_STATE_KEY);
+    let { embedded = false }: { embedded?: boolean } = $props();
 
     let items = $derived(sortCollectionItems(viewerState.collectionItems));
     let collectionLabel = $derived(viewerState.collectionLabel);
     let collectionThumbnail = $derived(viewerState.collectionThumbnail);
     let currentManifestId = $derived(viewerState.manifestId);
-    let panelWidth = $derived(viewerState.config.collection?.width ?? '320px');
 
     function formatNavDate(value?: string): string {
         if (!value) return '';
@@ -35,15 +34,14 @@
 
 {#if viewerState.showCollectionPanel}
     <div
-        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 border-l border-base-300"
-        style="width: {panelWidth}"
+        class="min-h-0 flex flex-col {embedded
+            ? ''
+            : 'h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 border-l border-base-300'}"
         role="dialog"
         aria-label={m.collection_title()}
     >
-        <!-- Header -->
-        <div
-            class="flex items-center justify-between p-4 border-b border-base-300"
-        >
+        {#if !embedded}
+        <div class="flex items-center justify-between p-4 border-b border-base-300">
             <div class="flex items-center gap-2 min-w-0">
                 {#if collectionThumbnail}
                     <img
@@ -58,14 +56,8 @@
                     {collectionLabel || m.collection_title()}
                 </h2>
             </div>
-            <button
-                class="btn btn-sm btn-circle btn-ghost shrink-0"
-                onclick={() => viewerState.toggleCollectionPanel()}
-                aria-label={m.close()}
-            >
-                <X size={20} />
-            </button>
         </div>
+        {/if}
 
         <!-- Manifest Count -->
         <div
@@ -78,7 +70,9 @@
 
         <!-- Items List -->
         <div
-            class="flex-1 overflow-y-auto p-0 flex flex-col divide-y divide-base-300"
+            class="p-0 flex flex-col divide-y divide-base-300 {embedded
+                ? ''
+                : 'flex-1 overflow-y-auto'}"
         >
             {#each items as item, i (item.id)}
                 {@const isActive = item.id === currentManifestId}

@@ -51,6 +51,7 @@
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
     import type { ViewerState } from '../state/viewer.svelte';
     import type { CanvasRegion } from '../utils/contentState';
+    import { parseJsonProp } from '../utils/jsonProp';
 
     let {
         manifestId = '',
@@ -128,12 +129,11 @@
     let parsedConfig = $derived.by((): ViewerConfig | undefined => {
         if (!config) return undefined;
         if (typeof config === 'string') {
-            try {
-                return JSON.parse(config);
-            } catch {
-                console.warn(`Invalid config JSON: "${config}". Ignoring.`);
-                return undefined;
-            }
+            return parseJsonProp<ViewerConfig | undefined>(config, {
+                fallback: undefined,
+                label: 'config',
+                onError: console.warn,
+            });
         }
         return config;
     });
@@ -142,17 +142,16 @@
         (): Record<string, any> | undefined => {
             if (!manifestJson) return undefined;
             if (typeof manifestJson === 'string') {
-                try {
-                    const parsed = JSON.parse(manifestJson);
-                    return parsed && typeof parsed === 'object'
-                        ? (parsed as Record<string, any>)
-                        : undefined;
-                } catch {
-                    console.warn(
-                        `Invalid manifest-json JSON: "${manifestJson}". Ignoring.`,
-                    );
-                    return undefined;
-                }
+                const parsed = parseJsonProp<Record<string, any> | undefined>(
+                    manifestJson,
+                    {
+                        fallback: undefined,
+                        label: 'manifest-json',
+                        onError: console.warn,
+                    },
+                );
+
+                return parsed && typeof parsed === 'object' ? parsed : undefined;
             }
             return manifestJson;
         },
@@ -162,14 +161,11 @@
         (): CanvasRegion | null | undefined => {
             if (!initialCanvasRegion) return null;
             if (typeof initialCanvasRegion === 'string') {
-                try {
-                    return JSON.parse(initialCanvasRegion) as CanvasRegion;
-                } catch {
-                    console.warn(
-                        `Invalid initial-canvas-region JSON: "${initialCanvasRegion}". Ignoring.`,
-                    );
-                    return null;
-                }
+                return parseJsonProp<CanvasRegion | null>(initialCanvasRegion, {
+                    fallback: null,
+                    label: 'initial-canvas-region',
+                    onError: console.warn,
+                });
             }
             return initialCanvasRegion;
         },

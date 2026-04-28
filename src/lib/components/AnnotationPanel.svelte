@@ -1,6 +1,5 @@
 <script lang="ts">
     import { getContext } from 'svelte';
-    import X from 'phosphor-svelte/lib/X';
     import Eye from 'phosphor-svelte/lib/Eye';
     import EyeSlash from 'phosphor-svelte/lib/EyeSlash';
     import ListDashes from 'phosphor-svelte/lib/ListDashes';
@@ -12,14 +11,11 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let width = $derived(viewerState.config.annotations?.width ?? '320px');
+    let { embedded = false }: { embedded?: boolean } = $props();
+
     let position = $derived(
         viewerState.config.annotations?.position ?? 'right',
     );
-    let showCloseButton = $derived(
-        viewerState.config.annotations?.showCloseButton ?? true,
-    );
-
     let annotations = $derived.by(() => {
         if (!viewerState.manifestId || !viewerState.canvasId) {
             return [];
@@ -117,36 +113,24 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showAnnotations}
     <div
-        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 {viewerState
-            .config.transparentBackground
+        class="min-h-0 flex flex-col {embedded
             ? ''
-            : position === 'left'
-              ? 'border-r border-base-300'
-              : 'border-l border-base-300'}"
-        style="width: {width}"
+            : `h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 ${viewerState.config.transparentBackground ? '' : position === 'left' ? 'border-r border-base-300' : 'border-l border-base-300'}`}"
         role="dialog"
         aria-label={m.settings_submenu_annotations()}
     >
-        <!-- Header -->
-        <div
-            class="flex items-center justify-between p-4 border-b border-base-300"
-        >
-            <div class="flex items-center gap-2">
-                <ListDashes size={20} weight="bold" />
-                <h2 class="font-bold text-lg">
-                    {m.settings_submenu_annotations()}
-                </h2>
+        {#if !embedded}
+            <div
+                class="flex items-center justify-between p-4 border-b border-base-300"
+            >
+                <div class="flex items-center gap-2">
+                    <ListDashes size={20} weight="bold" />
+                    <h2 class="font-bold text-lg">
+                        {m.settings_submenu_annotations()}
+                    </h2>
+                </div>
             </div>
-            {#if showCloseButton}
-                <button
-                    class="btn btn-sm btn-circle btn-ghost"
-                    onclick={() => viewerState.toggleAnnotations()}
-                    aria-label={m.close()}
-                >
-                    <X size={20} />
-                </button>
-            {/if}
-        </div>
+        {/if}
 
         <!-- Toolbar / Stats -->
         <div
@@ -172,7 +156,9 @@
 
         <!-- List -->
         <div
-            class="flex-1 overflow-y-auto p-0 flex flex-col divide-y divide-base-300"
+            class="p-0 flex flex-col divide-y divide-base-300 {embedded
+                ? ''
+                : 'flex-1 overflow-y-auto'}"
         >
             {#each renderedAnnotations as anno, i (anno.id)}
                 {@const isVisible =
@@ -180,7 +166,7 @@
                     viewerState.visibleAnnotationIds.has(anno.id)}
                 <!-- List Item Row -->
                 <div
-                    class="w-full text-left p-4 hover:bg-base-100 transition-colors flex gap-3 group/item items-start focus:outline-none focus:bg-base-100 relative {anno.isSearchHit
+                    class="w-full text-left p-4 hover:bg-primary/5 transition-colors flex gap-3 group/item items-start focus:outline-none focus:bg-primary/10 relative {anno.isSearchHit
                         ? 'cursor-default'
                         : 'cursor-pointer'} {isVisible
                         ? ''
