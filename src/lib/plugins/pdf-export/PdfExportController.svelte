@@ -7,32 +7,15 @@
         type ViewerState,
     } from '../../state/viewer.svelte';
     import { getCanvasLabel } from '../../utils/resolveCanvasImage';
-    import type {
-        PdfCanvasOcrOverlayProvider,
-        PdfCoverSheetConfig,
-        PdfExportFilenameProvider,
-        PdfImageLoader,
-        PdfImageRequestConfig,
-    } from './exportPdf';
     import { exportCanvasRangeAsPdf, normalizeCanvasRange } from './exportPdf';
     import PdfExportPanel from './PdfExportPanel.svelte';
+    import type { PdfExportConfig, PdfExportSelection } from './index';
 
     let {
         config = {},
         embedded = false,
     }: {
-        config?: {
-            coverSheet?: PdfCoverSheetConfig;
-            ocrAnnotationSource?: string;
-            ocrPlacementMode?: 'fit-box' | 'word-anchor';
-            ocrSizingMode?: 'fit-box' | 'height-only';
-            ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
-            filename?: string;
-            getFilename?: PdfExportFilenameProvider;
-            getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
-            imageRequest?: PdfImageRequestConfig;
-            loadImageBlob?: PdfImageLoader;
-        };
+        config?: PdfExportConfig;
         embedded?: boolean;
     } = $props();
 
@@ -102,6 +85,22 @@
               )
             : null,
     );
+    let selectedRange: PdfExportSelection = $derived({
+        startIndex: selectedStartIndex,
+        endIndex: selectedEndIndex,
+        startCanvas:
+            selectedStartIndex !== null
+                ? (viewerState.canvases[selectedStartIndex] ?? null)
+                : null,
+        endCanvas:
+            selectedEndIndex !== null
+                ? (viewerState.canvases[selectedEndIndex] ?? null)
+                : null,
+    });
+
+    $effect(() => {
+        config.onSelectionChange?.(selectedRange);
+    });
 
     let selectedCount = $derived(normalizedRange?.indices.length ?? 0);
     let disabledReason = $derived.by(() => {

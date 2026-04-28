@@ -23,7 +23,19 @@ export type PdfExportConfig = {
     ocrPlacementMode?: PdfOcrPlacementMode;
     ocrSizingMode?: PdfOcrSizingMode;
     ocrVisibilityMode?: PdfOcrVisibilityMode;
+    onSelectionChange?: PdfExportSelectionChangeHandler;
 };
+
+export type PdfExportSelection = {
+    startIndex: number | null;
+    endIndex: number | null;
+    startCanvas: any | null;
+    endCanvas: any | null;
+};
+
+export type PdfExportSelectionChangeHandler = (
+    selection: PdfExportSelection,
+) => void;
 
 export function createPdfExportPlugin(config: PdfExportConfig = {}): PluginDef {
     return createPanelPlugin({

@@ -342,6 +342,7 @@ Feature summary:
 - optional cover sheet with consumer-provided label/value metadata
 - selectable OCR text when the canvas exposes IIIF OCR annotations
 - configurable browser image request settings for public or authenticated image services
+- optional consumer callback for the currently selected start and end canvases
 
 By default, `PdfExportPlugin` uses:
 
@@ -354,7 +355,7 @@ By default, `PdfExportPlugin` uses:
 
 === "Web Component"
 
-    Script-tag usage exposes the default preconfigured plugin only:
+    Script-tag usage exposes the default preconfigured plugin and a factory for configured instances:
 
     ```html
     <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-pdf-export.iife.js"></script>
@@ -414,7 +415,34 @@ const pdfExportPlugin = createPdfExportPlugin({
     imageRequest: {
         credentials: 'same-origin',
     },
+    onSelectionChange({ startCanvas, endCanvas, startIndex, endIndex }) {
+        console.log('Selected PDF export range', {
+            startCanvas,
+            endCanvas,
+            startIndex,
+            endIndex,
+        });
+    },
 });
+```
+
+For script-tag/web component hosts, use the factory exposed on the IIFE plugin global when you need configuration callbacks:
+
+```html
+<script>
+  viewer.plugins = [
+    window.TriiiceratopsPlugins.PdfExport.createPdfExportPlugin({
+      onSelectionChange({ startCanvas, endCanvas, startIndex, endIndex }) {
+        console.log('Selected PDF export range', {
+          startCanvas,
+          endCanvas,
+          startIndex,
+          endIndex,
+        });
+      }
+    })
+  ];
+</script>
 ```
 
 For image services that cannot be fetched directly by the browser, you can also provide a custom image loader:
@@ -475,6 +503,12 @@ type PdfExportConfig = {
     ocrPlacementMode?: 'fit-box' | 'word-anchor';
     ocrSizingMode?: 'fit-box' | 'height-only';
     ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
+    onSelectionChange?: (selection: {
+        startIndex: number | null;
+        endIndex: number | null;
+        startCanvas: any | null;
+        endCanvas: any | null;
+    }) => void;
     getCanvasOcrOverlays?: (context: {
         manifestId: string | null;
         canvasId: string;
