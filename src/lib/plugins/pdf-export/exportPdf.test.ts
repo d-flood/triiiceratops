@@ -716,6 +716,25 @@ describe('exportCanvasRangeAsPdf', () => {
         expect(getCanvasAnnotations).toHaveBeenCalledWith('canvas-1');
         expect(getDrawnTexts(mockPdfDoc.page)).toContain('manifest text');
     });
+
+    it('uses an explicit filename for the PDF download', async () => {
+        const appendChildSpy = vi.spyOn(document.body, 'appendChild');
+
+        const result = await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1')],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            filename: 'custom-export.pdf',
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        const anchor = appendChildSpy.mock.calls.at(-1)?.[0];
+
+        expect(result.filename).toBe('custom-export.pdf');
+        expect(anchor?.download).toBe('custom-export.pdf');
+    });
 });
 
 describe('normalizeCanvasRange', () => {

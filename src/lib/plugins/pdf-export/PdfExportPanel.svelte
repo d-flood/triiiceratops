@@ -67,17 +67,14 @@
             </div>
         {/if}
 
-        <div class="w-full p-4 space-y-4 {embedded ? '' : 'flex-1 overflow-y-auto'}">
+        <div
+            class="w-full p-4 space-y-4 {embedded
+                ? ''
+                : 'flex-1 overflow-y-auto'}"
+        >
             <p class="text-sm text-base-content/70">
                 {m.pdf_export_description()}
             </p>
-
-            {#if hasCoverSheet}
-                <div class="alert alert-info alert-soft text-sm">
-                    {m.pdf_export_cover_sheet_notice()}
-                </div>
-            {/if}
-
             <div class="grid grid-cols-1 gap-3">
                 <div class="form-control w-full">
                     <label class="label" for="pdf-export-start-canvas">

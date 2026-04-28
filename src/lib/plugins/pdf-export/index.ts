@@ -13,6 +13,7 @@ import type {
 
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;
+    filename?: string;
     ocrAnnotationSource?: string;
     getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
     imageRequest?: PdfImageRequestConfig;
