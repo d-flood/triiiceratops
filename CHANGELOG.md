@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.8
+
+### Patch Changes
+
+- 0c7b897: Add a getFilename callback optional prop for the PDF Export plugin
+
 ## 1.0.0-rc.7
 
 ### Patch Changes
