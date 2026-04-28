@@ -1,14 +1,17 @@
 <script lang="ts">
     import { getContext } from 'svelte';
-    import Info from 'phosphor-svelte/lib/Info';
-    import X from 'phosphor-svelte/lib/X';
-    import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m, language } from '../state/i18n.svelte';
-    import {
-        resolveAllLanguageValues,
-        resolveLanguageValue,
-    } from '../utils/languageMap';
-    import SanitizedHtml from './SanitizedHtml.svelte';
+	import Info from 'phosphor-svelte/lib/Info';
+	import X from 'phosphor-svelte/lib/X';
+	import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+	import { m, language } from '../state/i18n.svelte';
+	import {
+		normalizeIiifLinks,
+		normalizeMetadataEntries,
+	} from '../utils/metadataNormalization';
+	import {
+		resolveLanguageValue,
+	} from '../utils/languageMap';
+	import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let viewerLocale = $derived(
@@ -32,40 +35,15 @@
         return resolveLanguageValue(json.summary, viewerLocale);
     });
 
-    function resolveHtmlValues(value: unknown, locale?: string): string {
-        return resolveAllLanguageValues(value, locale).join('<br />');
-    }
+	let metadata = $derived.by(() => {
+		if (!json?.metadata) return [];
+		return normalizeMetadataEntries(
+			Array.isArray(json.metadata) ? json.metadata : [],
+			viewerLocale,
+		);
+	});
 
-    let metadata = $derived.by(() => {
-        const currentLang = viewerLocale;
-        if (!json?.metadata) return [];
-        const raw = Array.isArray(json.metadata) ? json.metadata : [];
-        return raw.map((item: any) => ({
-            label: resolveLanguageValue(item.label, currentLang),
-            value: resolveHtmlValues(item.value, currentLang),
-        }));
-    });
-
-    /** Normalise a IIIF link property to an array of objects. */
-    function normaliseLinks(
-        raw: any,
-    ): Array<{ id: string; label: string; format?: string }> {
-        if (!raw) return [];
-        const items = Array.isArray(raw) ? raw : [raw];
-        return items
-            .map((item: any) => {
-                if (typeof item === 'string') return { id: item, label: item };
-                const id = item.id || item['@id'] || '';
-                const itemLabel =
-                    resolveLanguageValue(item.label, viewerLocale) ||
-                    item.format ||
-                    id;
-                return { id, label: itemLabel, format: item.format };
-            })
-            .filter((item: any) => item.id);
-    }
-
-    let rendering = $derived(normaliseLinks(json?.rendering));
+	let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
 
     let hasContent = $derived(
         !!(label || summary || metadata.length > 0 || rendering.length > 0),
@@ -94,10 +72,11 @@
 
             <!-- Popover -->
             <div
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-base-200 border border-base-300 rounded-box shadow-xl p-4 w-72 max-h-64 overflow-y-auto"
+                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-base-200 border border-base-300 shadow-xl w-72 max-h-64 overflow-hidden"
                 role="dialog"
                 aria-label={m.canvas_info()}
             >
+            <div class="overflow-y-auto max-h-64 p-4">
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <h4 class="font-bold text-sm">{m.canvas_info()}</h4>
                     <button
@@ -152,6 +131,7 @@
                         {/each}
                     </div>
                 {/if}
+            </div>
             </div>
         {/if}
     </div>

@@ -36,26 +36,3 @@ export function applyFilters(viewer: OSDViewer, filters: ImageFilters): void {
 
     canvas.style.filter = parts.length > 0 ? parts.join(' ') : 'none';
 }
-
-/**
- * Remove all filters from the canvas.
- */
-export function clearFilters(viewer: OSDViewer): void {
-    const canvas = viewer.drawer?.canvas as HTMLCanvasElement | undefined;
-    if (canvas) {
-        canvas.style.filter = 'none';
-    }
-}
-
-/**
- * Check if any filters are active (not at default values).
- */
-export function hasActiveFilters(filters: ImageFilters): boolean {
-    return (
-        filters.brightness !== 100 ||
-        filters.contrast !== 100 ||
-        filters.saturation !== 100 ||
-        filters.invert ||
-        filters.grayscale
-    );
-}

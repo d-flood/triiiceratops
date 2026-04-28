@@ -9,7 +9,7 @@
     import ImageManipulationPanel from './ImageManipulationPanel.svelte';
 
     // Props from the plugin system
-    let { isOpen: _isOpen = false, close } = $props();
+    let { embedded = false } = $props();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let filters = $state<ImageFilters>({ ...DEFAULT_FILTERS });
@@ -49,6 +49,6 @@
         {filters}
         onFilterChange={handleFilterChange}
         onReset={handleReset}
-        onClose={close}
+        {embedded}
     />
 </div>

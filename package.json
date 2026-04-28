@@ -63,7 +63,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts && pnpm check:runtime-deps",
+        "build:lib": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && vite build --config vite.config.lib.ts && pnpm check:runtime-deps",
         "build:element": "vite build --config vite.config.element.ts",
         "build:demo": "vite build --config vite.config.demo.ts",
         "build:consumer": "rm -rf docs/demo-consumer && mkdir -p docs/demo-consumer && cp src/demo-consumer/index.html docs/demo-consumer/index.html && cp src/demo-consumer/app.css docs/demo-consumer/app.css && rm -rf docs/dist && cp -r dist docs/dist",

@@ -1,4 +1,4 @@
-import type { PluginDef } from '../../types/plugin';
+import { createPanelPlugin, type PluginDef } from '../../types/plugin';
 import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
 import PdfExportController from './PdfExportController.svelte';
 import type {
@@ -13,6 +13,7 @@ import type {
 
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;
+    filename?: string;
     ocrAnnotationSource?: string;
     getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
     imageRequest?: PdfImageRequestConfig;
@@ -23,14 +24,14 @@ export type PdfExportConfig = {
 };
 
 export function createPdfExportPlugin(config: PdfExportConfig = {}): PluginDef {
-    return {
+    return createPanelPlugin({
         id: 'pdf-export',
         name: 'pdf_export_title',
         icon: DownloadSimple,
         panel: PdfExportController,
         position: 'left',
         props: { config },
-    };
+    });
 }
 
 export const PdfExportPlugin: PluginDef = createPdfExportPlugin();

@@ -1,17 +1,21 @@
 <script lang="ts">
     import { getContext } from 'svelte';
     import Info from 'phosphor-svelte/lib/Info';
-    import X from 'phosphor-svelte/lib/X';
-    import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m, language } from '../state/i18n.svelte';
-    import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
-    import {
-        resolveAllLanguageValues,
-        resolveLanguageValue,
-    } from '../utils/languageMap';
-    import SanitizedHtml from './SanitizedHtml.svelte';
+	import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+	import { m, language } from '../state/i18n.svelte';
+	import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
+	import {
+		normalizeIiifLinks,
+		normalizeMetadataEntries,
+		resolveHtmlValues,
+	} from '../utils/metadataNormalization';
+	import {
+		resolveLanguageValue,
+	} from '../utils/languageMap';
+	import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    let { embedded = false }: { embedded?: boolean } = $props();
     let viewerLocale = $derived(
         (viewerState.config as { locale?: string }).locale || language.current,
     );
@@ -31,12 +35,8 @@
         return resolveThumbnailResourceSrc(json?.thumbnail);
     });
 
-    function resolveHtmlValues(value: unknown, locale?: string): string {
-        return resolveAllLanguageValues(value, locale).join('<br />');
-    }
-
-    // --- Summary (v3) or Description (v2) ---
-    let summary = $derived.by(() => {
+	// --- Summary (v3) or Description (v2) ---
+	let summary = $derived.by(() => {
         if (!manifest) return '';
         if (json?.summary) {
             return resolveLanguageValue(json.summary, viewerLocale);
@@ -45,32 +45,10 @@
     });
 
     // --- Metadata entries ---
-    let metadata = $derived.by(() => {
-        const currentLang = viewerLocale;
-        const rawMetadata = json?.metadata || manifest?.getMetadata?.();
-        if (!rawMetadata) return [];
-
-        return rawMetadata.map((item: any) => {
-            let label = '';
-            let value = '';
-
-            const source = item?.__jsonld || item;
-
-            if (source.label) {
-                label = resolveLanguageValue(source.label, currentLang);
-            } else if (item.getLabel) {
-                label = resolveLanguageValue(item.getLabel(), currentLang);
-            }
-
-            if (source.value) {
-                value = resolveHtmlValues(source.value, currentLang);
-            } else if (item.getValue) {
-                value = resolveHtmlValues(item.getValue(), currentLang);
-            }
-
-            return { label, value };
-        });
-    });
+	let metadata = $derived.by(() => {
+		const rawMetadata = json?.metadata || manifest?.getMetadata?.();
+		return normalizeMetadataEntries(rawMetadata, viewerLocale);
+	});
 
     // --- Attribution (requiredStatement) ---
     let attributionLabel = $derived.by(() => {
@@ -98,37 +76,18 @@
         return json?.rights || manifest.getLicense?.() || '';
     });
 
-    // --- Helper: normalise a IIIF link property to an array of objects ---
-    function normaliseLinks(
-        raw: any,
-    ): Array<{ id: string; label: string; format?: string }> {
-        if (!raw) return [];
-        const items = Array.isArray(raw) ? raw : [raw];
-        return items
-            .map((item: any) => {
-                if (typeof item === 'string') return { id: item, label: item };
-                const id = item.id || item['@id'] || '';
-                const label =
-                    resolveLanguageValue(item.label, viewerLocale) ||
-                    item.format ||
-                    id;
-                return { id, label, format: item.format };
-            })
-            .filter((item: any) => item.id);
-    }
-
-    // --- Provider (0234) ---
-    let providers = $derived.by(() => {
+	// --- Provider (0234) ---
+	let providers = $derived.by(() => {
         if (!json?.provider) return [];
         const raw = Array.isArray(json.provider)
             ? json.provider
             : [json.provider];
-        return raw.map((p: any) => {
-            const label = resolveLanguageValue(p.label, viewerLocale) || '';
-            const links = [
-                ...normaliseLinks(p.homepage),
-                ...normaliseLinks(p.seeAlso),
-            ];
+		return raw.map((p: any) => {
+			const label = resolveLanguageValue(p.label, viewerLocale) || '';
+			const links = [
+				...normalizeIiifLinks(p.homepage, viewerLocale),
+				...normalizeIiifLinks(p.seeAlso, viewerLocale),
+			];
             const logos = (
                 Array.isArray(p.logo) ? p.logo : p.logo ? [p.logo] : []
             )
@@ -138,57 +97,40 @@
                 .filter(Boolean);
             return { label, links, logos };
         });
-    });
+	});
 
-    // --- Homepage (0047) ---
-    let homepages = $derived(normaliseLinks(json?.homepage));
+	// --- Homepage (0047) ---
+	let homepages = $derived(normalizeIiifLinks(json?.homepage, viewerLocale));
 
-    // --- Rendering (0046) ---
-    let rendering = $derived(normaliseLinks(json?.rendering));
+	// --- Rendering (0046) ---
+	let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
 
-    // --- See Also (0053) ---
-    let seeAlso = $derived(normaliseLinks(json?.seeAlso));
+	// --- See Also (0053) ---
+	let seeAlso = $derived(normalizeIiifLinks(json?.seeAlso, viewerLocale));
 
-    let panelWidth = $derived(viewerState.config.information?.width ?? '320px');
     let position = $derived(
         viewerState.config.information?.position ?? 'right',
-    );
-    let showCloseButton = $derived(
-        viewerState.config.information?.showCloseButton ?? true,
     );
 </script>
 
 {#if viewerState.showMetadataPanel}
     <div
-        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 {viewerState
-            .config.transparentBackground
+        class="min-h-0 flex flex-col {embedded
             ? ''
-            : position === 'left'
-              ? 'border-r border-base-300'
-              : 'border-l border-base-300'}"
-        style="width: {panelWidth}"
+            : `h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 ${viewerState.config.transparentBackground ? '' : position === 'left' ? 'border-r border-base-300' : 'border-l border-base-300'}`}"
         role="dialog"
         aria-label={m.metadata()}
     >
-        <div
-            class="flex items-center justify-between gap-3 p-4 border-b border-base-300"
-        >
+        {#if !embedded}
+        <div class="flex items-center justify-between gap-3 p-4 border-b border-base-300">
             <div class="flex items-center gap-2 min-w-0">
                 <Info size={20} weight="bold" class="shrink-0" />
                 <h2 class="font-bold text-lg truncate">{m.metadata()}</h2>
             </div>
-            {#if showCloseButton}
-                <button
-                    class="btn btn-sm btn-circle btn-ghost shrink-0"
-                    onclick={() => viewerState.toggleMetadataPanel()}
-                    aria-label={m.close()}
-                >
-                    <X size={20} />
-                </button>
-            {/if}
         </div>
+        {/if}
 
-        <div class="flex-1 overflow-y-auto p-4">
+        <div class="p-4 {embedded ? '' : 'flex-1 overflow-y-auto'}">
             <h3 class="font-bold text-lg mb-4 wrap-break-word">{title}</h3>
 
             {#if manifestThumbnail}

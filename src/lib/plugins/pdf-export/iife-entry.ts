@@ -1,4 +1,4 @@
+import { registerIifePlugin } from '../../types/plugin';
 import { PdfExportPlugin } from './index';
 
-window.TriiiceratopsPlugins = window.TriiiceratopsPlugins || {};
-window.TriiiceratopsPlugins.PdfExport = PdfExportPlugin;
+registerIifePlugin('PdfExport', PdfExportPlugin);

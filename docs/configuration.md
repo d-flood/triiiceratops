@@ -18,6 +18,7 @@ The viewer accepts a configuration object to customize the UI and behavior. Belo
 ```typescript
 interface ViewerConfig {
     // Top-level UI Toggles
+    locale?: string; // Preferred locale for IIIF language maps
     showCanvasNav?: boolean; // Default: true
     viewingMode?: 'individuals' | 'paged' | 'continuous'; // Default: 'individuals'
     viewingDirection?:
@@ -66,12 +67,15 @@ interface ViewerConfig {
         y?: number; // Floating window Y position
     };
 
+    // Sidebar Stack Settings
+    leftPanelWidth?: string; // Default: '320px'
+    rightPanelWidth?: string; // Default: '320px'
+
     // Search Panel Settings
     search?: {
         open?: boolean; // Default: false
         showCloseButton?: boolean; // Default: true
         position?: 'left' | 'right'; // Default: 'right'
-        width?: string; // Default: '320px'
         query?: string; // Programmatically set search query
     };
 
@@ -80,19 +84,23 @@ interface ViewerConfig {
         open?: boolean; // Default: false (Sidebar panel, opening also shows annotations)
         showCloseButton?: boolean; // Default: true
         position?: 'left' | 'right'; // Default: 'right'
-        width?: string; // Default: '320px'
+    };
+
+    // Information / Metadata Settings
+    information?: {
+        open?: boolean; // Default: false
+        showCloseButton?: boolean; // Default: true
+        position?: 'left' | 'right'; // Default: 'right'
     };
 
     // Structures / Table of Contents Settings
     structures?: {
         open?: boolean; // Default: false
-        width?: string; // Default: '320px'
     };
 
     // Collection Navigation Settings
     collection?: {
         open?: boolean; // Default: false
-        width?: string; // Default: '320px'
     };
 
     // Network Requests
@@ -103,8 +111,17 @@ interface ViewerConfig {
 
     // OpenSeadragon overrides
     openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+
+    // Drag-and-drop manifest/content-state loading
+    enableDragDrop?: boolean; // Default: false
 }
 ```
+
+### Sidebar Panel Layout
+
+Side panels are grouped into a left sidebar stack and a right sidebar stack. Each side has one width, controlled by `leftPanelWidth` and `rightPanelWidth`; individual built-in and plugin panels do not have their own width setting.
+
+When multiple panels are open on the same side, they stack vertically. `search`, `annotations`, and `information` can be placed on either side with `position: 'left' | 'right'`. `structures` and `collection` currently render in the right sidebar stack.
 
 ### Plugin UI Control
 
@@ -188,6 +205,7 @@ const config = {
         canvasId: string | null;
         currentCanvasIndex: number;
         showAnnotations: boolean;
+        showInformationPanel: boolean;
         showThumbnailGallery: boolean;
         showSearchPanel: boolean;
         showStructuresPanel: boolean;
@@ -488,9 +506,9 @@ Control the collection panel via config:
 
 ```javascript
 config = {
+    rightPanelWidth: '400px',
     collection: {
         open: true, // Open the collection panel on load
-        width: '400px', // Custom panel width
     },
     toolbar: {
         showCollection: false, // Hide the collection toolbar button
@@ -519,9 +537,9 @@ Control the structures panel via config:
 
 ```javascript
 config = {
+    rightPanelWidth: '350px',
     structures: {
         open: true, // Open the TOC panel on load
-        width: '350px', // Custom panel width
     },
     toolbar: {
         showStructures: false, // Hide the TOC toolbar button

@@ -1,7 +1,6 @@
 <script lang="ts">
     import { getContext, untrack } from 'svelte';
     import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
-    import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
     import { SvelteSet } from 'svelte/reactivity';
@@ -9,12 +8,10 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
+    let { embedded = false }: { embedded?: boolean } = $props();
+
     // We'll initialize from viewerState to preserve context.
     let searchQuery = $state('');
-
-    let showCloseButton = $derived(
-        viewerState.config.search?.showCloseButton ?? true,
-    );
 
     // Sync local query with viewerState
     $effect(() => {
@@ -40,7 +37,6 @@
             viewerState.setCanvas(canvasId);
         }
     }
-    let width = $derived(viewerState.config.search?.width ?? '320px');
     let position = $derived(viewerState.config.search?.position ?? 'right');
 
     // Total matches across all pages
@@ -85,31 +81,19 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
     <div
-        class="h-full bg-base-200 shadow-2xl z-100 flex flex-col transition-[width] duration-200 {viewerState
-            .config.transparentBackground
+        class="min-h-0 flex flex-col {embedded
             ? ''
-            : position === 'left'
-              ? 'border-r border-base-300'
-              : 'border-l border-base-300'}"
-        style="width: {width}"
+            : `h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 ${viewerState.config.transparentBackground ? '' : position === 'left' ? 'border-r border-base-300' : 'border-l border-base-300'}`}"
         role="dialog"
         aria-label={m.search_panel_title()}
     >
-        <!-- Header -->
-        <div
-            class="flex items-center justify-between p-4 border-b border-base-300"
-        >
-            <h2 class="font-bold text-lg">{m.search()}</h2>
-            {#if showCloseButton}
-                <button
-                    class="btn btn-sm btn-circle btn-ghost"
-                    onclick={() => viewerState.toggleSearchPanel()}
-                    aria-label={m.close_search()}
-                >
-                    <X size={20} />
-                </button>
-            {/if}
-        </div>
+        {#if !embedded}
+            <div
+                class="flex items-center justify-between p-4 border-b border-base-300"
+            >
+                <h2 class="font-bold text-lg">{m.search()}</h2>
+            </div>
+        {/if}
 
         <!-- Search Input -->
         <div class="p-4 border-b border-base-300 shrink-0">
@@ -138,7 +122,7 @@
         <!-- Results -->
         <div
             bind:this={resultsContainer}
-            class="flex-1 overflow-y-auto p-4 space-y-4"
+            class="p-4 space-y-4 {embedded ? '' : 'flex-1 overflow-y-auto'}"
         >
             {#if viewerState.isSearching}
                 <div class="flex justify-center p-8">
@@ -171,7 +155,6 @@
                     {@const visibleHits = isExpanded
                         ? group.hits
                         : group.hits.slice(0, INITIAL_EXCERPT_COUNT)}
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                         data-canvas-index={group.canvasIndex}
                         class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none {viewerState.currentCanvasIndex ===
@@ -206,8 +189,10 @@
                                         >{@html result.before}</span
                                     ><span
                                         class="bg-yellow-200 text-yellow-900 font-bold px-0.5 rounded"
-                                        ><!-- eslint-disable-next-line svelte/no-at-html-tags -->{@html result.match}</span
-                                    ><!-- eslint-disable-next-line svelte/no-at-html-tags --><span
+                                    >
+                                        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                                        {@html result.match}
+                                    </span><!-- eslint-disable-next-line svelte/no-at-html-tags --><span
                                         >{@html result.after}</span
                                     >{:else}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
                                         >{@html result.match}</span

@@ -11,10 +11,7 @@
  * </script>
  */
 
+import { registerIifePlugin } from '../../types/plugin';
 import { ImageManipulationPlugin } from './index';
 
-// Ensure the namespace exists (should already be created by the element script)
-window.TriiiceratopsPlugins = window.TriiiceratopsPlugins || {};
-
-// Register the plugin
-window.TriiiceratopsPlugins.ImageManipulation = ImageManipulationPlugin;
+registerIifePlugin('ImageManipulation', ImageManipulationPlugin);

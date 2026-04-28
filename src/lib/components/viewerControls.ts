@@ -1,3 +1,5 @@
+import { getCanvasId } from '../utils/iiifIds';
+
 export type ChoiceGroup = {
     canvasId: string;
     choices: any[];
@@ -89,15 +91,7 @@ type VisibleChoiceGroupArgs = {
     getSelectedChoice: (canvasId: string) => string | undefined;
 };
 
-export function getCanvasId(canvas: any): string | null {
-    return (
-        canvas?.id ||
-        canvas?.['@id'] ||
-        canvas?.getCanvasId?.() ||
-        canvas?.getId?.() ||
-        null
-    );
-}
+export { getCanvasId };
 
 export function getCanvasChoices(canvas: any) {
     if (!canvas) return [];

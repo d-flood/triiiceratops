@@ -1,7 +1,5 @@
 <script lang="ts">
-    import X from 'phosphor-svelte/lib/X';
     import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
-    import { setLocale, locales } from '../../paraglide/runtime';
     import * as m from '../../paraglide/messages';
     import type { ImageFilters } from './types';
 
@@ -9,14 +7,12 @@
         filters,
         onFilterChange,
         onReset,
-        onClose,
-        locale,
+        embedded = false,
     }: {
         filters: ImageFilters;
         onFilterChange: (filters: ImageFilters) => void;
         onReset: () => void;
-        onClose: () => void;
-        locale?: string;
+        embedded?: boolean;
     } = $props();
 
     function updateFilter<K extends keyof ImageFilters>(
@@ -26,30 +22,21 @@
         onFilterChange({ ...filters, [key]: value });
     }
 
-    $effect(() => {
-        if (locale && locales.includes(locale as any)) {
-            setLocale(locale as any);
-        }
-    });
 </script>
 
 <div
-    class="w-72 h-full bg-base-200 border-l border-base-300 shadow-xl flex flex-col"
+    class="min-h-0 flex flex-col {embedded
+        ? 'w-full'
+        : 'h-full w-72 bg-base-200 border-l border-base-300 shadow-xl'}"
 >
-    <!-- Header -->
-    <div class="flex items-center justify-between p-4 border-b border-base-300">
-        <h2 class="text-lg font-semibold">{m.image_adjustments_title()}</h2>
-        <button
-            class="btn btn-sm btn-ghost btn-circle"
-            onclick={onClose}
-            aria-label={m.close()}
-        >
-            <X size={20} />
-        </button>
-    </div>
+    {#if !embedded}
+        <div class="flex items-center p-4 border-b border-base-300">
+            <h2 class="text-lg font-semibold">{m.image_adjustments_title()}</h2>
+        </div>
+    {/if}
 
     <!-- Sliders -->
-    <div class="flex-1 overflow-y-auto p-4 space-y-6">
+    <div class="w-full p-4 space-y-6 {embedded ? '' : 'flex-1 overflow-y-auto'}">
         <!-- Brightness -->
         <div class="form-control">
             <label class="label" for="brightness-slider">
@@ -135,7 +122,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="p-4 border-t border-base-300">
+    <div class="w-full p-4 border-t border-base-300">
         <button class="btn btn-outline btn-block" onclick={onReset}>
             <ArrowCounterClockwise size={20} />
             {m.image_filters_reset()}
