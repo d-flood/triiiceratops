@@ -1,4 +1,7 @@
 import { registerIifePlugin } from '../../types/plugin';
-import { PdfExportPlugin } from './index';
+import { createPdfExportPlugin, PdfExportPlugin } from './index';
 
-registerIifePlugin('PdfExport', PdfExportPlugin);
+registerIifePlugin(
+    'PdfExport',
+    Object.assign(PdfExportPlugin, { createPdfExportPlugin }),
+);
