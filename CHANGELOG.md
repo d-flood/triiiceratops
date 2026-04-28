@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.6
+
+### Patch Changes
+
+- 89e6da5: Update the tool panels to stack vertically instead of horizontally. Update PDF Export plugin to take a custom filename. This also includes a significant internal refactor that did not touch the public API.
+
 ## 1.0.0-rc.5
 
 ### Patch Changes
