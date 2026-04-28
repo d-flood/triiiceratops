@@ -6,14 +6,6 @@ export interface ClosablePanelConfig {
     showCloseButton?: boolean;
 }
 
-export interface SizedPanelConfig {
-    /**
-     * Width of the panel.
-     * @default '320px'
-     */
-    width?: string;
-}
-
 export interface SidebarPanelConfig {
     /**
      * Where the panel should appear.
@@ -22,10 +14,7 @@ export interface SidebarPanelConfig {
     position?: 'left' | 'right';
 }
 
-export interface SearchConfig
-    extends ClosablePanelConfig,
-        SidebarPanelConfig,
-        SizedPanelConfig {
+export interface SearchConfig extends ClosablePanelConfig, SidebarPanelConfig {
     /**
      * Whether the search panel is currently open.
      * @default false
@@ -39,8 +28,7 @@ export interface SearchConfig
 
 export interface AnnotationsConfig
     extends ClosablePanelConfig,
-        SidebarPanelConfig,
-        SizedPanelConfig {
+        SidebarPanelConfig {
     /**
      * Whether the annotations panel/list is open.
      * @default false
@@ -50,8 +38,7 @@ export interface AnnotationsConfig
 
 export interface InformationConfig
     extends ClosablePanelConfig,
-        SidebarPanelConfig,
-        SizedPanelConfig {
+        SidebarPanelConfig {
     /**
      * Whether the information panel is currently open.
      * @default false
@@ -59,7 +46,7 @@ export interface InformationConfig
     open?: boolean;
 }
 
-export interface StructuresConfig extends SizedPanelConfig {
+export interface StructuresConfig {
     /**
      * Whether the structures/TOC panel is currently open.
      * @default false
@@ -67,7 +54,7 @@ export interface StructuresConfig extends SizedPanelConfig {
     open?: boolean;
 }
 
-export interface CollectionConfig extends SizedPanelConfig {
+export interface CollectionConfig {
     /**
      * Whether the collection panel is currently open.
      * @default false

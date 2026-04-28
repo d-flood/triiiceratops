@@ -17,10 +17,16 @@
     import CollectionPanel from './CollectionPanel.svelte';
     import MetadataPanel from './MetadataPanel.svelte';
     import OSDViewer from './OSDViewer.svelte';
+    import PanelStack, { type PanelStackItem } from './PanelStack.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import StructuresPanel from './StructuresPanel.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
+    import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
+    import ChatCenteredText from 'phosphor-svelte/lib/ChatCenteredText';
+    import Info from 'phosphor-svelte/lib/Info';
+    import ListBullets from 'phosphor-svelte/lib/ListBullets';
+    import Folder from 'phosphor-svelte/lib/Folder';
     import ImageBroken from 'phosphor-svelte/lib/ImageBroken';
     import ViewerControls from './ViewerControls.svelte';
 
@@ -294,39 +300,154 @@
         };
     });
 
-    let isLeftSidebarVisible = $derived(
-        (internalViewerState.showThumbnailGallery &&
-            internalViewerState.dockSide === 'left') ||
-            (internalViewerState.showSearchPanel &&
-                internalViewerState.config.search?.position === 'left') ||
-            (internalViewerState.showAnnotations &&
-                internalViewerState.config.annotations?.position === 'left') ||
-            (internalViewerState.showMetadataPanel &&
-                internalViewerState.config.information?.position === 'left') ||
-            internalViewerState.pluginPanels.some(
-                (p) => p.position === 'left' && p.isVisible(),
-            ),
-    );
-
     let showCollectionSidebar = $derived(
         internalViewerState.showCollectionPanel &&
             internalViewerState.hasCollection,
     );
 
+    let leftPanelWidth = $derived(
+        internalViewerState.config.leftPanelWidth ?? '320px',
+    );
+    let rightPanelWidth = $derived(
+        internalViewerState.config.rightPanelWidth ?? '320px',
+    );
+
+    let visiblePanelsLeft = $derived.by<PanelStackItem[]>(() => {
+        const panels: PanelStackItem[] = [];
+
+        if (
+            internalViewerState.showSearchPanel &&
+            internalViewerState.config.search?.position === 'left'
+        ) {
+            panels.push({
+                id: 'search',
+                title: m.search(),
+                icon: MagnifyingGlass,
+                component: SearchPanel,
+            });
+        }
+        if (
+            internalViewerState.showAnnotations &&
+            internalViewerState.config.annotations?.position === 'left'
+        ) {
+            panels.push({
+                id: 'annotations',
+                title: m.settings_submenu_annotations(),
+                icon: ChatCenteredText,
+                component: AnnotationPanel,
+            });
+        }
+        if (
+            internalViewerState.showMetadataPanel &&
+            internalViewerState.config.information?.position === 'left'
+        ) {
+            panels.push({
+                id: 'metadata',
+                title: m.metadata(),
+                icon: Info,
+                component: MetadataPanel,
+            });
+        }
+
+        for (const panel of internalViewerState.pluginPanels) {
+            if (panel.isVisible() && panel.position === 'left') {
+                const resolveTitle = (
+                    m as Record<string, (() => string) | undefined>
+                )[panel.name];
+                panels.push({
+                    id: panel.id,
+                    title: resolveTitle ? resolveTitle() : panel.name,
+                    icon: panel.icon,
+                    component: panel.component,
+                    props: { ...(panel.props ?? {}), locale: viewerLocale },
+                });
+            }
+        }
+
+        return panels;
+    });
+
+    let visiblePanelsRight = $derived.by<PanelStackItem[]>(() => {
+        const panels: PanelStackItem[] = [];
+
+        if (
+            internalViewerState.showSearchPanel &&
+            internalViewerState.config.search?.position !== 'left'
+        ) {
+            panels.push({
+                id: 'search',
+                title: m.search(),
+                icon: MagnifyingGlass,
+                component: SearchPanel,
+            });
+        }
+        if (
+            internalViewerState.showAnnotations &&
+            internalViewerState.config.annotations?.position !== 'left'
+        ) {
+            panels.push({
+                id: 'annotations',
+                title: m.settings_submenu_annotations(),
+                icon: ChatCenteredText,
+                component: AnnotationPanel,
+            });
+        }
+        if (
+            internalViewerState.showMetadataPanel &&
+            internalViewerState.config.information?.position !== 'left'
+        ) {
+            panels.push({
+                id: 'metadata',
+                title: m.metadata(),
+                icon: Info,
+                component: MetadataPanel,
+            });
+        }
+        if (internalViewerState.showStructuresPanel) {
+            panels.push({
+                id: 'structures',
+                title: m.structures_title(),
+                icon: ListBullets,
+                component: StructuresPanel,
+            });
+        }
+        if (showCollectionSidebar) {
+            panels.push({
+                id: 'collection',
+                title: m.collection_title(),
+                icon: Folder,
+                component: CollectionPanel,
+            });
+        }
+
+        for (const panel of internalViewerState.pluginPanels) {
+            if (panel.isVisible() && panel.position === 'right') {
+                const resolveTitle = (
+                    m as Record<string, (() => string) | undefined>
+                )[panel.name];
+                panels.push({
+                    id: panel.id,
+                    title: resolveTitle ? resolveTitle() : panel.name,
+                    icon: panel.icon,
+                    component: panel.component,
+                    props: { ...(panel.props ?? {}), locale: viewerLocale },
+                });
+            }
+        }
+
+        return panels;
+    });
+
+    let isLeftSidebarVisible = $derived(
+        (internalViewerState.showThumbnailGallery &&
+            internalViewerState.dockSide === 'left') ||
+            visiblePanelsLeft.length > 0,
+    );
+
     let isRightSidebarVisible = $derived(
-        (internalViewerState.showSearchPanel &&
-            internalViewerState.config.search?.position !== 'left') ||
-            (internalViewerState.showAnnotations &&
-                internalViewerState.config.annotations?.position !== 'left') ||
-            (internalViewerState.showThumbnailGallery &&
-                internalViewerState.dockSide === 'right') ||
-            (internalViewerState.showMetadataPanel &&
-                internalViewerState.config.information?.position !== 'left') ||
-            internalViewerState.showStructuresPanel ||
-            showCollectionSidebar ||
-            internalViewerState.pluginPanels.some(
-                (p) => p.position === 'right' && p.isVisible(),
-            ),
+        (internalViewerState.showThumbnailGallery &&
+            internalViewerState.dockSide === 'right') ||
+            visiblePanelsRight.length > 0,
     );
 
     let manifestData = $derived(internalViewerState.manifestEntry);
@@ -445,52 +566,30 @@
     <!-- Left Column -->
     {#if isLeftSidebarVisible}
         <div
-            class="flex-none flex flex-row z-20 transition-all {internalViewerState
+            class="flex-none min-h-0 flex flex-row z-20 transition-all {internalViewerState
                 .config.transparentBackground
                 ? ''
-                : 'bg-base-200 border-r border-base-300'}"
+                : 'bg-base-100 border-r border-base-300'}"
         >
-            <!-- Search Panel (when configured left) -->
-            {#if internalViewerState.showSearchPanel && internalViewerState.config.search?.position === 'left'}
-                <div class="h-full relative pointer-events-auto">
-                    <SearchPanel />
-                </div>
-            {/if}
-
-            <!-- Annotations Panel (when configured left) -->
-            {#if internalViewerState.showAnnotations && internalViewerState.config.annotations?.position === 'left'}
-                <div class="h-full relative pointer-events-auto">
-                    <AnnotationPanel />
-                </div>
-            {/if}
-
-            {#if internalViewerState.showMetadataPanel && internalViewerState.config.information?.position === 'left'}
-                <div class="h-full relative pointer-events-auto">
-                    <MetadataPanel />
+            {#if visiblePanelsLeft.length > 0}
+                <div
+                    class="h-full min-h-0 relative pointer-events-auto"
+                    style="width: {leftPanelWidth}"
+                >
+                    <PanelStack panels={visiblePanelsLeft} />
                 </div>
             {/if}
 
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
                 <div
-                    class="h-full pointer-events-auto relative"
+                    class="h-full min-h-0 pointer-events-auto relative"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
                 >
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
-
-            {#each internalViewerState.pluginPanels as panel (panel.id)}
-                {#if panel.isVisible() && panel.position === 'left'}
-                    <div class="h-full relative pointer-events-auto">
-                        <panel.component
-                            {...panel.props ?? {}}
-                            locale={viewerLocale}
-                        />
-                    </div>
-                {/if}
-            {/each}
         </div>
     {/if}
 
@@ -625,7 +724,7 @@
 
             <AnnotationOverlay />
 
-            <!-- Floating Toolbar (Replaced Unified Side Menu) -->
+            <!-- Floating Toolbar -->
             <Toolbar />
 
             <!-- Overlay Plugin Panels -->
@@ -687,67 +786,30 @@
     <!-- Right Column -->
     {#if isRightSidebarVisible}
         <div
-            class="flex-none flex flex-row z-20 transition-all {internalViewerState
+            class="flex-none min-h-0 flex flex-row z-20 transition-all {internalViewerState
                 .config.transparentBackground
                 ? ''
                 : 'bg-base-100'}"
         >
-            <!-- Search Panel -->
-            {#if internalViewerState.showSearchPanel && internalViewerState.config.search?.position !== 'left'}
-                <div class="h-full relative pointer-events-auto">
-                    <SearchPanel />
-                </div>
-            {/if}
-
-            <!-- Annotations Panel (when configured right) -->
-            {#if internalViewerState.showAnnotations && internalViewerState.config.annotations?.position !== 'left'}
-                <div class="h-full relative pointer-events-auto">
-                    <AnnotationPanel />
-                </div>
-            {/if}
-
-            <!-- Structures / Table of Contents Panel -->
-            {#if internalViewerState.showMetadataPanel && internalViewerState.config.information?.position !== 'left'}
-                <div class="h-full relative pointer-events-auto">
-                    <MetadataPanel />
-                </div>
-            {/if}
-
-            {#if internalViewerState.showStructuresPanel}
-                <div class="h-full relative pointer-events-auto">
-                    <StructuresPanel />
-                </div>
-            {/if}
-
-            <!-- Collection Panel -->
-            {#if showCollectionSidebar}
-                <div class="h-full relative pointer-events-auto">
-                    <CollectionPanel />
+            {#if visiblePanelsRight.length > 0}
+                <div
+                    class="h-full min-h-0 relative pointer-events-auto"
+                    style="width: {rightPanelWidth}"
+                >
+                    <PanelStack panels={visiblePanelsRight} />
                 </div>
             {/if}
 
             <!-- Gallery (when docked right) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
                 <div
-                    class="h-full pointer-events-auto relative"
+                    class="h-full min-h-0 pointer-events-auto relative"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
                 >
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
-
-            <!-- Right Plugin Panels -->
-            {#each internalViewerState.pluginPanels as panel (panel.id)}
-                {#if panel.isVisible() && panel.position === 'right'}
-                    <div class="h-full relative pointer-events-auto">
-                        <panel.component
-                            {...panel.props ?? {}}
-                            locale={viewerLocale}
-                        />
-                    </div>
-                {/if}
-            {/each}
         </div>
     {/if}
 </div>

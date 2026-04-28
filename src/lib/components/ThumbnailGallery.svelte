@@ -453,7 +453,7 @@
             dockSide !== 'none' &&
                 'relative z-50 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 select-none w-full h-full',
             dockSide === 'none' &&
-                'fixed z-900 bg-base-100 shadow-2xl rounded-lg flex flex-col border border-base-300 overflow-hidden select-none',
+                'fixed z-900 bg-base-100 shadow-2xl flex flex-col border border-base-300 overflow-hidden select-none',
             (dockSide === 'bottom' || dockSide === 'top') &&
                 'flex-row border-t',
             (dockSide === 'left' || dockSide === 'right') &&

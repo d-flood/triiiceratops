@@ -72,10 +72,11 @@
 
             <!-- Popover -->
             <div
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-base-200 border border-base-300 rounded-box shadow-xl p-4 w-72 max-h-64 overflow-y-auto"
+                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-base-200 border border-base-300 shadow-xl w-72 max-h-64 overflow-hidden"
                 role="dialog"
                 aria-label={m.canvas_info()}
             >
+            <div class="overflow-y-auto max-h-64 p-4">
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <h4 class="font-bold text-sm">{m.canvas_info()}</h4>
                     <button
@@ -130,6 +131,7 @@
                         {/each}
                     </div>
                 {/if}
+            </div>
             </div>
         {/if}
     </div>

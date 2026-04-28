@@ -7,7 +7,6 @@ export type {
     PluginUiConfig,
     SearchConfig,
     SidebarPanelConfig,
-    SizedPanelConfig,
     StructuresConfig,
 } from './config/panels';
 export type { GalleryConfig } from './config/gallery';

@@ -17,10 +17,9 @@
     import PdfExportPanel from './PdfExportPanel.svelte';
 
     let {
-        close,
         config = {},
+        embedded = false,
     }: {
-        close: () => void;
         config?: {
             coverSheet?: PdfCoverSheetConfig;
             ocrAnnotationSource?: string;
@@ -31,6 +30,7 @@
             imageRequest?: PdfImageRequestConfig;
             loadImageBlob?: PdfImageLoader;
         };
+        embedded?: boolean;
     } = $props();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -253,5 +253,5 @@
     onStartIndexChange={updateStartIndex}
     onEndIndexChange={updateEndIndex}
     onExport={handleExport}
-    onClose={close}
+    {embedded}
 />
