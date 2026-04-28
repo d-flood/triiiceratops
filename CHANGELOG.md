@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.9
+
+### Patch Changes
+
+- 0011af1: Expose start and end canvas selections from pdf export plugin to consuming app
+
 ## 1.0.0-rc.8
 
 ### Patch Changes
