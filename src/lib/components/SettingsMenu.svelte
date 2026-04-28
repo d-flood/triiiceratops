@@ -81,6 +81,42 @@
             />
         </label>
     </li>
+    <li>
+        <label class="label cursor-pointer py-1 gap-2">
+            <span class="label-text">Left panel width</span>
+            <input
+                type="range"
+                min="200"
+                max="800"
+                value={parseInt(config.leftPanelWidth ?? '320')}
+                class="range range-xs range-primary w-32"
+                oninput={(e) => {
+                    config.leftPanelWidth = `${e.currentTarget.value}px`;
+                }}
+            />
+            <span class="text-xs opacity-50 w-8 text-right"
+                >{config.leftPanelWidth ?? '320px'}</span
+            >
+        </label>
+    </li>
+    <li>
+        <label class="label cursor-pointer py-1 gap-2">
+            <span class="label-text">Right panel width</span>
+            <input
+                type="range"
+                min="200"
+                max="800"
+                value={parseInt(config.rightPanelWidth ?? '320')}
+                class="range range-xs range-primary w-32"
+                oninput={(e) => {
+                    config.rightPanelWidth = `${e.currentTarget.value}px`;
+                }}
+            />
+            <span class="text-xs opacity-50 w-8 text-right"
+                >{config.rightPanelWidth ?? '320px'}</span
+            >
+        </label>
+    </li>
     <div class="divider my-1"></div>
 
     <li class="menu-title px-4 py-2">Viewer Language</li>
@@ -530,23 +566,6 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
-                            checked={config.search?.showCloseButton ?? true}
-                            onchange={(e) => {
-                                if (!config.search) config.search = {};
-                                config.search.showCloseButton =
-                                    e.currentTarget.checked;
-                            }}
-                        />
-                    </label>
-                </li>
-                <li>
                     <label class="label cursor-pointer py-1 gap-2">
                         <span class="label-text"
                             >{m.settings_select_dock_position()}</span
@@ -571,27 +590,6 @@
                         </select>
                     </label>
                 </li>
-                <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_panel_width()}</span
-                        >
-                        <input
-                            type="range"
-                            min="200"
-                            max="800"
-                            value={parseInt(config.search?.width ?? '320')}
-                            class="range range-xs range-primary w-32"
-                            oninput={(e) => {
-                                if (!config.search) config.search = {};
-                                config.search.width = `${e.currentTarget.value}px`;
-                            }}
-                        />
-                        <span class="text-xs opacity-50 w-8 text-right"
-                            >{config.search?.width ?? '320px'}</span
-                        >
-                    </label>
-                </li>
             </ul>
         </details>
     </li>
@@ -613,25 +611,6 @@
                                 if (!config.annotations)
                                     config.annotations = {};
                                 config.annotations.open =
-                                    e.currentTarget.checked;
-                            }}
-                        />
-                    </label>
-                </li>
-                <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
-                            checked={config.annotations?.showCloseButton ??
-                                true}
-                            onchange={(e) => {
-                                if (!config.annotations)
-                                    config.annotations = {};
-                                config.annotations.showCloseButton =
                                     e.currentTarget.checked;
                             }}
                         />
@@ -663,28 +642,6 @@
                         </select>
                     </label>
                 </li>
-                <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_panel_width()}</span
-                        >
-                        <input
-                            type="range"
-                            min="200"
-                            max="800"
-                            value={parseInt(config.annotations?.width ?? '320')}
-                            class="range range-xs range-primary w-32"
-                            oninput={(e) => {
-                                if (!config.annotations)
-                                    config.annotations = {};
-                                config.annotations.width = `${e.currentTarget.value}px`;
-                            }}
-                        />
-                        <span class="text-xs opacity-50 w-8 text-right"
-                            >{config.annotations?.width ?? '320px'}</span
-                        >
-                    </label>
-                </li>
             </ul>
         </details>
     </li>
@@ -706,25 +663,6 @@
                                 if (!config.information)
                                     config.information = {};
                                 config.information.open =
-                                    e.currentTarget.checked;
-                            }}
-                        />
-                    </label>
-                </li>
-                <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
-                            checked={config.information?.showCloseButton ??
-                                true}
-                            onchange={(e) => {
-                                if (!config.information)
-                                    config.information = {};
-                                config.information.showCloseButton =
                                     e.currentTarget.checked;
                             }}
                         />
@@ -756,28 +694,6 @@
                         </select>
                     </label>
                 </li>
-                <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_panel_width()}</span
-                        >
-                        <input
-                            type="range"
-                            min="200"
-                            max="800"
-                            value={parseInt(config.information?.width ?? '320')}
-                            class="range range-xs range-primary w-32"
-                            oninput={(e) => {
-                                if (!config.information)
-                                    config.information = {};
-                                config.information.width = `${e.currentTarget.value}px`;
-                            }}
-                        />
-                        <span class="text-xs opacity-50 w-8 text-right"
-                            >{config.information?.width ?? '320px'}</span
-                        >
-                    </label>
-                </li>
             </ul>
         </details>
     </li>
@@ -803,27 +719,6 @@
                         />
                     </label>
                 </li>
-                <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_panel_width()}</span
-                        >
-                        <input
-                            type="range"
-                            min="200"
-                            max="800"
-                            value={parseInt(config.structures?.width ?? '320')}
-                            class="range range-xs range-primary w-32"
-                            oninput={(e) => {
-                                if (!config.structures) config.structures = {};
-                                config.structures.width = `${e.currentTarget.value}px`;
-                            }}
-                        />
-                        <span class="text-xs opacity-50 w-8 text-right"
-                            >{config.structures?.width ?? '320px'}</span
-                        >
-                    </label>
-                </li>
             </ul>
         </details>
     </li>
@@ -847,27 +742,6 @@
                                     e.currentTarget.checked;
                             }}
                         />
-                    </label>
-                </li>
-                <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_panel_width()}</span
-                        >
-                        <input
-                            type="range"
-                            min="200"
-                            max="800"
-                            value={parseInt(config.collection?.width ?? '320')}
-                            class="range range-xs range-primary w-32"
-                            oninput={(e) => {
-                                if (!config.collection) config.collection = {};
-                                config.collection.width = `${e.currentTarget.value}px`;
-                            }}
-                        />
-                        <span class="text-xs opacity-50 w-8 text-right"
-                            >{config.collection?.width ?? '320px'}</span
-                        >
                     </label>
                 </li>
             </ul>

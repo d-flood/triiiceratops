@@ -1580,7 +1580,7 @@ export class ViewerState {
         }
     }
 
-    private setPluginOpen(pluginId: string, open: boolean): void {
+    setPluginOpen(pluginId: string, open: boolean): void {
         const current = this.pluginUiState.get(pluginId);
         if (!current) return;
 
@@ -1588,6 +1588,7 @@ export class ViewerState {
             ...current,
             open,
         });
+        this.dispatchStateChange();
     }
 
     private togglePluginOpen(pluginId: string): void {
@@ -1627,6 +1628,9 @@ export class ViewerState {
         // Register Panel
         const panel: PluginPanel = {
             id: `${id}:panel`,
+            pluginId: id,
+            name: def.name,
+            icon: def.icon,
             component: def.panel,
             position: def.position || 'left',
             isVisible: () => this.pluginUiState.get(id)?.open ?? false,

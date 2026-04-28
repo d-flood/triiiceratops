@@ -16,13 +16,7 @@
     const REQUEST_EDIT_EVENT = 'triiiceratops:annotation-editor:request-edit';
 
     // Props from the plugin system
-    let {
-        close,
-        config,
-    }: {
-        close: () => void;
-        config: AnnotationEditorConfig;
-    } = $props();
+    let { config, embedded = false }: { config: AnnotationEditorConfig; embedded?: boolean } = $props();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -195,15 +189,6 @@
         manager?.redo();
     }
 
-    function handleClose() {
-        selectedAnnotation = null;
-        manager?.cancelSelection();
-        if (isEditing) {
-            isEditing = false;
-            manager?.setEditing(false);
-        }
-        close();
-    }
 </script>
 
 <AnnotationEditorPanel
@@ -229,5 +214,5 @@
     onCancelDelete={handleCancelDelete}
     onUndo={handleUndo}
     onRedo={handleRedo}
-    onClose={handleClose}
+    {embedded}
 />

@@ -43,6 +43,15 @@ export interface PluginPanel {
     /** Unique identifier (convention: `pluginId:panelName`) */
     id: string;
 
+    /** Owning plugin identifier */
+    pluginId: string;
+
+    /** Plugin display name */
+    name: string;
+
+    /** Plugin toolbar icon component */
+    icon: Component<any>;
+
     /** Svelte component to render */
     component: Component<any>;
 

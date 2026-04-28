@@ -61,6 +61,18 @@ export interface ViewerConfig {
     gallery?: GalleryConfig;
 
     /**
+     * Width of the left side panel column.
+     * @default '320px'
+     */
+    leftPanelWidth?: string;
+
+    /**
+     * Width of the right side panel column.
+     * @default '320px'
+     */
+    rightPanelWidth?: string;
+
+    /**
      * Configuration for the search pane.
      */
     search?: SearchConfig;

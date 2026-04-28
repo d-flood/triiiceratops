@@ -1,5 +1,4 @@
 <script lang="ts">
-    import X from 'phosphor-svelte/lib/X';
     import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
     import { m, language } from '../../state/i18n.svelte';
 
@@ -24,7 +23,7 @@
         onStartIndexChange,
         onEndIndexChange,
         onExport,
-        onClose,
+        embedded = false,
     }: {
         canvasOptions: CanvasOption[];
         startIndex: number | null;
@@ -40,7 +39,7 @@
         onStartIndexChange: (value: number | null) => void;
         onEndIndexChange: (value: number | null) => void;
         onExport: () => void;
-        onClose: () => void;
+        embedded?: boolean;
     } = $props();
 
     function parseCanvasIndex(value: string): number | null {
@@ -55,25 +54,20 @@
 
 {#key language.current}
     <div
-        class="w-80 h-full bg-base-200 border-r border-base-300 shadow-xl flex flex-col"
+        class="min-h-0 flex flex-col {embedded
+            ? 'w-full'
+            : 'h-full w-80 bg-base-200 border-r border-base-300 shadow-xl'}"
     >
-        <div
-            class="flex items-center justify-between p-4 border-b border-base-300"
-        >
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-                <DownloadSimple size={20} />
-                {m.pdf_export_title()}
-            </h2>
-            <button
-                class="btn btn-sm btn-ghost btn-circle"
-                onclick={onClose}
-                aria-label={m.pdf_export_close()}
-            >
-                <X size={20} />
-            </button>
-        </div>
+        {#if !embedded}
+            <div class="flex items-center p-4 border-b border-base-300">
+                <h2 class="text-lg font-semibold flex items-center gap-2">
+                    <DownloadSimple size={20} />
+                    {m.pdf_export_title()}
+                </h2>
+            </div>
+        {/if}
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div class="w-full p-4 space-y-4 {embedded ? '' : 'flex-1 overflow-y-auto'}">
             <p class="text-sm text-base-content/70">
                 {m.pdf_export_description()}
             </p>
@@ -192,7 +186,7 @@
             </div>
         </div>
 
-        <div class="p-4 border-t border-base-300">
+        <div class="w-full p-4 border-t border-base-300">
             <button
                 class="btn btn-primary btn-block"
                 disabled={!canExport}
