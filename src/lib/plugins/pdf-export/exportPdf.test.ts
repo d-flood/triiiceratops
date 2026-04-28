@@ -733,7 +733,11 @@ describe('exportCanvasRangeAsPdf', () => {
         const anchor = appendChildSpy.mock.calls.at(-1)?.[0];
 
         expect(result.filename).toBe('custom-export.pdf');
-        expect(anchor?.download).toBe('custom-export.pdf');
+        expect(anchor).toBeInstanceOf(HTMLAnchorElement);
+        expect((anchor as HTMLAnchorElement).href).toBe('blob:mock-pdf');
+        expect((anchor as HTMLAnchorElement).download).toBe(
+            'custom-export.pdf',
+        );
     });
 });
 

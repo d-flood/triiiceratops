@@ -7,6 +7,7 @@
         icon?: Component<any>;
         component: Component<any>;
         props?: Record<string, unknown>;
+        close?: () => void;
     }
 </script>
 
