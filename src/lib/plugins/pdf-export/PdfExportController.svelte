@@ -26,6 +26,7 @@
             ocrPlacementMode?: 'fit-box' | 'word-anchor';
             ocrSizingMode?: 'fit-box' | 'height-only';
             ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';
+            filename?: string;
             getCanvasOcrOverlays?: PdfCanvasOcrOverlayProvider;
             imageRequest?: PdfImageRequestConfig;
             loadImageBlob?: PdfImageLoader;
@@ -185,6 +186,7 @@
                 targetWidth: getTargetWidth(),
                 manifestId: viewerState.manifestId,
                 manifestLabel,
+                filename: config.filename,
                 coverSheet: config.coverSheet,
                 imageRequest: config.imageRequest,
                 loadImageBlob: config.loadImageBlob,
