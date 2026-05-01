@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.10
+
+### Patch Changes
+
+- 8d1d9f5: Add IIFE plugins to build and publish workflow; they were missing from NPM
+
 ## 1.0.0-rc.9
 
 ### Patch Changes
