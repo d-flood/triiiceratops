@@ -61,6 +61,7 @@ export default defineConfig({
             // Externalize Svelte - plugins use the runtime from the main element bundle
             external: [
                 'svelte',
+                'svelte/reactivity',
                 'svelte/internal/client',
                 'svelte/internal/disclose-version',
                 /^svelte\/.*/,
@@ -70,6 +71,9 @@ export default defineConfig({
                 globals: (id: string) => {
                     if (id === 'svelte') {
                         return 'window.__TriiiceratopsSvelteRuntime.svelte';
+                    }
+                    if (id === 'svelte/reactivity') {
+                        return 'window.__TriiiceratopsSvelteRuntime.reactivity';
                     }
                     if (
                         id === 'svelte/internal/client' ||
