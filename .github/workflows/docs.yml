@@ -29,8 +29,8 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            - name: Build Demo
-              run: pnpm build:demo
+            - name: Build Docs Assets
+              run: pnpm build:lib && pnpm build:element && pnpm build:plugins-iife && pnpm build:webcomponent-demo && pnpm build:demo
 
             - uses: actions/setup-python@v5
               with:

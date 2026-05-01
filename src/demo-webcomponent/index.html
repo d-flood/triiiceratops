@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops Web Component Demo</title>
+        <link rel="stylesheet" href="app.css" />
+        <link rel="stylesheet" href="../../dist/triiiceratops-element.css" />
+
+        <script src="../../dist/triiiceratops-element.iife.js"></script>
+        <script src="../../dist/triiiceratops-plugin-image-manipulation.iife.js"></script>
+        <script src="../../dist/triiiceratops-plugin-annotation-editor.iife.js"></script>
+        <script src="../../dist/triiiceratops-plugin-pdf-export.iife.js"></script>
+    </head>
+    <body>
+        <main class="demo-shell">
+            <section class="demo-intro" aria-labelledby="demo-title">
+                <p class="eyebrow">Script-tag integration</p>
+                <h1 id="demo-title">Triiiceratops web component demo</h1>
+                <p>
+                    This page loads the viewer and plugins from local IIFE bundles,
+                    then configures the custom element with plain HTML and JavaScript.
+                </p>
+            </section>
+
+            <section class="viewer-card" aria-label="Triiiceratops viewer">
+                <triiiceratops-viewer
+                    theme="dark"
+                    manifest-id="https://iiif.wellcomecollection.org/presentation/v3/b18035723"
+                    canvas-id="https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0001.JP2"
+                ></triiiceratops-viewer>
+            </section>
+        </main>
+
+        <script>
+            customElements.whenDefined('triiiceratops-viewer').then(() => {
+                const viewer = document.querySelector('triiiceratops-viewer');
+                const plugins = window.TriiiceratopsPlugins;
+
+                if (!viewer || !plugins) {
+                    return;
+                }
+
+                viewer.plugins = [
+                    plugins.ImageManipulation,
+                    plugins.AnnotationEditor,
+                    plugins.PdfExport,
+                ];
+            });
+        </script>
+    </body>
+</html>
