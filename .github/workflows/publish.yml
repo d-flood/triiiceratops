@@ -28,6 +28,7 @@ jobs:
             - run: pnpm install --frozen-lockfile
             - run: pnpm run build:lib
             - run: pnpm run build:element
+            - run: pnpm run build:plugins-iife
 
             - name: Git Configuration
               run: |
@@ -61,6 +62,10 @@ jobs:
             - name: Build Element
               if: steps.version.outputs.has_changes == 'true'
               run: pnpm run build:element
+
+            - name: Build Plugin IIFEs
+              if: steps.version.outputs.has_changes == 'true'
+              run: pnpm run build:plugins-iife
 
             - name: Publish to NPM
               if: steps.version.outputs.has_changes == 'true'
