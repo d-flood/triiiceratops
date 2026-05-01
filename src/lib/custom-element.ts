@@ -8,12 +8,14 @@
 // eslint-disable-next-line svelte/no-svelte-internal
 import * as svelteInternal from 'svelte/internal/client';
 import * as svelte from 'svelte';
+import * as svelteReactivity from 'svelte/reactivity';
 
 declare global {
     interface Window {
         __TriiiceratopsSvelteRuntime: {
             svelte: typeof svelte;
             internal: unknown;
+            reactivity: typeof svelteReactivity;
         };
         TriiiceratopsPlugins?: Record<string, unknown>;
     }
@@ -22,6 +24,7 @@ declare global {
 window.__TriiiceratopsSvelteRuntime = {
     svelte,
     internal: svelteInternal,
+    reactivity: svelteReactivity,
 };
 
 // Initialize the plugins namespace
