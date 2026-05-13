@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.12
+
+### Patch Changes
+
+- 10ec26d: support multiple targets in v2 search responses
+
 ## 1.0.0-rc.11
 
 ### Patch Changes
