@@ -1426,31 +1426,48 @@ export class ViewerState {
         for (const item of items) {
             const annoId = item.id || item['@id'];
 
-            // Resolve target -> canvas ID and bounds
-            const target = item.target;
-            let targetStr: string | null = null;
+            // v2 items can legitimately point at multiple targets for one hit.
+            const targets = Array.isArray(item.target)
+                ? item.target
+                : [item.target];
+            let canvasIndex = -1;
+            let bounds: number[] | null = null;
+            const allBounds: number[][] = [];
 
-            if (typeof target === 'string') {
-                targetStr = target;
-            } else if (target && typeof target === 'object') {
-                targetStr = target.id || target['@id'] || null;
-                // Handle SpecificResource with source
-                if (!targetStr && target.source) {
-                    targetStr =
-                        typeof target.source === 'string'
-                            ? target.source
-                            : target.source.id || target.source['@id'];
+            for (const target of targets) {
+                let targetStr: string | null = null;
+
+                if (typeof target === 'string') {
+                    targetStr = target;
+                } else if (target && typeof target === 'object') {
+                    targetStr = target.id || target['@id'] || null;
+                    if (!targetStr && target.source) {
+                        targetStr =
+                            typeof target.source === 'string'
+                                ? target.source
+                                : target.source.id || target.source['@id'];
+                    }
+                }
+
+                if (!targetStr) continue;
+
+                const cleanTarget = targetStr.split('#')[0];
+                const targetCanvasIndex = this.canvases.findIndex(
+                    (c: any) => c.id === cleanTarget,
+                );
+                if (targetCanvasIndex < 0) continue;
+
+                if (canvasIndex === -1) {
+                    canvasIndex = targetCanvasIndex;
+                }
+
+                const targetBounds = this.parseXywhSelector(targetStr);
+                if (targetBounds) {
+                    allBounds.push(targetBounds);
+                    if (!bounds) bounds = targetBounds;
                 }
             }
 
-            if (!targetStr) continue;
-
-            const cleanTarget = targetStr.split('#')[0];
-            const bounds = this.parseXywhSelector(targetStr);
-
-            const canvasIndex = this.canvases.findIndex(
-                (c: any) => c.id === cleanTarget,
-            );
             if (canvasIndex < 0) continue;
 
             // Extract text from body
@@ -1480,14 +1497,14 @@ export class ViewerState {
                     match: this.decodeMark(context.match),
                     after: this.decodeMark(context.after),
                     bounds,
-                    allBounds: bounds ? [bounds] : [],
+                    allBounds,
                 });
             } else {
                 group.hits.push({
                     type: 'resource',
                     match: this.decodeMark(bodyText),
                     bounds,
-                    allBounds: bounds ? [bounds] : [],
+                    allBounds,
                 });
             }
         }

@@ -9,6 +9,7 @@ import {
     searchResponseMultiCanvas,
     searchResponseV2WithContext,
     searchResponseV2ItemsOnly,
+    searchResponseV2ItemsWithTargetArray,
     searchResponseV2MultiCanvas,
     searchResponseV2Empty,
 } from '../test/fixtures/searchResponses';
@@ -925,6 +926,27 @@ describe('ViewerState - IIIF Search', () => {
 
             const firstHit = state.searchResults[0].hits[0];
             expect(firstHit.bounds).toEqual([50, 50, 100, 25]);
+        });
+
+        it('should keep v2 hits when items.target is an array', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => searchResponseV2ItemsWithTargetArray,
+            });
+
+            await state.search('alpha');
+
+            expect(state.searchResults).toHaveLength(1);
+            expect(state.searchResults[0].hits).toHaveLength(1);
+            expect(state.searchResults[0].hits[0]).toMatchObject({
+                type: 'resource',
+                match: '<mark>alpha</mark> foo <mark>beta</mark>',
+                bounds: [1, 2, 3, 4],
+            });
+            expect(state.searchResults[0].hits[0].allBounds).toEqual([
+                [1, 2, 3, 4],
+                [9, 10, 11, 12],
+            ]);
         });
     });
 
