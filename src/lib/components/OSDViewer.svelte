@@ -104,10 +104,11 @@
     }
 
     function shouldShowOverlayTooltip(anno: {
+        isSearchHit?: boolean;
         isFullCanvasTarget?: boolean;
         tooltip?: string;
     }) {
-        return !anno.isFullCanvasTarget && !!anno.tooltip;
+        return !anno.isSearchHit && !anno.isFullCanvasTarget && !!anno.tooltip;
     }
 
     function pointInPolygon(
