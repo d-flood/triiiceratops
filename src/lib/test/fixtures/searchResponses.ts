@@ -295,6 +295,30 @@ export const searchResponseV2ItemsOnly = {
     ],
 };
 
+/** v2 response where one item targets multiple canvas fragments */
+export const searchResponseV2ItemsWithTargetArray = {
+    '@context': 'http://iiif.io/api/search/2/context.json',
+    id: 'http://example.org/search?q=alpha',
+    type: 'AnnotationPage',
+
+    items: [
+        {
+            id: 'http://example.org/anno/v2-multi-target',
+            type: 'Annotation',
+            motivation: 'painting',
+            body: {
+                type: 'TextualBody',
+                value: '&lt;mark&gt;alpha&lt;/mark&gt; foo &lt;mark&gt;beta&lt;/mark&gt;',
+                format: 'text/plain',
+            },
+            target: [
+                'http://example.org/canvas/1#xywh=1,2,3,4',
+                'http://example.org/canvas/1#xywh=9,10,11,12',
+            ],
+        },
+    ],
+};
+
 /** v2 response with results spanning multiple canvases */
 export const searchResponseV2MultiCanvas = {
     '@context': 'http://iiif.io/api/search/2/context.json',
