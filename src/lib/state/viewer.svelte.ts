@@ -24,6 +24,7 @@ import {
     getAnnotationId,
     getCanvasId,
 } from '../utils/iiifIds';
+import { normalizeIiifTargets } from '../utils/iiifTargets';
 import { createPluginId } from '../utils/pluginId';
 import {
     getPagedCanvasGroups,
@@ -60,6 +61,7 @@ export interface ViewerStateSnapshot {
         | 'right-to-left'
         | 'top-to-bottom'
         | 'bottom-to-top';
+    preserveCanvasScale: boolean;
     galleryPosition: { x: number; y: number };
     gallerySize: { width: number; height: number };
 }
@@ -166,6 +168,9 @@ export class ViewerState {
     get showZoomControls() {
         return this.config.showZoomControls ?? true;
     }
+    get preserveCanvasScale() {
+        return this.config.preserveCanvasScale ?? false;
+    }
 
     get galleryFixedHeight() {
         return this.config.gallery?.fixedHeight ?? 120;
@@ -247,6 +252,7 @@ export class ViewerState {
             dockSide: this.dockSide,
             viewingMode: this.viewingMode,
             viewingDirection: this.viewingDirection,
+            preserveCanvasScale: this.preserveCanvasScale,
             galleryPosition: this.galleryPosition,
             gallerySize: this.gallerySize,
         };
@@ -316,8 +322,6 @@ export class ViewerState {
             this.selectedSequenceIndex,
         );
 
-        // Auto-initialize canvasId to first canvas if not set
-
         return canvases;
     }
 
@@ -328,7 +332,6 @@ export class ViewerState {
 
     get currentCanvasIndex() {
         if (!this.canvasId) {
-            if (this.canvases.length > 0) return 0;
             return -1;
         }
 
@@ -350,6 +353,10 @@ export class ViewerState {
     }
 
     get hasNext() {
+        if (this.currentCanvasIndex < 0) {
+            return false;
+        }
+
         if (this.viewingMode === 'paged') {
             const groupIndex = this.getCurrentPagedCanvasGroupIndex();
             const groups = getPagedCanvasGroups(
@@ -363,6 +370,10 @@ export class ViewerState {
     }
 
     get hasPrevious() {
+        if (this.currentCanvasIndex < 0) {
+            return false;
+        }
+
         if (this.viewingMode === 'paged') {
             return this.getCurrentPagedCanvasGroupIndex() > 0;
         }
@@ -487,7 +498,6 @@ export class ViewerState {
             this.collectionLabel = getCollectionLabel(json);
             this.collectionThumbnail = getCollectionThumbnail(json) || '';
             this.collectionItems = sortCollectionItems(parseCollection(json));
-            void this.hydrateCollectionItemThumbnails(manifestId);
 
             // Auto-load the first manifest in the collection
             const firstManifest = this.collectionItems.find(
@@ -496,6 +506,7 @@ export class ViewerState {
             if (firstManifest) {
                 await this._loadManifest(firstManifest.id);
             }
+            void this.hydrateCollectionItemThumbnails(manifestId);
             this.dispatchStateChange('manifestchange');
             return;
         }
@@ -541,12 +552,12 @@ export class ViewerState {
     }
 
     private ensureInitialCanvasSelection() {
-        if (this.canvasId) {
+        const canvases = this.canvases;
+        if (!canvases.length) {
             return;
         }
 
-        const canvases = this.canvases;
-        if (!canvases.length) {
+        if (this.canvasId && findCanvasIndexById(canvases, this.canvasId) >= 0) {
             return;
         }
 
@@ -599,6 +610,7 @@ export class ViewerState {
     private _applyManifestSettings(manifestId: string) {
         const manifest = manifestsState.getManifest(manifestId);
         if (!manifest) return;
+        const rawManifest = manifestsState.getManifestEntry(manifestId)?.json;
 
         // 0. Start Canvas (IIIF Presentation 3.0 `start` property)
         try {
@@ -644,24 +656,28 @@ export class ViewerState {
         // 1. Viewing Direction
         let direction: string | null = null;
         try {
-            // Check manifest root first
-            if (manifest.getViewingDirection) {
-                const d = manifest.getViewingDirection();
-                if (d) direction = String(d);
+            // Check raw JSON first (most reliable for IIIF v3)
+            if (rawManifest?.viewingDirection) {
+                direction = rawManifest.viewingDirection;
             }
             if (!direction && manifest.__jsonld) {
                 direction = manifest.__jsonld.viewingDirection;
+            }
+            // Fallback to manifesto accessor
+            if (!direction && manifest.getViewingDirection) {
+                const d = manifest.getViewingDirection();
+                if (d) direction = String(d);
             }
             // Check sequence if not found (IIIF v2)
             if (!direction) {
                 const seq = manifest.getSequences()?.[0];
                 if (seq) {
-                    if (seq.getViewingDirection) {
+                    if (seq.__jsonld) {
+                        direction = seq.__jsonld.viewingDirection;
+                    }
+                    if (!direction && seq.getViewingDirection) {
                         const d = seq.getViewingDirection();
                         if (d) direction = String(d);
-                    }
-                    if (!direction && seq.__jsonld) {
-                        direction = seq.__jsonld.viewingDirection;
                     }
                 }
             }
@@ -1205,18 +1221,6 @@ export class ViewerState {
         return null;
     }
 
-    /** Helper to parse xywh coordinates from an annotation target */
-    private parseXywhSelector(onVal: string | any): number[] | null {
-        const val =
-            typeof onVal === 'string' ? onVal : onVal['@id'] || onVal.id;
-        if (!val) return null;
-        const parts = val.split('#xywh=');
-        if (parts.length < 2) return null;
-        const coords = parts[1].split(',').map(Number);
-        if (coords.length === 4) return coords; // [x, y, w, h]
-        return null;
-    }
-
     /** Helper to unescape HTML-encoded mark tags */
     private decodeMark(str: string): string {
         if (!str) return '';
@@ -1286,26 +1290,30 @@ export class ViewerState {
                     const annotation = resources.find(
                         (r: any) => r['@id'] === annoId || r.id === annoId,
                     );
-                    if (annotation && annotation.on) {
-                        const onVal =
-                            typeof annotation.on === 'string'
-                                ? annotation.on
-                                : annotation.on['@id'] || annotation.on.id;
-                        const cleanOn = onVal.split('#')[0];
-                        const b = this.parseXywhSelector(onVal);
+                    if (!annotation?.on) {
+                        continue;
+                    }
+
+                    for (const target of normalizeIiifTargets(annotation.on)) {
+                        if (!target.canvasId) {
+                            continue;
+                        }
 
                         const cIndex = this.canvases.findIndex(
-                            (c: any) => c.id === cleanOn,
+                            (canvas: any) => canvas.id === target.canvasId,
                         );
 
-                        if (cIndex >= 0) {
-                            if (canvasIndex === -1) {
-                                canvasIndex = cIndex;
-                            }
-                            if (b) {
-                                allBounds.push(b);
-                                if (!bounds) bounds = b;
-                            }
+                        if (cIndex < 0) {
+                            continue;
+                        }
+
+                        if (canvasIndex === -1) {
+                            canvasIndex = cIndex;
+                        }
+
+                        if (target.xywh) {
+                            allBounds.push(target.xywh);
+                            if (!bounds) bounds = target.xywh;
                         }
                     }
                 }
@@ -1327,17 +1335,26 @@ export class ViewerState {
             }
         } else if (resources.length > 0) {
             for (const res of resources) {
-                const onVal =
-                    typeof res.on === 'string'
-                        ? res.on
-                        : res.on['@id'] || res.on.id;
-                const cleanOn = onVal.split('#')[0];
-                const bounds = this.parseXywhSelector(onVal);
+                const normalizedTargets = normalizeIiifTargets(res.on);
+                const firstTarget = normalizedTargets.find(
+                    (target) => target.canvasId,
+                );
+                if (!firstTarget?.canvasId) {
+                    continue;
+                }
 
                 const canvasIndex = this.canvases.findIndex(
-                    (c: any) => c.id === cleanOn,
+                    (canvas: any) => canvas.id === firstTarget.canvasId,
                 );
                 if (canvasIndex >= 0) {
+                    const boundsArray = normalizedTargets
+                        .map((target) => target.xywh)
+                        .filter(
+                            (
+                                bounds,
+                            ): bounds is [number, number, number, number] =>
+                                bounds !== null,
+                        );
                     const group = this.getOrCreateCanvasGroup(
                         resultsByCanvas,
                         canvasIndex,
@@ -1349,8 +1366,8 @@ export class ViewerState {
                                 ? res.resource.chars
                                 : res.chars || '',
                         ),
-                        bounds,
-                        allBounds: bounds ? [bounds] : [],
+                        bounds: boundsArray[0] || null,
+                        allBounds: boundsArray,
                     });
                 }
             }
@@ -1426,34 +1443,15 @@ export class ViewerState {
         for (const item of items) {
             const annoId = item.id || item['@id'];
 
-            // v2 items can legitimately point at multiple targets for one hit.
-            const targets = Array.isArray(item.target)
-                ? item.target
-                : [item.target];
             let canvasIndex = -1;
             let bounds: number[] | null = null;
             const allBounds: number[][] = [];
 
-            for (const target of targets) {
-                let targetStr: string | null = null;
+            for (const target of normalizeIiifTargets(item.target)) {
+                if (!target.canvasId) continue;
 
-                if (typeof target === 'string') {
-                    targetStr = target;
-                } else if (target && typeof target === 'object') {
-                    targetStr = target.id || target['@id'] || null;
-                    if (!targetStr && target.source) {
-                        targetStr =
-                            typeof target.source === 'string'
-                                ? target.source
-                                : target.source.id || target.source['@id'];
-                    }
-                }
-
-                if (!targetStr) continue;
-
-                const cleanTarget = targetStr.split('#')[0];
                 const targetCanvasIndex = this.canvases.findIndex(
-                    (c: any) => c.id === cleanTarget,
+                    (canvas: any) => canvas.id === target.canvasId,
                 );
                 if (targetCanvasIndex < 0) continue;
 
@@ -1461,10 +1459,9 @@ export class ViewerState {
                     canvasIndex = targetCanvasIndex;
                 }
 
-                const targetBounds = this.parseXywhSelector(targetStr);
-                if (targetBounds) {
-                    allBounds.push(targetBounds);
-                    if (!bounds) bounds = targetBounds;
+                if (target.xywh) {
+                    allBounds.push(target.xywh);
+                    if (!bounds) bounds = target.xywh;
                 }
             }
 

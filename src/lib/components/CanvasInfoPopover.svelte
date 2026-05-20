@@ -45,20 +45,20 @@
 
 	let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
 
-    let hasContent = $derived(
-        !!(label || summary || metadata.length > 0 || rendering.length > 0),
+    let hasAdditionalContent = $derived(
+        !!(summary || metadata.length > 0 || rendering.length > 0),
     );
 </script>
 
-{#if hasContent}
+{#if hasAdditionalContent}
     <div class="relative inline-flex">
         <button
-            class="btn btn-circle btn-xs btn-ghost opacity-60 hover:opacity-100"
+            class="btn btn-circle btn-xs btn-ghost text-primary"
             onclick={() => viewerState.toggleCanvasInfo()}
             aria-label={m.canvas_info_tooltip()}
             title={m.canvas_info_tooltip()}
         >
-            <Info size={14} />
+            <Info size={14} weight="bold" />
         </button>
 
         {#if viewerState.showCanvasInfo}
@@ -72,7 +72,7 @@
 
             <!-- Popover -->
             <div
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-base-200 border border-base-300 shadow-xl w-72 max-h-64 overflow-hidden"
+                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-base-200 border border-base-300 rounded-box shadow-xl w-72 max-h-64 overflow-hidden"
                 role="dialog"
                 aria-label={m.canvas_info()}
             >

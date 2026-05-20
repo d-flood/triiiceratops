@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { isFullCanvasAnnotation, parseAnnotation } from './annotationAdapter';
+import {
+    isFullCanvasAnnotation,
+    parseAnnotation,
+    parseAnnotations,
+} from './annotationAdapter';
 
 describe('annotationAdapter', () => {
     describe('parseAnnotation', () => {
@@ -244,6 +248,105 @@ describe('annotationAdapter', () => {
             expect(parseAnnotation(annotation, 9)?.coordinateSpace).toBe(
                 'canvas',
             );
+        });
+
+        it('should expand multiple target fragments into multiple render entries', () => {
+            const annotation = {
+                id: 'multi-fragment',
+                target: [
+                    'http://example.org/canvas1#xywh=10,20,100,200',
+                    'http://example.org/canvas1#xywh=30,40,50,60',
+                    'http://example.org/canvas1#xywh=70,80,90,100',
+                ],
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+                __triiiceratopsAnnotationOrigin: 'manifest',
+            };
+
+            const parsed = parseAnnotations([annotation]);
+
+            expect(parsed).toHaveLength(3);
+            expect(parsed.map((entry) => entry.renderId)).toEqual([
+                'multi-fragment::0',
+                'multi-fragment::1',
+                'multi-fragment::2',
+            ]);
+            expect(parsed.map((entry) => entry.sourceAnnotationId)).toEqual([
+                'multi-fragment',
+                'multi-fragment',
+                'multi-fragment',
+            ]);
+            expect(parsed.map((entry) => entry.geometry)).toEqual([
+                {
+                    type: 'RECTANGLE',
+                    x: 10,
+                    y: 20,
+                    w: 100,
+                    h: 200,
+                },
+                {
+                    type: 'RECTANGLE',
+                    x: 30,
+                    y: 40,
+                    w: 50,
+                    h: 60,
+                },
+                {
+                    type: 'RECTANGLE',
+                    x: 70,
+                    y: 80,
+                    w: 90,
+                    h: 100,
+                },
+            ]);
+            expect(parseAnnotation(annotation, 10)?.geometry).toEqual({
+                type: 'RECTANGLE',
+                x: 10,
+                y: 20,
+                w: 100,
+                h: 200,
+            });
+        });
+
+        it('should skip invalid targets while keeping valid multi-target entries', () => {
+            const annotation = {
+                id: 'mixed-fragment',
+                target: [
+                    'http://example.org/canvas1',
+                    'http://example.org/canvas1#xywh=5,6,7,8',
+                    { source: 'http://example.org/canvas1' },
+                    'http://example.org/canvas1#xywh=10,11,12,13',
+                ],
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+                __triiiceratopsAnnotationOrigin: 'manifest',
+            };
+
+            const parsed = parseAnnotations([annotation]);
+
+            expect(parsed).toHaveLength(2);
+            expect(parsed.map((entry) => entry.geometry)).toEqual([
+                {
+                    type: 'RECTANGLE',
+                    x: 5,
+                    y: 6,
+                    w: 7,
+                    h: 8,
+                },
+                {
+                    type: 'RECTANGLE',
+                    x: 10,
+                    y: 11,
+                    w: 12,
+                    h: 13,
+                },
+            ]);
         });
     });
 });
