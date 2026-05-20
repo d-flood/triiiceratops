@@ -24,7 +24,6 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version: 20
-                  registry-url: 'https://registry.npmjs.org'
             - run: pnpm install --frozen-lockfile
             - run: pnpm run build:lib
             - run: pnpm run build:element
@@ -70,8 +69,6 @@ jobs:
             - name: Publish to NPM
               if: steps.version.outputs.has_changes == 'true'
               run: pnpm publish --access public --no-git-checks
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Push Changes
               if: steps.version.outputs.has_changes == 'true'
