@@ -337,4 +337,16 @@ describe('ViewerState manifest behavior', () => {
         expect([...state.visibleAnnotationIds]).toEqual([]);
         expect(state.annotationVisibilityTouched).toBe(false);
     });
+
+    it('defaults preserveCanvasScale to false in getter and snapshot', () => {
+        expect(state.preserveCanvasScale).toBe(false);
+        expect(state.getSnapshot().preserveCanvasScale).toBe(false);
+    });
+
+    it('reflects preserveCanvasScale config updates in getter and snapshot', () => {
+        state.updateConfig({ preserveCanvasScale: true });
+
+        expect(state.preserveCanvasScale).toBe(true);
+        expect(state.getSnapshot().preserveCanvasScale).toBe(true);
+    });
 });

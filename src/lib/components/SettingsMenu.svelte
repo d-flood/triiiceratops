@@ -82,6 +82,16 @@
         </label>
     </li>
     <li>
+        <label class="label cursor-pointer py-1">
+            <span class="label-text">Preserve authored canvas scale</span>
+            <input
+                type="checkbox"
+                class="toggle toggle-sm"
+                bind:checked={config.preserveCanvasScale}
+            />
+        </label>
+    </li>
+    <li>
         <label class="label cursor-pointer py-1 gap-2">
             <span class="label-text">Left panel width</span>
             <input
