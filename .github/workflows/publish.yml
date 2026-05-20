@@ -67,7 +67,11 @@ jobs:
 
             - name: Publish to NPM
               if: steps.version.outputs.has_changes == 'true'
-              run: npm publish --access public
+              run: |
+                  VERSION=$(node -p "require('./package.json').version")
+                  TAG=$(node -p "const version = require('./package.json').version; version.includes('-') ? version.split('-')[1].split('.')[0] : 'latest'")
+                  echo "Publishing triiiceratops@$VERSION with dist-tag $TAG"
+                  npm publish --access public --tag "$TAG"
 
             - name: Push Changes
               if: steps.version.outputs.has_changes == 'true'
