@@ -61,6 +61,7 @@ export interface ViewerStateSnapshot {
         | 'right-to-left'
         | 'top-to-bottom'
         | 'bottom-to-top';
+    preserveCanvasScale: boolean;
     galleryPosition: { x: number; y: number };
     gallerySize: { width: number; height: number };
 }
@@ -167,6 +168,9 @@ export class ViewerState {
     get showZoomControls() {
         return this.config.showZoomControls ?? true;
     }
+    get preserveCanvasScale() {
+        return this.config.preserveCanvasScale ?? false;
+    }
 
     get galleryFixedHeight() {
         return this.config.gallery?.fixedHeight ?? 120;
@@ -248,6 +252,7 @@ export class ViewerState {
             dockSide: this.dockSide,
             viewingMode: this.viewingMode,
             viewingDirection: this.viewingDirection,
+            preserveCanvasScale: this.preserveCanvasScale,
             galleryPosition: this.galleryPosition,
             gallerySize: this.gallerySize,
         };

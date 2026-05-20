@@ -1,12 +1,17 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+    import { SvelteSet } from 'svelte/reactivity';
     import {
         DEFAULT_MIN_PIXEL_RATIO,
         DEFAULT_MIN_ZOOM_IMAGE_RATIO,
         MOBILE_DRAWER_FALLBACK,
         shouldUseMobileDrawerFallback,
     } from './osdDefaults';
+    import {
+        getCanvasDisplayLayouts,
+        getContinuousTargetPosition,
+        type CanvasDisplayLayout,
+    } from './osdLayout';
     import { resolveTileSources } from './osdTileSources';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import {
@@ -32,6 +37,7 @@
     let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
     let activeEditAnnotationId = $state<string | null>(null);
+    let continuousLayouts: CanvasDisplayLayout[] = $state.raw([]);
     let readonlyTooltip = $state<{
         id: string;
         text: string;
@@ -642,19 +648,11 @@
 
         // Check if source or layout params actually changed to avoid resetting zoom
         // We include mode and direction in the key because they affect layout even if sources are same
-        const stateKey = `${mode}:${direction}:${JSON.stringify(tileSources)}`;
+        const stateKey = `${mode}:${direction}:${viewerState.preserveCanvasScale}:${JSON.stringify(tileSources)}`;
         if (stateKey === lastTileSourceStr) return;
         lastTileSourceStr = stateKey;
 
-        const isRTL =
-            direction === 'right-to-left' || direction === 'bottom-to-top'; // Treat BTT as reversed flow?
-        // Actually usually BTT is vertical reversed.
-        // For RTL logic in Paged (Side-by-Side), only 'right-to-left' matters.
         const isPagedRTL = direction === 'right-to-left';
-
-        const isVertical =
-            direction === 'top-to-bottom' || direction === 'bottom-to-top';
-        const isBTT = direction === 'bottom-to-top';
 
         // Normalize sources
         const sources = Array.isArray(tileSources)
@@ -710,45 +708,14 @@
                 setTileSourceError(null);
                 const resolvedSources = result.resolved;
 
-                // Build position info for all sources
-                const canvasOrder = new SvelteMap<string, number>();
-                let nextCanvasOrder = 0;
-
-                const allPositions = resolvedSources.map((source, index) => {
-                    let x = 0;
-                    let y = 0;
-                    const canvasId = isPositionedSource(source)
-                        ? source.canvasId
-                        : `canvas-${index}`;
-                    if (!canvasOrder.has(canvasId)) {
-                        canvasOrder.set(canvasId, nextCanvasOrder++);
-                    }
-                    const canvasIndex = canvasOrder.get(canvasId) ?? index;
-                    const localX = isPositionedSource(source) ? source.x : 0;
-                    const localY = isPositionedSource(source) ? source.y : 0;
-                    const localWidth = isPositionedSource(source)
-                        ? source.width
-                        : 1.0;
-                    const actualTileSource = isPositionedSource(source)
-                        ? source.tileSource
-                        : source;
-
-                    if (isVertical) {
-                        const yPos = canvasIndex * (1 + MULTI_CANVAS_GAP);
-                        y = (isBTT ? -yPos : yPos) + localY;
-                        x = localX;
-                    } else {
-                        const xPos = canvasIndex * (1 + MULTI_CANVAS_GAP);
-                        x = (isRTL ? -xPos : xPos) + localX;
-                        y = localY;
-                    }
-                    return {
-                        tileSource: actualTileSource,
-                        x,
-                        y,
-                        width: localWidth,
-                    };
+                const layoutResult = getCanvasDisplayLayouts(resolvedSources, {
+                    mode,
+                    direction,
+                    preserveCanvasScale: viewerState.preserveCanvasScale,
+                    gap: MULTI_CANVAS_GAP,
                 });
+                continuousLayouts = layoutResult.layouts;
+                const allPositions = layoutResult.sources;
 
                 // Only open a window of canvases around the active one for fast initial load.
                 // The rest are added progressively after the viewer opens.
@@ -857,43 +824,12 @@
             const resolvedSources = result.resolved;
 
             if (mode === 'paged') {
-                const offset = 1 + MULTI_CANVAS_GAP;
-                const canvasIds = [
-                    ...new Set(
-                        resolvedSources.map((source, index) =>
-                            isPositionedSource(source)
-                                ? source.canvasId
-                                : `canvas-${index}`,
-                        ),
-                    ),
-                ];
-                const canvasOffsets = new SvelteMap<string, number>();
-
-                canvasIds.forEach((canvasId, index) => {
-                    if (canvasIds.length === 1) {
-                        canvasOffsets.set(canvasId, 0);
-                        return;
-                    }
-
-                    if (index === 0) {
-                        canvasOffsets.set(canvasId, isPagedRTL ? offset : 0);
-                    } else {
-                        canvasOffsets.set(canvasId, isPagedRTL ? 0 : offset);
-                    }
-                });
-
-                const positioned = resolvedSources.map((source) =>
-                    isPositionedSource(source)
-                        ? {
-                              tileSource: source.tileSource,
-                              x:
-                                  source.x +
-                                  (canvasOffsets.get(source.canvasId) ?? 0),
-                              y: source.y,
-                              width: source.width,
-                          }
-                        : source,
-                );
+                const positioned = getCanvasDisplayLayouts(resolvedSources, {
+                    mode,
+                    direction: isPagedRTL ? 'right-to-left' : 'left-to-right',
+                    preserveCanvasScale: viewerState.preserveCanvasScale,
+                    gap: MULTI_CANVAS_GAP,
+                }).sources;
 
                 viewer.open(
                     positioned.length === 1 ? positioned[0] : positioned,
@@ -936,17 +872,12 @@
         const direction = viewerState.viewingDirection;
         const isVertical =
             direction === 'top-to-bottom' || direction === 'bottom-to-top';
-        const isBTT = direction === 'bottom-to-top';
-        const isRTL =
-            direction === 'right-to-left' || direction === 'bottom-to-top';
-
-        const expectedPos = isVertical
-            ? isBTT
-                ? -(currentIndex * (1 + MULTI_CANVAS_GAP))
-                : currentIndex * (1 + MULTI_CANVAS_GAP)
-            : isRTL
-              ? -(currentIndex * (1 + MULTI_CANVAS_GAP))
-              : currentIndex * (1 + MULTI_CANVAS_GAP);
+        const expectedPos = getContinuousTargetPosition(
+            currentIndex,
+            continuousLayouts,
+            direction,
+        );
+        if (expectedPos === null) return;
 
         // Find the world item at the expected position
         const itemCount = viewer.world.getItemCount();
