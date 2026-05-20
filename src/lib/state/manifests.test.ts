@@ -115,6 +115,38 @@ describe('ManifestsState', () => {
 
             expect(mockFetch).not.toHaveBeenCalled();
         });
+
+        it('should wait for an in-flight fetch for the same manifest', async () => {
+            const mockManifest = {
+                id: 'http://example.org/manifest',
+                type: 'Manifest',
+                viewingDirection: 'right-to-left',
+            };
+            let resolveResponse: (response: Response) => void = () => {};
+            mockFetch.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveResponse = resolve;
+                }),
+            );
+
+            const firstFetch = state.fetchManifest('http://example.org/manifest');
+            const secondFetch = state.fetchManifest(
+                'http://example.org/manifest',
+            );
+
+            resolveResponse({
+                ok: true,
+                json: async () => mockManifest,
+            } as Response);
+
+            await Promise.all([firstFetch, secondFetch]);
+
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(
+                state.manifests['http://example.org/manifest'].json,
+            ).toEqual(mockManifest);
+            expect(parseManifestMock).toHaveBeenCalledWith(mockManifest);
+        });
     });
 
     describe('getCanvases', () => {
