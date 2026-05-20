@@ -24,10 +24,9 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version: 20
+            - name: Update npm
+              run: npm install -g npm@latest
             - run: pnpm install --frozen-lockfile
-            - run: pnpm run build:lib
-            - run: pnpm run build:element
-            - run: pnpm run build:plugins-iife
 
             - name: Git Configuration
               run: |
