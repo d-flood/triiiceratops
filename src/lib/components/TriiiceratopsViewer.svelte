@@ -216,17 +216,19 @@
         // runs due to internal state changes
         if (canvasId && canvasId !== lastAppliedCanvasId) {
             lastAppliedCanvasId = canvasId;
-            if (
-                internalViewerState.manifestId &&
-                internalViewerState.canvases.length &&
-                !hasCanvas(canvasId)
-            ) {
-                return;
-            }
-            // Only apply if different from current internal state
-            if (canvasId !== internalViewerState.canvasId) {
-                internalViewerState.setCanvas(canvasId);
-            }
+            untrack(() => {
+                if (
+                    internalViewerState.manifestId &&
+                    internalViewerState.canvases.length &&
+                    !hasCanvas(canvasId)
+                ) {
+                    return;
+                }
+                // Only apply if different from current internal state
+                if (canvasId !== internalViewerState.canvasId) {
+                    internalViewerState.setCanvas(canvasId);
+                }
+            });
         }
     });
 
@@ -526,11 +528,9 @@
     // Auto-select initial canvas: prefer start canvas from manifest, then first canvas
     $effect(() => {
         if (
-            canvases &&
             canvases.length > 0 &&
-            !internalViewerState.canvasId &&
-            !manifestData?.isFetching &&
-            !canvasId // Don't auto-select if a canvasId prop is provided
+            currentCanvasIndex < 0 &&
+            !manifestData?.isFetching
         ) {
             const startCanvas = internalViewerState.startCanvasId;
             if (startCanvas) {

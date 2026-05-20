@@ -317,8 +317,6 @@ export class ViewerState {
             this.selectedSequenceIndex,
         );
 
-        // Auto-initialize canvasId to first canvas if not set
-
         return canvases;
     }
 
@@ -329,7 +327,6 @@ export class ViewerState {
 
     get currentCanvasIndex() {
         if (!this.canvasId) {
-            if (this.canvases.length > 0) return 0;
             return -1;
         }
 
@@ -351,6 +348,10 @@ export class ViewerState {
     }
 
     get hasNext() {
+        if (this.currentCanvasIndex < 0) {
+            return false;
+        }
+
         if (this.viewingMode === 'paged') {
             const groupIndex = this.getCurrentPagedCanvasGroupIndex();
             const groups = getPagedCanvasGroups(
@@ -364,6 +365,10 @@ export class ViewerState {
     }
 
     get hasPrevious() {
+        if (this.currentCanvasIndex < 0) {
+            return false;
+        }
+
         if (this.viewingMode === 'paged') {
             return this.getCurrentPagedCanvasGroupIndex() > 0;
         }
@@ -488,7 +493,6 @@ export class ViewerState {
             this.collectionLabel = getCollectionLabel(json);
             this.collectionThumbnail = getCollectionThumbnail(json) || '';
             this.collectionItems = sortCollectionItems(parseCollection(json));
-            void this.hydrateCollectionItemThumbnails(manifestId);
 
             // Auto-load the first manifest in the collection
             const firstManifest = this.collectionItems.find(
@@ -497,6 +501,7 @@ export class ViewerState {
             if (firstManifest) {
                 await this._loadManifest(firstManifest.id);
             }
+            void this.hydrateCollectionItemThumbnails(manifestId);
             this.dispatchStateChange('manifestchange');
             return;
         }
@@ -542,12 +547,12 @@ export class ViewerState {
     }
 
     private ensureInitialCanvasSelection() {
-        if (this.canvasId) {
+        const canvases = this.canvases;
+        if (!canvases.length) {
             return;
         }
 
-        const canvases = this.canvases;
-        if (!canvases.length) {
+        if (this.canvasId && findCanvasIndexById(canvases, this.canvasId) >= 0) {
             return;
         }
 
@@ -600,6 +605,7 @@ export class ViewerState {
     private _applyManifestSettings(manifestId: string) {
         const manifest = manifestsState.getManifest(manifestId);
         if (!manifest) return;
+        const rawManifest = manifestsState.getManifestEntry(manifestId)?.json;
 
         // 0. Start Canvas (IIIF Presentation 3.0 `start` property)
         try {
@@ -645,24 +651,28 @@ export class ViewerState {
         // 1. Viewing Direction
         let direction: string | null = null;
         try {
-            // Check manifest root first
-            if (manifest.getViewingDirection) {
-                const d = manifest.getViewingDirection();
-                if (d) direction = String(d);
+            // Check raw JSON first (most reliable for IIIF v3)
+            if (rawManifest?.viewingDirection) {
+                direction = rawManifest.viewingDirection;
             }
             if (!direction && manifest.__jsonld) {
                 direction = manifest.__jsonld.viewingDirection;
+            }
+            // Fallback to manifesto accessor
+            if (!direction && manifest.getViewingDirection) {
+                const d = manifest.getViewingDirection();
+                if (d) direction = String(d);
             }
             // Check sequence if not found (IIIF v2)
             if (!direction) {
                 const seq = manifest.getSequences()?.[0];
                 if (seq) {
-                    if (seq.getViewingDirection) {
+                    if (seq.__jsonld) {
+                        direction = seq.__jsonld.viewingDirection;
+                    }
+                    if (!direction && seq.getViewingDirection) {
                         const d = seq.getViewingDirection();
                         if (d) direction = String(d);
-                    }
-                    if (!direction && seq.__jsonld) {
-                        direction = seq.__jsonld.viewingDirection;
                     }
                 }
             }
