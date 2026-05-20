@@ -68,7 +68,7 @@ jobs:
 
             - name: Publish to NPM
               if: steps.version.outputs.has_changes == 'true'
-              run: pnpm publish --access public --no-git-checks
+              run: npm publish --access public
 
             - name: Push Changes
               if: steps.version.outputs.has_changes == 'true'
