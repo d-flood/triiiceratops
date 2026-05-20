@@ -1,8 +1,18 @@
+import {
+    extractIiifTargetId,
+    getIiifCanvasId,
+    normalizeIiifTargets,
+    parseIiifXywh,
+} from './iiifTargets';
+
 /**
  * Parsed annotation interface for custom rendering
  */
 export interface ParsedAnnotation {
     id: string;
+    renderId: string;
+    sourceAnnotationId: string;
+    geometryIndex: number;
     geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
     coordinateSpace: 'canvas' | 'image';
     isFullCanvasTarget: boolean;
@@ -61,17 +71,13 @@ function getAnnotationId(anno: any): string {
 function parseXywh(
     targetStr: string,
 ): { x: number; y: number; w: number; h: number } | null {
-    if (!targetStr) return null;
-    // Match xywh= optionally followed by "pixel:" and handle floats
-    const match = targetStr.match(
-        /xywh=(?:pixel:)?([\d.]+),([\d.]+),([\d.]+),([\d.]+)/,
-    );
-    if (match) {
+    const xywh = parseIiifXywh(targetStr);
+    if (xywh) {
         return {
-            x: parseFloat(match[1]),
-            y: parseFloat(match[2]),
-            w: parseFloat(match[3]),
-            h: parseFloat(match[4]),
+            x: xywh[0],
+            y: xywh[1],
+            w: xywh[2],
+            h: xywh[3],
         };
     }
     return null;
@@ -80,80 +86,51 @@ function parseXywh(
 /**
  * Extract target geometry from various annotation formats
  */
-function extractGeometry(
+function extractGeometries(
     annotation: any,
-): RectangleGeometry | PolygonGeometry | PointGeometry | null {
-    // Try to find SVG selector first
-    const svgSelector = findSvgSelector(annotation);
-    if (svgSelector) {
-        return convertSvgToPolygon(svgSelector);
+): Array<RectangleGeometry | PolygonGeometry | PointGeometry> {
+    const target = getAnnotationTarget(annotation);
+    const geometries: Array<
+        RectangleGeometry | PolygonGeometry | PointGeometry
+    > = [];
+
+    for (const normalizedTarget of normalizeIiifTargets(target)) {
+        for (const selector of normalizedTarget.selectors) {
+            const svgSelector = extractSvgValue(selector);
+            if (svgSelector) {
+                const polygon = convertSvgToPolygon(svgSelector);
+                if (polygon) {
+                    geometries.push(polygon);
+                }
+            }
+
+            const point = extractPointFromSelector(selector);
+            if (point) {
+                geometries.push(point);
+            }
+        }
+
+        if (normalizedTarget.xywh) {
+            geometries.push({
+                type: 'RECTANGLE',
+                x: normalizedTarget.xywh[0],
+                y: normalizedTarget.xywh[1],
+                w: normalizedTarget.xywh[2],
+                h: normalizedTarget.xywh[3],
+            });
+        }
     }
 
-    const pointSelector = findPointSelector(annotation);
-    if (pointSelector) {
-        return pointSelector;
-    }
-
-    // Extract xywh from target
-    const xywh = extractXywhFromTarget(annotation);
-    if (xywh) {
-        return {
-            type: 'RECTANGLE',
-            x: xywh.x,
-            y: xywh.y,
-            w: xywh.w,
-            h: xywh.h,
-        };
+    if (geometries.length > 0) {
+        return geometries;
     }
 
     const canvasRect = extractWholeCanvasGeometry(annotation);
     if (canvasRect) {
-        return canvasRect;
+        return [canvasRect];
     }
 
-    return null;
-}
-
-function findPointSelector(annotation: any): PointGeometry | null {
-    if (typeof annotation.getTarget === 'function') {
-        const rawTarget =
-            annotation.__jsonld?.on || annotation.__jsonld?.target;
-        if (rawTarget) {
-            return extractPointFromTarget(rawTarget);
-        }
-    }
-
-    const target = annotation.target || annotation.on;
-    if (target) {
-        return extractPointFromTarget(target);
-    }
-
-    return null;
-}
-
-function extractPointFromTarget(target: any): PointGeometry | null {
-    if (!target) return null;
-
-    if (Array.isArray(target)) {
-        for (const item of target) {
-            const point = extractPointFromTarget(item);
-            if (point) return point;
-        }
-        return null;
-    }
-
-    if (target.selector) {
-        const selectors = Array.isArray(target.selector)
-            ? target.selector
-            : [target.selector];
-
-        for (const selector of selectors) {
-            const point = extractPointFromSelector(selector);
-            if (point) return point;
-        }
-    }
-
-    return target.source ? extractPointFromTarget(target.source) : null;
+    return [];
 }
 
 function extractPointFromSelector(selector: any): PointGeometry | null {
@@ -197,25 +174,12 @@ function getAnnotationTarget(annotation: any): any {
 }
 
 function getTargetId(target: any): string | null {
-    if (!target) return null;
-
-    if (typeof target === 'string') {
-        return target.split('#')[0];
-    }
-
-    if (Array.isArray(target)) {
-        for (const item of target) {
-            const id = getTargetId(item);
-            if (id) return id;
-        }
+    const targetId = extractIiifTargetId(target);
+    if (!targetId) {
         return null;
     }
 
-    if (target.source) {
-        return getTargetId(target.source);
-    }
-
-    return target.id || target['@id'] || null;
+    return getIiifCanvasId(targetId) || targetId;
 }
 
 function hasTargetSelector(target: any): boolean {
@@ -499,91 +463,6 @@ function generateCirclePoints(
 /**
  * Extract xywh from annotation target (multiple formats)
  */
-function extractXywhFromTarget(
-    annotation: any,
-): { x: number; y: number; w: number; h: number } | null {
-    // Try Manifesto getTarget method
-    if (typeof annotation.getTarget === 'function') {
-        const target = annotation.getTarget();
-        if (typeof target === 'string' && target.includes('xywh=')) {
-            return parseXywh(target);
-        }
-        // Check raw JSON as fallback
-        const rawOn = annotation.__jsonld?.on;
-        if (rawOn) {
-            const xywh = extractXywhFromRawTarget(rawOn);
-            if (xywh) return xywh;
-        }
-    }
-
-    // Check raw annotation formats (v2 and v3)
-    const target = annotation.target || annotation.on;
-    if (target) {
-        return extractXywhFromRawTarget(target);
-    }
-
-    return null;
-}
-
-/**
- * Extract xywh from raw target object/array
- */
-function extractXywhFromRawTarget(
-    target: any,
-): { x: number; y: number; w: number; h: number } | null {
-    if (!target) return null;
-
-    // Handle arrays
-    if (Array.isArray(target)) {
-        for (const t of target) {
-            const xywh = extractXywhFromRawTarget(t);
-            if (xywh) return xywh;
-        }
-    }
-
-    // Handle string targets with xywh
-    if (typeof target === 'string' && target.includes('xywh=')) {
-        return parseXywh(target);
-    }
-
-    // Handle object with selector
-    if (target.selector) {
-        const sel = target.selector;
-
-        // Handle array of selectors
-        if (Array.isArray(sel)) {
-            // Prefer FragmentSelector
-            const fragment = sel.find(
-                (s) =>
-                    s.type === 'FragmentSelector' &&
-                    s.value &&
-                    s.value.includes('xywh='),
-            );
-            if (fragment) return parseXywh(fragment.value);
-
-            // Or generic
-            const anyXywh = sel.find(
-                (s) => s.value && s.value.includes('xywh='),
-            );
-            if (anyXywh) return parseXywh(anyXywh.value);
-
-            return null;
-        }
-
-        const item = sel.item || sel;
-
-        if (
-            item.value &&
-            typeof item.value === 'string' &&
-            item.value.includes('xywh=')
-        ) {
-            return parseXywh(item.value);
-        }
-    }
-
-    return null;
-}
-
 /**
  * Extract annotation body content (text, label, etc)
  */
@@ -678,6 +557,42 @@ export function extractBody(annotation: any): {
     return bodies;
 }
 
+function createRenderId(annotationId: string, geometryIndex: number): string {
+    return `${annotationId}::${geometryIndex}`;
+}
+
+function buildParsedAnnotations(
+    annotation: any,
+    index: number,
+    isSearchHit: boolean,
+): ParsedAnnotation[] {
+    const id = getAnnotationId(annotation) || `anno-${index}`;
+    const geometries = extractGeometries(annotation);
+    const isFullCanvasTarget = isFullCanvasAnnotation(annotation);
+    const coordinateSpace = resolveCoordinateSpace(
+        annotation,
+        isFullCanvasTarget,
+    );
+
+    if (!geometries.length) {
+        return [];
+    }
+
+    const body = extractBody(annotation);
+
+    return geometries.map((geometry, geometryIndex) => ({
+        id,
+        renderId: createRenderId(id, geometryIndex),
+        sourceAnnotationId: id,
+        geometryIndex,
+        geometry,
+        coordinateSpace,
+        isFullCanvasTarget,
+        body,
+        isSearchHit,
+    }));
+}
+
 /**
  * Parse Manifesto/IIIF annotation to internal format
  */
@@ -686,29 +601,7 @@ export function parseAnnotation(
     index: number,
     isSearchHit: boolean = false,
 ): ParsedAnnotation | null {
-    const id = getAnnotationId(annotation) || `anno-${index}`;
-    const geometry = extractGeometry(annotation);
-    const isFullCanvasTarget = isFullCanvasAnnotation(annotation);
-    const coordinateSpace = resolveCoordinateSpace(
-        annotation,
-        isFullCanvasTarget,
-    );
-
-    // Skip annotations without geometry
-    if (!geometry) {
-        return null;
-    }
-
-    const body = extractBody(annotation);
-
-    return {
-        id,
-        geometry,
-        coordinateSpace,
-        isFullCanvasTarget,
-        body,
-        isSearchHit,
-    };
+    return buildParsedAnnotations(annotation, index, isSearchHit)[0] ?? null;
 }
 
 /**
@@ -719,9 +612,9 @@ export function parseAnnotations(
     searchHitIds: Set<string> = new Set(),
 ): ParsedAnnotation[] {
     return annotations
-        .map((anno, idx) => {
+        .flatMap((anno, idx) => {
             const isSearchHit = searchHitIds.has(getAnnotationId(anno));
-            return parseAnnotation(anno, idx, isSearchHit);
+            return buildParsedAnnotations(anno, idx, isSearchHit);
         })
         .filter((anno) => anno !== null) as ParsedAnnotation[];
 }

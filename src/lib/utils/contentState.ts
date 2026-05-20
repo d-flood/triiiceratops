@@ -1,3 +1,5 @@
+import { getIiifCanvasId, parseIiifXywh } from './iiifTargets';
+
 export type CanvasRegion = {
     x: number;
     y: number;
@@ -27,17 +29,16 @@ function decodeContentState(value: string): string {
 function parseTarget(
     target: string,
 ): Pick<ContentStateTarget, 'canvasId' | 'region'> {
-    const [canvasId, fragment] = target.split('#');
-    const regionMatch = fragment?.match(/xywh=(\d+),(\d+),(\d+),(\d+)/);
+    const xywh = parseIiifXywh(target);
 
     return {
-        canvasId: canvasId || undefined,
-        region: regionMatch
+        canvasId: getIiifCanvasId(target) || undefined,
+        region: xywh
             ? {
-                  x: Number(regionMatch[1]),
-                  y: Number(regionMatch[2]),
-                  width: Number(regionMatch[3]),
-                  height: Number(regionMatch[4]),
+                  x: xywh[0],
+                  y: xywh[1],
+                  width: xywh[2],
+                  height: xywh[3],
               }
             : undefined,
     };

@@ -309,11 +309,13 @@
             // Filter based on visibility
             if (anno.isSearchHit) {
                 // Search hits are always visible
-            } else if (!viewerState.visibleAnnotationIds.has(anno.id)) {
+            } else if (
+                !viewerState.visibleAnnotationIds.has(anno.sourceAnnotationId)
+            ) {
                 continue;
             }
 
-            if (anno.id === activeEditAnnotationId) {
+            if (anno.sourceAnnotationId === activeEditAnnotationId) {
                 continue;
             }
 
@@ -351,7 +353,8 @@
                     );
 
                 results.push({
-                    id: anno.id,
+                    id: anno.renderId,
+                    annotationId: anno.sourceAnnotationId,
                     type: 'RECTANGLE' as const,
                     isFullCanvasTarget: anno.isFullCanvasTarget,
                     rect: {
@@ -403,7 +406,8 @@
                 ]);
 
                 results.push({
-                    id: anno.id,
+                    id: anno.renderId,
+                    annotationId: anno.sourceAnnotationId,
                     type: 'POLYGON' as const,
                     isFullCanvasTarget: anno.isFullCanvasTarget,
                     bounds: {
@@ -433,7 +437,8 @@
                     );
 
                 results.push({
-                    id: anno.id,
+                    id: anno.renderId,
+                    annotationId: anno.sourceAnnotationId,
                     type: 'POINT' as const,
                     isFullCanvasTarget: anno.isFullCanvasTarget,
                     point: {
@@ -977,12 +982,13 @@
 
     <!-- Render annotations -->
     {#each renderedAnnotations as anno (anno.id)}
-        {#if !anno.isFullCanvasTarget || viewerState.hoveredAnnotationId === anno.id}
+        {#if !anno.isFullCanvasTarget || viewerState.hoveredAnnotationId === anno.annotationId}
             {#if anno.type === 'RECTANGLE'}
                 {#if isEditableOverlayAnnotation(anno)}
                     <button
                         type="button"
                         id="annotation-visual-{anno.id}"
+                        data-annotation-id={anno.annotationId}
                         class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {shouldShowOverlayTooltip(
                             anno,
                         )
@@ -1001,13 +1007,17 @@
           height: {anno.rect.height}px;
                  "
                         onclick={(event) =>
-                            requestAnnotationEdit(anno.id, event)}
+                            requestAnnotationEdit(anno.annotationId, event)}
                         onkeydown={(event) =>
-                            handleAnnotationOverlayKeydown(anno.id, event)}
+                            handleAnnotationOverlayKeydown(
+                                anno.annotationId,
+                                event,
+                            )}
                     ></button>
                 {:else}
                     <div
                         id="annotation-visual-{anno.id}"
+                        data-annotation-id={anno.annotationId}
                         class="absolute pointer-events-none"
                         style="
           left: {anno.rect.x}px;
@@ -1031,6 +1041,8 @@
                 {#if isEditableOverlayAnnotation(anno)}
                     <button
                         type="button"
+                        id="annotation-visual-{anno.id}"
+                        data-annotation-id={anno.annotationId}
                         class="absolute pointer-events-auto border-0 bg-transparent p-0 {shouldShowOverlayTooltip(
                             anno,
                         )
@@ -1047,13 +1059,15 @@
           height: {anno.bounds.height}px;
         "
                         onclick={(event) =>
-                            requestAnnotationEdit(anno.id, event)}
+                            requestAnnotationEdit(anno.annotationId, event)}
                         onkeydown={(event) =>
-                            handleAnnotationOverlayKeydown(anno.id, event)}
+                            handleAnnotationOverlayKeydown(
+                                anno.annotationId,
+                                event,
+                            )}
                     >
                         <svg class="absolute inset-0 h-full w-full">
                             <polygon
-                                id="annotation-visual-{anno.id}"
                                 points={anno.points
                                     .map((p: any) => p.join(','))
                                     .join(' ')}
@@ -1066,6 +1080,8 @@
                     </button>
                 {:else}
                     <div
+                        id="annotation-visual-{anno.id}"
+                        data-annotation-id={anno.annotationId}
                         class="absolute pointer-events-none"
                         style="
           left: {anno.bounds.x}px;
@@ -1078,7 +1094,6 @@
                             class="pointer-events-none absolute inset-0 h-full w-full"
                         >
                             <polygon
-                                id="annotation-visual-{anno.id}"
                                 points={anno.points
                                     .map((p: any) => p.join(','))
                                     .join(' ')}
@@ -1099,6 +1114,7 @@
                     <button
                         type="button"
                         id="annotation-visual-{anno.id}"
+                        data-annotation-id={anno.annotationId}
                         class="absolute rounded-full border-2 transition-colors cursor-pointer pointer-events-auto {shouldShowOverlayTooltip(
                             anno,
                         )
@@ -1117,13 +1133,17 @@
 		  height: {POINT_MARKER_SIZE}px;
 		"
                         onclick={(event) =>
-                            requestAnnotationEdit(anno.id, event)}
+                            requestAnnotationEdit(anno.annotationId, event)}
                         onkeydown={(event) =>
-                            handleAnnotationOverlayKeydown(anno.id, event)}
+                            handleAnnotationOverlayKeydown(
+                                anno.annotationId,
+                                event,
+                            )}
                     ></button>
                 {:else}
                     <div
                         id="annotation-visual-{anno.id}"
+                        data-annotation-id={anno.annotationId}
                         class="absolute pointer-events-none"
                         style="
 		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
