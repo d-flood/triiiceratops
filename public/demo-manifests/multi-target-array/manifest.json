@@ -1,0 +1,70 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "demo-manifests/multi-target-array/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": [
+            "Picture of Gottingen taken during the 2019 IIIF Conference"
+        ]
+    },
+    "items": [
+        {
+            "id": "demo-manifests/multi-target-array/canvas/p1",
+            "type": "Canvas",
+            "height": 3024,
+            "width": 4032,
+            "items": [
+                {
+                    "id": "demo-manifests/multi-target-array/page/p1/1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "demo-manifests/multi-target-array/annotation/p0001-image",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "https://iiif.io/api/image/3.0/example/reference/918ecd18c2592080851777620de9bcb5-gottingen/full/max/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "height": 3024,
+                                "width": 4032,
+                                "service": [
+                                    {
+                                        "id": "https://iiif.io/api/image/3.0/example/reference/918ecd18c2592080851777620de9bcb5-gottingen",
+                                        "profile": "level1",
+                                        "type": "ImageService3"
+                                    }
+                                ]
+                            },
+                            "target": "demo-manifests/multi-target-array/canvas/p1"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "demo-manifests/multi-target-array/page/p1/2",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "demo-manifests/multi-target-array/annotation/p0002-tag",
+                            "type": "Annotation",
+                            "motivation": "tagging",
+                            "body": {
+                                "type": "TextualBody",
+                                "value": "Highlighted detail",
+                                "language": "en",
+                                "format": "text/plain"
+                            },
+                            "target": [
+                                "demo-manifests/multi-target-array/canvas/p1#xywh=1236,906,104,336",
+                                "demo-manifests/multi-target-array/canvas/p1#xywh=1424,913,179,329",
+                                "demo-manifests/multi-target-array/canvas/p1#xywh=1644,960,132,290"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

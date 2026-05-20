@@ -24,6 +24,7 @@ import {
     getAnnotationId,
     getCanvasId,
 } from '../utils/iiifIds';
+import { normalizeIiifTargets } from '../utils/iiifTargets';
 import { createPluginId } from '../utils/pluginId';
 import {
     getPagedCanvasGroups,
@@ -1205,18 +1206,6 @@ export class ViewerState {
         return null;
     }
 
-    /** Helper to parse xywh coordinates from an annotation target */
-    private parseXywhSelector(onVal: string | any): number[] | null {
-        const val =
-            typeof onVal === 'string' ? onVal : onVal['@id'] || onVal.id;
-        if (!val) return null;
-        const parts = val.split('#xywh=');
-        if (parts.length < 2) return null;
-        const coords = parts[1].split(',').map(Number);
-        if (coords.length === 4) return coords; // [x, y, w, h]
-        return null;
-    }
-
     /** Helper to unescape HTML-encoded mark tags */
     private decodeMark(str: string): string {
         if (!str) return '';
@@ -1286,26 +1275,30 @@ export class ViewerState {
                     const annotation = resources.find(
                         (r: any) => r['@id'] === annoId || r.id === annoId,
                     );
-                    if (annotation && annotation.on) {
-                        const onVal =
-                            typeof annotation.on === 'string'
-                                ? annotation.on
-                                : annotation.on['@id'] || annotation.on.id;
-                        const cleanOn = onVal.split('#')[0];
-                        const b = this.parseXywhSelector(onVal);
+                    if (!annotation?.on) {
+                        continue;
+                    }
+
+                    for (const target of normalizeIiifTargets(annotation.on)) {
+                        if (!target.canvasId) {
+                            continue;
+                        }
 
                         const cIndex = this.canvases.findIndex(
-                            (c: any) => c.id === cleanOn,
+                            (canvas: any) => canvas.id === target.canvasId,
                         );
 
-                        if (cIndex >= 0) {
-                            if (canvasIndex === -1) {
-                                canvasIndex = cIndex;
-                            }
-                            if (b) {
-                                allBounds.push(b);
-                                if (!bounds) bounds = b;
-                            }
+                        if (cIndex < 0) {
+                            continue;
+                        }
+
+                        if (canvasIndex === -1) {
+                            canvasIndex = cIndex;
+                        }
+
+                        if (target.xywh) {
+                            allBounds.push(target.xywh);
+                            if (!bounds) bounds = target.xywh;
                         }
                     }
                 }
@@ -1327,17 +1320,26 @@ export class ViewerState {
             }
         } else if (resources.length > 0) {
             for (const res of resources) {
-                const onVal =
-                    typeof res.on === 'string'
-                        ? res.on
-                        : res.on['@id'] || res.on.id;
-                const cleanOn = onVal.split('#')[0];
-                const bounds = this.parseXywhSelector(onVal);
+                const normalizedTargets = normalizeIiifTargets(res.on);
+                const firstTarget = normalizedTargets.find(
+                    (target) => target.canvasId,
+                );
+                if (!firstTarget?.canvasId) {
+                    continue;
+                }
 
                 const canvasIndex = this.canvases.findIndex(
-                    (c: any) => c.id === cleanOn,
+                    (canvas: any) => canvas.id === firstTarget.canvasId,
                 );
                 if (canvasIndex >= 0) {
+                    const boundsArray = normalizedTargets
+                        .map((target) => target.xywh)
+                        .filter(
+                            (
+                                bounds,
+                            ): bounds is [number, number, number, number] =>
+                                bounds !== null,
+                        );
                     const group = this.getOrCreateCanvasGroup(
                         resultsByCanvas,
                         canvasIndex,
@@ -1349,8 +1351,8 @@ export class ViewerState {
                                 ? res.resource.chars
                                 : res.chars || '',
                         ),
-                        bounds,
-                        allBounds: bounds ? [bounds] : [],
+                        bounds: boundsArray[0] || null,
+                        allBounds: boundsArray,
                     });
                 }
             }
@@ -1426,34 +1428,15 @@ export class ViewerState {
         for (const item of items) {
             const annoId = item.id || item['@id'];
 
-            // v2 items can legitimately point at multiple targets for one hit.
-            const targets = Array.isArray(item.target)
-                ? item.target
-                : [item.target];
             let canvasIndex = -1;
             let bounds: number[] | null = null;
             const allBounds: number[][] = [];
 
-            for (const target of targets) {
-                let targetStr: string | null = null;
+            for (const target of normalizeIiifTargets(item.target)) {
+                if (!target.canvasId) continue;
 
-                if (typeof target === 'string') {
-                    targetStr = target;
-                } else if (target && typeof target === 'object') {
-                    targetStr = target.id || target['@id'] || null;
-                    if (!targetStr && target.source) {
-                        targetStr =
-                            typeof target.source === 'string'
-                                ? target.source
-                                : target.source.id || target.source['@id'];
-                    }
-                }
-
-                if (!targetStr) continue;
-
-                const cleanTarget = targetStr.split('#')[0];
                 const targetCanvasIndex = this.canvases.findIndex(
-                    (c: any) => c.id === cleanTarget,
+                    (canvas: any) => canvas.id === target.canvasId,
                 );
                 if (targetCanvasIndex < 0) continue;
 
@@ -1461,10 +1444,9 @@ export class ViewerState {
                     canvasIndex = targetCanvasIndex;
                 }
 
-                const targetBounds = this.parseXywhSelector(targetStr);
-                if (targetBounds) {
-                    allBounds.push(targetBounds);
-                    if (!bounds) bounds = targetBounds;
+                if (target.xywh) {
+                    allBounds.push(target.xywh);
+                    if (!bounds) bounds = target.xywh;
                 }
             }
 

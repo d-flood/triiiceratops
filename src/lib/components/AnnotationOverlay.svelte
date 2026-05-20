@@ -38,6 +38,14 @@
         );
     }
 
+    function escapeAttributeValue(value: string): string {
+        if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+            return CSS.escape(value);
+        }
+
+        return value.replace(/(["\\])/g, '\\$1');
+    }
+
     $effect(() => {
         if (
             !viewerState.showAnnotations ||
@@ -78,6 +86,12 @@
         }
 
         const updateCoords = () => {
+            const hoveredAnnotationId = viewerState.hoveredAnnotationId;
+            if (!hoveredAnnotationId) {
+                lineCoords = null;
+                return;
+            }
+
             let root: Document | ShadowRoot = document;
             if (toolbarContainer) {
                 const node = toolbarContainer.getRootNode();
@@ -88,10 +102,10 @@
 
             // Note: The list item ID is now in AnnotationPanel, which must be rendered for this to work
             const listItem = root.getElementById(
-                `annotation-list-item-${viewerState.hoveredAnnotationId}`,
+                `annotation-list-item-${hoveredAnnotationId}`,
             );
-            const visual = root.getElementById(
-                `annotation-visual-${viewerState.hoveredAnnotationId}`,
+            const visual = root.querySelector<HTMLElement>(
+                `[data-annotation-id="${escapeAttributeValue(hoveredAnnotationId)}"]`,
             );
 
             if (listItem && visual) {
@@ -109,12 +123,10 @@
                     // Panel is on right, connect from left edge of list item
                     startX = listRect.left;
                     startY = listRect.top + listRect.height / 2;
-
                 } else {
                     // Panel is on left, connect from right edge of list item
                     startX = listRect.right;
                     startY = listRect.top + listRect.height / 2;
-
                 }
 
                 const endX = visualRect.left + visualRect.width / 2;
