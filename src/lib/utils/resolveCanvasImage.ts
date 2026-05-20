@@ -1,6 +1,7 @@
 import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId, getResourceId } from './iiifIds';
+import { normalizeIiifTargets } from './iiifTargets';
 
 export type TileSource = string | { type: 'image'; url: string };
 
@@ -186,19 +187,17 @@ function parseTargetRegion(annotation: any): {
     width: number;
     height: number;
 } | null {
-    const target = annotation?.target || annotation?.__jsonld?.target;
-    const targetId =
-        (typeof target === 'string' ? target : target?.id || target?.['@id']) ||
-        '';
-    const xywhMatch = targetId.match(/#xywh=(\d+),(\d+),(\d+),(\d+)/);
+    const region = normalizeIiifTargets(
+        annotation?.target || annotation?.__jsonld?.target,
+    ).find((target) => target.xywh)?.xywh;
 
-    if (!xywhMatch) return null;
+    if (!region) return null;
 
     return {
-        x: Number(xywhMatch[1]),
-        y: Number(xywhMatch[2]),
-        width: Number(xywhMatch[3]),
-        height: Number(xywhMatch[4]),
+        x: region[0],
+        y: region[1],
+        width: region[2],
+        height: region[3],
     };
 }
 
@@ -316,7 +315,9 @@ function getAnnotationResource(
                 const items = body.items || body.item || [];
                 const selectedId = getSelectedChoice?.(canvasId);
                 const selectedItem = selectedId
-                    ? items.find((item: any) => getResourceId(item) === selectedId)
+                    ? items.find(
+                          (item: any) => getResourceId(item) === selectedId,
+                      )
                     : null;
                 body = selectedItem || items[0] || null;
             }

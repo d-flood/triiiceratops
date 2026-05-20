@@ -13,6 +13,7 @@
     import { onMount } from 'svelte';
 
     const isDev = import.meta.env.DEV;
+    const multiTargetDemoManifestUrl = `${import.meta.env.BASE_URL}demo-manifests/multi-target-array/manifest.json`;
 
     const SUGGESTED_MANIFESTS = [
         {
@@ -146,6 +147,10 @@
         {
             label: '0135 Annotating a Specific Point',
             url: 'https://iiif.io/api/cookbook/recipe/0135-annotating-point-in-canvas/manifest.json',
+        },
+        {
+            label: 'Multi-Target Annotation Array',
+            url: multiTargetDemoManifestUrl,
         },
         {
             label: '0202 Start Canvas',

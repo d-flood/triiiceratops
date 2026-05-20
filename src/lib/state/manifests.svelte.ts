@@ -13,6 +13,7 @@ export interface ManifestEntry {
 
 export class ManifestsState {
     manifests: Record<string, ManifestEntry> = $state({});
+    private pendingFetches = new Map<string, Promise<void>>();
 
     // User-created annotations (from plugins like annotation editor)
     userAnnotations: SvelteMap<string, any[]> = new SvelteMap();
@@ -69,23 +70,31 @@ export class ManifestsState {
 
     async fetchManifest(manifestId: string, requestConfig?: RequestConfig) {
         const existing = this.manifests[manifestId];
-        if (
-            existing &&
-            (existing.isFetching || existing.json || existing.manifesto)
-        ) {
+        if (existing?.isFetching) {
+            await this.pendingFetches.get(manifestId);
+            return;
+        }
+        if (existing && (existing.json || existing.manifesto)) {
             return; // Already fetched or fetching
         }
 
         this.manifests[manifestId] = { isFetching: true };
 
-        try {
+        const pendingFetch = (async () => {
             const json = await fetchJson(manifestId, requestConfig);
             await this.registerManifest(manifestId, json);
+        })();
+        this.pendingFetches.set(manifestId, pendingFetch);
+
+        try {
+            await pendingFetch;
         } catch (error: any) {
             this.manifests[manifestId] = {
                 error: error.message,
                 isFetching: false,
             };
+        } finally {
+            this.pendingFetches.delete(manifestId);
         }
     }
 

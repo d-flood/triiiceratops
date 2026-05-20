@@ -21,6 +21,10 @@ describe('ViewerState manifest behavior', () => {
     let state: ViewerState;
 
     beforeEach(() => {
+        vi.resetAllMocks();
+        vi.mocked(manifestsState.getAnnotations).mockReturnValue([]);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue([]);
+        vi.mocked(manifestsState.getSequenceCount).mockReturnValue(0);
         state = new ViewerState();
     });
 
@@ -80,6 +84,53 @@ describe('ViewerState manifest behavior', () => {
         await state.setManifestData('manifest-1', { id: 'manifest-1' });
 
         expect(state.viewingDirection).toBe('bottom-to-top');
+    });
+
+    it('prefers raw manifest viewing direction over accessor defaults', async () => {
+        const manifest = {
+            __jsonld: {
+                viewingDirection: 'right-to-left',
+                behavior: ['individuals'],
+            },
+            getViewingDirection: () => 'left-to-right',
+            getBehavior: () => ['individuals'],
+            getSequences: () => [],
+        };
+
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue([
+            { id: 'canvas-1' },
+        ]);
+
+        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+
+        expect(state.viewingDirection).toBe('right-to-left');
+    });
+
+    it('uses raw manifest entry viewing direction for fetched v3 manifests', async () => {
+        const manifest = {
+            getViewingDirection: () => 'left-to-right',
+            getBehavior: () => ['individuals'],
+            getSequences: () => [],
+        };
+
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getManifestEntry).mockReturnValue({
+            json: {
+                id: 'manifest-1',
+                type: 'Manifest',
+                viewingDirection: 'right-to-left',
+            },
+            manifesto: manifest,
+            isFetching: false,
+        });
+        vi.mocked(manifestsState.getCanvases).mockReturnValue([
+            { id: 'canvas-1' },
+        ]);
+
+        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+
+        expect(state.viewingDirection).toBe('right-to-left');
     });
 
     it('applies the manifest start canvas after fetch-based loading', async () => {
@@ -151,6 +202,34 @@ describe('ViewerState manifest behavior', () => {
             undefined,
         );
         expect(state.manifestId).toBe('http://example.org/manifest/1986');
+    });
+
+    it('does not report a current canvas index until a canvas is selected', () => {
+        vi.mocked(manifestsState.getCanvases).mockReturnValue([
+            { id: 'canvas-1' },
+            { id: 'canvas-2' },
+        ]);
+
+        state.manifestId = 'manifest-1';
+
+        expect(state.currentCanvasIndex).toBe(-1);
+        expect(state.hasNext).toBe(false);
+        expect(state.hasPrevious).toBe(false);
+    });
+
+    it('repairs stale initial canvas selection to the first available canvas', () => {
+        vi.mocked(manifestsState.getCanvases).mockReturnValue([
+            { id: 'canvas-1' },
+            { id: 'canvas-2' },
+        ]);
+
+        state.manifestId = 'manifest-1';
+        state.canvasId = 'stale-canvas';
+
+        (state as any).ensureInitialCanvasSelection();
+
+        expect(state.canvasId).toBe('canvas-1');
+        expect(state.currentCanvasIndex).toBe(0);
     });
 
     it('keeps annotations hidden by default and shows manifest annotations when the panel opens', () => {
@@ -257,5 +336,17 @@ describe('ViewerState manifest behavior', () => {
         expect(state.canvasId).toBe('canvas-2');
         expect([...state.visibleAnnotationIds]).toEqual([]);
         expect(state.annotationVisibilityTouched).toBe(false);
+    });
+
+    it('defaults preserveCanvasScale to false in getter and snapshot', () => {
+        expect(state.preserveCanvasScale).toBe(false);
+        expect(state.getSnapshot().preserveCanvasScale).toBe(false);
+    });
+
+    it('reflects preserveCanvasScale config updates in getter and snapshot', () => {
+        state.updateConfig({ preserveCanvasScale: true });
+
+        expect(state.preserveCanvasScale).toBe(true);
+        expect(state.getSnapshot().preserveCanvasScale).toBe(true);
     });
 });
