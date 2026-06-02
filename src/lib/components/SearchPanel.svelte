@@ -157,7 +157,7 @@
                         : group.hits.slice(0, INITIAL_EXCERPT_COUNT)}
                     <div
                         data-canvas-index={group.canvasIndex}
-                        class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 select-none {viewerState.currentCanvasIndex ===
+                        class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 {viewerState.currentCanvasIndex ===
                         group.canvasIndex
                             ? 'ring-2 ring-primary bg-primary/5'
                             : ''}"
@@ -182,7 +182,7 @@
                                     : 'results'}</span
                             >
                         </div>
-                        <div class="p-3 text-sm leading-relaxed">
+                        <div class="p-3 text-sm leading-relaxed select-text">
                             {#each visibleHits as result, i (i)}{#if i > 0}<span
                                         class="text-primary mx-2">|</span
                                     >{/if}{#if result.type === 'hit'}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
