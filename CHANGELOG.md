@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.14
+
+### Patch Changes
+
+- 2152e37: remove `.select-none` from the search result container to allow text selection
+
 ## 1.0.0-rc.13
 
 ### Patch Changes
