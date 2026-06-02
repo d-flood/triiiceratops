@@ -42,6 +42,11 @@
             "svelte": "./dist/plugins/pdf-export/index.js",
             "import": "./dist/plugins/pdf-export/index.js"
         },
+        "./plugins/selection-crop-url": {
+            "types": "./dist/plugins/selection-crop-url/index.d.ts",
+            "svelte": "./dist/plugins/selection-crop-url/index.js",
+            "import": "./dist/plugins/selection-crop-url/index.js"
+        },
         "./bundle": {
             "types": "./dist/index-bundle.d.ts",
             "import": "./dist/triiiceratops-bundle.js"
@@ -50,6 +55,7 @@
         "./plugins/image-manipulation.iife": "./dist/triiiceratops-plugin-image-manipulation.iife.js",
         "./plugins/annotation-editor.iife": "./dist/triiiceratops-plugin-annotation-editor.iife.js",
         "./plugins/pdf-export.iife": "./dist/triiiceratops-plugin-pdf-export.iife.js",
+        "./plugins/selection-crop-url.iife": "./dist/triiiceratops-plugin-selection-crop-url.iife.js",
         "./style.css": "./dist/triiiceratops.css"
     },
     "peerDependencies": {
@@ -68,7 +74,7 @@
         "build:demo": "vite build --config vite.config.demo.ts && mkdir -p docs/demo && cp -r docs/viewer/. docs/demo/.",
         "build:consumer": "rm -rf docs/demo-consumer && mkdir -p docs/demo-consumer && cp src/demo-consumer/index.html docs/demo-consumer/index.html && cp src/demo-consumer/app.css docs/demo-consumer/app.css && rm -rf docs/dist && cp -r dist docs/dist",
         "build:webcomponent-demo": "rm -rf docs/demo/webcomponent && mkdir -p docs/demo/webcomponent && cp src/demo-webcomponent/index.html docs/demo/webcomponent/index.html && cp src/demo-webcomponent/app.css docs/demo/webcomponent/app.css && rm -rf docs/dist && cp -r dist docs/dist",
-        "build:plugins-iife": "PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=pdf-export vite build --config vite.config.plugins-iife.ts",
+        "build:plugins-iife": "PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=pdf-export vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=selection-crop-url vite build --config vite.config.plugins-iife.ts",
         "build:all": "pnpm build:lib && pnpm build:element && pnpm build:plugins-iife && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:consumer",
         "preview": "vite preview",
         "dev:consumer": "vite --config vite.config.demo-consumer.ts",

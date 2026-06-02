@@ -28,6 +28,13 @@ const pluginConfigs: Record<string, { entry: string; name: string }> = {
         entry: resolve(__dirname, 'src/lib/plugins/pdf-export/iife-entry.ts'),
         name: 'TriiiceratopsPluginPdfExport',
     },
+    'selection-crop-url': {
+        entry: resolve(
+            __dirname,
+            'src/lib/plugins/selection-crop-url/iife-entry.ts',
+        ),
+        name: 'TriiiceratopsPluginSelectionCropUrl',
+    },
 };
 
 const config = pluginConfigs[pluginName];
