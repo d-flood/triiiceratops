@@ -50,6 +50,10 @@ export default defineConfig({
                     __dirname,
                     'src/lib/plugins/pdf-export/index.ts',
                 ),
+                'plugins/selection-crop-url': resolve(
+                    __dirname,
+                    'src/lib/plugins/selection-crop-url/index.ts',
+                ),
             },
             name: 'Triiiceratops',
 
