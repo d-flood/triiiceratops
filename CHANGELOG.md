@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.15
+
+### Patch Changes
+
+- b17c64c: Position all 4 toolbar positions fully in the corner of the viewer rather than having a small space. It looks less like a "tab" now but better when there are no border radii
+
 ## 1.0.0-rc.14
 
 ### Patch Changes
