@@ -506,6 +506,7 @@
                 showSequenceControl: false,
                 showZoomControl: false,
                 showRotationControl: false,
+                tabIndex: '', // This prevents the focus outline from appearing
                 animationTime: 0.5,
                 springStiffness: 7.0,
                 zoomPerClick: 2.0,
