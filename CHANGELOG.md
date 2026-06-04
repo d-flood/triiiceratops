@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.16
+
+### Patch Changes
+
+- 7fdad1d: FINALLY removed the focus outline from OSD
+
 ## 1.0.0-rc.15
 
 ### Patch Changes
