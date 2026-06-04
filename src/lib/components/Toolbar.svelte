@@ -138,10 +138,9 @@
 <div
     class={[
         'absolute z-50 pointer-events-none flex',
-        position === 'top-right' && 'w-full items-end flex-col pt-0 pr-3 top-0',
-        position === 'top-left' &&
-            'w-full items-start flex-col pt-0 pl-3 top-0',
-        !isTop && 'h-full items-start top-1.5',
+        position === 'top-right' && 'w-full items-end flex-col pt-0 top-0',
+        position === 'top-left' && 'w-full items-start flex-col pt-0 top-0',
+        !isTop && 'h-full items-start top-0',
         position === 'left' && 'left-0',
         position === 'right' && 'right-0',
     ]}
@@ -152,9 +151,9 @@
             'pointer-events-auto transition-all duration-200 ease-in-out flex',
             // Layout based on position
             position === 'top-right' &&
-                'flex-row-reverse h-12 w-auto max-w-full origin-top mr-4',
+                'flex-row-reverse h-12 w-auto max-w-full origin-top',
             position === 'top-left' &&
-                'flex-row h-12 w-auto max-w-full origin-top ml-4',
+                'flex-row h-12 w-auto max-w-full origin-top',
             !isTop && 'flex-col h-auto max-h-full',
             // Animation state based on open/closed and position
             isOpen && isTop && 'opacity-100 translate-y-0',
@@ -173,11 +172,13 @@
             class={[
                 'menu menu-sm bg-base-200/70 backdrop-blur shadow-lg [&_li>*]:p-1 justify-center items-center',
                 position === 'top-right' &&
-                    'menu-horizontal rounded-b-box flex-row-reverse space-x-px [&_li]:pb-0',
+                    'menu-horizontal rounded-bl-box flex-row-reverse space-x-px [&_li]:pb-0',
                 position === 'top-left' &&
-                    'menu-horizontal rounded-b-box flex-row space-x-px [&_li]:pb-0',
-                position === 'left' && 'rounded-r-box pr-1 space-y-px',
-                position === 'right' && 'rounded-l-box pl-1 space-y-px',
+                    'menu-horizontal rounded-br-box flex-row space-x-px [&_li]:pb-0',
+                position === 'left' &&
+                    'rounded-br-box pr-1 space-y-px',
+                position === 'right' &&
+                    'rounded-bl-box pl-1 space-y-px',
             ]}
         >
             <!-- --- Close Button --- -->
