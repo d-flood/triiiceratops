@@ -220,15 +220,21 @@
     let canvases = $derived(
         manifestUrl ? manifestsState.getCanvases(manifestUrl) : [],
     );
+    let selectedManifestLabel = $derived(
+        SUGGESTED_MANIFESTS.find((manifest) => manifest.url === manifestUrl)
+            ?.label ?? m.try_your_own(),
+    );
+    let manifestDropdownOpen = $state(false);
 
-    function handleSelectChange(e: Event) {
-        const value = (e.currentTarget as HTMLSelectElement).value;
-        if (value !== 'custom') {
-            manifestUrl = value;
-            onLoad();
-        } else {
-            manifestUrl = '';
-        }
+    function selectManifest(value: string) {
+        manifestUrl = value;
+        manifestDropdownOpen = false;
+        onLoad();
+    }
+
+    function selectCustomManifest() {
+        manifestUrl = '';
+        manifestDropdownOpen = false;
     }
 
     const languageNames: Record<string, string> = {
@@ -355,13 +361,17 @@
             >
                 <Gear size={20} />
             </div>
-            <SettingsMenu
-                bind:config
-                {availableLocales}
-                {onReset}
-                {onShare}
-                class="dropdown-content z-20 menu bg-base-100 rounded-box w-80 p-2 shadow border border-base-300 max-h-[80vh] overflow-y-auto block invisible pointer-events-none group-focus-within:visible group-focus-within:pointer-events-auto"
-            />
+            <div
+                class="dropdown-content z-20 bg-base-100 rounded-box w-80 shadow border border-base-300 overflow-hidden block invisible pointer-events-none group-focus-within:visible group-focus-within:pointer-events-auto"
+            >
+                <SettingsMenu
+                    bind:config
+                    {availableLocales}
+                    {onReset}
+                    {onShare}
+                    class="menu p-2 max-h-[80vh] overflow-y-auto flex-nowrap"
+                />
+            </div>
         </div>
 
         <div class="tooltip tooltip-bottom" data-tip={m.github()}>
@@ -389,17 +399,47 @@
                 {m.iiif_manifest_label()}
             </label>
             <div class="flex gap-2 items-center">
-                <select
+                <details
+                    class="dropdown"
+                    bind:open={manifestDropdownOpen}
                     id="manifest-select"
-                    class="select select-bordered select-xs w-md max-w-[60vw]"
-                    value={isCustom ? 'custom' : manifestUrl}
-                    onchange={handleSelectChange}
                 >
-                    {#each SUGGESTED_MANIFESTS as manifest (manifest.url)}
-                        <option value={manifest.url}>{manifest.label}</option>
-                    {/each}
-                    <option value="custom">{m.try_your_own()}</option>
-                </select>
+                    <summary
+                        class="select select-bordered select-xs w-md max-w-[60vw] cursor-pointer list-none items-center truncate focus:outline-none"
+                    >
+                        {selectedManifestLabel}
+                    </summary>
+                    <div
+                        class="dropdown-content z-30 mt-1 bg-base-100 rounded-box shadow border border-base-300 overflow-hidden w-md max-w-[60vw]"
+                    >
+                        <ul
+                            class="menu menu-xs w-full max-h-[60vh] overflow-y-auto flex-nowrap"
+                        >
+                            {#each SUGGESTED_MANIFESTS as manifest (manifest.url)}
+                                <li>
+                                    <button
+                                        type="button"
+                                        class={manifest.url === manifestUrl
+                                            ? 'active'
+                                            : undefined}
+                                        onclick={() => selectManifest(manifest.url)}
+                                    >
+                                        {manifest.label}
+                                    </button>
+                                </li>
+                            {/each}
+                            <li>
+                                <button
+                                    type="button"
+                                    class={isCustom ? 'active' : undefined}
+                                    onclick={selectCustomManifest}
+                                >
+                                    {m.try_your_own()}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </details>
 
                 {#if isCustom}
                     <input

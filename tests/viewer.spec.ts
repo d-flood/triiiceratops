@@ -3,7 +3,9 @@ import { test, expect } from '@playwright/test';
 test.describe('Triiiceratops Viewer', () => {
     test('smoke test: loads viewer and canvas', async ({ page }) => {
         // Navigate to the app
-        await page.goto('/', { waitUntil: 'domcontentloaded' });
+        await page.goto('/?manifest=/demo-manifests/e2e/manifest.json', {
+            waitUntil: 'domcontentloaded',
+        });
 
         // Verify basic page structure
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible();
