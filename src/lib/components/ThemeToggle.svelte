@@ -43,9 +43,9 @@
     </div>
     <div
         tabindex="-1"
-        class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-122 max-h-[calc(100vh-8.6rem)] overflow-y-auto border border-white/5 shadow-2xl outline outline-black/5 mt-16"
+        class="dropdown-content bg-base-200 text-base-content rounded-box top-px border border-white/5 shadow-2xl outline outline-black/5 mt-16 overflow-hidden"
     >
-        <ul class="menu w-56">
+        <ul class="menu w-56 h-122 max-h-[calc(100vh-8.6rem)] overflow-y-auto flex-nowrap">
             <li class="menu-title text-xs">{m.theme_menu_title()}</li>
             {#each themes as t (t)}
                 <li>
