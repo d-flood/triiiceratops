@@ -1,17 +1,15 @@
 <script lang="ts">
     import { getContext } from 'svelte';
-	import Info from 'phosphor-svelte/lib/Info';
-	import X from 'phosphor-svelte/lib/X';
-	import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-	import { m, language } from '../state/i18n.svelte';
-	import {
-		normalizeIiifLinks,
-		normalizeMetadataEntries,
-	} from '../utils/metadataNormalization';
-	import {
-		resolveLanguageValue,
-	} from '../utils/languageMap';
-	import SanitizedHtml from './SanitizedHtml.svelte';
+    import Info from 'phosphor-svelte/lib/Info';
+    import X from 'phosphor-svelte/lib/X';
+    import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+    import { m, language } from '../state/i18n.svelte';
+    import {
+        normalizeIiifLinks,
+        normalizeMetadataEntries,
+    } from '../utils/metadataNormalization';
+    import { resolveLanguageValue } from '../utils/languageMap';
+    import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let viewerLocale = $derived(
@@ -35,15 +33,15 @@
         return resolveLanguageValue(json.summary, viewerLocale);
     });
 
-	let metadata = $derived.by(() => {
-		if (!json?.metadata) return [];
-		return normalizeMetadataEntries(
-			Array.isArray(json.metadata) ? json.metadata : [],
-			viewerLocale,
-		);
-	});
+    let metadata = $derived.by(() => {
+        if (!json?.metadata) return [];
+        return normalizeMetadataEntries(
+            Array.isArray(json.metadata) ? json.metadata : [],
+            viewerLocale,
+        );
+    });
 
-	let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
+    let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
 
     let hasAdditionalContent = $derived(
         !!(summary || metadata.length > 0 || rendering.length > 0),
@@ -72,66 +70,67 @@
 
             <!-- Popover -->
             <div
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-base-200 border border-base-300 rounded-box shadow-xl w-72 max-h-64 overflow-hidden"
+                class="absolute bottom-full mb-2 bg-base-200 border border-base-300 rounded-box shadow-xl w-72 max-h-64 overflow-hidden"
+                style="left: 50%; transform: translateX(-50%); z-index: 1001;"
                 role="dialog"
                 aria-label={m.canvas_info()}
             >
-            <div class="overflow-y-auto max-h-64 p-4">
-                <div class="flex items-start justify-between gap-2 mb-2">
-                    <h4 class="font-bold text-sm">{m.canvas_info()}</h4>
-                    <button
-                        class="btn btn-xs btn-circle btn-ghost shrink-0"
-                        onclick={() => viewerState.toggleCanvasInfo()}
-                        aria-label={m.close()}
-                    >
-                        <X size={14} />
-                    </button>
-                </div>
-
-                {#if label}
-                    <p class="text-sm font-semibold mb-1">{label}</p>
-                {/if}
-
-                {#if summary}
-                    <SanitizedHtml
-                        tag="div"
-                        html={summary}
-                        class="viewer-html text-xs opacity-80 mb-2 prose prose-sm"
-                    />
-                {/if}
-
-                {#if metadata.length > 0}
-                    <dl class="text-xs">
-                        {#each metadata as item, i (i)}
-                            <dt class="font-bold opacity-70 mt-2">
-                                {item.label}
-                            </dt>
-                            <SanitizedHtml
-                                tag="dd"
-                                html={item.value}
-                                class="viewer-html ps-2"
-                            />
-                        {/each}
-                    </dl>
-                {/if}
-
-                {#if rendering.length > 0}
-                    <div class="mt-2 pt-2 border-t border-base-300">
-                        <span class="text-xs font-bold opacity-70"
-                            >{m.rendering()}</span
+                <div class="overflow-y-auto max-h-64 p-4">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <h4 class="font-bold text-sm">{m.canvas_info()}</h4>
+                        <button
+                            class="btn btn-xs btn-circle btn-ghost shrink-0"
+                            onclick={() => viewerState.toggleCanvasInfo()}
+                            aria-label={m.close()}
                         >
-                        {#each rendering as item (item.id)}
-                            <a
-                                href={item.id}
-                                target="_blank"
-                                rel="noreferrer"
-                                class="link link-primary text-xs block mt-1 break-all"
-                                >{item.label}</a
-                            >
-                        {/each}
+                            <X size={14} />
+                        </button>
                     </div>
-                {/if}
-            </div>
+
+                    {#if label}
+                        <p class="text-sm font-semibold mb-1">{label}</p>
+                    {/if}
+
+                    {#if summary}
+                        <SanitizedHtml
+                            tag="div"
+                            html={summary}
+                            class="viewer-html text-xs opacity-80 mb-2 prose prose-sm"
+                        />
+                    {/if}
+
+                    {#if metadata.length > 0}
+                        <dl class="text-xs">
+                            {#each metadata as item, i (i)}
+                                <dt class="font-bold opacity-70 mt-2">
+                                    {item.label}
+                                </dt>
+                                <SanitizedHtml
+                                    tag="dd"
+                                    html={item.value}
+                                    class="viewer-html ps-2"
+                                />
+                            {/each}
+                        </dl>
+                    {/if}
+
+                    {#if rendering.length > 0}
+                        <div class="mt-2 pt-2 border-t border-base-300">
+                            <span class="text-xs font-bold opacity-70"
+                                >{m.rendering()}</span
+                            >
+                            {#each rendering as item (item.id)}
+                                <a
+                                    href={item.id}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    class="link link-primary text-xs block mt-1 break-all"
+                                    >{item.label}</a
+                                >
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
             </div>
         {/if}
     </div>
