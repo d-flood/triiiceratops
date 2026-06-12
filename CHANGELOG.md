@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.17
+
+### Patch Changes
+
+- 4e76a88: make canvas info panel appear above gallery if they intersect, also center canvas panel over button
+
 ## 1.0.0-rc.16
 
 ### Patch Changes
