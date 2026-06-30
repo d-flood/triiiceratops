@@ -115,6 +115,7 @@
 
 {#if viewerState.showMetadataPanel}
     <div
+        data-panel-id="metadata"
         class="panel"
         class:floating={!embedded}
         class:bordered={!embedded && !viewerState.config.transparentBackground}
@@ -321,7 +322,7 @@
 
     .panel.floating {
         height: 100%;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         box-shadow: 0 25px 50px -12px #00000040;
         z-index: 100;
         transition-property: width;
@@ -332,13 +333,13 @@
     .panel.bordered.border-left {
         border-right-width: 1px;
         border-right-style: solid;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
     }
 
     .panel.bordered.border-right {
         border-left-width: 1px;
         border-left-style: solid;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
     }
 
     .header {
@@ -349,7 +350,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
     }
 
     .header-title {
@@ -396,10 +397,10 @@
     .thumbnail {
         max-height: 12rem;
         width: auto;
-        border-radius: var(--radius-box);
+        border-radius: var(--radius-panels);
         border-width: 1px;
         border-style: solid;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
         object-fit: contain;
     }
 

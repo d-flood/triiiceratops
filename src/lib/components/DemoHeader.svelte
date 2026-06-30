@@ -499,10 +499,10 @@
         flex-shrink: 0;
         position: relative;
         z-index: 800;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-bg);
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-300);
+        border-bottom-color: var(--surface-border);
     }
 
     .top-row {
@@ -514,7 +514,7 @@
         border-bottom-style: solid;
         border-bottom-color: color-mix(
             in oklab,
-            var(--color-base-300) 50%,
+            var(--surface-border) 50%,
             transparent
         );
     }
@@ -526,7 +526,7 @@
         padding: 0.5rem 1rem;
         background-color: color-mix(
             in oklab,
-            var(--color-base-300) 30%,
+            var(--surface-border) 30%,
             transparent
         );
     }
@@ -547,7 +547,7 @@
         margin-inline: 0.5rem;
         background-color: color-mix(
             in oklab,
-            var(--color-base-content) 20%,
+            var(--content) 20%,
             transparent
         );
     }
@@ -612,7 +612,7 @@
         border-style: solid;
         border-color: transparent;
         border-radius: var(--radius-field);
-        color: var(--color-base-content);
+        color: var(--content);
         background-color: transparent;
         text-decoration: none;
         transition-property: color, background-color, border-color, box-shadow;
@@ -629,7 +629,7 @@
         .btn-link.ghost:hover {
             background-color: color-mix(
                 in oklab,
-                var(--color-base-content) 10%,
+                var(--content) 10%,
                 transparent
             );
         }
@@ -677,7 +677,7 @@
         border-style: solid;
         border-color: transparent;
         border-radius: var(--radius-field);
-        color: var(--color-base-content);
+        color: var(--content);
         background-color: transparent;
         transition-property: color, background-color, border-color, box-shadow;
         transition-duration: 0.2s;
@@ -687,7 +687,7 @@
         .btn-trigger:hover {
             background-color: color-mix(
                 in oklab,
-                var(--color-base-content) 10%,
+                var(--content) 10%,
                 transparent
             );
         }
@@ -718,8 +718,8 @@
         cursor: pointer;
         user-select: none;
         -webkit-user-select: none;
-        --btn-bg: var(--btn-color, var(--color-base-200));
-        --btn-fg: var(--color-base-content);
+        --btn-bg: var(--btn-color, var(--panel-bg));
+        --btn-fg: var(--content);
         --btn-border: color-mix(
             in oklab,
             var(--btn-bg),
@@ -752,7 +752,7 @@
         .btn-radio:hover {
             background-color: color-mix(
                 in oklab,
-                var(--btn-bg, var(--color-base-200)),
+                var(--btn-bg, var(--panel-bg)),
                 #000 7%
             );
         }
@@ -846,11 +846,11 @@
         z-index: 20;
         width: 20rem;
         overflow: hidden;
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
         border-radius: var(--radius-box);
         border-width: 1px;
         border-style: solid;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
         box-shadow:
             0 1px 3px 0 #0000001a,
             0 1px 2px -1px #0000001a;
@@ -870,7 +870,7 @@
     .manifest-summary {
         --input-color: color-mix(
             in oklab,
-            var(--color-base-content) 20%,
+            var(--content) 20%,
             #0000
         );
         --size: calc(var(--size-field, 0.25rem) * 6);
@@ -891,7 +891,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         appearance: none;
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
         border: var(--border) solid var(--input-color);
         border-radius: var(--radius-field);
         box-shadow:
@@ -926,11 +926,11 @@
         width: 28rem;
         max-width: 60vw;
         overflow: hidden;
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
         border-radius: var(--radius-box);
         border-width: 1px;
         border-style: solid;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
         box-shadow:
             0 1px 3px 0 #0000001a,
             0 1px 2px -1px #0000001a;
@@ -986,7 +986,7 @@
         cursor: pointer;
         background-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--content) 10%,
             transparent
         );
         box-shadow:
@@ -1001,10 +1001,10 @@
         cursor: pointer;
         background-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--content) 10%,
             transparent
         );
-        color: var(--color-base-content);
+        color: var(--content);
         outline: none;
     }
 

@@ -168,23 +168,20 @@
     const customThemeConfig = JSON.stringify({
         primary: '#e1a730',
         primaryContent: '#ffffff',
-        secondary: '#264b3d',
-        secondaryContent: '#ffffff',
-        accent: '#16376f',
-        accentContent: '#ffffff',
         neutral: '#e9d9b9',
         neutralContent: '#000000',
-        base100: '#ecede7',
-        base200: '#b7b7b3',
-        base300: '#838381',
-        baseContent: '#000000',
-        info: '#254477',
+        viewerBg: '#ecede7',
+        toolbarBg: '#b7b7b3',
+        panelBg: '#b7b7b3',
+        surfaceBorder: '#838381',
+        content: '#000000',
         success: '#264b3d',
         warning: '#733100',
         error: '#b95527',
         radiusBox: '1.5rem',
         radiusField: '0.75rem',
         radiusSelector: '0.5rem',
+        radiusControls: '9999px',
         border: '2px',
     });
 
@@ -534,7 +531,7 @@
     .demo-root {
         min-height: 100vh;
         height: 100vh;
-        background-color: var(--color-base-300);
+        background-color: var(--surface-border);
         display: flex;
         flex-direction: column;
     }
@@ -576,7 +573,7 @@
         overflow: hidden;
         border-width: 1px;
         border-style: solid;
-        border-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+        border-color: color-mix(in oklab, var(--content) 10%, transparent);
         box-shadow: 0 25px 50px -12px #00000040;
     }
 
@@ -587,11 +584,11 @@
         flex-direction: column;
         width: 20rem;
         flex-shrink: 0;
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
         border-radius: var(--radius-box);
         border-width: 1px;
         border-style: solid;
-        border-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+        border-color: color-mix(in oklab, var(--content) 10%, transparent);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -611,8 +608,8 @@
         line-height: 1.75rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
-        background-color: var(--color-base-100);
+        border-bottom-color: color-mix(in oklab, var(--content) 10%, transparent);
+        background-color: var(--viewer-bg);
     }
 
     /* flex-1 overflow-y-auto */

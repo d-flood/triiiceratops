@@ -55,8 +55,8 @@
            otherwise resolve to 0 and the column would compress + clip panels
            instead of overflowing, so the stack's overflow-y:auto never scrolls. */
         flex-shrink: 0;
-        background-color: var(--color-base-200);
-        border-radius: var(--radius-box);
+        background-color: var(--panel-surface);
+        border-radius: var(--radius-panels);
         overflow: hidden;
     }
 
@@ -73,8 +73,8 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.025em;
-        color: var(--color-base-content);
-        background-color: var(--color-base-200);
+        color: var(--panel-fg);
+        background-color: var(--panel-surface);
     }
 
     .icon {

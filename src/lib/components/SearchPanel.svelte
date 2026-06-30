@@ -82,6 +82,7 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
     <div
+        data-panel-id="search"
         class="panel"
         class:standalone={!embedded}
         class:bordered-left={!embedded &&
@@ -173,7 +174,7 @@
                     >
                         <div class="group-header">
                             <span>{group.canvasLabel}</span>
-                            <Badge size="sm" style="--badge-color:var(--color-base-200);"
+                            <Badge size="sm" style="--badge-color:var(--panel-surface);"
                                 >{group.hits.length}
                                 {group.hits.length === 1
                                     ? 'result'
@@ -225,7 +226,7 @@
     }
     .panel.standalone {
         height: 100%;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         box-shadow: 0 25px 50px -12px #00000040;
         z-index: 100;
         transition-property: width;
@@ -235,12 +236,12 @@
     .panel.bordered-left {
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--color-base-300);
+        border-right-color: var(--surface-border);
     }
     .panel.bordered-right {
         border-left-width: 1px;
         border-left-style: solid;
-        border-left-color: var(--color-base-300);
+        border-left-color: var(--surface-border);
     }
 
     .header {
@@ -250,7 +251,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-300);
+        border-bottom-color: var(--surface-border);
     }
     .title {
         font-weight: 700;
@@ -262,7 +263,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-300);
+        border-bottom-color: var(--surface-border);
         flex-shrink: 0;
     }
     .search-input-wrap {
@@ -325,14 +326,14 @@
     .group {
         width: 100%;
         text-align: left;
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
         box-shadow:
             0 1px 3px 0 #0000001a,
             0 1px 2px -1px #0000001a;
         border-width: 1px;
         border-style: solid;
-        border-color: var(--color-base-200);
-        border-radius: var(--radius-box);
+        border-color: var(--panel-surface);
+        border-radius: var(--radius-panels);
         cursor: pointer;
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -370,7 +371,7 @@
         opacity: 0.8;
         background-color: color-mix(
             in oklab,
-            var(--color-base-200) 50%,
+            var(--panel-surface) 50%,
             transparent
         );
         display: flex;
@@ -380,7 +381,7 @@
         padding-inline: 0.75rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-200);
+        border-bottom-color: var(--panel-surface);
     }
 
     .excerpts {

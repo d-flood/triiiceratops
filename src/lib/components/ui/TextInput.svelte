@@ -45,7 +45,7 @@
         cursor: text;
         border: var(--border) solid var(--input-color);
         appearance: none;
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
         vertical-align: middle;
         width: clamp(3rem, 20rem, 100%);
         height: var(--size);
@@ -57,7 +57,7 @@
                 inset,
             0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
         --size: calc(var(--size-field, 0.25rem) * 10);
-        --input-color: color-mix(in oklab, var(--color-base-content) 20%, #0000);
+        --input-color: color-mix(in oklab, var(--content) 20%, #0000);
         border-start-start-radius: var(--join-ss, var(--radius-field));
         border-start-end-radius: var(--join-se, var(--radius-field));
         border-end-end-radius: var(--join-ee, var(--radius-field));
@@ -73,7 +73,7 @@
 
     .input:focus,
     .input:focus-within {
-        --input-color: var(--color-base-content);
+        --input-color: var(--content);
         box-shadow: 0 1px
             color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000);
         outline: 2px solid var(--input-color);
@@ -84,13 +84,13 @@
 
     .input:is(:disabled, [disabled]) {
         cursor: not-allowed;
-        border-color: var(--color-base-200);
-        background-color: var(--color-base-200);
-        color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+        border-color: var(--panel-bg);
+        background-color: var(--panel-bg);
+        color: color-mix(in oklab, var(--content) 40%, transparent);
         box-shadow: none;
     }
     .input:is(:disabled, [disabled])::placeholder {
-        color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+        color: color-mix(in oklab, var(--content) 20%, transparent);
     }
 
     .ghost {
@@ -100,8 +100,8 @@
     }
     .ghost:focus,
     .ghost:focus-within {
-        background-color: var(--color-base-100);
-        color: var(--color-base-content);
+        background-color: var(--input-bg);
+        color: var(--content);
         box-shadow: none;
         border-color: #0000;
     }

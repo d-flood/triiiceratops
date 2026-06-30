@@ -25,7 +25,7 @@
 
 </script>
 
-<div class="panel" class:standalone={!embedded}>
+<div class="panel" data-panel-id="image-manipulation" class:standalone={!embedded}>
     {#if !embedded}
         <div class="header">
             <h2 class="title">{m.image_adjustments_title()}</h2>
@@ -136,10 +136,10 @@
     .panel.standalone {
         height: 100%;
         width: 18rem;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         border-left-width: 1px;
         border-left-style: solid;
-        border-left-color: var(--color-base-300);
+        border-left-color: var(--surface-border);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -151,7 +151,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-300);
+        border-bottom-color: var(--surface-border);
     }
 
     .title {
@@ -197,7 +197,7 @@
         white-space: nowrap;
         --divider-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--panel-fg) 10%,
             transparent
         );
     }
@@ -220,7 +220,7 @@
         padding: 1rem;
         border-top-width: 1px;
         border-top-style: solid;
-        border-top-color: var(--color-base-300);
+        border-top-color: var(--surface-border);
     }
 
     .footer :global(.block-btn) {
@@ -235,6 +235,6 @@
 
     .label :global(.toggle-secondary:checked),
     .label :global(.toggle-secondary[aria-checked='true']) {
-        --input-color: var(--color-secondary);
+        --input-color: var(--color-primary);
     }
 </style>

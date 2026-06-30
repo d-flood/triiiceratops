@@ -162,11 +162,11 @@
         position: absolute;
         bottom: 100%;
         margin-bottom: 0.5rem;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-bg);
         border-width: 1px;
         border-style: solid;
-        border-color: var(--color-base-300);
-        border-radius: var(--radius-box);
+        border-color: var(--surface-border);
+        border-radius: var(--radius-panels);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -229,7 +229,7 @@
         padding-top: 0.5rem;
         border-top-width: 1px;
         border-top-style: solid;
-        border-top-color: var(--color-base-300);
+        border-top-color: var(--surface-border);
     }
 
     .rendering-title {

@@ -5,82 +5,13 @@
 import type { ThemeConfig, BuiltInTheme } from './types';
 import { BUILTIN_THEMES } from './types';
 import { normalizeColor } from './colorUtils';
+import { CSS_VAR_MAP, COLOR_PROPS } from './cssVarMap';
 
 /**
- * Map friendly ThemeConfig property names to CSS variable names
+ * Attribute used to record the raw CSS variables a `cssVars` config applied, so a
+ * later `clearThemeConfig` can remove exactly those (they aren't in CSS_VAR_MAP).
  */
-const CSS_VAR_MAP: Record<keyof ThemeConfig, string> = {
-    // Semantic colors
-    primary: '--color-primary',
-    primaryContent: '--color-primary-content',
-    secondary: '--color-secondary',
-    secondaryContent: '--color-secondary-content',
-    accent: '--color-accent',
-    accentContent: '--color-accent-content',
-    neutral: '--color-neutral',
-    neutralContent: '--color-neutral-content',
-
-    // Base colors
-    base100: '--color-base-100',
-    base200: '--color-base-200',
-    base300: '--color-base-300',
-    baseContent: '--color-base-content',
-
-    // State colors
-    info: '--color-info',
-    infoContent: '--color-info-content',
-    success: '--color-success',
-    successContent: '--color-success-content',
-    warning: '--color-warning',
-    warningContent: '--color-warning-content',
-    error: '--color-error',
-    errorContent: '--color-error-content',
-
-    // Border radius
-    radiusBox: '--radius-box',
-    radiusField: '--radius-field',
-    radiusSelector: '--radius-selector',
-
-    // Sizing
-    sizeSelector: '--size-selector',
-    sizeField: '--size-field',
-
-    // Border
-    border: '--border',
-
-    // Effects
-    depth: '--depth',
-    noise: '--noise',
-
-    // Color scheme (handled specially, not a CSS variable)
-    colorScheme: 'color-scheme',
-};
-
-/**
- * Set of properties that are colors and need oklch conversion
- */
-const COLOR_PROPS = new Set<keyof ThemeConfig>([
-    'primary',
-    'primaryContent',
-    'secondary',
-    'secondaryContent',
-    'accent',
-    'accentContent',
-    'neutral',
-    'neutralContent',
-    'base100',
-    'base200',
-    'base300',
-    'baseContent',
-    'info',
-    'infoContent',
-    'success',
-    'successContent',
-    'warning',
-    'warningContent',
-    'error',
-    'errorContent',
-]);
+const CSS_VARS_ATTR = 'data-ttz-css-vars';
 
 /**
  * Check if a string is a valid built-in theme name
@@ -118,6 +49,9 @@ export function applyThemeConfig(
             continue;
         }
 
+        // Handle the raw escape hatch separately
+        if (propKey === 'cssVars') continue;
+
         const cssVar = CSS_VAR_MAP[propKey];
         if (!cssVar) continue;
 
@@ -129,6 +63,22 @@ export function applyThemeConfig(
         }
 
         element.style.setProperty(cssVar, cssValue);
+    }
+
+    // Apply raw CSS-variable overrides (e.g. per-panel overrides on plugin panels).
+    // Values are used verbatim (no oklch normalization). Record the names so a later
+    // clear can remove exactly these.
+    if (config.cssVars) {
+        const applied: string[] = [];
+        for (const [name, value] of Object.entries(config.cssVars)) {
+            if (value === undefined || value === null) continue;
+            const cssVar = name.startsWith('--') ? name : `--${name}`;
+            element.style.setProperty(cssVar, String(value));
+            applied.push(cssVar);
+        }
+        if (applied.length) {
+            element.setAttribute(CSS_VARS_ATTR, applied.join(' '));
+        }
     }
 }
 
@@ -142,6 +92,15 @@ export function clearThemeConfig(element: HTMLElement): void {
         } else {
             element.style.removeProperty(cssVar);
         }
+    }
+
+    // Remove any raw cssVars a previous config applied.
+    const recorded = element.getAttribute(CSS_VARS_ATTR);
+    if (recorded) {
+        for (const cssVar of recorded.split(' ')) {
+            if (cssVar) element.style.removeProperty(cssVar);
+        }
+        element.removeAttribute(CSS_VARS_ATTR);
     }
 }
 
@@ -181,11 +140,10 @@ export function applyTheme(
         element.removeAttribute('data-theme');
     }
 
-    // Clear any previous custom config
-    if (!config) {
-        clearThemeConfig(element);
-    } else {
-        // Apply custom config overrides
+    // Clear any previously-applied config first so keys dropped between updates
+    // (including raw cssVars) don't linger, then apply the current overrides.
+    clearThemeConfig(element);
+    if (config) {
         applyThemeConfig(element, config);
     }
 }

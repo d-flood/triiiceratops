@@ -5,10 +5,7 @@
     type Variant =
         | 'default'
         | 'primary'
-        | 'secondary'
-        | 'accent'
         | 'neutral'
-        | 'info'
         | 'success'
         | 'warning'
         | 'error';
@@ -53,12 +50,8 @@
         default: '',
         primary:
             '--btn-color:var(--color-primary);--btn-fg:var(--color-primary-content);',
-        secondary:
-            '--btn-color:var(--color-secondary);--btn-fg:var(--color-secondary-content);',
-        accent: '--btn-color:var(--color-accent);--btn-fg:var(--color-accent-content);',
         neutral:
             '--btn-color:var(--color-neutral);--btn-fg:var(--color-neutral-content);',
-        info: '--btn-color:var(--color-info);--btn-fg:var(--color-info-content);',
         success:
             '--btn-color:var(--color-success);--btn-fg:var(--color-success-content);',
         warning:
@@ -119,7 +112,7 @@
         border-end-end-radius: var(--join-ee, var(--radius-field));
         border-end-start-radius: var(--join-es, var(--radius-field));
         outline-offset: 2px;
-        outline-color: var(--btn-color, var(--color-base-content));
+        outline-color: var(--btn-color, var(--content));
         text-shadow: 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 0.15));
         box-shadow:
             0 0.5px 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 6%)) inset,
@@ -130,8 +123,8 @@
 
         /* defaults (overridable via inline size/variant vars) */
         --size: calc(var(--size-field, 0.25rem) * 10);
-        --btn-bg: var(--btn-color, var(--color-base-200));
-        --btn-fg: var(--color-base-content);
+        --btn-bg: var(--btn-color, var(--toolbar-bg));
+        --btn-fg: var(--content);
         --btn-p: 1rem;
         --btn-border: color-mix(in oklab, var(--btn-bg), #000 calc(var(--depth) * 5%));
         --btn-shadow:
@@ -145,7 +138,7 @@
         .btn:hover {
             --btn-bg: color-mix(
                 in oklab,
-                var(--btn-color, var(--color-base-200)),
+                var(--btn-color, var(--toolbar-bg)),
                 #000 7%
             );
         }
@@ -160,12 +153,12 @@
     .btn:active:not(.active) {
         --btn-bg: color-mix(
             in oklab,
-            var(--btn-color, var(--color-base-200)),
+            var(--btn-color, var(--toolbar-bg)),
             #000 5%
         );
         --btn-border: color-mix(
             in oklab,
-            var(--btn-color, var(--color-base-200)),
+            var(--btn-color, var(--toolbar-bg)),
             #000 7%
         );
         --btn-shadow:
@@ -177,7 +170,7 @@
     .btn.active {
         --btn-bg: color-mix(
             in oklab,
-            var(--btn-color, var(--color-base-200)),
+            var(--btn-color, var(--toolbar-bg)),
             #000 7%
         );
     }
@@ -186,14 +179,14 @@
     .btn[disabled] {
         pointer-events: none;
         --btn-border: #0000;
-        --btn-fg: color-mix(in oklch, var(--color-base-content) 20%, #0000);
+        --btn-fg: color-mix(in oklch, var(--content) 20%, #0000);
     }
 
     .btn:disabled:not(.ghost):not(.outline),
     .btn[disabled]:not(.ghost):not(.outline) {
         background-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--content) 10%,
             transparent
         );
         box-shadow: none;
@@ -217,7 +210,7 @@
     .ghost {
         --btn-bg: transparent;
         --btn-border: transparent;
-        --btn-fg: var(--btn-color, var(--color-base-content));
+        --btn-fg: var(--btn-color, var(--content));
         box-shadow: none;
         text-shadow: none;
     }
@@ -225,14 +218,14 @@
         .ghost:hover {
             --btn-bg: color-mix(
                 in oklab,
-                var(--color-base-content) 10%,
+                var(--content) 10%,
                 transparent
             );
         }
     }
     .ghost:active:not(.active),
     .ghost.active {
-        --btn-bg: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+        --btn-bg: color-mix(in oklab, var(--content) 10%, transparent);
         --btn-border: transparent;
     }
 
@@ -241,8 +234,8 @@
             :disabled
         ):not([disabled]) {
         --btn-bg: transparent;
-        --btn-fg: var(--btn-color, var(--color-base-content));
-        --btn-border: var(--btn-color, var(--color-base-content));
+        --btn-fg: var(--btn-color, var(--content));
+        --btn-border: var(--btn-color, var(--content));
         box-shadow: none;
         text-shadow: none;
     }

@@ -837,13 +837,13 @@
         position: relative;
         overflow: hidden;
         /* Re-anchor text color to this element's own resolved tokens. The `theme`
-           prop sets data-theme on THIS element, so --color-base-content here may
+           prop sets data-theme on THIS element, so --content here may
            differ from the inherited (host/page) value; resolving it locally keeps
            viewer text legible regardless of the host page's color. */
-        color: var(--color-base-content);
+        color: var(--content);
     }
     .viewer-root.opaque {
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
     }
 
     .side-col {
@@ -855,10 +855,10 @@
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .side-col.opaque {
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
     }
     .side-col-left.opaque {
-        border-right: 1px solid var(--color-base-300);
+        border-right: 1px solid var(--surface-border);
     }
 
     .panel-host {
@@ -898,7 +898,7 @@
         height: 100%;
     }
     .viewer-area.opaque {
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
     }
 
     .centered {
@@ -937,7 +937,7 @@
     .dim-50 {
         position: absolute;
         inset: 0;
-        background-color: color-mix(in oklab, var(--color-base-100) 50%, transparent);
+        background-color: color-mix(in oklab, var(--viewer-bg) 50%, transparent);
     }
     .error-card {
         position: relative;
@@ -949,7 +949,7 @@
         text-align: center;
         padding-inline: 1rem;
         padding-block: 1.5rem;
-        background-color: color-mix(in oklab, var(--color-base-100) 90%, transparent);
+        background-color: color-mix(in oklab, var(--viewer-bg) 90%, transparent);
         border-radius: 0.75rem;
         box-shadow:
             0 10px 15px -3px #0000001a,
@@ -961,7 +961,7 @@
         color: var(--color-warning);
     }
     .msg {
-        color: var(--color-base-content);
+        color: var(--content);
         font-size: 0.875rem;
         line-height: 1.25rem;
     }
@@ -969,7 +969,7 @@
         font-weight: 600;
     }
     .msg-details {
-        color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+        color: color-mix(in oklab, var(--content) 70%, transparent);
         font-size: 0.75rem;
         line-height: 1rem;
         overflow-wrap: break-word;
@@ -997,19 +997,19 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: color-mix(in oklab, var(--color-base-100) 70%, transparent);
+        background-color: color-mix(in oklab, var(--viewer-bg) 70%, transparent);
         backdrop-filter: blur(4px);
     }
     .drag-hint {
         border-radius: var(--radius-box);
         border: 2px dashed var(--color-primary);
-        background-color: color-mix(in oklab, var(--color-base-100) 90%, transparent);
+        background-color: color-mix(in oklab, var(--viewer-bg) 90%, transparent);
         padding-inline: 1.5rem;
         padding-block: 1rem;
         font-size: 0.875rem;
         line-height: 1.25rem;
         font-weight: 500;
-        color: var(--color-base-content);
+        color: var(--content);
         box-shadow:
             0 10px 15px -3px #0000001a,
             0 4px 6px -4px #0000001a;
@@ -1018,7 +1018,7 @@
     /* Scoped scrollbar styles for the viewer */
     :global(#triiiceratops-viewer *) {
         scrollbar-width: thin;
-        scrollbar-color: color-mix(in oklab, var(--color-base-content) 20%, transparent)
+        scrollbar-color: color-mix(in oklab, var(--content) 20%, transparent)
             transparent;
     }
 
@@ -1033,14 +1033,14 @@
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
-        background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+        background-color: color-mix(in oklab, var(--content) 20%, transparent);
         border-radius: 9999px;
         border: 1px solid transparent;
         background-clip: padding-box;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
-        background-color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+        background-color: color-mix(in oklab, var(--content) 40%, transparent);
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {

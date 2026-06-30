@@ -47,7 +47,7 @@
     .select {
         border: var(--border) solid var(--input-color);
         appearance: none;
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
         vertical-align: middle;
         width: clamp(3rem, 20rem, 100%);
         height: var(--size);
@@ -59,7 +59,7 @@
                 color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000)
                 inset,
             0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
-        --input-color: color-mix(in oklab, var(--color-base-content) 20%, #0000);
+        --input-color: color-mix(in oklab, var(--content) 20%, #0000);
         --size: calc(var(--size-field, 0.25rem) * 10);
         background-image: linear-gradient(45deg, #0000 50%, currentColor 50%),
             linear-gradient(135deg, currentColor 50%, #0000 50%);
@@ -87,7 +87,7 @@
 
     .select:focus,
     .select:focus-within {
-        --input-color: var(--color-base-content);
+        --input-color: var(--content);
         box-shadow: 0 1px
             color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000);
         outline: 2px solid var(--input-color);
@@ -98,9 +98,9 @@
 
     .select:is(:disabled, [disabled]) {
         cursor: not-allowed;
-        border-color: var(--color-base-200);
-        background-color: var(--color-base-200);
-        color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+        border-color: var(--panel-bg);
+        background-color: var(--panel-bg);
+        color: color-mix(in oklab, var(--content) 40%, transparent);
     }
 
     .ghost {
@@ -111,8 +111,8 @@
     }
     .ghost:focus,
     .ghost:focus-within {
-        background-color: var(--color-base-100);
-        color: var(--color-base-content);
+        background-color: var(--input-bg);
+        color: var(--content);
         box-shadow: none;
         border-color: #0000;
     }

@@ -54,7 +54,7 @@
         box-shadow: 0 1px
             color-mix(in oklab, currentColor calc(var(--depth) * 10%), #0000)
             inset;
-        --input-color: color-mix(in oklab, var(--color-base-content) 50%, #0000);
+        --input-color: color-mix(in oklab, var(--content) 50%, #0000);
         --toggle-p: calc(var(--size) * 0.125);
         --size: calc(var(--size-selector, 0.25rem) * 6);
         width: calc((var(--size) * 2) - (var(--border) + var(--toggle-p)) * 2);
@@ -97,8 +97,8 @@
 
     .toggle:checked,
     .toggle[aria-checked='true'] {
-        background-color: var(--color-base-100);
-        --input-color: var(--color-base-content);
+        background-color: var(--input-bg);
+        --input-color: var(--content);
         grid-template-columns: 1fr 1fr 0fr;
     }
     .toggle:checked::before {

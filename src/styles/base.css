@@ -10,7 +10,7 @@
  * `color` is left at the UA default (black) and, crucially, inherits ACROSS the
  * shadow boundary into the custom element — so when the host page is light but
  * the element resolves dark tokens (e.g. prefers-color-scheme: dark), the viewer
- * renders dark text on a dark background. Anchoring `color` to --color-base-content
+ * renders dark text on a dark background. Anchoring `color` to --content
  * here makes text follow whichever theme is active in scope.
  *
  * Zero-specificity (:where) so consumers can still override. `background-color` is
@@ -18,19 +18,19 @@
  * must stay transparent for the `transparentBackground` config; the viewer paints
  * its own opaque background via .viewer-root.opaque.
  */
-:where(:root, :host) {
-    color: var(--color-base-content);
+:where(:root, :host, [data-theme]) {
+    color: var(--content);
 }
 :where(:root) {
-    background-color: var(--color-base-100);
+    background-color: var(--viewer-bg);
 }
 
-/* Thin, theme-aware scrollbars driven by the --color-base-content token. */
+/* Thin, theme-aware scrollbars driven by the --content token. */
 
 /* Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--color-base-content) 20%, transparent)
+    scrollbar-color: color-mix(in oklab, var(--content) 20%, transparent)
         transparent;
 }
 
@@ -46,14 +46,14 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+    background-color: color-mix(in oklab, var(--content) 20%, transparent);
     border-radius: 9999px;
     border: 1px solid transparent;
     background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+    background-color: color-mix(in oklab, var(--content) 40%, transparent);
 }
 
 ::-webkit-scrollbar-corner {

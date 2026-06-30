@@ -621,7 +621,7 @@
         cursor: pointer;
         background-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--toolbar-content) 10%,
             transparent
         );
         box-shadow:
@@ -648,9 +648,10 @@
     .actions {
         background-color: color-mix(
             in oklab,
-            var(--color-base-200) 70%,
+            var(--toolbar-bg) 70%,
             transparent
         );
+        color: var(--toolbar-content);
         backdrop-filter: blur(8px);
         box-shadow:
             0 10px 15px -3px #0000001a,
@@ -668,27 +669,27 @@
     }
     .actions.top-right {
         flex-direction: row-reverse;
-        border-bottom-left-radius: var(--radius-box);
+        border-bottom-left-radius: var(--radius-toolbar);
     }
     .actions.top-right > :global(* + *) {
         margin-left: 1px;
     }
     .actions.top-left {
         flex-direction: row;
-        border-bottom-right-radius: var(--radius-box);
+        border-bottom-right-radius: var(--radius-toolbar);
     }
     .actions.top-left > :global(* + *) {
         margin-left: 1px;
     }
     .actions.left {
-        border-bottom-right-radius: var(--radius-box);
+        border-bottom-right-radius: var(--radius-toolbar);
         padding-right: 0.25rem;
     }
     .actions.left > :global(* + *) {
         margin-top: 1px;
     }
     .actions.right {
-        border-bottom-left-radius: var(--radius-box);
+        border-bottom-left-radius: var(--radius-toolbar);
         padding-left: 0.25rem;
     }
     .actions.right > :global(* + *) {
@@ -730,12 +731,12 @@
 
     /* ===== Popover dropdown menus ===== */
     .popover-menu {
-        border-radius: var(--radius-box);
-        background-color: var(--color-base-100);
+        border-radius: var(--radius-toolbar);
+        background-color: var(--toolbar-bg);
         box-shadow:
             0 1px 3px 0 #0000001a,
             0 1px 2px -1px #0000001a;
-        border: 1px solid var(--color-base-200);
+        border: 1px solid var(--surface-border);
         z-index: 999;
     }
     .popover-menu.wide {
@@ -776,7 +777,7 @@
     .divider {
         --divider-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--toolbar-content) 10%,
             transparent
         );
         white-space: nowrap;
@@ -845,12 +846,12 @@
         padding: 0;
         background-color: color-mix(
             in oklab,
-            var(--color-base-200) 70%,
+            var(--toolbar-bg) 70%,
             transparent
         );
         backdrop-filter: blur(8px);
-        border-color: var(--color-base-300);
-        color: var(--color-base-content);
+        border-color: var(--surface-border);
+        color: var(--toolbar-content);
         box-shadow:
             0 4px 6px -1px #0000001a,
             0 2px 4px -2px #0000001a;
@@ -860,7 +861,7 @@
         opacity: 1;
     }
     .handle:hover {
-        background-color: var(--color-base-300);
+        background-color: var(--surface-border);
     }
     .handle.invisible {
         opacity: 0;
