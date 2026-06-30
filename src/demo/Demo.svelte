@@ -112,6 +112,27 @@
     // const urlParams = new URLSearchParams(window.location.search); // Already defined above
     let viewerMode = $state(urlParams.get('mode') || 'image');
 
+    // Selected theme, owned by ThemeToggle (which also writes data-theme on <html>
+    // + localStorage) and bound up to here so we can pass it to the viewer. Without
+    // this the web component falls back to prefers-color-scheme and ignores the
+    // page's theme toggle. Initialized to match ThemeToggle's onMount resolution.
+    let selectedTheme = $state<import('../lib/theme/types').DaisyUITheme>(
+        ((): import('../lib/theme/types').DaisyUITheme => {
+            const stored = localStorage.getItem('theme');
+            if (
+                stored === 'light' ||
+                stored === 'dark' ||
+                stored === 'cupcake' ||
+                stored === 'dracula'
+            ) {
+                return stored;
+            }
+            return window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+        })(),
+    );
+
     // Derived string for custom elements
     let configStr = $derived(JSON.stringify(config));
 
@@ -441,6 +462,7 @@
         bind:viewerMode
         bind:canvasId
         bind:config
+        bind:selectedTheme
         availableLocales={availableViewerLocales}
         onLoad={loadManifest}
         onReset={resetConfig}
@@ -461,6 +483,7 @@
                         {canvasId}
                         {initialCanvasRegion}
                         {config}
+                        theme={selectedTheme}
                         bind:viewerState={svelteViewerState}
                         plugins={enabledPlugins}
                     />
@@ -472,6 +495,7 @@
                         initial-canvas-region={initialCanvasRegion
                             ? JSON.stringify(initialCanvasRegion)
                             : undefined}
+                        theme={selectedTheme}
                         theme-config={viewerMode === 'custom-theme'
                             ? customThemeConfig
                             : undefined}

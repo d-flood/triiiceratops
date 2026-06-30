@@ -3,6 +3,28 @@
  * (Token + theme definitions live in themes.css; element reset in preflight.css.)
  */
 
+/*
+ * Anchor text + document background to the theme tokens.
+ *
+ * DaisyUI's base layer used to set these on the root; the vanilla rewrite dropped
+ * it. Without it the text `color` is left at the UA default (black) and, crucially,
+ * inherits ACROSS the shadow boundary into the custom element — so when the host
+ * page is light but the element resolves dark tokens (e.g. prefers-color-scheme:
+ * dark), the viewer renders dark text on a dark background. Anchoring `color` to
+ * --color-base-content here makes text follow whichever theme is active in scope.
+ *
+ * Zero-specificity (:where) so consumers can still override. `background-color` is
+ * intentionally only on :root (the document) and NOT :host — the custom element
+ * must stay transparent for the `transparentBackground` config; the viewer paints
+ * its own opaque background via .viewer-root.opaque.
+ */
+:where(:root, :host) {
+    color: var(--color-base-content);
+}
+:where(:root) {
+    background-color: var(--color-base-100);
+}
+
 /* Thin, theme-aware scrollbars. Replaces the old DaisyUI --bc/--fallback-bc
    references with the v5 token --color-base-content. */
 

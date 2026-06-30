@@ -7,6 +7,7 @@
     import { Button, Select, TextInput, Tooltip } from './ui';
 
     import { m, language } from '../state/i18n.svelte';
+    import type { DaisyUITheme } from '../theme/types';
     import { manifestsState } from '../state/manifests.svelte';
     import { locales, setLocale } from '../paraglide/runtime.js';
     import { getCanvasLabel } from '../utils/canvasLabels';
@@ -193,6 +194,7 @@
         viewerMode = $bindable('core'),
         canvasId = $bindable(''),
         config = $bindable({}),
+        selectedTheme = $bindable('light'),
         availableLocales = [],
         onReset,
         onShare,
@@ -202,6 +204,7 @@
         viewerMode: string;
         canvasId: string;
         config: any;
+        selectedTheme?: DaisyUITheme;
         availableLocales?: string[];
         onReset?: () => void;
         onShare?: () => Promise<void>;
@@ -345,7 +348,7 @@
             {/each}
         </Select>
 
-        <ThemeToggle />
+        <ThemeToggle bind:theme={selectedTheme} />
 
         <!-- Settings Dropdown -->
         <div class="dropdown dropdown-end settings-dropdown">
