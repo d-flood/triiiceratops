@@ -4,6 +4,7 @@
     import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
     import ThemeToggle from './ThemeToggle.svelte';
     import SettingsMenu from './SettingsMenu.svelte';
+    import { Button, Select, TextInput, Tooltip } from './ui';
 
     import { m, language } from '../state/i18n.svelte';
     import { manifestsState } from '../state/manifests.svelte';
@@ -267,79 +268,74 @@
     }
 </script>
 
-<header
-    class="flex flex-col bg-base-200 shrink-0 border-b border-base-300 relative z-800"
->
+<header class="header">
     <!-- Top Row: Branding & Global Settings -->
-    <div class="flex gap-4 items-center p-2 px-4 border-b border-base-300/50">
-        <a href="/triiiceratops/" class="btn btn-sm btn-ghost font-bold text-lg"
-            >Triiiceratops</a
-        >
-        <a href="/triiiceratops/" class="btn btn-sm btn-outline btn-primary"
-            >{m.docs()}</a
-        >
+    <div class="top-row">
+        <a href="/triiiceratops/" class="btn-link ghost brand">Triiiceratops</a>
+        <a href="/triiiceratops/" class="btn-link outline primary">{m.docs()}</a>
 
-        <div class="flex-1"></div>
+        <div class="spacer"></div>
 
         <div class="join">
-            <div
-                class="tooltip tooltip-bottom"
-                data-tip={m.viewer_variant_tooltip_core()}
+            <Tooltip
+                tip={m.viewer_variant_tooltip_core()}
+                placement="bottom"
             >
                 <input
-                    class="join-item btn btn-sm"
+                    class="join-item btn-radio"
                     type="radio"
                     name="viewerMode"
                     aria-label={m.viewer_variant_core()}
                     value="core"
                     bind:group={viewerMode}
                 />
-            </div>
-            <div
-                class="tooltip tooltip-bottom"
-                data-tip={m.viewer_variant_tooltip_full()}
+            </Tooltip>
+            <Tooltip
+                tip={m.viewer_variant_tooltip_full()}
+                placement="bottom"
             >
                 <input
-                    class="join-item btn btn-sm"
+                    class="join-item btn-radio"
                     type="radio"
                     name="viewerMode"
                     aria-label={m.viewer_variant_full()}
                     value="image"
                     bind:group={viewerMode}
                 />
-            </div>
+            </Tooltip>
             {#if isDev}
-                <div
-                    class="tooltip tooltip-bottom"
-                    data-tip={m.viewer_variant_tooltip_custom_theme()}
+                <Tooltip
+                    tip={m.viewer_variant_tooltip_custom_theme()}
+                    placement="bottom"
                 >
                     <input
-                        class="join-item btn btn-sm"
+                        class="join-item btn-radio"
                         type="radio"
                         name="viewerMode"
                         aria-label={m.viewer_variant_custom_theme()}
                         value="custom-theme"
                         bind:group={viewerMode}
                     />
-                </div>
-                <div
-                    class="tooltip tooltip-bottom"
-                    data-tip={m.viewer_variant_svelte_component_tooltip()}
+                </Tooltip>
+                <Tooltip
+                    tip={m.viewer_variant_svelte_component_tooltip()}
+                    placement="bottom"
                 >
                     <input
-                        class="join-item btn btn-sm"
+                        class="join-item btn-radio"
                         type="radio"
                         name="viewerMode"
                         aria-label={m.viewer_variant_svelte()}
                         value="svelte"
                         bind:group={viewerMode}
                     />
-                </div>
+                </Tooltip>
             {/if}
         </div>
 
-        <select
-            class="select select-bordered select-sm w-auto"
+        <Select
+            size="sm"
+            class="lang-select"
             value={language.current}
             onchange={(e) => setLocale(e.currentTarget.value as any)}
             aria-label={m.language_select_label()}
@@ -347,81 +343,67 @@
             {#each locales as lang (lang)}
                 <option value={lang}>{languageNames[lang] || lang}</option>
             {/each}
-        </select>
+        </Select>
 
         <ThemeToggle />
 
         <!-- Settings Dropdown -->
-        <div class="dropdown dropdown-end group lg:hidden">
+        <div class="dropdown dropdown-end settings-dropdown">
             <div
                 tabindex="0"
                 role="button"
-                class="btn btn-ghost btn-sm"
+                class="btn-trigger"
                 aria-label={m.settings_label()}
             >
                 <Gear size={20} />
             </div>
-            <div
-                class="dropdown-content z-20 bg-base-100 rounded-box w-80 shadow border border-base-300 overflow-hidden block invisible pointer-events-none group-focus-within:visible group-focus-within:pointer-events-auto"
-            >
+            <div class="dropdown-content settings-panel">
                 <SettingsMenu
                     bind:config
                     {availableLocales}
                     {onReset}
                     {onShare}
-                    class="menu p-2 max-h-[80vh] overflow-y-auto flex-nowrap"
+                    class="menu settings-menu"
                 />
             </div>
         </div>
 
-        <div class="tooltip tooltip-bottom" data-tip={m.github()}>
+        <Tooltip tip={m.github()} placement="bottom">
             <a
                 href="https://github.com/d-flood/triiiceratops"
-                class="btn btn-ghost btn-sm"
+                class="btn-link ghost icon-link"
             >
                 <GithubLogo size={20} />
             </a>
-        </div>
+        </Tooltip>
     </div>
 
     <!-- Bottom Row: External Controls -->
-    <div class="flex gap-4 items-center p-2 px-4 bg-base-300/30">
-        <span class="text-xs font-bold uppercase tracking-wider opacity-70"
-            >{m.demo_header_external_controls()}</span
-        >
+    <div class="bottom-row">
+        <span class="controls-heading">{m.demo_header_external_controls()}</span>
 
         <!-- Manifest Selector -->
-        <div class="flex gap-2 items-center">
-            <label
-                for="manifest-select"
-                class="text-base-content text-sm whitespace-nowrap sr-only"
-            >
+        <div class="control-group">
+            <label for="manifest-select" class="manifest-label">
                 {m.iiif_manifest_label()}
             </label>
-            <div class="flex gap-2 items-center">
+            <div class="control-group">
                 <details
                     class="dropdown"
                     bind:open={manifestDropdownOpen}
                     id="manifest-select"
                 >
-                    <summary
-                        class="select select-bordered select-xs w-md max-w-[60vw] cursor-pointer list-none items-center truncate focus:outline-none"
-                    >
+                    <summary class="manifest-summary">
                         {selectedManifestLabel}
                     </summary>
-                    <div
-                        class="dropdown-content z-30 mt-1 bg-base-100 rounded-box shadow border border-base-300 overflow-hidden w-md max-w-[60vw]"
-                    >
-                        <ul
-                            class="menu menu-xs w-full max-h-[60vh] overflow-y-auto flex-nowrap"
-                        >
+                    <div class="dropdown-content manifest-panel">
+                        <ul class="menu menu-xs manifest-menu">
                             {#each SUGGESTED_MANIFESTS as manifest (manifest.url)}
                                 <li>
                                     <button
                                         type="button"
-                                        class={manifest.url === manifestUrl
-                                            ? 'active'
-                                            : undefined}
+                                        class:active={manifest.url ===
+                                            manifestUrl}
                                         onclick={() => selectManifest(manifest.url)}
                                     >
                                         {manifest.label}
@@ -431,7 +413,7 @@
                             <li>
                                 <button
                                     type="button"
-                                    class={isCustom ? 'active' : undefined}
+                                    class:active={isCustom}
                                     onclick={selectCustomManifest}
                                 >
                                     {m.try_your_own()}
@@ -442,33 +424,34 @@
                 </details>
 
                 {#if isCustom}
-                    <input
+                    <TextInput
                         id="manifest-input"
-                        type="text"
+                        size="xs"
+                        class="manifest-input"
                         bind:value={manifestUrl}
                         onkeydown={handleKeydown}
                         placeholder={m.manifest_placeholder()}
-                        class="input input-bordered input-xs w-[300px] fade-in"
                         autocomplete="off"
                     />
-                    <button onclick={onLoad} class="btn btn-primary btn-xs">
+                    <Button onclick={onLoad} variant="primary" size="xs">
                         {m.load()}
-                    </button>
+                    </Button>
                 {/if}
             </div>
         </div>
 
-        <div class="w-px h-4 bg-base-content/20 mx-2"></div>
+        <div class="divider"></div>
 
         <!-- Canvas Selector -->
-        <div class="flex gap-2 items-center">
-            <label class="text-xs opacity-70" for="canvas-id-select">
+        <div class="control-group">
+            <label class="canvas-label" for="canvas-id-select">
                 {m.demo_header_active_canvas()}
             </label>
-            <select
+            <Select
                 id="canvas-id-select"
+                size="xs"
+                class="canvas-select"
                 bind:value={canvasId}
-                class="select select-bordered select-xs w-[200px]"
                 disabled={canvases.length === 0}
             >
                 {#if canvases.length === 0}
@@ -480,26 +463,23 @@
                         </option>
                     {/each}
                 {/if}
-            </select>
+            </Select>
         </div>
 
-        <div class="w-px h-4 bg-base-content/20 mx-2"></div>
+        <div class="divider"></div>
 
         <!-- Search Input -->
-        <div class="flex gap-2 items-center">
-            <label
-                class="text-xs opacity-70 flex items-center gap-1"
-                for="external-search-input"
-            >
+        <div class="control-group">
+            <label class="search-label" for="external-search-input">
                 <MagnifyingGlass size={14} />
                 <span class="sr-only">{m.search()}</span>
             </label>
             {#if config.search}
-                <input
+                <TextInput
                     id="external-search-input"
-                    type="text"
+                    size="xs"
+                    class="search-input"
                     placeholder={m.search_panel_placeholder()}
-                    class="input input-bordered input-xs w-[150px]"
                     bind:value={activeSearchTerm}
                     onkeydown={handleSearchKeydown}
                 />
@@ -507,3 +487,537 @@
         </div>
     </div>
 </header>
+
+<style>
+    /* ===== Layout shell ===== */
+    .header {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 800;
+        background-color: var(--color-base-200);
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--color-base-300);
+    }
+
+    .top-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.5rem 1rem;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: color-mix(
+            in oklab,
+            var(--color-base-300) 50%,
+            transparent
+        );
+    }
+
+    .bottom-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.5rem 1rem;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-300) 30%,
+            transparent
+        );
+    }
+
+    .spacer {
+        flex: 1 1 0%;
+    }
+
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .divider {
+        width: 1px;
+        height: 1rem;
+        margin-inline: 0.5rem;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-content) 20%,
+            transparent
+        );
+    }
+
+    /* Visually hidden but accessible (Tailwind sr-only) */
+    .manifest-label,
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+
+    /* ===== Text bits ===== */
+    .controls-heading {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.7;
+    }
+
+    .canvas-label {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        opacity: 0.7;
+    }
+
+    .search-label {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        opacity: 0.7;
+    }
+
+    /* ===== Anchor "buttons" (.btn look on <a>, not real buttons) ===== */
+    .btn-link {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        justify-content: center;
+        align-items: center;
+        gap: 0.375rem;
+        height: calc(var(--size-field, 0.25rem) * 8);
+        padding-inline: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: center;
+        vertical-align: middle;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: pointer;
+        border-width: var(--border);
+        border-style: solid;
+        border-color: transparent;
+        border-radius: var(--radius-field);
+        color: var(--color-base-content);
+        background-color: transparent;
+        text-decoration: none;
+        transition-property: color, background-color, border-color, box-shadow;
+        transition-duration: 0.2s;
+        transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+
+    /* Ghost: transparent until hover */
+    .btn-link.ghost {
+        background-color: transparent;
+        border-color: transparent;
+    }
+    @media (hover: hover) {
+        .btn-link.ghost:hover {
+            background-color: color-mix(
+                in oklab,
+                var(--color-base-content) 10%,
+                transparent
+            );
+        }
+    }
+
+    /* Outline + primary (docs link) */
+    .btn-link.outline.primary {
+        background-color: transparent;
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    @media (hover: hover) {
+        .btn-link.outline.primary:hover {
+            background-color: var(--color-primary);
+            color: var(--color-primary-content);
+            border-color: var(--color-primary);
+        }
+    }
+
+    /* Branding link extras: font-bold text-lg */
+    .brand {
+        font-weight: 700;
+        font-size: 1.125rem;
+        line-height: 1.75rem;
+    }
+
+    /* ===== Settings trigger (div[role=button] styled as ghost btn-sm) ===== */
+    .btn-trigger {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        justify-content: center;
+        align-items: center;
+        gap: 0.375rem;
+        height: calc(var(--size-field, 0.25rem) * 8);
+        padding-inline: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: center;
+        vertical-align: middle;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: pointer;
+        border-width: var(--border);
+        border-style: solid;
+        border-color: transparent;
+        border-radius: var(--radius-field);
+        color: var(--color-base-content);
+        background-color: transparent;
+        transition-property: color, background-color, border-color, box-shadow;
+        transition-duration: 0.2s;
+        transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+    @media (hover: hover) {
+        .btn-trigger:hover {
+            background-color: color-mix(
+                in oklab,
+                var(--color-base-content) 10%,
+                transparent
+            );
+        }
+    }
+
+    /* ===== join (segmented control wrapper) ===== */
+    .join {
+        display: inline-flex;
+        align-items: stretch;
+    }
+
+    /* Radio inputs styled as joined buttons (.btn-sm look) */
+    .btn-radio {
+        appearance: none;
+        -webkit-appearance: none;
+        display: inline-flex;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        justify-content: center;
+        align-items: center;
+        gap: 0.375rem;
+        height: calc(var(--size-field, 0.25rem) * 8);
+        padding-inline: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: center;
+        vertical-align: middle;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        --btn-bg: var(--btn-color, var(--color-base-200));
+        --btn-fg: var(--color-base-content);
+        --btn-border: color-mix(
+            in oklab,
+            var(--btn-bg),
+            #000 calc(var(--depth) * 5%)
+        );
+        --btn-shadow:
+            0 3px 2px -2px
+                color-mix(in oklab, var(--btn-bg) calc(var(--depth) * 30%), #0000),
+            0 4px 3px -2px
+                color-mix(in oklab, var(--btn-bg) calc(var(--depth) * 30%), #0000);
+        color: var(--btn-fg);
+        background-color: var(--btn-bg);
+        border-width: var(--border);
+        border-style: solid;
+        border-color: var(--btn-border);
+        text-shadow: 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 0.15));
+        box-shadow:
+            0 0.5px 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 6%)) inset,
+            var(--btn-shadow);
+        transition-property: color, background-color, border-color, box-shadow;
+        transition-duration: 0.2s;
+        transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+        /* join radii: default square (0); first/last/only override below,
+           matching DaisyUI's nested .join :where(.join-item) behavior. */
+        border-start-start-radius: var(--join-ss, 0);
+        border-start-end-radius: var(--join-se, 0);
+        border-end-end-radius: var(--join-ee, 0);
+        border-end-start-radius: var(--join-es, 0);
+    }
+    @media (hover: hover) {
+        .btn-radio:hover {
+            background-color: color-mix(
+                in oklab,
+                var(--btn-bg, var(--color-base-200)),
+                #000 7%
+            );
+        }
+    }
+    .btn-radio[aria-label]::after {
+        content: attr(aria-label);
+    }
+    .btn-radio:checked {
+        --btn-color: var(--color-primary);
+        --btn-fg: var(--color-primary-content);
+        isolation: isolate;
+    }
+
+    /* Join radius shaping. The radio lives inside a Tooltip <span>; the span is
+       the direct join child, so (matching DaisyUI's nested-join-item rules) we
+       set join vars on the inner .btn-radio based on the span's position.
+       NB: the original markup put `join-item` on the <input> (an only-child of
+       its wrapper), so DaisyUI applied NO negative margins — borders did not
+       collapse. We deliberately add none here to stay identical. */
+    .join > :global(:first-child:not(:last-child) .btn-radio) {
+        --join-ss: var(--radius-field);
+        --join-se: 0;
+        --join-es: var(--radius-field);
+        --join-ee: 0;
+    }
+    .join > :global(:last-child:not(:first-child) .btn-radio) {
+        --join-ss: 0;
+        --join-se: var(--radius-field);
+        --join-es: 0;
+        --join-ee: var(--radius-field);
+    }
+    .join > :global(:only-child .btn-radio) {
+        --join-ss: var(--radius-field);
+        --join-se: var(--radius-field);
+        --join-es: var(--radius-field);
+        --join-ee: var(--radius-field);
+    }
+
+    /* ===== Language Select width override (w-auto) ===== */
+    .top-row :global(.lang-select) {
+        width: auto;
+    }
+
+    /* ===== Dropdown scaffolding (DaisyUI .dropdown) ===== */
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .dropdown-content {
+        position: absolute;
+        z-index: 999;
+    }
+    /* End-aligned dropdowns open to the inline-end edge. */
+    .dropdown-end .dropdown-content {
+        inset-inline-end: 0;
+    }
+
+    /* Settings dropdown is a <div> trigger revealed via :focus-within
+       (mirrors the original group-focus-within:visible behavior). The manifest
+       dropdown is a native <details> and is intentionally NOT covered here —
+       it opens/closes through the browser's <details>[open] mechanism. */
+    .settings-dropdown {
+        display: none;
+    }
+    @media (width < 1024px) {
+        .settings-dropdown {
+            display: inline-block;
+        }
+    }
+    .settings-dropdown .dropdown-content {
+        opacity: 0;
+        scale: 95%;
+        display: block;
+        visibility: hidden;
+        pointer-events: none;
+        transform-origin: top;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .settings-dropdown .dropdown-content {
+            transition-property: opacity, scale;
+            transition-duration: 0.2s;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    }
+    .settings-dropdown:focus-within .dropdown-content {
+        opacity: 1;
+        scale: 100%;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .settings-panel {
+        z-index: 20;
+        width: 20rem;
+        overflow: hidden;
+        background-color: var(--color-base-100);
+        border-radius: var(--radius-box);
+        border-width: 1px;
+        border-style: solid;
+        border-color: var(--color-base-300);
+        box-shadow:
+            0 1px 3px 0 #0000001a,
+            0 1px 2px -1px #0000001a;
+    }
+
+    /* SettingsMenu receives class="menu settings-menu"; the `menu` class is the
+       (still-global) DaisyUI scaffolding the unconverted child relies on.
+       These rules reproduce the Tailwind utilities (p-2 max-h-[80vh]
+       overflow-y-auto flex-nowrap) that sat alongside it. */
+    .settings-panel :global(.settings-menu) {
+        padding: 0.5rem;
+        max-height: 80vh;
+        overflow-y: auto;
+        flex-wrap: nowrap;
+    }
+
+    /* ===== Manifest selector ===== */
+    /* <summary> styled like select select-bordered select-xs */
+    .manifest-summary {
+        --input-color: color-mix(
+            in oklab,
+            var(--color-base-content) 20%,
+            #0000
+        );
+        --size: calc(var(--size-field, 0.25rem) * 6);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        width: 28rem;
+        max-width: 60vw;
+        height: var(--size);
+        padding-inline: 0.75rem 1.75rem;
+        font-size: 0.875rem;
+        color: inherit;
+        vertical-align: middle;
+        cursor: pointer;
+        position: relative;
+        list-style: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        appearance: none;
+        background-color: var(--color-base-100);
+        border: var(--border) solid var(--input-color);
+        border-radius: var(--radius-field);
+        box-shadow:
+            0 1px
+                color-mix(
+                    in oklab,
+                    var(--input-color) calc(var(--depth) * 10%),
+                    #0000
+                )
+                inset,
+            0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
+        background-image: linear-gradient(45deg, #0000 50%, currentColor 50%),
+            linear-gradient(135deg, currentColor 50%, #0000 50%);
+        background-position:
+            calc(100% - 20px) calc(1px + 50%),
+            calc(100% - 16.1px) calc(1px + 50%);
+        background-repeat: no-repeat;
+        background-size:
+            4px 4px,
+            4px 4px;
+    }
+    .manifest-summary::-webkit-details-marker {
+        display: none;
+    }
+    .manifest-summary:focus {
+        outline: none;
+    }
+
+    .manifest-panel {
+        z-index: 30;
+        margin-top: 0.25rem;
+        width: 28rem;
+        max-width: 60vw;
+        overflow: hidden;
+        background-color: var(--color-base-100);
+        border-radius: var(--radius-box);
+        border-width: 1px;
+        border-style: solid;
+        border-color: var(--color-base-300);
+        box-shadow:
+            0 1px 3px 0 #0000001a,
+            0 1px 2px -1px #0000001a;
+    }
+
+    /* DaisyUI menu / menu-xs scaffolding reproduced for the manifest list */
+    .menu {
+        --menu-active-fg: var(--color-neutral-content);
+        --menu-active-bg: var(--color-neutral);
+        display: flex;
+        flex-flow: column wrap;
+        width: fit-content;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+    .manifest-menu {
+        width: 100%;
+        max-height: 60vh;
+        overflow-y: auto;
+        flex-wrap: nowrap;
+    }
+    .menu :global(li) {
+        display: flex;
+        flex-flow: column wrap;
+        flex-shrink: 0;
+        align-items: stretch;
+        position: relative;
+    }
+    .menu :global(li > button) {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(auto, max-content) auto max-content;
+        align-content: flex-start;
+        align-items: center;
+        gap: 0.5rem;
+        text-align: start;
+        text-wrap: balance;
+        user-select: none;
+        border-radius: var(--radius-field);
+        /* menu-xs sizing */
+        padding-block: 0.25rem;
+        padding-inline: 0.5rem;
+        font-size: 0.6875rem;
+        background-color: transparent;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        transition-property: color, background-color, box-shadow;
+        transition-duration: 0.2s;
+        transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+    .menu :global(li > button:hover) {
+        cursor: pointer;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-content) 10%,
+            transparent
+        );
+        box-shadow:
+            inset 0 1px oklch(0% 0 0 / 0.01),
+            inset 0 -1px oklch(100% 0 0 / 0.01);
+    }
+    .menu :global(li > button:active) {
+        color: var(--menu-active-fg);
+        background-color: var(--menu-active-bg);
+    }
+    .menu :global(li > button:focus-visible) {
+        cursor: pointer;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-content) 10%,
+            transparent
+        );
+        color: var(--color-base-content);
+        outline: none;
+    }
+
+    /* ===== Field width overrides for primitives ===== */
+    .control-group :global(.manifest-input) {
+        width: 300px;
+    }
+    .control-group :global(.canvas-select) {
+        width: 200px;
+    }
+    .control-group :global(.search-input) {
+        width: 150px;
+    }
+</style>

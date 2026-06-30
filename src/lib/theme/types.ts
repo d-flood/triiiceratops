@@ -1,83 +1,29 @@
 /**
- * Built-in DaisyUI theme names
+ * Built-in theme names shipped with the viewer (2 light, 2 dark).
+ * Custom theming beyond these stays available via the `themeConfig` prop and by
+ * setting CSS variables (e.g. --color-primary) on the host element.
  */
-export type DaisyUITheme =
-    | 'light'
-    | 'dark'
-    | 'cupcake'
-    | 'bumblebee'
-    | 'emerald'
-    | 'corporate'
-    | 'synthwave'
-    | 'retro'
-    | 'cyberpunk'
-    | 'valentine'
-    | 'halloween'
-    | 'garden'
-    | 'forest'
-    | 'aqua'
-    | 'lofi'
-    | 'pastel'
-    | 'fantasy'
-    | 'wireframe'
-    | 'black'
-    | 'luxury'
-    | 'dracula'
-    | 'cmyk'
-    | 'autumn'
-    | 'business'
-    | 'acid'
-    | 'lemonade'
-    | 'night'
-    | 'coffee'
-    | 'winter'
-    | 'dim'
-    | 'nord'
-    | 'sunset'
-    | 'caramellatte'
-    | 'abyss'
-    | 'silk';
+export type BuiltInTheme = 'light' | 'dark' | 'cupcake' | 'dracula';
 
 /**
- * List of all built-in DaisyUI themes for runtime validation
+ * List of all built-in themes for runtime validation.
  */
-export const DAISYUI_THEMES: DaisyUITheme[] = [
+export const BUILTIN_THEMES: BuiltInTheme[] = [
     'light',
     'dark',
     'cupcake',
-    'bumblebee',
-    'emerald',
-    'corporate',
-    'synthwave',
-    'retro',
-    'cyberpunk',
-    'valentine',
-    'halloween',
-    'garden',
-    'forest',
-    'aqua',
-    'lofi',
-    'pastel',
-    'fantasy',
-    'wireframe',
-    'black',
-    'luxury',
     'dracula',
-    'cmyk',
-    'autumn',
-    'business',
-    'acid',
-    'lemonade',
-    'night',
-    'coffee',
-    'winter',
-    'dim',
-    'nord',
-    'sunset',
-    'caramellatte',
-    'abyss',
-    'silk',
 ];
+
+/**
+ * @deprecated Use {@link BuiltInTheme}. Retained as an alias for backward compatibility.
+ */
+export type DaisyUITheme = BuiltInTheme;
+
+/**
+ * @deprecated Use {@link BUILTIN_THEMES}. Retained as an alias for backward compatibility.
+ */
+export const DAISYUI_THEMES: BuiltInTheme[] = BUILTIN_THEMES;
 
 /**
  * Custom theme configuration with friendly property names.

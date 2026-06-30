@@ -6,6 +6,7 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
     import type { StructureNode } from '../utils/structures';
+    import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let { embedded = false }: { embedded?: boolean } = $props();
@@ -53,34 +54,34 @@
         {@const hasChildren = node.children.length > 0}
         <div>
             <div
-                class="flex items-center gap-1 hover:bg-base-100 transition-colors {active
-                    ? 'bg-primary/10 text-primary'
-                    : ''}"
+                class="row"
+                class:active
                 style="padding-left: {node.depth * 16 + 8}px"
             >
                 {#if hasChildren}
-                    <button
-                        class="btn btn-xs btn-ghost btn-circle shrink-0"
+                    <Button
+                        size="xs"
+                        ghost
+                        circle
                         onclick={() => toggleExpanded(node.id)}
                         aria-label={expanded ? 'Collapse' : 'Expand'}
                     >
                         <span
-                            class="inline-flex transition-transform duration-150"
+                            class="caret"
                             style="transform: rotate({expanded
                                 ? '90deg'
                                 : '0deg'})"
                         >
                             <CaretRight size={14} />
                         </span>
-                    </button>
+                    </Button>
                 {:else}
-                    <span class="w-6 shrink-0"></span>
+                    <span class="spacer"></span>
                 {/if}
 
                 <button
-                    class="flex-1 text-left text-sm py-2 pr-3 cursor-pointer truncate {active
-                        ? 'font-semibold'
-                        : ''}"
+                    class="label-btn"
+                    class:active
                     onclick={() => navigateToRange(node)}
                     title={node.label}
                 >
@@ -97,40 +98,135 @@
 
 {#if viewerState.showStructuresPanel}
     <div
-        class="min-h-0 flex flex-col {embedded
-            ? ''
-            : 'h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 border-l border-base-300'}"
+        class="panel"
+        class:standalone={!embedded}
         role="dialog"
         aria-label={m.structures_title()}
     >
         {#if !embedded}
-        <div class="flex items-center justify-between p-4 border-b border-base-300">
-            <div class="flex items-center gap-2">
-                <ListBullets size={20} weight="bold" />
-                <h2 class="font-bold text-lg">
-                    {m.structures_title()}
-                </h2>
+            <div class="panel-header">
+                <div class="panel-header-title">
+                    <ListBullets size={20} weight="bold" />
+                    <h2 class="panel-h2">
+                        {m.structures_title()}
+                    </h2>
+                </div>
             </div>
-        </div>
         {/if}
 
         <!-- Tree Content -->
         {#if hasStructures}
-            <div
-                class="p-0 flex flex-col {embedded
-                    ? ''
-                    : 'flex-1 overflow-y-auto'}"
-            >
+            <div class="tree" class:standalone={!embedded}>
                 {@render rangeTree(structures)}
             </div>
         {:else}
-            <div
-                class="flex items-center justify-center p-8 {embedded
-                    ? ''
-                    : 'flex-1'}"
-            >
-                <p class="text-sm opacity-50">{m.structures_empty()}</p>
+            <div class="empty" class:standalone={!embedded}>
+                <p class="empty-text">{m.structures_empty()}</p>
             </div>
         {/if}
     </div>
 {/if}
+
+<style>
+    .row {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition-property: color, background-color, border-color;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+    }
+    .row.active {
+        background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+        color: var(--color-primary);
+    }
+    /* hover comes after .active so it wins on hover, matching the prior Tailwind order */
+    .row:hover {
+        background-color: var(--color-base-100);
+    }
+
+    .caret {
+        display: inline-flex;
+        transition: transform 150ms;
+    }
+
+    .spacer {
+        width: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .label-btn {
+        flex: 1 1 0%;
+        text-align: left;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        padding-block: 0.5rem;
+        padding-right: 0.75rem;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        background: transparent;
+        border: 0;
+        color: inherit;
+    }
+    .label-btn.active {
+        font-weight: 600;
+    }
+
+    .panel {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .panel.standalone {
+        height: 100%;
+        background-color: var(--color-base-200);
+        box-shadow: 0 25px 50px -12px #00000040;
+        z-index: 100;
+        transition: width 200ms;
+        border-left: 1px solid var(--color-base-300);
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-base-300);
+    }
+    .panel-header-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .panel-h2 {
+        font-weight: 700;
+        font-size: 1.125rem;
+        line-height: 1.75rem;
+    }
+
+    .tree {
+        display: flex;
+        flex-direction: column;
+    }
+    .tree.standalone {
+        flex: 1 1 0%;
+        overflow-y: auto;
+    }
+
+    .empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+    .empty.standalone {
+        flex: 1 1 0%;
+    }
+    .empty-text {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        opacity: 0.5;
+    }
+</style>

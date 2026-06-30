@@ -1,0 +1,47 @@
+/*
+ * Global base styles: scrollbars and OpenSeadragon background.
+ * (Token + theme definitions live in themes.css; element reset in preflight.css.)
+ */
+
+/* Thin, theme-aware scrollbars. Replaces the old DaisyUI --bc/--fallback-bc
+   references with the v5 token --color-base-content. */
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-base-content) 20%, transparent)
+        transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+    border-radius: 9999px;
+}
+
+/* Transparent canvas background mode for OpenSeadragon. */
+.osd-background,
+.osd-background .openseadragon-container {
+    background-color: transparent;
+}

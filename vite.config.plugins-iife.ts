@@ -2,7 +2,6 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import tailwindcss from '@tailwindcss/vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -48,7 +47,7 @@ if (!config) {
  *   PLUGIN_NAME=pdf-export vite build --config vite.config.plugins-iife.ts
  */
 export default defineConfig({
-    plugins: [svelte(), tailwindcss()],
+    plugins: [svelte()],
     build: {
         minify: true,
         lib: {

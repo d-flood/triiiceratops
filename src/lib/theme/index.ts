@@ -47,8 +47,8 @@
  */
 
 // Types
-export type { ThemeConfig, DaisyUITheme } from './types';
-export { DAISYUI_THEMES } from './types';
+export type { ThemeConfig, BuiltInTheme, DaisyUITheme } from './types';
+export { BUILTIN_THEMES, DAISYUI_THEMES } from './types';
 
 // Theme manager utilities
 export {

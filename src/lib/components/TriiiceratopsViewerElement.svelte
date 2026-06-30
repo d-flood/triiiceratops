@@ -175,7 +175,7 @@
 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
 {@html `<style>${styles}</style>`}
 
-<div bind:this={hostElement} class="w-full h-full">
+<div bind:this={hostElement} class="te-root">
     <TriiiceratopsViewer
         {manifestId}
         manifestJson={parsedManifestJson}
@@ -188,3 +188,10 @@
         bind:viewerState={internalViewerState}
     />
 </div>
+
+<style>
+    .te-root {
+        width: 100%;
+        height: 100%;
+    }
+</style>

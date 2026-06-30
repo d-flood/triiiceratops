@@ -2,6 +2,7 @@
     import { getContext } from 'svelte';
     import X from 'phosphor-svelte/lib/X';
     import Stack from 'phosphor-svelte/lib/Stack';
+    import { Button } from './ui';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
@@ -450,15 +451,12 @@
     <div
         bind:this={galleryElement}
         class={[
-            dockSide !== 'none' &&
-                'relative z-50 bg-base-100 shadow-xl border-base-300 flex transition-all duration-200 select-none w-full h-full',
-            dockSide === 'none' &&
-                'fixed z-900 bg-base-100 shadow-2xl flex flex-col border border-base-300 overflow-hidden select-none',
-            (dockSide === 'bottom' || dockSide === 'top') &&
-                'flex-row border-t',
-            (dockSide === 'left' || dockSide === 'right') &&
-                'flex-col border-x',
-            viewerState.isGalleryDragging && 'pointer-events-none opacity-80',
+            'gallery-root',
+            dockSide !== 'none' && 'docked',
+            dockSide === 'none' && 'floating',
+            (dockSide === 'bottom' || dockSide === 'top') && 'dock-horizontal',
+            (dockSide === 'left' || dockSide === 'right') && 'dock-vertical',
+            viewerState.isGalleryDragging && 'dragging',
         ]}
         style={dockSide !== 'none'
             ? ''
@@ -466,36 +464,39 @@
     >
         <!-- Close Button (show when enabled in config, regardless of dock state) -->
         {#if showCloseButton}
-            <button
-                class="absolute top-1 right-1 btn btn-error btn-xs btn-circle z-20"
+            <Button
+                variant="error"
+                size="xs"
+                circle
+                class="gallery-close"
                 onclick={() => viewerState.toggleThumbnailGallery()}
                 aria-label="Close Gallery"
             >
                 <X size={16} />
-            </button>
+            </Button>
         {/if}
 
         <!-- Header Area (only show drag handle when draggable OR when floating) -->
         {#if draggable || dockSide === 'none'}
             <div
                 class={[
-                    'bg-base-100 flex shrink-0 select-none relative',
+                    'gallery-header',
                     (dockSide === 'bottom' || dockSide === 'top') &&
-                        'flex-row h-full items-center border-r border-base-200',
+                        'header-horizontal',
                     dockSide !== 'bottom' &&
                         dockSide !== 'top' &&
-                        'flex-col w-full border-b border-base-200',
+                        'header-vertical',
                 ]}
             >
                 <!-- Drag Handle -->
                 <div
                     class={[
-                        'cursor-move flex items-center justify-center hover:bg-base-200/50 active:bg-base-200 transition-colors',
+                        'drag-handle',
                         (dockSide === 'bottom' || dockSide === 'top') &&
-                            'w-8 h-full',
+                            'handle-horizontal',
                         dockSide !== 'bottom' &&
                             dockSide !== 'top' &&
-                            'h-6 w-full',
+                            'handle-vertical',
                     ]}
                     onmousedown={startDrag}
                     role="button"
@@ -504,12 +505,12 @@
                 >
                     <div
                         class={[
-                            'bg-base-300 rounded-full',
+                            'drag-grip',
                             (dockSide === 'bottom' || dockSide === 'top') &&
-                                'w-1.5 h-12',
+                                'grip-horizontal',
                             dockSide !== 'bottom' &&
                                 dockSide !== 'top' &&
-                                'w-12 h-1.5',
+                                'grip-vertical',
                         ]}
                     ></div>
                 </div>
@@ -519,15 +520,16 @@
         <!-- Content (Grid or Horizontal Scroll) -->
         <div
             class={[
-                'flex-1 p-1 bg-base-100',
-                isHorizontal && 'overflow-x-auto overflow-y-hidden h-full',
-                !isHorizontal && 'overflow-y-auto overflow-x-hidden',
+                'gallery-content',
+                isHorizontal && 'content-horizontal',
+                !isHorizontal && 'content-vertical',
             ]}
         >
             <div
                 class={[
-                    isHorizontal && 'flex flex-row gap-2 h-full items-center',
-                    !isHorizontal && 'grid gap-2',
+                    'gallery-track',
+                    isHorizontal && 'track-horizontal',
+                    !isHorizontal && 'track-vertical',
                 ]}
                 style={isHorizontal
                     ? ''
@@ -550,12 +552,12 @@
                         })()}
                         <button
                             class={[
-                                'group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0 overflow-hidden',
-                                isHorizontal && 'w-auto',
+                                'thumb-item thumb-group',
+                                isHorizontal && 'thumb-horizontal',
                                 !isHorizontal &&
                                     thumbGroup.srcs.length > 1 &&
-                                    'col-span-2',
-                                isGroupSelected && 'bg-primary/5',
+                                    'span-2',
+                                isGroupSelected && 'selected',
                             ]}
                             style="{isHorizontal
                                 ? `height: ${fixedHeight + (thumbGroup.labels.length > 1 ? 40 : 24)}px;`
@@ -570,15 +572,15 @@
                         >
                             <div
                                 class={[
-                                    isHorizontal && 'h-full w-auto flex-row',
+                                    'thumb-frame',
+                                    isHorizontal && 'frame-horizontal',
                                     !isHorizontal &&
                                         thumbGroup.srcs.length > 1 &&
-                                        'aspect-3/2 w-full',
+                                        'frame-aspect-wide',
                                     !isHorizontal &&
                                         thumbGroup.srcs.length <= 1 &&
-                                        'aspect-3/4 w-full',
-                                    'bg-base-300 rounded overflow-hidden relative flex items-center justify-center gap-px',
-                                    isRTL && 'flex-row-reverse',
+                                        'frame-aspect-tall',
+                                    isRTL && 'frame-rtl',
                                 ]}
                                 style={isHorizontal
                                     ? `height: ${fixedHeight}px`
@@ -586,15 +588,15 @@
                             >
                                 <div
                                     class={[
-                                        'flex items-center justify-center overflow-hidden',
-                                        isHorizontal && 'h-full w-auto',
-                                        !isHorizontal && 'h-full',
+                                        'thumb-pane',
+                                        isHorizontal && 'pane-horizontal',
+                                        !isHorizontal && 'pane-full-height',
                                         !isHorizontal &&
                                             thumbGroup.srcs.length > 1 &&
-                                            'w-1/2',
+                                            'pane-half',
                                         !isHorizontal &&
                                             thumbGroup.srcs.length <= 1 &&
-                                            'w-full',
+                                            'pane-full',
                                     ]}
                                 >
                                     {#if thumbGroup.srcs[0]}
@@ -602,30 +604,28 @@
                                             src={thumbGroup.srcs[0]}
                                             alt={thumbGroup.labels[0]}
                                             class={[
-                                                'object-contain',
-                                                isHorizontal && 'h-full w-auto',
-                                                !isHorizontal &&
-                                                    'w-full h-full',
+                                                'thumb-img',
+                                                isHorizontal && 'img-horizontal',
+                                                !isHorizontal && 'img-fill',
                                                 thumbGroup.srcs.length > 1 &&
-                                                    'object-right',
+                                                    'img-right',
                                                 thumbGroup.srcs.length <= 1 &&
-                                                    'object-center',
+                                                    'img-center',
                                             ]}
                                             loading="lazy"
                                             draggable="false"
                                         />
                                     {:else}
-                                        <span class="opacity-20 text-4xl"
-                                            >?</span
-                                        >
+                                        <span class="thumb-placeholder">?</span>
                                     {/if}
                                 </div>
                                 {#if thumbGroup.srcs.length > 1}
                                     <div
                                         class={[
-                                            'flex items-center justify-center overflow-hidden',
-                                            isHorizontal && 'h-full w-auto',
-                                            !isHorizontal && 'h-full w-1/2',
+                                            'thumb-pane',
+                                            isHorizontal && 'pane-horizontal',
+                                            !isHorizontal &&
+                                                'pane-full-height pane-half',
                                         ]}
                                     >
                                         {#if thumbGroup.srcs[1]}
@@ -633,17 +633,16 @@
                                                 src={thumbGroup.srcs[1]}
                                                 alt={thumbGroup.labels[1]}
                                                 class={[
-                                                    'object-contain object-left',
+                                                    'thumb-img img-left',
                                                     isHorizontal &&
-                                                        'h-full w-auto',
-                                                    !isHorizontal &&
-                                                        'w-full h-full',
+                                                        'img-horizontal',
+                                                    !isHorizontal && 'img-fill',
                                                 ]}
                                                 loading="lazy"
                                                 draggable="false"
                                             />
                                         {:else}
-                                            <span class="opacity-20 text-4xl"
+                                            <span class="thumb-placeholder"
                                                 >?</span
                                             >
                                         {/if}
@@ -652,39 +651,39 @@
                             </div>
                             <div
                                 class={[
-                                    'text-xs font-medium opacity-70 group-hover:opacity-100 overflow-hidden',
-                                    isHorizontal && 'w-0 min-w-full',
-                                    !isHorizontal && 'w-full',
+                                    'thumb-label',
+                                    isHorizontal && 'label-horizontal',
+                                    !isHorizontal && 'label-vertical',
                                 ]}
                                 title="{thumbGroup.index + 1}. {thumbGroup
                                     .labels[0]}{thumbGroup.labels.length > 1
                                     ? ` / ${thumbGroup.index + 2}. ${thumbGroup.labels[1]}`
                                     : ''}"
                             >
-                                <div class="truncate">
-                                    <span class="font-bold mr-1"
+                                <div class="label-line">
+                                    <span class="label-num"
                                         >{thumbGroup.index + 1}.</span
                                     >{thumbGroup
                                         .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
-                                            class="ml-1 inline-flex items-center align-middle"
+                                            class="choice-badge"
                                             title="Has choices/layers"
                                             ><Stack
                                                 size={12}
-                                                class="opacity-70"
+                                                class="choice-icon"
                                             /></span
                                         >{/if}
                                 </div>
                                 {#if thumbGroup.labels.length > 1}
-                                    <div class="truncate">
-                                        <span class="font-bold mr-1"
+                                    <div class="label-line">
+                                        <span class="label-num"
                                             >{thumbGroup.index + 2}.</span
                                         >{thumbGroup
                                             .labels[1]}{#if thumbGroup.hasChoice}<span
-                                                class="ml-1 inline-flex items-center align-middle"
+                                                class="choice-badge"
                                                 title="Has choices/layers"
                                                 ><Stack
                                                     size={12}
-                                                    class="opacity-70"
+                                                    class="choice-icon"
                                                 /></span
                                             >{/if}
                                     </div>
@@ -696,10 +695,9 @@
                     {#each thumbnails as thumb (thumb.id)}
                         <button
                             class={[
-                                'group flex flex-col gap-1 p-1 rounded hover:bg-base-200 transition-colors text-left relative shrink-0',
-                                isHorizontal && 'w-auto',
-                                viewerState.canvasId === thumb.id &&
-                                    'bg-primary/5',
+                                'thumb-item',
+                                isHorizontal && 'thumb-horizontal',
+                                viewerState.canvasId === thumb.id && 'selected',
                             ]}
                             style="{isHorizontal
                                 ? `height: ${fixedHeight + 24}px;`
@@ -712,9 +710,9 @@
                         >
                             <div
                                 class={[
-                                    isHorizontal && 'h-full w-auto',
-                                    !isHorizontal && 'aspect-3/4 w-full',
-                                    'bg-base-300 rounded overflow-hidden relative flex items-center justify-center',
+                                    'thumb-frame',
+                                    isHorizontal && 'frame-horizontal',
+                                    !isHorizontal && 'frame-aspect-tall',
                                 ]}
                                 style={isHorizontal
                                     ? `height: ${fixedHeight}px`
@@ -725,30 +723,26 @@
                                         src={thumb.src}
                                         alt={thumb.label}
                                         class={[
-                                            'object-contain',
-                                            isHorizontal && 'h-full w-auto',
-                                            !isHorizontal && 'w-full h-full',
+                                            'thumb-img',
+                                            isHorizontal && 'img-horizontal',
+                                            !isHorizontal && 'img-fill',
                                         ]}
                                         loading="lazy"
                                         draggable="false"
                                     />
                                 {:else}
-                                    <span class="opacity-20 text-4xl">?</span>
+                                    <span class="thumb-placeholder">?</span>
                                 {/if}
                             </div>
-                            <div
-                                class="text-xs font-medium truncate w-full opacity-70 group-hover:opacity-100"
-                            >
-                                <span class="font-bold mr-1"
-                                    >{thumb.index + 1}.</span
-                                >
+                            <div class="thumb-label label-simple">
+                                <span class="label-num">{thumb.index + 1}.</span>
                                 {thumb.label}
                                 {#if thumb.hasChoice}
                                     <span
-                                        class="ml-1 inline-flex items-center"
+                                        class="choice-badge choice-badge-simple"
                                         title="Has choices/layers"
                                     >
-                                        <Stack size={12} class="opacity-70" />
+                                        <Stack size={12} class="choice-icon" />
                                     </span>
                                 {/if}
                             </div>
@@ -761,7 +755,7 @@
         <!-- Resize Handle -->
         {#if dockSide === 'none'}
             <div
-                class="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize resize-handle bg-accent hover:bg-accent-focus transition-colors z-50"
+                class="resize-handle"
                 style="clip-path: polygon(100% 0, 0 100%, 100% 100%);"
                 onmousedown={startResize}
                 role="button"
@@ -776,40 +770,38 @@
         <!-- Top -->
         <div
             class={[
-                'absolute top-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200',
-                viewerState.dragOverSide === 'top' && 'bg-primary/20 scale-105',
-                viewerState.dragOverSide !== 'top' && 'bg-base-100/50',
+                'drop-zone drop-top',
+                viewerState.dragOverSide === 'top' && 'drop-active',
+                viewerState.dragOverSide !== 'top' && 'drop-idle',
             ]}
             role="group"
         >
-            <span class="font-bold text-primary opacity-50">Dock Top</span>
+            <span class="drop-label">Dock Top</span>
         </div>
 
         <!-- Bottom -->
         <div
             class={[
-                'absolute bottom-2 left-2 right-2 h-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200',
-                viewerState.dragOverSide === 'bottom' &&
-                    'bg-primary/20 scale-105',
-                viewerState.dragOverSide !== 'bottom' && 'bg-base-100/50',
+                'drop-zone drop-bottom',
+                viewerState.dragOverSide === 'bottom' && 'drop-active',
+                viewerState.dragOverSide !== 'bottom' && 'drop-idle',
             ]}
             role="group"
         >
-            <span class="font-bold text-primary opacity-50">Dock Bottom</span>
+            <span class="drop-label">Dock Bottom</span>
         </div>
 
         <!-- Left -->
         <div
             class={[
-                'absolute top-2 bottom-2 left-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-200',
-                viewerState.dragOverSide === 'left' &&
-                    'bg-primary/20 scale-105',
-                viewerState.dragOverSide !== 'left' && 'bg-base-100/50',
+                'drop-zone drop-left',
+                viewerState.dragOverSide === 'left' && 'drop-active',
+                viewerState.dragOverSide !== 'left' && 'drop-idle',
             ]}
             role="group"
         >
             <span
-                class="font-bold text-primary opacity-50 vertical-rl rotate-180"
+                class="drop-label drop-label-vertical"
                 style="writing-mode: vertical-rl;">Dock Left</span
             >
         </div>
@@ -817,17 +809,419 @@
         <!-- Right -->
         <div
             class={[
-                'absolute top-2 bottom-2 right-2 w-16 rounded-xl border-4 border-dashed border-primary/40 z-999 pointer-events-none flex items-center justify-center transition-all duration-300',
-                viewerState.dragOverSide === 'right' &&
-                    'bg-primary/20 scale-105',
-                viewerState.dragOverSide !== 'right' && 'bg-base-100/50',
+                'drop-zone drop-right',
+                viewerState.dragOverSide === 'right' && 'drop-active',
+                viewerState.dragOverSide !== 'right' && 'drop-idle',
             ]}
             role="group"
         >
             <span
-                class="font-bold text-primary opacity-50 vertical-rl rotate-180"
+                class="drop-label drop-label-vertical"
                 style="writing-mode: vertical-rl;">Dock Right</span
             >
         </div>
     {/if}
 {/if}
+
+<style>
+    /* ===== Root floating / docked window ===== */
+    .gallery-root {
+        display: flex;
+        user-select: none;
+        background-color: var(--color-base-100);
+    }
+    .gallery-root.docked {
+        position: relative;
+        z-index: 50;
+        width: 100%;
+        height: 100%;
+        box-shadow:
+            0 20px 25px -5px #0000001a,
+            0 8px 10px -6px #0000001a;
+        border-color: var(--color-base-300);
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.2s;
+    }
+    .gallery-root.floating {
+        position: fixed;
+        z-index: 900;
+        flex-direction: column;
+        overflow: hidden;
+        border-width: 1px;
+        border-style: solid;
+        border-color: var(--color-base-300);
+        box-shadow:
+            0 25px 50px -12px #00000040;
+    }
+    .gallery-root.dock-horizontal {
+        flex-direction: row;
+        border-top-width: 1px;
+        border-top-style: solid;
+    }
+    .gallery-root.dock-vertical {
+        flex-direction: column;
+        border-left-width: 1px;
+        border-left-style: solid;
+        border-right-width: 1px;
+        border-right-style: solid;
+    }
+    .gallery-root.dragging {
+        pointer-events: none;
+        opacity: 0.8;
+    }
+
+    /* ===== Close button (positioning passed through to <Button>) ===== */
+    .gallery-root :global(.gallery-close) {
+        position: absolute;
+        top: 0.25rem;
+        right: 0.25rem;
+        z-index: 20;
+    }
+
+    /* ===== Header / drag handle ===== */
+    .gallery-header {
+        display: flex;
+        flex-shrink: 0;
+        position: relative;
+        user-select: none;
+        background-color: var(--color-base-100);
+    }
+    .gallery-header.header-horizontal {
+        flex-direction: row;
+        height: 100%;
+        align-items: center;
+        border-right-width: 1px;
+        border-right-style: solid;
+        border-right-color: var(--color-base-200);
+    }
+    .gallery-header.header-vertical {
+        flex-direction: column;
+        width: 100%;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--color-base-200);
+    }
+
+    .drag-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: move;
+        transition-property: color, background-color, border-color,
+            text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+    }
+    .drag-handle:hover {
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-200) 50%,
+            transparent
+        );
+    }
+    .drag-handle:active {
+        background-color: var(--color-base-200);
+    }
+    .drag-handle.handle-horizontal {
+        width: 2rem;
+        height: 100%;
+    }
+    .drag-handle.handle-vertical {
+        height: 1.5rem;
+        width: 100%;
+    }
+
+    .drag-grip {
+        background-color: var(--color-base-300);
+        border-radius: calc(infinity * 1px);
+    }
+    .drag-grip.grip-horizontal {
+        width: 0.375rem;
+        height: 3rem;
+    }
+    .drag-grip.grip-vertical {
+        width: 3rem;
+        height: 0.375rem;
+    }
+
+    /* ===== Content scroll area ===== */
+    .gallery-content {
+        flex: 1 1 0%;
+        padding: 0.25rem;
+        background-color: var(--color-base-100);
+    }
+    .gallery-content.content-horizontal {
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 100%;
+    }
+    .gallery-content.content-vertical {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .gallery-track.track-horizontal {
+        display: flex;
+        flex-direction: row;
+        gap: 0.5rem;
+        height: 100%;
+        align-items: center;
+    }
+    .gallery-track.track-vertical {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    /* ===== Thumbnail item (button) ===== */
+    .thumb-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        border-radius: 0.25rem;
+        text-align: left;
+        position: relative;
+        flex-shrink: 0;
+        transition-property: color, background-color, border-color,
+            text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+    }
+    .thumb-item.thumb-group {
+        overflow: hidden;
+    }
+    .thumb-item:hover {
+        background-color: var(--color-base-200);
+    }
+    .thumb-item.thumb-horizontal {
+        width: auto;
+    }
+    .thumb-item.span-2 {
+        grid-column: span 2 / span 2;
+    }
+    .thumb-item.selected {
+        background-color: color-mix(
+            in oklab,
+            var(--color-primary) 5%,
+            transparent
+        );
+    }
+
+    /* ===== Thumbnail frame (image container) ===== */
+    .thumb-frame {
+        background-color: var(--color-base-300);
+        border-radius: 0.25rem;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+    }
+    .thumb-frame.frame-horizontal {
+        height: 100%;
+        width: auto;
+        flex-direction: row;
+    }
+    .thumb-frame.frame-aspect-wide {
+        aspect-ratio: 3 / 2;
+        width: 100%;
+    }
+    .thumb-frame.frame-aspect-tall {
+        aspect-ratio: 3 / 4;
+        width: 100%;
+    }
+    .thumb-frame.frame-rtl {
+        flex-direction: row-reverse;
+    }
+
+    /* ===== Pane (single image slot inside a frame) ===== */
+    .thumb-pane {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .thumb-pane.pane-horizontal {
+        height: 100%;
+        width: auto;
+    }
+    .thumb-pane.pane-full-height {
+        height: 100%;
+    }
+    .thumb-pane.pane-half {
+        width: 50%;
+    }
+    .thumb-pane.pane-full {
+        width: 100%;
+    }
+
+    /* ===== Thumbnail image ===== */
+    .thumb-img {
+        object-fit: contain;
+    }
+    .thumb-img.img-horizontal {
+        height: 100%;
+        width: auto;
+    }
+    .thumb-img.img-fill {
+        width: 100%;
+        height: 100%;
+    }
+    .thumb-img.img-right {
+        object-position: right;
+    }
+    .thumb-img.img-center {
+        object-position: center;
+    }
+    .thumb-img.img-left {
+        object-position: left;
+    }
+
+    .thumb-placeholder {
+        opacity: 0.2;
+        font-size: 2.25rem;
+        line-height: 2.5rem;
+    }
+
+    /* ===== Thumbnail label ===== */
+    .thumb-label {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 500;
+        opacity: 0.7;
+    }
+    .thumb-item:hover .thumb-label {
+        opacity: 1;
+    }
+    .thumb-label.label-horizontal {
+        width: 0;
+        min-width: 100%;
+        overflow: hidden;
+    }
+    .thumb-label.label-vertical {
+        width: 100%;
+        overflow: hidden;
+    }
+    .thumb-label.label-simple {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .label-line {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .label-num {
+        font-weight: 700;
+        margin-right: 0.25rem;
+    }
+
+    .choice-badge {
+        margin-left: 0.25rem;
+        display: inline-flex;
+        align-items: center;
+        vertical-align: middle;
+    }
+    .choice-badge.choice-badge-simple {
+        vertical-align: baseline;
+    }
+    .choice-badge :global(.choice-icon) {
+        opacity: 0.7;
+    }
+
+    /* ===== Resize handle ===== */
+    .resize-handle {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 1.5rem;
+        height: 1.5rem;
+        cursor: se-resize;
+        z-index: 50;
+        background-color: var(--color-accent);
+        transition-property: color, background-color, border-color,
+            text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+    }
+    .resize-handle:hover {
+        background-color: var(--color-accent);
+    }
+
+    /* ===== Drop zones ===== */
+    .drop-zone {
+        position: absolute;
+        z-index: 999;
+        border-radius: 0.75rem;
+        border-width: 4px;
+        border-style: dashed;
+        border-color: color-mix(
+            in oklab,
+            var(--color-primary) 40%,
+            transparent
+        );
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.2s;
+    }
+    .drop-zone.drop-right {
+        transition-duration: 0.3s;
+    }
+    .drop-top {
+        top: 0.5rem;
+        left: 0.5rem;
+        right: 0.5rem;
+        height: 4rem;
+    }
+    .drop-bottom {
+        bottom: 0.5rem;
+        left: 0.5rem;
+        right: 0.5rem;
+        height: 4rem;
+    }
+    .drop-left {
+        top: 0.5rem;
+        bottom: 0.5rem;
+        left: 0.5rem;
+        width: 4rem;
+    }
+    .drop-right {
+        top: 0.5rem;
+        bottom: 0.5rem;
+        right: 0.5rem;
+        width: 4rem;
+    }
+    .drop-zone.drop-active {
+        background-color: color-mix(
+            in oklab,
+            var(--color-primary) 20%,
+            transparent
+        );
+        transform: scale(1.05);
+    }
+    .drop-zone.drop-idle {
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-100) 50%,
+            transparent
+        );
+    }
+
+    .drop-label {
+        font-weight: 700;
+        color: var(--color-primary);
+        opacity: 0.5;
+    }
+    .drop-label-vertical {
+        transform: rotate(180deg);
+    }
+</style>

@@ -900,16 +900,14 @@
 </script>
 
 <div
-    class="w-full h-full relative"
+    class="viewer-root"
     onpointermove={updateReadonlyTooltip}
     onpointerleave={clearReadonlyTooltip}
 >
     <div
         bind:this={container}
-        class="w-full h-full osd-background {viewerState.config
-            .transparentBackground
-            ? ''
-            : 'bg-base-100'}"
+        class="osd-surface osd-background"
+        class:has-bg={!viewerState.config.transparentBackground}
     ></div>
 
     <!-- Render annotations -->
@@ -921,13 +919,10 @@
                         type="button"
                         id="annotation-visual-{anno.id}"
                         data-annotation-id={anno.annotationId}
-                        class="absolute border-2 transition-colors cursor-pointer pointer-events-auto {shouldShowOverlayTooltip(
-                            anno,
-                        )
-                            ? 'tooltip tooltip-primary '
-                            : ''}{anno.isSearchHit
-                            ? 'border-yellow-400 bg-yellow-400/40 hover:bg-yellow-400/60'
-                            : 'border-red-500 bg-red-500/20 hover:bg-red-500/40'}"
+                        class="anno-rect"
+                        class:tooltip={shouldShowOverlayTooltip(anno)}
+                        class:tooltip-primary={shouldShowOverlayTooltip(anno)}
+                        class:search-hit={anno.isSearchHit}
                         data-tip={shouldShowOverlayTooltip(anno)
                             ? anno.tooltip
                             : undefined}
@@ -950,7 +945,7 @@
                     <div
                         id="annotation-visual-{anno.id}"
                         data-annotation-id={anno.annotationId}
-                        class="absolute pointer-events-none"
+                        class="anno-readonly-wrap"
                         style="
           left: {anno.rect.x}px;
           top: {anno.rect.y}px;
@@ -959,13 +954,9 @@
                  "
                     >
                         <div
-                            class="pointer-events-none absolute inset-0 border-2 transition-colors {anno.isSearchHit
-                                ? readonlyTooltip?.id === anno.id
-                                    ? 'border-yellow-400 bg-yellow-400/60'
-                                    : 'border-yellow-400 bg-yellow-400/40'
-                                : readonlyTooltip?.id === anno.id
-                                  ? 'border-red-500 bg-red-500/40'
-                                  : 'border-red-500 bg-red-500/20'}"
+                            class="anno-rect-fill"
+                            class:search-hit={anno.isSearchHit}
+                            class:hovered={readonlyTooltip?.id === anno.id}
                         ></div>
                     </div>
                 {/if}
@@ -975,11 +966,9 @@
                         type="button"
                         id="annotation-visual-{anno.id}"
                         data-annotation-id={anno.annotationId}
-                        class="absolute pointer-events-auto border-0 bg-transparent p-0 {shouldShowOverlayTooltip(
-                            anno,
-                        )
-                            ? 'tooltip tooltip-primary'
-                            : ''}"
+                        class="anno-polygon-btn"
+                        class:tooltip={shouldShowOverlayTooltip(anno)}
+                        class:tooltip-primary={shouldShowOverlayTooltip(anno)}
                         data-tip={shouldShowOverlayTooltip(anno)
                             ? anno.tooltip
                             : undefined}
@@ -998,14 +987,13 @@
                                 event,
                             )}
                     >
-                        <svg class="absolute inset-0 h-full w-full">
+                        <svg class="anno-polygon-svg">
                             <polygon
                                 points={anno.points
                                     .map((p: any) => p.join(','))
                                     .join(' ')}
-                                class="cursor-pointer transition-colors {anno.isSearchHit
-                                    ? 'fill-yellow-400/40 stroke-yellow-400 hover:fill-yellow-400/60'
-                                    : 'fill-red-500/20 stroke-red-500 hover:fill-red-500/40'}"
+                                class="anno-polygon-shape interactive"
+                                class:search-hit={anno.isSearchHit}
                                 stroke-width="2"
                             />
                         </svg>
@@ -1014,7 +1002,7 @@
                     <div
                         id="annotation-visual-{anno.id}"
                         data-annotation-id={anno.annotationId}
-                        class="absolute pointer-events-none"
+                        class="anno-readonly-wrap"
                         style="
           left: {anno.bounds.x}px;
           top: {anno.bounds.y}px;
@@ -1022,20 +1010,14 @@
           height: {anno.bounds.height}px;
         "
                     >
-                        <svg
-                            class="pointer-events-none absolute inset-0 h-full w-full"
-                        >
+                        <svg class="anno-polygon-svg readonly">
                             <polygon
                                 points={anno.points
                                     .map((p: any) => p.join(','))
                                     .join(' ')}
-                                class="transition-colors {anno.isSearchHit
-                                    ? readonlyTooltip?.id === anno.id
-                                        ? 'fill-yellow-400/60 stroke-yellow-400'
-                                        : 'fill-yellow-400/40 stroke-yellow-400'
-                                    : readonlyTooltip?.id === anno.id
-                                      ? 'fill-red-500/40 stroke-red-500'
-                                      : 'fill-red-500/20 stroke-red-500'}"
+                                class="anno-polygon-shape"
+                                class:search-hit={anno.isSearchHit}
+                                class:hovered={readonlyTooltip?.id === anno.id}
                                 stroke-width="2"
                             />
                         </svg>
@@ -1047,13 +1029,10 @@
                         type="button"
                         id="annotation-visual-{anno.id}"
                         data-annotation-id={anno.annotationId}
-                        class="absolute rounded-full border-2 transition-colors cursor-pointer pointer-events-auto {shouldShowOverlayTooltip(
-                            anno,
-                        )
-                            ? 'tooltip tooltip-primary '
-                            : ''}{anno.isSearchHit
-                            ? 'border-yellow-400 bg-yellow-400 hover:bg-yellow-400/80'
-                            : 'border-red-500 bg-red-500 hover:bg-red-500/80'}"
+                        class="anno-point"
+                        class:tooltip={shouldShowOverlayTooltip(anno)}
+                        class:tooltip-primary={shouldShowOverlayTooltip(anno)}
+                        class:search-hit={anno.isSearchHit}
                         data-tip={shouldShowOverlayTooltip(anno)
                             ? anno.tooltip
                             : undefined}
@@ -1076,7 +1055,7 @@
                     <div
                         id="annotation-visual-{anno.id}"
                         data-annotation-id={anno.annotationId}
-                        class="absolute pointer-events-none"
+                        class="anno-readonly-wrap"
                         style="
 		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
 		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
@@ -1085,13 +1064,9 @@
 		"
                     >
                         <div
-                            class="pointer-events-none absolute inset-0 rounded-full border-2 transition-colors {anno.isSearchHit
-                                ? readonlyTooltip?.id === anno.id
-                                    ? 'border-yellow-400 bg-yellow-400/80'
-                                    : 'border-yellow-400 bg-yellow-400'
-                                : readonlyTooltip?.id === anno.id
-                                  ? 'border-red-500 bg-red-500/80'
-                                  : 'border-red-500 bg-red-500'}"
+                            class="anno-point-fill"
+                            class:search-hit={anno.isSearchHit}
+                            class:hovered={readonlyTooltip?.id === anno.id}
                         ></div>
                     </div>
                 {/if}
@@ -1101,16 +1076,367 @@
 
     {#if readonlyTooltip}
         <div
-            class={[
-                'tooltip tooltip-open tooltip-primary fixed z-50 pointer-events-none',
-                readonlyTooltip.side === 'top' && 'tooltip-top',
-                readonlyTooltip.side === 'bottom' && 'tooltip-bottom',
-                readonlyTooltip.side === 'left' && 'tooltip-left',
-                readonlyTooltip.side === 'right' && 'tooltip-right',
-            ]}
+            class="tooltip tooltip-open tooltip-primary readonly-tooltip"
+            class:place-top={readonlyTooltip.side === 'top'}
+            class:place-bottom={readonlyTooltip.side === 'bottom'}
+            class:place-left={readonlyTooltip.side === 'left'}
+            class:place-right={readonlyTooltip.side === 'right'}
             data-tip={readonlyTooltip.text}
             aria-hidden="true"
             style="left: {readonlyTooltip.x}px; top: {readonlyTooltip.y}px; width: 0; height: 0;"
         ></div>
     {/if}
 </div>
+
+<style>
+    /* Color tokens (Tailwind v4 defaults) used by annotation overlays */
+    .anno-rect,
+    .anno-readonly-wrap,
+    .anno-rect-fill,
+    .anno-point,
+    .anno-point-fill,
+    .anno-polygon-shape {
+        --anno-red: oklch(63.7% 0.237 25.331);
+        --anno-yellow: oklch(85.2% 0.199 91.936);
+    }
+
+    .viewer-root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+    .osd-surface {
+        width: 100%;
+        height: 100%;
+    }
+
+    .osd-surface.has-bg {
+        background-color: var(--color-base-100);
+    }
+
+    /* Shared transition for annotation color changes (transition-colors) */
+    .anno-rect,
+    .anno-rect-fill,
+    .anno-point,
+    .anno-point-fill,
+    .anno-polygon-shape {
+        transition-property: color, background-color, border-color,
+            text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+    }
+
+    /* Editable rectangle overlay (a real <button>) */
+    .anno-rect {
+        position: absolute;
+        border-width: 2px;
+        border-style: solid;
+        cursor: pointer;
+        pointer-events: auto;
+        border-color: var(--anno-red);
+        background-color: color-mix(
+            in oklab,
+            var(--anno-red) 20%,
+            transparent
+        );
+    }
+    .anno-rect.search-hit {
+        border-color: var(--anno-yellow);
+        background-color: color-mix(
+            in oklab,
+            var(--anno-yellow) 40%,
+            transparent
+        );
+    }
+    .anno-rect:hover {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-red) 40%,
+            transparent
+        );
+    }
+    .anno-rect.search-hit:hover {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-yellow) 60%,
+            transparent
+        );
+    }
+
+    /* Read-only overlay wrapper (positions the fill) */
+    .anno-readonly-wrap {
+        position: absolute;
+        pointer-events: none;
+    }
+
+    /* Read-only rectangle fill */
+    .anno-rect-fill {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        border-width: 2px;
+        border-style: solid;
+        border-color: var(--anno-red);
+        background-color: color-mix(
+            in oklab,
+            var(--anno-red) 20%,
+            transparent
+        );
+    }
+    .anno-rect-fill.hovered {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-red) 40%,
+            transparent
+        );
+    }
+    .anno-rect-fill.search-hit {
+        border-color: var(--anno-yellow);
+        background-color: color-mix(
+            in oklab,
+            var(--anno-yellow) 40%,
+            transparent
+        );
+    }
+    .anno-rect-fill.search-hit.hovered {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-yellow) 60%,
+            transparent
+        );
+    }
+
+    /* Editable polygon overlay (a real <button>) */
+    .anno-polygon-btn {
+        position: absolute;
+        pointer-events: auto;
+        border-width: 0;
+        background-color: transparent;
+        padding: 0;
+    }
+
+    .anno-polygon-svg {
+        position: absolute;
+        inset: 0;
+        height: 100%;
+        width: 100%;
+    }
+    .anno-polygon-svg.readonly {
+        pointer-events: none;
+    }
+
+    .anno-polygon-shape {
+        fill: color-mix(in oklab, var(--anno-red) 20%, transparent);
+        stroke: var(--anno-red);
+    }
+    .anno-polygon-shape.search-hit {
+        fill: color-mix(in oklab, var(--anno-yellow) 40%, transparent);
+        stroke: var(--anno-yellow);
+    }
+    .anno-polygon-shape.hovered {
+        fill: color-mix(in oklab, var(--anno-red) 40%, transparent);
+    }
+    .anno-polygon-shape.search-hit.hovered {
+        fill: color-mix(in oklab, var(--anno-yellow) 60%, transparent);
+    }
+    .anno-polygon-shape.interactive {
+        cursor: pointer;
+    }
+    .anno-polygon-shape.interactive:hover {
+        fill: color-mix(in oklab, var(--anno-red) 40%, transparent);
+    }
+    .anno-polygon-shape.interactive.search-hit:hover {
+        fill: color-mix(in oklab, var(--anno-yellow) 60%, transparent);
+    }
+
+    /* Editable point overlay (a real <button>) */
+    .anno-point {
+        position: absolute;
+        border-radius: calc(infinity * 1px);
+        border-width: 2px;
+        border-style: solid;
+        cursor: pointer;
+        pointer-events: auto;
+        border-color: var(--anno-red);
+        background-color: var(--anno-red);
+    }
+    .anno-point.search-hit {
+        border-color: var(--anno-yellow);
+        background-color: var(--anno-yellow);
+    }
+    .anno-point:hover {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-red) 80%,
+            transparent
+        );
+    }
+    .anno-point.search-hit:hover {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-yellow) 80%,
+            transparent
+        );
+    }
+
+    /* Read-only point fill */
+    .anno-point-fill {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        border-radius: calc(infinity * 1px);
+        border-width: 2px;
+        border-style: solid;
+        border-color: var(--anno-red);
+        background-color: var(--anno-red);
+    }
+    .anno-point-fill.hovered {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-red) 80%,
+            transparent
+        );
+    }
+    .anno-point-fill.search-hit {
+        border-color: var(--anno-yellow);
+        background-color: var(--anno-yellow);
+    }
+    .anno-point-fill.search-hit.hovered {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-yellow) 80%,
+            transparent
+        );
+    }
+
+    /* Fixed read-only tooltip anchor */
+    .readonly-tooltip {
+        position: fixed;
+        z-index: 50;
+        pointer-events: none;
+    }
+
+    /* DaisyUI tooltip reproduction (matches src/lib/components/ui/Tooltip.svelte) */
+    .tooltip {
+        --tt-bg: var(--color-neutral);
+        --tt-fg: var(--color-neutral-content);
+        --tt-off: calc(100% + 0.5rem);
+        --tt-tail: calc(100% + 1px + 0.25rem);
+        display: inline-block;
+        position: relative;
+    }
+
+    .tooltip-primary {
+        --tt-bg: var(--color-primary);
+        --tt-fg: var(--color-primary-content);
+    }
+
+    .tooltip[data-tip]:not([data-tip=''])::before {
+        border-radius: var(--radius-field);
+        text-align: center;
+        white-space: normal;
+        max-width: 20rem;
+        color: var(--tt-fg);
+        opacity: 0;
+        background-color: var(--tt-bg);
+        pointer-events: none;
+        z-index: 2;
+        content: attr(data-tip);
+        width: max-content;
+        padding-block: 0.25rem;
+        padding-inline: 0.5rem;
+        font-size: 0.875rem;
+        line-height: 1.25;
+        position: absolute;
+    }
+
+    .tooltip[data-tip]:not([data-tip=''])::after {
+        opacity: 0;
+        background-color: var(--tt-bg);
+        content: '';
+        pointer-events: none;
+        --mask-tooltip: url("data:image/svg+xml,%3Csvg width='10' height='4' viewBox='0 0 8 4' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0.500009 1C3.5 1 3.00001 4 5.00001 4C7 4 6.5 1 9.5 1C10 1 10 0.499897 10 0H0C-1.99338e-08 0.5 0 1 0.500009 1Z' fill='black'/%3E%3C/svg%3E%0A");
+        width: 0.625rem;
+        height: 0.25rem;
+        mask-position: -1px 0;
+        mask-repeat: no-repeat;
+        mask-image: var(--mask-tooltip);
+        display: block;
+        position: absolute;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .tooltip[data-tip]::before,
+        .tooltip[data-tip]::after {
+            transition:
+                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms,
+                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms;
+        }
+    }
+
+    .tooltip[data-tip]:not([data-tip='']):hover::before,
+    .tooltip[data-tip]:not([data-tip='']):hover::after,
+    .tooltip[data-tip]:not([data-tip='']):has(:global(:focus-visible))::before,
+    .tooltip[data-tip]:not([data-tip='']):has(:global(:focus-visible))::after,
+    .tooltip-open[data-tip]:not([data-tip=''])::before,
+    .tooltip-open[data-tip]:not([data-tip=''])::after {
+        opacity: 1;
+        --tt-pos: 0rem;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .tooltip[data-tip]:not([data-tip='']):hover::before,
+        .tooltip[data-tip]:not([data-tip='']):hover::after,
+        .tooltip[data-tip]:not([data-tip='']):has(
+                :global(:focus-visible)
+            )::before,
+        .tooltip[data-tip]:not([data-tip='']):has(
+                :global(:focus-visible)
+            )::after {
+            transition:
+                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    }
+
+    /* Default placement is top (DaisyUI default when no side specified) */
+    .tooltip::before,
+    .tooltip.place-top::before {
+        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
+        inset: auto auto var(--tt-off) 50%;
+    }
+    .tooltip::after,
+    .tooltip.place-top::after {
+        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
+        inset: auto auto var(--tt-tail) 50%;
+    }
+    .tooltip.place-bottom::before {
+        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem));
+        inset: var(--tt-off) auto auto 50%;
+    }
+    .tooltip.place-bottom::after {
+        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem))
+            rotate(180deg);
+        inset: var(--tt-tail) auto auto 50%;
+    }
+    .tooltip.place-left::before {
+        transform: translateX(calc(var(--tt-pos, 0.25rem) - 0.25rem))
+            translateY(-50%);
+        inset: 50% var(--tt-off) auto auto;
+    }
+    .tooltip.place-left::after {
+        transform: translateX(var(--tt-pos, 0.25rem)) translateY(-50%)
+            rotate(-90deg);
+        inset: 50% calc(var(--tt-tail) + 1px) auto auto;
+    }
+    .tooltip.place-right::before {
+        transform: translateX(calc(var(--tt-pos, -0.25rem) + 0.25rem))
+            translateY(-50%);
+        inset: 50% auto auto var(--tt-off);
+    }
+    .tooltip.place-right::after {
+        transform: translateX(var(--tt-pos, -0.25rem)) translateY(-50%)
+            rotate(90deg);
+        inset: 50% auto auto calc(var(--tt-tail) + 1px);
+    }
+</style>

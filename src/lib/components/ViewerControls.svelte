@@ -18,6 +18,7 @@
         type ChoiceGroup,
     } from './viewerControls';
     import CanvasInfoPopover from './CanvasInfoPopover.svelte';
+    import { Button, Select } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let viewerLocale = $derived(
@@ -116,13 +117,13 @@
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
-    <div class="flex items-center gap-1">
-        <div class="px-1 text-xs font-bold opacity-50 flex items-center">
+    <div class="choice-controls">
+        <div class="choice-stack">
             <Stack size={14} />
         </div>
 
         {#if group.choices.length <= 4}
-            <div class="join hidden sm:flex">
+            <div class="join join-desktop">
                 {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                     {@const id = choice.id || choice['@id']}
                     {@const label = getChoiceLabel(choice, i)}
@@ -134,46 +135,53 @@
                     {@const isSelected = group.selectedChoiceId
                         ? group.selectedChoiceId === id
                         : i === 0}
-                    <button
-                        class="join-item btn btn-xs {isSelected
-                            ? 'btn-primary'
-                            : 'btn-ghost'}"
+                    <Button
+                        class="join-item"
+                        size="xs"
+                        variant={isSelected ? 'primary' : 'default'}
+                        ghost={!isSelected}
                         onclick={() => selectChoice(group.canvasId, choice)}
                         aria-pressed={isSelected}
                         aria-label={label}
                         title={abbreviated ? label : undefined}
                     >
                         {displayLabel}
-                    </button>
+                    </Button>
                 {/each}
             </div>
         {:else}
-            <select
-                class="select select-bordered select-xs rounded-full max-w-xs hidden sm:flex"
-                onchange={(e) => {
-                    const idx = e.currentTarget.selectedIndex;
-                    if (idx >= 0)
-                        selectChoice(group.canvasId, group.choices[idx]);
-                }}
-            >
-                {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
-                    {@const id = choice.id || choice['@id']}
-                    {@const displayLabel = getChoiceDisplayLabel(
-                        choice,
-                        i,
-                        abbreviated,
-                    )}
-                    {@const isSelected = group.selectedChoiceId
-                        ? group.selectedChoiceId === id
-                        : i === 0}
-                    <option value={id} selected={isSelected}>
-                        {displayLabel}
-                    </option>
-                {/each}
-            </select>
+            {@const selectedValue =
+                group.selectedChoiceId ??
+                group.choices[0]?.id ??
+                group.choices[0]?.['@id']}
+            <div class="choice-select-wrap">
+                <Select
+                    size="xs"
+                    value={selectedValue}
+                    style="border-radius:9999px;max-width:20rem"
+                    onchange={(e: Event) => {
+                        const idx = (e.currentTarget as HTMLSelectElement)
+                            .selectedIndex;
+                        if (idx >= 0)
+                            selectChoice(group.canvasId, group.choices[idx]);
+                    }}
+                >
+                    {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
+                        {@const id = choice.id || choice['@id']}
+                        {@const displayLabel = getChoiceDisplayLabel(
+                            choice,
+                            i,
+                            abbreviated,
+                        )}
+                        <option value={id}>
+                            {displayLabel}
+                        </option>
+                    {/each}
+                </Select>
+            </div>
         {/if}
 
-        <div class="join sm:hidden">
+        <div class="join join-mobile">
             {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                 {@const id = choice.id || choice['@id']}
                 {@const label = getChoiceLabel(choice, i)}
@@ -185,10 +193,12 @@
                 {@const isSelected = group.selectedChoiceId
                     ? group.selectedChoiceId === id
                     : i === 0}
-                <button
-                    class="join-item btn btn-xs {isSelected
-                        ? 'btn-primary'
-                        : 'btn-ghost'} min-w-8"
+                <Button
+                    class="join-item"
+                    size="xs"
+                    variant={isSelected ? 'primary' : 'default'}
+                    ghost={!isSelected}
+                    style="min-width:2rem"
                     onclick={() => selectChoice(group.canvasId, choice)}
                     aria-pressed={isSelected}
                     aria-label={isSelected
@@ -203,19 +213,14 @@
                     {:else}
                         {i + 1}
                     {/if}
-                </button>
+                </Button>
             {/each}
         </div>
     </div>
 {/snippet}
 
 {#if showNav || showZoom || hasChoices}
-    <div
-        class={[
-            'select-none absolute left-1/2 -translate-x-1/2 bg-base-200/70 backdrop-blur rounded-full shadow-lg flex items-center gap-2 border border-base-300 transition-all duration-200 bottom-4 px-2',
-            viewerState.showCanvasInfo ? 'z-[1000]' : 'z-10',
-        ]}
-    >
+    <div class="control-bar" class:elevated={viewerState.showCanvasInfo}>
         {#if leftChoiceGroup}
             {@render choiceControls(
                 leftChoiceGroup,
@@ -224,39 +229,45 @@
         {/if}
 
         {#if leftChoiceGroup && (hasCenterControls || rightChoiceGroup)}
-            <div class="h-4 w-px bg-base-content/20"></div>
+            <div class="divider-v"></div>
         {/if}
 
         {#if hasCenterControls}
-            <div class="flex items-center gap-2">
+            <div class="center-controls">
                 {#if showZoom}
-                    <div class="flex items-center gap-1">
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                    <div class="btn-row">
+                        <Button
+                            circle
+                            size="sm"
+                            ghost
                             onclick={() => viewerState.zoomOut()}
                             aria-label="Zoom Out"
                         >
                             <MagnifyingGlassMinus size={18} />
-                        </button>
+                        </Button>
 
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                        <Button
+                            circle
+                            size="sm"
+                            ghost
                             onclick={() => viewerState.zoomIn()}
                             aria-label="Zoom In"
                         >
                             <MagnifyingGlassPlus size={18} />
-                        </button>
+                        </Button>
                     </div>
                 {/if}
 
                 {#if showZoom && showNav}
-                    <div class="h-4 w-px bg-base-content/20"></div>
+                    <div class="divider-v"></div>
                 {/if}
 
                 {#if showNav}
-                    <div class="flex items-center gap-1">
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                    <div class="btn-row">
+                        <Button
+                            circle
+                            size="sm"
+                            ghost
                             disabled={canvasNavLayout.leftButton === 'previous'
                                 ? !viewerState.hasPrevious
                                 : !viewerState.hasNext}
@@ -270,19 +281,19 @@
                                 : m.next_canvas()}
                         >
                             <LeftNavIcon size={18} />
-                        </button>
+                        </Button>
 
-                        <span
-                            class="text-sm font-mono tabular-nums text-nowrap px-1"
-                        >
+                        <span class="nav-index">
                             {viewerState.currentCanvasIndex + 1} / {viewerState
                                 .canvases.length}
                         </span>
 
                         <CanvasInfoPopover />
 
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                        <Button
+                            circle
+                            size="sm"
+                            ghost
                             disabled={canvasNavLayout.rightButton === 'next'
                                 ? !viewerState.hasNext
                                 : !viewerState.hasPrevious}
@@ -295,14 +306,14 @@
                                 : m.previous_canvas()}
                         >
                             <RightNavIcon size={18} />
-                        </button>
+                        </Button>
                     </div>
                 {/if}
             </div>
         {/if}
 
         {#if rightChoiceGroup && (hasCenterControls || leftChoiceGroup)}
-            <div class="h-4 w-px bg-base-content/20"></div>
+            <div class="divider-v"></div>
         {/if}
 
         {#if rightChoiceGroup}
@@ -313,3 +324,121 @@
         {/if}
     </div>
 {/if}
+
+<style>
+    .control-bar {
+        user-select: none;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 1rem;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding-inline: 0.5rem;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-200) 70%,
+            transparent
+        );
+        backdrop-filter: blur(8px);
+        border-radius: 9999px;
+        border: 1px solid var(--color-base-300);
+        box-shadow:
+            0 10px 15px -3px #0000001a,
+            0 4px 6px -4px #0000001a;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.2s;
+    }
+    .control-bar.elevated {
+        z-index: 1000;
+    }
+
+    .choice-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .choice-stack {
+        display: flex;
+        align-items: center;
+        padding-inline: 0.25rem;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 700;
+        opacity: 0.5;
+    }
+
+    .center-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-row {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .divider-v {
+        height: 1rem;
+        width: 1px;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-content) 20%,
+            transparent
+        );
+    }
+
+    .nav-index {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-family:
+            ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            'Liberation Mono', 'Courier New', monospace;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        padding-inline: 0.25rem;
+    }
+
+    /* join group (radii handled by the join-aware primitives) */
+    .join {
+        display: inline-flex;
+        align-items: stretch;
+        --join-ss: 0;
+        --join-se: 0;
+        --join-es: 0;
+        --join-ee: 0;
+    }
+    .join > :global(.join-item:first-child) {
+        --join-ss: var(--radius-field);
+        --join-es: var(--radius-field);
+    }
+    .join > :global(.join-item:last-child) {
+        --join-se: var(--radius-field);
+        --join-ee: var(--radius-field);
+    }
+    .join > :global(.join-item:not(:first-child)) {
+        margin-inline-start: calc(var(--border, 1px) * -1);
+    }
+
+    .join-desktop {
+        display: none;
+    }
+    .choice-select-wrap {
+        display: none;
+    }
+    @media (width >= 640px) {
+        .join-desktop {
+            display: inline-flex;
+        }
+        .choice-select-wrap {
+            display: flex;
+        }
+        .join-mobile {
+            display: none;
+        }
+    }
+</style>
