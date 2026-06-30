@@ -2,7 +2,6 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -11,19 +10,21 @@ export default defineConfig({
     plugins: [
         svelte({
             configFile: false,
-            // @ts-expect-error - The types for this function signature might be slightly off in the plugin dts but valid in Svelte
-            compilerOptions: (url) => {
-                const isCustomElement = url.includes(
-                    'TriiiceratopsViewerElement.svelte',
-                );
-                return { customElement: isCustomElement };
-            },
+            // Keep scoped component CSS in the JS bundle (injected at runtime via
+            // Svelte's append_styles, which targets getRootNode() — i.e. the
+            // custom element's shadow root) instead of extracting it to a
+            // light-DOM stylesheet that never reaches the shadow DOM.
+            emitCss: false,
+            // `customElement: true` only turns components that declare
+            // `<svelte:options customElement>` into custom elements (just
+            // TriiiceratopsViewerElement here); all other components compile as
+            // normal Svelte components.
+            compilerOptions: { customElement: true },
         }),
         paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
         }),
-        tailwindcss(),
     ],
     esbuild: {
         pure: ['console.log', 'console.debug'],

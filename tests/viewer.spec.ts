@@ -11,11 +11,11 @@ test.describe('Triiiceratops Viewer', () => {
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible();
 
         // Wait for manifest loading to complete (spinners should disappear)
-        const spinner = page.locator('.loading-spinner');
+        const spinner = page.locator('.loading');
         await expect(spinner).not.toBeVisible({ timeout: 20000 });
 
         // Check for error state
-        const errorMsg = page.locator('.text-error');
+        const errorMsg = page.locator('.error-text');
         if (await errorMsg.isVisible()) {
             const text = await errorMsg.textContent();
             console.error(`Viewer reported error: ${text}`);

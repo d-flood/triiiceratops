@@ -10,6 +10,7 @@
     } from '../utils/metadataNormalization';
     import { resolveLanguageValue } from '../utils/languageMap';
     import SanitizedHtml from './SanitizedHtml.svelte';
+    import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let viewerLocale = $derived(
@@ -49,20 +50,23 @@
 </script>
 
 {#if hasAdditionalContent}
-    <div class="relative inline-flex">
-        <button
-            class="btn btn-circle btn-xs btn-ghost text-primary"
+    <div class="wrapper">
+        <Button
+            circle
+            size="xs"
+            ghost
+            class="trigger"
             onclick={() => viewerState.toggleCanvasInfo()}
             aria-label={m.canvas_info_tooltip()}
             title={m.canvas_info_tooltip()}
         >
             <Info size={14} weight="bold" />
-        </button>
+        </Button>
 
         {#if viewerState.showCanvasInfo}
             <!-- Backdrop to close popover -->
             <button
-                class="fixed inset-0 z-40 cursor-default"
+                class="backdrop"
                 onclick={() => viewerState.toggleCanvasInfo()}
                 aria-label={m.close()}
                 tabindex="-1"
@@ -70,62 +74,62 @@
 
             <!-- Popover -->
             <div
-                class="absolute bottom-full mb-2 bg-base-200 border border-base-300 rounded-box shadow-xl w-72 max-h-64 overflow-hidden"
+                class="popover"
                 style="left: 50%; transform: translateX(-50%); z-index: 1001;"
                 role="dialog"
                 aria-label={m.canvas_info()}
             >
-                <div class="overflow-y-auto max-h-64 p-4">
-                    <div class="flex items-start justify-between gap-2 mb-2">
-                        <h4 class="font-bold text-sm">{m.canvas_info()}</h4>
-                        <button
-                            class="btn btn-xs btn-circle btn-ghost shrink-0"
+                <div class="scroll">
+                    <div class="head">
+                        <h4 class="title">{m.canvas_info()}</h4>
+                        <Button
+                            size="xs"
+                            circle
+                            ghost
+                            class="close"
                             onclick={() => viewerState.toggleCanvasInfo()}
                             aria-label={m.close()}
                         >
                             <X size={14} />
-                        </button>
+                        </Button>
                     </div>
 
                     {#if label}
-                        <p class="text-sm font-semibold mb-1">{label}</p>
+                        <p class="canvas-label">{label}</p>
                     {/if}
 
                     {#if summary}
                         <SanitizedHtml
                             tag="div"
                             html={summary}
-                            class="viewer-html text-xs opacity-80 mb-2 prose prose-sm"
+                            class="viewer-html summary"
                         />
                     {/if}
 
                     {#if metadata.length > 0}
-                        <dl class="text-xs">
+                        <dl class="metadata">
                             {#each metadata as item, i (i)}
-                                <dt class="font-bold opacity-70 mt-2">
+                                <dt class="meta-label">
                                     {item.label}
                                 </dt>
                                 <SanitizedHtml
                                     tag="dd"
                                     html={item.value}
-                                    class="viewer-html ps-2"
+                                    class="viewer-html meta-value"
                                 />
                             {/each}
                         </dl>
                     {/if}
 
                     {#if rendering.length > 0}
-                        <div class="mt-2 pt-2 border-t border-base-300">
-                            <span class="text-xs font-bold opacity-70"
-                                >{m.rendering()}</span
-                            >
+                        <div class="rendering">
+                            <span class="rendering-title">{m.rendering()}</span>
                             {#each rendering as item (item.id)}
                                 <a
                                     href={item.id}
                                     target="_blank"
                                     rel="noreferrer"
-                                    class="link link-primary text-xs block mt-1 break-all"
-                                    >{item.label}</a
+                                    class="rendering-link">{item.label}</a
                                 >
                             {/each}
                         </div>
@@ -135,3 +139,114 @@
         {/if}
     </div>
 {/if}
+
+<style>
+    .wrapper {
+        position: relative;
+        display: inline-flex;
+    }
+
+    /* Trigger button: ghost circle with primary-colored icon (text-primary). */
+    .wrapper :global(.trigger) {
+        color: var(--color-primary);
+    }
+
+    .backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        cursor: default;
+    }
+
+    .popover {
+        position: absolute;
+        bottom: 100%;
+        margin-bottom: 0.5rem;
+        background-color: var(--color-base-200);
+        border-width: 1px;
+        border-style: solid;
+        border-color: var(--color-base-300);
+        border-radius: var(--radius-box);
+        box-shadow:
+            0 20px 25px -5px #0000001a,
+            0 8px 10px -6px #0000001a;
+        width: 18rem;
+        max-height: 16rem;
+        overflow: hidden;
+    }
+
+    .scroll {
+        overflow-y: auto;
+        max-height: 16rem;
+        padding: 1rem;
+    }
+
+    .head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .title {
+        font-weight: 700;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    .canvas-label {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .scroll :global(.summary) {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        opacity: 0.8;
+        margin-bottom: 0.5rem;
+    }
+
+    .metadata {
+        font-size: 0.75rem;
+        line-height: 1rem;
+    }
+
+    .meta-label {
+        font-weight: 700;
+        opacity: 0.7;
+        margin-top: 0.5rem;
+    }
+
+    .metadata :global(.meta-value) {
+        padding-inline-start: 0.5rem;
+    }
+
+    .rendering {
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: var(--color-base-300);
+    }
+
+    .rendering-title {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 700;
+        opacity: 0.7;
+    }
+
+    .rendering-link {
+        color: var(--color-primary);
+        text-decoration-line: underline;
+        cursor: pointer;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        display: block;
+        margin-top: 0.25rem;
+        word-break: break-all;
+    }
+</style>

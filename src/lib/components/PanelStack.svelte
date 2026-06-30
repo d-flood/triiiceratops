@@ -27,10 +27,23 @@
     });
 </script>
 
-<div
-    class="h-full max-h-full min-h-0 w-full overflow-y-auto overflow-x-hidden pb-6 space-y-4"
->
+<div class="panel-stack">
     {#each panels as panel (panel.id)}
         <PanelStackSection {panel} scrollOnMount={hasMounted} />
     {/each}
 </div>
+
+<style>
+    .panel-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        width: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-bottom: 1.5rem;
+    }
+</style>

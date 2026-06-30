@@ -4,6 +4,7 @@
     import Copy from 'phosphor-svelte/lib/Copy';
     import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
     import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
+    import { Button, Toggle, Checkbox, Select, Range } from './ui';
 
     let {
         config = $bindable(),
@@ -46,98 +47,81 @@
     }
 </script>
 
-<ul class={className}>
-    <li class="menu-title px-4 py-2">
+<ul class="settings-menu-root {className}">
+    <li class="menu-title">
         {m.settings_category_general()}
     </li>
     <li>
-        <label class="label cursor-pointer py-1">
-            <span class="label-text">{m.settings_transparent_background()}</span
-            >
-            <input
-                type="checkbox"
-                class="toggle toggle-sm"
-                bind:checked={config.transparentBackground}
-            />
+        <label class="settings-label">
+            <span>{m.settings_transparent_background()}</span>
+            <Toggle size="sm" bind:checked={config.transparentBackground} />
         </label>
     </li>
     <li>
-        <label class="label cursor-pointer py-1">
-            <span class="label-text">{m.settings_toggle_canvas_nav()}</span>
-            <input
-                type="checkbox"
-                class="toggle toggle-sm"
-                bind:checked={config.showCanvasNav}
-            />
+        <label class="settings-label">
+            <span>{m.settings_toggle_canvas_nav()}</span>
+            <Toggle size="sm" bind:checked={config.showCanvasNav} />
         </label>
     </li>
     <li>
-        <label class="label cursor-pointer py-1">
-            <span class="label-text">{m.settings_toggle_zoom_controls()}</span>
-            <input
-                type="checkbox"
-                class="toggle toggle-sm"
-                bind:checked={config.showZoomControls}
-            />
+        <label class="settings-label">
+            <span>{m.settings_toggle_zoom_controls()}</span>
+            <Toggle size="sm" bind:checked={config.showZoomControls} />
         </label>
     </li>
     <li>
-        <label class="label cursor-pointer py-1">
-            <span class="label-text">Preserve authored canvas scale</span>
-            <input
-                type="checkbox"
-                class="toggle toggle-sm"
-                bind:checked={config.preserveCanvasScale}
-            />
+        <label class="settings-label">
+            <span>Preserve authored canvas scale</span>
+            <Toggle size="sm" bind:checked={config.preserveCanvasScale} />
         </label>
     </li>
     <li>
-        <label class="label cursor-pointer py-1 gap-2">
-            <span class="label-text">Left panel width</span>
-            <input
-                type="range"
+        <label class="settings-label settings-label--gap2">
+            <span>Left panel width</span>
+            <Range
+                size="xs"
+                color="primary"
+                style="width:8rem"
                 min="200"
                 max="800"
                 value={parseInt(config.leftPanelWidth ?? '320')}
-                class="range range-xs range-primary w-32"
                 oninput={(e) => {
                     config.leftPanelWidth = `${e.currentTarget.value}px`;
                 }}
             />
-            <span class="text-xs opacity-50 w-8 text-right"
-                >{config.leftPanelWidth ?? '320px'}</span
-            >
+            <span class="value-readout">{config.leftPanelWidth ?? '320px'}</span>
         </label>
     </li>
     <li>
-        <label class="label cursor-pointer py-1 gap-2">
-            <span class="label-text">Right panel width</span>
-            <input
-                type="range"
+        <label class="settings-label settings-label--gap2">
+            <span>Right panel width</span>
+            <Range
+                size="xs"
+                color="primary"
+                style="width:8rem"
                 min="200"
                 max="800"
                 value={parseInt(config.rightPanelWidth ?? '320')}
-                class="range range-xs range-primary w-32"
                 oninput={(e) => {
                     config.rightPanelWidth = `${e.currentTarget.value}px`;
                 }}
             />
-            <span class="text-xs opacity-50 w-8 text-right"
-                >{config.rightPanelWidth ?? '320px'}</span
+            <span class="value-readout">{config.rightPanelWidth ?? '320px'}</span
             >
         </label>
     </li>
-    <div class="divider my-1"></div>
+    <div class="divider"></div>
 
-    <li class="menu-title px-4 py-2">Viewer Language</li>
+    <li class="menu-title">Viewer Language</li>
     <li>
-        <div class="px-4 py-2">
-            <label class="label py-1" for="viewer-locale-select">
-                <span class="label-text">Viewer locale (IIIF)</span>
+        <div class="locale-block">
+            <label class="settings-label settings-label--static" for="viewer-locale-select">
+                <span>Viewer locale (IIIF)</span>
             </label>
-            <select
+            <Select
                 id="viewer-locale-select"
-                class="select select-bordered select-sm w-full"
+                size="sm"
+                style="width:100%"
                 value={config.locale ?? ''}
                 onchange={(e) => {
                     const value = (e.currentTarget as HTMLSelectElement).value;
@@ -149,13 +133,13 @@
                 {#each viewerLocaleOptions as locale (locale)}
                     <option value={locale}>{locale}</option>
                 {/each}
-            </select>
+            </Select>
         </div>
     </li>
 
-    <div class="divider my-1"></div>
+    <div class="divider"></div>
 
-    <li class="menu-title px-4 py-2">
+    <li class="menu-title">
         {m.settings_category_configuration()}
     </li>
 
@@ -164,13 +148,10 @@
             <summary>{m.settings_submenu_toolbar()}</summary>
             <ul>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_toggle()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-sm"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_toggle()}</span>
+                        <Toggle
+                            size="sm"
                             checked={config.showToggle !== false}
                             onchange={(e) => {
                                 config.showToggle = e.currentTarget.checked;
@@ -179,24 +160,17 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_select_dock_position()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-sm"
-                            bind:checked={config.toolbarOpen}
-                        />
+                    <label class="settings-label settings-label--gap2">
+                        <span>{m.settings_select_dock_position()}</span>
+                        <Toggle size="sm" bind:checked={config.toolbarOpen} />
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toolbar_position()}</span
-                        >
-                        <select
-                            class="select select-bordered select-xs w-24"
+                    <label class="settings-label">
+                        <span>{m.settings_toolbar_position()}</span>
+                        <Select
+                            size="xs"
+                            style="width:6rem"
                             value={config.toolbarPosition ?? 'left'}
                             onchange={(e) => {
                                 config.toolbarPosition = (
@@ -220,18 +194,15 @@
                             <option value="top-right"
                                 >{m.settings_position_top_right()}</option
                             >
-                        </select>
+                        </Select>
                     </label>
                 </li>
-                <div class="divider my-1"></div>
+                <div class="divider"></div>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_search()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_search()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showSearch ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -242,13 +213,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_gallery()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_gallery()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showGallery ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -259,13 +227,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_annotations()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_annotations()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showAnnotations ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -276,13 +241,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_fullscreen()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_fullscreen()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showFullscreen ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -293,13 +255,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_info()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_info()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showInfo ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -310,13 +269,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_viewing_mode()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_viewing_mode()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showViewingMode ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -327,13 +283,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_structures()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_structures()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showStructures ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -344,13 +297,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_show_collection()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_show_collection()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.toolbar?.showCollection ?? true}
                             onchange={(e) => {
                                 if (!config.toolbar) config.toolbar = {};
@@ -361,10 +311,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text">{m.viewing_mode_label()}</span>
-                        <select
-                            class="select select-bordered select-xs"
+                    <label class="settings-label">
+                        <span>{m.viewing_mode_label()}</span>
+                        <Select
+                            size="xs"
                             value={config.viewingMode ?? 'individuals'}
                             onchange={(e) => {
                                 config.viewingMode = (
@@ -384,16 +334,14 @@
                             <option value="continuous"
                                 >{m.viewing_mode_continuous()}</option
                             >
-                        </select>
+                        </Select>
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.viewing_direction_label()}</span
-                        >
-                        <select
-                            class="select select-bordered select-xs"
+                    <label class="settings-label">
+                        <span>{m.viewing_direction_label()}</span>
+                        <Select
+                            size="xs"
                             value={config.viewingDirection ?? 'left-to-right'}
                             onchange={(e) => {
                                 config.viewingDirection = (
@@ -417,17 +365,14 @@
                             <option value="bottom-to-top"
                                 >{m.viewing_direction_btt()}</option
                             >
-                        </select>
+                        </Select>
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_paged_view_offset()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_paged_view_offset()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.pagedViewOffset ?? true}
                             onchange={(e) => {
                                 config.pagedViewOffset =
@@ -445,13 +390,10 @@
             <summary>{m.settings_submenu_gallery()}</summary>
             <ul>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_open()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_open()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.gallery?.open ?? false}
                             onchange={(e) => {
                                 if (!config.gallery) config.gallery = {};
@@ -461,13 +403,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_draggable()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_draggable()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.gallery?.draggable ?? true}
                             onchange={(e) => {
                                 if (!config.gallery) config.gallery = {};
@@ -478,13 +417,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_close_button()}</span>
+                        <Checkbox
+                            size="xs"
                             checked={config.gallery?.showCloseButton ?? true}
                             onchange={(e) => {
                                 if (!config.gallery) config.gallery = {};
@@ -495,12 +431,11 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_select_dock_position()}</span
-                        >
-                        <select
-                            class="select select-bordered select-xs w-24"
+                    <label class="settings-label settings-label--gap2">
+                        <span>{m.settings_select_dock_position()}</span>
+                        <Select
+                            size="xs"
+                            style="width:6rem"
                             value={config.gallery?.dockPosition ?? 'bottom'}
                             onchange={(e) => {
                                 if (!config.gallery) config.gallery = {};
@@ -525,20 +460,19 @@
                             <option value="none"
                                 >{m.settings_position_floating()}</option
                             >
-                        </select>
+                        </Select>
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_thumbnail_height()}</span
-                        >
-                        <input
-                            type="range"
+                    <label class="settings-label settings-label--gap2">
+                        <span>{m.settings_thumbnail_height()}</span>
+                        <Range
+                            size="xs"
+                            color="primary"
+                            style="width:6rem"
                             min="50"
                             max="300"
                             value={config.gallery?.fixedHeight ?? 120}
-                            class="range range-xs range-primary w-24"
                             oninput={(e) => {
                                 if (!config.gallery) config.gallery = {};
                                 config.gallery.fixedHeight = parseInt(
@@ -546,7 +480,7 @@
                                 );
                             }}
                         />
-                        <span class="text-xs opacity-50 w-8 text-right"
+                        <span class="value-readout"
                             >{config.gallery?.fixedHeight ?? 120}px</span
                         >
                     </label>
@@ -560,13 +494,10 @@
             <summary>{m.settings_submenu_search()}</summary>
             <ul>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_open()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_open()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.search?.open ?? false}
                             onchange={(e) => {
                                 if (!config.search) config.search = {};
@@ -576,13 +507,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_close_button()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.search?.showCloseButton ?? true}
                             onchange={(e) => {
                                 if (!config.search) config.search = {};
@@ -593,12 +521,11 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_select_dock_position()}</span
-                        >
-                        <select
-                            class="select select-bordered select-xs w-24"
+                    <label class="settings-label settings-label--gap2">
+                        <span>{m.settings_select_dock_position()}</span>
+                        <Select
+                            size="xs"
+                            style="width:6rem"
                             value={config.search?.position ?? 'right'}
                             onchange={(e) => {
                                 if (!config.search) config.search = {};
@@ -614,7 +541,7 @@
                             <option value="left"
                                 >{m.settings_position_left()}</option
                             >
-                        </select>
+                        </Select>
                     </label>
                 </li>
             </ul>
@@ -626,13 +553,10 @@
             <summary>{m.settings_submenu_annotations()}</summary>
             <ul>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_panel_open()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_panel_open()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.annotations?.open ?? false}
                             onchange={(e) => {
                                 if (!config.annotations)
@@ -644,13 +568,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_close_button()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.annotations?.showCloseButton ?? true}
                             onchange={(e) => {
                                 if (!config.annotations)
@@ -662,12 +583,11 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_select_dock_position()}</span
-                        >
-                        <select
-                            class="select select-bordered select-xs w-24"
+                    <label class="settings-label settings-label--gap2">
+                        <span>{m.settings_select_dock_position()}</span>
+                        <Select
+                            size="xs"
+                            style="width:6rem"
                             value={config.annotations?.position ?? 'right'}
                             onchange={(e) => {
                                 if (!config.annotations)
@@ -684,7 +604,7 @@
                             <option value="left"
                                 >{m.settings_position_left()}</option
                             >
-                        </select>
+                        </Select>
                     </label>
                 </li>
             </ul>
@@ -696,13 +616,10 @@
             <summary>{m.settings_submenu_information()}</summary>
             <ul>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_panel_open()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_panel_open()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.information?.open ?? false}
                             onchange={(e) => {
                                 if (!config.information)
@@ -714,13 +631,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_close_button()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.information?.showCloseButton ?? true}
                             onchange={(e) => {
                                 if (!config.information)
@@ -732,12 +646,11 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1 gap-2">
-                        <span class="label-text"
-                            >{m.settings_select_dock_position()}</span
-                        >
-                        <select
-                            class="select select-bordered select-xs w-24"
+                    <label class="settings-label settings-label--gap2">
+                        <span>{m.settings_select_dock_position()}</span>
+                        <Select
+                            size="xs"
+                            style="width:6rem"
                             value={config.information?.position ?? 'right'}
                             onchange={(e) => {
                                 if (!config.information)
@@ -754,7 +667,7 @@
                             <option value="left"
                                 >{m.settings_position_left()}</option
                             >
-                        </select>
+                        </Select>
                     </label>
                 </li>
             </ul>
@@ -766,13 +679,10 @@
             <summary>{m.settings_submenu_structures()}</summary>
             <ul>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_panel_open()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_panel_open()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.structures?.open ?? false}
                             onchange={(e) => {
                                 if (!config.structures) config.structures = {};
@@ -783,13 +693,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_close_button()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.structures?.showCloseButton ?? true}
                             onchange={(e) => {
                                 if (!config.structures) config.structures = {};
@@ -808,13 +715,10 @@
             <summary>{m.settings_submenu_collection()}</summary>
             <ul>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_panel_open()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_panel_open()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.collection?.open ?? false}
                             onchange={(e) => {
                                 if (!config.collection) config.collection = {};
@@ -825,13 +729,10 @@
                     </label>
                 </li>
                 <li>
-                    <label class="label cursor-pointer py-1">
-                        <span class="label-text"
-                            >{m.settings_toggle_close_button()}</span
-                        >
-                        <input
-                            type="checkbox"
-                            class="toggle toggle-xs"
+                    <label class="settings-label">
+                        <span>{m.settings_toggle_close_button()}</span>
+                        <Toggle
+                            size="xs"
                             checked={config.collection?.showCloseButton ?? true}
                             onchange={(e) => {
                                 if (!config.collection) config.collection = {};
@@ -845,22 +746,27 @@
         </details>
     </li>
 
-    <div class="divider my-1"></div>
+    <div class="divider"></div>
     {#if onReset}
         <li>
-            <button
-                class="btn btn-sm btn-ghost w-full justify-start gap-2"
+            <Button
+                size="sm"
+                ghost
+                style="width:100%;justify-content:flex-start;gap:0.5rem;"
                 onclick={onReset}
             >
                 <ArrowCounterClockwise size={16} />
                 {m.reset_config()}
-            </button>
+            </Button>
         </li>
     {/if}
     <li>
-        <button
-            class="btn btn-sm btn-ghost w-full justify-start gap-2"
-            class:text-success={copied}
+        <Button
+            size="sm"
+            ghost
+            style="width:100%;justify-content:flex-start;gap:0.5rem;{copied
+                ? 'color:var(--color-success);'
+                : ''}"
             onclick={copyConfig}
         >
             {#if copied}
@@ -870,13 +776,16 @@
                 <Copy size={16} />
                 {m.copy_config()}
             {/if}
-        </button>
+        </Button>
     </li>
     {#if onShare}
         <li>
-            <button
-                class="btn btn-sm btn-ghost w-full justify-start gap-2"
-                class:text-success={shared}
+            <Button
+                size="sm"
+                ghost
+                style="width:100%;justify-content:flex-start;gap:0.5rem;{shared
+                    ? 'color:var(--color-success);'
+                    : ''}"
                 onclick={shareState}
             >
                 {#if shared}
@@ -886,7 +795,165 @@
                     <ShareNetwork size={16} />
                     {m.share_current_state()}
                 {/if}
-            </button>
+            </Button>
         </li>
     {/if}
 </ul>
+
+<style>
+    /* Menu section heading (DaisyUI `menu-title`, with the original px-4 py-2
+       padding overrides). */
+    .menu-title {
+        color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+        font-weight: 600;
+        font-size: 0.875rem;
+        padding-inline: 1rem;
+        padding-block: 0.5rem;
+    }
+
+    /* DaisyUI v5 `label`: inline-flex row of label text + control.
+       `label-text` / `form-control` are dead no-ops in v5 and are dropped;
+       the text lives in a plain <span>. */
+    .settings-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        white-space: nowrap;
+        cursor: pointer;
+        padding-block: 0.25rem; /* py-1 */
+    }
+    /* `gap-2` utility override on certain labels. */
+    .settings-label--gap2 {
+        gap: 0.5rem;
+    }
+    /* The viewer-locale label had no cursor-pointer. */
+    .settings-label--static {
+        cursor: default;
+    }
+
+    /* Range/thumbnail value read-out: `text-xs opacity-50 w-8 text-right`. */
+    .value-readout {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        opacity: 0.5;
+        width: 2rem;
+        text-align: right;
+    }
+
+    /* Wrapper around the viewer-locale select: `px-4 py-2`. */
+    .locale-block {
+        padding-inline: 1rem;
+        padding-block: 0.5rem;
+    }
+
+    /* DaisyUI `divider` (empty horizontal rule), with the original `my-1`
+       margin override. */
+    .divider {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        align-self: stretch;
+        white-space: nowrap;
+        height: 1rem;
+        margin-block: 0.25rem; /* my-1 */
+        margin-inline: 0;
+        --divider-color: color-mix(
+            in oklab,
+            var(--color-base-content) 10%,
+            transparent
+        );
+    }
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex-grow: 1;
+        width: 100%;
+        height: 0.125rem;
+        background-color: var(--divider-color);
+    }
+
+    /* Root menu layout — reproduces DaisyUI `menu`'s base so the component is
+       self-sufficient once the global `menu` class is gone. Padding/width are
+       left to the consumer-provided className (e.g. p-2 / w-full equivalents). */
+    .settings-menu-root {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.875rem;
+    }
+
+    /* Collapse section <summary> styling — reproduces DaisyUI `menu`'s
+       summary scaffolding (grid layout + rotating chevron marker) so the
+       component is self-sufficient. */
+    summary {
+        list-style: none;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(auto, max-content) auto max-content;
+        align-content: flex-start;
+        align-items: center;
+        gap: 0.5rem;
+        text-align: start;
+        text-wrap: balance;
+        user-select: none;
+        -webkit-user-select: none;
+        border-radius: var(--radius-field);
+        padding-block: 0.375rem;
+        padding-inline: 0.75rem;
+        outline-style: none;
+        transition-property: color, background-color, box-shadow;
+        transition-duration: 0.2s;
+        transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+    summary::-webkit-details-marker {
+        display: none;
+    }
+    summary::after {
+        content: '';
+        display: block;
+        justify-self: flex-end;
+        pointer-events: none;
+        width: 0.375rem;
+        height: 0.375rem;
+        transform-origin: 50%;
+        box-shadow: inset 2px 2px;
+        translate: 0 -1px;
+        rotate: -135deg;
+        transition-property: rotate, translate;
+        transition-duration: 0.2s;
+    }
+    details[open] > summary::after {
+        translate: 0 1px;
+        rotate: 45deg;
+    }
+    summary:hover {
+        cursor: pointer;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-content) 10%,
+            transparent
+        );
+    }
+
+    details {
+        overflow: hidden;
+    }
+
+    /* Nested submenu list inside a collapse: indented with a faint left rule,
+       matching DaisyUI `menu`'s `li ul` styling. */
+    details > ul {
+        position: relative;
+        margin-inline-start: 1rem;
+        padding-inline-start: 0.5rem;
+        white-space: nowrap;
+    }
+    details > ul::before {
+        content: '';
+        position: absolute;
+        inset-inline-start: 0;
+        top: 0.75rem;
+        bottom: 0.75rem;
+        width: var(--border);
+        background-color: var(--color-base-content);
+        opacity: 0.1;
+    }
+</style>

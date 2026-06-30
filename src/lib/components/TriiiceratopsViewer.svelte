@@ -29,6 +29,7 @@
     import Folder from 'phosphor-svelte/lib/Folder';
     import ImageBroken from 'phosphor-svelte/lib/ImageBroken';
     import ViewerControls from './ViewerControls.svelte';
+    import { Spinner } from './ui';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
@@ -612,24 +613,17 @@
 <div
     bind:this={rootElement}
     id="triiiceratops-viewer"
-    class="flex w-full h-full relative overflow-hidden {internalViewerState
-        .config.transparentBackground
-        ? ''
-        : 'bg-base-100'}"
+    class="viewer-root"
+    class:opaque={!internalViewerState.config.transparentBackground}
 >
     <!-- Left Column -->
     {#if isLeftSidebarVisible}
         <div
-            class="flex-none min-h-0 flex flex-row z-20 transition-all {internalViewerState
-                .config.transparentBackground
-                ? ''
-                : 'bg-base-100 border-r border-base-300'}"
+            class="side-col side-col-left"
+            class:opaque={!internalViewerState.config.transparentBackground}
         >
             {#if visiblePanelsLeft.length > 0}
-                <div
-                    class="h-full min-h-0 relative pointer-events-auto"
-                    style="width: {leftPanelWidth}"
-                >
+                <div class="panel-host" style="width: {leftPanelWidth}">
                     <PanelStack panels={visiblePanelsLeft} />
                 </div>
             {/if}
@@ -637,7 +631,7 @@
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
                 <div
-                    class="h-full min-h-0 pointer-events-auto relative"
+                    class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
                 >
@@ -648,14 +642,11 @@
     {/if}
 
     <!-- Center Column -->
-    <div
-        id="triiiceratops-center-panel"
-        class="flex-1 relative min-w-0 flex flex-col"
-    >
+    <div id="triiiceratops-center-panel" class="center-col">
         <!-- Top Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
             <div
-                class="flex-none w-full pointer-events-auto relative z-20"
+                class="gallery-band"
                 style="height: {internalViewerState.galleryFixedHeight + 55}px"
             >
                 <ThumbnailGallery {canvases} />
@@ -664,10 +655,8 @@
 
         <!-- Main Viewer Area -->
         <div
-            class="flex-1 relative min-h-0 w-full h-full {internalViewerState
-                .config.transparentBackground
-                ? ''
-                : 'bg-base-100'}"
+            class="viewer-area"
+            class:opaque={!internalViewerState.config.transparentBackground}
             role={internalViewerState.config.enableDragDrop
                 ? 'region'
                 : undefined}
@@ -676,35 +665,26 @@
             ondrop={handleDrop}
         >
             {#if manifestData?.isFetching}
-                <div class="w-full h-full flex items-center justify-center">
-                    <span
-                        class="loading loading-spinner loading-lg text-primary"
-                    ></span>
+                <div class="centered">
+                    <Spinner size="lg" style="color:var(--color-primary)" />
                 </div>
             {:else if manifestData?.error}
-                <div
-                    class="w-full h-full flex items-center justify-center text-error"
-                >
+                <div class="centered error-text">
                     {m.error_prefix()}
                     {manifestData.error}
                 </div>
             {:else if tileSources}
                 {#if tileSourceError}
-                    <div
-                        class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
-                        role="alert"
-                    >
+                    <div class="overlay-cover" role="alert">
                         {#if currentCanvasThumbnail}
                             <img
                                 src={currentCanvasThumbnail}
                                 alt=""
-                                class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-40"
+                                class="blur-bg"
                             />
-                            <div class="absolute inset-0 bg-base-100/50"></div>
+                            <div class="dim-50"></div>
                         {/if}
-                        <div
-                            class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
-                        >
+                        <div class="error-card">
                             {#if tileSourceError.type === 'auth'}
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -714,7 +694,7 @@
                                     stroke-width="2"
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
-                                    class="w-12 h-12 text-warning"
+                                    class="warn-icon"
                                 >
                                     <rect
                                         x="3"
@@ -726,20 +706,19 @@
                                     />
                                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                                 </svg>
-                                <p class="text-base-content text-sm">
+                                <p class="msg">
                                     {m.error_auth_required()}
                                 </p>
                             {:else}
-                                <ImageBroken class="w-12 h-12 text-warning" />
-                                <p
-                                    class="text-base-content text-sm font-semibold"
-                                >
+                                <ImageBroken
+                                    size={48}
+                                    color="var(--color-warning)"
+                                />
+                                <p class="msg msg-strong">
                                     {tileSourceErrorMessage}
                                 </p>
                                 {#if tileSourceErrorDetails}
-                                    <p
-                                        class="text-base-content/70 text-xs wrap-break-word max-w-xs"
-                                    >
+                                    <p class="msg-details">
                                         {tileSourceErrorDetails}
                                     </p>
                                 {/if}
@@ -753,23 +732,14 @@
                     />
                 {/if}
             {:else if manifestData && !manifestData.isFetching && !tileSources}
-                <div
-                    class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
-                    role="status"
-                >
+                <div class="overlay-cover" role="status">
                     {#if currentCanvasThumbnail}
-                        <img
-                            src={currentCanvasThumbnail}
-                            alt=""
-                            class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-40"
-                        />
-                        <div class="absolute inset-0 bg-base-100/50"></div>
+                        <img src={currentCanvasThumbnail} alt="" class="blur-bg" />
+                        <div class="dim-50"></div>
                     {/if}
-                    <div
-                        class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
-                    >
-                        <ImageBroken class="w-12 h-12 text-warning" />
-                        <p class="text-base-content text-sm font-semibold">
+                    <div class="error-card">
+                        <ImageBroken size={48} color="var(--color-warning)" />
+                        <p class="msg msg-strong">
                             {m.no_image_found()}
                         </p>
                     </div>
@@ -784,7 +754,7 @@
             <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'overlay'}
-                    <div class="absolute inset-0 z-40 pointer-events-none">
+                    <div class="plugin-overlay">
                         <panel.component
                             {...panel.props ?? {}}
                             locale={viewerLocale}
@@ -797,12 +767,8 @@
             <ViewerControls />
 
             {#if internalViewerState.config.enableDragDrop && isDragOver}
-                <div
-                    class="absolute inset-0 z-45 pointer-events-none flex items-center justify-center bg-base-100/70 backdrop-blur-sm"
-                >
-                    <div
-                        class="rounded-box border-2 border-dashed border-primary bg-base-100/90 px-6 py-4 text-sm font-medium text-base-content shadow-lg"
-                    >
+                <div class="drag-overlay">
+                    <div class="drag-hint">
                         {m.drop_manifest_hint()}
                     </div>
                 </div>
@@ -817,7 +783,7 @@
         <!-- Bottom Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
             <div
-                class="flex-none w-full pointer-events-auto relative z-20"
+                class="gallery-band"
                 style="height: {internalViewerState.galleryFixedHeight + 55}px"
             >
                 <ThumbnailGallery {canvases} />
@@ -827,7 +793,7 @@
         <!-- Bottom Area (Plugin Panels) -->
         {#each internalViewerState.pluginPanels as panel (panel.id)}
             {#if panel.isVisible() && panel.position === 'bottom'}
-                <div class="relative w-full z-40 pointer-events-auto">
+                <div class="plugin-bottom">
                     <panel.component
                         {...panel.props ?? {}}
                         locale={viewerLocale}
@@ -840,16 +806,11 @@
     <!-- Right Column -->
     {#if isRightSidebarVisible}
         <div
-            class="flex-none min-h-0 flex flex-row z-20 transition-all {internalViewerState
-                .config.transparentBackground
-                ? ''
-                : 'bg-base-100'}"
+            class="side-col side-col-right"
+            class:opaque={!internalViewerState.config.transparentBackground}
         >
             {#if visiblePanelsRight.length > 0}
-                <div
-                    class="h-full min-h-0 relative pointer-events-auto"
-                    style="width: {rightPanelWidth}"
-                >
+                <div class="panel-host" style="width: {rightPanelWidth}">
                     <PanelStack panels={visiblePanelsRight} />
                 </div>
             {/if}
@@ -857,7 +818,7 @@
             <!-- Gallery (when docked right) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
                 <div
-                    class="h-full min-h-0 pointer-events-auto relative"
+                    class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
                 >
@@ -869,10 +830,191 @@
 </div>
 
 <style>
+    .viewer-root {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+    .viewer-root.opaque {
+        background-color: var(--color-base-100);
+    }
+
+    .side-col {
+        flex: none;
+        min-height: 0;
+        display: flex;
+        flex-direction: row;
+        z-index: 20;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .side-col.opaque {
+        background-color: var(--color-base-100);
+    }
+    .side-col-left.opaque {
+        border-right: 1px solid var(--color-base-300);
+    }
+
+    .panel-host {
+        height: 100%;
+        min-height: 0;
+        position: relative;
+        pointer-events: auto;
+    }
+    .gallery-host {
+        height: 100%;
+        min-height: 0;
+        position: relative;
+        pointer-events: auto;
+    }
+
+    .center-col {
+        flex: 1 1 0%;
+        position: relative;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .gallery-band {
+        flex: none;
+        width: 100%;
+        position: relative;
+        pointer-events: auto;
+        z-index: 20;
+    }
+
+    .viewer-area {
+        flex: 1 1 0%;
+        position: relative;
+        min-height: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .viewer-area.opaque {
+        background-color: var(--color-base-100);
+    }
+
+    .centered {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .error-text {
+        color: var(--color-error);
+    }
+
+    .overlay-cover {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        overflow: hidden;
+    }
+    .blur-bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: blur(24px);
+        scale: 1.1;
+        opacity: 0.4;
+    }
+    .dim-50 {
+        position: absolute;
+        inset: 0;
+        background-color: color-mix(in oklab, var(--color-base-100) 50%, transparent);
+    }
+    .error-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        max-width: 24rem;
+        text-align: center;
+        padding-inline: 1rem;
+        padding-block: 1.5rem;
+        background-color: color-mix(in oklab, var(--color-base-100) 90%, transparent);
+        border-radius: 0.75rem;
+        box-shadow:
+            0 10px 15px -3px #0000001a,
+            0 4px 6px -4px #0000001a;
+    }
+    .warn-icon {
+        width: 3rem;
+        height: 3rem;
+        color: var(--color-warning);
+    }
+    .msg {
+        color: var(--color-base-content);
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+    .msg-strong {
+        font-weight: 600;
+    }
+    .msg-details {
+        color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+        font-size: 0.75rem;
+        line-height: 1rem;
+        overflow-wrap: break-word;
+        max-width: 20rem;
+    }
+
+    .plugin-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        pointer-events: none;
+    }
+    .plugin-bottom {
+        position: relative;
+        width: 100%;
+        z-index: 40;
+        pointer-events: auto;
+    }
+
+    .drag-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 45;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: color-mix(in oklab, var(--color-base-100) 70%, transparent);
+        backdrop-filter: blur(4px);
+    }
+    .drag-hint {
+        border-radius: var(--radius-box);
+        border: 2px dashed var(--color-primary);
+        background-color: color-mix(in oklab, var(--color-base-100) 90%, transparent);
+        padding-inline: 1.5rem;
+        padding-block: 1rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 500;
+        color: var(--color-base-content);
+        box-shadow:
+            0 10px 15px -3px #0000001a,
+            0 4px 6px -4px #0000001a;
+    }
+
     /* Scoped scrollbar styles for the viewer */
     :global(#triiiceratops-viewer *) {
         scrollbar-width: thin;
-        scrollbar-color: var(--fallback-bc, oklch(var(--bc) / 0.2)) transparent;
+        scrollbar-color: color-mix(in oklab, var(--color-base-content) 20%, transparent)
+            transparent;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar) {
@@ -886,14 +1028,14 @@
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
-        background-color: var(--fallback-bc, oklch(var(--bc) / 0.2));
+        background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
         border-radius: 9999px;
         border: 1px solid transparent;
         background-clip: padding-box;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
-        background-color: var(--fallback-bc, oklch(var(--bc) / 0.4));
+        background-color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {

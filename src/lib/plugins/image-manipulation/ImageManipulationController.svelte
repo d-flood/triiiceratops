@@ -44,7 +44,7 @@
     The controller is responsible for the "Smart" logic (applying filters to OSD),
     while the panel handles the UI.
 -->
-<div class="h-full">
+<div class="controller-root">
     <ImageManipulationPanel
         {filters}
         onFilterChange={handleFilterChange}
@@ -52,3 +52,9 @@
         {embedded}
     />
 </div>
+
+<style>
+    .controller-root {
+        height: 100%;
+    }
+</style>

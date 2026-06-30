@@ -5,6 +5,7 @@
     import { m } from '../state/i18n.svelte';
     import { SvelteSet } from 'svelte/reactivity';
     import { getCanvasId } from './viewerControls';
+    import { Button, TextInput, Badge, Spinner } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -81,70 +82,70 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
     <div
-        class="min-h-0 flex flex-col {embedded
-            ? ''
-            : `h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 ${viewerState.config.transparentBackground ? '' : position === 'left' ? 'border-r border-base-300' : 'border-l border-base-300'}`}"
+        class="panel"
+        class:standalone={!embedded}
+        class:bordered-left={!embedded &&
+            !viewerState.config.transparentBackground &&
+            position === 'left'}
+        class:bordered-right={!embedded &&
+            !viewerState.config.transparentBackground &&
+            position !== 'left'}
         role="dialog"
         aria-label={m.search_panel_title()}
     >
         {#if !embedded}
-            <div
-                class="flex items-center justify-between p-4 border-b border-base-300"
-            >
-                <h2 class="font-bold text-lg">{m.search()}</h2>
+            <div class="header">
+                <h2 class="title">{m.search()}</h2>
             </div>
         {/if}
 
         <!-- Search Input -->
-        <div class="p-4 border-b border-base-300 shrink-0">
-            <div class="relative w-full">
-                <input
-                    type="text"
+        <div class="search-bar">
+            <div class="search-input-wrap">
+                <TextInput
                     bind:value={searchQuery}
                     onkeydown={handleKeydown}
                     placeholder={m.search_panel_placeholder()}
-                    class="input input-bordered w-full pr-12"
+                    class="search-input"
                 />
-                <button
-                    class="btn btn-primary absolute right-0 top-0 h-full rounded-l-none"
+                <Button
+                    variant="primary"
+                    class="search-button"
                     onclick={handleSearch}
                     aria-label={m.search_panel_title()}
                 >
                     {#if viewerState.isSearching}
-                        <span class="loading loading-spinner loading-xs"></span>
+                        <Spinner size="xs" />
                     {:else}
                         <MagnifyingGlass size={20} weight="bold" />
                     {/if}
-                </button>
+                </Button>
             </div>
         </div>
 
         <!-- Results -->
         <div
             bind:this={resultsContainer}
-            class="p-4 space-y-4 {embedded ? '' : 'flex-1 overflow-y-auto'}"
+            class="results"
+            class:scrollable={!embedded}
         >
             {#if viewerState.isSearching}
-                <div class="flex justify-center p-8">
-                    <span
-                        class="loading loading-spinner loading-lg text-primary"
-                    ></span>
+                <div class="loading-wrap">
+                    <Spinner size="lg" class="loading-primary" />
                 </div>
             {:else if viewerState.searchResults.length === 0 && viewerState.searchQuery}
-                <div class="text-center opacity-50 p-4">
+                <div class="empty">
                     {m.search_panel_no_results({
                         query: viewerState.searchQuery,
                     })}
                 </div>
             {:else if viewerState.searchResults.length === 0 && !viewerState.searchQuery}
-                <div class="text-center opacity-50 p-4 text-sm">
+                <div class="empty empty-instruction">
                     {m.search_panel_instruction()}
                 </div>
             {:else}
                 <!-- Results Header -->
-                <div
-                    class="text-xs font-bold opacity-50 uppercase tracking-wider pb-2"
-                >
+                <div class="results-count">
                     {m.search_panel_results_count({
                         count: totalMatches,
                     })}
@@ -157,10 +158,9 @@
                         : group.hits.slice(0, INITIAL_EXCERPT_COUNT)}
                     <div
                         data-canvas-index={group.canvasIndex}
-                        class="w-full text-left bg-base-100 shadow-sm border border-base-200 rounded-box cursor-pointer hover:shadow-md transition-all block p-0 {viewerState.currentCanvasIndex ===
-                        group.canvasIndex
-                            ? 'ring-2 ring-primary bg-primary/5'
-                            : ''}"
+                        class="group"
+                        class:current={viewerState.currentCanvasIndex ===
+                            group.canvasIndex}
                         onclick={() => navigate(group.canvasIndex)}
                         onkeydown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
@@ -171,24 +171,22 @@
                         role="button"
                         tabindex="0"
                     >
-                        <div
-                            class="text-sm font-bold opacity-80 bg-base-200/50 flex items-center justify-between py-2 px-3 border-b border-base-200"
-                        >
+                        <div class="group-header">
                             <span>{group.canvasLabel}</span>
-                            <span class="badge badge-sm badge-ghost"
+                            <Badge size="sm" style="--badge-color:var(--color-base-200);"
                                 >{group.hits.length}
                                 {group.hits.length === 1
                                     ? 'result'
-                                    : 'results'}</span
+                                    : 'results'}</Badge
                             >
                         </div>
-                        <div class="p-3 text-sm leading-relaxed select-text">
+                        <div class="excerpts">
                             {#each visibleHits as result, i (i)}{#if i > 0}<span
-                                        class="text-primary mx-2">|</span
+                                        class="separator">|</span
                                     >{/if}{#if result.type === 'hit'}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
                                         >{@html result.before}</span
                                     ><span
-                                        class="bg-yellow-200 text-yellow-900 font-bold px-0.5 rounded"
+                                        class="match"
                                     >
                                         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                                         {@html result.match}
@@ -197,8 +195,10 @@
                                     >{:else}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
                                         >{@html result.match}</span
                                     >{/if}{/each}{#if group.hits.length > INITIAL_EXCERPT_COUNT}
-                                <button
-                                    class="btn btn-ghost btn-xs text-primary ml-2"
+                                <Button
+                                    ghost
+                                    size="xs"
+                                    class="show-more"
                                     onclick={(e) => {
                                         e.stopPropagation();
                                         toggleGroup(group.canvasIndex);
@@ -207,7 +207,7 @@
                                     {isExpanded
                                         ? 'Show less'
                                         : `+${group.hits.length - INITIAL_EXCERPT_COUNT} more`}
-                                </button>
+                                </Button>
                             {/if}
                         </div>
                     </div>
@@ -216,3 +216,192 @@
         </div>
     </div>
 {/if}
+
+<style>
+    .panel {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .panel.standalone {
+        height: 100%;
+        background-color: var(--color-base-200);
+        box-shadow: 0 25px 50px -12px #00000040;
+        z-index: 100;
+        transition-property: width;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.2s;
+    }
+    .panel.bordered-left {
+        border-right-width: 1px;
+        border-right-style: solid;
+        border-right-color: var(--color-base-300);
+    }
+    .panel.bordered-right {
+        border-left-width: 1px;
+        border-left-style: solid;
+        border-left-color: var(--color-base-300);
+    }
+
+    .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--color-base-300);
+    }
+    .title {
+        font-weight: 700;
+        font-size: 1.125rem;
+        line-height: 1.75rem;
+    }
+
+    .search-bar {
+        padding: 1rem;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--color-base-300);
+        flex-shrink: 0;
+    }
+    .search-input-wrap {
+        position: relative;
+        width: 100%;
+    }
+    .search-input-wrap :global(.search-input) {
+        width: 100%;
+        padding-right: 3rem;
+    }
+    .search-input-wrap :global(.search-button) {
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100%;
+        border-start-start-radius: 0;
+        border-end-start-radius: 0;
+    }
+
+    .results {
+        padding: 1rem;
+    }
+    .results > * + * {
+        margin-top: 1rem;
+    }
+    .results.scrollable {
+        flex: 1 1 0%;
+        overflow-y: auto;
+    }
+
+    .loading-wrap {
+        display: flex;
+        justify-content: center;
+        padding: 2rem;
+    }
+    .loading-wrap :global(.loading-primary) {
+        color: var(--color-primary);
+    }
+
+    .empty {
+        text-align: center;
+        opacity: 0.5;
+        padding: 1rem;
+    }
+    .empty-instruction {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    .results-count {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 700;
+        opacity: 0.5;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding-bottom: 0.5rem;
+    }
+
+    .group {
+        width: 100%;
+        text-align: left;
+        background-color: var(--color-base-100);
+        box-shadow:
+            0 1px 3px 0 #0000001a,
+            0 1px 2px -1px #0000001a;
+        border-width: 1px;
+        border-style: solid;
+        border-color: var(--color-base-200);
+        border-radius: var(--radius-box);
+        cursor: pointer;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+        display: block;
+        padding: 0;
+    }
+    .group.current {
+        box-shadow:
+            0 0 0 2px var(--color-primary),
+            0 1px 3px 0 #0000001a,
+            0 1px 2px -1px #0000001a;
+        background-color: color-mix(
+            in oklab,
+            var(--color-primary) 5%,
+            transparent
+        );
+    }
+    .group:hover {
+        box-shadow:
+            0 4px 6px -1px #0000001a,
+            0 2px 4px -2px #0000001a;
+    }
+    .group.current:hover {
+        box-shadow:
+            0 0 0 2px var(--color-primary),
+            0 4px 6px -1px #0000001a,
+            0 2px 4px -2px #0000001a;
+    }
+
+    .group-header {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 700;
+        opacity: 0.8;
+        background-color: color-mix(
+            in oklab,
+            var(--color-base-200) 50%,
+            transparent
+        );
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-block: 0.5rem;
+        padding-inline: 0.75rem;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--color-base-200);
+    }
+
+    .excerpts {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.625;
+        user-select: text;
+    }
+    .separator {
+        color: var(--color-primary);
+        margin-inline: 0.5rem;
+    }
+    .match {
+        background-color: #fef08a;
+        color: #713f12;
+        font-weight: 700;
+        padding-inline: 0.125rem;
+        border-radius: 0.25rem;
+    }
+    .excerpts :global(.show-more) {
+        color: var(--color-primary);
+        margin-left: 0.5rem;
+    }
+</style>
