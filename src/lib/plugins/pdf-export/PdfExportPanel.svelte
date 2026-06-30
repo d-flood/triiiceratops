@@ -297,11 +297,9 @@
     }
 
     /*
-     * Reproduces DaisyUI `alert alert-soft` (+ optional color variant).
-     * Soft look: tinted background/border derived from --alert-color, no shadow.
+     * Soft alert: tinted background/border derived from --alert-color, no shadow.
      * The color variant sets --alert-color (drives bg/border) and overrides the
-     * text color to the variant's *-content token (matches DaisyUI's layer order,
-     * where alert-info's color wins over alert-soft's).
+     * text color to the variant's *-content token.
      */
     .alert {
         --alert-color: var(--color-base-content);

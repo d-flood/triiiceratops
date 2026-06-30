@@ -24,8 +24,8 @@ export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 
 // Theme customization exports
-export type { ThemeConfig, BuiltInTheme, DaisyUITheme } from './theme/types';
-export { BUILTIN_THEMES, DAISYUI_THEMES } from './theme/types';
+export type { ThemeConfig, BuiltInTheme } from './theme/types';
+export { BUILTIN_THEMES } from './theme/types';
 export {
     applyTheme,
     applyBuiltInTheme,

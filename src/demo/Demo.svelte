@@ -116,8 +116,8 @@
     // + localStorage) and bound up to here so we can pass it to the viewer. Without
     // this the web component falls back to prefers-color-scheme and ignores the
     // page's theme toggle. Initialized to match ThemeToggle's onMount resolution.
-    let selectedTheme = $state<import('../lib/theme/types').DaisyUITheme>(
-        ((): import('../lib/theme/types').DaisyUITheme => {
+    let selectedTheme = $state<import('../lib/theme/types').BuiltInTheme>(
+        ((): import('../lib/theme/types').BuiltInTheme => {
             const stored = localStorage.getItem('theme');
             if (
                 stored === 'light' ||
@@ -621,9 +621,8 @@
         overflow-y: auto;
     }
 
-    /* SettingsMenu receives class="menu settings-menu-list"; the `menu` class is the
-       (still-global) DaisyUI scaffolding the unconverted child relies on. These rules
-       reproduce the Tailwind utilities (p-2 flex-nowrap w-full) that sat alongside it. */
+    /* SettingsMenu receives class="menu settings-menu-list". These rules give that
+       list its padding, no-wrap layout, and full width. */
     .settings-scroll :global(.settings-menu-list) {
         padding: 0.5rem;
         flex-wrap: nowrap;

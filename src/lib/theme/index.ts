@@ -1,7 +1,7 @@
 /**
  * Theme customization for Triiiceratops viewer.
  *
- * This module provides utilities for customizing DaisyUI themes.
+ * This module provides utilities for customizing the built-in themes.
  *
  * @example Setting a built-in theme
  * ```html
@@ -47,8 +47,8 @@
  */
 
 // Types
-export type { ThemeConfig, BuiltInTheme, DaisyUITheme } from './types';
-export { BUILTIN_THEMES, DAISYUI_THEMES } from './types';
+export type { ThemeConfig, BuiltInTheme } from './types';
+export { BUILTIN_THEMES } from './types';
 
 // Theme manager utilities
 export {

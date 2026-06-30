@@ -1089,7 +1089,7 @@
 </div>
 
 <style>
-    /* Color tokens (Tailwind v4 defaults) used by annotation overlays */
+    /* Color tokens used by annotation overlays */
     .anno-rect,
     .anno-readonly-wrap,
     .anno-rect-fill,
@@ -1317,7 +1317,7 @@
         pointer-events: none;
     }
 
-    /* DaisyUI tooltip reproduction (matches src/lib/components/ui/Tooltip.svelte) */
+    /* Tooltip styling (matches src/lib/components/ui/Tooltip.svelte) */
     .tooltip {
         --tt-bg: var(--color-neutral);
         --tt-fg: var(--color-neutral-content);
@@ -1399,7 +1399,7 @@
         }
     }
 
-    /* Default placement is top (DaisyUI default when no side specified) */
+    /* Default placement is top (when no side specified) */
     .tooltip::before,
     .tooltip.place-top::before {
         transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));

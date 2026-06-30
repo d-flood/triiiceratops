@@ -570,7 +570,7 @@
         pointer-events: none;
     }
 
-    /* ===== Menu scaffolding (reproduced from DaisyUI menu/menu-sm) ===== */
+    /* ===== Menu scaffolding ===== */
     .menu {
         --menu-active-fg: var(--color-neutral-content);
         --menu-active-bg: var(--color-neutral);
@@ -616,7 +616,7 @@
     .actions :where(li) > :global(*) {
         padding: 0.25rem;
     }
-    /* hover (DaisyUI: non-active items) */
+    /* hover (non-active items) */
     .menu-item:not(.menu-active):not(:active):hover {
         cursor: pointer;
         background-color: color-mix(
@@ -772,8 +772,7 @@
         }
     }
 
-    /* ===== Divider (reproduced from DaisyUI divider; margins zeroed by
-       mx-0 / my-0 in the original markup so net margin is 0 either way) ===== */
+    /* ===== Divider (net margin is 0) ===== */
     .divider {
         --divider-color: color-mix(
             in oklab,
@@ -877,7 +876,7 @@
         right: 0.375rem;
     }
 
-    /* ===== Tooltip scaffolding (reproduced from DaisyUI tooltip, sm sizing) ===== */
+    /* ===== Tooltip scaffolding (sm sizing) ===== */
     .tooltip {
         --tt-bg: var(--color-neutral);
         --tt-fg: var(--color-neutral-content);

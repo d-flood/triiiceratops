@@ -1,9 +1,8 @@
 /*
- * Base reset, ported from Tailwind v4 Preflight (MIT).
- * Replaces the global reset that `@import 'tailwindcss'` used to provide so that
- * removing Tailwind does not shift element box-sizing, margins, list/heading
- * defaults, or form-element normalization. Tailwind's `--theme()` lookups are
- * replaced with plain `var()` fallbacks.
+ * Base element reset: box-sizing, margins/padding, list and heading defaults,
+ * and form-element normalization. Adapted from Tailwind CSS Preflight
+ * (MIT License); the original's `--theme()` lookups are replaced with plain
+ * `var()` fallbacks.
  *
  * Works in both the light DOM (demo) and the shadow DOM (custom element) — the
  * `:host` selectors apply when this sheet is injected into the shadow root.

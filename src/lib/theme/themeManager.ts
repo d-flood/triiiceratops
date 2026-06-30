@@ -1,13 +1,13 @@
 /**
- * Theme manager for applying DaisyUI themes and custom theme configurations.
+ * Theme manager for applying built-in themes and custom theme configurations.
  */
 
-import type { ThemeConfig, DaisyUITheme } from './types';
-import { DAISYUI_THEMES } from './types';
+import type { ThemeConfig, BuiltInTheme } from './types';
+import { BUILTIN_THEMES } from './types';
 import { normalizeColor } from './colorUtils';
 
 /**
- * Map friendly ThemeConfig property names to DaisyUI CSS variable names
+ * Map friendly ThemeConfig property names to CSS variable names
  */
 const CSS_VAR_MAP: Record<keyof ThemeConfig, string> = {
     // Semantic colors
@@ -83,10 +83,10 @@ const COLOR_PROPS = new Set<keyof ThemeConfig>([
 ]);
 
 /**
- * Check if a string is a valid built-in DaisyUI theme name
+ * Check if a string is a valid built-in theme name
  */
-export function isBuiltInTheme(theme: string): theme is DaisyUITheme {
-    return DAISYUI_THEMES.includes(theme as DaisyUITheme);
+export function isBuiltInTheme(theme: string): theme is BuiltInTheme {
+    return BUILTIN_THEMES.includes(theme as BuiltInTheme);
 }
 
 /**
@@ -94,7 +94,7 @@ export function isBuiltInTheme(theme: string): theme is DaisyUITheme {
  */
 export function applyBuiltInTheme(
     element: HTMLElement,
-    theme: DaisyUITheme,
+    theme: BuiltInTheme,
 ): void {
     element.setAttribute('data-theme', theme);
 }
@@ -170,7 +170,7 @@ export function parseThemeConfig(json: string): ThemeConfig | null {
  */
 export function applyTheme(
     element: HTMLElement,
-    theme: DaisyUITheme | undefined,
+    theme: BuiltInTheme | undefined,
     config: ThemeConfig | undefined,
 ): void {
     if (theme) {

@@ -3,7 +3,7 @@
     import { language, m } from '../state/i18n.svelte';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
-    import type { DaisyUITheme, ThemeConfig } from '../theme/types';
+    import type { BuiltInTheme, ThemeConfig } from '../theme/types';
     import type { SearchProvider, ViewerConfig } from '../types/config';
     import type { PluginDef } from '../types/plugin';
     import type { CanvasRegion } from '../utils/contentState';
@@ -39,8 +39,8 @@
         manifestJson?: any;
         canvasId?: string;
         plugins?: PluginDef[] | null | boolean;
-        /** Built-in DaisyUI theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
-        theme?: DaisyUITheme;
+        /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
+        theme?: BuiltInTheme;
         /** Custom theme configuration to override the base theme's values. */
         themeConfig?: ThemeConfig;
         /** Configuration options for the viewer UI */
