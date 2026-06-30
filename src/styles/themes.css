@@ -1,79 +1,138 @@
 /*
  * Design tokens + built-in themes (vanilla CSS).
  *
- * Token names match the CSS variables components consume and that the
- * `themeConfig` prop maps to (see src/lib/theme/themeManager.ts). Values define
- * the built-in light/dark/cupcake/dracula palettes.
+ * Two layers:
+ *   1. Per-theme tokens — palette, surfaces, content, and the radius trio. Defined in
+ *      each theme block below (defaults / prefers-dark / [data-theme=…]).
+ *   2. Derived / inherited / per-panel tokens — gallery/input surfaces, the per-region
+ *      content slots, the per-panel override slots, and the per-region radius overrides.
+ *      Defined ONCE in the :where(:root, :host) defaults block. Custom properties
+ *      re-resolve in the scope where they're READ, so e.g. `--panel-bg: green` flows
+ *      into `--metadata-panel-bg: var(--panel-bg)` automatically, and a derived token
+ *      picks up whichever theme is active without being repeated per block.
+ *
+ * Surfaces are region-named (--toolbar-bg, --panel-bg, --viewer-bg, …); --color-* is
+ * reserved for the palette (--color-primary, etc.).
  *
  * Cascade (lowest → highest precedence):
- *   1. :where(:root, :host) defaults — ZERO specificity so a consumer can
- *      override any token from outside (e.g. `triiiceratops-viewer { --color-primary: … }`),
- *      since custom properties inherit through the shadow boundary. This is the
- *      additional "CSS-variable theming" method.
- *   2. prefers-color-scheme: dark default — applied when no explicit theme is set,
- *      so the viewer follows the OS preference until a theme is chosen.
+ *   1. :where(:root, :host) defaults — ZERO specificity, so a consumer can override any
+ *      token from outside (e.g. `triiiceratops-viewer { --panel-bg: … }`); custom
+ *      properties inherit through the shadow boundary. This is the CSS-variable theming
+ *      method.
+ *   2. prefers-color-scheme: dark default — applied when no explicit theme is set.
  *   3. [data-theme="…"] block — set by the `theme` prop via applyTheme(); normal
  *      specificity, so a selected theme wins over external CSS-var overrides.
  *   4. Inline styles on the root — set by the `themeConfig` prop; win over everything.
+ *
+ * Per-panel inheritance: every panel root carries `data-panel-id`. The attribute rules
+ * at the bottom publish the resolved surface/foreground into the inherited
+ * `--panel-surface` / `--panel-fg` properties (general → per-panel override), which the
+ * panel components and their descendants consume.
  */
 
-/* ---- Default tokens (light), zero-specificity so host overrides win ---- */
+/* ---- Default tokens (light) — zero-specificity so host overrides win ---- */
 :where(:root, :host) {
     color-scheme: light;
-    --color-base-100: oklch(100% 0 0);
-    --color-base-200: oklch(98% 0 0);
-    --color-base-300: oklch(95% 0 0);
-    --color-base-content: oklch(21% 0.006 285.885);
+
+    /* Palette */
     --color-primary: oklch(45% 0.24 277.023);
     --color-primary-content: oklch(93% 0.034 272.788);
-    --color-secondary: oklch(65% 0.241 354.308);
-    --color-secondary-content: oklch(94% 0.028 342.258);
-    --color-accent: oklch(77% 0.152 181.912);
-    --color-accent-content: oklch(38% 0.063 188.416);
     --color-neutral: oklch(14% 0.005 285.823);
     --color-neutral-content: oklch(92% 0.004 286.32);
-    --color-info: oklch(74% 0.16 232.661);
-    --color-info-content: oklch(29% 0.066 243.157);
     --color-success: oklch(76% 0.177 163.223);
     --color-success-content: oklch(37% 0.077 168.94);
     --color-warning: oklch(82% 0.189 84.429);
     --color-warning-content: oklch(41% 0.112 45.904);
     --color-error: oklch(71% 0.194 13.428);
     --color-error-content: oklch(27% 0.105 12.094);
+
+    /* Surfaces */
+    --viewer-bg: oklch(100% 0 0);
+    --toolbar-bg: oklch(98% 0 0);
+    --panel-bg: oklch(98% 0 0);
+    --surface-border: oklch(95% 0 0);
+    --content: oklch(21% 0.006 285.885);
+
+    /* Radius (top-level trio) */
     --radius-selector: 0.5rem;
     --radius-field: 0.25rem;
     --radius-box: 0.5rem;
+
+    /* Sizing / border / depth */
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
     --border: 1px;
     --depth: 1;
-    --noise: 0;
+}
+
+/*
+ * Derived / inherited tokens. These are `var()` references to the per-theme tokens, so
+ * they MUST be declared on the same element that carries `data-theme` (applyTheme() sets
+ * it on the inner viewer root, not :host) — otherwise a var() declared only on :host
+ * would resolve against :host's prefers-color-scheme values and ignore the selected
+ * theme. Including `[data-theme]` here (kept at zero specificity via :where) makes each
+ * derived token re-resolve in the themed scope.
+ */
+:where(:root, :host, [data-theme]) {
+    /* Surfaces that follow the viewer surface by default */
+    --gallery-bg: var(--viewer-bg);
+    --input-bg: var(--viewer-bg);
+
+    /* Per-region content; each follows the global content color by default */
+    --panel-content: var(--content);
+    --toolbar-content: var(--content);
+    --viewer-content: var(--content);
+    --gallery-content: var(--content);
+
+    /* Per-panel overrides; each follows --panel-bg / --panel-content by default.
+       Set --panel-bg to retint every panel, or one of these to retint just that panel. */
+    --metadata-panel-bg: var(--panel-bg);
+    --metadata-panel-content: var(--panel-content);
+    --annotations-panel-bg: var(--panel-bg);
+    --annotations-panel-content: var(--panel-content);
+    --search-panel-bg: var(--panel-bg);
+    --search-panel-content: var(--panel-content);
+    --structures-panel-bg: var(--panel-bg);
+    --structures-panel-content: var(--panel-content);
+    --collection-panel-bg: var(--panel-bg);
+    --collection-panel-content: var(--panel-content);
+    /* First-party plugin panels */
+    --annotation-editor-panel-bg: var(--panel-bg);
+    --annotation-editor-panel-content: var(--panel-content);
+    --image-manipulation-panel-bg: var(--panel-bg);
+    --image-manipulation-panel-content: var(--panel-content);
+    --pdf-export-panel-bg: var(--panel-bg);
+    --pdf-export-panel-content: var(--panel-content);
+
+    /* Per-region radius overrides; inherit the top-level trio by default */
+    --radius-toolbar: var(--radius-box);
+    --radius-panels: var(--radius-box);
+    --radius-controls: var(--radius-box);
+    --radius-controls-buttons: var(--radius-field);
 }
 
 /* ---- Default tokens (dark) when the user prefers dark and no theme is set ---- */
 @media (prefers-color-scheme: dark) {
     :where(:root, :host) {
         color-scheme: dark;
-        --color-base-100: oklch(25.33% 0.016 252.42);
-        --color-base-200: oklch(23.26% 0.014 253.1);
-        --color-base-300: oklch(21.15% 0.012 254.09);
-        --color-base-content: oklch(97.807% 0.029 256.847);
+
         --color-primary: oklch(58% 0.233 277.117);
         --color-primary-content: oklch(96% 0.018 272.314);
-        --color-secondary: oklch(65% 0.241 354.308);
-        --color-secondary-content: oklch(94% 0.028 342.258);
-        --color-accent: oklch(77% 0.152 181.912);
-        --color-accent-content: oklch(38% 0.063 188.416);
         --color-neutral: oklch(14% 0.005 285.823);
         --color-neutral-content: oklch(92% 0.004 286.32);
-        --color-info: oklch(74% 0.16 232.661);
-        --color-info-content: oklch(29% 0.066 243.157);
         --color-success: oklch(76% 0.177 163.223);
         --color-success-content: oklch(37% 0.077 168.94);
         --color-warning: oklch(82% 0.189 84.429);
         --color-warning-content: oklch(41% 0.112 45.904);
         --color-error: oklch(71% 0.194 13.428);
         --color-error-content: oklch(27% 0.105 12.094);
+
+        --viewer-bg: oklch(25.33% 0.016 252.42);
+        --toolbar-bg: oklch(23.26% 0.014 253.1);
+        --panel-bg: oklch(23.26% 0.014 253.1);
+        --surface-border: oklch(21.15% 0.012 254.09);
+        --content: oklch(97.807% 0.029 256.847);
+
         --radius-selector: 0.5rem;
         --radius-field: 0.25rem;
         --radius-box: 0.5rem;
@@ -81,33 +140,30 @@
         --size-field: 0.25rem;
         --border: 1px;
         --depth: 1;
-        --noise: 0;
     }
 }
 
 /* ---- Explicit themes (set via the `theme` prop / data-theme attribute) ---- */
 [data-theme='light'] {
     color-scheme: light;
-    --color-base-100: oklch(100% 0 0);
-    --color-base-200: oklch(98% 0 0);
-    --color-base-300: oklch(95% 0 0);
-    --color-base-content: oklch(21% 0.006 285.885);
+
     --color-primary: oklch(45% 0.24 277.023);
     --color-primary-content: oklch(93% 0.034 272.788);
-    --color-secondary: oklch(65% 0.241 354.308);
-    --color-secondary-content: oklch(94% 0.028 342.258);
-    --color-accent: oklch(77% 0.152 181.912);
-    --color-accent-content: oklch(38% 0.063 188.416);
     --color-neutral: oklch(14% 0.005 285.823);
     --color-neutral-content: oklch(92% 0.004 286.32);
-    --color-info: oklch(74% 0.16 232.661);
-    --color-info-content: oklch(29% 0.066 243.157);
     --color-success: oklch(76% 0.177 163.223);
     --color-success-content: oklch(37% 0.077 168.94);
     --color-warning: oklch(82% 0.189 84.429);
     --color-warning-content: oklch(41% 0.112 45.904);
     --color-error: oklch(71% 0.194 13.428);
     --color-error-content: oklch(27% 0.105 12.094);
+
+    --viewer-bg: oklch(100% 0 0);
+    --toolbar-bg: oklch(98% 0 0);
+    --panel-bg: oklch(98% 0 0);
+    --surface-border: oklch(95% 0 0);
+    --content: oklch(21% 0.006 285.885);
+
     --radius-selector: 0.5rem;
     --radius-field: 0.25rem;
     --radius-box: 0.5rem;
@@ -115,31 +171,28 @@
     --size-field: 0.25rem;
     --border: 1px;
     --depth: 1;
-    --noise: 0;
 }
 
 [data-theme='dark'] {
     color-scheme: dark;
-    --color-base-100: oklch(25.33% 0.016 252.42);
-    --color-base-200: oklch(23.26% 0.014 253.1);
-    --color-base-300: oklch(21.15% 0.012 254.09);
-    --color-base-content: oklch(97.807% 0.029 256.847);
+
     --color-primary: oklch(58% 0.233 277.117);
     --color-primary-content: oklch(96% 0.018 272.314);
-    --color-secondary: oklch(65% 0.241 354.308);
-    --color-secondary-content: oklch(94% 0.028 342.258);
-    --color-accent: oklch(77% 0.152 181.912);
-    --color-accent-content: oklch(38% 0.063 188.416);
     --color-neutral: oklch(14% 0.005 285.823);
     --color-neutral-content: oklch(92% 0.004 286.32);
-    --color-info: oklch(74% 0.16 232.661);
-    --color-info-content: oklch(29% 0.066 243.157);
     --color-success: oklch(76% 0.177 163.223);
     --color-success-content: oklch(37% 0.077 168.94);
     --color-warning: oklch(82% 0.189 84.429);
     --color-warning-content: oklch(41% 0.112 45.904);
     --color-error: oklch(71% 0.194 13.428);
     --color-error-content: oklch(27% 0.105 12.094);
+
+    --viewer-bg: oklch(25.33% 0.016 252.42);
+    --toolbar-bg: oklch(23.26% 0.014 253.1);
+    --panel-bg: oklch(23.26% 0.014 253.1);
+    --surface-border: oklch(21.15% 0.012 254.09);
+    --content: oklch(97.807% 0.029 256.847);
+
     --radius-selector: 0.5rem;
     --radius-field: 0.25rem;
     --radius-box: 0.5rem;
@@ -147,31 +200,28 @@
     --size-field: 0.25rem;
     --border: 1px;
     --depth: 1;
-    --noise: 0;
 }
 
 [data-theme='cupcake'] {
     color-scheme: light;
-    --color-base-100: oklch(97.788% 0.004 56.375);
-    --color-base-200: oklch(93.982% 0.007 61.449);
-    --color-base-300: oklch(91.586% 0.006 53.44);
-    --color-base-content: oklch(23.574% 0.066 313.189);
+
     --color-primary: oklch(85% 0.138 181.071);
     --color-primary-content: oklch(43% 0.078 188.216);
-    --color-secondary: oklch(89% 0.061 343.231);
-    --color-secondary-content: oklch(45% 0.187 3.815);
-    --color-accent: oklch(90% 0.076 70.697);
-    --color-accent-content: oklch(47% 0.157 37.304);
     --color-neutral: oklch(27% 0.006 286.033);
     --color-neutral-content: oklch(92% 0.004 286.32);
-    --color-info: oklch(68% 0.169 237.323);
-    --color-info-content: oklch(29% 0.066 243.157);
     --color-success: oklch(69% 0.17 162.48);
     --color-success-content: oklch(26% 0.051 172.552);
     --color-warning: oklch(79% 0.184 86.047);
     --color-warning-content: oklch(28% 0.066 53.813);
     --color-error: oklch(64% 0.246 16.439);
     --color-error-content: oklch(27% 0.105 12.094);
+
+    --viewer-bg: oklch(97.788% 0.004 56.375);
+    --toolbar-bg: oklch(93.982% 0.007 61.449);
+    --panel-bg: oklch(93.982% 0.007 61.449);
+    --surface-border: oklch(91.586% 0.006 53.44);
+    --content: oklch(23.574% 0.066 313.189);
+
     --radius-selector: 1rem;
     --radius-field: 2rem;
     --radius-box: 1rem;
@@ -179,31 +229,28 @@
     --size-field: 0.25rem;
     --border: 2px;
     --depth: 1;
-    --noise: 0;
 }
 
 [data-theme='dracula'] {
     color-scheme: dark;
-    --color-base-100: oklch(28.822% 0.022 277.508);
-    --color-base-200: oklch(26.805% 0.02 277.508);
-    --color-base-300: oklch(24.787% 0.019 277.508);
-    --color-base-content: oklch(97.747% 0.007 106.545);
+
     --color-primary: oklch(75.461% 0.183 346.812);
     --color-primary-content: oklch(15.092% 0.036 346.812);
-    --color-secondary: oklch(74.202% 0.148 301.883);
-    --color-secondary-content: oklch(14.84% 0.029 301.883);
-    --color-accent: oklch(83.392% 0.124 66.558);
-    --color-accent-content: oklch(16.678% 0.024 66.558);
     --color-neutral: oklch(39.445% 0.032 275.524);
     --color-neutral-content: oklch(87.889% 0.006 275.524);
-    --color-info: oklch(88.263% 0.093 212.846);
-    --color-info-content: oklch(17.652% 0.018 212.846);
     --color-success: oklch(87.099% 0.219 148.024);
     --color-success-content: oklch(17.419% 0.043 148.024);
     --color-warning: oklch(95.533% 0.134 112.757);
     --color-warning-content: oklch(19.106% 0.026 112.757);
     --color-error: oklch(68.22% 0.206 24.43);
     --color-error-content: oklch(13.644% 0.041 24.43);
+
+    --viewer-bg: oklch(28.822% 0.022 277.508);
+    --toolbar-bg: oklch(26.805% 0.02 277.508);
+    --panel-bg: oklch(26.805% 0.02 277.508);
+    --surface-border: oklch(24.787% 0.019 277.508);
+    --content: oklch(97.747% 0.007 106.545);
+
     --radius-selector: 1rem;
     --radius-field: 0.5rem;
     --radius-box: 1rem;
@@ -211,5 +258,55 @@
     --size-field: 0.25rem;
     --border: 1px;
     --depth: 0;
-    --noise: 0;
+}
+
+/*
+ * Per-panel surface resolution. Every panel root carries data-panel-id; these rules
+ * publish the resolved background/foreground into the inherited --panel-surface /
+ * --panel-fg properties so the panel components and their descendants (sticky headers,
+ * body text) follow the override without each needing to know its own id.
+ *
+ * The generic rule seeds the defaults and sets `color`; the per-id rules (same
+ * specificity, later in source order) override the resolved value with the panel's slot
+ * — which itself defaults to --panel-bg / --panel-content. An unknown plugin id falls
+ * through to the generic rule and honors --panel-bg. Background is painted by the panel
+ * components themselves via var(--panel-surface), so embedded panels (which have no
+ * surface of their own and let the stack section show through) stay transparent.
+ */
+[data-panel-id] {
+    --panel-surface: var(--panel-bg);
+    --panel-fg: var(--panel-content);
+    color: var(--panel-fg);
+}
+[data-panel-id='metadata'] {
+    --panel-surface: var(--metadata-panel-bg);
+    --panel-fg: var(--metadata-panel-content);
+}
+[data-panel-id='annotations'] {
+    --panel-surface: var(--annotations-panel-bg);
+    --panel-fg: var(--annotations-panel-content);
+}
+[data-panel-id='search'] {
+    --panel-surface: var(--search-panel-bg);
+    --panel-fg: var(--search-panel-content);
+}
+[data-panel-id='structures'] {
+    --panel-surface: var(--structures-panel-bg);
+    --panel-fg: var(--structures-panel-content);
+}
+[data-panel-id='collection'] {
+    --panel-surface: var(--collection-panel-bg);
+    --panel-fg: var(--collection-panel-content);
+}
+[data-panel-id='annotation-editor'] {
+    --panel-surface: var(--annotation-editor-panel-bg);
+    --panel-fg: var(--annotation-editor-panel-content);
+}
+[data-panel-id='image-manipulation'] {
+    --panel-surface: var(--image-manipulation-panel-bg);
+    --panel-fg: var(--image-manipulation-panel-content);
+}
+[data-panel-id='pdf-export'] {
+    --panel-surface: var(--pdf-export-panel-bg);
+    --panel-fg: var(--pdf-export-panel-content);
 }

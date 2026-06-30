@@ -98,6 +98,7 @@
 
 {#if viewerState.showStructuresPanel}
     <div
+        data-panel-id="structures"
         class="panel"
         class:standalone={!embedded}
         role="dialog"
@@ -142,7 +143,7 @@
     }
     /* hover comes after .active so it wins on hover */
     .row:hover {
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
     }
 
     .caret {
@@ -181,11 +182,11 @@
     }
     .panel.standalone {
         height: 100%;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         box-shadow: 0 25px 50px -12px #00000040;
         z-index: 100;
         transition: width 200ms;
-        border-left: 1px solid var(--color-base-300);
+        border-left: 1px solid var(--surface-border);
     }
 
     .panel-header {
@@ -193,7 +194,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 1rem;
-        border-bottom: 1px solid var(--color-base-300);
+        border-bottom: 1px solid var(--surface-border);
     }
     .panel-header-title {
         display: flex;

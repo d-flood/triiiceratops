@@ -57,13 +57,13 @@
         border: var(--border) solid
             var(
                 --input-color,
-                color-mix(in oklab, var(--color-base-content) 20%, #0000)
+                color-mix(in oklab, var(--content) 20%, #0000)
             );
         cursor: pointer;
         appearance: none;
         border-radius: var(--radius-selector);
         vertical-align: middle;
-        color: var(--color-base-content);
+        color: var(--content);
         box-shadow:
             0 1px oklch(0% 0 0 / calc(var(--depth) * 0.1)) inset,
             0 0 #0000 inset,
@@ -121,7 +121,7 @@
     .checkbox:indeterminate {
         background-color: var(
             --input-color,
-            color-mix(in oklab, var(--color-base-content) 20%, #0000)
+            color-mix(in oklab, var(--content) 20%, #0000)
         );
     }
     .checkbox:indeterminate::before {

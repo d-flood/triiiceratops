@@ -6,10 +6,7 @@
     type Variant =
         | 'default'
         | 'primary'
-        | 'secondary'
-        | 'accent'
         | 'neutral'
-        | 'info'
         | 'success'
         | 'warning'
         | 'error';
@@ -39,12 +36,8 @@
         default: '',
         primary:
             '--badge-color:var(--color-primary);--badge-fg:var(--color-primary-content);',
-        secondary:
-            '--badge-color:var(--color-secondary);--badge-fg:var(--color-secondary-content);',
-        accent: '--badge-color:var(--color-accent);--badge-fg:var(--color-accent-content);',
         neutral:
             '--badge-color:var(--color-neutral);--badge-fg:var(--color-neutral-content);',
-        info: '--badge-color:var(--color-info);--badge-fg:var(--color-info-content);',
         success:
             '--badge-color:var(--color-success);--badge-fg:var(--color-success-content);',
         warning:
@@ -77,10 +70,10 @@
         border-radius: var(--radius-selector);
         vertical-align: middle;
         color: var(--badge-fg);
-        border: var(--border) solid var(--badge-color, var(--color-base-200));
+        border: var(--border) solid var(--badge-color, var(--surface-border));
         background-color: var(--badge-bg);
-        --badge-bg: var(--badge-color, var(--color-base-100));
-        --badge-fg: var(--color-base-content);
+        --badge-bg: var(--badge-color, var(--input-bg));
+        --badge-fg: var(--content);
         --size: calc(var(--size-selector, 0.25rem) * 6);
         width: fit-content;
         height: var(--size);
@@ -99,16 +92,16 @@
     }
 
     .soft {
-        color: var(--badge-color, var(--color-base-content));
+        color: var(--badge-color, var(--content));
         background-color: color-mix(
             in oklab,
-            var(--badge-color, var(--color-base-content)) 8%,
-            var(--color-base-100)
+            var(--badge-color, var(--content)) 8%,
+            var(--input-bg)
         );
         border-color: color-mix(
             in oklab,
-            var(--badge-color, var(--color-base-content)) 10%,
-            var(--color-base-100)
+            var(--badge-color, var(--content)) 10%,
+            var(--input-bg)
         );
     }
 </style>

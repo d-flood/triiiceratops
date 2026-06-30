@@ -158,7 +158,7 @@
                 <Select
                     size="xs"
                     value={selectedValue}
-                    style="border-radius:9999px;max-width:20rem"
+                    style="border-radius:var(--radius-controls-buttons);max-width:20rem"
                     onchange={(e: Event) => {
                         const idx = (e.currentTarget as HTMLSelectElement)
                             .selectedIndex;
@@ -237,7 +237,7 @@
                 {#if showZoom}
                     <div class="btn-row">
                         <Button
-                            circle
+                            square
                             size="sm"
                             ghost
                             onclick={() => viewerState.zoomOut()}
@@ -247,7 +247,7 @@
                         </Button>
 
                         <Button
-                            circle
+                            square
                             size="sm"
                             ghost
                             onclick={() => viewerState.zoomIn()}
@@ -265,7 +265,7 @@
                 {#if showNav}
                     <div class="btn-row">
                         <Button
-                            circle
+                            square
                             size="sm"
                             ghost
                             disabled={canvasNavLayout.leftButton === 'previous'
@@ -291,7 +291,7 @@
                         <CanvasInfoPopover />
 
                         <Button
-                            circle
+                            square
                             size="sm"
                             ghost
                             disabled={canvasNavLayout.rightButton === 'next'
@@ -339,12 +339,13 @@
         padding-inline: 0.5rem;
         background-color: color-mix(
             in oklab,
-            var(--color-base-200) 70%,
+            var(--toolbar-bg) 70%,
             transparent
         );
+        color: var(--toolbar-content);
         backdrop-filter: blur(8px);
-        border-radius: 9999px;
-        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-controls);
+        border: 1px solid var(--surface-border);
         box-shadow:
             0 10px 15px -3px #0000001a,
             0 4px 6px -4px #0000001a;
@@ -381,13 +382,22 @@
         align-items: center;
         gap: 0.25rem;
     }
+    /* The pill's zoom/nav buttons inherit the controls-button radius (defaults to the
+       field radius) rather than being forced circles. Scoped to .btn-row so the choice
+       .join-item buttons keep their own join radii. */
+    .control-bar .btn-row :global(.btn) {
+        border-start-start-radius: var(--radius-controls-buttons);
+        border-start-end-radius: var(--radius-controls-buttons);
+        border-end-end-radius: var(--radius-controls-buttons);
+        border-end-start-radius: var(--radius-controls-buttons);
+    }
 
     .divider-v {
         height: 1rem;
         width: 1px;
         background-color: color-mix(
             in oklab,
-            var(--color-base-content) 20%,
+            var(--toolbar-content) 20%,
             transparent
         );
     }

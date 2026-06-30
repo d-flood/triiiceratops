@@ -52,7 +52,7 @@
     .range {
         -webkit-appearance: none;
         appearance: none;
-        --range-thumb: var(--color-base-100);
+        --range-thumb: var(--input-bg);
         --range-thumb-size: calc(var(--size-selector, 0.25rem) * 6);
         --range-progress: currentColor;
         --range-fill: 1;

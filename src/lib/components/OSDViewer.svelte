@@ -1112,7 +1112,7 @@
     }
 
     .osd-surface.has-bg {
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
     }
 
     /* Shared transition for annotation color changes (transition-colors) */

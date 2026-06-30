@@ -23,7 +23,7 @@
  * viewer.theme = 'dark';
  * viewer.themeConfig = {
  *   primary: '#3b82f6',
- *   secondary: '#8b5cf6',
+ *   panelBg: '#1e1e2e',
  *   radiusBox: '0.75rem',
  *   border: '2px',
  * };

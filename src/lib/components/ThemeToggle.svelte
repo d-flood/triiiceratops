@@ -35,8 +35,8 @@
         <div class="swatch swatch-trigger">
             <div class="dot dot-base"></div>
             <div class="dot dot-primary"></div>
-            <div class="dot dot-secondary"></div>
-            <div class="dot dot-accent"></div>
+            <div class="dot dot-success"></div>
+            <div class="dot dot-error"></div>
         </div>
         <CaretDown size={16} />
     </div>
@@ -52,8 +52,8 @@
                         <div data-theme={t} class="swatch swatch-preview">
                             <div class="dot dot-base"></div>
                             <div class="dot dot-primary"></div>
-                            <div class="dot dot-secondary"></div>
-                            <div class="dot dot-accent"></div>
+                            <div class="dot dot-success"></div>
+                            <div class="dot dot-error"></div>
                         </div>
                         <div class="theme-name">
                             {t}
@@ -93,8 +93,8 @@
         display: none;
         transform-origin: top;
         overflow: hidden;
-        background-color: var(--color-base-200);
-        color: var(--color-base-content);
+        background-color: var(--panel-bg);
+        color: var(--content);
         border-radius: var(--radius-box);
         border: 1px solid rgb(255 255 255 / 0.05);
         outline: 1px solid rgb(0 0 0 / 0.05);
@@ -143,13 +143,13 @@
         .trigger:hover {
             background-color: color-mix(
                 in oklab,
-                var(--color-base-content) 10%,
+                var(--content) 10%,
                 transparent
             );
         }
     }
     .trigger:focus-visible {
-        outline: 2px solid var(--color-base-content);
+        outline: 2px solid var(--content);
         outline-offset: 2px;
     }
 
@@ -160,14 +160,14 @@
         flex-shrink: 0;
         padding: 0.25rem;
         border-radius: 0.375rem;
-        background-color: var(--color-base-100);
+        background-color: var(--viewer-bg);
     }
     .swatch-trigger {
-        border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent);
+        border: 1px solid color-mix(in oklab, var(--content) 10%, transparent);
         transition: border-color 0.2s;
     }
     .trigger:hover .swatch-trigger {
-        border-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+        border-color: color-mix(in oklab, var(--content) 20%, transparent);
     }
     .swatch-preview {
         box-shadow:
@@ -180,16 +180,16 @@
         border-radius: 9999px;
     }
     .dot-base {
-        background-color: var(--color-base-content);
+        background-color: var(--content);
     }
     .dot-primary {
         background-color: var(--color-primary);
     }
-    .dot-secondary {
-        background-color: var(--color-secondary);
+    .dot-success {
+        background-color: var(--color-success);
     }
-    .dot-accent {
-        background-color: var(--color-accent);
+    .dot-error {
+        background-color: var(--color-error);
     }
 
     /* menu */
@@ -207,7 +207,7 @@
         overflow-y: auto;
     }
     .menu-title {
-        color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+        color: color-mix(in oklab, var(--content) 40%, transparent);
         padding-block: 0.5rem;
         padding-inline: 0.75rem;
         font-size: 0.75rem;
@@ -239,7 +239,7 @@
         .theme-item:hover {
             background-color: color-mix(
                 in oklab,
-                var(--color-base-content) 10%,
+                var(--content) 10%,
                 transparent
             );
         }

@@ -828,7 +828,8 @@
     .gallery-root {
         display: flex;
         user-select: none;
-        background-color: var(--color-base-100);
+        background-color: var(--gallery-bg);
+        color: var(--gallery-content);
     }
     .gallery-root.docked {
         position: relative;
@@ -838,7 +839,7 @@
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.2s;
@@ -850,7 +851,7 @@
         overflow: hidden;
         border-width: 1px;
         border-style: solid;
-        border-color: var(--color-base-300);
+        border-color: var(--surface-border);
         box-shadow:
             0 25px 50px -12px #00000040;
     }
@@ -885,7 +886,7 @@
         flex-shrink: 0;
         position: relative;
         user-select: none;
-        background-color: var(--color-base-100);
+        background-color: var(--gallery-bg);
     }
     .gallery-header.header-horizontal {
         flex-direction: row;
@@ -893,14 +894,14 @@
         align-items: center;
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--color-base-200);
+        border-right-color: var(--surface-border);
     }
     .gallery-header.header-vertical {
         flex-direction: column;
         width: 100%;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-200);
+        border-bottom-color: var(--surface-border);
     }
 
     .drag-handle {
@@ -916,12 +917,12 @@
     .drag-handle:hover {
         background-color: color-mix(
             in oklab,
-            var(--color-base-200) 50%,
+            var(--surface-border) 50%,
             transparent
         );
     }
     .drag-handle:active {
-        background-color: var(--color-base-200);
+        background-color: var(--surface-border);
     }
     .drag-handle.handle-horizontal {
         width: 2rem;
@@ -933,7 +934,7 @@
     }
 
     .drag-grip {
-        background-color: var(--color-base-300);
+        background-color: var(--surface-border);
         border-radius: calc(infinity * 1px);
     }
     .drag-grip.grip-horizontal {
@@ -949,7 +950,7 @@
     .gallery-content {
         flex: 1 1 0%;
         padding: 0.25rem;
-        background-color: var(--color-base-100);
+        background-color: var(--gallery-bg);
     }
     .gallery-content.content-horizontal {
         overflow-x: auto;
@@ -992,7 +993,7 @@
         overflow: hidden;
     }
     .thumb-item:hover {
-        background-color: var(--color-base-200);
+        background-color: var(--surface-border);
     }
     .thumb-item.thumb-horizontal {
         width: auto;
@@ -1010,7 +1011,7 @@
 
     /* ===== Thumbnail frame (image container) ===== */
     .thumb-frame {
-        background-color: var(--color-base-300);
+        background-color: var(--surface-border);
         border-radius: 0.25rem;
         overflow: hidden;
         position: relative;
@@ -1143,14 +1144,14 @@
         height: 1.5rem;
         cursor: se-resize;
         z-index: 50;
-        background-color: var(--color-accent);
+        background-color: var(--color-primary);
         transition-property: color, background-color, border-color,
             text-decoration-color, fill, stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
     .resize-handle:hover {
-        background-color: var(--color-accent);
+        background-color: var(--color-primary);
     }
 
     /* ===== Drop zones ===== */
@@ -1211,7 +1212,7 @@
     .drop-zone.drop-idle {
         background-color: color-mix(
             in oklab,
-            var(--color-base-100) 50%,
+            var(--gallery-bg) 50%,
             transparent
         );
     }

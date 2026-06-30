@@ -54,7 +54,7 @@
 </script>
 
 {#key language.current}
-    <div class="panel" class:standalone={!embedded}>
+    <div class="panel" data-panel-id="pdf-export" class:standalone={!embedded}>
         {#if !embedded}
             <div class="header">
                 <h2 class="header-title">
@@ -198,8 +198,8 @@
     .panel.standalone {
         width: 20rem;
         height: 100%;
-        background-color: var(--color-base-200);
-        border-right: 1px solid var(--color-base-300);
+        background-color: var(--panel-surface);
+        border-right: 1px solid var(--surface-border);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -209,7 +209,7 @@
         display: flex;
         align-items: center;
         padding: 1rem;
-        border-bottom: 1px solid var(--color-base-300);
+        border-bottom: 1px solid var(--surface-border);
     }
 
     .header-title {
@@ -237,7 +237,7 @@
     .description {
         font-size: 0.875rem;
         line-height: 1.25rem;
-        color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+        color: color-mix(in oklab, var(--panel-fg) 70%, transparent);
     }
 
     .fields {
@@ -263,12 +263,12 @@
     }
 
     .card {
-        border-radius: var(--radius-box);
+        border-radius: var(--radius-panels);
         display: flex;
         flex-direction: column;
         position: relative;
-        background-color: var(--color-base-100);
-        border: 1px solid var(--color-base-300);
+        background-color: var(--input-bg);
+        border: 1px solid var(--surface-border);
     }
 
     .card-body {
@@ -289,7 +289,7 @@
     }
 
     .summary-label {
-        color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+        color: color-mix(in oklab, var(--panel-fg) 70%, transparent);
     }
 
     .summary-count {
@@ -302,21 +302,21 @@
      * text color to the variant's *-content token.
      */
     .alert {
-        --alert-color: var(--color-base-content);
+        --alert-color: var(--panel-fg);
         border-width: var(--border);
         border-style: solid;
         border-color: var(--alert-border-color);
         --alert-border-color: color-mix(
             in oklab,
             var(--alert-color) 10%,
-            var(--color-base-100)
+            var(--input-bg)
         );
-        border-radius: var(--radius-box);
-        color: var(--color-base-content);
+        border-radius: var(--radius-panels);
+        color: var(--panel-fg);
         background: color-mix(
             in oklab,
             var(--alert-color) 8%,
-            var(--color-base-100)
+            var(--input-bg)
         );
         background-image: none;
         box-shadow: none;
@@ -338,8 +338,8 @@
     }
 
     .alert.alert-info {
-        --alert-color: var(--color-info);
-        color: var(--color-info-content);
+        --alert-color: var(--color-primary);
+        color: var(--color-primary-content);
     }
 
     .alert.alert-success {
@@ -355,7 +355,7 @@
     .footer {
         width: 100%;
         padding: 1rem;
-        border-top: 1px solid var(--color-base-300);
+        border-top: 1px solid var(--surface-border);
     }
 
     .footer :global(.export-button) {

@@ -103,7 +103,7 @@
     }
 </script>
 
-<div class="panel" class:floating={!embedded}>
+<div class="panel" data-panel-id="annotation-editor" class:floating={!embedded}>
     {#if !embedded}
         <div class="header">
             <h2 class="title">
@@ -120,7 +120,7 @@
                 <Button
                     class="join-item"
                     size="sm"
-                    variant={!isEditing ? 'secondary' : 'default'}
+                    variant={!isEditing ? 'primary' : 'default'}
                     onclick={() => isEditing && onToggleEditing()}
                 >
                     {m.annotation_editor_edit_mode()}
@@ -354,10 +354,10 @@
     .panel.floating {
         height: 100%;
         width: 20rem;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--color-base-300);
+        border-right-color: var(--surface-border);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -372,7 +372,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-300);
+        border-bottom-color: var(--surface-border);
     }
     .title {
         font-size: 1.125rem;
@@ -411,7 +411,7 @@
         font-size: 0.75rem;
         line-height: 1rem;
         text-align: center;
-        color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+        color: color-mix(in oklab, var(--panel-fg) 70%, transparent);
     }
 
     /* Tool Selection */
@@ -444,10 +444,10 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        border-radius: var(--radius-box);
+        border-radius: var(--radius-panels);
     }
     .editor-card {
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
         padding: 1rem;
         display: flex;
         flex-direction: column;
@@ -484,7 +484,7 @@
     }
 
     .body-card {
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         padding: 0.5rem;
         display: flex;
         flex-direction: column;
@@ -515,7 +515,7 @@
         flex-shrink: 1;
         appearance: none;
         border-radius: var(--radius-field);
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
         padding-block: calc(0.25rem * 2);
         vertical-align: middle;
         width: 100%;
@@ -528,11 +528,11 @@
                 color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000)
                 inset,
             0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
-        --input-color: color-mix(in oklab, var(--color-base-content) 20%, #0000);
+        --input-color: color-mix(in oklab, var(--panel-fg) 20%, #0000);
     }
     .body-textarea:focus,
     .body-textarea:focus-within {
-        --input-color: var(--color-base-content);
+        --input-color: var(--panel-fg);
         box-shadow: 0 1px
             color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000);
         outline: 2px solid var(--input-color);
@@ -541,13 +541,13 @@
     }
     .body-textarea:is(:disabled, [disabled]) {
         cursor: not-allowed;
-        border-color: var(--color-base-200);
-        background-color: var(--color-base-200);
-        color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+        border-color: var(--panel-surface);
+        background-color: var(--panel-surface);
+        color: color-mix(in oklab, var(--panel-fg) 40%, transparent);
         box-shadow: none;
     }
     .body-textarea:is(:disabled, [disabled])::placeholder {
-        color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+        color: color-mix(in oklab, var(--panel-fg) 20%, transparent);
     }
 
     .hydrating-note {
@@ -631,9 +631,9 @@
         max-height: 100vh;
         width: calc(11 / 12 * 100%);
         max-width: 32rem;
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
         padding: 1.5rem;
-        border-radius: var(--radius-box);
+        border-radius: var(--radius-panels);
         box-shadow: oklch(0% 0 0 / 0.25) 0px 25px 50px -12px;
         overflow-y: auto;
         overscroll-behavior: contain;

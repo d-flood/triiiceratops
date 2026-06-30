@@ -803,7 +803,7 @@
 <style>
     /* Menu section heading. */
     .menu-title {
-        color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+        color: color-mix(in oklab, var(--content) 40%, transparent);
         font-weight: 600;
         font-size: 0.875rem;
         padding-inline: 1rem;
@@ -856,7 +856,7 @@
         margin-inline: 0;
         --divider-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--content) 10%,
             transparent
         );
     }
@@ -923,7 +923,7 @@
         cursor: pointer;
         background-color: color-mix(
             in oklab,
-            var(--color-base-content) 10%,
+            var(--content) 10%,
             transparent
         );
     }
@@ -946,7 +946,7 @@
         top: 0.75rem;
         bottom: 0.75rem;
         width: var(--border);
-        background-color: var(--color-base-content);
+        background-color: var(--content);
         opacity: 0.1;
     }
 </style>

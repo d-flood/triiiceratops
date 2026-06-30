@@ -34,6 +34,7 @@
 
 {#if viewerState.showCollectionPanel}
     <div
+        data-panel-id="collection"
         class="panel"
         class:standalone={!embedded}
         role="dialog"
@@ -159,11 +160,11 @@
     }
     .panel.standalone {
         height: 100%;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         box-shadow: 0 25px 50px -12px #00000040;
         z-index: 100;
         transition: width 200ms;
-        border-left: 1px solid var(--color-base-300);
+        border-left: 1px solid var(--surface-border);
     }
 
     .panel-header {
@@ -171,7 +172,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 1rem;
-        border-bottom: 1px solid var(--color-base-300);
+        border-bottom: 1px solid var(--surface-border);
     }
     .panel-header-title {
         display: flex;
@@ -189,8 +190,8 @@
 
     .panel-header-embedded {
         padding: 1rem;
-        border-bottom: 1px solid var(--color-base-300);
-        background-color: color-mix(in oklab, var(--color-base-100) 50%, transparent);
+        border-bottom: 1px solid var(--surface-border);
+        background-color: color-mix(in oklab, var(--input-bg) 50%, transparent);
     }
     .embedded-row {
         display: flex;
@@ -212,8 +213,8 @@
         object-fit: cover;
         border-radius: 0.375rem;
         flex-shrink: 0;
-        border: 1px solid var(--color-base-300);
-        background-color: var(--color-base-100);
+        border: 1px solid var(--surface-border);
+        background-color: var(--input-bg);
     }
     .thumb-lg {
         width: 2.5rem;
@@ -221,8 +222,8 @@
         object-fit: cover;
         border-radius: 0.375rem;
         flex-shrink: 0;
-        border: 1px solid var(--color-base-300);
-        background-color: var(--color-base-100);
+        border: 1px solid var(--surface-border);
+        background-color: var(--input-bg);
     }
 
     .panel-header :global(.icon-lead),
@@ -233,8 +234,8 @@
 
     .count-bar {
         padding: 1rem;
-        border-bottom: 1px solid var(--color-base-300);
-        background-color: color-mix(in oklab, var(--color-base-100) 50%, transparent);
+        border-bottom: 1px solid var(--surface-border);
+        background-color: color-mix(in oklab, var(--input-bg) 50%, transparent);
         display: flex;
         align-items: center;
     }
@@ -251,7 +252,7 @@
         flex-direction: column;
     }
     .items > * + * {
-        border-top: 1px solid var(--color-base-300);
+        border-top: 1px solid var(--surface-border);
     }
     .items.standalone {
         flex: 1 1 0%;
@@ -277,7 +278,7 @@
     }
     /* hover comes after .active so it wins on hover */
     .item:hover {
-        background-color: var(--color-base-100);
+        background-color: var(--input-bg);
     }
 
     .item-thumb {

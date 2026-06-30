@@ -114,6 +114,7 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showAnnotations}
     <div
+        data-panel-id="annotations"
         class="panel"
         class:floating={!embedded}
         class:transparent={!embedded && viewerState.config.transparentBackground}
@@ -290,7 +291,7 @@
 
     .panel.floating {
         height: 100%;
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
         box-shadow: 0 25px 50px -12px #00000040;
         z-index: 100;
         transition-property: width;
@@ -301,13 +302,13 @@
     .panel.border-left {
         border-left-width: 1px;
         border-left-style: solid;
-        border-left-color: var(--color-base-300);
+        border-left-color: var(--surface-border);
     }
 
     .panel.border-right {
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--color-base-300);
+        border-right-color: var(--surface-border);
     }
 
     .header {
@@ -317,7 +318,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-300);
+        border-bottom-color: var(--surface-border);
     }
 
     .header-title {
@@ -336,10 +337,10 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--color-base-300);
+        border-bottom-color: var(--surface-border);
         background-color: color-mix(
             in oklab,
-            var(--color-base-100) 50%,
+            var(--input-bg) 50%,
             transparent
         );
         display: flex;
@@ -369,7 +370,7 @@
     .list > :global(* + *) {
         border-top-width: 1px;
         border-top-style: solid;
-        border-top-color: var(--color-base-300);
+        border-top-color: var(--surface-border);
     }
 
     .list.scrollable {
@@ -417,7 +418,7 @@
         opacity: 0.6;
         background-color: color-mix(
             in oklab,
-            var(--color-base-200) 50%,
+            var(--panel-surface) 50%,
             transparent
         );
     }
@@ -489,7 +490,7 @@
     .link:hover {
         text-decoration-line: underline;
         /* text color stays --color-primary on hover */
-        background-color: var(--color-base-200);
+        background-color: var(--panel-surface);
     }
 
     .link-text {
