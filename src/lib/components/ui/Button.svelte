@@ -46,7 +46,7 @@
         ...rest
     }: Props = $props();
 
-    // DaisyUI drives the button entirely through custom properties. Setting them
+    // The button is driven entirely through custom properties. Setting them
     // inline per variant/size keeps a single static `.btn` rule (and avoids Svelte
     // pruning dynamically-applied utility classes).
     const VARIANT_VARS: Record<Variant, string> = {
@@ -213,7 +213,7 @@
     }
 
     /* Ghost: transparent until interaction; text takes the variant color
-       (falls back to base-content for the default variant), matching DaisyUI. */
+       (falls back to base-content for the default variant). */
     .ghost {
         --btn-bg: transparent;
         --btn-border: transparent;

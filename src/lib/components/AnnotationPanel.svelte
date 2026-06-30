@@ -488,8 +488,7 @@
 
     .link:hover {
         text-decoration-line: underline;
-        /* original `hover:text-primary-focus` was a dead DaisyUI v5 class (no
-           --color-primary-focus token), so the text color stays --color-primary */
+        /* text color stays --color-primary on hover */
         background-color: var(--color-base-200);
     }
 

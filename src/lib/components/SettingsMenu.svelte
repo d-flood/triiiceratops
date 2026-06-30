@@ -801,8 +801,7 @@
 </ul>
 
 <style>
-    /* Menu section heading (DaisyUI `menu-title`, with the original px-4 py-2
-       padding overrides). */
+    /* Menu section heading. */
     .menu-title {
         color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
         font-weight: 600;
@@ -811,18 +810,17 @@
         padding-block: 0.5rem;
     }
 
-    /* DaisyUI v5 `label`: inline-flex row of label text + control.
-       `label-text` / `form-control` are dead no-ops in v5 and are dropped;
-       the text lives in a plain <span>. */
+    /* Label row: inline-flex row of label text + control. The text lives in a
+       plain <span>. */
     .settings-label {
         display: inline-flex;
         align-items: center;
         gap: 0.375rem;
         white-space: nowrap;
         cursor: pointer;
-        padding-block: 0.25rem; /* py-1 */
+        padding-block: 0.25rem;
     }
-    /* `gap-2` utility override on certain labels. */
+    /* Wider gap on certain labels. */
     .settings-label--gap2 {
         gap: 0.5rem;
     }
@@ -831,7 +829,7 @@
         cursor: default;
     }
 
-    /* Range/thumbnail value read-out: `text-xs opacity-50 w-8 text-right`. */
+    /* Range/thumbnail value read-out. */
     .value-readout {
         font-size: 0.75rem;
         line-height: 1rem;
@@ -840,14 +838,13 @@
         text-align: right;
     }
 
-    /* Wrapper around the viewer-locale select: `px-4 py-2`. */
+    /* Wrapper around the viewer-locale select. */
     .locale-block {
         padding-inline: 1rem;
         padding-block: 0.5rem;
     }
 
-    /* DaisyUI `divider` (empty horizontal rule), with the original `my-1`
-       margin override. */
+    /* Divider (empty horizontal rule). */
     .divider {
         display: flex;
         flex-direction: row;
@@ -855,7 +852,7 @@
         align-self: stretch;
         white-space: nowrap;
         height: 1rem;
-        margin-block: 0.25rem; /* my-1 */
+        margin-block: 0.25rem;
         margin-inline: 0;
         --divider-color: color-mix(
             in oklab,
@@ -872,18 +869,15 @@
         background-color: var(--divider-color);
     }
 
-    /* Root menu layout — reproduces DaisyUI `menu`'s base so the component is
-       self-sufficient once the global `menu` class is gone. Padding/width are
-       left to the consumer-provided className (e.g. p-2 / w-full equivalents). */
+    /* Root menu layout. Padding/width are left to the consumer-provided
+       className. */
     .settings-menu-root {
         display: flex;
         flex-direction: column;
         font-size: 0.875rem;
     }
 
-    /* Collapse section <summary> styling — reproduces DaisyUI `menu`'s
-       summary scaffolding (grid layout + rotating chevron marker) so the
-       component is self-sufficient. */
+    /* Collapse section <summary> styling: grid layout + rotating chevron marker. */
     summary {
         list-style: none;
         display: grid;
@@ -938,8 +932,7 @@
         overflow: hidden;
     }
 
-    /* Nested submenu list inside a collapse: indented with a faint left rule,
-       matching DaisyUI `menu`'s `li ul` styling. */
+    /* Nested submenu list inside a collapse: indented with a faint left rule. */
     details > ul {
         position: relative;
         margin-inline-start: 1rem;

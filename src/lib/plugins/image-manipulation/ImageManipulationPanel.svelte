@@ -191,10 +191,8 @@
         align-items: center;
         align-self: stretch;
         height: 1rem;
-        /* DaisyUI's .divider has margin:1rem 0, but the original sat inside a
-           space-y-6 stack which forced margin-block-start:1.5rem / -end:0 on it.
-           That uniform 1.5rem rhythm is now provided by the .sliders flex gap,
-           so the divider itself carries no margin. */
+        /* The 1.5rem vertical rhythm around the divider is provided by the
+           .sliders flex gap, so the divider itself carries no margin. */
         margin: 0;
         white-space: nowrap;
         --divider-color: color-mix(

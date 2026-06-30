@@ -16,16 +16,6 @@ export const BUILTIN_THEMES: BuiltInTheme[] = [
 ];
 
 /**
- * @deprecated Use {@link BuiltInTheme}. Retained as an alias for backward compatibility.
- */
-export type DaisyUITheme = BuiltInTheme;
-
-/**
- * @deprecated Use {@link BUILTIN_THEMES}. Retained as an alias for backward compatibility.
- */
-export const DAISYUI_THEMES: BuiltInTheme[] = BUILTIN_THEMES;
-
-/**
  * Custom theme configuration with friendly property names.
  * All color values accept hex (#rrggbb), rgb(r,g,b), or oklch() strings.
  * This is used to override the base theme's values.

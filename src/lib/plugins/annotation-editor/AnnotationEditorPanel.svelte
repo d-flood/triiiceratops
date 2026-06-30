@@ -595,7 +595,7 @@
         width: 100%;
     }
 
-    /* Delete confirmation modal (reproduces DaisyUI .modal/.modal-open scaffolding) */
+    /* Delete confirmation modal */
     .modal {
         pointer-events: none;
         visibility: hidden;

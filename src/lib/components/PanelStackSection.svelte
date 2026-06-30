@@ -50,6 +50,11 @@
 
 <style>
     .section {
+        /* Don't let the flex column (.panel-stack) shrink sections to fit.
+           Because .section has overflow:hidden, its flex auto-min-height would
+           otherwise resolve to 0 and the column would compress + clip panels
+           instead of overflowing, so the stack's overflow-y:auto never scrolls. */
+        flex-shrink: 0;
         background-color: var(--color-base-200);
         border-radius: var(--radius-box);
         overflow: hidden;

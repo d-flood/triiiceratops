@@ -1,18 +1,17 @@
 /*
- * Design tokens + built-in themes (vanilla CSS, replaces DaisyUI's theme output).
+ * Design tokens + built-in themes (vanilla CSS).
  *
  * Token names match the CSS variables components consume and that the
- * `themeConfig` prop maps to (see src/lib/theme/themeManager.ts), so the
- * prop-based theming API is unchanged. Values are copied verbatim from
- * DaisyUI v5's light/dark/cupcake/dracula themes so palettes are identical.
+ * `themeConfig` prop maps to (see src/lib/theme/themeManager.ts). Values define
+ * the built-in light/dark/cupcake/dracula palettes.
  *
  * Cascade (lowest → highest precedence):
  *   1. :where(:root, :host) defaults — ZERO specificity so a consumer can
  *      override any token from outside (e.g. `triiiceratops-viewer { --color-primary: … }`),
  *      since custom properties inherit through the shadow boundary. This is the
  *      additional "CSS-variable theming" method.
- *   2. prefers-color-scheme: dark default — applied when no explicit theme is set
- *      (reproduces DaisyUI's `light --default` / `dark --prefersdark`).
+ *   2. prefers-color-scheme: dark default — applied when no explicit theme is set,
+ *      so the viewer follows the OS preference until a theme is chosen.
  *   3. [data-theme="…"] block — set by the `theme` prop via applyTheme(); normal
  *      specificity, so a selected theme wins over external CSS-var overrides.
  *   4. Inline styles on the root — set by the `themeConfig` prop; win over everything.

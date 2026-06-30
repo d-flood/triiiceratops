@@ -140,7 +140,7 @@
         background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
         color: var(--color-primary);
     }
-    /* hover comes after .active so it wins on hover, matching the prior Tailwind order */
+    /* hover comes after .active so it wins on hover */
     .row:hover {
         background-color: var(--color-base-100);
     }

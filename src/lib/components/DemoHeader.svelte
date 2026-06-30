@@ -7,7 +7,7 @@
     import { Button, Select, TextInput, Tooltip } from './ui';
 
     import { m, language } from '../state/i18n.svelte';
-    import type { DaisyUITheme } from '../theme/types';
+    import type { BuiltInTheme } from '../theme/types';
     import { manifestsState } from '../state/manifests.svelte';
     import { locales, setLocale } from '../paraglide/runtime.js';
     import { getCanvasLabel } from '../utils/canvasLabels';
@@ -204,7 +204,7 @@
         viewerMode: string;
         canvasId: string;
         config: any;
-        selectedTheme?: DaisyUITheme;
+        selectedTheme?: BuiltInTheme;
         availableLocales?: string[];
         onReset?: () => void;
         onShare?: () => Promise<void>;
@@ -552,7 +552,7 @@
         );
     }
 
-    /* Visually hidden but accessible (Tailwind sr-only) */
+    /* Visually hidden but accessible */
     .manifest-label,
     .sr-only {
         position: absolute;
@@ -742,8 +742,7 @@
         transition-property: color, background-color, border-color, box-shadow;
         transition-duration: 0.2s;
         transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
-        /* join radii: default square (0); first/last/only override below,
-           matching DaisyUI's nested .join :where(.join-item) behavior. */
+        /* join radii: default square (0); first/last/only override below. */
         border-start-start-radius: var(--join-ss, 0);
         border-start-end-radius: var(--join-se, 0);
         border-end-end-radius: var(--join-ee, 0);
@@ -767,12 +766,10 @@
         isolation: isolate;
     }
 
-    /* Join radius shaping. The radio lives inside a Tooltip <span>; the span is
-       the direct join child, so (matching DaisyUI's nested-join-item rules) we
-       set join vars on the inner .btn-radio based on the span's position.
-       NB: the original markup put `join-item` on the <input> (an only-child of
-       its wrapper), so DaisyUI applied NO negative margins — borders did not
-       collapse. We deliberately add none here to stay identical. */
+    /* Join radius shaping. The radio lives inside a Tooltip <span>, which is the
+       direct join child, so we set join vars on the inner .btn-radio based on the
+       span's position. Items keep their own borders with no negative margins, so
+       adjacent borders do not collapse — we intentionally add none here. */
     .join > :global(:first-child:not(:last-child) .btn-radio) {
         --join-ss: var(--radius-field);
         --join-se: 0;
@@ -797,7 +794,7 @@
         width: auto;
     }
 
-    /* ===== Dropdown scaffolding (DaisyUI .dropdown) ===== */
+    /* ===== Dropdown scaffolding ===== */
     .dropdown {
         position: relative;
         display: inline-block;
@@ -859,10 +856,8 @@
             0 1px 2px -1px #0000001a;
     }
 
-    /* SettingsMenu receives class="menu settings-menu"; the `menu` class is the
-       (still-global) DaisyUI scaffolding the unconverted child relies on.
-       These rules reproduce the Tailwind utilities (p-2 max-h-[80vh]
-       overflow-y-auto flex-nowrap) that sat alongside it. */
+    /* SettingsMenu receives class="menu settings-menu". These rules give that
+       panel its padding, max-height, vertical scroll, and no-wrap layout. */
     .settings-panel :global(.settings-menu) {
         padding: 0.5rem;
         max-height: 80vh;
@@ -941,7 +936,7 @@
             0 1px 2px -1px #0000001a;
     }
 
-    /* DaisyUI menu / menu-xs scaffolding reproduced for the manifest list */
+    /* Menu styling for the manifest list */
     .menu {
         --menu-active-fg: var(--color-neutral-content);
         --menu-active-bg: var(--color-neutral);
