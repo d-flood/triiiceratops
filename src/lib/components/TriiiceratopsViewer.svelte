@@ -836,6 +836,11 @@
         height: 100%;
         position: relative;
         overflow: hidden;
+        /* Re-anchor text color to this element's own resolved tokens. The `theme`
+           prop sets data-theme on THIS element, so --color-base-content here may
+           differ from the inherited (host/page) value; resolving it locally keeps
+           viewer text legible regardless of the host page's color. */
+        color: var(--color-base-content);
     }
     .viewer-root.opaque {
         background-color: var(--color-base-100);

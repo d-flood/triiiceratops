@@ -2,22 +2,23 @@
     import CaretDown from 'phosphor-svelte/lib/CaretDown';
     import { onMount } from 'svelte';
     import { m } from '../state/i18n.svelte';
-    import { DAISYUI_THEMES } from '../theme/types';
+    import { DAISYUI_THEMES, type DaisyUITheme } from '../theme/types';
 
-    let theme = $state('light');
+    // Bindable so the demo can pass the selected theme down to the viewer.
+    let { theme = $bindable('light') }: { theme?: DaisyUITheme } = $props();
     const themes = DAISYUI_THEMES;
 
     onMount(() => {
         const storedTheme = localStorage.getItem('theme');
-        if (storedTheme) {
-            theme = storedTheme;
+        if (storedTheme && (themes as string[]).includes(storedTheme)) {
+            theme = storedTheme as DaisyUITheme;
         } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
             theme = 'dark';
         }
         document.documentElement.setAttribute('data-theme', theme);
     });
 
-    function onThemeChange(newTheme: string) {
+    function onThemeChange(newTheme: DaisyUITheme) {
         theme = newTheme;
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
