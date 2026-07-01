@@ -4,7 +4,7 @@ icon: lucide/plug-2
 
 # Plugin System
 
-Triiiceratops features a flexible, component-based plugin system that allows you to extend the viewer's functionality by adding custom panels to the left or right sidebars.
+Triiiceratops features a flexible, component-based plugin system that allows you to extend the viewer's functionality. A plugin renders its UI in one of two ways: as a **panel** docked to a sidebar (left/right/bottom/overlay), or as a compact **flyout** popover that grows out of the plugin's toolbar button.
 
 For Svelte integrations, plugins can now be combined with direct `manifestJson` loading and a custom `searchProvider`, which makes it easier to build app-specific IIIF workflows without adding a separate HTTP layer.
 
@@ -100,7 +100,7 @@ import { TriiiceratopsViewer } from 'triiiceratops';
 
 // Plugin components for manual assembly
 import {
-    ImageManipulationController,
+    ImageManipulationFlyout,
     SlidersIcon,
 } from 'triiiceratops/plugins/image-manipulation';
 ```
@@ -118,15 +118,54 @@ interface PluginDef {
     id?: string; // Unique identifier (auto-generated if not provided)
     name: string; // Title shown in tooltips/headers
     icon: Component; // Icon component (e.g., from phosphor-svelte)
-    panel: Component; // The Svelte component to render in the sidebar
-    position?: 'left' | 'right' | 'bottom' | 'overlay'; // Panel position (default: 'left')
-    props?: Record<string, unknown>; // Optional props to pass to the panel
+    target?: 'panel' | 'flyout'; // Where the UI renders (default: 'panel')
+    panel?: Component; // Component rendered when target is 'panel'
+    flyout?: Component; // Component rendered when target is 'flyout'
+    position?: 'left' | 'right' | 'bottom' | 'overlay'; // Panel position (default: 'left'; ignored for flyouts)
+    props?: Record<string, unknown>; // Optional props to pass to the component
 }
 ```
 
 If you plan to control plugin UI state through `config.plugins`, set an explicit, stable `id` on each plugin. Auto-generated IDs are not stable across re-registration.
 
 Plugin panels render in the same left and right sidebar stacks as built-in panels. When multiple panels are assigned to the same side, they stack vertically. Sidebar width is configured per side with `leftPanelWidth` and `rightPanelWidth` in the viewer configuration; plugin UI config does not define a per-plugin or per-panel width.
+
+### Panel vs. Flyout
+
+Two helpers wrap `PluginDef` with the right `target`:
+
+```typescript
+import { createPanelPlugin, createFlyoutPlugin } from 'triiiceratops';
+
+// A docked side/bottom/overlay panel (the default target).
+const panelPlugin = createPanelPlugin({
+    id: 'my-panel',
+    name: 'My Panel',
+    icon: MyIcon,
+    panel: MyPanelComponent,
+    position: 'right',
+});
+
+// A compact flyout that grows out of the toolbar button.
+const flyoutPlugin = createFlyoutPlugin({
+    id: 'my-flyout',
+    name: 'My Tool',
+    icon: MyIcon,
+    flyout: MyFlyoutComponent,
+});
+```
+
+A **flyout** is a compact overlay anchored to the plugin's toolbar button. It opens
+on click (with click-outside / `Esc` to dismiss) and grows toward the canvas — up
+from a bottom unified bar, down from a top toolbar, and sideways from a left/right
+rail — so it never opens off-screen. It renders below the toolbar's tooltips (so
+tooltips always stay visible) and stays mounted while closed, so background work in
+the component keeps running. Use a flyout for a handful of compact controls; use a
+panel when the UI needs more room. The same `config.plugins[id]` `visible`/`open`
+state applies to both targets.
+
+Flyout components receive the same viewer context as panels (via
+`getContext(VIEWER_STATE_KEY)`) and a `close()` prop that closes the flyout.
 
 ## Controlling Plugin UI Through Config
 
@@ -299,21 +338,21 @@ Notes:
 
     **Customizing Built-in Plugins:**
 
-    If you need to customize the name, position, or other properties of a built-in plugin, you can import the individual components:
+    If you need to customize the name or other properties of a built-in plugin, you can import the individual components. Image Manipulation ships as a flyout:
 
     ```svelte
     <script>
-      import { TriiiceratopsViewer } from 'triiiceratops';
+      import { TriiiceratopsViewer, createFlyoutPlugin } from 'triiiceratops';
       import 'triiiceratops/style.css';
-      import { ImageManipulationController, SlidersIcon } from 'triiiceratops/plugins/image-manipulation';
+      import { ImageManipulationFlyout, SlidersIcon } from 'triiiceratops/plugins/image-manipulation';
 
       const plugins = [
-        {
+        createFlyoutPlugin({
+          id: 'image-manipulation',
           name: 'Custom Name',
           icon: SlidersIcon,
-          panel: ImageManipulationController,
-          position: 'right'  // Override default position
-        }
+          flyout: ImageManipulationFlyout,
+        })
       ];
     </script>
 
@@ -328,7 +367,7 @@ Notes:
 
 ### Image Manipulation
 
-Provides brightness, contrast, saturation, invert, and grayscale controls for the displayed image.
+Provides brightness, contrast, saturation, invert, and grayscale controls for the displayed image. It renders as a compact **flyout** that grows out of its toolbar button — three bare vertical sliders (brightness/contrast/saturation) plus invert/grayscale toggles and a reset button, all visible and interactable at once, floating directly over the canvas with no container box.
 
 ### PDF Export
 
@@ -430,18 +469,23 @@ For script-tag/web component hosts, use the factory exposed on the IIFE plugin g
 
 ```html
 <script>
-  viewer.plugins = [
-    window.TriiiceratopsPlugins.PdfExport.createPdfExportPlugin({
-      onSelectionChange({ startCanvas, endCanvas, startIndex, endIndex }) {
-        console.log('Selected PDF export range', {
-          startCanvas,
-          endCanvas,
-          startIndex,
-          endIndex,
-        });
-      }
-    })
-  ];
+    viewer.plugins = [
+        window.TriiiceratopsPlugins.PdfExport.createPdfExportPlugin({
+            onSelectionChange({
+                startCanvas,
+                endCanvas,
+                startIndex,
+                endIndex,
+            }) {
+                console.log('Selected PDF export range', {
+                    startCanvas,
+                    endCanvas,
+                    startIndex,
+                    endIndex,
+                });
+            },
+        }),
+    ];
 </script>
 ```
 
