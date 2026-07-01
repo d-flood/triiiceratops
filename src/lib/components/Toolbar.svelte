@@ -52,7 +52,13 @@
 
     // --- Tooltip placement ---
     const tooltipPlacement = $derived(
-        isTop ? 'bottom' : position === 'left' ? 'right' : 'left',
+        inline
+            ? 'top'
+            : isTop
+              ? 'bottom'
+              : position === 'left'
+                ? 'right'
+                : 'left',
     );
 
     // Tooltip placement specifically for the open button when toolbar is closed
@@ -135,6 +141,60 @@
             .sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
     });
 
+    // Direction a plugin flyout grows out of its button — always toward the
+    // canvas: up from the inline (bottom) bar, down from a top toolbar, and
+    // sideways from a left/right rail.
+    const flyoutPlacement = $derived(
+        inline ? 'up' : isTop ? 'down' : position === 'left' ? 'right' : 'left',
+    );
+
+    function findFlyout(domId: string | undefined) {
+        if (!domId) return undefined;
+        return viewerState.pluginFlyouts.find((f) => f.domId === domId);
+    }
+
+    // Built-in toolbar dropdowns (viewing mode, sequence picker) use the same
+    // non-top-layer flyout pattern as plugin flyouts, so tooltips paint above
+    // them too. Only one is open at a time.
+    let openMenu = $state<string | null>(null);
+
+    function toggleMenu(name: string) {
+        openMenu = openMenu === name ? null : name;
+    }
+
+    function closeAllOverlays() {
+        openMenu = null;
+        viewerState.closePluginFlyouts();
+    }
+
+    // Light-dismiss for flyouts/menus (they are not top-layer popovers, so we
+    // close them ourselves). `composedPath` keeps this working inside a shadow
+    // root: a click on a flyout/menu panel or its toggle button is ignored.
+    function pointerInsideFlyout(e: Event): boolean {
+        for (const node of e.composedPath()) {
+            if (!(node instanceof Element)) continue;
+            if (
+                node.hasAttribute('data-flyout-panel') ||
+                node.hasAttribute('data-flyout-toggle')
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function handleWindowPointerDown(e: PointerEvent) {
+        if (!pointerInsideFlyout(e)) {
+            closeAllOverlays();
+        }
+    }
+
+    function handleWindowKeydown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            closeAllOverlays();
+        }
+    }
+
     function toggleOpen() {
         viewerState.toggleToolbar();
     }
@@ -149,6 +209,11 @@
             : tooltip;
     }
 </script>
+
+<svelte:window
+    onpointerdown={handleWindowPointerDown}
+    onkeydown={handleWindowKeydown}
+/>
 
 <div
     class="toolbar-root"
@@ -273,10 +338,13 @@
                 <li>
                     <button
                         class="menu-item tooltip {tooltipPlacement}"
+                        class:menu-active={openMenu === 'viewing-mode'}
                         data-tip={m.viewing_mode_label()}
-                        popovertarget="toolbar-viewing-mode"
-                        style="anchor-name:--anchor-viewing-mode"
+                        data-flyout-toggle
                         aria-label={m.viewing_mode_label()}
+                        aria-expanded={openMenu === 'viewing-mode'}
+                        style="anchor-name:--anchor-viewing-mode"
+                        onclick={() => toggleMenu('viewing-mode')}
                     >
                         {#if viewerState.viewingMode === 'paged'}
                             <BookOpen size={24} />
@@ -287,15 +355,10 @@
                         {/if}
                     </button>
                     <ul
-                        popover
-                        id="toolbar-viewing-mode"
-                        class="dropdown menu popover-menu"
-                        class:popover-top={isTop}
-                        class:popover-left={position === 'left'}
-                        class:popover-right={position === 'right'}
-                        style={`
-                            position-anchor: --anchor-viewing-mode;
-                        `}
+                        data-flyout-panel
+                        class="menu popover-menu menu-flyout {flyoutPlacement}"
+                        class:open={openMenu === 'viewing-mode'}
+                        style="position-anchor: --anchor-viewing-mode;"
                     >
                         <li>
                             <button
@@ -368,10 +431,13 @@
                 <li>
                     <button
                         class="menu-item tooltip indicator {tooltipPlacement}"
+                        class:menu-active={openMenu === 'sequence-picker'}
                         data-tip={m.sequence_label()}
-                        popovertarget="toolbar-sequence-picker"
-                        style="anchor-name:--anchor-sequence-picker"
+                        data-flyout-toggle
                         aria-label={m.sequence_label()}
+                        aria-expanded={openMenu === 'sequence-picker'}
+                        style="anchor-name:--anchor-sequence-picker"
+                        onclick={() => toggleMenu('sequence-picker')}
                     >
                         <span class="indicator-item count-badge">
                             {viewerState.sequenceCount > 99
@@ -381,15 +447,10 @@
                         <Stack size={24} />
                     </button>
                     <ul
-                        popover
-                        id="toolbar-sequence-picker"
-                        class="dropdown menu popover-menu wide"
-                        class:popover-top={isTop}
-                        class:popover-left={position === 'left'}
-                        class:popover-right={position === 'right'}
-                        style={`
-                            position-anchor: --anchor-sequence-picker;
-                        `}
+                        data-flyout-panel
+                        class="menu popover-menu wide menu-flyout {flyoutPlacement}"
+                        class:open={openMenu === 'sequence-picker'}
+                        style="position-anchor: --anchor-sequence-picker;"
                     >
                         {#each sequenceOptions as option (option.index)}
                             <li>
@@ -479,16 +540,54 @@
                 {#each sortedPluginButtons as button (button.id)}
                     {@const Icon = button.icon}
                     {@const tooltipText = resolvePluginTooltip(button.tooltip)}
+                    {@const flyout = findFlyout(button.flyoutDomId)}
                     <li>
-                        <button
-                            class="menu-item tooltip {tooltipPlacement}"
-                            class:menu-active={button.isActive?.()}
-                            data-tip={tooltipText}
-                            aria-label={tooltipText}
-                            onclick={() => button.onClick()}
-                        >
-                            <Icon size={24} />
-                        </button>
+                        {#if flyout}
+                            {@const Flyout = flyout.component}
+                            {@const open = button.isActive?.() ?? false}
+                            <button
+                                class="menu-item tooltip {tooltipPlacement}"
+                                class:menu-active={open}
+                                data-tip={tooltipText}
+                                aria-label={tooltipText}
+                                aria-expanded={open}
+                                data-flyout-toggle
+                                onclick={() => button.onClick()}
+                                style="anchor-name:--anchor-{flyout.domId}"
+                            >
+                                <Icon size={24} />
+                            </button>
+                            <!-- A normal (non-top-layer) anchored element so
+                                 tooltips always paint above it. Kept mounted and
+                                 toggled via `.open` so plugin state persists. -->
+                            <div
+                                class="menu-flyout {flyoutPlacement}"
+                                class:open
+                                data-flyout-panel
+                                style="position-anchor:--anchor-{flyout.domId}"
+                            >
+                                <Flyout
+                                    {...flyout.props}
+                                    placement={flyoutPlacement}
+                                    close={() =>
+                                        button.pluginId &&
+                                        viewerState.setPluginOpen(
+                                            button.pluginId,
+                                            false,
+                                        )}
+                                />
+                            </div>
+                        {:else}
+                            <button
+                                class="menu-item tooltip {tooltipPlacement}"
+                                class:menu-active={button.isActive?.()}
+                                data-tip={tooltipText}
+                                aria-label={tooltipText}
+                                onclick={() => button.onClick()}
+                            >
+                                <Icon size={24} />
+                            </button>
+                        {/if}
                     </li>
                 {/each}
             {/key}
@@ -735,6 +834,14 @@
     .actions :where(li) > :global(*) {
         padding: 0.25rem;
     }
+    /* ...but the anchored flyout/menu wrappers must NOT get that padding: for
+       the glass dropdowns it sits inside the glass (flush look) while for the
+       transparent plugin-flyout wrapper it sits outside (extra gap), so the two
+       read inconsistently. Zero it so the gap is governed purely by the
+       placement margin below, identically for both. */
+    .actions :where(li) > .menu-flyout {
+        padding: 0;
+    }
     /* hover (non-active items) */
     .menu-item:not(.menu-active):not(:active):hover {
         cursor: pointer;
@@ -765,13 +872,8 @@
 
     /* ===== Actions list look ===== */
     .actions {
-        background-color: color-mix(
-            in oklab,
-            var(--toolbar-bg) 70%,
-            transparent
-        );
+        position: relative;
         color: var(--toolbar-content);
-        backdrop-filter: blur(8px);
         box-shadow: var(
             --ui-chrome-shadow,
             0 10px 15px -3px #0000001a,
@@ -779,6 +881,24 @@
         );
         justify-content: center;
         align-items: center;
+    }
+    /* The glass lives on a ::before layer (a sibling of the buttons/popovers,
+       not an ancestor) so `.actions` itself does NOT establish a backdrop-filter
+       isolation root. That lets the anchored popovers inside it run their own
+       backdrop-filter against the image behind them. The pseudo paints behind
+       the positioned <li> children by tree order. Excludes docked (solid rail)
+       and inline (glass comes from the nav control-bar). */
+    .actions:not(.docked):not(.inline)::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background-color: color-mix(
+            in oklab,
+            var(--toolbar-bg) 70%,
+            transparent
+        );
+        backdrop-filter: blur(8px);
     }
     /* menu-horizontal */
     .actions.horizontal {
@@ -791,6 +911,10 @@
     .actions.top-right {
         flex-direction: row-reverse;
         border-bottom-left-radius: var(--radius-toolbar);
+        /* Zero the canvas-side (bottom) padding — mirroring the side rails'
+           inboard-padding zeroing — so the flyout's placement margin reads as a
+           real gap instead of merely cancelling this chrome padding. */
+        padding-bottom: 0;
     }
     .actions.top-right > :global(* + *) {
         margin-left: 1px;
@@ -798,6 +922,9 @@
     .actions.top-left {
         flex-direction: row;
         border-bottom-right-radius: var(--radius-toolbar);
+        /* See .actions.top-right: zero the canvas-side padding so the flyout gap
+           shows. */
+        padding-bottom: 0;
     }
     .actions.top-left > :global(* + *) {
         margin-left: 1px;
@@ -850,48 +977,84 @@
         display: inline-flex;
     }
 
-    /* ===== Popover dropdown menus ===== */
+    /* ===== Dropdown menu chrome (viewing mode, sequence picker) =====
+       Same glass treatment as the plugin flyout's base bar. */
     .popover-menu {
         border-radius: var(--radius-toolbar);
-        background-color: var(--toolbar-bg);
-        box-shadow:
-            0 1px 3px 0 #0000001a,
-            0 1px 2px -1px #0000001a;
         border: 1px solid var(--surface-border);
-        z-index: 999;
+        background-color: color-mix(
+            in oklab,
+            var(--toolbar-bg) 70%,
+            transparent
+        );
+        backdrop-filter: blur(8px);
+        box-shadow: var(
+            --ui-chrome-shadow,
+            0 10px 15px -3px #0000001a,
+            0 4px 6px -4px #0000001a
+        );
     }
     .popover-menu.wide {
         min-width: 14rem;
     }
-    .popover-menu.popover-top {
-        margin-top: 0.5rem;
-        transform: translateX(-50%);
-    }
-    .popover-menu.popover-left {
-        margin-inline-start: 2.5rem;
-    }
-    .popover-menu.popover-right {
-        transform: translateX(-100%);
-        margin-inline-start: -0.5rem;
-    }
-    /* popover open/close transition (reproduced from dropdown[popover]) */
-    .dropdown[popover] {
+
+    /* ===== Anchored flyout / menu overlay (shared) =====
+       Used by plugin flyouts AND the built-in dropdowns. Deliberately NOT a
+       top-layer popover: a low z-index keeps the toolbar tooltips (z-index: 2)
+       painting above it. Placement is deterministic via CSS anchor positioning
+       and centered on the button along the perpendicular axis. When open, the
+       element's own display applies (`.menu` → flex; a plain flyout → block). */
+    .menu-flyout {
+        position: absolute;
+        inset: auto;
+        margin: 0;
+        color: var(--toolbar-content);
+        z-index: 1;
         opacity: 0;
         scale: 95%;
+    }
+    .menu-flyout:not(.open) {
         display: none;
     }
-    .dropdown[popover]:popover-open {
+    .menu-flyout.open {
         opacity: 1;
         scale: 100%;
-        display: flex;
     }
     @media (prefers-reduced-motion: no-preference) {
-        .dropdown[popover] {
+        .menu-flyout {
             transition-behavior: allow-discrete;
             transition-property: opacity, scale, display;
             transition-duration: 0.2s;
             transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         }
+    }
+    .menu-flyout.up {
+        bottom: anchor(top);
+        left: anchor(center);
+        transform: translateX(-50%);
+        margin-bottom: 0.625rem;
+        transform-origin: bottom center;
+    }
+    .menu-flyout.down {
+        top: anchor(bottom);
+        left: anchor(center);
+        transform: translateX(-50%);
+        margin-top: 0.625rem;
+        transform-origin: top center;
+    }
+    .menu-flyout.left {
+        right: anchor(left);
+        top: anchor(center);
+        transform: translateY(-50%);
+        margin-right: 0.625rem;
+        transform-origin: center right;
+    }
+    .menu-flyout.right {
+        left: anchor(right);
+        top: anchor(center);
+        transform: translateY(-50%);
+        margin-left: 0.625rem;
+        transform-origin: center left;
     }
 
     /* ===== Divider (net margin is 0) ===== */

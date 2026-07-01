@@ -352,19 +352,31 @@
         align-items: center;
         gap: var(--ui-gap, 0.5rem);
         padding-inline: var(--ui-chrome-pad, 0.5rem);
-        background-color: color-mix(
-            in oklab,
-            var(--toolbar-bg) 70%,
-            transparent
-        );
         color: var(--toolbar-content);
-        backdrop-filter: blur(8px);
         border-radius: var(--radius-controls);
         border: 1px solid var(--surface-border);
         box-shadow: var(--ui-nav-shadow, none);
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.2s;
+    }
+    /* Glass on a ::before layer so `.control-bar` doesn't establish a
+       backdrop-filter isolation root — this lets popovers anchored to the
+       unified-bar buttons run their own backdrop-filter against the image.
+       `.control-bar` has z-index/position (a stacking context), so the pseudo
+       sits behind the bar's content but above the canvas. */
+    .control-bar::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        background-color: color-mix(
+            in oklab,
+            var(--toolbar-bg) 70%,
+            transparent
+        );
+        backdrop-filter: blur(8px);
     }
     .control-bar.elevated {
         z-index: 1000;

@@ -1,9 +1,12 @@
-import { createPanelPlugin, type PluginDef } from '../../types/plugin';
-import ImageManipulationController from './ImageManipulationController.svelte';
+import { createFlyoutPlugin, type PluginDef } from '../../types/plugin';
+import ImageManipulationFlyout from './ImageManipulationFlyout.svelte';
 import SlidersIcon from 'phosphor-svelte/lib/Sliders';
 
 /**
  * Pre-configured Image Manipulation plugin.
+ *
+ * Renders as a compact icon rail that grows out of its toolbar button
+ * (a "flyout"), rather than occupying a full side panel.
  *
  * Usage:
  * ```svelte
@@ -12,15 +15,14 @@ import SlidersIcon from 'phosphor-svelte/lib/Sliders';
  * <TriiiceratopsViewer plugins={[ImageManipulationPlugin]} />
  * ```
  */
-export const ImageManipulationPlugin: PluginDef = createPanelPlugin({
+export const ImageManipulationPlugin: PluginDef = createFlyoutPlugin({
     id: 'image-manipulation',
     name: 'image_adjustments_title',
     icon: SlidersIcon,
-    panel: ImageManipulationController,
-    position: 'left',
+    flyout: ImageManipulationFlyout,
 });
 
 // Individual exports for customization
-export { ImageManipulationController, SlidersIcon };
+export { ImageManipulationFlyout, SlidersIcon };
 export type { ImageFilters } from './types';
 export { DEFAULT_FILTERS } from './types';

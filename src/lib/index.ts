@@ -15,7 +15,18 @@ export type {
 } from './types/config';
 
 // Plugin system exports
-export type { PluginDef, PluginMenuButton, PluginPanel } from './types/plugin';
+export type {
+    PluginDef,
+    PluginMenuButton,
+    PluginPanel,
+    PluginFlyout,
+    PluginUiTarget,
+} from './types/plugin';
+export {
+    definePlugin,
+    createPanelPlugin,
+    createFlyoutPlugin,
+} from './types/plugin';
 
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';
