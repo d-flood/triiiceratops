@@ -384,7 +384,7 @@
     .control-bar {
         user-select: none;
         position: absolute;
-        /* Horizontal alignment is set per data-nav-pos below; center is default.
+        /* Alignment along the edge is set per data-nav-align below; center is default.
            Center via auto margins with left/right anchored to both edges rather
            than the `left:50% + translateX(-50%)` trick — the latter caps the
            box's available width at 50% of the container (the distance from the
@@ -397,6 +397,7 @@
         width: fit-content;
         max-width: calc(100% - 2 * var(--ui-nav-inset, 0));
         margin-inline: auto;
+        /* Anchored to whichever edge data-nav-edge selects (bottom by default). */
         bottom: var(--ui-nav-inset, 0);
         z-index: 10;
         display: flex;
@@ -451,48 +452,66 @@
         padding-block: var(--ui-chrome-pad, 0.5rem);
     }
 
-    /* nav=docked — the control bar sits flush to the bottom edge: only the top
-       corners rounded, no bottom border. */
-    :global([data-nav='docked']) .control-bar {
-        border-bottom: 0;
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
-    }
-    /* ::before no longer uses border-radius: inherit (see above), so the
-       squared corners must be mirrored onto it explicitly. */
-    :global([data-nav='docked']) .control-bar::before {
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
+    /* nav-edge=top — anchor the bar to the top edge instead of the bottom. */
+    :global([data-nav-edge='top']) .control-bar {
+        top: var(--ui-nav-inset, 0);
+        bottom: auto;
     }
 
-    /* nav-pos — horizontal alignment of the control bar (offset honours the
-       floating inset; 0 when docked). */
-    :global([data-nav-pos='left']) .control-bar {
-        left: var(--ui-nav-inset, 0);
-        right: auto;
+    /* nav-style=docked — the bar sits flush to its edge: the two corners on that
+       edge are squared and its border on that edge is dropped. */
+    :global([data-nav-style='docked'][data-nav-edge='bottom']) .control-bar,
+    :global([data-nav-style='docked'][data-nav-edge='bottom'])
+        .control-bar::before {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-edge='bottom']) .control-bar {
+        border-bottom: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar,
+    :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar::before {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar {
+        border-top: 0;
+    }
+
+    /* nav-align — placement of the control bar along its edge (offset honours the
+       floating inset; 0 when docked). start/end are logical (LTR: left/right). */
+    :global([data-nav-align='start']) .control-bar {
+        inset-inline-start: var(--ui-nav-inset, 0);
+        inset-inline-end: auto;
         transform: none;
         margin-inline: 0;
     }
-    :global([data-nav-pos='right']) .control-bar {
-        left: auto;
-        right: var(--ui-nav-inset, 0);
+    :global([data-nav-align='end']) .control-bar {
+        inset-inline-start: auto;
+        inset-inline-end: var(--ui-nav-inset, 0);
         transform: none;
         margin-inline: 0;
     }
-    /* Square the edge-touching corner when docked into a bottom corner. */
-    :global([data-nav='docked'][data-nav-pos='left']) .control-bar {
-        border-top-left-radius: 0;
-        border-left: 0;
+    /* When docked into a corner, square the other corner on the touching side and
+       drop that side's border too (the edge itself is already handled above). */
+    :global([data-nav-style='docked'][data-nav-align='start']) .control-bar {
+        border-start-start-radius: 0;
+        border-end-start-radius: 0;
+        border-inline-start: 0;
     }
-    :global([data-nav='docked'][data-nav-pos='right']) .control-bar {
-        border-top-right-radius: 0;
-        border-right: 0;
+    :global([data-nav-style='docked'][data-nav-align='end']) .control-bar {
+        border-start-end-radius: 0;
+        border-end-end-radius: 0;
+        border-inline-end: 0;
     }
-    :global([data-nav='docked'][data-nav-pos='left']) .control-bar::before {
-        border-top-left-radius: 0;
+    :global([data-nav-style='docked'][data-nav-align='start'])
+        .control-bar::before {
+        border-start-start-radius: 0;
+        border-end-start-radius: 0;
     }
-    :global([data-nav='docked'][data-nav-pos='right']) .control-bar::before {
-        border-top-right-radius: 0;
+    :global([data-nav-style='docked'][data-nav-align='end']) .control-bar::before {
+        border-start-end-radius: 0;
+        border-end-end-radius: 0;
     }
 
     /* Unified — the toolbar buttons sit at the start of the control bar,

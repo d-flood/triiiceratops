@@ -7,17 +7,18 @@
  * size multipliers (`--size-*`), and the shadow `--depth` flag stay theme-controlled
  * and are never set here.
  *
- * The layout is configured by three orthogonal axes, resolved onto `.viewer-root`
+ * The layout is configured by independent knobs, resolved onto `.viewer-root`
  * as data-attributes (mirroring how `data-theme` works):
- *   - data-controls = split | unified   (toolbar separate vs embedded in the nav)
- *   - data-nav       = docked | floating (nav flush to the edge vs inset island)
- *   - data-nav-pos   = left | center | right (horizontal alignment of the nav bar)
+ *   - data-controls  = split | unified      (toolbar separate vs embedded in nav)
+ *   - data-nav-style = docked | floating    (nav flush to the edge vs inset island)
+ *   - data-nav-edge  = top | bottom         (which horizontal edge the nav sits on)
+ *   - data-nav-align = start | center | end (alignment of the nav bar along its edge)
  *
  * The base `--ui-*` scale below is a single consistent set. The split toolbar is
  * always flush + flat (`--ui-inset:0`, `--ui-chrome-shadow:none`), so only the
- * `nav` axis needs overrides — via two nav-specific vars that keep the toolbar and
- * the nav decoupled. `data-nav-pos` and the docked flush-corners are handled in the
- * components' scoped styles.
+ * nav style needs overrides — via two nav-specific vars that keep the toolbar and
+ * the nav decoupled. `data-nav-edge` / `data-nav-align` and the docked flush-corners
+ * are handled in the components' scoped styles.
  */
 
 /* ---- Base scale (consistent across every combination) ---- */
@@ -49,14 +50,14 @@
     --ui-nav-shadow: none;
 }
 
-/* ---- nav: docked (flush to the bottom edge, flat) — same as the base ---- */
-[data-nav='docked'] {
+/* ---- nav: docked (flush to its edge, flat) — same as the base ---- */
+[data-nav-style='docked'] {
     --ui-nav-inset: 0;
     --ui-nav-shadow: none;
 }
 
-/* ---- nav: floating (inset island above the edge, with a shadow) ---- */
-[data-nav='floating'] {
+/* ---- nav: floating (inset island off the edge, with a shadow) ---- */
+[data-nav-style='floating'] {
     --ui-nav-inset: 0.75rem;
     --ui-nav-shadow:
         0 6px 12px -4px rgb(0 0 0 / 0.08), 0 3px 6px -3px rgb(0 0 0 / 0.1);

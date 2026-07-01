@@ -16,18 +16,32 @@ export type {
     SearchProviderContext,
     SearchResultGroup,
 } from './config/search';
-export type { ToolbarConfig } from './config/toolbar';
+export type {
+    ToolbarConfig,
+    ToolbarSide,
+    ToolbarAnchor,
+} from './config/toolbar';
+export {
+    TOOLBAR_SIDES,
+    TOOLBAR_ANCHORS,
+    DEFAULT_TOOLBAR_SIDE,
+    DEFAULT_TOOLBAR_ANCHOR,
+} from './config/toolbar';
 export type {
     ControlsMode,
     NavStyle,
-    NavPosition,
+    NavEdge,
+    NavAlign,
+    NavConfig,
     ViewerConfig,
 } from './config/viewer';
 export {
     CONTROLS_MODES,
     NAV_STYLES,
-    NAV_POSITIONS,
+    NAV_EDGES,
+    NAV_ALIGNS,
     DEFAULT_CONTROLS,
-    DEFAULT_NAV,
-    DEFAULT_NAV_POSITION,
+    DEFAULT_NAV_STYLE,
+    DEFAULT_NAV_EDGE,
+    DEFAULT_NAV_ALIGN,
 } from './config/viewer';

@@ -115,15 +115,23 @@
     const isOpen = $derived(viewerState.toolbarOpen);
 
     // --- Configuration ---
-    // Default to 'left' if not specified
-    const position = $derived(viewerState.config.toolbarPosition || 'left');
-    const isTop = $derived(position === 'top-left' || position === 'top-right');
+    // Compose the internal placement string from the nested toolbar config
+    // (side = left/right, anchor = top/center). Defaults: left + center.
+    const side = $derived(viewerState.config.toolbar?.side || 'left');
+    const anchor = $derived(viewerState.config.toolbar?.anchor || 'center');
+    const position = $derived(anchor === 'top' ? `top-${side}` : side);
+    const isTop = $derived(anchor === 'top');
     const showToggle = $derived(viewerState.config.showToggle !== false);
 
     // --- Tooltip placement ---
+    // When inline (unified), the buttons live inside the nav bar, so tooltips must
+    // point away from whichever edge the nav sits on (below it when on top).
+    const navOnTop = $derived(viewerState.config.nav?.edge === 'top');
     const tooltipPlacement = $derived(
         inline
-            ? 'top'
+            ? navOnTop
+                ? 'bottom'
+                : 'top'
             : isTop
               ? 'bottom'
               : position === 'left'

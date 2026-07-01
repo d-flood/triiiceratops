@@ -52,67 +52,6 @@
         {m.settings_category_general()}
     </li>
     <li>
-        <label
-            class="settings-label settings-label--static"
-            for="controls-select"
-        >
-            <span>Controls</span>
-            <Select
-                id="controls-select"
-                size="xs"
-                value={config.controls ?? 'split'}
-                onchange={(e) => {
-                    config.controls = (
-                        e.currentTarget as HTMLSelectElement
-                    ).value as any;
-                }}
-            >
-                <option value="split">Split</option>
-                <option value="unified">Unified</option>
-            </Select>
-        </label>
-    </li>
-    <li>
-        <label class="settings-label settings-label--static" for="nav-select">
-            <span>Nav</span>
-            <Select
-                id="nav-select"
-                size="xs"
-                value={config.nav ?? 'docked'}
-                onchange={(e) => {
-                    config.nav = (
-                        e.currentTarget as HTMLSelectElement
-                    ).value as any;
-                }}
-            >
-                <option value="docked">Docked</option>
-                <option value="floating">Floating</option>
-            </Select>
-        </label>
-    </li>
-    <li>
-        <label
-            class="settings-label settings-label--static"
-            for="nav-pos-select"
-        >
-            <span>Nav position</span>
-            <Select
-                id="nav-pos-select"
-                size="xs"
-                value={config.navPosition ?? 'center'}
-                onchange={(e) => {
-                    config.navPosition = (
-                        e.currentTarget as HTMLSelectElement
-                    ).value as any;
-                }}
-            >
-                <option value="left">Left</option>
-                <option value="center">Center</option>
-                <option value="right">Right</option>
-            </Select>
-        </label>
-    </li>
-    <li>
         <label class="settings-label">
             <span>{m.settings_transparent_background()}</span>
             <Toggle size="sm" bind:checked={config.transparentBackground} />
@@ -206,6 +145,105 @@
 
     <li>
         <details>
+            <summary>Nav</summary>
+            <ul>
+                <li>
+                    <label
+                        class="settings-label settings-label--static"
+                        for="controls-select"
+                    >
+                        <span>Controls</span>
+                        <Select
+                            id="controls-select"
+                            size="xs"
+                            value={config.controls ?? 'split'}
+                            onchange={(e) => {
+                                config.controls = (
+                                    e.currentTarget as HTMLSelectElement
+                                ).value as any;
+                            }}
+                        >
+                            <option value="split">Split</option>
+                            <option value="unified">Unified</option>
+                        </Select>
+                    </label>
+                </li>
+                <li>
+                    <label
+                        class="settings-label settings-label--static"
+                        for="nav-select"
+                    >
+                        <span>Style</span>
+                        <Select
+                            id="nav-select"
+                            size="xs"
+                            value={config.nav?.style ?? 'docked'}
+                            onchange={(e) => {
+                                config.nav = {
+                                    ...config.nav,
+                                    style: (e.currentTarget as HTMLSelectElement)
+                                        .value as any,
+                                };
+                            }}
+                        >
+                            <option value="docked">Docked</option>
+                            <option value="floating">Floating</option>
+                        </Select>
+                    </label>
+                </li>
+                <li>
+                    <label
+                        class="settings-label settings-label--static"
+                        for="nav-edge-select"
+                    >
+                        <span>Edge</span>
+                        <Select
+                            id="nav-edge-select"
+                            size="xs"
+                            value={config.nav?.edge ?? 'bottom'}
+                            onchange={(e) => {
+                                config.nav = {
+                                    ...config.nav,
+                                    edge: (e.currentTarget as HTMLSelectElement)
+                                        .value as any,
+                                };
+                            }}
+                        >
+                            <option value="top">Top</option>
+                            <option value="bottom">Bottom</option>
+                        </Select>
+                    </label>
+                </li>
+                <li>
+                    <label
+                        class="settings-label settings-label--static"
+                        for="nav-align-select"
+                    >
+                        <span>Align</span>
+                        <Select
+                            id="nav-align-select"
+                            size="xs"
+                            value={config.nav?.align ?? 'center'}
+                            onchange={(e) => {
+                                config.nav = {
+                                    ...config.nav,
+                                    align: (e.currentTarget as HTMLSelectElement)
+                                        .value as any,
+                                };
+                            }}
+                        >
+                            <option value="start">Start</option>
+                            <option value="center">Center</option>
+                            <option value="end">End</option>
+                        </Select>
+                    </label>
+                </li>
+            </ul>
+        </details>
+    </li>
+
+    <li>
+        <details>
             <summary>{m.settings_submenu_toolbar()}</summary>
             <ul>
                 <li>
@@ -232,15 +270,13 @@
                         <Select
                             size="xs"
                             style="width:6rem"
-                            value={config.toolbarPosition ?? 'left'}
+                            value={config.toolbar?.side ?? 'left'}
                             onchange={(e) => {
-                                config.toolbarPosition = (
-                                    e.currentTarget as HTMLSelectElement
-                                ).value as
-                                    | 'left'
-                                    | 'right'
-                                    | 'top-left'
-                                    | 'top-right';
+                                config.toolbar = {
+                                    ...config.toolbar,
+                                    side: (e.currentTarget as HTMLSelectElement)
+                                        .value as any,
+                                };
                             }}
                         >
                             <option value="left"
@@ -249,12 +285,26 @@
                             <option value="right"
                                 >{m.settings_position_right()}</option
                             >
-                            <option value="top-left"
-                                >{m.settings_position_top_left()}</option
-                            >
-                            <option value="top-right"
-                                >{m.settings_position_top_right()}</option
-                            >
+                        </Select>
+                    </label>
+                </li>
+                <li>
+                    <label class="settings-label">
+                        <span>Toolbar anchor</span>
+                        <Select
+                            size="xs"
+                            style="width:6rem"
+                            value={config.toolbar?.anchor ?? 'center'}
+                            onchange={(e) => {
+                                config.toolbar = {
+                                    ...config.toolbar,
+                                    anchor: (e.currentTarget as HTMLSelectElement)
+                                        .value as any,
+                                };
+                            }}
+                        >
+                            <option value="center">Center</option>
+                            <option value="top">Top</option>
                         </Select>
                     </label>
                 </li>
