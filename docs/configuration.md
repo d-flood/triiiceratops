@@ -30,12 +30,22 @@ interface ViewerConfig {
     showZoomControls?: boolean; // Default: true
     transparentBackground?: boolean; // Default: false
 
+    // Chrome layout
+    controls?: 'split' | 'unified'; // Default: 'split' (toolbar separate vs embedded in nav)
+
+    nav?: {
+        style?: 'docked' | 'floating'; // Default: 'docked' (flush vs inset island)
+        edge?: 'top' | 'bottom';       // Default: 'bottom' (which horizontal edge)
+        align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge)
+    };
+
     // Toolbar Settings
     showToggle?: boolean; // Default: true (Toolbar toggle visible)
     toolbarOpen?: boolean; // Default: false (Toolbar expanded)
-    toolbarPosition?: 'left' | 'right' | 'top-left' | 'top-right'; // Default: 'left'
 
     toolbar?: {
+        side?: 'left' | 'right';   // Default: 'left' (which vertical side, split mode)
+        anchor?: 'top' | 'center'; // Default: 'center' (a top anchor claims the top edge)
         showSearch?: boolean; // Default: true
         showGallery?: boolean; // Default: true
         showAnnotations?: boolean; // Default: true
@@ -155,7 +165,7 @@ const config = {
     ```html
     <triiiceratops-viewer
       manifest-id="https://example.org/iiif/manifest.json"
-      config='{"toolbarPosition": "right", "gallery": {"open": true}}'
+      config='{"toolbar": {"side": "right"}, "gallery": {"open": true}}'
     ></triiiceratops-viewer>
     ```
 
@@ -164,7 +174,7 @@ const config = {
     ```javascript
     const viewer = document.querySelector('triiiceratops-viewer');
     const config = {
-      toolbarPosition: 'left',
+      toolbar: { side: 'left' },
       gallery: { dockPosition: 'right' }
     };
     viewer.setAttribute('config', JSON.stringify(config));
@@ -242,7 +252,7 @@ const config = {
       import TriiiceratopsViewer from 'triiiceratops/components/TriiiceratopsViewer.svelte';
 
       let config = {
-        toolbarPosition: 'left',
+        toolbar: { side: 'left' },
         gallery: { open: true }
       };
 

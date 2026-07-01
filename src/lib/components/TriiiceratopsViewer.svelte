@@ -7,17 +7,23 @@
     import type {
         ControlsMode,
         NavStyle,
-        NavPosition,
+        NavEdge,
+        NavAlign,
+        ToolbarSide,
         SearchProvider,
         ViewerConfig,
     } from '../types/config';
     import {
         CONTROLS_MODES,
         NAV_STYLES,
-        NAV_POSITIONS,
+        NAV_EDGES,
+        NAV_ALIGNS,
+        TOOLBAR_ANCHORS,
         DEFAULT_CONTROLS,
-        DEFAULT_NAV,
-        DEFAULT_NAV_POSITION,
+        DEFAULT_NAV_STYLE,
+        DEFAULT_NAV_EDGE,
+        DEFAULT_NAV_ALIGN,
+        DEFAULT_TOOLBAR_ANCHOR,
     } from '../types/config';
     import type { PluginDef } from '../types/plugin';
     import type { CanvasRegion } from '../utils/contentState';
@@ -329,20 +335,45 @@
         internalViewerState.config.rightPanelWidth ?? '320px',
     );
 
-    // Resolve the three orthogonal layout axes (drive data-controls / data-nav /
-    // data-nav-pos for the --ui-* vars and CSS). Fall back to defaults for unknown
-    // values.
+    // Resolve the layout knobs (drive data-controls / data-nav-style /
+    // data-nav-edge / data-nav-align for the --ui-* vars and CSS). Fall back to
+    // defaults for unknown values.
     let resolvedControls = $derived.by<ControlsMode>(() => {
         const c = internalViewerState.config.controls;
         return c && CONTROLS_MODES.includes(c) ? c : DEFAULT_CONTROLS;
     });
-    let resolvedNav = $derived.by<NavStyle>(() => {
-        const n = internalViewerState.config.nav;
-        return n && NAV_STYLES.includes(n) ? n : DEFAULT_NAV;
+    let resolvedNavStyle = $derived.by<NavStyle>(() => {
+        const n = internalViewerState.config.nav?.style;
+        return n && NAV_STYLES.includes(n) ? n : DEFAULT_NAV_STYLE;
     });
-    let resolvedNavPosition = $derived.by<NavPosition>(() => {
-        const p = internalViewerState.config.navPosition;
-        return p && NAV_POSITIONS.includes(p) ? p : DEFAULT_NAV_POSITION;
+    let resolvedNavAlign = $derived.by<NavAlign>(() => {
+        const a = internalViewerState.config.nav?.align;
+        return a && NAV_ALIGNS.includes(a) ? a : DEFAULT_NAV_ALIGN;
+    });
+    // Whether the split toolbar rail is pinned to the top corner. Only split mode
+    // renders a separate rail, so a top anchor can only claim the top edge there.
+    let toolbarAnchor = $derived.by<'top' | 'center'>(() => {
+        const a = internalViewerState.config.toolbar?.anchor;
+        return a && TOOLBAR_ANCHORS.includes(a) ? a : DEFAULT_TOOLBAR_ANCHOR;
+    });
+    let toolbarOwnsTop = $derived(
+        resolvedControls === 'split' && toolbarAnchor === 'top',
+    );
+    // The toolbar owns the top edge: a `top`-edge nav yields to the bottom when a
+    // top-anchored rail is present. We refuse to fit both rather than overlap them.
+    let resolvedNavEdge = $derived.by<NavEdge>(() => {
+        const e = internalViewerState.config.nav?.edge;
+        const requested = e && NAV_EDGES.includes(e) ? e : DEFAULT_NAV_EDGE;
+        if (requested === 'top' && toolbarOwnsTop) {
+            if (import.meta.env.DEV) {
+                console.warn(
+                    '[triiiceratops] nav.edge "top" ignored: a top-anchored toolbar ' +
+                        '(toolbar.anchor "top") already owns the top edge; nav falls back to "bottom".',
+                );
+            }
+            return 'bottom';
+        }
+        return requested;
     });
 
     // ---- Same-side toolbar/panel resolution (the "edge-rail" fix) ----
@@ -350,9 +381,12 @@
     // is rendered as the OUTERMOST (screen-edge) column of that side bar instead
     // of floating over the image, so its close affordance no longer collides with
     // the panel's. Top toolbars float over the image and never conflict.
-    let toolbarSide = $derived.by<'left' | 'right' | null>(() => {
-        const pos = internalViewerState.config.toolbarPosition ?? 'left';
-        return pos === 'left' || pos === 'right' ? pos : null;
+    let toolbarSide = $derived.by<ToolbarSide | null>(() => {
+        // Top-anchored rails float over the image and never conflict with a
+        // side panel, so they don't dock as the screen-edge column.
+        if (toolbarAnchor === 'top') return null;
+        const side = internalViewerState.config.toolbar?.side ?? 'left';
+        return side === 'left' || side === 'right' ? side : null;
     });
 
     function getPluginPanelClose(
@@ -673,8 +707,9 @@
     class="viewer-root"
     class:opaque={!internalViewerState.config.transparentBackground}
     data-controls={resolvedControls}
-    data-nav={resolvedNav}
-    data-nav-pos={resolvedNavPosition}
+    data-nav-style={resolvedNavStyle}
+    data-nav-edge={resolvedNavEdge}
+    data-nav-align={resolvedNavAlign}
 >
     <!-- Left Column -->
     {#if isLeftSidebarVisible}
