@@ -107,10 +107,10 @@
         border-width: var(--border);
         border-style: solid;
         border-color: var(--btn-border);
-        border-start-start-radius: var(--join-ss, var(--radius-field));
-        border-start-end-radius: var(--join-se, var(--radius-field));
-        border-end-end-radius: var(--join-ee, var(--radius-field));
-        border-end-start-radius: var(--join-es, var(--radius-field));
+        border-start-start-radius: var(--join-ss, var(--radius-buttons));
+        border-start-end-radius: var(--join-se, var(--radius-buttons));
+        border-end-end-radius: var(--join-ee, var(--radius-buttons));
+        border-end-start-radius: var(--join-es, var(--radius-buttons));
         outline-offset: 2px;
         outline-color: var(--btn-color, var(--content));
         text-shadow: 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 0.15));

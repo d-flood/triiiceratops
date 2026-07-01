@@ -30,8 +30,8 @@ export const BUILTIN_THEMES: BuiltInTheme[] = [
  *     retint just that region/panel.
  *   - Content: `panelContent`/`toolbarContent`/`viewerContent`/`galleryContent` and
  *     the per-panel `*Content` all default to the global `content` color.
- *   - Radius: `radiusToolbar`/`radiusPanels`/`radiusControls` default to `radiusBox`;
- *     `radiusControlsButtons` defaults to `radiusField`.
+ *   - Radius: `radiusPanels` defaults to `radiusBox`; `radiusToolbar`/`radiusControls`/
+ *     `radiusControlsButtons` default to `radiusButtons`.
  */
 export interface ThemeConfig {
     // ---- Palette ----
@@ -107,17 +107,17 @@ export interface ThemeConfig {
     // ---- Border radius ----
     /** Radius for large components like cards, modals, panels (e.g., '1rem') */
     radiusBox?: string;
-    /** Radius for medium components like inputs and buttons (e.g., '0.5rem') */
-    radiusField?: string;
+    /** Radius for buttons, inputs, and button groups (e.g., '0.5rem') */
+    radiusButtons?: string;
     /** Radius for small components like checkboxes, toggles, badges (e.g., '0.25rem') */
     radiusSelector?: string;
-    /** Toolbar corner radius (defaults to radiusBox) */
+    /** Toolbar corner radius (defaults to radiusButtons) */
     radiusToolbar?: string;
     /** Panel corner radius (defaults to radiusBox) */
     radiusPanels?: string;
-    /** Canvas-nav controls pill radius (defaults to radiusBox) */
+    /** Canvas-nav controls pill radius (defaults to radiusButtons) */
     radiusControls?: string;
-    /** Radius of the buttons inside the canvas-nav pill (defaults to radiusField) */
+    /** Radius of the buttons inside the canvas-nav pill (defaults to radiusButtons) */
     radiusControlsButtons?: string;
 
     // ---- Sizing ----

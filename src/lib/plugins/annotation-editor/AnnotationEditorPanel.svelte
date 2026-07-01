@@ -514,7 +514,7 @@
         min-height: calc(0.25rem * 20);
         flex-shrink: 1;
         appearance: none;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         background-color: var(--input-bg);
         padding-block: calc(0.25rem * 2);
         vertical-align: middle;
@@ -577,12 +577,12 @@
         --join-ee: 0;
     }
     .join > :global(.join-item:first-child) {
-        --join-ss: var(--radius-field);
-        --join-es: var(--radius-field);
+        --join-ss: var(--radius-buttons);
+        --join-es: var(--radius-buttons);
     }
     .join > :global(.join-item:last-child) {
-        --join-se: var(--radius-field);
-        --join-ee: var(--radius-field);
+        --join-se: var(--radius-buttons);
+        --join-ee: var(--radius-buttons);
     }
     .join > :global(.join-item:not(:first-child)) {
         margin-inline-start: calc(var(--border, 1px) * -1);

@@ -611,7 +611,7 @@
         border-width: var(--border);
         border-style: solid;
         border-color: transparent;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         color: var(--content);
         background-color: transparent;
         text-decoration: none;
@@ -676,7 +676,7 @@
         border-width: var(--border);
         border-style: solid;
         border-color: transparent;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         color: var(--content);
         background-color: transparent;
         transition-property: color, background-color, border-color, box-shadow;
@@ -771,22 +771,22 @@
        span's position. Items keep their own borders with no negative margins, so
        adjacent borders do not collapse — we intentionally add none here. */
     .join > :global(:first-child:not(:last-child) .btn-radio) {
-        --join-ss: var(--radius-field);
+        --join-ss: var(--radius-buttons);
         --join-se: 0;
-        --join-es: var(--radius-field);
+        --join-es: var(--radius-buttons);
         --join-ee: 0;
     }
     .join > :global(:last-child:not(:first-child) .btn-radio) {
         --join-ss: 0;
-        --join-se: var(--radius-field);
+        --join-se: var(--radius-buttons);
         --join-es: 0;
-        --join-ee: var(--radius-field);
+        --join-ee: var(--radius-buttons);
     }
     .join > :global(:only-child .btn-radio) {
-        --join-ss: var(--radius-field);
-        --join-se: var(--radius-field);
-        --join-es: var(--radius-field);
-        --join-ee: var(--radius-field);
+        --join-ss: var(--radius-buttons);
+        --join-se: var(--radius-buttons);
+        --join-es: var(--radius-buttons);
+        --join-ee: var(--radius-buttons);
     }
 
     /* ===== Language Select width override (w-auto) ===== */
@@ -893,7 +893,7 @@
         appearance: none;
         background-color: var(--viewer-bg);
         border: var(--border) solid var(--input-color);
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         box-shadow:
             0 1px
                 color-mix(
@@ -969,7 +969,7 @@
         text-align: start;
         text-wrap: balance;
         user-select: none;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         /* menu-xs sizing */
         padding-block: 0.25rem;
         padding-inline: 0.5rem;

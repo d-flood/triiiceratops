@@ -951,7 +951,7 @@
         text-wrap: balance;
         user-select: none;
         -webkit-user-select: none;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         padding-block: 0.375rem;
         padding-inline: 0.75rem;
         outline-style: none;

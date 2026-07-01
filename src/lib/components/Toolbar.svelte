@@ -41,6 +41,76 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
+    // --- Inline (Unified Bar) row balancing ---
+    // In `inline` mode the action <ul> is allowed to wrap. Flexbox fills rows
+    // greedily (6 + 1), so once the icons need a second row we compute an even
+    // split (4 + 3) by capping the group's width to `ceil(count / rows)`
+    // columns. Measured against the control-bar's stable offset parent (not the
+    // group itself) so setting the cap can't feed back into the observer.
+    let actionsEl: HTMLUListElement | undefined = $state();
+
+    function balanceInlineRows(el: HTMLUListElement) {
+        el.style.maxWidth = '';
+        const items = Array.from(el.children) as HTMLElement[];
+        const n = items.length;
+        if (n < 2) return;
+
+        const bar = el.closest('.control-bar') as HTMLElement | null;
+        const container =
+            (bar?.offsetParent as HTMLElement | null) ??
+            bar?.parentElement ??
+            null;
+        if (!bar || !container) return;
+
+        const barStyle = getComputedStyle(bar);
+        const left = parseFloat(barStyle.left) || 0;
+        const right = parseFloat(barStyle.right) || 0;
+        const padX =
+            (parseFloat(barStyle.paddingLeft) || 0) +
+            (parseFloat(barStyle.paddingRight) || 0);
+        const avail = container.clientWidth - left - right - padX;
+        if (avail <= 0) return;
+
+        const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+        let sum = 0;
+        let widest = 0;
+        for (const it of items) {
+            const w = it.getBoundingClientRect().width;
+            sum += w;
+            if (w > widest) widest = w;
+        }
+        const natural = sum + gap * (n - 1);
+        if (natural <= avail) return; // fits on one row — no cap needed
+
+        const rows = Math.ceil(natural / avail);
+        const perRow = Math.ceil(n / rows);
+        el.style.maxWidth = `${perRow * widest + (perRow - 1) * gap + 1}px`;
+    }
+
+    $effect(() => {
+        if (!inline || !actionsEl) return;
+        const el = actionsEl;
+        const bar = el.closest('.control-bar') as HTMLElement | null;
+        const container =
+            (bar?.offsetParent as HTMLElement | null) ??
+            bar?.parentElement ??
+            null;
+        const run = () => balanceInlineRows(el);
+        // Container width changes → re-balance. Its width is independent of the
+        // cap we set, so no feedback loop.
+        const ro = new ResizeObserver(run);
+        if (container) ro.observe(container);
+        // Icon set changes (plugins mounting) → re-balance. childList only, so
+        // our maxWidth style writes don't re-trigger it.
+        const mo = new MutationObserver(run);
+        mo.observe(el, { childList: true });
+        run();
+        return () => {
+            ro.disconnect();
+            mo.disconnect();
+        };
+    });
+
     // Use centralized toolbar state
     const isOpen = $derived(viewerState.toolbarOpen);
 
@@ -241,6 +311,7 @@
     >
         <!-- Scrollable Actions -->
         <ul
+            bind:this={actionsEl}
             class="menu actions"
             class:horizontal={isTop || inline}
             class:top-right={position === 'top-right'}
@@ -507,9 +578,8 @@
                         onclick={() => viewerState.toggleAnnotations()}
                     >
                         {#if !viewerState.showAnnotations && annotationCount > 0}
-                            <span class="indicator-item count-badge">
-                                {annotationCount > 99 ? '99+' : annotationCount}
-                            </span>
+                            <span class="annotation-dot" aria-hidden="true"
+                            ></span>
                         {/if}
                         <ChatCenteredText size={24} />
                     </button>
@@ -716,6 +786,11 @@
         flex-direction: row;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
+        /* Allowed to wrap; balanceInlineRows() caps the width so the wrap
+           splits evenly instead of flexbox's greedy first-row fill. row-gap
+           matches the column gap so stacked icon rows sit evenly. */
+        flex-wrap: wrap;
         gap: var(--ui-gap, 0.375rem);
         padding: 0;
         background: none;
@@ -807,7 +882,7 @@
     }
     /* menu items (buttons) */
     .menu-item {
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         text-align: start;
         text-wrap: balance;
         user-select: none;
@@ -959,6 +1034,26 @@
         white-space: nowrap;
     }
 
+    /* Unread-annotations dot: anchored to the icon corner via translate
+       (rather than a fixed inset from the button edge) so its position is
+       independent of the button's padding, which is zeroed in inline mode —
+       otherwise it lands in a different spot relative to the icon there. It
+       only pulls the dot in by 35%, not .indicator-item's 50%, so it still
+       stays inside the button's own box and never overhangs the toolbar's
+       rounded edge on edge-of-rail buttons. */
+    .annotation-dot {
+        position: absolute;
+        top: 0;
+        right: 0;
+        translate: 35% -35%;
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background-color: var(--color-primary);
+        border: var(--border) solid var(--toolbar-bg);
+        z-index: 1;
+    }
+
     /* count badge inside indicators (badge badge-primary badge-sm min-w-5 px-1) */
     .count-badge {
         --size: calc(var(--size-selector, 0.25rem) * 5);
@@ -978,21 +1073,32 @@
     }
 
     /* ===== Dropdown menu chrome (viewing mode, sequence picker) =====
-       Same glass treatment as the plugin flyout's base bar. */
+       Same glass treatment as the plugin flyout's base bar. The blur/fill live
+       on a ::before layer, not directly on .popover-menu (which also carries
+       `border`) — see the matching comment on ImageManipulationFlyout's .base
+       for why combining backdrop-filter + border breaks nested-content
+       stacking. */
     .popover-menu {
         border-radius: var(--radius-toolbar);
         border: 1px solid var(--surface-border);
+        box-shadow: var(
+            --ui-chrome-shadow,
+            0 10px 15px -3px #0000001a,
+            0 4px 6px -4px #0000001a
+        );
+    }
+    .popover-menu::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: calc(var(--radius-toolbar) - var(--border, 1px));
         background-color: color-mix(
             in oklab,
             var(--toolbar-bg) 70%,
             transparent
         );
         backdrop-filter: blur(8px);
-        box-shadow: var(
-            --ui-chrome-shadow,
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a
-        );
     }
     .popover-menu.wide {
         min-width: 14rem;
@@ -1119,10 +1225,10 @@
         font-size: 0.75rem;
         border-width: var(--border);
         border-style: solid;
-        border-start-start-radius: var(--radius-field);
-        border-start-end-radius: var(--radius-field);
-        border-end-end-radius: var(--radius-field);
-        border-end-start-radius: var(--radius-field);
+        border-start-start-radius: var(--radius-buttons);
+        border-start-end-radius: var(--radius-buttons);
+        border-end-end-radius: var(--radius-buttons);
+        border-end-start-radius: var(--radius-buttons);
         outline-offset: 2px;
         /* custom overrides */
         width: var(--ui-hit, 2rem);
@@ -1176,7 +1282,7 @@
         position: relative;
     }
     .tooltip[data-tip]:not([data-tip=''])::before {
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         text-align: center;
         white-space: normal;
         max-width: 20rem;
