@@ -70,10 +70,10 @@
         background-size:
             4px 4px,
             4px 4px;
-        border-start-start-radius: var(--join-ss, var(--radius-field));
-        border-start-end-radius: var(--join-se, var(--radius-field));
-        border-end-end-radius: var(--join-ee, var(--radius-field));
-        border-end-start-radius: var(--join-es, var(--radius-field));
+        border-start-start-radius: var(--join-ss, var(--radius-buttons));
+        border-start-end-radius: var(--join-se, var(--radius-buttons));
+        border-end-end-radius: var(--join-ee, var(--radius-buttons));
+        border-end-start-radius: var(--join-es, var(--radius-buttons));
         flex-shrink: 1;
         align-items: center;
         gap: 0.375rem;

@@ -1333,7 +1333,7 @@
     }
 
     .tooltip[data-tip]:not([data-tip=''])::before {
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         text-align: center;
         white-space: normal;
         max-width: 20rem;

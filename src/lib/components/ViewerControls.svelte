@@ -119,6 +119,34 @@
 
     let LeftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
     let RightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
+
+    // Track whether the unified bar has broken into multiple rows so the
+    // toolbar↔nav divider can be hidden — a vertical separator reads as noise
+    // once the two groups are stacked rather than side by side. CSS can't
+    // detect a flex-wrap break, so we watch the bar's size and compare the two
+    // groups' offset tops: on a shared row they align to the same row box, so
+    // any difference means the nav-cluster has dropped to its own row.
+    let barEl: HTMLDivElement | undefined = $state();
+    let toolbarEl: HTMLDivElement | undefined = $state();
+    let navEl: HTMLDivElement | undefined = $state();
+    let barWrapped = $state(false);
+
+    $effect(() => {
+        if (!isUnified || !barEl || !toolbarEl || !navEl) {
+            barWrapped = false;
+            return;
+        }
+        const bar = barEl;
+        const toolbar = toolbarEl;
+        const nav = navEl;
+        const update = () => {
+            barWrapped = nav.offsetTop > toolbar.offsetTop;
+        };
+        const ro = new ResizeObserver(update);
+        ro.observe(bar);
+        update();
+        return () => ro.disconnect();
+    });
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
@@ -225,16 +253,27 @@
 {/snippet}
 
 {#if showNav || showZoom || hasChoices || isUnified}
-    <div class="control-bar" class:elevated={viewerState.showCanvasInfo}>
+    <div
+        class="control-bar"
+        class:elevated={viewerState.showCanvasInfo}
+        class:wrapped={barWrapped}
+        bind:this={barEl}
+    >
         {#if isUnified}
-            <div class="toolbar-in-bar">
+            <div class="toolbar-in-bar" bind:this={toolbarEl}>
                 <Toolbar inline />
             </div>
-            {#if hasChoices || hasCenterControls}
-                <div class="divider-v"></div>
+            {#if (hasChoices || hasCenterControls) && !barWrapped}
+                <div class="divider-v group-divider"></div>
             {/if}
         {/if}
 
+        {#if hasChoices || hasCenterControls}
+        <!-- The canvas nav/zoom/choices are kept together as one no-wrap group:
+             the bar's first break separates this cluster from the toolbar
+             buttons (see .control-bar / .nav-cluster), and this cluster itself
+             never breaks internally. -->
+        <div class="nav-cluster" bind:this={navEl}>
         {#if leftChoiceGroup}
             {@render choiceControls(
                 leftChoiceGroup,
@@ -336,6 +375,8 @@
                 useAbbreviatedChoiceLabels,
             )}
         {/if}
+        </div>
+        {/if}
     </div>
 {/if}
 
@@ -343,15 +384,33 @@
     .control-bar {
         user-select: none;
         position: absolute;
-        /* Horizontal alignment is set per data-nav-pos below; center is default. */
-        left: 50%;
-        transform: translateX(-50%);
+        /* Horizontal alignment is set per data-nav-pos below; center is default.
+           Center via auto margins with left/right anchored to both edges rather
+           than the `left:50% + translateX(-50%)` trick — the latter caps the
+           box's available width at 50% of the container (the distance from the
+           50% mark to the right edge), which forces the unified bar to
+           wrap/shrink once its content exceeds half the viewport. Spanning both
+           edges lets it grow to nearly the full width (minus the chrome inset on
+           each side) before it's constrained. */
+        left: var(--ui-nav-inset, 0);
+        right: var(--ui-nav-inset, 0);
+        width: fit-content;
+        max-width: calc(100% - 2 * var(--ui-nav-inset, 0));
+        margin-inline: auto;
         bottom: var(--ui-nav-inset, 0);
         z-index: 10;
         display: flex;
         align-items: center;
+        justify-content: center;
+        /* Allow the bar to break: the toolbar-button group and the nav-cluster
+           are the two flex items, so when combined they exceed the available
+           width the (later) nav-cluster drops to its own row first. Row-gap
+           matches the inline gap so stacked rows sit evenly. */
+        flex-wrap: wrap;
         gap: var(--ui-gap, 0.5rem);
         padding-inline: var(--ui-chrome-pad, 0.5rem);
+        /* Vertically centre the stacked rows (a no-op on a single row). */
+        align-content: center;
         color: var(--toolbar-content);
         border-radius: var(--radius-controls);
         border: 1px solid var(--surface-border);
@@ -370,7 +429,11 @@
         position: absolute;
         inset: 0;
         z-index: -1;
-        border-radius: inherit;
+        /* Inset by the 1px border (inset:0 resolves to the padding box), so the
+           radius must shrink by that same amount to stay concentric with the
+           outer border — using the parent's radius as-is leaves a gap at the
+           corners where the border's background peeks through. */
+        border-radius: calc(var(--radius-controls) - var(--border, 1px));
         background-color: color-mix(
             in oklab,
             var(--toolbar-bg) 70%,
@@ -381,11 +444,23 @@
     .control-bar.elevated {
         z-index: 1000;
     }
+    /* Once broken into rows, give the stacked content equal breathing room top
+       and bottom — on a single row the pill hugs the controls (no block
+       padding), which reads as uneven spacing once a second row appears. */
+    .control-bar.wrapped {
+        padding-block: var(--ui-chrome-pad, 0.5rem);
+    }
 
     /* nav=docked — the control bar sits flush to the bottom edge: only the top
        corners rounded, no bottom border. */
     :global([data-nav='docked']) .control-bar {
         border-bottom: 0;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    /* ::before no longer uses border-radius: inherit (see above), so the
+       squared corners must be mirrored onto it explicitly. */
+    :global([data-nav='docked']) .control-bar::before {
         border-bottom-left-radius: 0;
         border-bottom-right-radius: 0;
     }
@@ -396,11 +471,13 @@
         left: var(--ui-nav-inset, 0);
         right: auto;
         transform: none;
+        margin-inline: 0;
     }
     :global([data-nav-pos='right']) .control-bar {
         left: auto;
         right: var(--ui-nav-inset, 0);
         transform: none;
+        margin-inline: 0;
     }
     /* Square the edge-touching corner when docked into a bottom corner. */
     :global([data-nav='docked'][data-nav-pos='left']) .control-bar {
@@ -411,12 +488,27 @@
         border-top-right-radius: 0;
         border-right: 0;
     }
+    :global([data-nav='docked'][data-nav-pos='left']) .control-bar::before {
+        border-top-left-radius: 0;
+    }
+    :global([data-nav='docked'][data-nav-pos='right']) .control-bar::before {
+        border-top-right-radius: 0;
+    }
 
     /* Unified — the toolbar buttons sit at the start of the control bar,
        separated from the canvas nav/zoom by a divider. */
     .toolbar-in-bar {
         display: inline-flex;
         align-items: center;
+    }
+    /* The nav/zoom/choices group: stays on a single line (never breaks
+       internally) so the only break here is between it and the toolbar
+       buttons. */
+    .nav-cluster {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: var(--ui-gap, 0.5rem);
     }
 
     .choice-controls {
@@ -485,12 +577,12 @@
         --join-ee: 0;
     }
     .join > :global(.join-item:first-child) {
-        --join-ss: var(--radius-field);
-        --join-es: var(--radius-field);
+        --join-ss: var(--radius-buttons);
+        --join-es: var(--radius-buttons);
     }
     .join > :global(.join-item:last-child) {
-        --join-se: var(--radius-field);
-        --join-ee: var(--radius-field);
+        --join-se: var(--radius-buttons);
+        --join-ee: var(--radius-buttons);
     }
     .join > :global(.join-item:not(:first-child)) {
         margin-inline-start: calc(var(--border, 1px) * -1);

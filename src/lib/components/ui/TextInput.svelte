@@ -58,10 +58,10 @@
             0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
         --size: calc(var(--size-field, 0.25rem) * 10);
         --input-color: color-mix(in oklab, var(--content) 20%, #0000);
-        border-start-start-radius: var(--join-ss, var(--radius-field));
-        border-start-end-radius: var(--join-se, var(--radius-field));
-        border-end-end-radius: var(--join-ee, var(--radius-field));
-        border-end-start-radius: var(--join-es, var(--radius-field));
+        border-start-start-radius: var(--join-ss, var(--radius-buttons));
+        border-start-end-radius: var(--join-se, var(--radius-buttons));
+        border-end-end-radius: var(--join-ee, var(--radius-buttons));
+        border-end-start-radius: var(--join-es, var(--radius-buttons));
         flex-shrink: 1;
         align-items: center;
         gap: 0.5rem;

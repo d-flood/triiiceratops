@@ -35,8 +35,8 @@
     color-scheme: light;
 
     /* Palette */
-    --color-primary: oklch(45% 0.24 277.023);
-    --color-primary-content: oklch(93% 0.034 272.788);
+    --color-primary: oklch(78% 0.15 80);
+    --color-primary-content: oklch(28% 0.08 70);
     --color-neutral: oklch(14% 0.005 285.823);
     --color-neutral-content: oklch(92% 0.004 286.32);
     --color-success: oklch(76% 0.177 163.223);
@@ -55,7 +55,7 @@
 
     /* Radius (top-level trio) */
     --radius-selector: 0.5rem;
-    --radius-field: 0.25rem;
+    --radius-buttons: 0.25rem;
     --radius-box: 0.5rem;
 
     /* Sizing / border / depth */
@@ -105,10 +105,10 @@
     --pdf-export-panel-content: var(--panel-content);
 
     /* Per-region radius overrides; inherit the top-level trio by default */
-    --radius-toolbar: var(--radius-box);
+    --radius-toolbar: var(--radius-buttons);
     --radius-panels: var(--radius-box);
-    --radius-controls: var(--radius-box);
-    --radius-controls-buttons: var(--radius-field);
+    --radius-controls: var(--radius-buttons);
+    --radius-controls-buttons: var(--radius-buttons);
 }
 
 /* ---- Default tokens (dark) when the user prefers dark and no theme is set ---- */
@@ -134,7 +134,7 @@
         --content: oklch(97.807% 0.029 256.847);
 
         --radius-selector: 0.5rem;
-        --radius-field: 0.25rem;
+        --radius-buttons: 0.25rem;
         --radius-box: 0.5rem;
         --size-selector: 0.25rem;
         --size-field: 0.25rem;
@@ -147,8 +147,8 @@
 [data-theme='light'] {
     color-scheme: light;
 
-    --color-primary: oklch(45% 0.24 277.023);
-    --color-primary-content: oklch(93% 0.034 272.788);
+    --color-primary: oklch(78% 0.15 80);
+    --color-primary-content: oklch(28% 0.08 70);
     --color-neutral: oklch(14% 0.005 285.823);
     --color-neutral-content: oklch(92% 0.004 286.32);
     --color-success: oklch(76% 0.177 163.223);
@@ -165,7 +165,7 @@
     --content: oklch(21% 0.006 285.885);
 
     --radius-selector: 0.5rem;
-    --radius-field: 0.25rem;
+    --radius-buttons: 1rem;
     --radius-box: 0.5rem;
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
@@ -176,9 +176,9 @@
 [data-theme='dark'] {
     color-scheme: dark;
 
-    --color-primary: oklch(58% 0.233 277.117);
-    --color-primary-content: oklch(96% 0.018 272.314);
-    --color-neutral: oklch(14% 0.005 285.823);
+    --color-primary: oklch(78% 0.15 80);
+    --color-primary-content: oklch(28% 0.08 70);
+    --color-neutral: oklch(24.56% 0.01411 81.617);
     --color-neutral-content: oklch(92% 0.004 286.32);
     --color-success: oklch(76% 0.177 163.223);
     --color-success-content: oklch(37% 0.077 168.94);
@@ -194,7 +194,7 @@
     --content: oklch(97.807% 0.029 256.847);
 
     --radius-selector: 0.5rem;
-    --radius-field: 0.25rem;
+    --radius-buttons: 1rem;
     --radius-box: 0.5rem;
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
@@ -222,12 +222,12 @@
     --surface-border: oklch(91.586% 0.006 53.44);
     --content: oklch(23.574% 0.066 313.189);
 
-    --radius-selector: 1rem;
-    --radius-field: 2rem;
-    --radius-box: 1rem;
+    --radius-selector: 0;
+    --radius-buttons: 0;
+    --radius-box: 0;
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
-    --border: 2px;
+    --border: 1px;
     --depth: 1;
 }
 
@@ -252,9 +252,9 @@
     --content: oklch(97.747% 0.007 106.545);
 
     --radius-selector: 1rem;
-    --radius-field: 0.5rem;
-    --radius-box: 1rem;
-    --size-selector: 0.25rem;
+    --radius-buttons: 2em;
+    --radius-box: 0.5rem;
+    --size-selector: 0.1rem;
     --size-field: 0.25rem;
     --border: 1px;
     --depth: 0;

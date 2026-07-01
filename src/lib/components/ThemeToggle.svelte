@@ -127,7 +127,7 @@
         padding-inline: 0.375rem;
         font-size: 0.75rem;
         font-weight: 600;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         border: var(--border) solid transparent;
         background-color: transparent;
         color: inherit;
@@ -222,7 +222,7 @@
         gap: 0.75rem;
         width: 100%;
         text-align: start;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         padding-block: 0.375rem;
         padding-inline: 0.5rem;
         cursor: pointer;

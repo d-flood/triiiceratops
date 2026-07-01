@@ -179,7 +179,7 @@
         warning: '#733100',
         error: '#b95527',
         radiusBox: '1.5rem',
-        radiusField: '0.75rem',
+        radiusButtons: '0.75rem',
         radiusSelector: '0.5rem',
         radiusControls: '9999px',
         border: '2px',

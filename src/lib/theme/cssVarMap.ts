@@ -55,7 +55,7 @@ export const CSS_VAR_MAP: Record<
 
     // Border radius (top-level + per-region overrides)
     radiusBox: '--radius-box',
-    radiusField: '--radius-field',
+    radiusButtons: '--radius-buttons',
     radiusSelector: '--radius-selector',
     radiusToolbar: '--radius-toolbar',
     radiusPanels: '--radius-panels',

@@ -213,26 +213,38 @@
         justify-content: center;
     }
 
-    /* The same glass treatment used by the toolbar/nav bars. */
+    /* The same glass treatment used by the toolbar/nav bars. The blur/fill live
+       on a ::before layer (not directly on .base, which also carries `border`)
+       — combining `backdrop-filter` and `border` on the same element makes the
+       browser paint the border in its own compositing pass, on top of nested
+       content like the action buttons' tooltips regardless of z-index. */
     .base {
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 0.375rem;
         padding-block: 0.375rem;
         border-radius: var(--radius-toolbar);
         border: 1px solid var(--surface-border);
-        background-color: color-mix(
-            in oklab,
-            var(--toolbar-bg) 70%,
-            transparent
-        );
         color: var(--toolbar-content);
-        backdrop-filter: blur(8px);
         box-shadow: var(
             --ui-chrome-shadow,
             0 10px 15px -3px #0000001a,
             0 4px 6px -4px #0000001a
         );
+    }
+    .base::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: calc(var(--radius-toolbar) - var(--border, 1px));
+        background-color: color-mix(
+            in oklab,
+            var(--toolbar-bg) 70%,
+            transparent
+        );
+        backdrop-filter: blur(8px);
     }
     .cluster[data-dir='down'] .base {
         flex-direction: column-reverse;
@@ -285,7 +297,7 @@
         height: var(--ui-hit, 2.25rem);
         padding: 0;
         border: none;
-        border-radius: var(--radius-field);
+        border-radius: var(--radius-buttons);
         background: transparent;
         color: inherit;
         cursor: pointer;
