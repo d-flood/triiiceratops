@@ -4,7 +4,21 @@
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
-    import type { SearchProvider, ViewerConfig } from '../types/config';
+    import type {
+        ControlsMode,
+        NavStyle,
+        NavPosition,
+        SearchProvider,
+        ViewerConfig,
+    } from '../types/config';
+    import {
+        CONTROLS_MODES,
+        NAV_STYLES,
+        NAV_POSITIONS,
+        DEFAULT_CONTROLS,
+        DEFAULT_NAV,
+        DEFAULT_NAV_POSITION,
+    } from '../types/config';
     import type { PluginDef } from '../types/plugin';
     import type { CanvasRegion } from '../utils/contentState';
     import { createPluginId } from '../utils/pluginId';
@@ -315,6 +329,32 @@
         internalViewerState.config.rightPanelWidth ?? '320px',
     );
 
+    // Resolve the three orthogonal layout axes (drive data-controls / data-nav /
+    // data-nav-pos for the --ui-* vars and CSS). Fall back to defaults for unknown
+    // values.
+    let resolvedControls = $derived.by<ControlsMode>(() => {
+        const c = internalViewerState.config.controls;
+        return c && CONTROLS_MODES.includes(c) ? c : DEFAULT_CONTROLS;
+    });
+    let resolvedNav = $derived.by<NavStyle>(() => {
+        const n = internalViewerState.config.nav;
+        return n && NAV_STYLES.includes(n) ? n : DEFAULT_NAV;
+    });
+    let resolvedNavPosition = $derived.by<NavPosition>(() => {
+        const p = internalViewerState.config.navPosition;
+        return p && NAV_POSITIONS.includes(p) ? p : DEFAULT_NAV_POSITION;
+    });
+
+    // ---- Same-side toolbar/panel resolution (the "edge-rail" fix) ----
+    // A side toolbar (left/right) that shares its side with a docked panel/gallery
+    // is rendered as the OUTERMOST (screen-edge) column of that side bar instead
+    // of floating over the image, so its close affordance no longer collides with
+    // the panel's. Top toolbars float over the image and never conflict.
+    let toolbarSide = $derived.by<'left' | 'right' | null>(() => {
+        const pos = internalViewerState.config.toolbarPosition ?? 'left';
+        return pos === 'left' || pos === 'right' ? pos : null;
+    });
+
     function getPluginPanelClose(
         props: Record<string, unknown> | undefined,
     ): (() => void) | undefined {
@@ -507,6 +547,23 @@
             visiblePanelsRight.length > 0,
     );
 
+    // The toolbar docks as the screen-edge rail of a side bar when it shares that
+    // side with a panel/gallery and is open. Only `split` controls use a side
+    // toolbar; `unified` embeds the tools in the nav bar.
+    let dockLeft = $derived(
+        resolvedControls === 'split' &&
+            toolbarSide === 'left' &&
+            isLeftSidebarVisible &&
+            internalViewerState.toolbarOpen,
+    );
+    let dockRight = $derived(
+        resolvedControls === 'split' &&
+            toolbarSide === 'right' &&
+            isRightSidebarVisible &&
+            internalViewerState.toolbarOpen,
+    );
+    let toolbarDockedAsRail = $derived(dockLeft || dockRight);
+
     let manifestData = $derived(internalViewerState.manifestEntry);
     let canvases = $derived(internalViewerState.canvases);
     let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
@@ -615,6 +672,9 @@
     id="triiiceratops-viewer"
     class="viewer-root"
     class:opaque={!internalViewerState.config.transparentBackground}
+    data-controls={resolvedControls}
+    data-nav={resolvedNav}
+    data-nav-pos={resolvedNavPosition}
 >
     <!-- Left Column -->
     {#if isLeftSidebarVisible}
@@ -622,9 +682,16 @@
             class="side-col side-col-left"
             class:opaque={!internalViewerState.config.transparentBackground}
         >
+            <!-- Toolbar docked as the screen-edge rail (same-side fix) -->
+            {#if dockLeft}
+                <div class="toolbar-rail-host">
+                    <Toolbar docked />
+                </div>
+            {/if}
+
             {#if visiblePanelsLeft.length > 0}
                 <div class="panel-host" style="width: {leftPanelWidth}">
-                    <PanelStack panels={visiblePanelsLeft} />
+                    <PanelStack panels={visiblePanelsLeft} closeAlign="end" />
                 </div>
             {/if}
 
@@ -748,8 +815,11 @@
 
             <AnnotationOverlay />
 
-            <!-- Floating Toolbar -->
-            <Toolbar />
+            <!-- Floating Toolbar (suppressed while docked as a side rail, or in
+                 `unified` controls where the toolbar buttons live in the nav). -->
+            {#if !toolbarDockedAsRail && resolvedControls !== 'unified'}
+                <Toolbar />
+            {/if}
 
             <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
@@ -811,7 +881,10 @@
         >
             {#if visiblePanelsRight.length > 0}
                 <div class="panel-host" style="width: {rightPanelWidth}">
-                    <PanelStack panels={visiblePanelsRight} />
+                    <PanelStack
+                        panels={visiblePanelsRight}
+                        closeAlign={dockRight ? 'start' : 'end'}
+                    />
                 </div>
             {/if}
 
@@ -823,6 +896,13 @@
                         40}px"
                 >
                     <ThumbnailGallery {canvases} />
+                </div>
+            {/if}
+
+            <!-- Toolbar docked as the screen-edge rail (same-side fix) -->
+            {#if dockRight}
+                <div class="toolbar-rail-host">
+                    <Toolbar docked />
                 </div>
             {/if}
         </div>
@@ -859,6 +939,15 @@
     }
     .side-col-left.opaque {
         border-right: 1px solid var(--surface-border);
+    }
+
+
+    .toolbar-rail-host {
+        height: 100%;
+        min-height: 0;
+        flex: none;
+        position: relative;
+        pointer-events: auto;
     }
 
     .panel-host {

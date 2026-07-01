@@ -17,9 +17,16 @@
 
     interface Props {
         panels: PanelStackItem[];
+        /**
+         * Which edge the section close button sits on. Defaults to 'end' (the
+         * trailing edge). Set to 'start' for a right-docked column that hosts the
+         * toolbar rail, so the close stays on the image-facing (inner) edge and
+         * away from the rail's own controls.
+         */
+        closeAlign?: 'start' | 'end';
     }
 
-    let { panels }: Props = $props();
+    let { panels, closeAlign = 'end' }: Props = $props();
     let hasMounted = $state(false);
 
     onMount(() => {
@@ -29,7 +36,7 @@
 
 <div class="panel-stack">
     {#each panels as panel (panel.id)}
-        <PanelStackSection {panel} scrollOnMount={hasMounted} />
+        <PanelStackSection {panel} {closeAlign} scrollOnMount={hasMounted} />
     {/each}
 </div>
 
@@ -37,7 +44,7 @@
     .panel-stack {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: var(--ui-section-gap, 1rem);
         height: 100%;
         max-height: 100%;
         min-height: 0;

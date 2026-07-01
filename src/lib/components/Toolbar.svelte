@@ -20,6 +20,25 @@
     import { m, language } from '../state/i18n.svelte';
     import { manifestsState } from '../state/manifests.svelte';
 
+    interface Props {
+        /**
+         * Render as an in-flow docked rail (the cross-cutting same-side fix)
+         * instead of a floating overlay. The parent renders the toolbar this way
+         * only when its configured side hosts a panel/gallery AND it is open, so
+         * the rail sits at the screen edge with the panel inboard of it.
+         */
+        docked?: boolean;
+        /**
+         * Render only the bare action buttons as a horizontal group (no shell,
+         * positioning, handle, or collapse), for embedding inside another bar —
+         * used by the Unified Bar preset to place the toolbar buttons in the
+         * canvas nav.
+         */
+        inline?: boolean;
+    }
+
+    let { docked = false, inline = false }: Props = $props();
+
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
     // Use centralized toolbar state
@@ -138,6 +157,8 @@
     class:side={!isTop}
     class:left={position === 'left'}
     class:right={position === 'right'}
+    class:docked
+    class:inline
 >
     <!-- Collapsible Toolbar -->
     <div
@@ -145,6 +166,8 @@
         class:top-right={position === 'top-right'}
         class:top-left={position === 'top-left'}
         class:side={!isTop}
+        class:docked
+        class:inline
         class:open-top={isOpen && isTop}
         class:open-side={isOpen && !isTop}
         class:closed-top={!isOpen && isTop}
@@ -154,14 +177,17 @@
         <!-- Scrollable Actions -->
         <ul
             class="menu actions"
-            class:horizontal={isTop}
+            class:horizontal={isTop || inline}
             class:top-right={position === 'top-right'}
             class:top-left={position === 'top-left'}
             class:left={position === 'left'}
             class:right={position === 'right'}
+            class:docked
+            class:inline
         >
-            <!-- --- Close Button --- -->
-            {#if showToggle}
+            <!-- --- Close Button (hidden in inline mode; the buttons live in the
+                 nav bar without a collapse affordance) --- -->
+            {#if showToggle && !inline}
                 <li>
                     <button
                         class="menu-item tooltip {tooltipPlacement}"
@@ -469,8 +495,9 @@
         </ul>
     </div>
 
-    <!-- Toggle Handle (Only visible when closed) -->
-    {#if showToggle}
+    <!-- Toggle Handle (floating open button shown only when closed; never in the
+         docked rail or inline modes). -->
+    {#if showToggle && !docked && !inline}
         <button
             class="handle tooltip {openButtonTooltipPlacement}"
             class:invisible={isOpen}
@@ -500,22 +527,108 @@
         align-items: flex-end;
         flex-direction: column;
         padding-top: 0;
+        padding-right: var(--ui-inset, 0);
     }
     .toolbar-root.top-left {
         width: 100%;
         align-items: flex-start;
         flex-direction: column;
         padding-top: 0;
+        padding-left: var(--ui-inset, 0);
     }
     .toolbar-root.side {
         height: 100%;
         align-items: flex-start;
     }
     .toolbar-root.left {
-        left: 0;
+        left: var(--ui-inset, 0);
     }
     .toolbar-root.right {
-        right: 0;
+        right: var(--ui-inset, 0);
+    }
+    /* Floating card sits `--ui-inset` from the top edge (flush when inset is 0). */
+    .toolbar-shell {
+        margin-top: var(--ui-inset, 0);
+    }
+
+    /* ===== Docked rail (same-side fix) =====
+       When the toolbar shares a side with a panel/gallery it is rendered in-flow
+       as the outermost (screen-edge) column of the side bar rather than floating
+       over the image. Its collapse handle is gone (it collapses via the in-menu
+       close button), so its only close affordance sits a full panel-width away
+       from the panel's own close button. */
+    .toolbar-root.docked {
+        position: relative;
+        inset: auto;
+        z-index: auto;
+        height: 100%;
+        align-items: stretch;
+        pointer-events: auto;
+        padding: 0;
+    }
+    .toolbar-shell.docked {
+        margin: 0;
+        height: 100%;
+        flex-direction: column;
+        opacity: 1;
+        transform: none;
+    }
+    .actions.docked {
+        height: 100%;
+        flex-wrap: nowrap;
+        overflow-y: auto;
+        overflow-x: hidden;
+        border-radius: 0;
+        box-shadow: none;
+        backdrop-filter: none;
+        /* Solid edge furniture rather than translucent floating glass. */
+        background-color: var(--toolbar-bg);
+        align-items: stretch;
+        justify-content: flex-start;
+    }
+    /* Round only the outer (screen-edge) corners so the rail reads as one piece
+       with the panel inboard of it; the inner edge is square against the panel. */
+    .actions.docked.left {
+        border-top-left-radius: var(--radius-toolbar);
+        border-bottom-left-radius: var(--radius-toolbar);
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-right: var(--border) solid var(--surface-border);
+        padding-right: 0;
+    }
+    .actions.docked.right {
+        border-top-right-radius: var(--radius-toolbar);
+        border-bottom-right-radius: var(--radius-toolbar);
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: var(--border) solid var(--surface-border);
+        padding-left: 0;
+    }
+
+    /* ===== Unified Bar: toolbar buttons embedded in the canvas nav =====
+       In `inline` mode the toolbar renders only its action list as a transparent
+       horizontal group; `display: contents` collapses the root/shell wrappers so
+       the <ul> participates directly in the control-bar flex row. */
+    .toolbar-root.inline,
+    .toolbar-shell.inline {
+        display: contents;
+    }
+    .actions.inline {
+        flex-direction: row;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--ui-gap, 0.375rem);
+        padding: 0;
+        background: none;
+        box-shadow: none;
+        backdrop-filter: none;
+        border-radius: 0;
+    }
+    .actions.inline :where(li) {
+        padding-bottom: 0;
+    }
+    .actions.inline :where(li) > :global(*) {
+        padding: 0;
     }
 
     /* ===== Collapsible shell ===== */
@@ -576,9 +689,15 @@
         --menu-active-bg: var(--color-neutral);
         flex-flow: column wrap;
         width: fit-content;
-        padding: 0.5rem;
+        padding: var(--ui-chrome-pad, 0.5rem);
         font-size: 0.875rem;
         display: flex;
+    }
+    /* Layout-driven icon glyph size for the action buttons (markup passes a
+       nominal size; CSS scales the rendered <svg> per preset). */
+    .menu-item :global(svg) {
+        width: var(--ui-icon, 24px);
+        height: var(--ui-icon, 24px);
     }
     .menu :where(li) {
         flex-flow: column wrap;
@@ -653,9 +772,11 @@
         );
         color: var(--toolbar-content);
         backdrop-filter: blur(8px);
-        box-shadow:
+        box-shadow: var(
+            --ui-chrome-shadow,
             0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a;
+            0 4px 6px -4px #0000001a
+        );
         justify-content: center;
         align-items: center;
     }
@@ -841,8 +962,8 @@
         border-end-start-radius: var(--radius-field);
         outline-offset: 2px;
         /* custom overrides */
-        width: 2rem;
-        height: 2rem;
+        width: var(--ui-hit, 2rem);
+        height: var(--ui-hit, 2rem);
         padding: 0;
         background-color: color-mix(
             in oklab,
@@ -852,9 +973,11 @@
         backdrop-filter: blur(8px);
         border-color: var(--surface-border);
         color: var(--toolbar-content);
-        box-shadow:
+        box-shadow: var(
+            --ui-chrome-shadow,
             0 4px 6px -1px #0000001a,
-            0 2px 4px -2px #0000001a;
+            0 2px 4px -2px #0000001a
+        );
         transition-property: opacity;
         transition-duration: 0.3s;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -868,13 +991,17 @@
         pointer-events: none;
     }
     .handle.top {
-        top: 0.375rem;
+        top: var(--ui-inset, 0.375rem);
     }
     .handle.start {
-        left: 0.375rem;
+        left: var(--ui-inset, 0.375rem);
     }
     .handle.end {
-        right: 0.375rem;
+        right: var(--ui-inset, 0.375rem);
+    }
+    .handle :global(svg) {
+        width: var(--ui-icon, 20px);
+        height: var(--ui-icon, 20px);
     }
 
     /* ===== Tooltip scaffolding (sm sizing) ===== */

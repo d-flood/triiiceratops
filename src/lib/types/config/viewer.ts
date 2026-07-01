@@ -10,12 +10,66 @@ import type {
 import type { RequestConfig } from './requests';
 import type { ToolbarConfig } from './toolbar';
 
+/**
+ * The viewer chrome layout is configured by three orthogonal axes — `controls`,
+ * `nav`, and `navPosition` — instead of a single preset. All are layout-only;
+ * colors and border-radii remain governed entirely by the theme.
+ */
+
+/**
+ * How the toolbar relates to the canvas nav.
+ * - `split`   — the toolbar is its own element (a side rail / top bar, placed by
+ *               `toolbarPosition`), separate from the nav (default).
+ * - `unified` — the toolbar buttons are embedded into the canvas nav bar.
+ */
+export type ControlsMode = 'split' | 'unified';
+
+/**
+ * How the canvas nav (control bar) sits relative to the bottom edge.
+ * - `docked`   — flush to the bottom edge, flat (default).
+ * - `floating` — an inset island above the edge, with a shadow.
+ */
+export type NavStyle = 'docked' | 'floating';
+
+/** Horizontal alignment of the bottom control bar (and, in `unified` mode, its embedded tools). */
+export type NavPosition = 'left' | 'center' | 'right';
+
+export const CONTROLS_MODES: readonly ControlsMode[] = ['split', 'unified'];
+export const NAV_STYLES: readonly NavStyle[] = ['docked', 'floating'];
+export const NAV_POSITIONS: readonly NavPosition[] = ['left', 'center', 'right'];
+
+export const DEFAULT_CONTROLS: ControlsMode = 'split';
+export const DEFAULT_NAV: NavStyle = 'docked';
+export const DEFAULT_NAV_POSITION: NavPosition = 'center';
+
 export interface ViewerConfig {
     /**
      * Preferred locale for resolving IIIF language maps.
      * When unset, the viewer follows the app locale.
      */
     locale?: string;
+
+    /**
+     * How the toolbar relates to the canvas nav — `split` (separate toolbar,
+     * placed by `toolbarPosition`) or `unified` (toolbar buttons embedded in the
+     * nav bar). Layout only; theme still controls colors/radii.
+     * @default 'split'
+     */
+    controls?: ControlsMode;
+
+    /**
+     * How the canvas nav sits relative to the bottom edge — `docked` (flush) or
+     * `floating` (inset island with a shadow).
+     * @default 'docked'
+     */
+    nav?: NavStyle;
+
+    /**
+     * Horizontal alignment of the bottom control bar (and, in `unified` mode, the
+     * embedded toolbar buttons, since they form one bar).
+     * @default 'center'
+     */
+    navPosition?: NavPosition;
 
     /**
      * Whether to show the canvas navigation arrows/controls.
