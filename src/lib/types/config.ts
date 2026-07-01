@@ -17,4 +17,17 @@ export type {
     SearchResultGroup,
 } from './config/search';
 export type { ToolbarConfig } from './config/toolbar';
-export type { ViewerConfig } from './config/viewer';
+export type {
+    ControlsMode,
+    NavStyle,
+    NavPosition,
+    ViewerConfig,
+} from './config/viewer';
+export {
+    CONTROLS_MODES,
+    NAV_STYLES,
+    NAV_POSITIONS,
+    DEFAULT_CONTROLS,
+    DEFAULT_NAV,
+    DEFAULT_NAV_POSITION,
+} from './config/viewer';

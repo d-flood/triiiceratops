@@ -949,7 +949,7 @@
     /* ===== Content scroll area ===== */
     .gallery-content {
         flex: 1 1 0%;
-        padding: 0.25rem;
+        padding: var(--ui-gallery-pad, 0.25rem);
         background-color: var(--gallery-bg);
     }
     .gallery-content.content-horizontal {
@@ -965,13 +965,13 @@
     .gallery-track.track-horizontal {
         display: flex;
         flex-direction: row;
-        gap: 0.5rem;
+        gap: var(--ui-gallery-gap, 0.5rem);
         height: 100%;
         align-items: center;
     }
     .gallery-track.track-vertical {
         display: grid;
-        gap: 0.5rem;
+        gap: var(--ui-gallery-gap, 0.5rem);
     }
 
     /* ===== Thumbnail item (button) ===== */

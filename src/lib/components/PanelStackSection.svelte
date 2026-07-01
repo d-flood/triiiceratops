@@ -8,9 +8,11 @@
     interface Props {
         panel: PanelStackItem;
         scrollOnMount?: boolean;
+        /** Which edge the close button sits on ('end' trailing, 'start' leading). */
+        closeAlign?: 'start' | 'end';
     }
 
-    let { panel, scrollOnMount = false }: Props = $props();
+    let { panel, scrollOnMount = false, closeAlign = 'end' }: Props = $props();
     let sectionElement: HTMLElement | undefined = $state();
 
     onMount(() => {
@@ -24,15 +26,16 @@
 </script>
 
 <section bind:this={sectionElement} data-panel-id={panel.id} class="section">
-    <div class="header">
+    <div class="header" class:close-start={closeAlign === 'start'}>
         {#if panel.icon}
             <span class="icon">
-                <panel.icon size={22} weight="bold" />
+                <panel.icon size={18} weight="bold" />
             </span>
         {/if}
         <span class="title">{panel.title}</span>
         {#if panel.close}
             <Button
+                class="panel-close"
                 size="xs"
                 circle
                 ghost
@@ -67,20 +70,21 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 1rem;
-        font-size: 1rem;
-        line-height: 1.5rem;
-        font-weight: 700;
+        padding: var(--ui-panel-header-pad, 1rem);
+        /* Lighter, trimmer header label than the old 1rem/700 uppercase. */
+        font-size: 0.8125rem;
+        line-height: 1.25rem;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.025em;
+        letter-spacing: 0.04em;
         color: var(--panel-fg);
         background-color: var(--panel-surface);
     }
 
     .icon {
         display: flex;
-        height: 1rem;
-        width: 1rem;
+        height: 1.125rem;
+        width: 1.125rem;
         flex-shrink: 0;
         align-items: center;
         justify-content: center;
@@ -93,6 +97,12 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    /* Move the close button to the leading (image-facing) edge for a right-docked
+       column that also hosts the toolbar rail, keeping it clear of the rail. */
+    .header.close-start :global(.panel-close) {
+        order: -1;
     }
 
     .content {

@@ -52,6 +52,67 @@
         {m.settings_category_general()}
     </li>
     <li>
+        <label
+            class="settings-label settings-label--static"
+            for="controls-select"
+        >
+            <span>Controls</span>
+            <Select
+                id="controls-select"
+                size="xs"
+                value={config.controls ?? 'split'}
+                onchange={(e) => {
+                    config.controls = (
+                        e.currentTarget as HTMLSelectElement
+                    ).value as any;
+                }}
+            >
+                <option value="split">Split</option>
+                <option value="unified">Unified</option>
+            </Select>
+        </label>
+    </li>
+    <li>
+        <label class="settings-label settings-label--static" for="nav-select">
+            <span>Nav</span>
+            <Select
+                id="nav-select"
+                size="xs"
+                value={config.nav ?? 'docked'}
+                onchange={(e) => {
+                    config.nav = (
+                        e.currentTarget as HTMLSelectElement
+                    ).value as any;
+                }}
+            >
+                <option value="docked">Docked</option>
+                <option value="floating">Floating</option>
+            </Select>
+        </label>
+    </li>
+    <li>
+        <label
+            class="settings-label settings-label--static"
+            for="nav-pos-select"
+        >
+            <span>Nav position</span>
+            <Select
+                id="nav-pos-select"
+                size="xs"
+                value={config.navPosition ?? 'center'}
+                onchange={(e) => {
+                    config.navPosition = (
+                        e.currentTarget as HTMLSelectElement
+                    ).value as any;
+                }}
+            >
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+            </Select>
+        </label>
+    </li>
+    <li>
         <label class="settings-label">
             <span>{m.settings_transparent_background()}</span>
             <Toggle size="sm" bind:checked={config.transparentBackground} />

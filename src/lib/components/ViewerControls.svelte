@@ -18,9 +18,14 @@
         type ChoiceGroup,
     } from './viewerControls';
     import CanvasInfoPopover from './CanvasInfoPopover.svelte';
+    import Toolbar from './Toolbar.svelte';
     import { Button, Select } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+
+    // `unified` controls: the toolbar buttons are embedded at the start of this
+    // control bar instead of floating separately.
+    const isUnified = $derived(viewerState.config.controls === 'unified');
     let viewerLocale = $derived(
         (viewerState.config as { locale?: string }).locale || language.current,
     );
@@ -219,8 +224,17 @@
     </div>
 {/snippet}
 
-{#if showNav || showZoom || hasChoices}
+{#if showNav || showZoom || hasChoices || isUnified}
     <div class="control-bar" class:elevated={viewerState.showCanvasInfo}>
+        {#if isUnified}
+            <div class="toolbar-in-bar">
+                <Toolbar inline />
+            </div>
+            {#if hasChoices || hasCenterControls}
+                <div class="divider-v"></div>
+            {/if}
+        {/if}
+
         {#if leftChoiceGroup}
             {@render choiceControls(
                 leftChoiceGroup,
@@ -329,14 +343,15 @@
     .control-bar {
         user-select: none;
         position: absolute;
+        /* Horizontal alignment is set per data-nav-pos below; center is default. */
         left: 50%;
         transform: translateX(-50%);
-        bottom: 1rem;
+        bottom: var(--ui-nav-inset, 0);
         z-index: 10;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding-inline: 0.5rem;
+        gap: var(--ui-gap, 0.5rem);
+        padding-inline: var(--ui-chrome-pad, 0.5rem);
         background-color: color-mix(
             in oklab,
             var(--toolbar-bg) 70%,
@@ -346,9 +361,7 @@
         backdrop-filter: blur(8px);
         border-radius: var(--radius-controls);
         border: 1px solid var(--surface-border);
-        box-shadow:
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a;
+        box-shadow: var(--ui-nav-shadow, none);
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.2s;
@@ -357,10 +370,47 @@
         z-index: 1000;
     }
 
+    /* nav=docked — the control bar sits flush to the bottom edge: only the top
+       corners rounded, no bottom border. */
+    :global([data-nav='docked']) .control-bar {
+        border-bottom: 0;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    /* nav-pos — horizontal alignment of the control bar (offset honours the
+       floating inset; 0 when docked). */
+    :global([data-nav-pos='left']) .control-bar {
+        left: var(--ui-nav-inset, 0);
+        right: auto;
+        transform: none;
+    }
+    :global([data-nav-pos='right']) .control-bar {
+        left: auto;
+        right: var(--ui-nav-inset, 0);
+        transform: none;
+    }
+    /* Square the edge-touching corner when docked into a bottom corner. */
+    :global([data-nav='docked'][data-nav-pos='left']) .control-bar {
+        border-top-left-radius: 0;
+        border-left: 0;
+    }
+    :global([data-nav='docked'][data-nav-pos='right']) .control-bar {
+        border-top-right-radius: 0;
+        border-right: 0;
+    }
+
+    /* Unified — the toolbar buttons sit at the start of the control bar,
+       separated from the canvas nav/zoom by a divider. */
+    .toolbar-in-bar {
+        display: inline-flex;
+        align-items: center;
+    }
+
     .choice-controls {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: var(--ui-gap, 0.25rem);
     }
     .choice-stack {
         display: flex;
@@ -380,7 +430,7 @@
     .btn-row {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: var(--ui-gap, 0.25rem);
     }
     /* The pill's zoom/nav buttons inherit the controls-button radius (defaults to the
        field radius) rather than being forced circles. Scoped to .btn-row so the choice
