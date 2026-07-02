@@ -1,0 +1,92 @@
+/* Docs theme bridge: transfer the demo colors and corner radii only. */
+
+body[data-md-color-scheme='default'] {
+    --tri-primary: oklch(78% 0.15 80);
+    --tri-primary-content: oklch(28% 0.08 70);
+    --tri-viewer-bg: oklch(100% 0 0);
+    --tri-toolbar-bg: oklch(98% 0 0);
+    --tri-panel-bg: oklch(98% 0 0);
+    --tri-surface-border: oklch(95% 0 0);
+    --tri-content: oklch(21% 0.006 285.885);
+}
+
+body[data-md-color-scheme='slate'] {
+    --tri-primary: oklch(78% 0.15 80);
+    --tri-primary-content: oklch(28% 0.08 70);
+    --tri-viewer-bg: oklch(25.33% 0.016 252.42);
+    --tri-toolbar-bg: oklch(20% 0.014 253.1);
+    --tri-panel-bg: oklch(20% 0.014 253.1);
+    --tri-surface-border: oklch(17.5% 0.012 254.09);
+    --tri-content: oklch(97.807% 0.029 256.847);
+}
+
+body[data-md-color-scheme] {
+    --tri-radius-buttons: 1rem;
+    --tri-radius-box: 0.5rem;
+    --md-default-bg-color: var(--tri-viewer-bg);
+    --md-default-fg-color: var(--tri-content);
+    --md-default-fg-color--light: color-mix(
+        in oklab,
+        var(--tri-content) 70%,
+        transparent
+    );
+    --md-default-fg-color--lighter: color-mix(
+        in oklab,
+        var(--tri-content) 45%,
+        transparent
+    );
+    --md-default-fg-color--lightest: color-mix(
+        in oklab,
+        var(--tri-content) 22%,
+        transparent
+    );
+    --md-primary-fg-color: var(--tri-primary);
+    --md-primary-bg-color: var(--tri-primary-content);
+    --md-accent-fg-color: var(--tri-primary);
+    --md-typeset-a-color: color-mix(
+        in oklab,
+        var(--tri-primary) 82%,
+        var(--tri-content)
+    );
+    --md-code-bg-color: color-mix(in oklab, var(--tri-content) 6%, transparent);
+    --md-code-fg-color: var(--tri-content);
+    --md-footer-bg-color: var(--tri-panel-bg);
+    --md-footer-bg-color--dark: var(--tri-toolbar-bg);
+}
+
+.md-header,
+.md-tabs,
+.md-footer {
+    background-color: var(--tri-panel-bg);
+    color: var(--tri-content);
+}
+
+.md-typeset .md-button,
+.md-search__form,
+.md-search__input,
+.md-nav__link,
+.md-tabs__link,
+.md-typeset code,
+.md-typeset pre,
+.md-typeset .highlight,
+.md-typeset table:not([class]) {
+    border-radius: var(--tri-radius-box);
+}
+
+.md-typeset .md-button,
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+    border-color: var(--tri-primary);
+}
+
+.md-typeset .md-button--primary,
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+    background-color: var(--tri-primary);
+    color: var(--tri-primary-content);
+}
+
+.md-search__form,
+.md-search__input {
+    border-radius: var(--tri-radius-buttons);
+}
