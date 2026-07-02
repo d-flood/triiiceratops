@@ -5,6 +5,7 @@
     "triiiceratops": "0.20.3"
   },
   "changesets": [
+    "all-towns-notice",
     "beige-hornets-feel",
     "cuddly-aliens-grin",
     "curvy-mice-wave",

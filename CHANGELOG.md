@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.20
+
+### Patch Changes
+
+- ec0f40c: remove collection count badge
+
 ## 1.0.0-rc.19
 
 ### Minor Changes
