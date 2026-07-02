@@ -10,6 +10,7 @@
     import {
         getCanvasDisplayLayouts,
         getContinuousTargetPosition,
+        MULTI_CANVAS_GAP,
         type CanvasDisplayLayout,
     } from './osdLayout';
     import { resolveTileSources } from './osdTileSources';
@@ -46,7 +47,6 @@
         side: 'top' | 'bottom' | 'left' | 'right';
     } | null>(null);
 
-    const MULTI_CANVAS_GAP = 0.0125;
     const POINT_MARKER_SIZE = 10;
 
     type ViewerTileSourceError =

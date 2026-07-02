@@ -229,21 +229,15 @@
     let canvases = $derived(
         manifestUrl ? manifestsState.getCanvases(manifestUrl) : [],
     );
-    let selectedManifestLabel = $derived(
-        SUGGESTED_MANIFESTS.find((manifest) => manifest.url === manifestUrl)
-            ?.label ?? m.try_your_own(),
-    );
-    let manifestDropdownOpen = $state(false);
+    const CUSTOM_MANIFEST = '__custom__';
 
     function selectManifest(value: string) {
         manifestUrl = value;
-        manifestDropdownOpen = false;
         onLoad();
     }
 
     function selectCustomManifest() {
         manifestUrl = '';
-        manifestDropdownOpen = false;
     }
 
     const languageNames: Record<string, string> = {
@@ -382,40 +376,22 @@
                 {m.iiif_manifest_label()}
             </label>
             <div class="control-group">
-                <details
-                    class="dropdown"
-                    bind:open={manifestDropdownOpen}
+                <Select
                     id="manifest-select"
+                    size="xs"
+                    class="manifest-select"
+                    value={isCustom ? CUSTOM_MANIFEST : manifestUrl}
+                    onchange={(e) => {
+                        const v = e.currentTarget.value;
+                        if (v === CUSTOM_MANIFEST) selectCustomManifest();
+                        else selectManifest(v);
+                    }}
                 >
-                    <summary class="manifest-summary">
-                        {selectedManifestLabel}
-                    </summary>
-                    <div class="dropdown-content manifest-panel">
-                        <ul class="menu menu-xs manifest-menu">
-                            {#each SUGGESTED_MANIFESTS as manifest (manifest.url)}
-                                <li>
-                                    <button
-                                        type="button"
-                                        class:active={manifest.url ===
-                                            manifestUrl}
-                                        onclick={() => selectManifest(manifest.url)}
-                                    >
-                                        {manifest.label}
-                                    </button>
-                                </li>
-                            {/each}
-                            <li>
-                                <button
-                                    type="button"
-                                    class:active={isCustom}
-                                    onclick={selectCustomManifest}
-                                >
-                                    {m.try_your_own()}
-                                </button>
-                            </li>
-                        </ul>
-                    </div>
-                </details>
+                    {#each SUGGESTED_MANIFESTS as manifest (manifest.url)}
+                        <option value={manifest.url}>{manifest.label}</option>
+                    {/each}
+                    <option value={CUSTOM_MANIFEST}>{m.try_your_own()}</option>
+                </Select>
 
                 {#if isCustom}
                     <TextInput
@@ -827,78 +803,7 @@
         flex-wrap: nowrap;
     }
 
-    /* ===== Manifest selector ===== */
-    /* <summary> styled like select select-bordered select-xs */
-    .manifest-summary {
-        --input-color: color-mix(
-            in oklab,
-            var(--content) 20%,
-            #0000
-        );
-        --size: calc(var(--size-field, 0.25rem) * 6);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        width: 28rem;
-        max-width: 60vw;
-        height: var(--size);
-        padding-inline: 0.75rem 1.75rem;
-        font-size: 0.875rem;
-        color: inherit;
-        vertical-align: middle;
-        cursor: pointer;
-        position: relative;
-        list-style: none;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        appearance: none;
-        background-color: var(--viewer-bg);
-        border: var(--border) solid var(--input-color);
-        border-radius: var(--radius-buttons);
-        box-shadow:
-            0 1px
-                color-mix(
-                    in oklab,
-                    var(--input-color) calc(var(--depth) * 10%),
-                    #0000
-                )
-                inset,
-            0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
-        background-image: linear-gradient(45deg, #0000 50%, currentColor 50%),
-            linear-gradient(135deg, currentColor 50%, #0000 50%);
-        background-position:
-            calc(100% - 20px) calc(1px + 50%),
-            calc(100% - 16.1px) calc(1px + 50%);
-        background-repeat: no-repeat;
-        background-size:
-            4px 4px,
-            4px 4px;
-    }
-    .manifest-summary::-webkit-details-marker {
-        display: none;
-    }
-    .manifest-summary:focus {
-        outline: none;
-    }
-
-    .manifest-panel {
-        z-index: 30;
-        margin-top: 0.25rem;
-        width: 28rem;
-        max-width: 60vw;
-        overflow: hidden;
-        background-color: var(--viewer-bg);
-        border-radius: var(--radius-box);
-        border-width: 1px;
-        border-style: solid;
-        border-color: var(--surface-border);
-        box-shadow:
-            0 1px 3px 0 #0000001a,
-            0 1px 2px -1px #0000001a;
-    }
-
-    /* Menu styling for the manifest list */
+    /* ===== Menu styling (SettingsMenu panel) ===== */
     .menu {
         --menu-active-fg: var(--color-neutral-content);
         --menu-active-bg: var(--color-neutral);
@@ -907,12 +812,6 @@
         width: fit-content;
         padding: 0.5rem;
         font-size: 0.875rem;
-    }
-    .manifest-menu {
-        width: 100%;
-        max-height: 60vh;
-        overflow-y: auto;
-        flex-wrap: nowrap;
     }
     .menu :global(li) {
         display: flex;
@@ -976,5 +875,9 @@
     }
     .control-group :global(.canvas-select) {
         width: 200px;
+    }
+    .control-group :global(.manifest-select) {
+        width: 28rem;
+        max-width: 60vw;
     }
 </style>

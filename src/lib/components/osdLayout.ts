@@ -1,3 +1,9 @@
+// Gap (in normalized OSD world units) inserted between adjacent canvases in
+// paged/continuous layouts. Exported so anything reconstructing this layout
+// outside the live viewer (e.g. an export/download plugin) uses the same
+// spacing as what's actually on screen.
+export const MULTI_CANVAS_GAP = 0.0125;
+
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
 
 export type ViewingDirection =

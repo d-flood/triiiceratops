@@ -30,7 +30,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
-- **Theming**: 35 built-in DaisyUI themes plus custom theme configuration
+- **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
 - **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
 
 ## Current Limitations
@@ -53,6 +53,8 @@ This project is actively developed. The following IIIF features are not yet supp
 The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
 
 There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See `docs/plugins.md`.
+
+For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See `docs/plugins.md`.
 
 ### Other
 
@@ -119,6 +121,7 @@ pnpm add triiiceratops
 ```svelte
 <script>
     import { TriiiceratopsViewer } from 'triiiceratops';
+    import 'triiiceratops/style.css';
 
     const manifestJson = {
         id: 'urn:example:manifest',

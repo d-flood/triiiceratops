@@ -31,7 +31,7 @@ function getProfileHead(profile: unknown): string | null {
     return null;
 }
 
-function isIiifLevel0Profile(profile: unknown): boolean {
+export function isIiifLevel0Profile(profile: unknown): boolean {
     const profileHead = getProfileHead(profile);
     if (!profileHead) return false;
     return (
@@ -41,7 +41,7 @@ function isIiifLevel0Profile(profile: unknown): boolean {
     );
 }
 
-function createIiifTileSource(
+export function createIiifTileSource(
     osd: any,
     data: any,
     url: string,
@@ -261,7 +261,7 @@ function getFitMaxLevel(
     return fitMaxLevel;
 }
 
-function getFullImageUrlForLevel(tileSource: any, level: number): string {
+export function getFullImageUrlForLevel(tileSource: any, level: number): string {
     const scale = tileSource.getLevelScale(level);
     const levelWidth = Math.ceil(tileSource.width * scale);
     const levelHeight = Math.ceil(tileSource.height * scale);
