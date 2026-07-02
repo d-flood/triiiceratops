@@ -557,18 +557,24 @@
     /* min-h-screen h-screen bg-base-300 flex flex-col */
     .demo-root {
         min-height: 100vh;
+        min-height: 100dvh;
         height: 100vh;
+        height: 100dvh;
         background-color: var(--surface-border);
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
 
     /* text-3xl text-center pt-8 */
     .demo-title {
-        font-size: 1.875rem;
-        line-height: 2.25rem;
+        flex-shrink: 0;
+        color: var(--content);
+        font-size: clamp(1.25rem, 2.75vw, 1.875rem);
+        line-height: 1.2;
+        font-weight: 700;
         text-align: center;
-        padding-top: 2rem;
+        padding: clamp(0.75rem, 2vw, 2rem) 1rem 0;
     }
 
     /* flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-8 */
@@ -576,6 +582,7 @@
         flex: 1 1 0%;
         position: relative;
         min-height: 0;
+        overflow: hidden;
         padding: 0.5rem;
     }
     @media (width >= 1024px) {
@@ -592,12 +599,18 @@
         justify-content: center;
         gap: 1rem;
         height: 100%;
+        max-height: 100%;
+        min-width: 0;
     }
 
     /* flex-1 rounded-box overflow-hidden border border-base-content/10 shadow-2xl */
     .viewer-pane {
         flex: 1 1 0%;
         max-width: 1280px;
+        height: 100%;
+        max-height: 100%;
+        min-width: 0;
+        min-height: 0;
         border-radius: var(--radius-box);
         overflow: hidden;
         border-width: 1px;
@@ -626,6 +639,33 @@
     @media (width >= 1024px) {
         .settings-sidebar {
             display: flex;
+        }
+    }
+
+    @media (width < 768px) {
+        .demo-title {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .viewer-main {
+            padding: 0.375rem;
+        }
+
+        .viewer-layout {
+            gap: 0;
+        }
+
+        .viewer-pane {
+            border-radius: calc(var(--radius-box) * 0.75);
+            box-shadow: 0 16px 34px -18px #00000066;
         }
     }
 

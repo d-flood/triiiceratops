@@ -261,7 +261,7 @@
 
         <div class="spacer"></div>
 
-        <div class="join">
+        <div class="join viewer-mode">
             <Tooltip
                 tip={m.viewer_variant_tooltip_core()}
                 placement="bottom"
@@ -371,11 +371,11 @@
         <span class="controls-heading">{m.demo_header_external_controls()}</span>
 
         <!-- Manifest Selector -->
-        <div class="control-group">
+        <div class="control-group manifest-group">
             <label for="manifest-select" class="manifest-label">
                 {m.iiif_manifest_label()}
             </label>
-            <div class="control-group">
+            <div class="control-group manifest-controls">
                 <Select
                     id="manifest-select"
                     size="xs"
@@ -403,7 +403,12 @@
                         placeholder={m.manifest_placeholder()}
                         autocomplete="off"
                     />
-                    <Button onclick={onLoad} variant="primary" size="xs">
+                    <Button
+                        onclick={onLoad}
+                        variant="primary"
+                        size="xs"
+                        class="load-button"
+                    >
                         {m.load()}
                     </Button>
                 {/if}
@@ -413,7 +418,7 @@
         <div class="divider"></div>
 
         <!-- Canvas Selector -->
-        <div class="control-group">
+        <div class="control-group canvas-group">
             <label class="canvas-label" for="canvas-id-select">
                 {m.demo_header_active_canvas()}
             </label>
@@ -457,6 +462,7 @@
         display: flex;
         align-items: center;
         gap: 1rem;
+        min-width: 0;
         padding: 0.5rem 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
@@ -471,6 +477,7 @@
         display: flex;
         align-items: center;
         gap: 1rem;
+        min-width: 0;
         padding: 0.5rem 1rem;
         background-color: color-mix(
             in oklab,
@@ -487,6 +494,11 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .manifest-controls {
+        flex: 1 1 auto;
     }
 
     .divider {
@@ -546,6 +558,7 @@
         user-select: none;
         -webkit-user-select: none;
         cursor: pointer;
+        touch-action: manipulation;
         border-width: var(--border);
         border-style: solid;
         border-color: transparent;
@@ -611,6 +624,7 @@
         user-select: none;
         -webkit-user-select: none;
         cursor: pointer;
+        touch-action: manipulation;
         border-width: var(--border);
         border-style: solid;
         border-color: transparent;
@@ -635,6 +649,11 @@
     .join {
         display: inline-flex;
         align-items: stretch;
+        min-width: 0;
+    }
+
+    .viewer-mode {
+        max-width: 100%;
     }
 
     /* Radio inputs styled as joined buttons (.btn-sm look) */
@@ -654,6 +673,7 @@
         text-align: center;
         vertical-align: middle;
         cursor: pointer;
+        touch-action: manipulation;
         user-select: none;
         -webkit-user-select: none;
         --btn-bg: var(--btn-color, var(--panel-bg));
@@ -697,6 +717,10 @@
     }
     .btn-radio[aria-label]::after {
         content: attr(aria-label);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .btn-radio:checked {
         --btn-color: var(--color-primary);
@@ -782,7 +806,8 @@
 
     .settings-panel {
         z-index: 20;
-        width: 20rem;
+        width: min(20rem, calc(100vw - 1rem));
+        max-height: calc(100dvh - 4rem);
         overflow: hidden;
         background-color: var(--viewer-bg);
         border-radius: var(--radius-box);
@@ -879,5 +904,156 @@
     .control-group :global(.manifest-select) {
         width: 28rem;
         max-width: 60vw;
+    }
+
+    @media (width < 768px) {
+        .top-row {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .bottom-row {
+            flex-wrap: wrap;
+            align-items: stretch;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .spacer,
+        .divider {
+            display: none;
+        }
+
+        .brand {
+            justify-content: flex-start;
+            margin-inline-end: auto;
+            padding-inline: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .btn-link.outline.primary,
+        .icon-link,
+        .btn-trigger {
+            padding-inline: 0.625rem;
+        }
+
+        .viewer-mode {
+            order: 10;
+            flex: 1 0 100%;
+            overflow: hidden;
+        }
+
+        .viewer-mode > :global(*) {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .viewer-mode :global(.btn-radio) {
+            width: 100%;
+            min-width: 0;
+            padding-inline: 0.5rem;
+        }
+
+        .top-row :global(.lang-select) {
+            flex: 0 1 7.5rem;
+            width: 7.5rem;
+        }
+
+        .controls-heading {
+            flex: 1 0 100%;
+        }
+
+        .manifest-group,
+        .canvas-group {
+            flex: 1 1 100%;
+            align-items: stretch;
+        }
+
+        .manifest-group {
+            flex-direction: column;
+        }
+
+        .manifest-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            width: 100%;
+            align-items: stretch;
+        }
+
+        .manifest-controls :global(.manifest-select) {
+            grid-column: 1 / -1;
+            width: 100%;
+            max-width: none;
+        }
+
+        .manifest-controls :global(.manifest-input) {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .manifest-controls :global(.load-button) {
+            min-width: 4.5rem;
+        }
+
+        .canvas-group {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+        }
+
+        .canvas-label {
+            white-space: nowrap;
+        }
+
+        .canvas-group :global(.canvas-select) {
+            width: 100%;
+            min-width: 0;
+        }
+    }
+
+    @media (width < 480px) {
+        .top-row,
+        .bottom-row {
+            padding-inline: 0.5rem;
+        }
+
+        .btn-link,
+        .btn-trigger,
+        .btn-radio {
+            height: 2rem;
+        }
+
+        .brand {
+            font-size: 0.95rem;
+        }
+
+        .viewer-mode :global(.btn-radio) {
+            padding-inline: 0.375rem;
+            font-size: 0.6875rem;
+        }
+
+        .manifest-controls {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .manifest-controls :global(.load-button) {
+            width: 100%;
+        }
+
+        .canvas-group {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0.25rem;
+        }
+    }
+
+    @media (width < 380px) {
+        .icon-link {
+            display: none;
+        }
+
+        .top-row :global(.lang-select) {
+            width: 6.5rem;
+        }
     }
 </style>
