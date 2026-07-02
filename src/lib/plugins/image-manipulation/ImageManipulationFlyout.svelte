@@ -185,6 +185,11 @@
         flex-direction: column;
         align-items: stretch;
         color: var(--toolbar-content);
+        /* A slight frosted backing on the whole flyout so the bare sliders stay
+           readable when it's overlaid on an opaque same-side panel. Lighter than
+           the .base glass, which sits on top and keeps its own look. */
+        border-radius: var(--radius-toolbar);
+        background-color: color-mix(in oklab, var(--toolbar-bg) 35%, transparent);
     }
     /* Downward flyout (top toolbar): sliders hang below the glass base. */
     .cluster[data-dir='down'] {

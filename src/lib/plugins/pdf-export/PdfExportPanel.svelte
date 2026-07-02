@@ -1,5 +1,6 @@
 <script lang="ts">
     import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
+    import FilePdf from 'phosphor-svelte/lib/FilePdf';
     import { Button, Select } from '../../components/ui';
     import { m, language } from '../../state/i18n.svelte';
 
@@ -58,7 +59,7 @@
         {#if !embedded}
             <div class="header">
                 <h2 class="header-title">
-                    <DownloadSimple size={20} />
+                    <FilePdf size={20} />
                     {m.pdf_export_title()}
                 </h2>
             </div>

@@ -1,5 +1,5 @@
 import { createPanelPlugin, type PluginDef } from '../../types/plugin';
-import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
+import FilePdf from 'phosphor-svelte/lib/FilePdf';
 import PdfExportController from './PdfExportController.svelte';
 import type {
     PdfCanvasOcrOverlayProvider,
@@ -41,7 +41,7 @@ export function createPdfExportPlugin(config: PdfExportConfig = {}): PluginDef {
     return createPanelPlugin({
         id: 'pdf-export',
         name: 'pdf_export_title',
-        icon: DownloadSimple,
+        icon: FilePdf,
         panel: PdfExportController,
         position: 'left',
         props: { config },
@@ -50,7 +50,7 @@ export function createPdfExportPlugin(config: PdfExportConfig = {}): PluginDef {
 
 export const PdfExportPlugin: PluginDef = createPdfExportPlugin();
 
-export { PdfExportController, DownloadSimple };
+export { PdfExportController, FilePdf };
 export type {
     PdfCanvasOcrOverlayProvider,
     PdfCoverSheetConfig,

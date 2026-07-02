@@ -369,6 +369,40 @@ Notes:
 
 Provides brightness, contrast, saturation, invert, and grayscale controls for the displayed image. It renders as a compact **flyout** that grows out of its toolbar button — three bare vertical sliders (brightness/contrast/saturation) plus invert/grayscale toggles and a reset button, all visible and interactable at once, floating directly over the canvas with no container box.
 
+### Image Download
+
+Downloads the current canvas (or the current multi-canvas view) as a raster image, correctly handling IIIF canvases painted with more than one image. It renders as a **panel** with three modes:
+
+- **Composite canvas** — every image on the current canvas, composited together at their annotated positions.
+- **Single image** — one image from the current canvas, with a picker shown when the canvas has more than one.
+- **Current view** — everything currently laid out together in the viewer (e.g. a two-page spread in `paged` viewing mode), matching the on-screen layout.
+
+Each mode offers a resolution picker. IIIF `level0` image services can only be requested at a fixed list of sizes declared in their `info.json`, so those are enumerated exactly; other services offer an Original/50%/25% ladder based on native dimensions. Output is always capped to a size browsers can reliably render to a canvas.
+
+`ImageDownloadPlugin` is exported ready to use with no configuration required:
+
+=== "Web Component"
+
+    ```html
+    <script src="triiiceratops-element.iife.js"></script>
+    <script src="triiiceratops-plugin-image-download.iife.js"></script>
+    <script>
+        const viewer = document.querySelector('triiiceratops-viewer');
+        viewer.plugins = [window.TriiiceratopsPlugins.ImageDownload];
+    </script>
+    ```
+
+=== "Svelte Component"
+
+    ```svelte
+    <script>
+        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { ImageDownloadPlugin } from 'triiiceratops/plugins/image-download';
+    </script>
+
+    <TriiiceratopsViewer plugins={[ImageDownloadPlugin]} />
+    ```
+
 ### PDF Export
 
 Exports a flat range of canvases as a browser-generated PDF, with one PDF page per selected canvas.
@@ -946,23 +980,26 @@ Use Svelte's `getContext` to access the viewer's reactive state:
 
 The `viewerState` context provides access to:
 
-| Property               | Type                           | Description                              |
-| ---------------------- | ------------------------------ | ---------------------------------------- |
-| `manifestId`           | `string \| null`               | Current manifest URL                     |
-| `canvasId`             | `string \| null`               | Current canvas ID                        |
-| `currentCanvasIndex`   | `number`                       | Index of current canvas (-1 if none)     |
-| `canvases`             | `any[]`                        | Array of canvas objects from manifest    |
-| `osdViewer`            | `OpenSeadragon.Viewer \| null` | OpenSeadragon instance                   |
-| `showAnnotations`      | `boolean`                      | Whether annotations are visible          |
-| `showThumbnailGallery` | `boolean`                      | Whether the thumbnail gallery is open    |
-| `showSearchPanel`      | `boolean`                      | Whether the search panel is open         |
-| `searchQuery`          | `string`                       | Current search query                     |
-| `searchResults`        | `any[]`                        | Array of search results                  |
-| `isSearching`          | `boolean`                      | Whether a search is in progress          |
-| `isFullScreen`         | `boolean`                      | Whether the viewer is in fullscreen mode |
-| `dockSide`             | `string`                       | Current dock side for gallery            |
-| `hasNext`              | `boolean`                      | Whether there is a next canvas           |
-| `hasPrevious`          | `boolean`                      | Whether there is a previous canvas       |
+| Property               | Type                                                                       | Description                              |
+| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| `manifestId`           | `string \| null`                                                           | Current manifest URL                     |
+| `canvasId`             | `string \| null`                                                           | Current canvas ID                        |
+| `currentCanvasIndex`   | `number`                                                                   | Index of current canvas (-1 if none)     |
+| `canvases`             | `any[]`                                                                    | Array of canvas objects from manifest    |
+| `viewingMode`          | `'individuals' \| 'paged' \| 'continuous'`                                 | Current canvas viewing mode              |
+| `viewingDirection`     | `'left-to-right' \| 'right-to-left' \| 'top-to-bottom' \| 'bottom-to-top'` | Current page/canvas order                |
+| `pagedOffset`          | `number`                                                                   | Grouping offset used in `paged` mode     |
+| `osdViewer`            | `OpenSeadragon.Viewer \| null`                                             | OpenSeadragon instance                   |
+| `showAnnotations`      | `boolean`                                                                  | Whether annotations are visible          |
+| `showThumbnailGallery` | `boolean`                                                                  | Whether the thumbnail gallery is open    |
+| `showSearchPanel`      | `boolean`                                                                  | Whether the search panel is open         |
+| `searchQuery`          | `string`                                                                   | Current search query                     |
+| `searchResults`        | `any[]`                                                                    | Array of search results                  |
+| `isSearching`          | `boolean`                                                                  | Whether a search is in progress          |
+| `isFullScreen`         | `boolean`                                                                  | Whether the viewer is in fullscreen mode |
+| `dockSide`             | `string`                                                                   | Current dock side for gallery            |
+| `hasNext`              | `boolean`                                                                  | Whether there is a next canvas           |
+| `hasPrevious`          | `boolean`                                                                  | Whether there is a previous canvas       |
 
 And methods:
 
@@ -1025,6 +1062,10 @@ And methods:
 | `triiiceratops/element`                         | Web component IIFE bundle               |
 | `triiiceratops/plugins/annotation-editor`       | Annotation editor plugin (ES module)    |
 | `triiiceratops/plugins/annotation-editor.iife`  | Annotation editor plugin (IIFE bundle)  |
+| `triiiceratops/plugins/image-download`          | Image download plugin (ES module)       |
+| `triiiceratops/plugins/image-download.iife`     | Image download plugin (IIFE bundle)     |
 | `triiiceratops/plugins/image-manipulation`      | Image manipulation plugin (ES module)   |
 | `triiiceratops/plugins/image-manipulation.iife` | Image manipulation plugin (IIFE bundle) |
+| `triiiceratops/plugins/pdf-export`              | PDF export plugin (ES module)           |
+| `triiiceratops/plugins/pdf-export.iife`         | PDF export plugin (IIFE bundle)         |
 | `triiiceratops/style.css`                       | Stylesheet (for Svelte component usage) |

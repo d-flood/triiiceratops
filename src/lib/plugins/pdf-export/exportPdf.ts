@@ -14,8 +14,14 @@ import {
     buildIiifImageRequestUrl,
     getCanvasId,
     getCanvasLabel,
+    resolveAllCanvasImages,
     resolveCanvasImage,
 } from '../../utils/resolveCanvasImage';
+import {
+    composeImages,
+    downloadBlob,
+    getResolvedImageExportUrl,
+} from '../../utils/imageExport';
 import { m } from '../../state/i18n.svelte';
 
 type NormalizeCanvasRangeResult = {
@@ -508,15 +514,77 @@ function getCanvasExportResource(
     };
 }
 
-function downloadBlob(blob: Blob, filename: string): void {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+type CompositeCanvasImage = {
+    resolvedImage: ResolvedCanvasImage;
+    imageUrl: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+type CompositeCanvasExport = {
+    images: CompositeCanvasImage[];
+    pageWidth: number;
+    pageHeight: number;
+};
+
+/**
+ * Positions every painting image on a composite canvas (a canvas with more
+ * than one image) onto a single page-sized raster. Canvases with a single
+ * image keep using `getCanvasExportResource`'s existing single-image path,
+ * which preserves that path's wide-canvas/level0 request-size handling and
+ * avoids an unnecessary decode/re-encode round trip for the common case.
+ */
+function getCompositeCanvasImages(
+    canvas: any,
+    targetWidth: number,
+    getSelectedChoice?: (canvasId: string) => string | undefined,
+): CompositeCanvasExport | null {
+    const resolvedImages = resolveAllCanvasImages(canvas, {
+        getSelectedChoice,
+    });
+    if (resolvedImages.length < 2) {
+        return null;
+    }
+
+    const { canvasWidth, canvasHeight } = resolvedImages[0];
+    if (!canvasWidth || !canvasHeight) {
+        return null;
+    }
+
+    const scale = targetWidth / canvasWidth;
+    const pageWidth = Math.max(1, Math.round(canvasWidth * scale));
+    const pageHeight = Math.max(1, Math.round(canvasHeight * scale));
+
+    const images: CompositeCanvasImage[] = [];
+    for (const resolvedImage of resolvedImages) {
+        const width = Math.max(
+            1,
+            Math.round(resolvedImage.width * canvasWidth * scale),
+        );
+        const aspect =
+            resolvedImage.resourceWidth && resolvedImage.resourceHeight
+                ? resolvedImage.resourceHeight / resolvedImage.resourceWidth
+                : canvasHeight / canvasWidth;
+        const height = Math.max(1, Math.round(width * aspect));
+        const imageUrl = getResolvedImageExportUrl(resolvedImage, { width });
+
+        if (!imageUrl) {
+            return null;
+        }
+
+        images.push({
+            resolvedImage,
+            imageUrl,
+            x: Math.round(resolvedImage.x * canvasWidth * scale),
+            y: Math.round(resolvedImage.y * canvasHeight * scale),
+            width,
+            height,
+        });
+    }
+
+    return { images, pageWidth, pageHeight };
 }
 
 function wrapText(
@@ -1281,30 +1349,74 @@ export async function exportCanvasRangeAsPdf({
             );
 
             try {
-                const { imageUrl, resolvedImage } = getCanvasExportResource(
+                const canvasId = getCanvasId(canvas);
+                const requestInit = buildImageRequestInit(imageRequest);
+                const composite = getCompositeCanvasImages(
                     canvas,
                     targetWidth,
                     getSelectedChoice,
                 );
 
-                if (!imageUrl) {
-                    throw new Error(
-                        'No exportable image found for this canvas.',
+                let blob: Blob;
+                let resolvedImage: ResolvedCanvasImage | null;
+
+                if (composite) {
+                    // Composite canvas (more than one painting image): fetch
+                    // every image and rasterize them together onto one page
+                    // image at their annotated positions.
+                    const composeEntries = await Promise.all(
+                        composite.images.map(async (image) => ({
+                            blob: await loadCanvasImageBlob({
+                                canvas,
+                                canvasId,
+                                imageUrl: image.imageUrl,
+                                manifestId,
+                                targetWidth,
+                                imageRequest: requestInit,
+                                resolvedImage: image.resolvedImage,
+                                loadImageBlob,
+                            }),
+                            x: image.x,
+                            y: image.y,
+                            width: image.width,
+                            height: image.height,
+                        })),
                     );
+                    blob = await composeImages(
+                        composeEntries,
+                        composite.pageWidth,
+                        composite.pageHeight,
+                    );
+                    // No single resolved image drives OCR image-space
+                    // normalization for a composite page; overlays supplied
+                    // in canvas coordinate space (the default) are unaffected.
+                    resolvedImage = null;
+                } else {
+                    const singleImage = getCanvasExportResource(
+                        canvas,
+                        targetWidth,
+                        getSelectedChoice,
+                    );
+
+                    if (!singleImage.imageUrl) {
+                        throw new Error(
+                            'No exportable image found for this canvas.',
+                        );
+                    }
+
+                    blob = await loadCanvasImageBlob({
+                        canvas,
+                        canvasId,
+                        imageUrl: singleImage.imageUrl,
+                        manifestId,
+                        targetWidth,
+                        imageRequest: requestInit,
+                        resolvedImage: singleImage.resolvedImage,
+                        loadImageBlob,
+                    });
+                    resolvedImage = singleImage.resolvedImage;
                 }
 
-                const canvasId = getCanvasId(canvas);
-                const requestInit = buildImageRequestInit(imageRequest);
-                const blob = await loadCanvasImageBlob({
-                    canvas,
-                    canvasId,
-                    imageUrl,
-                    manifestId,
-                    targetWidth,
-                    imageRequest: requestInit,
-                    resolvedImage,
-                    loadImageBlob,
-                });
                 const embeddedImage = await embedImage(pdfDoc, blob);
                 const page = pdfDoc.addPage([
                     embeddedImage.width,

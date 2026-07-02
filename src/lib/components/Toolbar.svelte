@@ -708,7 +708,7 @@
 
             <!-- Separator if both groups exist -->
             {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode || showStructures || showCollection) && sortedPluginButtons.length > 0}
-                <div class="divider" class:horizontal={isTop}></div>
+                <div class="divider" class:horizontal={isTop || inline}></div>
             {/if}
 
             <!-- --- Plugin Actions --- -->
@@ -1278,6 +1278,15 @@
         opacity: 0;
         scale: 95%;
     }
+    /* In the docked rail the actions list is a scroll container (overflow-y:auto
+       forces overflow-x to clip too), which would cut off these anchored flyouts
+       as they extend toward the canvas. Promote them to `fixed` so CSS anchor
+       positioning still glues them to the button while they escape the rail's
+       overflow. No transformed ancestor, so `fixed` is viewport-relative and
+       unclipped; the rail host's z-index keeps them above a same-side panel. */
+    .actions.docked .menu-flyout {
+        position: fixed;
+    }
     .menu-flyout:not(.open) {
         display: none;
     }
@@ -1322,38 +1331,28 @@
         transform-origin: center left;
     }
 
-    /* ===== Divider (net margin is 0) ===== */
+    /* ===== Divider ===== A solid bar, oriented across the list's cross-axis —
+       matching the nav bar's `.divider-v` treatment (ViewerControls.svelte)
+       used to separate zoom/nav controls, so both read consistently. */
     .divider {
-        --divider-color: color-mix(
+        /* Non-positioned elements paint BEHIND the .actions::before glass layer
+           (which is position:absolute), the same reason .menu li carries
+           position:relative — without this the divider is fully hidden under
+           the frosted background. */
+        position: relative;
+        flex-shrink: 0;
+        align-self: center;
+        width: 100%;
+        height: 1px;
+        background-color: color-mix(
             in oklab,
-            var(--toolbar-content) 10%,
+            var(--toolbar-content) 20%,
             transparent
         );
-        white-space: nowrap;
-        height: 1rem;
-        margin: 0;
-        flex-direction: row;
-        align-self: stretch;
-        align-items: center;
-        display: flex;
-    }
-    .divider::before,
-    .divider::after {
-        content: '';
-        background-color: var(--divider-color);
-        flex-grow: 1;
-        width: 100%;
-        height: 0.125rem;
     }
     .divider.horizontal {
-        flex-direction: column;
-        width: 1rem;
-        height: auto;
-    }
-    .divider.horizontal::before,
-    .divider.horizontal::after {
-        width: 0.125rem;
-        height: 100%;
+        width: 1px;
+        height: 1rem;
     }
 
     /* ===== Toggle handle (btn-sm look + custom overrides) ===== */

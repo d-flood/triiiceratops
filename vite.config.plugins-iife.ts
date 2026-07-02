@@ -27,6 +27,13 @@ const pluginConfigs: Record<string, { entry: string; name: string }> = {
         entry: resolve(__dirname, 'src/lib/plugins/pdf-export/iife-entry.ts'),
         name: 'TriiiceratopsPluginPdfExport',
     },
+    'image-download': {
+        entry: resolve(
+            __dirname,
+            'src/lib/plugins/image-download/iife-entry.ts',
+        ),
+        name: 'TriiiceratopsPluginImageDownload',
+    },
 };
 
 const config = pluginConfigs[pluginName];
@@ -45,6 +52,7 @@ if (!config) {
  *   PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts
  *   PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts
  *   PLUGIN_NAME=pdf-export vite build --config vite.config.plugins-iife.ts
+ *   PLUGIN_NAME=image-download vite build --config vite.config.plugins-iife.ts
  */
 export default defineConfig({
     plugins: [svelte()],

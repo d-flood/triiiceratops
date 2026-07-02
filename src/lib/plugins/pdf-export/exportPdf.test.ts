@@ -22,6 +22,15 @@ vi.mock('pdf-lib', () => ({
     })),
 }));
 
+vi.mock('../../utils/imageExport', async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import('../../utils/imageExport')>();
+    return {
+        ...actual,
+        composeImages: vi.fn(async () => createImageBlob()),
+    };
+});
+
 import { TextRenderingMode } from 'pdf-lib';
 
 import {
@@ -32,6 +41,7 @@ import {
     extractOcrTextOverlays,
     normalizeCanvasRange,
 } from './exportPdf';
+import { composeImages } from '../../utils/imageExport';
 
 function createMockPage() {
     return {
@@ -696,6 +706,87 @@ describe('exportCanvasRangeAsPdf', () => {
                     'https://example.org/iiif/portrait-canvas/full/1200,/0/default.jpg',
             }),
         );
+    });
+
+    it('composites every image on a composite canvas onto one page instead of dropping all but the first', async () => {
+        const loadImageBlob = vi.fn(() => createImageBlob());
+        const compositeCanvas = {
+            id: 'composite-canvas',
+            width: 800,
+            height: 1000,
+            getContent: () => [
+                {
+                    target: 'http://example.org/canvas/1#xywh=0,0,400,1000',
+                    getBody: () => ({
+                        id: 'http://example.org/image/1a',
+                        width: 400,
+                        height: 1000,
+                        service: {
+                            id: 'http://example.org/iiif/image1a',
+                            type: 'ImageService2',
+                            profile: 'http://iiif.io/api/image/2/level1.json',
+                        },
+                    }),
+                },
+                {
+                    target: 'http://example.org/canvas/1#xywh=400,0,400,1000',
+                    getBody: () => ({
+                        id: 'http://example.org/image/1b',
+                        width: 400,
+                        height: 1000,
+                        service: {
+                            id: 'http://example.org/iiif/image1b',
+                            type: 'ImageService2',
+                            profile: 'http://iiif.io/api/image/2/level1.json',
+                        },
+                    }),
+                },
+            ],
+        };
+
+        const result = await exportCanvasRangeAsPdf({
+            canvases: [compositeCanvas],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 800,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+        });
+
+        expect(result.exportedCount).toBe(1);
+        expect(result.failedCanvases).toEqual([]);
+
+        // Both images were fetched, not just the first.
+        expect(loadImageBlob).toHaveBeenCalledTimes(2);
+        expect(loadImageBlob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                imageUrl: expect.stringContaining('image1a'),
+            }),
+        );
+        expect(loadImageBlob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                imageUrl: expect.stringContaining('image1b'),
+            }),
+        );
+
+        // Composited side by side onto a single page-sized raster.
+        expect(composeImages).toHaveBeenCalledTimes(1);
+        const [entries, pageWidth, pageHeight] = vi.mocked(composeImages).mock
+            .calls[0];
+        expect(pageWidth).toBe(800);
+        expect(pageHeight).toBe(1000);
+        expect(entries).toEqual([
+            expect.objectContaining({ x: 0, y: 0, width: 400, height: 1000 }),
+            expect.objectContaining({
+                x: 400,
+                y: 0,
+                width: 400,
+                height: 1000,
+            }),
+        ]);
+
+        // Only one page was added for the composite canvas, not two.
+        expect(mockPdfDoc.addPage).toHaveBeenCalledTimes(1);
     });
 
     it('preserves manifest-based OCR when no provider is configured', async () => {

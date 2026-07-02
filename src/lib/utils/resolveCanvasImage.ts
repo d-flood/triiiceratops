@@ -2,10 +2,11 @@ import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId, getResourceId } from './iiifIds';
 import { normalizeIiifTargets } from './iiifTargets';
+import { resolveLanguageValue } from './languageMap';
 
 export type TileSource = string | { type: 'image'; url: string };
 
-type RegionRect = {
+export type RegionRect = {
     x: number;
     y: number;
     width: number;
@@ -38,6 +39,8 @@ export type ResolvedCanvasImage = {
     annotation: any;
     resource: any;
     resourceId: string | null;
+    /** Human-readable label from the annotation body or annotation itself, if present. */
+    label: string | null;
     canvasWidth: number;
     canvasHeight: number;
     resourceWidth: number | null;
@@ -258,7 +261,7 @@ function parseImageApiSelectorRegion(
     );
 }
 
-function getRegionString(region: RegionRect): string {
+export function getRegionString(region: RegionRect): string {
     return [region.x, region.y, region.width, region.height]
         .map((value) => Math.round(value))
         .join(',');
@@ -397,6 +400,30 @@ function getImageService(resource: any): any | null {
     );
 }
 
+function getImageLabel(resource: any, annotation: any): string | null {
+    for (const candidate of [resource, annotation]) {
+        if (!candidate) continue;
+
+        try {
+            const label = candidate.getLabel?.();
+            if (Array.isArray(label) && label.length > 0) {
+                const resolved = resolveLanguageValue(label);
+                if (resolved) return resolved;
+            }
+        } catch {
+            // ignore malformed labels
+        }
+
+        const rawLabel = candidate.label || candidate.__jsonld?.label;
+        if (rawLabel) {
+            const resolved = resolveLanguageValue(rawLabel);
+            if (resolved) return resolved;
+        }
+    }
+
+    return null;
+}
+
 function getImageServiceDetails(resource: any): {
     serviceId: string | null;
     serviceProfile: string | null;
@@ -487,6 +514,7 @@ export function resolveAllCanvasImages(
                 annotation,
                 resource,
                 resourceId,
+                label: getImageLabel(resource, annotation),
                 canvasWidth: canvasDimensions.width,
                 canvasHeight: canvasDimensions.height,
                 resourceWidth:
@@ -497,6 +525,10 @@ export function resolveAllCanvasImages(
                 serviceProfile: serviceDetails.serviceProfile,
                 imageApiRegion,
                 x: region ? region.x / canvasDimensions.width : 0,
+                // OSD viewport coordinates normalize BOTH axes to the reference
+                // image's width (aspect ratio preserved: 1 vertical unit = 1
+                // horizontal unit = the base image width in px). So the y offset
+                // is divided by width, exactly like x and width — not by height.
                 y: region ? region.y / canvasDimensions.width : 0,
                 width: region ? region.width / canvasDimensions.width : 1,
             } satisfies ResolvedCanvasImage;

@@ -27,6 +27,7 @@ interface ViewerConfig {
         | 'top-to-bottom'
         | 'bottom-to-top';
     pagedViewOffset?: boolean; // Default: true (Offset paged view by one canvas)
+    preserveCanvasScale?: boolean; // Default: false (Preserve authored IIIF canvas scale in multi-canvas layouts)
     showZoomControls?: boolean; // Default: true
     transparentBackground?: boolean; // Default: false
 
@@ -35,7 +36,7 @@ interface ViewerConfig {
 
     nav?: {
         style?: 'docked' | 'floating'; // Default: 'docked' (flush vs inset island)
-        edge?: 'top' | 'bottom';       // Default: 'bottom' (which horizontal edge)
+        edge?: 'top' | 'bottom'; // Default: 'bottom' (which horizontal edge)
         align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge)
     };
 
@@ -44,7 +45,7 @@ interface ViewerConfig {
     toolbarOpen?: boolean; // Default: false (Toolbar expanded)
 
     toolbar?: {
-        side?: 'left' | 'right';   // Default: 'left' (which vertical side, split mode)
+        side?: 'left' | 'right'; // Default: 'left' (which vertical side, split mode)
         anchor?: 'top' | 'center'; // Default: 'center' (a top anchor claims the top edge)
         showSearch?: boolean; // Default: true
         showGallery?: boolean; // Default: true
@@ -106,11 +107,13 @@ interface ViewerConfig {
     // Structures / Table of Contents Settings
     structures?: {
         open?: boolean; // Default: false
+        showCloseButton?: boolean; // Default: true
     };
 
     // Collection Navigation Settings
     collection?: {
         open?: boolean; // Default: false
+        showCloseButton?: boolean; // Default: true
     };
 
     // Network Requests
@@ -160,7 +163,7 @@ const config = {
 
     ### Passing Configuration
 
-    For the Web Component (`<triiiceratops-viewer>`), configuration is passed as a **JSON string** via the `config` attribute.
+    For the Web Component (`<triiiceratops-viewer>`), inline HTML uses a **JSON string** in the `config` attribute.
 
     ```html
     <triiiceratops-viewer
@@ -169,16 +172,17 @@ const config = {
     ></triiiceratops-viewer>
     ```
 
-    Since attributes are strings, you must `JSON.stringify()` your config object if setting it via JavaScript:
+    When setting configuration from JavaScript, prefer assigning a plain object to the `config` property:
 
     ```javascript
     const viewer = document.querySelector('triiiceratops-viewer');
-    const config = {
+    viewer.config = {
       toolbar: { side: 'left' },
       gallery: { dockPosition: 'right' }
     };
-    viewer.setAttribute('config', JSON.stringify(config));
     ```
+
+    If you use `setAttribute('config', ...)`, stringify the object yourself. Assign a new `viewer.config` object for updates; mutating nested keys on the existing object does not notify the custom element.
 
     ### Direct Manifest Data
 
@@ -226,6 +230,7 @@ const config = {
         viewingMode: 'individuals' | 'paged' | 'continuous';
         viewingDirection: 'left-to-right' | 'right-to-left'
             | 'top-to-bottom' | 'bottom-to-top';
+        preserveCanvasScale: boolean;
         galleryPosition: { x: number; y: number };
         gallerySize: { width: number; height: number };
     }
@@ -249,12 +254,13 @@ const config = {
 
     ```html
     <script>
-      import TriiiceratopsViewer from 'triiiceratops/components/TriiiceratopsViewer.svelte';
+      import { TriiiceratopsViewer } from 'triiiceratops';
+      import 'triiiceratops/style.css';
 
-      let config = {
+      let config = $state({
         toolbar: { side: 'left' },
         gallery: { open: true }
-      };
+      });
 
       let manifestJson = {
         id: 'urn:example:manifest',
@@ -287,7 +293,8 @@ const config = {
 
     ```html
     <script>
-      import TriiiceratopsViewer from 'triiiceratops/components/TriiiceratopsViewer.svelte';
+      import { TriiiceratopsViewer } from 'triiiceratops';
+      import 'triiiceratops/style.css';
 
       // This will strictly mirror the internal state
       let state = $state();
@@ -323,19 +330,18 @@ For Svelte integrations, you can also provide a `searchProvider` prop when the s
       const viewer = document.getElementById('my-viewer');
 
       function search(query) {
-        // Update config with new query
-        const config = {
+        // Assign a new config object with the new query
+        viewer.config = {
           search: {
             open: true,
             query: query
           }
         };
-        viewer.setAttribute('config', JSON.stringify(config));
       }
     </script>
     ```
 
-    Note that the viewer does **not** write back to the `config` attribute. If the user clears the search in the viewer, your external `config` object will still have the old query unless you reset it.
+    Note that the viewer does **not** write user interactions back to the external `config` attribute/property. If the user clears the search in the viewer, your external `config` object will still have the old query unless you reset it.
 
 === "Svelte Component"
 
