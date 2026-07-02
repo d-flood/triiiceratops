@@ -236,6 +236,16 @@
     const showSearch = $derived(toolbarConfig.showSearch !== false);
     const showGallery = $derived(toolbarConfig.showGallery !== false);
     const showFullscreen = $derived(toolbarConfig.showFullscreen !== false);
+    const annotationCount = $derived.by(() => {
+        if (!viewerState.manifestId || !viewerState.canvasId) {
+            return 0;
+        }
+
+        return manifestsState.getAnnotations(
+            viewerState.manifestId,
+            viewerState.canvasId,
+        ).length;
+    });
     const showAnnotations = $derived(
         toolbarConfig.showAnnotations !== false && annotationCount > 0,
     );
@@ -275,16 +285,6 @@
                 label: `${m.sequence_label()} ${index + 1}`,
             }),
         );
-    });
-    const annotationCount = $derived.by(() => {
-        if (!viewerState.manifestId || !viewerState.canvasId) {
-            return 0;
-        }
-
-        return manifestsState.getAnnotations(
-            viewerState.manifestId,
-            viewerState.canvasId,
-        ).length;
     });
     const annotationsTooltip = $derived.by(() => {
         const base = viewerState.showAnnotations
@@ -457,13 +457,6 @@
                         aria-label={m.toggle_collection()}
                         onclick={() => viewerState.toggleCollectionPanel()}
                     >
-                        {#if !viewerState.showCollectionPanel && viewerState.collectionItems.length > 0}
-                            <span class="indicator-item count-badge">
-                                {viewerState.collectionItems.length > 99
-                                    ? '99+'
-                                    : viewerState.collectionItems.length}
-                            </span>
-                        {/if}
                         <Folder size={24} />
                     </button>
                 </li>
@@ -1212,7 +1205,6 @@
         z-index: 1;
         white-space: nowrap;
     }
-
     /* count badge inside indicators (badge badge-primary badge-sm min-w-5 px-1) */
     .count-badge {
         --size: calc(var(--size-selector, 0.25rem) * 5);
