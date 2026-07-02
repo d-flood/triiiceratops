@@ -21,7 +21,7 @@ export interface GalleryConfig {
     showCloseButton?: boolean;
     /**
      * Fixed height for thumbnails in the horizontal strip view (in pixels).
-     * @default 120
+     * @default 75
      */
     fixedHeight?: number;
     /**

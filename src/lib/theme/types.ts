@@ -3,7 +3,7 @@
  * Custom theming beyond these stays available via the `themeConfig` prop and by
  * setting CSS variables (e.g. --color-primary) on the host element.
  */
-export type BuiltInTheme = 'light' | 'dark' | 'cupcake' | 'dracula';
+export type BuiltInTheme = 'light' | 'dark' | 'Teal' | 'dracula';
 
 /**
  * List of all built-in themes for runtime validation.
@@ -11,7 +11,7 @@ export type BuiltInTheme = 'light' | 'dark' | 'cupcake' | 'dracula';
 export const BUILTIN_THEMES: BuiltInTheme[] = [
     'light',
     'dark',
-    'cupcake',
+    'Teal',
     'dracula',
 ];
 

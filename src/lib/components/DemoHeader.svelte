@@ -1,8 +1,7 @@
 <script lang="ts">
     import GithubLogo from 'phosphor-svelte/lib/GithubLogo';
     import Gear from 'phosphor-svelte/lib/Gear';
-    import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
-    import ThemeToggle from './ThemeToggle.svelte';
+    import LightDarkToggle from './LightDarkToggle.svelte';
     import SettingsMenu from './SettingsMenu.svelte';
     import { Button, Select, TextInput, Tooltip } from './ui';
 
@@ -194,7 +193,10 @@
         viewerMode = $bindable('core'),
         canvasId = $bindable(''),
         config = $bindable({}),
-        selectedTheme = $bindable('light'),
+        demoTheme = $bindable('light'),
+        viewerTheme = 'light',
+        onThemeChange,
+        baseConfig,
         availableLocales = [],
         onReset,
         onShare,
@@ -204,7 +206,10 @@
         viewerMode: string;
         canvasId: string;
         config: any;
-        selectedTheme?: BuiltInTheme;
+        demoTheme?: 'light' | 'dark';
+        viewerTheme?: BuiltInTheme;
+        onThemeChange?: (theme: BuiltInTheme) => void;
+        baseConfig?: any;
         availableLocales?: string[];
         onReset?: () => void;
         onShare?: () => Promise<void>;
@@ -252,23 +257,6 @@
         }
     }
 
-    // Initialize from config
-    let activeSearchTerm = $state(config.search?.query || '');
-    let searchInitialized = false;
-
-    $effect(() => {
-        // Only update if not yet initialized and config has a value (e.g. from URL load)
-        if (!searchInitialized && config.search?.query) {
-            activeSearchTerm = config.search.query;
-            searchInitialized = true;
-        }
-    });
-
-    function handleSearchKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter' && config.search) {
-            config.search.query = activeSearchTerm;
-        }
-    }
 </script>
 
 <header class="header">
@@ -348,7 +336,7 @@
             {/each}
         </Select>
 
-        <ThemeToggle bind:theme={selectedTheme} />
+        <LightDarkToggle bind:theme={demoTheme} />
 
         <!-- Settings Dropdown -->
         <div class="dropdown dropdown-end settings-dropdown">
@@ -363,6 +351,9 @@
             <div class="dropdown-content settings-panel">
                 <SettingsMenu
                     bind:config
+                    {viewerTheme}
+                    {onThemeChange}
+                    {baseConfig}
                     {availableLocales}
                     {onReset}
                     {onShare}
@@ -469,25 +460,6 @@
             </Select>
         </div>
 
-        <div class="divider"></div>
-
-        <!-- Search Input -->
-        <div class="control-group">
-            <label class="search-label" for="external-search-input">
-                <MagnifyingGlass size={14} />
-                <span class="sr-only">{m.search()}</span>
-            </label>
-            {#if config.search}
-                <TextInput
-                    id="external-search-input"
-                    size="xs"
-                    class="search-input"
-                    placeholder={m.search_panel_placeholder()}
-                    bind:value={activeSearchTerm}
-                    onkeydown={handleSearchKeydown}
-                />
-            {/if}
-        </div>
     </div>
 </header>
 
@@ -553,8 +525,7 @@
     }
 
     /* Visually hidden but accessible */
-    .manifest-label,
-    .sr-only {
+    .manifest-label {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -577,15 +548,6 @@
     }
 
     .canvas-label {
-        font-size: 0.75rem;
-        line-height: 1rem;
-        opacity: 0.7;
-    }
-
-    .search-label {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
         font-size: 0.75rem;
         line-height: 1rem;
         opacity: 0.7;
@@ -1014,8 +976,5 @@
     }
     .control-group :global(.canvas-select) {
         width: 200px;
-    }
-    .control-group :global(.search-input) {
-        width: 150px;
     }
 </style>

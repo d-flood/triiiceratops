@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onDestroy, setContext, untrack } from 'svelte';
+    import { cubicOut } from 'svelte/easing';
     import { language, m } from '../state/i18n.svelte';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
@@ -53,6 +54,26 @@
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
+
+    const prefersReducedMotion =
+        browser &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /**
+     * Animate a side panel column's width (0 → full) so the center viewer
+     * resizes smoothly as the panel opens/closes, instead of the layout snapping
+     * to the panel's width in a single frame. Paired with the panel's own
+     * slide-in transition in PanelStack.
+     */
+    function slideWidth(node: HTMLElement, { duration = 200 } = {}) {
+        const width = node.getBoundingClientRect().width;
+        return {
+            duration: prefersReducedMotion ? 0 : duration,
+            easing: cubicOut,
+            css: (t: number) =>
+                `width: ${t * width}px; min-width: 0; overflow: hidden;`,
+        };
+    }
 
     interface Props {
         manifestId?: string;
@@ -725,8 +746,16 @@
             {/if}
 
             {#if visiblePanelsLeft.length > 0}
-                <div class="panel-host" style="width: {leftPanelWidth}">
-                    <PanelStack panels={visiblePanelsLeft} closeAlign="end" />
+                <div
+                    class="panel-host"
+                    style="width: {leftPanelWidth}"
+                    transition:slideWidth|global
+                >
+                    <PanelStack
+                        panels={visiblePanelsLeft}
+                        closeAlign="end"
+                        side="left"
+                    />
                 </div>
             {/if}
 
@@ -915,10 +944,15 @@
             class:opaque={!internalViewerState.config.transparentBackground}
         >
             {#if visiblePanelsRight.length > 0}
-                <div class="panel-host" style="width: {rightPanelWidth}">
+                <div
+                    class="panel-host"
+                    style="width: {rightPanelWidth}"
+                    transition:slideWidth|global
+                >
                     <PanelStack
                         panels={visiblePanelsRight}
                         closeAlign={dockRight ? 'start' : 'end'}
+                        side="right"
                     />
                 </div>
             {/if}

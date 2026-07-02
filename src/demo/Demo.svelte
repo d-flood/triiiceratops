@@ -112,19 +112,18 @@
     // const urlParams = new URLSearchParams(window.location.search); // Already defined above
     let viewerMode = $state(urlParams.get('mode') || 'image');
 
-    // Selected theme, owned by ThemeToggle (which also writes data-theme on <html>
-    // + localStorage) and bound up to here so we can pass it to the viewer. Without
-    // this the web component falls back to prefers-color-scheme and ignores the
-    // page's theme toggle. Initialized to match ThemeToggle's onMount resolution.
-    let selectedTheme = $state<import('../lib/theme/types').BuiltInTheme>(
-        ((): import('../lib/theme/types').BuiltInTheme => {
+    // The demo page theme is split from the viewer theme.
+    //
+    // `demoTheme` (light/dark only) governs the demo chrome — it is written to
+    // <html data-theme> and persisted. `viewerTheme` is what we hand to the
+    // viewer component: it follows `demoTheme` until the user explicitly picks
+    // one of the four built-in themes for the viewer (via the config pane). Once
+    // that happens (`viewerThemeUserSet`), the demo's light/dark toggle no longer
+    // steers the viewer.
+    let demoTheme = $state<'light' | 'dark'>(
+        ((): 'light' | 'dark' => {
             const stored = localStorage.getItem('theme');
-            if (
-                stored === 'light' ||
-                stored === 'dark' ||
-                stored === 'cupcake' ||
-                stored === 'dracula'
-            ) {
+            if (stored === 'light' || stored === 'dark') {
                 return stored;
             }
             return window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -132,6 +131,26 @@
                 : 'light';
         })(),
     );
+
+    let viewerThemeUserSet = $state(false);
+    let viewerThemeExplicit = $state<import('../lib/theme/types').BuiltInTheme>(
+        demoTheme,
+    );
+    let viewerTheme = $derived<import('../lib/theme/types').BuiltInTheme>(
+        viewerThemeUserSet ? viewerThemeExplicit : demoTheme,
+    );
+
+    // Keep the demo chrome in sync with the page (demo) theme + persist it.
+    $effect(() => {
+        document.documentElement.setAttribute('data-theme', demoTheme);
+        localStorage.setItem('theme', demoTheme);
+    });
+
+    // Called by the config pane when the user picks a viewer theme or a preset.
+    function setViewerTheme(theme: import('../lib/theme/types').BuiltInTheme) {
+        viewerThemeExplicit = theme;
+        viewerThemeUserSet = true;
+    }
 
     // Derived string for custom elements
     let configStr = $derived(JSON.stringify(config));
@@ -459,7 +478,10 @@
         bind:viewerMode
         bind:canvasId
         bind:config
-        bind:selectedTheme
+        bind:demoTheme
+        viewerTheme={viewerTheme}
+        onThemeChange={setViewerTheme}
+        baseConfig={defaultConfig}
         availableLocales={availableViewerLocales}
         onLoad={loadManifest}
         onReset={resetConfig}
@@ -480,7 +502,7 @@
                         {canvasId}
                         {initialCanvasRegion}
                         {config}
-                        theme={selectedTheme}
+                        theme={viewerTheme}
                         bind:viewerState={svelteViewerState}
                         plugins={enabledPlugins}
                     />
@@ -492,7 +514,7 @@
                         initial-canvas-region={initialCanvasRegion
                             ? JSON.stringify(initialCanvasRegion)
                             : undefined}
-                        theme={selectedTheme}
+                        theme={viewerTheme}
                         theme-config={viewerMode === 'custom-theme'
                             ? customThemeConfig
                             : undefined}
@@ -509,6 +531,9 @@
                 <div class="settings-scroll">
                     <SettingsMenu
                         bind:config
+                        viewerTheme={viewerTheme}
+                        onThemeChange={setViewerTheme}
+                        baseConfig={defaultConfig}
                         availableLocales={availableViewerLocales}
                         onReset={resetConfig}
                         onShare={shareState}
@@ -562,6 +587,7 @@
     /* flex gap-4 h-full */
     .viewer-layout {
         display: flex;
+        justify-content: center;
         gap: 1rem;
         height: 100%;
     }
@@ -569,6 +595,7 @@
     /* flex-1 rounded-box overflow-hidden border border-base-content/10 shadow-2xl */
     .viewer-pane {
         flex: 1 1 0%;
+        max-width: 1280px;
         border-radius: var(--radius-box);
         overflow: hidden;
         border-width: 1px;

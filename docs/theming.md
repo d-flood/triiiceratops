@@ -17,7 +17,7 @@ component override the built-in defaults.
 
 ## 1. Built-in Themes
 
-Four themes ship with the viewer: two light (`light`, `cupcake`) and two dark
+Four themes ship with the viewer: two light (`light`, `Teal`) and two dark
 (`dark`, `dracula`). When no theme is set, the viewer follows the OS
 `prefers-color-scheme`.
 

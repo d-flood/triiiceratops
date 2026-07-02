@@ -70,7 +70,7 @@ interface ViewerConfig {
         draggable?: boolean; // Default: true
         showCloseButton?: boolean; // Default: true
         dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none'; // Default: 'bottom'
-        fixedHeight?: number; // Default: 120
+        fixedHeight?: number; // Default: 75
         width?: number; // Floating window width
         height?: number; // Floating window height
         x?: number; // Floating window X position
