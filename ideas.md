@@ -1,1 +1,1 @@
-A lupe plugin for showing the zoomed image where the mouse is
+- A loupe plugin for showing the zoomed image where the mouse is

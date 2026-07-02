@@ -4,6 +4,7 @@ import {
     buildIiifImageRequestUrl,
     getCanvasTileSources,
     getCanvasTileSource,
+    resolveAllCanvasImages,
     resolveCanvasImage,
 } from './resolveCanvasImage';
 
@@ -286,6 +287,89 @@ describe('resolveCanvasImage', () => {
                 },
             }),
         );
+    });
+});
+
+describe('resolveAllCanvasImages', () => {
+    it('picks up a body label when present, and leaves it null otherwise (IIIF Cookbook 0036)', () => {
+        const canvas = {
+            id: 'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1',
+            width: 7216,
+            height: 5412,
+            getContent: () => [
+                {
+                    target:
+                        'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1',
+                    getBody: () => ({
+                        id: 'https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/full/max/0/default.jpg',
+                        type: 'Image',
+                        width: 7216,
+                        height: 5412,
+                        service: [
+                            {
+                                id: 'https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux',
+                                type: 'ImageService3',
+                                profile: 'level1',
+                            },
+                        ],
+                    }),
+                },
+                {
+                    target:
+                        'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,1232',
+                    getBody: () => ({
+                        id: 'https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature/full/max/0/default.jpg',
+                        type: 'Image',
+                        label: {
+                            fr: [
+                                'Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]',
+                            ],
+                        },
+                        width: 2138,
+                        height: 2414,
+                        service: [
+                            {
+                                id: 'https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature',
+                                type: 'ImageService3',
+                                profile: 'level1',
+                            },
+                        ],
+                    }),
+                },
+            ],
+        };
+
+        const resolved = resolveAllCanvasImages(canvas);
+        expect(resolved).toHaveLength(2);
+        expect(resolved[0].label).toBeNull();
+        expect(resolved[1].label).toBe(
+            'Miniature [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]',
+        );
+    });
+
+    it('falls back to an annotation label when the body has none', () => {
+        const canvas = {
+            id: 'canvas-1',
+            width: 800,
+            height: 1000,
+            getContent: () => [
+                {
+                    label: { en: ['Left page'] },
+                    target: 'https://example.org/canvas/1#xywh=0,0,400,1000',
+                    getBody: () => ({
+                        id: 'https://example.org/image/left.jpg',
+                        width: 400,
+                        height: 1000,
+                        service: {
+                            id: 'https://example.org/iiif/left',
+                            type: 'ImageService3',
+                        },
+                    }),
+                },
+            ],
+        };
+
+        expect(resolveAllCanvasImages(canvas)[0].label).toBe('Left page');
     });
 });
 

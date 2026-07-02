@@ -602,22 +602,65 @@
             visiblePanelsRight.length > 0,
     );
 
+    // Latch the "sidebar present" signal so it trails the column's close
+    // animation. When the last same-side panel closes, `isLeftSidebarVisible`
+    // flips false instantly, but the panel column keeps sliding shut for ~200ms
+    // (slideWidth outro). Holding this signal true across that window lets the
+    // docked rail stay put — full size, not collapsing — until the column is
+    // actually gone, then hand off to the floating toolbar in one atomic swap.
+    const SIDEBAR_ANIM_MS = prefersReducedMotion ? 0 : 200;
+
+    let leftSidebarPresent = $state(false);
+    $effect(() => {
+        if (isLeftSidebarVisible) {
+            leftSidebarPresent = true;
+            return;
+        }
+        const id = setTimeout(
+            () => (leftSidebarPresent = false),
+            SIDEBAR_ANIM_MS,
+        );
+        return () => clearTimeout(id);
+    });
+
+    let rightSidebarPresent = $state(false);
+    $effect(() => {
+        if (isRightSidebarVisible) {
+            rightSidebarPresent = true;
+            return;
+        }
+        const id = setTimeout(
+            () => (rightSidebarPresent = false),
+            SIDEBAR_ANIM_MS,
+        );
+        return () => clearTimeout(id);
+    });
+
     // The toolbar docks as the screen-edge rail of a side bar when it shares that
-    // side with a panel/gallery and is open. Only `split` controls use a side
-    // toolbar; `unified` embeds the tools in the nav bar.
-    let dockLeft = $derived(
+    // side with an open panel/gallery. Only `split` controls use a side toolbar;
+    // `unified` embeds the tools in the nav bar.
+    //
+    // The rail is rendered as its OWN screen-edge column (a sibling of the panel
+    // column, not a child of it — see the markup), so it is not caught in the
+    // panel's slideWidth outro. That, plus the latched `…SidebarPresent` tail,
+    // means the rail stays mounted at full size through the close and then
+    // unmounts reactively the instant this flips false — in the SAME flush that
+    // mounts the floating toolbar. The result is an atomic hand-off: never two
+    // toolbars, never zero. `toolbarOpen` gates it directly (not via the latch)
+    // so collapsing the toolbar itself removes the rail immediately.
+    let dockRailLeft = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'left' &&
-            isLeftSidebarVisible &&
-            internalViewerState.toolbarOpen,
+            internalViewerState.toolbarOpen &&
+            (isLeftSidebarVisible || leftSidebarPresent),
     );
-    let dockRight = $derived(
+    let dockRailRight = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'right' &&
-            isRightSidebarVisible &&
-            internalViewerState.toolbarOpen,
+            internalViewerState.toolbarOpen &&
+            (isRightSidebarVisible || rightSidebarPresent),
     );
-    let toolbarDockedAsRail = $derived(dockLeft || dockRight);
+    let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
 
     let manifestData = $derived(internalViewerState.manifestEntry);
     let canvases = $derived(internalViewerState.canvases);
@@ -732,19 +775,25 @@
     data-nav-edge={resolvedNavEdge}
     data-nav-align={resolvedNavAlign}
 >
+    <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
+         OUTSIDE the panel column's slideWidth outro, so it stays full size
+         through the close and then swaps atomically with the floating toolbar
+         (see dockRailLeft) — no collapsing icons, no duplicate, no empty gap. -->
+    {#if dockRailLeft}
+        <div
+            class="toolbar-rail-host rail-col"
+            class:opaque={!internalViewerState.config.transparentBackground}
+        >
+            <Toolbar docked />
+        </div>
+    {/if}
+
     <!-- Left Column -->
     {#if isLeftSidebarVisible}
         <div
             class="side-col side-col-left"
             class:opaque={!internalViewerState.config.transparentBackground}
         >
-            <!-- Toolbar docked as the screen-edge rail (same-side fix) -->
-            {#if dockLeft}
-                <div class="toolbar-rail-host">
-                    <Toolbar docked />
-                </div>
-            {/if}
-
             {#if visiblePanelsLeft.length > 0}
                 <div
                     class="panel-host"
@@ -765,6 +814,7 @@
                     class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
+                    transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
                 </div>
@@ -879,8 +929,11 @@
 
             <AnnotationOverlay />
 
-            <!-- Floating Toolbar (suppressed while docked as a side rail, or in
-                 `unified` controls where the toolbar buttons live in the nav). -->
+            <!-- Floating Toolbar (suppressed while the docked rail occupies its
+                 side — including the tail of the un-dock animation, since
+                 toolbarDockedAsRail is latched — or in `unified` controls where
+                 the buttons live in the nav). The hand-off is atomic: this mounts
+                 in the same flush the rail column unmounts. -->
             {#if !toolbarDockedAsRail && resolvedControls !== 'unified'}
                 <Toolbar />
             {/if}
@@ -951,7 +1004,7 @@
                 >
                     <PanelStack
                         panels={visiblePanelsRight}
-                        closeAlign={dockRight ? 'start' : 'end'}
+                        closeAlign={dockRailRight ? 'start' : 'end'}
                         side="right"
                     />
                 </div>
@@ -963,17 +1016,24 @@
                     class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
+                    transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
                 </div>
             {/if}
+        </div>
+    {/if}
 
-            <!-- Toolbar docked as the screen-edge rail (same-side fix) -->
-            {#if dockRight}
-                <div class="toolbar-rail-host">
-                    <Toolbar docked />
-                </div>
-            {/if}
+    <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
+         OUTSIDE the panel column's slideWidth outro, so it stays full size
+         through the close and then swaps atomically with the floating toolbar
+         (see dockRailRight) — no collapsing icons, no duplicate, no empty gap. -->
+    {#if dockRailRight}
+        <div
+            class="toolbar-rail-host rail-col"
+            class:opaque={!internalViewerState.config.transparentBackground}
+        >
+            <Toolbar docked />
         </div>
     {/if}
 </div>
@@ -1018,17 +1078,32 @@
         position: relative;
         pointer-events: auto;
     }
+    /* The rail is its own screen-edge flex column (a sibling of the panel column,
+       not nested inside it). Stack it above the side panels (z-index 20) so a
+       docked toolbar's flyouts — which escape the rail toward the canvas, over
+       the panel region — win regardless of DOM order. */
+    .toolbar-rail-host.rail-col {
+        z-index: 21;
+    }
+    .toolbar-rail-host.rail-col.opaque {
+        background-color: var(--viewer-bg);
+    }
 
     .panel-host {
         height: 100%;
         min-height: 0;
         position: relative;
+        /* Contain the panels' internal z-indexes (e.g. the sticky section
+           header at z-index:10) so they can't out-stack the docked toolbar
+           rail's flyouts, which sit above via .toolbar-rail-host's z-index. */
+        isolation: isolate;
         pointer-events: auto;
     }
     .gallery-host {
         height: 100%;
         min-height: 0;
         position: relative;
+        isolation: isolate;
         pointer-events: auto;
     }
 
