@@ -32,7 +32,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 - **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
-- **Theming**: 35 built-in DaisyUI themes plus custom theme configuration
+- **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
 - **Plugin System**: Extensible component architecture
 
 ## Usage
@@ -99,7 +99,7 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
     ```html
     <script>
         import { TriiiceratopsViewer } from 'triiiceratops';
-        // Import the default styles (unless you are using the advanced Tailwind setup)
+        // Import the default styles once in your app
         import 'triiiceratops/style.css';
 
         const manifestJson = {
@@ -130,10 +130,11 @@ Triiiceratops is highly configurable, allowing you to customize the UI layout, e
 
 ## Theming
 
-Triiiceratops supports full theme customization through two mechanisms:
+Triiiceratops supports full theme customization through three mechanisms:
 
-1. **Built-in themes**: Choose from 35 pre-built DaisyUI themes
-2. **Custom theme configuration**: Override individual theme properties with your own colors, border radius, etc.
+1. **Built-in themes**: Choose from `light`, `dark`, `Teal`, or `dracula`
+2. **Custom theme configuration**: Override individual theme properties with typed `themeConfig` keys
+3. **CSS variables**: Set the underlying tokens directly when you need lower-level control
 
 [**Read the full Theming Guide**](./theming.md){ .md-button }
 

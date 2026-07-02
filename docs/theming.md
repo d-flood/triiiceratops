@@ -11,15 +11,18 @@ style the viewer, from easiest to most granular:
 2. Override tokens with the **`themeConfig` prop** (typed, friendly names).
 3. Set the underlying **CSS variables** directly on the host element.
 
-All three compose. Built-in themes set the base values, `themeConfig` (applied as
-inline styles) wins over external CSS, and CSS variables you set from outside the
-component override the built-in defaults.
+All three compose, but they do not have equal precedence. From lowest to highest:
+OS-aware default tokens, CSS variables inherited from the host/page, an explicit
+built-in `theme`, then `themeConfig` inline styles. If you set `theme`, that
+selected theme wins over CSS variables set outside the viewer; use `themeConfig`
+for overrides that must win over an explicit built-in theme.
 
 ## 1. Built-in Themes
 
 Four themes ship with the viewer: two light (`light`, `Teal`) and two dark
-(`dark`, `dracula`). When no theme is set, the viewer follows the OS
-`prefers-color-scheme`.
+(`dark`, `dracula`). Theme names are case-sensitive. When no theme is set, the
+viewer follows the OS `prefers-color-scheme` defaults and can inherit CSS
+variables from the host/page.
 
 === "Web Component"
 
@@ -113,17 +116,17 @@ or raw CSS variables: `--image-manipulation-panel-bg`, `--pdf-export-panel-bg`,
 The top-level trio sets the defaults; the per-region overrides inherit from them, so
 you can keep everything consistent or fine-tune one region.
 
-| Keyword                 | Description                                | Inherits      | CSS Variable                |
-| :---------------------- | :----------------------------------------- | :------------ | :-------------------------- |
-| `radiusBox`             | Large containers (cards, panels, popovers) | —             | `--radius-box`              |
-| `radiusField`           | Inputs and buttons                         | —             | `--radius-field`            |
-| `radiusSelector`        | Small selectors (checkboxes, badges)       | —             | `--radius-selector`         |
-| `radiusToolbar`         | Toolbar corners                            | `radiusBox`   | `--radius-toolbar`          |
-| `radiusPanels`          | Panel corners                              | `radiusBox`   | `--radius-panels`           |
-| `radiusControls`        | Canvas-nav controls pill                   | `radiusBox`   | `--radius-controls`         |
-| `radiusControlsButtons` | The buttons inside the canvas-nav pill     | `radiusField` | `--radius-controls-buttons` |
+| Keyword                 | Description                                | Inherits        | CSS Variable                |
+| :---------------------- | :----------------------------------------- | :-------------- | :-------------------------- |
+| `radiusBox`             | Large containers (cards, panels, popovers) | —               | `--radius-box`              |
+| `radiusButtons`         | Buttons, inputs, and button groups         | —               | `--radius-buttons`          |
+| `radiusSelector`        | Small selectors (checkboxes, badges)       | —               | `--radius-selector`         |
+| `radiusToolbar`         | Toolbar corners                            | `radiusButtons` | `--radius-toolbar`          |
+| `radiusPanels`          | Panel corners                              | `radiusBox`     | `--radius-panels`           |
+| `radiusControls`        | Canvas-nav controls pill                   | `radiusButtons` | `--radius-controls`         |
+| `radiusControlsButtons` | The buttons inside the canvas-nav pill     | `radiusButtons` | `--radius-controls-buttons` |
 
-> **Want the classic pill?** The canvas-nav controls now inherit the box radius by
+> **Want the classic pill?** The canvas-nav controls now inherit the button radius by
 > default. To restore the fully-rounded capsule and circular buttons, set
 > `radiusControls: '9999px'` and `radiusControlsButtons: '9999px'`.
 
@@ -169,6 +172,9 @@ you can keep everything consistent or fine-tune one region.
     </script>
     ```
 
+    Assign a new `themeConfig` object when updating from JavaScript. Mutating a
+    nested property on the existing object does not notify the custom element.
+
 === "Svelte Component"
 
     ```svelte
@@ -208,8 +214,9 @@ viewer.themeConfig = {
 ## 3. Styling with CSS Variables
 
 Because the tokens are plain custom properties that inherit through the shadow
-boundary, you can theme the viewer entirely from your own CSS by targeting the host
-element. This is equivalent to `themeConfig`, just authored as CSS:
+boundary, you can theme the viewer from your own CSS by targeting the host element.
+This is equivalent to `themeConfig` only when no explicit `theme` is set; if a
+built-in `theme` is selected, the theme's token values win over host CSS variables.
 
 ```css
 triiiceratops-viewer {
@@ -221,12 +228,19 @@ triiiceratops-viewer {
 }
 ```
 
-A selected built-in `theme` (which sets `data-theme`) wins over CSS variables you set
-this way; `themeConfig` (inline styles) wins over everything. To switch among the
-built-in themes by CSS alone, set the `data-theme` attribute on a parent or the host:
+A selected built-in `theme` wins over CSS variables you set this way;
+`themeConfig` (inline styles) wins over everything. In Svelte/light-DOM usage, you
+can also switch among built-in themes by setting `data-theme` on an ancestor when
+you leave the viewer's `theme` prop unset:
+
+```svelte
+<div data-theme="dracula">
+    <TriiiceratopsViewer manifestId="..." />
+</div>
+```
+
+For the web component, prefer the `theme` attribute/property for built-in themes:
 
 ```html
-<div data-theme="dracula">
-    <triiiceratops-viewer manifest-id="..."></triiiceratops-viewer>
-</div>
+<triiiceratops-viewer manifest-id="..." theme="dracula"></triiiceratops-viewer>
 ```

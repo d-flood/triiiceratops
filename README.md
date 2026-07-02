@@ -30,7 +30,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
-- **Theming**: 35 built-in DaisyUI themes plus custom theme configuration
+- **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
 - **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
 
 ## Current Limitations
@@ -121,6 +121,7 @@ pnpm add triiiceratops
 ```svelte
 <script>
     import { TriiiceratopsViewer } from 'triiiceratops';
+    import 'triiiceratops/style.css';
 
     const manifestJson = {
         id: 'urn:example:manifest',
