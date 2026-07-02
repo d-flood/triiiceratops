@@ -1,5 +1,17 @@
 # triiiceratops
 
+## 1.0.0-rc.19
+
+### Minor Changes
+
+- 4595c5a: Add an `image-download` plugin for downloading the current canvas (or current multi-canvas view) as a raster image, with modes for composite canvases, a single image, and the current OSD view, plus IIIF `level0`-aware resolution options. Also fix `pdf-export` silently dropping every image after the first on a composite canvas (a canvas painted with more than one image) — it now composites all of them onto the PDF page.
+
+    `pdf-export`'s toolbar/panel icon changed from `DownloadSimple` to `FilePdf` so it's visually distinct from the new `image-download` plugin's icon; the `DownloadSimple` named export from `triiiceratops/plugins/pdf-export` is replaced by `FilePdf`.
+
+### Patch Changes
+
+- ce3114d: Add image download plugin and custom select component
+
 ## 1.0.0-rc.18
 
 ### Minor Changes
