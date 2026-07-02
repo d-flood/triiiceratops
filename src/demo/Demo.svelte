@@ -10,6 +10,7 @@
     import { ImageManipulationPlugin } from '../lib/plugins/image-manipulation';
     import { AnnotationEditorPlugin } from '../lib/plugins/annotation-editor';
     import { PdfExportPlugin } from '../lib/plugins/pdf-export';
+    import { ImageDownloadPlugin } from '../lib/plugins/image-download';
     import {
         parseContentState,
         type CanvasRegion,
@@ -217,6 +218,7 @@
         ImageManipulationPlugin,
         AnnotationEditorPlugin,
         PdfExportPlugin,
+        ImageDownloadPlugin,
     ];
 
     function isLanguageMapKey(key: string): boolean {
