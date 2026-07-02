@@ -112,6 +112,46 @@
     // const urlParams = new URLSearchParams(window.location.search); // Already defined above
     let viewerMode = $state(urlParams.get('mode') || 'image');
 
+    // The demo page theme is split from the viewer theme.
+    //
+    // `demoTheme` (light/dark only) governs the demo chrome — it is written to
+    // <html data-theme> and persisted. `viewerTheme` is what we hand to the
+    // viewer component: it follows `demoTheme` until the user explicitly picks
+    // one of the four built-in themes for the viewer (via the config pane). Once
+    // that happens (`viewerThemeUserSet`), the demo's light/dark toggle no longer
+    // steers the viewer.
+    let demoTheme = $state<'light' | 'dark'>(
+        ((): 'light' | 'dark' => {
+            const stored = localStorage.getItem('theme');
+            if (stored === 'light' || stored === 'dark') {
+                return stored;
+            }
+            return window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+        })(),
+    );
+
+    let viewerThemeUserSet = $state(false);
+    let viewerThemeExplicit = $state<import('../lib/theme/types').BuiltInTheme>(
+        demoTheme,
+    );
+    let viewerTheme = $derived<import('../lib/theme/types').BuiltInTheme>(
+        viewerThemeUserSet ? viewerThemeExplicit : demoTheme,
+    );
+
+    // Keep the demo chrome in sync with the page (demo) theme + persist it.
+    $effect(() => {
+        document.documentElement.setAttribute('data-theme', demoTheme);
+        localStorage.setItem('theme', demoTheme);
+    });
+
+    // Called by the config pane when the user picks a viewer theme or a preset.
+    function setViewerTheme(theme: import('../lib/theme/types').BuiltInTheme) {
+        viewerThemeExplicit = theme;
+        viewerThemeUserSet = true;
+    }
+
     // Derived string for custom elements
     let configStr = $derived(JSON.stringify(config));
 
@@ -147,23 +187,20 @@
     const customThemeConfig = JSON.stringify({
         primary: '#e1a730',
         primaryContent: '#ffffff',
-        secondary: '#264b3d',
-        secondaryContent: '#ffffff',
-        accent: '#16376f',
-        accentContent: '#ffffff',
         neutral: '#e9d9b9',
         neutralContent: '#000000',
-        base100: '#ecede7',
-        base200: '#b7b7b3',
-        base300: '#838381',
-        baseContent: '#000000',
-        info: '#254477',
+        viewerBg: '#ecede7',
+        toolbarBg: '#b7b7b3',
+        panelBg: '#b7b7b3',
+        surfaceBorder: '#838381',
+        content: '#000000',
         success: '#264b3d',
         warning: '#733100',
         error: '#b95527',
         radiusBox: '1.5rem',
-        radiusField: '0.75rem',
+        radiusButtons: '0.75rem',
         radiusSelector: '0.5rem',
+        radiusControls: '9999px',
         border: '2px',
     });
 
@@ -434,28 +471,30 @@
     });
 </script>
 
-<div class="min-h-screen h-screen bg-base-300 flex flex-col">
+<div class="demo-root">
     <!-- Header with input -->
     <DemoHeader
         bind:manifestUrl
         bind:viewerMode
         bind:canvasId
         bind:config
+        bind:demoTheme
+        viewerTheme={viewerTheme}
+        onThemeChange={setViewerTheme}
+        baseConfig={defaultConfig}
         availableLocales={availableViewerLocales}
         onLoad={loadManifest}
         onReset={resetConfig}
         onShare={shareState}
     />
 
-    <h1 class="text-3xl text-center pt-8">{m.demo_title()}</h1>
+    <h1 class="demo-title">{m.demo_title()}</h1>
 
     <!-- Viewer -->
-    <main class="flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-8">
-        <div class="flex gap-4 h-full">
+    <main class="viewer-main">
+        <div class="viewer-layout">
             <!-- Main Viewer -->
-            <div
-                class="flex-1 rounded-box overflow-hidden border border-base-content/10 shadow-2xl"
-            >
+            <div class="viewer-pane">
                 {#if viewerMode === 'svelte'}
                     <!-- Svelte Component (direct import, not web component) -->
                     <TriiiceratopsViewer
@@ -463,6 +502,7 @@
                         {canvasId}
                         {initialCanvasRegion}
                         {config}
+                        theme={viewerTheme}
                         bind:viewerState={svelteViewerState}
                         plugins={enabledPlugins}
                     />
@@ -474,6 +514,7 @@
                         initial-canvas-region={initialCanvasRegion
                             ? JSON.stringify(initialCanvasRegion)
                             : undefined}
+                        theme={viewerTheme}
                         theme-config={viewerMode === 'custom-theme'
                             ? customThemeConfig
                             : undefined}
@@ -483,21 +524,20 @@
             </div>
 
             <!-- Desktop Settings Sidebar -->
-            <div
-                class="hidden lg:flex flex-col w-80 shrink-0 bg-base-100 rounded-box border border-base-content/10 shadow-xl overflow-hidden"
-            >
-                <div
-                    class="p-4 font-bold text-lg border-b border-base-content/10 bg-base-100"
-                >
+            <div class="settings-sidebar">
+                <div class="settings-sidebar-header">
                     {m.settings_view_configuration()}
                 </div>
-                <div class="flex-1 overflow-y-auto">
+                <div class="settings-scroll">
                     <SettingsMenu
                         bind:config
+                        viewerTheme={viewerTheme}
+                        onThemeChange={setViewerTheme}
+                        baseConfig={defaultConfig}
                         availableLocales={availableViewerLocales}
                         onReset={resetConfig}
                         onShare={shareState}
-                        class="menu p-2 flex-nowrap w-full"
+                        class="menu settings-menu-list"
                     />
                 </div>
             </div>
@@ -510,5 +550,106 @@
         display: block;
         width: 100%;
         height: 100%;
+    }
+
+    /* min-h-screen h-screen bg-base-300 flex flex-col */
+    .demo-root {
+        min-height: 100vh;
+        height: 100vh;
+        background-color: var(--surface-border);
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* text-3xl text-center pt-8 */
+    .demo-title {
+        font-size: 1.875rem;
+        line-height: 2.25rem;
+        text-align: center;
+        padding-top: 2rem;
+    }
+
+    /* flex-1 relative min-h-0 p-2 lg:pb-16 lg:pt-8 lg:px-8 */
+    .viewer-main {
+        flex: 1 1 0%;
+        position: relative;
+        min-height: 0;
+        padding: 0.5rem;
+    }
+    @media (width >= 1024px) {
+        .viewer-main {
+            padding-bottom: 4rem;
+            padding-top: 2rem;
+            padding-inline: 2rem;
+        }
+    }
+
+    /* flex gap-4 h-full */
+    .viewer-layout {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        height: 100%;
+    }
+
+    /* flex-1 rounded-box overflow-hidden border border-base-content/10 shadow-2xl */
+    .viewer-pane {
+        flex: 1 1 0%;
+        max-width: 1280px;
+        border-radius: var(--radius-box);
+        overflow: hidden;
+        border-width: 1px;
+        border-style: solid;
+        border-color: color-mix(in oklab, var(--content) 10%, transparent);
+        box-shadow: 0 25px 50px -12px #00000040;
+    }
+
+    /* hidden lg:flex flex-col w-80 shrink-0 bg-base-100 rounded-box
+       border border-base-content/10 shadow-xl overflow-hidden */
+    .settings-sidebar {
+        display: none;
+        flex-direction: column;
+        width: 20rem;
+        flex-shrink: 0;
+        background-color: var(--viewer-bg);
+        border-radius: var(--radius-box);
+        border-width: 1px;
+        border-style: solid;
+        border-color: color-mix(in oklab, var(--content) 10%, transparent);
+        box-shadow:
+            0 20px 25px -5px #0000001a,
+            0 8px 10px -6px #0000001a;
+        overflow: hidden;
+    }
+    @media (width >= 1024px) {
+        .settings-sidebar {
+            display: flex;
+        }
+    }
+
+    /* p-4 font-bold text-lg border-b border-base-content/10 bg-base-100 */
+    .settings-sidebar-header {
+        padding: 1rem;
+        font-weight: 700;
+        font-size: 1.125rem;
+        line-height: 1.75rem;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: color-mix(in oklab, var(--content) 10%, transparent);
+        background-color: var(--viewer-bg);
+    }
+
+    /* flex-1 overflow-y-auto */
+    .settings-scroll {
+        flex: 1 1 0%;
+        overflow-y: auto;
+    }
+
+    /* SettingsMenu receives class="menu settings-menu-list". These rules give that
+       list its padding, no-wrap layout, and full width. */
+    .settings-scroll :global(.settings-menu-list) {
+        padding: 0.5rem;
+        flex-wrap: nowrap;
+        width: 100%;
     }
 </style>

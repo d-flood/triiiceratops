@@ -1,10 +1,31 @@
 <script lang="ts">
     import { onDestroy, setContext, untrack } from 'svelte';
+    import { cubicOut } from 'svelte/easing';
     import { language, m } from '../state/i18n.svelte';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
-    import type { DaisyUITheme, ThemeConfig } from '../theme/types';
-    import type { SearchProvider, ViewerConfig } from '../types/config';
+    import type { BuiltInTheme, ThemeConfig } from '../theme/types';
+    import type {
+        ControlsMode,
+        NavStyle,
+        NavEdge,
+        NavAlign,
+        ToolbarSide,
+        SearchProvider,
+        ViewerConfig,
+    } from '../types/config';
+    import {
+        CONTROLS_MODES,
+        NAV_STYLES,
+        NAV_EDGES,
+        NAV_ALIGNS,
+        TOOLBAR_ANCHORS,
+        DEFAULT_CONTROLS,
+        DEFAULT_NAV_STYLE,
+        DEFAULT_NAV_EDGE,
+        DEFAULT_NAV_ALIGN,
+        DEFAULT_TOOLBAR_ANCHOR,
+    } from '../types/config';
     import type { PluginDef } from '../types/plugin';
     import type { CanvasRegion } from '../utils/contentState';
     import { createPluginId } from '../utils/pluginId';
@@ -29,17 +50,38 @@
     import Folder from 'phosphor-svelte/lib/Folder';
     import ImageBroken from 'phosphor-svelte/lib/ImageBroken';
     import ViewerControls from './ViewerControls.svelte';
+    import { Spinner } from './ui';
 
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
+
+    const prefersReducedMotion =
+        browser &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /**
+     * Animate a side panel column's width (0 → full) so the center viewer
+     * resizes smoothly as the panel opens/closes, instead of the layout snapping
+     * to the panel's width in a single frame. Paired with the panel's own
+     * slide-in transition in PanelStack.
+     */
+    function slideWidth(node: HTMLElement, { duration = 200 } = {}) {
+        const width = node.getBoundingClientRect().width;
+        return {
+            duration: prefersReducedMotion ? 0 : duration,
+            easing: cubicOut,
+            css: (t: number) =>
+                `width: ${t * width}px; min-width: 0; overflow: hidden;`,
+        };
+    }
 
     interface Props {
         manifestId?: string;
         manifestJson?: any;
         canvasId?: string;
         plugins?: PluginDef[] | null | boolean;
-        /** Built-in DaisyUI theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
-        theme?: DaisyUITheme;
+        /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
+        theme?: BuiltInTheme;
         /** Custom theme configuration to override the base theme's values. */
         themeConfig?: ThemeConfig;
         /** Configuration options for the viewer UI */
@@ -314,6 +356,60 @@
         internalViewerState.config.rightPanelWidth ?? '320px',
     );
 
+    // Resolve the layout knobs (drive data-controls / data-nav-style /
+    // data-nav-edge / data-nav-align for the --ui-* vars and CSS). Fall back to
+    // defaults for unknown values.
+    let resolvedControls = $derived.by<ControlsMode>(() => {
+        const c = internalViewerState.config.controls;
+        return c && CONTROLS_MODES.includes(c) ? c : DEFAULT_CONTROLS;
+    });
+    let resolvedNavStyle = $derived.by<NavStyle>(() => {
+        const n = internalViewerState.config.nav?.style;
+        return n && NAV_STYLES.includes(n) ? n : DEFAULT_NAV_STYLE;
+    });
+    let resolvedNavAlign = $derived.by<NavAlign>(() => {
+        const a = internalViewerState.config.nav?.align;
+        return a && NAV_ALIGNS.includes(a) ? a : DEFAULT_NAV_ALIGN;
+    });
+    // Whether the split toolbar rail is pinned to the top corner. Only split mode
+    // renders a separate rail, so a top anchor can only claim the top edge there.
+    let toolbarAnchor = $derived.by<'top' | 'center'>(() => {
+        const a = internalViewerState.config.toolbar?.anchor;
+        return a && TOOLBAR_ANCHORS.includes(a) ? a : DEFAULT_TOOLBAR_ANCHOR;
+    });
+    let toolbarOwnsTop = $derived(
+        resolvedControls === 'split' && toolbarAnchor === 'top',
+    );
+    // The toolbar owns the top edge: a `top`-edge nav yields to the bottom when a
+    // top-anchored rail is present. We refuse to fit both rather than overlap them.
+    let resolvedNavEdge = $derived.by<NavEdge>(() => {
+        const e = internalViewerState.config.nav?.edge;
+        const requested = e && NAV_EDGES.includes(e) ? e : DEFAULT_NAV_EDGE;
+        if (requested === 'top' && toolbarOwnsTop) {
+            if (import.meta.env.DEV) {
+                console.warn(
+                    '[triiiceratops] nav.edge "top" ignored: a top-anchored toolbar ' +
+                        '(toolbar.anchor "top") already owns the top edge; nav falls back to "bottom".',
+                );
+            }
+            return 'bottom';
+        }
+        return requested;
+    });
+
+    // ---- Same-side toolbar/panel resolution (the "edge-rail" fix) ----
+    // A side toolbar (left/right) that shares its side with a docked panel/gallery
+    // is rendered as the OUTERMOST (screen-edge) column of that side bar instead
+    // of floating over the image, so its close affordance no longer collides with
+    // the panel's. Top toolbars float over the image and never conflict.
+    let toolbarSide = $derived.by<ToolbarSide | null>(() => {
+        // Top-anchored rails float over the image and never conflict with a
+        // side panel, so they don't dock as the screen-edge column.
+        if (toolbarAnchor === 'top') return null;
+        const side = internalViewerState.config.toolbar?.side ?? 'left';
+        return side === 'left' || side === 'right' ? side : null;
+    });
+
     function getPluginPanelClose(
         props: Record<string, unknown> | undefined,
     ): (() => void) | undefined {
@@ -506,6 +602,23 @@
             visiblePanelsRight.length > 0,
     );
 
+    // The toolbar docks as the screen-edge rail of a side bar when it shares that
+    // side with a panel/gallery and is open. Only `split` controls use a side
+    // toolbar; `unified` embeds the tools in the nav bar.
+    let dockLeft = $derived(
+        resolvedControls === 'split' &&
+            toolbarSide === 'left' &&
+            isLeftSidebarVisible &&
+            internalViewerState.toolbarOpen,
+    );
+    let dockRight = $derived(
+        resolvedControls === 'split' &&
+            toolbarSide === 'right' &&
+            isRightSidebarVisible &&
+            internalViewerState.toolbarOpen,
+    );
+    let toolbarDockedAsRail = $derived(dockLeft || dockRight);
+
     let manifestData = $derived(internalViewerState.manifestEntry);
     let canvases = $derived(internalViewerState.canvases);
     let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
@@ -612,32 +725,44 @@
 <div
     bind:this={rootElement}
     id="triiiceratops-viewer"
-    class="flex w-full h-full relative overflow-hidden {internalViewerState
-        .config.transparentBackground
-        ? ''
-        : 'bg-base-100'}"
+    class="viewer-root"
+    class:opaque={!internalViewerState.config.transparentBackground}
+    data-controls={resolvedControls}
+    data-nav-style={resolvedNavStyle}
+    data-nav-edge={resolvedNavEdge}
+    data-nav-align={resolvedNavAlign}
 >
     <!-- Left Column -->
     {#if isLeftSidebarVisible}
         <div
-            class="flex-none min-h-0 flex flex-row z-20 transition-all {internalViewerState
-                .config.transparentBackground
-                ? ''
-                : 'bg-base-100 border-r border-base-300'}"
+            class="side-col side-col-left"
+            class:opaque={!internalViewerState.config.transparentBackground}
         >
+            <!-- Toolbar docked as the screen-edge rail (same-side fix) -->
+            {#if dockLeft}
+                <div class="toolbar-rail-host">
+                    <Toolbar docked />
+                </div>
+            {/if}
+
             {#if visiblePanelsLeft.length > 0}
                 <div
-                    class="h-full min-h-0 relative pointer-events-auto"
+                    class="panel-host"
                     style="width: {leftPanelWidth}"
+                    transition:slideWidth|global
                 >
-                    <PanelStack panels={visiblePanelsLeft} />
+                    <PanelStack
+                        panels={visiblePanelsLeft}
+                        closeAlign="end"
+                        side="left"
+                    />
                 </div>
             {/if}
 
             <!-- Gallery (when docked left) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
                 <div
-                    class="h-full min-h-0 pointer-events-auto relative"
+                    class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
                 >
@@ -648,14 +773,11 @@
     {/if}
 
     <!-- Center Column -->
-    <div
-        id="triiiceratops-center-panel"
-        class="flex-1 relative min-w-0 flex flex-col"
-    >
+    <div id="triiiceratops-center-panel" class="center-col">
         <!-- Top Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
             <div
-                class="flex-none w-full pointer-events-auto relative z-20"
+                class="gallery-band"
                 style="height: {internalViewerState.galleryFixedHeight + 55}px"
             >
                 <ThumbnailGallery {canvases} />
@@ -664,10 +786,8 @@
 
         <!-- Main Viewer Area -->
         <div
-            class="flex-1 relative min-h-0 w-full h-full {internalViewerState
-                .config.transparentBackground
-                ? ''
-                : 'bg-base-100'}"
+            class="viewer-area"
+            class:opaque={!internalViewerState.config.transparentBackground}
             role={internalViewerState.config.enableDragDrop
                 ? 'region'
                 : undefined}
@@ -676,35 +796,26 @@
             ondrop={handleDrop}
         >
             {#if manifestData?.isFetching}
-                <div class="w-full h-full flex items-center justify-center">
-                    <span
-                        class="loading loading-spinner loading-lg text-primary"
-                    ></span>
+                <div class="centered">
+                    <Spinner size="lg" style="color:var(--color-primary)" />
                 </div>
             {:else if manifestData?.error}
-                <div
-                    class="w-full h-full flex items-center justify-center text-error"
-                >
+                <div class="centered error-text">
                     {m.error_prefix()}
                     {manifestData.error}
                 </div>
             {:else if tileSources}
                 {#if tileSourceError}
-                    <div
-                        class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
-                        role="alert"
-                    >
+                    <div class="overlay-cover" role="alert">
                         {#if currentCanvasThumbnail}
                             <img
                                 src={currentCanvasThumbnail}
                                 alt=""
-                                class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-40"
+                                class="blur-bg"
                             />
-                            <div class="absolute inset-0 bg-base-100/50"></div>
+                            <div class="dim-50"></div>
                         {/if}
-                        <div
-                            class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
-                        >
+                        <div class="error-card">
                             {#if tileSourceError.type === 'auth'}
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -714,7 +825,7 @@
                                     stroke-width="2"
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
-                                    class="w-12 h-12 text-warning"
+                                    class="warn-icon"
                                 >
                                     <rect
                                         x="3"
@@ -726,20 +837,19 @@
                                     />
                                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                                 </svg>
-                                <p class="text-base-content text-sm">
+                                <p class="msg">
                                     {m.error_auth_required()}
                                 </p>
                             {:else}
-                                <ImageBroken class="w-12 h-12 text-warning" />
-                                <p
-                                    class="text-base-content text-sm font-semibold"
-                                >
+                                <ImageBroken
+                                    size={48}
+                                    color="var(--color-warning)"
+                                />
+                                <p class="msg msg-strong">
                                     {tileSourceErrorMessage}
                                 </p>
                                 {#if tileSourceErrorDetails}
-                                    <p
-                                        class="text-base-content/70 text-xs wrap-break-word max-w-xs"
-                                    >
+                                    <p class="msg-details">
                                         {tileSourceErrorDetails}
                                     </p>
                                 {/if}
@@ -753,23 +863,14 @@
                     />
                 {/if}
             {:else if manifestData && !manifestData.isFetching && !tileSources}
-                <div
-                    class="w-full h-full absolute inset-0 z-5 flex items-center justify-center pointer-events-none overflow-hidden"
-                    role="status"
-                >
+                <div class="overlay-cover" role="status">
                     {#if currentCanvasThumbnail}
-                        <img
-                            src={currentCanvasThumbnail}
-                            alt=""
-                            class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-40"
-                        />
-                        <div class="absolute inset-0 bg-base-100/50"></div>
+                        <img src={currentCanvasThumbnail} alt="" class="blur-bg" />
+                        <div class="dim-50"></div>
                     {/if}
-                    <div
-                        class="relative flex flex-col items-center gap-3 max-w-sm text-center px-4 py-6 bg-base-100/90 rounded-xl shadow-lg"
-                    >
-                        <ImageBroken class="w-12 h-12 text-warning" />
-                        <p class="text-base-content text-sm font-semibold">
+                    <div class="error-card">
+                        <ImageBroken size={48} color="var(--color-warning)" />
+                        <p class="msg msg-strong">
                             {m.no_image_found()}
                         </p>
                     </div>
@@ -778,13 +879,16 @@
 
             <AnnotationOverlay />
 
-            <!-- Floating Toolbar -->
-            <Toolbar />
+            <!-- Floating Toolbar (suppressed while docked as a side rail, or in
+                 `unified` controls where the toolbar buttons live in the nav). -->
+            {#if !toolbarDockedAsRail && resolvedControls !== 'unified'}
+                <Toolbar />
+            {/if}
 
             <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'overlay'}
-                    <div class="absolute inset-0 z-40 pointer-events-none">
+                    <div class="plugin-overlay">
                         <panel.component
                             {...panel.props ?? {}}
                             locale={viewerLocale}
@@ -797,12 +901,8 @@
             <ViewerControls />
 
             {#if internalViewerState.config.enableDragDrop && isDragOver}
-                <div
-                    class="absolute inset-0 z-45 pointer-events-none flex items-center justify-center bg-base-100/70 backdrop-blur-sm"
-                >
-                    <div
-                        class="rounded-box border-2 border-dashed border-primary bg-base-100/90 px-6 py-4 text-sm font-medium text-base-content shadow-lg"
-                    >
+                <div class="drag-overlay">
+                    <div class="drag-hint">
                         {m.drop_manifest_hint()}
                     </div>
                 </div>
@@ -817,7 +917,7 @@
         <!-- Bottom Area (Gallery) -->
         {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
             <div
-                class="flex-none w-full pointer-events-auto relative z-20"
+                class="gallery-band"
                 style="height: {internalViewerState.galleryFixedHeight + 55}px"
             >
                 <ThumbnailGallery {canvases} />
@@ -827,7 +927,7 @@
         <!-- Bottom Area (Plugin Panels) -->
         {#each internalViewerState.pluginPanels as panel (panel.id)}
             {#if panel.isVisible() && panel.position === 'bottom'}
-                <div class="relative w-full z-40 pointer-events-auto">
+                <div class="plugin-bottom">
                     <panel.component
                         {...panel.props ?? {}}
                         locale={viewerLocale}
@@ -840,28 +940,38 @@
     <!-- Right Column -->
     {#if isRightSidebarVisible}
         <div
-            class="flex-none min-h-0 flex flex-row z-20 transition-all {internalViewerState
-                .config.transparentBackground
-                ? ''
-                : 'bg-base-100'}"
+            class="side-col side-col-right"
+            class:opaque={!internalViewerState.config.transparentBackground}
         >
             {#if visiblePanelsRight.length > 0}
                 <div
-                    class="h-full min-h-0 relative pointer-events-auto"
+                    class="panel-host"
                     style="width: {rightPanelWidth}"
+                    transition:slideWidth|global
                 >
-                    <PanelStack panels={visiblePanelsRight} />
+                    <PanelStack
+                        panels={visiblePanelsRight}
+                        closeAlign={dockRight ? 'start' : 'end'}
+                        side="right"
+                    />
                 </div>
             {/if}
 
             <!-- Gallery (when docked right) -->
             {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
                 <div
-                    class="h-full min-h-0 pointer-events-auto relative"
+                    class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
                         40}px"
                 >
                     <ThumbnailGallery {canvases} />
+                </div>
+            {/if}
+
+            <!-- Toolbar docked as the screen-edge rail (same-side fix) -->
+            {#if dockRight}
+                <div class="toolbar-rail-host">
+                    <Toolbar docked />
                 </div>
             {/if}
         </div>
@@ -869,10 +979,205 @@
 </div>
 
 <style>
+    .viewer-root {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        /* Re-anchor text color to this element's own resolved tokens. The `theme`
+           prop sets data-theme on THIS element, so --content here may
+           differ from the inherited (host/page) value; resolving it locally keeps
+           viewer text legible regardless of the host page's color. */
+        color: var(--content);
+    }
+    .viewer-root.opaque {
+        background-color: var(--viewer-bg);
+    }
+
+    .side-col {
+        flex: none;
+        min-height: 0;
+        display: flex;
+        flex-direction: row;
+        z-index: 20;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .side-col.opaque {
+        background-color: var(--viewer-bg);
+    }
+    .side-col-left.opaque {
+        border-right: 1px solid var(--surface-border);
+    }
+
+
+    .toolbar-rail-host {
+        height: 100%;
+        min-height: 0;
+        flex: none;
+        position: relative;
+        pointer-events: auto;
+    }
+
+    .panel-host {
+        height: 100%;
+        min-height: 0;
+        position: relative;
+        pointer-events: auto;
+    }
+    .gallery-host {
+        height: 100%;
+        min-height: 0;
+        position: relative;
+        pointer-events: auto;
+    }
+
+    .center-col {
+        flex: 1 1 0%;
+        position: relative;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .gallery-band {
+        flex: none;
+        width: 100%;
+        position: relative;
+        pointer-events: auto;
+        z-index: 20;
+    }
+
+    .viewer-area {
+        flex: 1 1 0%;
+        position: relative;
+        min-height: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .viewer-area.opaque {
+        background-color: var(--viewer-bg);
+    }
+
+    .centered {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .error-text {
+        color: var(--color-error);
+    }
+
+    .overlay-cover {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        overflow: hidden;
+    }
+    .blur-bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: blur(24px);
+        scale: 1.1;
+        opacity: 0.4;
+    }
+    .dim-50 {
+        position: absolute;
+        inset: 0;
+        background-color: color-mix(in oklab, var(--viewer-bg) 50%, transparent);
+    }
+    .error-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        max-width: 24rem;
+        text-align: center;
+        padding-inline: 1rem;
+        padding-block: 1.5rem;
+        background-color: color-mix(in oklab, var(--viewer-bg) 90%, transparent);
+        border-radius: 0.75rem;
+        box-shadow:
+            0 10px 15px -3px #0000001a,
+            0 4px 6px -4px #0000001a;
+    }
+    .warn-icon {
+        width: 3rem;
+        height: 3rem;
+        color: var(--color-warning);
+    }
+    .msg {
+        color: var(--content);
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+    .msg-strong {
+        font-weight: 600;
+    }
+    .msg-details {
+        color: color-mix(in oklab, var(--content) 70%, transparent);
+        font-size: 0.75rem;
+        line-height: 1rem;
+        overflow-wrap: break-word;
+        max-width: 20rem;
+    }
+
+    .plugin-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        pointer-events: none;
+    }
+    .plugin-bottom {
+        position: relative;
+        width: 100%;
+        z-index: 40;
+        pointer-events: auto;
+    }
+
+    .drag-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 45;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: color-mix(in oklab, var(--viewer-bg) 70%, transparent);
+        backdrop-filter: blur(4px);
+    }
+    .drag-hint {
+        border-radius: var(--radius-box);
+        border: 2px dashed var(--color-primary);
+        background-color: color-mix(in oklab, var(--viewer-bg) 90%, transparent);
+        padding-inline: 1.5rem;
+        padding-block: 1rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 500;
+        color: var(--content);
+        box-shadow:
+            0 10px 15px -3px #0000001a,
+            0 4px 6px -4px #0000001a;
+    }
+
     /* Scoped scrollbar styles for the viewer */
     :global(#triiiceratops-viewer *) {
         scrollbar-width: thin;
-        scrollbar-color: var(--fallback-bc, oklch(var(--bc) / 0.2)) transparent;
+        scrollbar-color: color-mix(in oklab, var(--content) 20%, transparent)
+            transparent;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar) {
@@ -886,14 +1191,14 @@
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
-        background-color: var(--fallback-bc, oklch(var(--bc) / 0.2));
+        background-color: color-mix(in oklab, var(--content) 20%, transparent);
         border-radius: 9999px;
         border: 1px solid transparent;
         background-clip: padding-box;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
-        background-color: var(--fallback-bc, oklch(var(--bc) / 0.4));
+        background-color: color-mix(in oklab, var(--content) 40%, transparent);
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {

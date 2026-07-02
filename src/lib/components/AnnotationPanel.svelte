@@ -8,6 +8,7 @@
     import { m } from '../state/i18n.svelte';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
+    import { Button, Badge } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -113,19 +114,24 @@
 <!-- Drawer / Panel -->
 {#if viewerState.showAnnotations}
     <div
-        class="min-h-0 flex flex-col {embedded
-            ? ''
-            : `h-full bg-base-200 shadow-2xl z-100 transition-[width] duration-200 ${viewerState.config.transparentBackground ? '' : position === 'left' ? 'border-r border-base-300' : 'border-l border-base-300'}`}"
+        data-panel-id="annotations"
+        class="panel"
+        class:floating={!embedded}
+        class:transparent={!embedded && viewerState.config.transparentBackground}
+        class:border-left={!embedded &&
+            !viewerState.config.transparentBackground &&
+            position !== 'left'}
+        class:border-right={!embedded &&
+            !viewerState.config.transparentBackground &&
+            position === 'left'}
         role="dialog"
         aria-label={m.settings_submenu_annotations()}
     >
         {#if !embedded}
-            <div
-                class="flex items-center justify-between p-4 border-b border-base-300"
-            >
-                <div class="flex items-center gap-2">
+            <div class="header">
+                <div class="header-title">
                     <ListDashes size={20} weight="bold" />
-                    <h2 class="font-bold text-lg">
+                    <h2>
                         {m.settings_submenu_annotations()}
                     </h2>
                 </div>
@@ -133,14 +139,14 @@
         {/if}
 
         <!-- Toolbar / Stats -->
-        <div
-            class="p-4 border-b border-base-300 bg-base-100/50 flex items-center justify-between"
-        >
-            <div class="text-sm font-medium opacity-80">
+        <div class="toolbar">
+            <div class="count">
                 {m.annotations_count({ count: annotations.length })}
             </div>
-            <button
-                class="btn btn-sm btn-ghost gap-2"
+            <Button
+                size="sm"
+                ghost
+                class="toggle-all-btn"
                 onclick={toggleAllAnnotations}
                 disabled={toggleableAnnotations.length === 0}
             >
@@ -151,26 +157,20 @@
                     <EyeSlash size={16} />
                     {m.show_all_annotations()}
                 {/if}
-            </button>
+            </Button>
         </div>
 
         <!-- List -->
-        <div
-            class="p-0 flex flex-col divide-y divide-base-300 {embedded
-                ? ''
-                : 'flex-1 overflow-y-auto'}"
-        >
+        <div class="list" class:scrollable={!embedded}>
             {#each renderedAnnotations as anno, i (anno.id)}
                 {@const isVisible =
                     anno.isSearchHit ||
                     viewerState.visibleAnnotationIds.has(anno.id)}
                 <!-- List Item Row -->
                 <div
-                    class="w-full text-left p-4 hover:bg-primary/5 transition-colors flex gap-3 group/item items-start focus:outline-none focus:bg-primary/10 relative {anno.isSearchHit
-                        ? 'cursor-default'
-                        : 'cursor-pointer'} {isVisible
-                        ? ''
-                        : 'opacity-60 bg-base-200/50'}"
+                    class="row"
+                    class:search-hit={anno.isSearchHit}
+                    class:dimmed={!isVisible}
                     role="button"
                     tabindex="0"
                     aria-disabled={anno.isSearchHit}
@@ -197,8 +197,11 @@
                     }}
                 >
                     <!-- Visual Toggle Indicator (eye icon button) -->
-                    <button
-                        class="btn btn-xs btn-circle btn-ghost mt-0.5 shrink-0"
+                    <Button
+                        size="xs"
+                        circle
+                        ghost
+                        class="eye-btn"
                         disabled={anno.isSearchHit}
                         onclick={(e) => {
                             e.stopPropagation();
@@ -210,38 +213,33 @@
                         {:else}
                             <EyeSlash size={16} />
                         {/if}
-                    </button>
+                    </Button>
 
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-start justify-between mb-1">
-                            <span class="font-bold text-sm text-primary"
-                                >#{i + 1}</span
-                            >
+                    <div class="content">
+                        <div class="content-head">
+                            <span class="index">#{i + 1}</span>
                             <!-- Only show label separately if it's different from the content being displayed -->
                             {#if anno.label && !anno.bodies.some((b) => b.value === anno.label)}
-                                <span
-                                    class="text-xs opacity-50 truncate max-w-[150px]"
-                                    >{anno.label}</span
-                                >
+                                <span class="label">{anno.label}</span>
                             {/if}
                         </div>
-                        <div
-                            class="viewer-html text-sm prose prose-sm max-w-none prose-p:my-0 wrap-break-word text-left space-y-2"
-                        >
+                        <div class="viewer-html bodies">
                             {#each anno.bodies as body, i (i)}
-                                <div class="flex flex-wrap gap-2">
+                                <div class="body-row">
                                     {#if body.purpose === 'tagging'}
-                                        <span
-                                            class="badge badge-primary badge-outline badge-sm"
+                                        <Badge
+                                            variant="primary"
+                                            outline
+                                            size="sm"
                                         >
                                             {body.value}
-                                        </span>
+                                        </Badge>
                                     {:else if body.purpose === 'linking'}
                                         <a
                                             href={body.value}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            class="flex items-center gap-1 text-primary hover:underline hover:text-primary-focus p-1 rounded hover:bg-base-200 -ml-1 transition-colors"
+                                            class="link"
                                             onclick={(e) => e.stopPropagation()}
                                         >
                                             <!-- Link Icon -->
@@ -255,7 +253,7 @@
                                                     d="M136.37,187.53a12,12,0,0,1,0,17l-5.94,5.94a60,60,0,0,1-84.88-84.88l24.12-24.12A60,60,0,0,1,152.06,99,12,12,0,1,1,135,116a36,36,0,0,0-50.93,1.57L60,141.66a36,36,0,0,0,50.93,50.93l5.94-5.94A12,12,0,0,1,136.37,187.53Zm81.51-149.41a60,60,0,0,0-84.88,0l-5.94,5.94a12,12,0,0,0,17,17l5.94-5.94a36,36,0,0,1,50.93,50.93l-24.11,24.12A36,36,0,0,1,121,140a12,12,0,1,0-17.08,17,60,60,0,0,0,82.39,2.46l24.12-24.12A60,60,0,0,0,217.88,38.12Z"
                                                 ></path></svg
                                             >
-                                            <span class="truncate max-w-[200px]"
+                                            <span class="link-text"
                                                 >{body.value}</span
                                             >
                                         </a>
@@ -268,7 +266,7 @@
                             {/each}
 
                             {#if anno.bodies.length === 0}
-                                <span class="opacity-50 italic text-xs"
+                                <span class="no-content"
                                     >{m.no_content()}</span
                                 >
                             {/if}
@@ -276,10 +274,244 @@
                     </div>
                 </div>
             {:else}
-                <div class="p-8 text-center opacity-50 text-sm">
+                <div class="empty">
                     {m.no_annotations_available()}
                 </div>
             {/each}
         </div>
     </div>
 {/if}
+
+<style>
+    .panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .panel.floating {
+        height: 100%;
+        background-color: var(--panel-surface);
+        box-shadow: 0 25px 50px -12px #00000040;
+        z-index: 100;
+        transition-property: width;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.2s;
+    }
+
+    .panel.border-left {
+        border-left-width: 1px;
+        border-left-style: solid;
+        border-left-color: var(--surface-border);
+    }
+
+    .panel.border-right {
+        border-right-width: 1px;
+        border-right-style: solid;
+        border-right-color: var(--surface-border);
+    }
+
+    .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--surface-border);
+    }
+
+    .header-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .header-title h2 {
+        font-weight: 700;
+        font-size: 1.125rem;
+        line-height: 1.75rem;
+    }
+
+    .toolbar {
+        padding: 1rem;
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--surface-border);
+        background-color: color-mix(
+            in oklab,
+            var(--input-bg) 50%,
+            transparent
+        );
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .count {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 500;
+        opacity: 0.8;
+    }
+
+    /* btn-sm gap-2: override .btn's default gap (0.375rem) to gap-2 (0.5rem) */
+    .toolbar :global(.toggle-all-btn) {
+        gap: 0.5rem;
+    }
+
+    .list {
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* divide-y divide-base-300 */
+    .list > :global(* + *) {
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: var(--surface-border);
+    }
+
+    .list.scrollable {
+        flex: 1 1 0%;
+        overflow-y: auto;
+    }
+
+    .row {
+        width: 100%;
+        text-align: left;
+        padding: 1rem;
+        transition-property: color, background-color, border-color,
+            text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .row:focus {
+        outline: none;
+        background-color: color-mix(
+            in oklab,
+            var(--color-primary) 10%,
+            transparent
+        );
+    }
+
+    .row:hover {
+        background-color: color-mix(
+            in oklab,
+            var(--color-primary) 5%,
+            transparent
+        );
+    }
+
+    .row.search-hit {
+        cursor: default;
+    }
+
+    .row.dimmed {
+        opacity: 0.6;
+        background-color: color-mix(
+            in oklab,
+            var(--panel-surface) 50%,
+            transparent
+        );
+    }
+
+    /* btn-xs btn-circle btn-ghost mt-0.5 shrink-0 (shrink-0 already in .btn) */
+    .row :global(.eye-btn) {
+        margin-top: 0.125rem;
+    }
+
+    .content {
+        flex: 1 1 0%;
+        min-width: 0;
+    }
+
+    .content-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 0.25rem;
+    }
+
+    .index {
+        font-weight: 700;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: var(--color-primary);
+    }
+
+    .label {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        opacity: 0.5;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 150px;
+    }
+
+    .bodies {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        overflow-wrap: break-word;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .body-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .link {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        color: var(--color-primary);
+        padding: 0.25rem;
+        border-radius: 0.25rem;
+        margin-left: -0.25rem;
+        transition-property: color, background-color, border-color,
+            text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+    }
+
+    .link:hover {
+        text-decoration-line: underline;
+        /* text color stays --color-primary on hover */
+        background-color: var(--panel-surface);
+    }
+
+    .link-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+    }
+
+    .no-content {
+        opacity: 0.5;
+        font-style: italic;
+        font-size: 0.75rem;
+        line-height: 1rem;
+    }
+
+    .empty {
+        padding: 2rem;
+        text-align: center;
+        opacity: 0.5;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+</style>

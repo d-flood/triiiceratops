@@ -167,7 +167,7 @@
 
 {#if lines.length > 0}
     <svg
-        class="fixed inset-0 z-50 pointer-events-none drop-shadow-md text-primary"
+        class="connecting-lines"
         style="width: 100vw; height: 100vh;"
     >
         {#each lines as line, index (`${line.x1}:${line.y1}:${line.x2}:${line.y2}:${index}`)}
@@ -188,4 +188,19 @@
 {/if}
 
 <!-- Hidden element to capture root node context if needed, though document.getElementById usually works globally -->
-<div bind:this={toolbarContainer} class="hidden"></div>
+<div bind:this={toolbarContainer} class="root-node-anchor"></div>
+
+<style>
+    .connecting-lines {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        pointer-events: none;
+        filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.12));
+        color: var(--color-primary);
+    }
+
+    .root-node-anchor {
+        display: none;
+    }
+</style>

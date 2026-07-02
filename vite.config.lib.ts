@@ -4,7 +4,6 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 // import dts from 'vite-plugin-dts';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import tailwindcss from '@tailwindcss/vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -14,7 +13,6 @@ export default defineConfig({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
         }),
-        tailwindcss(),
         svelte({ compilerOptions: { customElement: false } }),
         // dts({
         //     include: ['src/lib'],
@@ -56,14 +54,7 @@ export default defineConfig({
             formats: ['es'],
         },
         rollupOptions: {
-            external: [
-                'svelte',
-                'svelte/internal',
-                /^svelte\//,
-                '@tailwindcss/vite',
-                'daisyui',
-                'tailwindcss',
-            ],
+            external: ['svelte', 'svelte/internal', /^svelte\//],
         },
         outDir: 'dist',
         emptyOutDir: false,

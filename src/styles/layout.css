@@ -1,0 +1,71 @@
+/*
+ * Layout variables for the viewer chrome (toolbar, canvas controls, panels, gallery).
+ *
+ * These `--ui-*` custom properties are LAYOUT-ONLY: spacing, sizing, positioning,
+ * and shadow pattern. They are intentionally separate from the theme tokens in
+ * themes.css — colors, border-radii (`--radius-*`), border width (`--border`),
+ * size multipliers (`--size-*`), and the shadow `--depth` flag stay theme-controlled
+ * and are never set here.
+ *
+ * The layout is configured by independent knobs, resolved onto `.viewer-root`
+ * as data-attributes (mirroring how `data-theme` works):
+ *   - data-controls  = split | unified      (toolbar separate vs embedded in nav)
+ *   - data-nav-style = docked | floating    (nav flush to the edge vs inset island)
+ *   - data-nav-edge  = top | bottom         (which horizontal edge the nav sits on)
+ *   - data-nav-align = start | center | end (alignment of the nav bar along its edge)
+ *
+ * The base `--ui-*` scale below is a single consistent set. The split toolbar is
+ * always flush + flat (`--ui-inset:0`, `--ui-chrome-shadow:none`), so only the
+ * nav style needs overrides — via two nav-specific vars that keep the toolbar and
+ * the nav decoupled. `data-nav-edge` / `data-nav-align` and the docked flush-corners
+ * are handled in the components' scoped styles.
+ */
+
+/* ---- Base scale (consistent across every combination) ---- */
+:where(:root, :host) {
+    /* Toolbar floating offset + shadow — always flush + flat (the split rail look). */
+    --ui-inset: 0;
+    --ui-chrome-shadow: none;
+
+    /* Padding inside chrome containers (toolbar menu, control bar). */
+    --ui-chrome-pad: 0.5rem;
+    /* Gap between adjacent controls within a chrome cluster. */
+    --ui-gap: 0.375rem;
+    /* Glyph size for icons inside chrome (applied to their <svg>). */
+    --ui-icon: 20px;
+    /* Minimum interactive hit-target size (raised on coarse pointers). */
+    --ui-hit: 2.25rem;
+    /* Default side-panel column width (config.leftPanelWidth still overrides). */
+    --ui-panel-w: 320px;
+    /* Vertical gap between stacked panel sections + section header padding. */
+    --ui-section-gap: 0.75rem;
+    --ui-panel-header-pad: 0.75rem;
+    /* Thumbnail gallery item gap + track padding. */
+    --ui-gallery-gap: 0.375rem;
+    --ui-gallery-pad: 0.25rem;
+
+    /* Nav-specific (decoupled from the toolbar so the `nav` axis affects only the
+       nav). Defaults match `docked`. */
+    --ui-nav-inset: 0;
+    --ui-nav-shadow: none;
+}
+
+/* ---- nav: docked (flush to its edge, flat) — same as the base ---- */
+[data-nav-style='docked'] {
+    --ui-nav-inset: 0;
+    --ui-nav-shadow: none;
+}
+
+/* ---- nav: floating (inset island off the edge, with a shadow) ---- */
+[data-nav-style='floating'] {
+    --ui-nav-inset: 0.75rem;
+    --ui-nav-shadow:
+        0 6px 12px -4px rgb(0 0 0 / 0.08), 0 3px 6px -3px rgb(0 0 0 / 0.1);
+}
+
+/* ---- Responsive: bigger hit targets on coarse pointers ---- */
+@media (pointer: coarse) {
+    :where(:root, :host) {
+        --ui-hit: 2.75rem;
+    }
+}

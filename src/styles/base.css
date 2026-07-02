@@ -1,0 +1,68 @@
+/*
+ * Global base styles: scrollbars and OpenSeadragon background.
+ * (Token + theme definitions live in themes.css; element reset in preflight.css.)
+ */
+
+/*
+ * Anchor text + document background to the theme tokens.
+ *
+ * The base text color must be set explicitly on the root. Without it the text
+ * `color` is left at the UA default (black) and, crucially, inherits ACROSS the
+ * shadow boundary into the custom element — so when the host page is light but
+ * the element resolves dark tokens (e.g. prefers-color-scheme: dark), the viewer
+ * renders dark text on a dark background. Anchoring `color` to --content
+ * here makes text follow whichever theme is active in scope.
+ *
+ * Zero-specificity (:where) so consumers can still override. `background-color` is
+ * intentionally only on :root (the document) and NOT :host — the custom element
+ * must stay transparent for the `transparentBackground` config; the viewer paints
+ * its own opaque background via .viewer-root.opaque.
+ */
+:where(:root, :host, [data-theme]) {
+    color: var(--content);
+}
+:where(:root) {
+    background-color: var(--viewer-bg);
+}
+
+/* Thin, theme-aware scrollbars driven by the --content token. */
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--content) 20%, transparent)
+        transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--content) 20%, transparent);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--content) 40%, transparent);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+    border-radius: 9999px;
+}
+
+/* Transparent canvas background mode for OpenSeadragon. */
+.osd-background,
+.osd-background .openseadragon-container {
+    background-color: transparent;
+}
