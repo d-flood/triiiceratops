@@ -90,6 +90,14 @@
     $effect(() => {
         if (!inline || !actionsEl) return;
         const el = actionsEl;
+        // Only balance once settled (open + animation finished). While closed or
+        // animating the group is a single clipped row, so clear any cap — a
+        // stale one would force it to wrap tall and balloon the bar's height.
+        // Re-runs when `settled` flips.
+        if (!settled) {
+            el.style.maxWidth = '';
+            return;
+        }
         const bar = el.closest('.control-bar') as HTMLElement | null;
         const container =
             (bar?.offsetParent as HTMLElement | null) ??
@@ -113,6 +121,79 @@
 
     // Use centralized toolbar state
     const isOpen = $derived(viewerState.toolbarOpen);
+
+    // --- Unified Bar open/close animation ---
+    // The group is revealed/collapsed by animating a max-width CLIP over it. While
+    // animating (and closed) it is held to a single `nowrap` row (see `.collapsed`
+    // below), so it never reflows taller (opening) or unwraps ~2× wider (closing);
+    // the animated `max-width` also CAPS the bar, so even the transient single row
+    // can't widen it past the target. `overflow: hidden` clips the excess. Once
+    // the transition finishes we "settle": release the clip (`max-width: none` +
+    // `overflow: visible`) and re-enable wrapping so the row balancer and plugin
+    // flyouts work again. The target width is measured from the DOM because CSS
+    // can't transition to/from an intrinsic `auto` width.
+    const ANIM_MS = 200;
+    let shellEl: HTMLDivElement | undefined = $state();
+    let settled = $state(false);
+    let animating = $state(false);
+    let firstRun = true;
+
+    $effect(() => {
+        const shell = shellEl;
+        const ul = actionsEl;
+        // Depend on isOpen so this re-runs on every toggle.
+        const open = isOpen;
+        if (!inline || !shell || !ul) {
+            settled = false;
+            animating = false;
+            return;
+        }
+        // Don't animate the initial mount — just adopt the resting state.
+        if (firstRun) {
+            firstRun = false;
+            settled = open;
+            return;
+        }
+
+        settled = false;
+        animating = true;
+        let raf = 0;
+        if (open) {
+            // Reveal 0 → natural single-row width (measured with the clip lifted).
+            // Opening starts from the closed single row, so there is nothing to
+            // unwrap; it settles into its wrapped layout at the end.
+            shell.style.maxWidth = 'none';
+            const w = ul.offsetWidth; // forced layout read
+            shell.style.maxWidth = '0px';
+            raf = requestAnimationFrame(() => {
+                shell.style.maxWidth = `${w}px`;
+            });
+        } else {
+            // Collapse the CURRENT (possibly multi-row) layout → 0. Freeze the
+            // list at its exact current width so it keeps its wrapped rows while
+            // the clip shrinks — otherwise switching to nowrap would unwrap the
+            // rows into one ~2× wider row for a frame (the visible flash).
+            const w = ul.offsetWidth;
+            ul.style.width = `${w}px`;
+            shell.style.maxWidth = `${w}px`;
+            void shell.offsetWidth; // reflow so the next value transitions
+            shell.style.maxWidth = '0px';
+        }
+        const id = setTimeout(() => {
+            // Release: clear the inline sizing so the resting CSS applies
+            // (settled → none / closed → 0). Now the closed group may drop to a
+            // single nowrap row (compact height) — invisible, already clipped.
+            shell.style.maxWidth = '';
+            ul.style.width = '';
+            animating = false;
+            settled = open;
+        }, ANIM_MS + 40);
+
+        return () => {
+            if (raf) cancelAnimationFrame(raf);
+            clearTimeout(id);
+        };
+    });
 
     // --- Configuration ---
     // Compose the internal placement string from the nested toolbar config
@@ -155,7 +236,9 @@
     const showSearch = $derived(toolbarConfig.showSearch !== false);
     const showGallery = $derived(toolbarConfig.showGallery !== false);
     const showFullscreen = $derived(toolbarConfig.showFullscreen !== false);
-    const showAnnotations = $derived(toolbarConfig.showAnnotations !== false);
+    const showAnnotations = $derived(
+        toolbarConfig.showAnnotations !== false && annotationCount > 0,
+    );
     const showInfo = $derived(toolbarConfig.showInfo !== false);
     const showViewingMode = $derived(toolbarConfig.showViewingMode !== false);
     const sequenceStructures = $derived(
@@ -223,7 +306,15 @@
     // canvas: up from the inline (bottom) bar, down from a top toolbar, and
     // sideways from a left/right rail.
     const flyoutPlacement = $derived(
-        inline ? 'up' : isTop ? 'down' : position === 'left' ? 'right' : 'left',
+        inline
+            ? navOnTop
+                ? 'down'
+                : 'up'
+            : isTop
+              ? 'down'
+              : position === 'left'
+                ? 'right'
+                : 'left',
     );
 
     function findFlyout(domId: string | undefined) {
@@ -304,30 +395,41 @@
     class:inline
 >
     <!-- Collapsible Toolbar -->
+    <!-- The placement/animation state classes are for the floating and docked
+         variants only: in `inline` mode the configured toolbar side is
+         meaningless (the buttons live in the nav bar) and e.g. `closed-left`'s
+         translateX(-100%) would fling the group sideways on close. -->
     <div
+        bind:this={shellEl}
         class="toolbar-shell"
-        class:top-right={position === 'top-right'}
-        class:top-left={position === 'top-left'}
-        class:side={!isTop}
+        class:top-right={!inline && position === 'top-right'}
+        class:top-left={!inline && position === 'top-left'}
+        class:side={!inline && !isTop}
         class:docked
         class:inline
-        class:open-top={isOpen && isTop}
-        class:open-side={isOpen && !isTop}
-        class:closed-top={!isOpen && isTop}
-        class:closed-left={!isOpen && position === 'left'}
-        class:closed-right={!isOpen && position === 'right'}
+        class:open-top={!inline && isOpen && isTop}
+        class:open-side={!inline && isOpen && !isTop}
+        class:closed-top={!inline && !isOpen && isTop}
+        class:closed-left={!inline && !isOpen && position === 'left'}
+        class:closed-right={!inline && !isOpen && position === 'right'}
+        class:inline-open={inline && isOpen}
+        class:inline-closed={inline && !isOpen}
+        class:settled={inline && settled}
     >
         <!-- Scrollable Actions -->
         <ul
             bind:this={actionsEl}
             class="menu actions"
             class:horizontal={isTop || inline}
-            class:top-right={position === 'top-right'}
-            class:top-left={position === 'top-left'}
-            class:left={position === 'left'}
-            class:right={position === 'right'}
+            class:top-right={!inline && position === 'top-right'}
+            class:top-left={!inline && position === 'top-left'}
+            class:left={!inline && position === 'left'}
+            class:right={!inline && position === 'right'}
             class:docked
             class:inline
+            class:collapsed={inline &&
+                !settled &&
+                !(animating && !isOpen)}
         >
             <!-- --- Close Button (hidden in inline mode; the buttons live in the
                  nav bar without a collapse affordance) --- -->
@@ -579,16 +681,12 @@
             {#if showAnnotations}
                 <li>
                     <button
-                        class="menu-item tooltip indicator {tooltipPlacement}"
+                        class="menu-item tooltip {tooltipPlacement}"
                         class:menu-active={viewerState.showAnnotations}
                         data-tip={annotationsTooltip}
                         aria-label={annotationsTooltip}
                         onclick={() => viewerState.toggleAnnotations()}
                     >
-                        {#if !viewerState.showAnnotations && annotationCount > 0}
-                            <span class="annotation-dot" aria-hidden="true"
-                            ></span>
-                        {/if}
                         <ChatCenteredText size={24} />
                     </button>
                 </li>
@@ -671,6 +769,26 @@
             {/key}
         </ul>
     </div>
+
+    <!-- Unified Bar collapse toggle: a persistent button living in the nav bar,
+         placed after (inline-end of) the collapsible group so the actions
+         expand out to its left. Only in `inline` mode; the floating/side/docked
+         layouts use the handle or the in-menu close button instead. -->
+    {#if inline && showToggle}
+        <button
+            class="menu-item inline-toggle tooltip {tooltipPlacement}"
+            data-tip={isOpen ? m.close_menu() : m.open_menu()}
+            aria-label={isOpen ? m.close_menu() : m.open_menu()}
+            aria-expanded={isOpen}
+            onclick={toggleOpen}
+        >
+            {#if isOpen}
+                <X size={24} />
+            {:else}
+                <List size={24} />
+            {/if}
+        </button>
+    {/if}
 
     <!-- Toggle Handle (floating open button shown only when closed; never in the
          docked rail or inline modes). -->
@@ -783,18 +901,65 @@
     }
 
     /* ===== Unified Bar: toolbar buttons embedded in the canvas nav =====
-       In `inline` mode the toolbar renders only its action list as a transparent
-       horizontal group; `display: contents` collapses the root/shell wrappers so
-       the <ul> participates directly in the control-bar flex row. */
-    .toolbar-root.inline,
-    .toolbar-shell.inline {
+       In `inline` mode the toolbar renders its action list as a transparent
+       horizontal group next to a persistent toggle. `display: contents` on the
+       root collapses that wrapper so the toggle + shell participate directly in
+       the control-bar flex row. */
+    .toolbar-root.inline {
         display: contents;
+    }
+    /* The shell holds the action group and reveals/collapses it by animating a
+       max-width CLIP (driven imperatively from the open/close effect). The group
+       is aligned to the inline-end (toggle side) via `justify-items: end`, so the
+       clip eats from the far edge — the icons emerge to the LEFT of the toggle.
+       `grid-template-columns` is static (no reflow); the JS freezes the group's
+       width during the animation so the wrapped layout is preserved exactly. */
+    .toolbar-shell.inline {
+        display: grid;
+        grid-template-columns: 1fr;
+        justify-items: end;
+        align-items: center;
+        /* Clipped while closed/animating so the frozen block is revealed rather
+           than spilling; opened up to `visible` once settled (below) so plugin
+           flyouts can escape. */
+        overflow: hidden;
+        /* Gap sits on the toggle side (inline-end); it collapses with the group
+           so the toggle butts against the nav divider when closed. */
+        margin-inline-end: var(--ui-gap, 0.375rem);
+        transition-property: max-width, opacity, margin-inline-end;
+        transition-duration: 0.2s;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* Resting closed state (JS clears its inline max-width so this applies). */
+    .toolbar-shell.inline-closed {
+        max-width: 0;
+        opacity: 0;
+        margin-inline-end: 0;
+        pointer-events: none;
+    }
+    /* Settled = open and the transition has finished: release the clip and let
+       flyouts escape the bar. (Wrapping is re-enabled in parallel on the list.) */
+    .toolbar-shell.inline.settled {
+        overflow: visible;
+        max-width: none;
+    }
+    /* The persistent toggle matches the action buttons' icon-button look.
+       `.toolbar-root` sets `pointer-events: none` (so the floating overlay never
+       blocks the canvas); as a direct child of the root, the toggle must opt
+       back in — the shell does the same for the action buttons. */
+    .inline-toggle {
+        flex-shrink: 0;
+        pointer-events: auto;
     }
     .actions.inline {
         flex-direction: row;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        /* min-width:0 lets the closed 0fr grid track resolve to zero width
+           (overriding the grid item's automatic min-content minimum) so the
+           group truly collapses. */
+        min-width: 0;
         /* Allowed to wrap; balanceInlineRows() caps the width so the wrap
            splits evenly instead of flexbox's greedy first-row fill. row-gap
            matches the column gap so stacked icon rows sit evenly. */
@@ -805,6 +970,12 @@
         box-shadow: none;
         backdrop-filter: none;
         border-radius: 0;
+    }
+    /* While collapsed, force a single row: the shrinking track would otherwise
+       reflow the icons into a tall vertical column (ballooning the bar). Open,
+       the row wraps normally so the balancer can split it across rows. */
+    .actions.inline.collapsed {
+        flex-wrap: nowrap;
     }
     .actions.inline :where(li) {
         padding-bottom: 0;
@@ -1042,26 +1213,6 @@
         white-space: nowrap;
     }
 
-    /* Unread-annotations dot: anchored to the icon corner via translate
-       (rather than a fixed inset from the button edge) so its position is
-       independent of the button's padding, which is zeroed in inline mode —
-       otherwise it lands in a different spot relative to the icon there. It
-       only pulls the dot in by 35%, not .indicator-item's 50%, so it still
-       stays inside the button's own box and never overhangs the toolbar's
-       rounded edge on edge-of-rail buttons. */
-    .annotation-dot {
-        position: absolute;
-        top: 0;
-        right: 0;
-        translate: 35% -35%;
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 50%;
-        background-color: var(--color-primary);
-        border: var(--border) solid var(--toolbar-bg);
-        z-index: 1;
-    }
-
     /* count badge inside indicators (badge badge-primary badge-sm min-w-5 px-1) */
     .count-badge {
         --size: calc(var(--size-selector, 0.25rem) * 5);
@@ -1267,14 +1418,37 @@
         opacity: 0;
         pointer-events: none;
     }
-    .handle.top {
-        top: var(--ui-inset, 0.375rem);
-    }
+    /* The open button reads as a flush tab on the viewer edge it is anchored
+       to: pin flush to that edge and drop the border touching it (so it doesn't
+       double up with the viewer's own border). A single corner is rounded —
+       always a bottom corner, on the side facing the canvas: bottom-right when
+       anchored left, bottom-left when anchored right. Top and Sides share this
+       treatment. */
     .handle.start {
         left: var(--ui-inset, 0.375rem);
+        border-start-start-radius: 0;
+        border-start-end-radius: 0;
+        border-end-start-radius: 0;
+        border-end-end-radius: var(--radius-buttons);
     }
     .handle.end {
         right: var(--ui-inset, 0.375rem);
+        border-start-start-radius: 0;
+        border-start-end-radius: 0;
+        border-end-end-radius: 0;
+        border-end-start-radius: var(--radius-buttons);
+    }
+    .handle.top {
+        top: 0;
+        border-top-width: 0;
+    }
+    .handle.start:not(.top) {
+        left: 0;
+        border-left-width: 0;
+    }
+    .handle.end:not(.top) {
+        right: 0;
+        border-right-width: 0;
     }
     .handle :global(svg) {
         width: var(--ui-icon, 20px);
@@ -1363,6 +1537,53 @@
         transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem))
             rotate(180deg);
         inset: var(--tt-tail) auto auto 50%;
+    }
+    /* Edge correction: the outermost button of a top-anchored toolbar sits in
+       the viewer corner, so its centered bottom-tooltip bubble would overflow
+       the viewer border. Anchor just that bubble to the button's outer edge
+       (the tail keeps pointing at the button center). */
+    .actions.top-left > li:first-child .tooltip.bottom::before {
+        transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
+        inset: var(--tt-off) auto auto 0;
+    }
+    .actions.top-right > li:first-child .tooltip.bottom::before {
+        transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
+        inset: var(--tt-off) 0 auto auto;
+    }
+    /* Same correction for the Unified Bar: when the nav is aligned to the
+       inline-start screen edge, the toolbar buttons are the leading group, so
+       the first button hugs the edge and its centered tooltip would overflow.
+       Anchor that bubble to the button's start edge (top/bottom per nav edge). */
+    :global([data-nav-align='start'])
+        .actions.inline
+        > li:first-child
+        .tooltip.top::before {
+        transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
+        inset: auto auto var(--tt-off) 0;
+    }
+    :global([data-nav-align='start'])
+        .actions.inline
+        > li:first-child
+        .tooltip.bottom::before {
+        transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
+        inset: var(--tt-off) auto auto 0;
+    }
+    /* Keep the tail attached to the re-anchored bubble: pin it just inboard of
+       the button's start edge (under the bubble body) instead of the default
+       button-center, which would leave it detached from the shifted bubble. */
+    :global([data-nav-align='start'])
+        .actions.inline
+        > li:first-child
+        .tooltip.top::after {
+        transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
+        inset: auto auto var(--tt-tail) 0.5rem;
+    }
+    :global([data-nav-align='start'])
+        .actions.inline
+        > li:first-child
+        .tooltip.bottom::after {
+        transform: translateX(0) translateY(var(--tt-pos, -0.25rem)) rotate(180deg);
+        inset: var(--tt-tail) auto auto 0.5rem;
     }
     .tooltip.left::before {
         transform: translateX(calc(var(--tt-pos, 0.25rem) - 0.25rem))

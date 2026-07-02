@@ -178,7 +178,7 @@ export class ViewerState {
     }
 
     get galleryFixedHeight() {
-        return this.config.gallery?.fixedHeight ?? 120;
+        return this.config.gallery?.fixedHeight ?? 75;
     }
 
     // Dedicated reactive state for viewingMode to ensure proper reactivity

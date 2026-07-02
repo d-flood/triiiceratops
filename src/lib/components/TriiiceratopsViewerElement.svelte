@@ -68,7 +68,7 @@
         canvasId?: string;
         plugins?: PluginDef[];
         /**
-         * Built-in theme name (e.g., 'light', 'dark', 'cupcake').
+         * Built-in theme name (e.g., 'light', 'dark', 'Teal').
          * When not specified, inherits the theme from the parent context.
          */
         theme?: string;
@@ -151,7 +151,9 @@
                     },
                 );
 
-                return parsed && typeof parsed === 'object' ? parsed : undefined;
+                return parsed && typeof parsed === 'object'
+                    ? parsed
+                    : undefined;
             }
             return manifestJson;
         },

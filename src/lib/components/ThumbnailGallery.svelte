@@ -1,8 +1,6 @@
 <script lang="ts">
     import { getContext } from 'svelte';
-    import X from 'phosphor-svelte/lib/X';
     import Stack from 'phosphor-svelte/lib/Stack';
-    import { Button } from './ui';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
@@ -58,9 +56,6 @@
 
     // Config shorthands
     let draggable = $derived(viewerState.config.gallery?.draggable ?? true);
-    let showCloseButton = $derived(
-        viewerState.config.gallery?.showCloseButton ?? true,
-    );
 
     let { canvases } = $props<{ canvases?: ManifestCanvas[] }>();
 
@@ -462,20 +457,6 @@
             ? ''
             : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}
     >
-        <!-- Close Button (show when enabled in config, regardless of dock state) -->
-        {#if showCloseButton}
-            <Button
-                variant="error"
-                size="xs"
-                circle
-                class="gallery-close"
-                onclick={() => viewerState.toggleThumbnailGallery()}
-                aria-label="Close Gallery"
-            >
-                <X size={16} />
-            </Button>
-        {/if}
-
         <!-- Header Area (only show drag handle when draggable OR when floating) -->
         {#if draggable || dockSide === 'none'}
             <div
@@ -870,14 +851,6 @@
     .gallery-root.dragging {
         pointer-events: none;
         opacity: 0.8;
-    }
-
-    /* ===== Close button (positioning passed through to <Button>) ===== */
-    .gallery-root :global(.gallery-close) {
-        position: absolute;
-        top: 0.25rem;
-        right: 0.25rem;
-        z-index: 20;
     }
 
     /* ===== Header / drag handle ===== */
