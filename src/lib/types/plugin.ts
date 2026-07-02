@@ -8,11 +8,21 @@ declare global {
 }
 
 /**
+ * Where a plugin renders its UI.
+ * - `panel`: a docked side/bottom/overlay region (the default).
+ * - `flyout`: a compact popover that grows out of the plugin's toolbar button.
+ */
+export type PluginUiTarget = 'panel' | 'flyout';
+
+/**
  * Menu button configuration for plugin UI injection.
  */
 export interface PluginMenuButton {
     /** Unique identifier (convention: `pluginId:buttonName`) */
     id: string;
+
+    /** Owning plugin identifier */
+    pluginId?: string;
 
     /** Phosphor icon component */
     icon: Component<any>;
@@ -34,6 +44,13 @@ export interface PluginMenuButton {
 
     /** Sort order - lower numbers appear first (default: 100) */
     order?: number;
+
+    /**
+     * When set, this button toggles a flyout popover rather than a panel. The
+     * value is the DOM id of the flyout element (used as `popovertarget` and to
+     * derive the CSS `anchor-name`). The toolbar renders the anchored flyout.
+     */
+    flyoutDomId?: string;
 }
 
 /**
@@ -66,6 +83,33 @@ export interface PluginPanel {
 }
 
 /**
+ * Flyout configuration for plugin UI injection. A flyout is a compact popover
+ * anchored to the plugin's toolbar button (see `PluginUiTarget`).
+ */
+export interface PluginFlyout {
+    /** Unique identifier (convention: `pluginId:flyout`) */
+    id: string;
+
+    /** Stable DOM id used for `popovertarget` and the CSS `anchor-name` */
+    domId: string;
+
+    /** Owning plugin identifier */
+    pluginId: string;
+
+    /** Plugin display name */
+    name: string;
+
+    /** Plugin toolbar icon component */
+    icon: Component<any>;
+
+    /** Svelte component to render inside the flyout */
+    component: Component<any>;
+
+    /** Props passed to the component */
+    props?: Record<string, unknown>;
+}
+
+/**
  * Simplified definition for a plugin.
  * This allows plugins to be defined as simple objects with a component and icon.
  */
@@ -79,13 +123,19 @@ export interface PluginDef {
     /** Icon component */
     icon: Component<any>;
 
-    /** Panel component */
-    panel: Component<any>;
+    /** Where the plugin renders its UI (default: 'panel') */
+    target?: PluginUiTarget;
 
-    /** Preferred position (default: 'left') */
+    /** Panel component (rendered when `target` is 'panel') */
+    panel?: Component<any>;
+
+    /** Flyout component (rendered when `target` is 'flyout') */
+    flyout?: Component<any>;
+
+    /** Preferred panel position (default: 'left'; ignored for flyouts) */
     position?: 'left' | 'right' | 'bottom' | 'overlay';
 
-    /** Props to pass to the panel component */
+    /** Props to pass to the panel/flyout component */
     props?: Record<string, unknown>;
 
     /**
@@ -101,7 +151,11 @@ export function definePlugin<T extends PluginDef>(plugin: T): T {
 }
 
 export function createPanelPlugin(plugin: PluginDef): PluginDef {
-    return definePlugin(plugin);
+    return definePlugin({ ...plugin, target: plugin.target ?? 'panel' });
+}
+
+export function createFlyoutPlugin(plugin: PluginDef): PluginDef {
+    return definePlugin({ ...plugin, target: 'flyout' });
 }
 
 export function registerIifePlugin(name: string, plugin: PluginDef): void {

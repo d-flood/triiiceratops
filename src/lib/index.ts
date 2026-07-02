@@ -15,7 +15,18 @@ export type {
 } from './types/config';
 
 // Plugin system exports
-export type { PluginDef, PluginMenuButton, PluginPanel } from './types/plugin';
+export type {
+    PluginDef,
+    PluginMenuButton,
+    PluginPanel,
+    PluginFlyout,
+    PluginUiTarget,
+} from './types/plugin';
+export {
+    definePlugin,
+    createPanelPlugin,
+    createFlyoutPlugin,
+} from './types/plugin';
 
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';
@@ -24,8 +35,8 @@ export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 
 // Theme customization exports
-export type { ThemeConfig, DaisyUITheme } from './theme/types';
-export { DAISYUI_THEMES } from './theme/types';
+export type { ThemeConfig, BuiltInTheme } from './theme/types';
+export { BUILTIN_THEMES } from './theme/types';
 export {
     applyTheme,
     applyBuiltInTheme,

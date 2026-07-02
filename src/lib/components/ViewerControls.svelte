@@ -18,8 +18,14 @@
         type ChoiceGroup,
     } from './viewerControls';
     import CanvasInfoPopover from './CanvasInfoPopover.svelte';
+    import Toolbar from './Toolbar.svelte';
+    import { Button, Select } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+
+    // `unified` controls: the toolbar buttons are embedded at the start of this
+    // control bar instead of floating separately.
+    const isUnified = $derived(viewerState.config.controls === 'unified');
     let viewerLocale = $derived(
         (viewerState.config as { locale?: string }).locale || language.current,
     );
@@ -113,16 +119,44 @@
 
     let LeftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
     let RightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
+
+    // Track whether the unified bar has broken into multiple rows so the
+    // toolbar↔nav divider can be hidden — a vertical separator reads as noise
+    // once the two groups are stacked rather than side by side. CSS can't
+    // detect a flex-wrap break, so we watch the bar's size and compare the two
+    // groups' offset tops: on a shared row they align to the same row box, so
+    // any difference means the nav-cluster has dropped to its own row.
+    let barEl: HTMLDivElement | undefined = $state();
+    let toolbarEl: HTMLDivElement | undefined = $state();
+    let navEl: HTMLDivElement | undefined = $state();
+    let barWrapped = $state(false);
+
+    $effect(() => {
+        if (!isUnified || !barEl || !toolbarEl || !navEl) {
+            barWrapped = false;
+            return;
+        }
+        const bar = barEl;
+        const toolbar = toolbarEl;
+        const nav = navEl;
+        const update = () => {
+            barWrapped = nav.offsetTop > toolbar.offsetTop;
+        };
+        const ro = new ResizeObserver(update);
+        ro.observe(bar);
+        update();
+        return () => ro.disconnect();
+    });
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
-    <div class="flex items-center gap-1">
-        <div class="px-1 text-xs font-bold opacity-50 flex items-center">
+    <div class="choice-controls">
+        <div class="choice-stack">
             <Stack size={14} />
         </div>
 
         {#if group.choices.length <= 4}
-            <div class="join hidden sm:flex">
+            <div class="join join-desktop">
                 {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                     {@const id = choice.id || choice['@id']}
                     {@const label = getChoiceLabel(choice, i)}
@@ -134,46 +168,53 @@
                     {@const isSelected = group.selectedChoiceId
                         ? group.selectedChoiceId === id
                         : i === 0}
-                    <button
-                        class="join-item btn btn-xs {isSelected
-                            ? 'btn-primary'
-                            : 'btn-ghost'}"
+                    <Button
+                        class="join-item"
+                        size="xs"
+                        variant={isSelected ? 'primary' : 'default'}
+                        ghost={!isSelected}
                         onclick={() => selectChoice(group.canvasId, choice)}
                         aria-pressed={isSelected}
                         aria-label={label}
                         title={abbreviated ? label : undefined}
                     >
                         {displayLabel}
-                    </button>
+                    </Button>
                 {/each}
             </div>
         {:else}
-            <select
-                class="select select-bordered select-xs rounded-full max-w-xs hidden sm:flex"
-                onchange={(e) => {
-                    const idx = e.currentTarget.selectedIndex;
-                    if (idx >= 0)
-                        selectChoice(group.canvasId, group.choices[idx]);
-                }}
-            >
-                {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
-                    {@const id = choice.id || choice['@id']}
-                    {@const displayLabel = getChoiceDisplayLabel(
-                        choice,
-                        i,
-                        abbreviated,
-                    )}
-                    {@const isSelected = group.selectedChoiceId
-                        ? group.selectedChoiceId === id
-                        : i === 0}
-                    <option value={id} selected={isSelected}>
-                        {displayLabel}
-                    </option>
-                {/each}
-            </select>
+            {@const selectedValue =
+                group.selectedChoiceId ??
+                group.choices[0]?.id ??
+                group.choices[0]?.['@id']}
+            <div class="choice-select-wrap">
+                <Select
+                    size="xs"
+                    value={selectedValue}
+                    style="border-radius:var(--radius-controls-buttons);max-width:20rem"
+                    onchange={(e: Event) => {
+                        const idx = (e.currentTarget as HTMLSelectElement)
+                            .selectedIndex;
+                        if (idx >= 0)
+                            selectChoice(group.canvasId, group.choices[idx]);
+                    }}
+                >
+                    {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
+                        {@const id = choice.id || choice['@id']}
+                        {@const displayLabel = getChoiceDisplayLabel(
+                            choice,
+                            i,
+                            abbreviated,
+                        )}
+                        <option value={id}>
+                            {displayLabel}
+                        </option>
+                    {/each}
+                </Select>
+            </div>
         {/if}
 
-        <div class="join sm:hidden">
+        <div class="join join-mobile">
             {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
                 {@const id = choice.id || choice['@id']}
                 {@const label = getChoiceLabel(choice, i)}
@@ -185,10 +226,12 @@
                 {@const isSelected = group.selectedChoiceId
                     ? group.selectedChoiceId === id
                     : i === 0}
-                <button
-                    class="join-item btn btn-xs {isSelected
-                        ? 'btn-primary'
-                        : 'btn-ghost'} min-w-8"
+                <Button
+                    class="join-item"
+                    size="xs"
+                    variant={isSelected ? 'primary' : 'default'}
+                    ghost={!isSelected}
+                    style="min-width:2rem"
                     onclick={() => selectChoice(group.canvasId, choice)}
                     aria-pressed={isSelected}
                     aria-label={isSelected
@@ -203,19 +246,34 @@
                     {:else}
                         {i + 1}
                     {/if}
-                </button>
+                </Button>
             {/each}
         </div>
     </div>
 {/snippet}
 
-{#if showNav || showZoom || hasChoices}
+{#if showNav || showZoom || hasChoices || isUnified}
     <div
-        class={[
-            'select-none absolute left-1/2 -translate-x-1/2 bg-base-200/70 backdrop-blur rounded-full shadow-lg flex items-center gap-2 border border-base-300 transition-all duration-200 bottom-4 px-2',
-            viewerState.showCanvasInfo ? 'z-[1000]' : 'z-10',
-        ]}
+        class="control-bar"
+        class:elevated={viewerState.showCanvasInfo}
+        class:wrapped={barWrapped}
+        bind:this={barEl}
     >
+        {#if isUnified}
+            <div class="toolbar-in-bar" bind:this={toolbarEl}>
+                <Toolbar inline />
+            </div>
+            {#if (hasChoices || hasCenterControls) && !barWrapped}
+                <div class="divider-v group-divider"></div>
+            {/if}
+        {/if}
+
+        {#if hasChoices || hasCenterControls}
+        <!-- The canvas nav/zoom/choices are kept together as one no-wrap group:
+             the bar's first break separates this cluster from the toolbar
+             buttons (see .control-bar / .nav-cluster), and this cluster itself
+             never breaks internally. -->
+        <div class="nav-cluster" bind:this={navEl}>
         {#if leftChoiceGroup}
             {@render choiceControls(
                 leftChoiceGroup,
@@ -224,39 +282,45 @@
         {/if}
 
         {#if leftChoiceGroup && (hasCenterControls || rightChoiceGroup)}
-            <div class="h-4 w-px bg-base-content/20"></div>
+            <div class="divider-v"></div>
         {/if}
 
         {#if hasCenterControls}
-            <div class="flex items-center gap-2">
+            <div class="center-controls">
                 {#if showZoom}
-                    <div class="flex items-center gap-1">
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                    <div class="btn-row">
+                        <Button
+                            square
+                            size="sm"
+                            ghost
                             onclick={() => viewerState.zoomOut()}
                             aria-label="Zoom Out"
                         >
                             <MagnifyingGlassMinus size={18} />
-                        </button>
+                        </Button>
 
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                        <Button
+                            square
+                            size="sm"
+                            ghost
                             onclick={() => viewerState.zoomIn()}
                             aria-label="Zoom In"
                         >
                             <MagnifyingGlassPlus size={18} />
-                        </button>
+                        </Button>
                     </div>
                 {/if}
 
                 {#if showZoom && showNav}
-                    <div class="h-4 w-px bg-base-content/20"></div>
+                    <div class="divider-v"></div>
                 {/if}
 
                 {#if showNav}
-                    <div class="flex items-center gap-1">
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                    <div class="btn-row">
+                        <Button
+                            square
+                            size="sm"
+                            ghost
                             disabled={canvasNavLayout.leftButton === 'previous'
                                 ? !viewerState.hasPrevious
                                 : !viewerState.hasNext}
@@ -270,19 +334,19 @@
                                 : m.next_canvas()}
                         >
                             <LeftNavIcon size={18} />
-                        </button>
+                        </Button>
 
-                        <span
-                            class="text-sm font-mono tabular-nums text-nowrap px-1"
-                        >
+                        <span class="nav-index">
                             {viewerState.currentCanvasIndex + 1} / {viewerState
                                 .canvases.length}
                         </span>
 
                         <CanvasInfoPopover />
 
-                        <button
-                            class="btn btn-circle btn-sm btn-ghost"
+                        <Button
+                            square
+                            size="sm"
+                            ghost
                             disabled={canvasNavLayout.rightButton === 'next'
                                 ? !viewerState.hasNext
                                 : !viewerState.hasPrevious}
@@ -295,14 +359,14 @@
                                 : m.previous_canvas()}
                         >
                             <RightNavIcon size={18} />
-                        </button>
+                        </Button>
                     </div>
                 {/if}
             </div>
         {/if}
 
         {#if rightChoiceGroup && (hasCenterControls || leftChoiceGroup)}
-            <div class="h-4 w-px bg-base-content/20"></div>
+            <div class="divider-v"></div>
         {/if}
 
         {#if rightChoiceGroup}
@@ -311,5 +375,253 @@
                 useAbbreviatedChoiceLabels,
             )}
         {/if}
+        </div>
+        {/if}
     </div>
 {/if}
+
+<style>
+    .control-bar {
+        user-select: none;
+        position: absolute;
+        /* Alignment along the edge is set per data-nav-align below; center is default.
+           Center via auto margins with left/right anchored to both edges rather
+           than the `left:50% + translateX(-50%)` trick — the latter caps the
+           box's available width at 50% of the container (the distance from the
+           50% mark to the right edge), which forces the unified bar to
+           wrap/shrink once its content exceeds half the viewport. Spanning both
+           edges lets it grow to nearly the full width (minus the chrome inset on
+           each side) before it's constrained. */
+        left: var(--ui-nav-inset, 0);
+        right: var(--ui-nav-inset, 0);
+        width: fit-content;
+        max-width: calc(100% - 2 * var(--ui-nav-inset, 0));
+        margin-inline: auto;
+        /* Anchored to whichever edge data-nav-edge selects (bottom by default). */
+        bottom: var(--ui-nav-inset, 0);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Allow the bar to break: the toolbar-button group and the nav-cluster
+           are the two flex items, so when combined they exceed the available
+           width the (later) nav-cluster drops to its own row first. Row-gap
+           matches the inline gap so stacked rows sit evenly. */
+        flex-wrap: wrap;
+        gap: var(--ui-gap, 0.5rem);
+        padding-inline: var(--ui-chrome-pad, 0.5rem);
+        /* Vertically centre the stacked rows (a no-op on a single row). */
+        align-content: center;
+        color: var(--toolbar-content);
+        border-radius: var(--radius-controls);
+        border: 1px solid var(--surface-border);
+        box-shadow: var(--ui-nav-shadow, none);
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.2s;
+    }
+    /* Glass on a ::before layer so `.control-bar` doesn't establish a
+       backdrop-filter isolation root — this lets popovers anchored to the
+       unified-bar buttons run their own backdrop-filter against the image.
+       `.control-bar` has z-index/position (a stacking context), so the pseudo
+       sits behind the bar's content but above the canvas. */
+    .control-bar::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        /* Inset by the 1px border (inset:0 resolves to the padding box), so the
+           radius must shrink by that same amount to stay concentric with the
+           outer border — using the parent's radius as-is leaves a gap at the
+           corners where the border's background peeks through. */
+        border-radius: calc(var(--radius-controls) - var(--border, 1px));
+        background-color: color-mix(
+            in oklab,
+            var(--toolbar-bg) 70%,
+            transparent
+        );
+        backdrop-filter: blur(8px);
+    }
+    .control-bar.elevated {
+        z-index: 1000;
+    }
+    /* Once broken into rows, give the stacked content equal breathing room top
+       and bottom — on a single row the pill hugs the controls (no block
+       padding), which reads as uneven spacing once a second row appears. */
+    .control-bar.wrapped {
+        padding-block: var(--ui-chrome-pad, 0.5rem);
+    }
+
+    /* nav-edge=top — anchor the bar to the top edge instead of the bottom. */
+    :global([data-nav-edge='top']) .control-bar {
+        top: var(--ui-nav-inset, 0);
+        bottom: auto;
+    }
+
+    /* nav-style=docked — the bar sits flush to its edge: the two corners on that
+       edge are squared and its border on that edge is dropped. */
+    :global([data-nav-style='docked'][data-nav-edge='bottom']) .control-bar,
+    :global([data-nav-style='docked'][data-nav-edge='bottom'])
+        .control-bar::before {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-edge='bottom']) .control-bar {
+        border-bottom: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar,
+    :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar::before {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar {
+        border-top: 0;
+    }
+
+    /* nav-align — placement of the control bar along its edge (offset honours the
+       floating inset; 0 when docked). start/end are logical (LTR: left/right). */
+    :global([data-nav-align='start']) .control-bar {
+        inset-inline-start: var(--ui-nav-inset, 0);
+        inset-inline-end: auto;
+        transform: none;
+        margin-inline: 0;
+    }
+    :global([data-nav-align='end']) .control-bar {
+        inset-inline-start: auto;
+        inset-inline-end: var(--ui-nav-inset, 0);
+        transform: none;
+        margin-inline: 0;
+    }
+    /* When docked into a corner, square the other corner on the touching side and
+       drop that side's border too (the edge itself is already handled above). */
+    :global([data-nav-style='docked'][data-nav-align='start']) .control-bar {
+        border-start-start-radius: 0;
+        border-end-start-radius: 0;
+        border-inline-start: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-align='end']) .control-bar {
+        border-start-end-radius: 0;
+        border-end-end-radius: 0;
+        border-inline-end: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-align='start'])
+        .control-bar::before {
+        border-start-start-radius: 0;
+        border-end-start-radius: 0;
+    }
+    :global([data-nav-style='docked'][data-nav-align='end']) .control-bar::before {
+        border-start-end-radius: 0;
+        border-end-end-radius: 0;
+    }
+
+    /* Unified — the toolbar buttons sit at the start of the control bar,
+       separated from the canvas nav/zoom by a divider. */
+    .toolbar-in-bar {
+        display: inline-flex;
+        align-items: center;
+    }
+    /* The nav/zoom/choices group: stays on a single line (never breaks
+       internally) so the only break here is between it and the toolbar
+       buttons. */
+    .nav-cluster {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: var(--ui-gap, 0.5rem);
+    }
+
+    .choice-controls {
+        display: flex;
+        align-items: center;
+        gap: var(--ui-gap, 0.25rem);
+    }
+    .choice-stack {
+        display: flex;
+        align-items: center;
+        padding-inline: 0.25rem;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 700;
+        opacity: 0.5;
+    }
+
+    .center-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-row {
+        display: flex;
+        align-items: center;
+        gap: var(--ui-gap, 0.25rem);
+    }
+    /* The pill's zoom/nav buttons inherit the controls-button radius (defaults to the
+       field radius) rather than being forced circles. Scoped to .btn-row so the choice
+       .join-item buttons keep their own join radii. */
+    .control-bar .btn-row :global(.btn) {
+        border-start-start-radius: var(--radius-controls-buttons);
+        border-start-end-radius: var(--radius-controls-buttons);
+        border-end-end-radius: var(--radius-controls-buttons);
+        border-end-start-radius: var(--radius-controls-buttons);
+    }
+
+    .divider-v {
+        height: 1rem;
+        width: 1px;
+        background-color: color-mix(
+            in oklab,
+            var(--toolbar-content) 20%,
+            transparent
+        );
+    }
+
+    .nav-index {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-family:
+            ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            'Liberation Mono', 'Courier New', monospace;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        padding-inline: 0.25rem;
+    }
+
+    /* join group (radii handled by the join-aware primitives) */
+    .join {
+        display: inline-flex;
+        align-items: stretch;
+        --join-ss: 0;
+        --join-se: 0;
+        --join-es: 0;
+        --join-ee: 0;
+    }
+    .join > :global(.join-item:first-child) {
+        --join-ss: var(--radius-buttons);
+        --join-es: var(--radius-buttons);
+    }
+    .join > :global(.join-item:last-child) {
+        --join-se: var(--radius-buttons);
+        --join-ee: var(--radius-buttons);
+    }
+    .join > :global(.join-item:not(:first-child)) {
+        margin-inline-start: calc(var(--border, 1px) * -1);
+    }
+
+    .join-desktop {
+        display: none;
+    }
+    .choice-select-wrap {
+        display: none;
+    }
+    @media (width >= 640px) {
+        .join-desktop {
+            display: inline-flex;
+        }
+        .choice-select-wrap {
+            display: flex;
+        }
+        .join-mobile {
+            display: none;
+        }
+    }
+</style>

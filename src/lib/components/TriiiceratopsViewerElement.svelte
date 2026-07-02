@@ -46,7 +46,7 @@
     import styles from '../../app.css?inline';
     import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
     import type { PluginDef } from '../types/plugin';
-    import type { DaisyUITheme, ThemeConfig } from '../theme/types';
+    import type { BuiltInTheme, ThemeConfig } from '../theme/types';
     import type { ViewerConfig } from '../types/config';
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -68,7 +68,7 @@
         canvasId?: string;
         plugins?: PluginDef[];
         /**
-         * Built-in DaisyUI theme name (e.g., 'light', 'dark', 'cupcake').
+         * Built-in theme name (e.g., 'light', 'dark', 'Teal').
          * When not specified, inherits the theme from the parent context.
          */
         theme?: string;
@@ -103,8 +103,8 @@
         }
     });
 
-    // Validate and convert theme string to DaisyUITheme type
-    let validatedTheme = $derived.by((): DaisyUITheme | undefined => {
+    // Validate and convert theme string to BuiltInTheme type
+    let validatedTheme = $derived.by((): BuiltInTheme | undefined => {
         if (!theme) return undefined;
         if (isBuiltInTheme(theme)) return theme;
         console.warn(`Invalid theme "${theme}". Using inherited theme.`);
@@ -151,7 +151,9 @@
                     },
                 );
 
-                return parsed && typeof parsed === 'object' ? parsed : undefined;
+                return parsed && typeof parsed === 'object'
+                    ? parsed
+                    : undefined;
             }
             return manifestJson;
         },
@@ -175,7 +177,7 @@
 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
 {@html `<style>${styles}</style>`}
 
-<div bind:this={hostElement} class="w-full h-full">
+<div bind:this={hostElement} class="te-root">
     <TriiiceratopsViewer
         {manifestId}
         manifestJson={parsedManifestJson}
@@ -188,3 +190,10 @@
         bind:viewerState={internalViewerState}
     />
 </div>
+
+<style>
+    .te-root {
+        width: 100%;
+        height: 100%;
+    }
+</style>

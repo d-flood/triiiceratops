@@ -1,6 +1,5 @@
 import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 // https://vite.dev/config/
@@ -11,16 +10,15 @@ export default defineConfig({
             outdir: './src/lib/paraglide',
         }),
         svelte({
-            // Ensure custom elements compile when these files are included (tests/dev)
-            // @ts-expect-error - plugin supports a function signature with `url`
-            compilerOptions: (url: string) => {
-                const isCustomElement = url.includes(
-                    'TriiiceratopsViewerElement.svelte',
-                );
-                return { customElement: isCustomElement };
-            },
+            // Keep scoped component CSS in the JS bundle (injected at runtime via
+            // Svelte's append_styles → getRootNode()) so it reaches the
+            // <triiiceratops-viewer> shadow root in dev/e2e. A per-file
+            // compilerOptions *function* silently disables emitCss:false, so use a
+            // static object; `customElement: true` only upgrades components that
+            // declare <svelte:options customElement>.
+            emitCss: false,
+            compilerOptions: { customElement: true },
         }),
-        tailwindcss(),
     ],
     resolve: process.env.VITEST
         ? {

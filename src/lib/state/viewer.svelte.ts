@@ -8,7 +8,12 @@ import type {
     ViewerConfig,
 } from '../types/config';
 
-import type { PluginMenuButton, PluginPanel, PluginDef } from '../types/plugin';
+import type {
+    PluginMenuButton,
+    PluginPanel,
+    PluginFlyout,
+    PluginDef,
+} from '../types/plugin';
 import { parseStructures, type StructureNode } from '../utils/structures';
 import {
     isCollection,
@@ -173,7 +178,7 @@ export class ViewerState {
     }
 
     get galleryFixedHeight() {
-        return this.config.gallery?.fixedHeight ?? 120;
+        return this.config.gallery?.fixedHeight ?? 75;
     }
 
     // Dedicated reactive state for viewingMode to ensure proper reactivity
@@ -557,7 +562,10 @@ export class ViewerState {
             return;
         }
 
-        if (this.canvasId && findCanvasIndexById(canvases, this.canvasId) >= 0) {
+        if (
+            this.canvasId &&
+            findCanvasIndexById(canvases, this.canvasId) >= 0
+        ) {
             return;
         }
 
@@ -1548,6 +1556,9 @@ export class ViewerState {
     /** Plugin-registered panels */
     pluginPanels: PluginPanel[] = $state([]);
 
+    /** Plugin-registered flyouts (compact popovers anchored to the toolbar button) */
+    pluginFlyouts: PluginFlyout[] = $state([]);
+
     /** OpenSeadragon viewer instance (set by OSDViewer) */
     osdViewer: any | null = $state.raw(null);
 
@@ -1615,6 +1626,25 @@ export class ViewerState {
         });
     }
 
+    /**
+     * Close every open plugin flyout. Used by the toolbar to light-dismiss
+     * flyouts on outside click / Escape. No-op (and no event) if none are open.
+     */
+    closePluginFlyouts(): void {
+        let changed = false;
+        for (const flyout of this.pluginFlyouts) {
+            const current = this.pluginUiState.get(flyout.pluginId);
+            if (current?.open) {
+                this.pluginUiState.set(flyout.pluginId, {
+                    ...current,
+                    open: false,
+                });
+                changed = true;
+            }
+        }
+        if (changed) this.dispatchStateChange();
+    }
+
     // ==================== PLUGIN METHODS ====================
 
     /**
@@ -1623,12 +1653,20 @@ export class ViewerState {
      */
     registerPlugin(def: PluginDef): void {
         const id = def.id || createPluginId();
+        const target = def.target ?? 'panel';
+        // The content component may be supplied under either field; resolve by
+        // target, falling back to the other so a single component can serve both.
+        const content =
+            target === 'flyout'
+                ? (def.flyout ?? def.panel)
+                : (def.panel ?? def.flyout);
 
         this.ensurePluginUiState(id);
 
         // Register Menu Button
         const button: PluginMenuButton = {
             id: `${id}:toggle`,
+            pluginId: id,
             icon: def.icon,
             tooltip: def.name,
             onClick: () => {
@@ -1639,27 +1677,53 @@ export class ViewerState {
             order: 200, // Default order for simple plugins
         };
 
-        // Register Panel
-        const panel: PluginPanel = {
-            id: `${id}:panel`,
-            pluginId: id,
-            name: def.name,
-            icon: def.icon,
-            component: def.panel,
-            position: def.position || 'left',
-            isVisible: () => this.pluginUiState.get(id)?.open ?? false,
-            props: {
-                ...def.props,
-                // Pass closer to component
-                close: () => {
-                    this.setPluginOpen(id, false);
-                },
-            },
-        };
+        if (target === 'flyout') {
+            const domId = `tri-flyout-${id}`;
+            // The button toggles the flyout open/closed (default onClick already
+            // toggles); `flyoutDomId` tells the toolbar to render the anchored
+            // flyout and derive its CSS anchor-name.
+            button.flyoutDomId = domId;
 
-        // Add directly to lists
-        this.pluginMenuButtons = [...this.pluginMenuButtons, button];
-        this.pluginPanels = [...this.pluginPanels, panel];
+            const flyout: PluginFlyout = {
+                id: `${id}:flyout`,
+                domId,
+                pluginId: id,
+                name: def.name,
+                icon: def.icon,
+                component: content as PluginFlyout['component'],
+                props: {
+                    ...def.props,
+                    // Pass a closer to the component.
+                    close: () => {
+                        this.setPluginOpen(id, false);
+                    },
+                },
+            };
+
+            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+            this.pluginFlyouts = [...this.pluginFlyouts, flyout];
+        } else {
+            // Register Panel
+            const panel: PluginPanel = {
+                id: `${id}:panel`,
+                pluginId: id,
+                name: def.name,
+                icon: def.icon,
+                component: content as PluginPanel['component'],
+                position: def.position || 'left',
+                isVisible: () => this.pluginUiState.get(id)?.open ?? false,
+                props: {
+                    ...def.props,
+                    // Pass closer to component
+                    close: () => {
+                        this.setPluginOpen(id, false);
+                    },
+                },
+            };
+
+            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+            this.pluginPanels = [...this.pluginPanels, panel];
+        }
 
         // Execute lifecycle hook if present
         if (def.onInit) {
@@ -1680,6 +1744,9 @@ export class ViewerState {
         this.pluginPanels = this.pluginPanels.filter(
             (p) => !p.id.startsWith(`${pluginId}:`),
         );
+        this.pluginFlyouts = this.pluginFlyouts.filter(
+            (f) => !f.id.startsWith(`${pluginId}:`),
+        );
         this.pluginUiState.delete(pluginId);
     }
 
@@ -1699,6 +1766,7 @@ export class ViewerState {
     destroyAllPlugins(): void {
         this.pluginMenuButtons = [];
         this.pluginPanels = [];
+        this.pluginFlyouts = [];
         this.pluginUiState.clear();
     }
 }
