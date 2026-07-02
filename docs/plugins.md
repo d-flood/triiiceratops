@@ -980,26 +980,26 @@ Use Svelte's `getContext` to access the viewer's reactive state:
 
 The `viewerState` context provides access to:
 
-| Property               | Type                           | Description                              |
-| ---------------------- | ------------------------------ | ---------------------------------------- |
-| `manifestId`           | `string \| null`               | Current manifest URL                     |
-| `canvasId`             | `string \| null`               | Current canvas ID                        |
-| `currentCanvasIndex`   | `number`                       | Index of current canvas (-1 if none)     |
-| `canvases`             | `any[]`                        | Array of canvas objects from manifest    |
-| `viewingMode`          | `'individuals' \| 'paged' \| 'continuous'` | Current canvas viewing mode  |
-| `viewingDirection`     | `'left-to-right' \| 'right-to-left' \| 'top-to-bottom' \| 'bottom-to-top'` | Current page/canvas order |
-| `pagedOffset`          | `number`                       | Grouping offset used in `paged` mode     |
-| `osdViewer`            | `OpenSeadragon.Viewer \| null` | OpenSeadragon instance                   |
-| `showAnnotations`      | `boolean`                      | Whether annotations are visible          |
-| `showThumbnailGallery` | `boolean`                      | Whether the thumbnail gallery is open    |
-| `showSearchPanel`      | `boolean`                      | Whether the search panel is open         |
-| `searchQuery`          | `string`                       | Current search query                     |
-| `searchResults`        | `any[]`                        | Array of search results                  |
-| `isSearching`          | `boolean`                      | Whether a search is in progress          |
-| `isFullScreen`         | `boolean`                      | Whether the viewer is in fullscreen mode |
-| `dockSide`             | `string`                       | Current dock side for gallery            |
-| `hasNext`              | `boolean`                      | Whether there is a next canvas           |
-| `hasPrevious`          | `boolean`                      | Whether there is a previous canvas       |
+| Property               | Type                                                                       | Description                              |
+| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| `manifestId`           | `string \| null`                                                           | Current manifest URL                     |
+| `canvasId`             | `string \| null`                                                           | Current canvas ID                        |
+| `currentCanvasIndex`   | `number`                                                                   | Index of current canvas (-1 if none)     |
+| `canvases`             | `any[]`                                                                    | Array of canvas objects from manifest    |
+| `viewingMode`          | `'individuals' \| 'paged' \| 'continuous'`                                 | Current canvas viewing mode              |
+| `viewingDirection`     | `'left-to-right' \| 'right-to-left' \| 'top-to-bottom' \| 'bottom-to-top'` | Current page/canvas order                |
+| `pagedOffset`          | `number`                                                                   | Grouping offset used in `paged` mode     |
+| `osdViewer`            | `OpenSeadragon.Viewer \| null`                                             | OpenSeadragon instance                   |
+| `showAnnotations`      | `boolean`                                                                  | Whether annotations are visible          |
+| `showThumbnailGallery` | `boolean`                                                                  | Whether the thumbnail gallery is open    |
+| `showSearchPanel`      | `boolean`                                                                  | Whether the search panel is open         |
+| `searchQuery`          | `string`                                                                   | Current search query                     |
+| `searchResults`        | `any[]`                                                                    | Array of search results                  |
+| `isSearching`          | `boolean`                                                                  | Whether a search is in progress          |
+| `isFullScreen`         | `boolean`                                                                  | Whether the viewer is in fullscreen mode |
+| `dockSide`             | `string`                                                                   | Current dock side for gallery            |
+| `hasNext`              | `boolean`                                                                  | Whether there is a next canvas           |
+| `hasPrevious`          | `boolean`                                                                  | Whether there is a previous canvas       |
 
 And methods:
 
@@ -1062,6 +1062,10 @@ And methods:
 | `triiiceratops/element`                         | Web component IIFE bundle               |
 | `triiiceratops/plugins/annotation-editor`       | Annotation editor plugin (ES module)    |
 | `triiiceratops/plugins/annotation-editor.iife`  | Annotation editor plugin (IIFE bundle)  |
+| `triiiceratops/plugins/image-download`          | Image download plugin (ES module)       |
+| `triiiceratops/plugins/image-download.iife`     | Image download plugin (IIFE bundle)     |
 | `triiiceratops/plugins/image-manipulation`      | Image manipulation plugin (ES module)   |
 | `triiiceratops/plugins/image-manipulation.iife` | Image manipulation plugin (IIFE bundle) |
+| `triiiceratops/plugins/pdf-export`              | PDF export plugin (ES module)           |
+| `triiiceratops/plugins/pdf-export.iife`         | PDF export plugin (IIFE bundle)         |
 | `triiiceratops/style.css`                       | Stylesheet (for Svelte component usage) |
