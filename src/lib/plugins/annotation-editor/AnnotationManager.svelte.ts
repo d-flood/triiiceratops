@@ -3,7 +3,7 @@ import type {
     W3CImageAnnotation,
 } from '@annotorious/openseadragon';
 import type { ImageAnnotation } from '@annotorious/annotorious';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import type {
     AnnotationEditorConfig,
@@ -51,6 +51,17 @@ export class AnnotationManager {
     private currentCanvasId: string | null = null;
     private persistedAnnotations = new SvelteMap<string, W3CAnnotation>();
     private activeEditingAnnotationId: string | null = null;
+
+    // Serializes adapter writes per annotation id so rapid saves of the same
+    // annotation can't interleave create/update (F4).
+    private saveQueue = new SvelteMap<string, Promise<void>>();
+    // Ids whose next Annotorious `updateAnnotation` echo we triggered ourselves
+    // and must not re-persist (F3). See withSuppressedEcho() for why this is an
+    // id set rather than a boolean flag.
+    private suppressedEchoIds = new SvelteSet<string>();
+    // Bumped on every loadAnnotations() entry; a stale async load discards its
+    // result if the token changed while it was awaiting (F14).
+    private loadSequence = 0;
 
     // Internal state tracking
     private isDrawingEnabled = false;
@@ -531,16 +542,12 @@ export class AnnotationManager {
     private setupEvents(): void {
         if (!this.annotorious) return;
 
-        this.annotorious.on('createAnnotation', async (annotation) => {
-            const prepared = this.prepareAnnotation(annotation);
-            this.onAnnotationCreated?.(prepared);
-            await this.saveAnnotation(annotation);
-            this.updateUndoRedoState();
+        this.annotorious.on('createAnnotation', (annotation) => {
+            void this.handleCreateAnnotation(annotation);
         });
 
-        this.annotorious.on('updateAnnotation', async (updated) => {
-            await this.saveAnnotation(updated);
-            this.updateUndoRedoState();
+        this.annotorious.on('updateAnnotation', (updated) => {
+            void this.handleUpdateAnnotation(updated);
         });
 
         this.annotorious.on('selectionChanged', (annotations) => {
@@ -686,6 +693,8 @@ export class AnnotationManager {
             return;
         }
 
+        const seq = ++this.loadSequence;
+
         try {
             this.clearAnnotoriousEditingAnnotation();
 
@@ -693,10 +702,16 @@ export class AnnotationManager {
                 this.currentManifestId,
                 this.currentCanvasId,
             );
+
+            // A newer load (e.g. a canvas change) started while we awaited —
+            // discard this stale result so it can't clobber the current canvas.
+            if (seq !== this.loadSequence) return;
+
             this.cachePersistedAnnotations(annotations);
 
             this.updateUndoRedoState();
         } catch (error) {
+            if (seq !== this.loadSequence) return;
             console.error(
                 '[AnnotationEditor] Failed to load annotations:',
                 error,
@@ -704,6 +719,35 @@ export class AnnotationManager {
         }
     }
 
+    /**
+     * Handles Annotorious's (async) `createAnnotation` lifecycle event. Persists
+     * exactly what the host's prepareDraft/prepareAnnotation produced — not the
+     * raw event payload — so draft enrichment survives create (F2).
+     */
+    private async handleCreateAnnotation(annotation: any): Promise<void> {
+        const prepared = this.prepareAnnotation(annotation);
+        this.onAnnotationCreated?.(prepared);
+        await this.persistCreate(prepared);
+        this.updateUndoRedoState();
+    }
+
+    /**
+     * Handles Annotorious's (async) `updateAnnotation` lifecycle event. Echoes
+     * we triggered ourselves (e.g. pushing edited bodies back into Annotorious)
+     * are consumed here so they don't double-persist (F3).
+     */
+    private async handleUpdateAnnotation(updated: any): Promise<void> {
+        if (this.consumeSuppressedEcho(updated?.id)) return;
+
+        await this.saveAnnotation(updated);
+        this.updateUndoRedoState();
+    }
+
+    /**
+     * Persist an annotation that arrived in **image space** (Annotorious event
+     * payloads, geometry edits). Transforms to canvas space, forces the target
+     * source, applies beforeSave, then persists.
+     */
     async saveAnnotation(annotation: any): Promise<void> {
         if (!this.currentManifestId || !this.currentCanvasId) return;
 
@@ -715,34 +759,100 @@ export class AnnotationManager {
             ),
         );
 
-        this.persistedAnnotations.set(w3cAnnotation.id, w3cAnnotation);
+        await this.persist(w3cAnnotation);
+    }
 
-        try {
-            const existing = await this.adapter.load(
-                this.currentManifestId,
-                this.currentCanvasId,
-            );
-            const exists = existing.some((a: any) => a.id === w3cAnnotation.id);
+    /**
+     * Persist a freshly created annotation that is already in **canvas space**
+     * (the output of prepareAnnotation). Skips the image→canvas re-transform;
+     * beforeSave still runs last.
+     */
+    private async persistCreate(prepared: W3CAnnotation): Promise<void> {
+        if (!this.currentManifestId || !this.currentCanvasId) return;
 
-            if (exists) {
-                await this.adapter.update(
-                    this.currentManifestId,
-                    this.currentCanvasId,
-                    w3cAnnotation,
-                );
-            } else {
-                await this.adapter.create(
-                    this.currentManifestId,
-                    this.currentCanvasId,
-                    w3cAnnotation,
+        const w3cAnnotation = await this.applyBeforeSave(prepared);
+        await this.persist(w3cAnnotation);
+    }
+
+    /**
+     * Single chokepoint for adapter writes. Decides create-vs-update from the
+     * in-memory cache (no per-save adapter.load round-trip — F4), serializes
+     * writes per annotation id (F4), and updates the cache only after the
+     * adapter call resolves. Rollback on failure lands in slice-08.
+     */
+    private async persist(w3cAnnotation: W3CAnnotation): Promise<void> {
+        if (!this.currentManifestId || !this.currentCanvasId) return;
+
+        const manifestId = this.currentManifestId;
+        const canvasId = this.currentCanvasId;
+        const id = w3cAnnotation.id;
+        const payload = this.stripInternalMarkers(w3cAnnotation);
+
+        const run = async () => {
+            const isUpdate = this.persistedAnnotations.has(id);
+            try {
+                if (isUpdate) {
+                    await this.adapter.update(manifestId, canvasId, payload);
+                } else {
+                    await this.adapter.create(manifestId, canvasId, payload);
+                }
+                this.persistedAnnotations.set(id, payload);
+            } catch (error) {
+                console.error(
+                    '[AnnotationEditor] Failed to save annotation:',
+                    error,
                 );
             }
-        } catch (error) {
-            console.error(
-                '[AnnotationEditor] Failed to save annotation:',
-                error,
-            );
+        };
+
+        const previous = this.saveQueue.get(id) ?? Promise.resolve();
+        // Chain regardless of whether the previous save resolved or rejected.
+        const next = previous.then(run, run);
+        this.saveQueue.set(id, next);
+        await next;
+        if (this.saveQueue.get(id) === next) {
+            this.saveQueue.delete(id);
         }
+    }
+
+    /**
+     * Strip plugin-internal bookkeeping markers so they never reach an adapter
+     * or the cache. Hydration state becomes fully manager-internal in slice-03.
+     */
+    private stripInternalMarkers(annotation: W3CAnnotation): W3CAnnotation {
+        if (
+            annotation.__fullBodyLoaded === undefined &&
+            annotation.__bodyPreview === undefined
+        ) {
+            return annotation;
+        }
+        const clone: any = { ...annotation };
+        delete clone.__fullBodyLoaded;
+        delete clone.__bodyPreview;
+        return clone as W3CAnnotation;
+    }
+
+    /**
+     * Run a store mutation whose resulting (asynchronous) Annotorious lifecycle
+     * echo for `annotationId` must not be re-persisted.
+     *
+     * NOTE: Annotorious v3 dispatches lifecycle events via `setTimeout(…, 1)`
+     * (verified in @annotorious/core@3.7.19), so a synchronous boolean guard as
+     * originally planned would already be reset by the time the echo fires. We
+     * mark the id and let the echo consume the mark instead. A body-change
+     * update emits exactly one echo, so one mark == one consumed echo.
+     */
+    private withSuppressedEcho(annotationId: string, mutate: () => void): void {
+        this.suppressedEchoIds.add(annotationId);
+        mutate();
+    }
+
+    private consumeSuppressedEcho(annotationId: string | undefined): boolean {
+        if (!annotationId || !this.suppressedEchoIds.has(annotationId)) {
+            return false;
+        }
+        this.suppressedEchoIds.delete(annotationId);
+        return true;
     }
 
     /**
@@ -837,6 +947,8 @@ export class AnnotationManager {
 
         this.onAnnotationHydrationChange?.(true);
 
+        const seq = this.loadSequence;
+
         try {
             const hydrated = await this.adapter.hydrate(
                 this.currentManifestId,
@@ -844,6 +956,10 @@ export class AnnotationManager {
                 annotationId,
             );
             if (!hydrated) return;
+
+            // Bail if a canvas change (which bumps loadSequence) happened while
+            // we were hydrating, or if the annotation is no longer being edited.
+            if (seq !== this.loadSequence) return;
 
             const current = this.annotorious.getAnnotations() ?? [];
             const stillPresent = current.some(
@@ -900,18 +1016,18 @@ export class AnnotationManager {
                 ...annotation,
                 body: bodies.length === 1 ? bodies[0] : bodies,
             };
+            // Persist exactly once (this updates the cache on success).
             await this.saveAnnotation(updated);
-            this.persistedAnnotations.set(
-                annotationId,
-                transformAnnotationToCanvasSpace(
-                    this.toPointSelectorTarget(
-                        this.forceTargetSource(updated),
-                    ),
-                    this.getCurrentCanvasImageDimensions(),
-                ),
-            );
-            // Cast to any to avoid type conflicts with Annotorious internals
-            this.annotorious?.updateAnnotation(updated as any);
+
+            // Push the edited bodies back into Annotorious so a subsequent
+            // geometry edit carries them, but suppress the resulting async
+            // updateAnnotation echo so it doesn't persist a second time (F3).
+            if (this.annotorious) {
+                this.withSuppressedEcho(annotationId, () => {
+                    // Cast to any to avoid type conflicts with Annotorious internals
+                    this.annotorious?.updateAnnotation(updated as any);
+                });
+            }
         }
     }
 

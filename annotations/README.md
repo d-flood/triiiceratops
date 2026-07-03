@@ -88,7 +88,7 @@ Statuses: `not started` · `in progress` · `done (date)` · `blocked: <reason>`
 | Slice | Phase | Title | Findings | Depends on | Status |
 |---|---|---|---|---|---|
 | [01](./slices/slice-01-target-source.md) | 1 | `target.source` correctness | F1, F26 | — | done (2026-07-03) |
-| [02](./slices/slice-02-persistence-flow.md) | 1 | Persistence flow: drafts, single save, race token | F2, F3, F4, F14 | 01 | not started |
+| [02](./slices/slice-02-persistence-flow.md) | 1 | Persistence flow: drafts, single save, race token | F2, F3, F4, F14 | 01 | done (2026-07-03) |
 | [03](./slices/slice-03-hydration-and-tools.md) | 1 | Internal hydration state + tool config | F7, F8, F19 | 02 | not started |
 | [04](./slices/slice-04-lifecycle-ux-cleanup.md) | 1 | Lifecycle & UX cleanup | F6, F9*, F11, F12, F13, F22, F24, F25, F27 | 02 | not started |
 | [05](./slices/slice-05-annotation-store.md) | 2 | Extract `AnnotationStore` (refactor) | — | 01–04 | not started |
@@ -132,3 +132,4 @@ _Append one row per completed (or halted) slice — newest last._
 | Date | Slice | Agent notes |
 |---|---|---|
 | 2026-07-03 | 01 | `forceTargetSource` always overwrites `target.source` with the current canvas id; dropped all `'unknown'` fallbacks; null-canvas guards in `handlePointClick`/`updateDrawingMode`. +3 regression tests. Full suite 320 pass, `check` clean. Pre-existing lint error in `ui/Select.svelte` left untouched. Manual localStorage inspection not done in headless run. |
+| 2026-07-03 | 02 | Persist prepared draft via `persistCreate` (F2); single `persist()` chokepoint = cache-based create/update + per-id `saveQueue`, no `adapter.load` per save, cache set after success (F4); `updateAnnotationBodies` saves once + suppresses the echo (F3); `loadSequence` race token in load+hydrate (F14). **Deviation:** Annotorious v3 fires lifecycle events async (`setTimeout(…,1)`), so the planned boolean `suppressPersistence` was replaced with an id-scoped `withSuppressedEcho`/`consumeSuppressedEcho`; corrected & flagged into slice-04. +4 tests (11 plugin / 324 total pass), `check` + plugin lint clean. |
