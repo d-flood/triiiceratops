@@ -1192,7 +1192,7 @@
 
     .drop-label {
         font-weight: 700;
-        color: var(--color-primary);
+        color: var(--color-primary-text);
         opacity: 0.5;
     }
     .drop-label-vertical {

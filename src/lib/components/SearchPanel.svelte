@@ -300,7 +300,7 @@
         padding: 2rem;
     }
     .loading-wrap :global(.loading-primary) {
-        color: var(--color-primary);
+        color: var(--color-primary-text);
     }
 
     .empty {
@@ -391,7 +391,7 @@
         user-select: text;
     }
     .separator {
-        color: var(--color-primary);
+        color: var(--color-primary-text);
         margin-inline: 0.5rem;
     }
     .match {
@@ -402,7 +402,7 @@
         border-radius: 0.25rem;
     }
     .excerpts :global(.show-more) {
-        color: var(--color-primary);
+        color: var(--color-primary-text);
         margin-left: 0.5rem;
     }
 </style>

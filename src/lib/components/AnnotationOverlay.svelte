@@ -197,7 +197,7 @@
         z-index: 50;
         pointer-events: none;
         filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.12));
-        color: var(--color-primary);
+        color: var(--color-primary-text);
     }
 
     .root-node-anchor {

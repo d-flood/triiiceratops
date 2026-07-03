@@ -474,7 +474,7 @@
     .link {
         cursor: pointer;
         text-decoration-line: underline;
-        color: var(--color-primary);
+        color: var(--color-primary-text);
     }
 
     .link:focus {
@@ -488,7 +488,7 @@
 
     @media (hover: hover) {
         .link:hover {
-            color: color-mix(in oklab, var(--color-primary) 80%, #000);
+            color: var(--color-primary-text);
         }
     }
 </style>

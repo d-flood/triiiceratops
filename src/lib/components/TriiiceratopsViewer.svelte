@@ -847,7 +847,7 @@
         >
             {#if manifestData?.isFetching}
                 <div class="centered">
-                    <Spinner size="lg" style="color:var(--color-primary)" />
+                    <Spinner size="lg" style="color:var(--color-primary-text)" />
                 </div>
             {:else if manifestData?.error}
                 <div class="centered error-text">

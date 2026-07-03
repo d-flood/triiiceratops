@@ -49,7 +49,7 @@
     const VARIANT_VARS: Record<Variant, string> = {
         default: '',
         primary:
-            '--btn-color:var(--color-primary);--btn-fg:var(--color-primary-content);',
+            '--btn-color:var(--color-primary);--btn-color-text:var(--color-primary-text);--btn-fg:var(--color-primary-content);',
         neutral:
             '--btn-color:var(--color-neutral);--btn-fg:var(--color-neutral-content);',
         success:
@@ -210,7 +210,7 @@
     .ghost {
         --btn-bg: transparent;
         --btn-border: transparent;
-        --btn-fg: var(--btn-color, var(--content));
+        --btn-fg: var(--btn-color-text, var(--btn-color, var(--content)));
         box-shadow: none;
         text-shadow: none;
     }
@@ -234,7 +234,7 @@
             :disabled
         ):not([disabled]) {
         --btn-bg: transparent;
-        --btn-fg: var(--btn-color, var(--content));
+        --btn-fg: var(--btn-color-text, var(--btn-color, var(--content)));
         --btn-border: var(--btn-color, var(--content));
         box-shadow: none;
         text-shadow: none;

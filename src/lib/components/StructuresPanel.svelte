@@ -139,7 +139,7 @@
     }
     .row.active {
         background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
-        color: var(--color-primary);
+        color: var(--color-primary-text);
     }
     /* hover comes after .active so it wins on hover */
     .row:hover {

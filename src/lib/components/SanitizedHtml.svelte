@@ -62,13 +62,13 @@
     }
 
     :global(.viewer-html a) {
-        color: var(--color-primary);
+        color: var(--color-primary-text);
         text-decoration: underline;
         text-underline-offset: 0.2em;
     }
 
     :global(.viewer-html a:hover) {
-        color: color-mix(in oklab, var(--color-primary) 85%, black);
+        color: var(--color-primary-text);
     }
 
     :global(.viewer-html a:focus-visible) {

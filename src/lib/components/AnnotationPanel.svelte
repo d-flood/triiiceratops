@@ -444,7 +444,7 @@
         font-weight: 700;
         font-size: 0.875rem;
         line-height: 1.25rem;
-        color: var(--color-primary);
+        color: var(--color-primary-text);
     }
 
     .label {
@@ -477,7 +477,7 @@
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        color: var(--color-primary);
+        color: var(--color-primary-text);
         padding: 0.25rem;
         border-radius: 0.25rem;
         margin-left: -0.25rem;

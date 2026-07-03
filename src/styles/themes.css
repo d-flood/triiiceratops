@@ -74,6 +74,12 @@
  * derived token re-resolve in the themed scope.
  */
 :where(:root, :host, [data-theme]) {
+    /* Primary used as TEXT/icon on a neutral panel surface. Anchored to --content
+       so the lightness shift is theme-correct (darkens on light themes, lightens on
+       dark) while keeping primary's hue. Override per-theme by redeclaring in a
+       [data-theme=…] block. */
+    --color-primary-text: color-mix(in oklab, var(--color-primary), var(--content) 60%);
+
     /* Surfaces that follow the viewer surface by default */
     --gallery-bg: var(--viewer-bg);
     --input-bg: var(--viewer-bg);
