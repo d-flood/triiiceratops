@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.21
+
+### Patch Changes
+
+- 3e89ac7: Fix image adjustment plugin's slider styling
+
 ## 1.0.0-rc.20
 
 ### Patch Changes
