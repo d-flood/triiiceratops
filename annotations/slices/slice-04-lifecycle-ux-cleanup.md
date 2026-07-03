@@ -7,6 +7,29 @@
 - **Plan reference:** [02-implementation-plan.md](../02-implementation-plan.md) §1.6, §1.7, §1.9
 - **Decision applied:** D1 — remove undo/redo UI now; persistence-aware rebuild in slice-09.
 
+> **⚠ Notes from slice-02 (reality corrections — read before steps 3 and 9):**
+>
+> - **There is no boolean `suppressPersistence` flag.** Annotorious v3.7.19 dispatches
+>   *all* lifecycle events (`createAnnotation`/`updateAnnotation`/`deleteAnnotation`/
+>   `selectionChanged`) asynchronously via `setTimeout(…, 1)` (verified in
+>   `@annotorious/core` dist), so a synchronous boolean would already be reset when the
+>   echo fires. Slice-02 instead added an **id-scoped** mechanism on the manager:
+>   `withSuppressedEcho(id, fn)` (marks the id, then runs the mutation) and
+>   `consumeSuppressedEcho(id)` (called at the top of each event handler; returns true and
+>   consumes the mark if present). For **step 3**, wire `deleteAnnotation` to call
+>   `consumeSuppressedEcho(id)` first, and wrap the plugin's own `clearAnnotations()` calls
+>   (in `clearAnnotoriousEditingAnnotation`, `loadAnnotations`, `selectAnnotationById`)
+>   with `withSuppressedEcho` for **each** id being removed (clear emits one deleteAnnotation
+>   echo per annotation). Note the marks are consumed one-per-echo; a mutation that emits
+>   no echo would leave a stale mark, so only mark ids you know will actually be removed.
+> - **Step 9 "v3 state is synchronous" is only half true.** The store *state* mutates
+>   synchronously (so `setSelected(id)` right after `addAnnotation(id)` finds it), but the
+>   *events* are async (above). Keep the rAF fallback wording; don't rely on a
+>   `createAnnotation`/`selectionChanged` event having fired synchronously.
+> - Slice-02 already replaced the event handlers with `handleCreateAnnotation` /
+>   `handleUpdateAnnotation` methods (wired via thin `on(...)` callbacks) — add
+>   `handleDeleteAnnotation` alongside them.
+
 ## Goal
 
 No leaked handlers or state after teardown, no misleading controls, no timing guesses,

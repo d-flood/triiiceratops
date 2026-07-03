@@ -1,7 +1,7 @@
 # Slice 02 — Persistence flow: persist drafts, save once, stop re-loading
 
 - **Phase:** 1 (Correctness & lifecycle)
-- **Status:** not started
+- **Status:** done (2026-07-03)
 - **Depends on:** slice-01
 - **Findings:** F2, F3, F4, F14, F20 (partial — cache-before-await ordering)
 - **Plan reference:** [02-implementation-plan.md](../02-implementation-plan.md) §1.2, §1.3, §1.8
@@ -61,4 +61,57 @@ canvas-change load race.
 
 ## Completion notes
 
-_(fill in when done)_
+**What changed** (`AnnotationManager.svelte.ts`):
+
+- **F2 — persist the prepared draft.** The `createAnnotation` handler now persists
+  `prepareAnnotation(annotation)` (canvas-space, draft-enriched) via a new
+  `persistCreate(prepared)` path that skips the image→canvas re-transform. `beforeSave`
+  still runs last inside `persistCreate`. Event wiring was extracted into
+  `handleCreateAnnotation` / `handleUpdateAnnotation` methods (the `on(...)` callbacks are
+  now thin `void this.handleX(...)` shims) so the create/update flow is unit-testable
+  without a live annotator.
+- **F4 — cache-based create-vs-update + per-id serialization.** New single chokepoint
+  `persist(w3cAnnotation)` decides create vs update from `persistedAnnotations.has(id)`
+  (the per-save `adapter.load()` round-trip is gone) and chains writes per id through a
+  `saveQueue` map so rapid saves of the same id can't interleave. The cache is now set
+  **after** the adapter call resolves (correct ordering; full rollback is slice-08).
+  `stripInternalMarkers` keeps `__fullBodyLoaded`/`__bodyPreview` out of adapter payloads
+  and the cache.
+- **F3 — single body save.** `updateAnnotationBodies` persists once via `saveAnnotation`,
+  then pushes bodies back into Annotorious inside `withSuppressedEcho(id, …)` so the
+  echoed `updateAnnotation` event doesn't re-save. Removed the redundant manual cache set.
+- **F14 — load-race token.** `loadSequence` increments on each `loadAnnotations()` entry;
+  a stale async load discards its result. Same token captured/compared across the await
+  in `hydrateAnnotation` (its existing `stillPresent` check is kept).
+
+**Tests** (`AnnotationManager.test.ts`): new `persistence flow` describe block — prepared
+draft persisted once with enriched body in canvas space and no internal marker;
+`updateAnnotationBodies` → one `update`, zero `create`, echo suppressed and consumed;
+two rapid saves of one id serialize (create fully resolves before update starts, final
+payload wins); a slow canvas-A load resolving after navigating to canvas B is discarded.
+Added `fakeAnnotorious`, `flush`, and `SCALING_CANVAS` test helpers.
+
+**Deviation (important — flagged into slice-04):** the plan's §1.3 boolean
+`suppressPersistence` guard does **not** work, because Annotorious v3.7.19 dispatches all
+lifecycle events asynchronously via `setTimeout(…, 1)` (verified in the installed
+`@annotorious/core` dist) — a synchronous flag would be reset before the echo fires.
+Implemented an id-scoped equivalent instead: `withSuppressedEcho(id, fn)` +
+`consumeSuppressedEcho(id)`, with the mark consumed one-per-echo. Also confirmed a
+body-change update emits exactly one echo (the body observer updates the tracked
+selection array, so the selection tracker doesn't re-emit), so one mark == one echo.
+Added a `⚠ Notes from slice-02` block to slice-04 covering this and correcting its
+"v3 state is synchronous" claim (store state is sync; events are async). Additionally
+noted while here: programmatic `addAnnotation`/`setAnnotations` use `Origin.REMOTE` and
+therefore emit **no** `createAnnotation` lifecycle event — so hand-built point creation
+(`handlePointClick`) never routes through the create handler (relevant to slices 11–12).
+
+**Follow-ups:** rollback on adapter failure is deferred to slice-08 (cache is now set
+after success, so a failed write no longer leaves a phantom cache entry — the F20-partial
+ordering fix). `stripInternalMarkers` is a stopgap until slice-03 makes hydration state
+fully manager-internal.
+
+**Verification:** `pnpm exec vitest run src/lib/plugins/annotation-editor` (11 pass);
+`pnpm exec vitest run` (324 pass); `pnpm check` (0 errors); `eslint` on the plugin dir
+clean (used `SvelteMap`/`SvelteSet` for the new internal structures to satisfy the
+project's `prefer-svelte-reactivity` rule). Manual logging-adapter check (acceptance
+bullet 2) not performed in this headless run.
