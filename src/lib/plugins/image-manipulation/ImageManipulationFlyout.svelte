@@ -271,15 +271,17 @@
         width: 6.5rem;
         transform: translate(-50%, -50%) rotate(-90deg);
         pointer-events: auto;
-        /* Same glass color + blur as the bar, so the track reads over any image. */
-        --range-bg: color-mix(in oklab, var(--toolbar-bg) 70%, transparent);
+        /* A more opaque track color so it reads over any image. We can't use
+           `backdrop-filter` on the track pseudo-element: it promotes the track
+           into its own compositing layer that then paints on top of the thumb
+           (handle) and its fill box-shadow. Use a solid-ish color-mix instead. */
+        --range-bg: color-mix(in oklab, var(--toolbar-bg) 90%, transparent);
+        /* The indicator (fill + handle) is drawn in `--range-progress`. Keep it
+           the primary accent so it stays clearly distinct from the neutral glass
+           track in every theme — a neutral fill blends into the track in the
+           dark themes. */
+        --range-progress: var(--color-primary);
         filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.35));
-    }
-    .vwrap :global(.vrange::-webkit-slider-runnable-track) {
-        backdrop-filter: blur(8px);
-    }
-    .vwrap :global(.vrange::-moz-range-track) {
-        backdrop-filter: blur(8px);
     }
 
     .cap {
