@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.22
+
+### Patch Changes
+
+- 0382794: add utility for automatically adjusting primary color for text to ensure sufficient contrast
+
 ## 1.0.0-rc.21
 
 ### Patch Changes
