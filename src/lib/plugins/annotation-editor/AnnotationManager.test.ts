@@ -199,3 +199,78 @@ describe('AnnotationManager point serialization', () => {
         });
     });
 });
+
+describe('AnnotationManager target.source correctness', () => {
+    it('forces target.source to the current canvas after navigation (F1)', async () => {
+        getCanvases.mockReset();
+        getCanvases.mockReturnValue([]);
+        const adapter = createAdapter();
+        const manager = new AnnotationManager({ adapter });
+
+        (manager as any).currentManifestId = 'manifest-1';
+        (manager as any).currentCanvasId = 'http://example.org/canvas/1';
+
+        // Navigate to canvas 2; the Annotorious serializer would still stamp
+        // canvas 1 into annotations drawn afterwards.
+        await manager.handleCanvasChange(
+            'manifest-1',
+            'http://example.org/canvas/2',
+        );
+
+        await manager.saveAnnotation({
+            id: 'rect-1',
+            type: 'Annotation',
+            target: {
+                source: 'http://example.org/canvas/1',
+                selector: {
+                    type: 'FragmentSelector',
+                    conformsTo: 'http://www.w3.org/TR/media-frags/',
+                    value: 'xywh=10,20,30,40',
+                },
+            },
+        });
+
+        expect(adapter.create).toHaveBeenCalledTimes(1);
+        const [, , persisted] = adapter.create.mock.calls[0];
+        expect(persisted.target.source).toBe('http://example.org/canvas/2');
+    });
+
+    it('replaces a string target with the current canvas source', async () => {
+        getCanvases.mockReset();
+        getCanvases.mockReturnValue([]);
+        const adapter = createAdapter();
+        const manager = new AnnotationManager({ adapter });
+
+        (manager as any).currentManifestId = 'manifest-1';
+        (manager as any).currentCanvasId = 'http://example.org/canvas/1';
+
+        await manager.saveAnnotation({
+            id: 'note-1',
+            type: 'Annotation',
+            target: 'http://example.org/canvas/1',
+        });
+
+        expect(adapter.create).toHaveBeenCalledTimes(1);
+        const [, , persisted] = adapter.create.mock.calls[0];
+        expect(persisted.target).toEqual({
+            source: 'http://example.org/canvas/1',
+        });
+    });
+
+    it('does not create an annotation on point click without a canvas', () => {
+        getCanvases.mockReset();
+        getCanvases.mockReturnValue([]);
+        const adapter = createAdapter();
+        const manager = new AnnotationManager({ adapter });
+
+        const addAnnotation = vi.fn();
+        (manager as any).osdViewer = {};
+        (manager as any).annotorious = { addAnnotation };
+        (manager as any).currentCanvasId = null;
+
+        (manager as any).handlePointClick({ quick: true, position: {} });
+
+        expect(addAnnotation).not.toHaveBeenCalled();
+        expect(adapter.create).not.toHaveBeenCalled();
+    });
+});
