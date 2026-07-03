@@ -148,7 +148,7 @@
 
     /* Trigger button: ghost circle with primary-colored icon (text-primary). */
     .wrapper :global(.trigger) {
-        color: var(--color-primary);
+        color: var(--color-primary-text);
     }
 
     .backdrop {
@@ -240,7 +240,7 @@
     }
 
     .rendering-link {
-        color: var(--color-primary);
+        color: var(--color-primary-text);
         text-decoration-line: underline;
         cursor: pointer;
         font-size: 0.75rem;

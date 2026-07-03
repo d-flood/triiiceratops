@@ -35,7 +35,7 @@
     const VARIANT: Record<Variant, string> = {
         default: '',
         primary:
-            '--badge-color:var(--color-primary);--badge-fg:var(--color-primary-content);',
+            '--badge-color:var(--color-primary);--badge-color-text:var(--color-primary-text);--badge-fg:var(--color-primary-content);',
         neutral:
             '--badge-color:var(--color-neutral);--badge-fg:var(--color-neutral-content);',
         success:
@@ -86,13 +86,13 @@
     }
 
     .outline {
-        color: var(--badge-color);
+        color: var(--badge-color-text, var(--badge-color));
         --badge-bg: #0000;
         border-color: currentColor;
     }
 
     .soft {
-        color: var(--badge-color, var(--content));
+        color: var(--badge-color-text, var(--badge-color, var(--content)));
         background-color: color-mix(
             in oklab,
             var(--badge-color, var(--content)) 8%,

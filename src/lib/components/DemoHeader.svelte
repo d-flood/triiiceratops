@@ -589,7 +589,7 @@
     /* Outline + primary (docs link) */
     .btn-link.outline.primary {
         background-color: transparent;
-        color: var(--color-primary);
+        color: var(--color-primary-text);
         border-color: var(--color-primary);
     }
     @media (hover: hover) {

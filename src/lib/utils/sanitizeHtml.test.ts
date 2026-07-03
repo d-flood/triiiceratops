@@ -74,7 +74,7 @@ describe('sanitizeHtml utilities', () => {
                 '<img src=x onerror=alert(1)><p><a href="/x">ok</a></p>',
             ),
         ).resolves.toBe(
-            '<img src="x" style="display: inline-block; max-width: 100%; height: auto; vertical-align: middle; border-radius: 0.25rem;"><p style="margin: 0 0 0.75rem; margin-bottom: 0;"><a href="/x" style="color: var(--color-primary); text-decoration: underline; text-underline-offset: 0.2em;">ok</a></p>',
+            '<img src="x" style="display: inline-block; max-width: 100%; height: auto; vertical-align: middle; border-radius: 0.25rem;"><p style="margin: 0 0 0.75rem; margin-bottom: 0;"><a href="/x" style="color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 0.2em;">ok</a></p>',
         );
 
         if (originalSetHTML) {

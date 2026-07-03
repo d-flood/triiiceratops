@@ -88,7 +88,7 @@
         flex-shrink: 0;
         align-items: center;
         justify-content: center;
-        color: var(--color-primary);
+        color: var(--color-primary-text);
     }
 
     .title {
