@@ -127,7 +127,10 @@ export class AnnotationManager {
                 this.OSD = mod.default || mod;
             }
 
-            const sourceId = canvasId ?? 'unknown';
+            // The serializer stamps this into target.source, but forceTargetSource()
+            // overwrites it on every save, so the captured value is irrelevant to
+            // persisted output. Pass the real canvas id when we have one.
+            const sourceId = canvasId ?? '';
 
             // Initial drawing enabled state only if tool is NOT point (Annotorious handles others)
             const initialDrawingEnabled =
@@ -186,6 +189,8 @@ export class AnnotationManager {
 
     private handlePointClick(event: any): void {
         if (!this.osdViewer || !this.annotorious) return;
+        // Never create an annotation without a real canvas to target (F1/F26).
+        if (this.currentCanvasId === null) return;
 
         // Helper to get the TiledImage (first item) for accurate conversion
         const tiledImage = this.osdViewer.world.getItemAt(0);
@@ -233,7 +238,7 @@ export class AnnotationManager {
             type: 'Annotation' as const,
             body: [],
             target: {
-                source: this.currentCanvasId ?? 'unknown',
+                source: this.currentCanvasId,
                 selector: {
                     type: 'FragmentSelector' as const,
                     conformsTo: 'http://www.w3.org/TR/media-frags/' as const,
@@ -266,12 +271,15 @@ export class AnnotationManager {
     private updateDrawingMode(enabled: boolean): void {
         if (!this.annotorious || !this.osdViewer?.element) return;
 
+        // Never enable drawing without a real canvas to target (F1/F26).
+        const canDraw = enabled && this.currentCanvasId !== null;
+
         // If tool is 'point', we do NOT enable Annotorious native drawing
         // because we handle it manually.
         if (this.activeTool === 'point') {
             this.annotorious.setDrawingEnabled(false);
         } else {
-            this.annotorious.setDrawingEnabled(enabled);
+            this.annotorious.setDrawingEnabled(canDraw);
         }
 
         // Toggle class for CSS cursor control
@@ -343,10 +351,7 @@ export class AnnotationManager {
             ...annotation,
             target: {
                 type: 'SpecificResource',
-                source:
-                    annotation.target?.source ??
-                    this.currentCanvasId ??
-                    'unknown',
+                source: annotation.target?.source ?? this.currentCanvasId,
                 selector: {
                     type: 'PointSelector',
                     x: point.x,
@@ -370,10 +375,7 @@ export class AnnotationManager {
         return {
             ...annotation,
             target: {
-                source:
-                    annotation.target?.source ??
-                    this.currentCanvasId ??
-                    'unknown',
+                source: annotation.target?.source ?? this.currentCanvasId,
                 selector: {
                     type: 'FragmentSelector',
                     conformsTo: 'http://www.w3.org/TR/media-frags/',
@@ -708,7 +710,7 @@ export class AnnotationManager {
         const dimensions = this.getCurrentCanvasImageDimensions();
         const w3cAnnotation = await this.applyBeforeSave(
             transformAnnotationToCanvasSpace(
-                this.toPointSelectorTarget(this.ensureTargetSource(annotation)),
+                this.toPointSelectorTarget(this.forceTargetSource(annotation)),
                 dimensions,
             ),
         );
@@ -743,18 +745,24 @@ export class AnnotationManager {
         }
     }
 
-    private ensureTargetSource(annotation: any): W3CAnnotation {
+    /**
+     * Always overwrite `target.source` with the current canvas id. Within this
+     * plugin the target is by definition the canvas the user is annotating, so
+     * overwriting is safe regardless of what the Annotorious W3C serializer
+     * stamped at init time (see F1). All other target fields are preserved.
+     */
+    private forceTargetSource(annotation: any): W3CAnnotation {
         const clone = JSON.parse(JSON.stringify(annotation));
-        if (clone.target && !clone.target.source) {
-            clone.target.source = this.currentCanvasId;
-        } else if (typeof clone.target === 'string') {
+        if (typeof clone.target === 'string' || !clone.target) {
             clone.target = { source: this.currentCanvasId };
+        } else {
+            clone.target.source = this.currentCanvasId;
         }
         return clone;
     }
 
     private prepareAnnotation(annotation: any): W3CAnnotation {
-        const base = this.ensureTargetSource(annotation);
+        const base = this.forceTargetSource(annotation);
         const prepared = this.config.extension?.prepareDraft
             ? this.config.extension.prepareDraft(
                   base,
@@ -897,7 +905,7 @@ export class AnnotationManager {
                 annotationId,
                 transformAnnotationToCanvasSpace(
                     this.toPointSelectorTarget(
-                        this.ensureTargetSource(updated),
+                        this.forceTargetSource(updated),
                     ),
                     this.getCurrentCanvasImageDimensions(),
                 ),
