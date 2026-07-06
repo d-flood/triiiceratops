@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.23
+
+### Patch Changes
+
+- 084a204: enable controlling visibility of the canvas info button
+
 ## 1.0.0-rc.22
 
 ### Patch Changes
