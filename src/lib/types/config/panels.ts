@@ -44,6 +44,12 @@ export interface InformationConfig
      * @default false
      */
     open?: boolean;
+    /**
+     * Whether the canvas info button is shown when the current canvas has
+     * additional metadata (summary, metadata, or rendering links).
+     * @default true
+     */
+    showButton?: boolean;
 }
 
 export interface StructuresConfig extends ClosablePanelConfig {

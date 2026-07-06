@@ -1109,6 +1109,24 @@
                                 </label>
                             </li>
                             <li>
+                                <label class="settings-label">
+                                    <span
+                                        >{m.settings_toggle_show_canvas_info_button()}</span
+                                    >
+                                    <Toggle
+                                        size="xs"
+                                        checked={config.information
+                                            ?.showButton ?? true}
+                                        onchange={(e) => {
+                                            if (!config.information)
+                                                config.information = {};
+                                            config.information.showButton =
+                                                e.currentTarget.checked;
+                                        }}
+                                    />
+                                </label>
+                            </li>
+                            <li>
                                 <label
                                     class="settings-label settings-label--gap2"
                                 >
