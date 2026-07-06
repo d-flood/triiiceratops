@@ -22,6 +22,27 @@ import {
 } from '../../utils/canvasImageSpace';
 import { resolveCanvasImage } from '../../utils/resolveCanvasImage';
 
+/** Every tool the plugin knows how to draw, in default button order. */
+export const ALL_TOOLS: DrawingTool[] = ['rectangle', 'polygon', 'point'];
+
+/**
+ * Resolve the effective tool set and default tool from config so the manager
+ * and controller share one source of truth (F8). An empty/absent `tools` list
+ * means "all tools"; `defaultTool` is honored only when it's within `tools`,
+ * otherwise the first available tool wins.
+ */
+export function resolveTools(config: {
+    tools?: DrawingTool[];
+    defaultTool?: DrawingTool;
+}): { tools: DrawingTool[]; defaultTool: DrawingTool } {
+    const tools = config.tools?.length ? config.tools : ALL_TOOLS;
+    const defaultTool =
+        config.defaultTool && tools.includes(config.defaultTool)
+            ? config.defaultTool
+            : tools[0];
+    return { tools, defaultTool };
+}
+
 /**
  * Manages the Annotorious instance and annotation CRUD operations.
  * Instantiated within the controller component.
@@ -50,6 +71,11 @@ export class AnnotationManager {
     private currentManifestId: string | null = null;
     private currentCanvasId: string | null = null;
     private persistedAnnotations = new SvelteMap<string, W3CAnnotation>();
+    // Per-annotation hydration state, kept manager-internal because the
+    // `__fullBodyLoaded` marker does not survive Annotorious's parse/serialize
+    // round-trip (F7). Populated from adapter `load()` results; markers are then
+    // stripped before anything reaches Annotorious, the cache, or the panel.
+    private hydrationState = new Map<string, 'skeleton' | 'full'>();
     private activeEditingAnnotationId: string | null = null;
 
     // Serializes adapter writes per annotation id so rapid saves of the same
@@ -68,6 +94,10 @@ export class AnnotationManager {
     private activeTool: DrawingTool = 'rectangle';
     private selectedAnnotation: W3CAnnotation | null = null;
 
+    // Effective tool config (F8), resolved once from config in the constructor.
+    private readonly resolvedTools: DrawingTool[];
+    readonly resolvedDefaultTool: DrawingTool;
+
     // Callbacks for state updates (set by controller)
     onSelectionChange?: (annotation: any | null) => void;
     onUndoRedoChange?: (canUndo: boolean, canRedo: boolean) => void;
@@ -77,7 +107,10 @@ export class AnnotationManager {
     constructor(config: AnnotationEditorConfig) {
         this.config = config;
         this.adapter = config.adapter ?? new LocalStorageAdapter();
-        this.activeTool = config.defaultTool ?? 'rectangle';
+        const { tools, defaultTool } = resolveTools(config);
+        this.resolvedTools = tools;
+        this.resolvedDefaultTool = defaultTool;
+        this.activeTool = defaultTool;
     }
 
     init(viewer: any, canvasId: string | null): void {
@@ -282,8 +315,12 @@ export class AnnotationManager {
     private updateDrawingMode(enabled: boolean): void {
         if (!this.annotorious || !this.osdViewer?.element) return;
 
-        // Never enable drawing without a real canvas to target (F1/F26).
-        const canDraw = enabled && this.currentCanvasId !== null;
+        // Never enable drawing without a real canvas to target (F1/F26), and
+        // never for a tool the config doesn't allow (F8).
+        const canDraw =
+            enabled &&
+            this.currentCanvasId !== null &&
+            this.resolvedTools.includes(this.activeTool);
 
         // If tool is 'point', we do NOT enable Annotorious native drawing
         // because we handle it manually.
@@ -444,7 +481,7 @@ export class AnnotationManager {
     // ... (rest is same)
 
     get availableTools(): DrawingTool[] {
-        return this.config.tools ?? ['rectangle', 'polygon', 'point'];
+        return this.resolvedTools;
     }
 
     private injectStyles(viewer: any): void {
@@ -598,8 +635,23 @@ export class AnnotationManager {
     }
 
     private cachePersistedAnnotations(annotations: W3CAnnotation[]): void {
+        // Rebuild both maps together: read each adapter-supplied
+        // `__fullBodyLoaded` marker once into internal hydration state, then
+        // strip the markers so nothing downstream depends on them (F7).
+        this.hydrationState.clear();
         this.persistedAnnotations = new SvelteMap(
-            annotations.map((annotation) => [annotation.id, annotation]),
+            annotations.map((annotation) => {
+                this.hydrationState.set(
+                    annotation.id,
+                    annotation.__fullBodyLoaded === false
+                        ? 'skeleton'
+                        : 'full',
+                );
+                return [
+                    annotation.id,
+                    this.stripInternalMarkers(annotation),
+                ] as const;
+            }),
         );
     }
 

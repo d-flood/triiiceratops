@@ -89,7 +89,7 @@ Statuses: `not started` · `in progress` · `done (date)` · `blocked: <reason>`
 |---|---|---|---|---|---|
 | [01](./slices/slice-01-target-source.md) | 1 | `target.source` correctness | F1, F26 | — | done (2026-07-03) |
 | [02](./slices/slice-02-persistence-flow.md) | 1 | Persistence flow: drafts, single save, race token | F2, F3, F4, F14 | 01 | done (2026-07-03) |
-| [03](./slices/slice-03-hydration-and-tools.md) | 1 | Internal hydration state + tool config | F7, F8, F19 | 02 | not started |
+| [03](./slices/slice-03-hydration-and-tools.md) | 1 | Internal hydration state + tool config | F7, F8, F19 | 02 | in progress |
 | [04](./slices/slice-04-lifecycle-ux-cleanup.md) | 1 | Lifecycle & UX cleanup | F6, F9*, F11, F12, F13, F22, F24, F25, F27 | 02 | not started |
 | [05](./slices/slice-05-annotation-store.md) | 2 | Extract `AnnotationStore` (refactor) | — | 01–04 | not started |
 | [06](./slices/slice-06-display-sync.md) | 2 | Plugin-owned display sync | F10, F11 | 05 | not started |

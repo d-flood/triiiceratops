@@ -1,7 +1,7 @@
 # Slice 03 — Internal hydration state + tool config that works
 
 - **Phase:** 1 (Correctness & lifecycle)
-- **Status:** not started
+- **Status:** in progress
 - **Depends on:** slice-02
 - **Findings:** F7, F8, F19
 - **Plan reference:** [02-implementation-plan.md](../02-implementation-plan.md) §1.4, §1.5
