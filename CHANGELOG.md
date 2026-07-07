@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.24
+
+### Patch Changes
+
+- b80c118: Fix race condition when passing both canvas id and manifest id as props; was resulting in defaulting to first canvas
+
 ## 1.0.0-rc.23
 
 ### Patch Changes
