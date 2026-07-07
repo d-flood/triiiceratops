@@ -102,3 +102,4 @@ __pycache__
 site/
 docs/demo*
 docs/viewer*
+.tracker/
