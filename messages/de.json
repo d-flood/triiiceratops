@@ -69,6 +69,7 @@
     "settings_toggle_open": "Öffnen",
     "settings_toggle_draggable": "Verschiebbar",
     "settings_toggle_close_button": "Schließen-Button",
+    "settings_toggle_show_canvas_info_button": "Canvas-Info-Button",
     "settings_select_dock_position": "Andockposition",
     "settings_position_bottom": "Unten",
     "settings_position_top": "Oben",

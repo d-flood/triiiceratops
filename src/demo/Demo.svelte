@@ -80,6 +80,7 @@
             open: false,
             showCloseButton: true,
             position: 'right' as 'left' | 'right',
+            showButton: true,
         },
         structures: {
             open: false,

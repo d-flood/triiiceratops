@@ -102,6 +102,7 @@ interface ViewerConfig {
         open?: boolean; // Default: false
         showCloseButton?: boolean; // Default: true
         position?: 'left' | 'right'; // Default: 'right'
+        showButton?: boolean; // Default: true (canvas info button in the nav bar, shown when the current canvas has metadata)
     };
 
     // Structures / Table of Contents Settings

@@ -70,6 +70,7 @@
     "settings_toggle_open": "Open",
     "settings_toggle_draggable": "Draggable",
     "settings_toggle_close_button": "Close Button",
+    "settings_toggle_show_canvas_info_button": "Canvas Info Button",
     "settings_select_dock_position": "Dock Position",
     "settings_position_bottom": "Bottom",
     "settings_position_top": "Top",
