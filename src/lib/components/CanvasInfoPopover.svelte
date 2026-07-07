@@ -47,9 +47,13 @@
     let hasAdditionalContent = $derived(
         !!(summary || metadata.length > 0 || rendering.length > 0),
     );
+
+    let showButton = $derived(
+        viewerState.config.information?.showButton !== false,
+    );
 </script>
 
-{#if hasAdditionalContent}
+{#if hasAdditionalContent && showButton}
     <div class="wrapper">
         <Button
             circle

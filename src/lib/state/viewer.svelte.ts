@@ -451,12 +451,15 @@ export class ViewerState {
     async setManifestData(
         manifestId: string,
         manifestJson: any,
+        options?: { canvasId?: string },
     ): Promise<void> {
-        this.canvasId = null;
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
         await manifestsState.registerManifest(manifestId, manifestJson);
         this.manifestId = manifestId;
+        if (options?.canvasId) {
+            this.setCanvas(options.canvasId);
+        }
         this._applyManifestSettings(manifestId);
         this.ensureInitialCanvasSelection();
     }
@@ -470,7 +473,7 @@ export class ViewerState {
 
     async setManifest(
         manifestId: string,
-        options?: { requestConfig?: RequestConfig },
+        options?: { requestConfig?: RequestConfig; canvasId?: string },
     ) {
         this.manifestRequestConfig = options?.requestConfig;
 
@@ -483,7 +486,6 @@ export class ViewerState {
             );
         } catch (_error: any) {
             // If fetch fails, fall back to normal flow which will handle the error
-            this.canvasId = null;
             this.startCanvasId = null;
             this.selectedSequenceIndex = 0;
             await manifestsState.fetchManifest(
@@ -491,6 +493,9 @@ export class ViewerState {
                 this.manifestRequestConfig,
             );
             this.manifestId = manifestId;
+            if (options?.canvasId) {
+                this.setCanvas(options.canvasId);
+            }
             this._applyManifestSettings(manifestId);
             this.ensureInitialCanvasSelection();
             this.dispatchStateChange('manifestchange');
@@ -509,7 +514,7 @@ export class ViewerState {
                 (item) => item.type === 'Manifest',
             );
             if (firstManifest) {
-                await this._loadManifest(firstManifest.id);
+                await this._loadManifest(firstManifest.id, options?.canvasId);
             }
             void this.hydrateCollectionItemThumbnails(manifestId);
             this.dispatchStateChange('manifestchange');
@@ -522,10 +527,15 @@ export class ViewerState {
         this.collectionThumbnail = '';
         this.collectionItems = [];
         this.collectionThumbnailHydrationId += 1;
-        this.canvasId = null;
+        // Keep the current canvasId: a consumer may have requested a canvas
+        // before the manifest finished loading. ensureInitialCanvasSelection
+        // keeps it when the manifest contains it and falls back otherwise.
         this.startCanvasId = null;
         await manifestsState.registerManifest(manifestId, json);
         this.manifestId = manifestId;
+        if (options?.canvasId) {
+            this.setCanvas(options.canvasId);
+        }
         this._applyManifestSettings(manifestId);
         this.ensureInitialCanvasSelection();
         this.dispatchStateChange('manifestchange');
@@ -543,8 +553,7 @@ export class ViewerState {
     /**
      * Internal: load a manifest by ID and apply its settings.
      */
-    private async _loadManifest(manifestId: string) {
-        this.canvasId = null;
+    private async _loadManifest(manifestId: string, canvasId?: string) {
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
         await manifestsState.fetchManifest(
@@ -552,6 +561,9 @@ export class ViewerState {
             this.manifestRequestConfig,
         );
         this.manifestId = manifestId;
+        if (canvasId) {
+            this.setCanvas(canvasId);
+        }
         this._applyManifestSettings(manifestId);
         this.ensureInitialCanvasSelection();
     }

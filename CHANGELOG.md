@@ -1,5 +1,23 @@
 # triiiceratops
 
+## 1.0.0-rc.24
+
+### Patch Changes
+
+- b80c118: Fix race condition when passing both canvas id and manifest id as props; was resulting in defaulting to first canvas
+
+## 1.0.0-rc.23
+
+### Patch Changes
+
+- 084a204: enable controlling visibility of the canvas info button
+
+## 1.0.0-rc.22
+
+### Patch Changes
+
+- 0382794: add utility for automatically adjusting primary color for text to ensure sufficient contrast
+
 ## 1.0.0-rc.21
 
 ### Patch Changes
