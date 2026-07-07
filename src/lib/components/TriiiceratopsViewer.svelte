@@ -204,10 +204,12 @@
 
     $effect(() => {
         if (manifestId && manifestJson) {
+            const requestedCanvasId = canvasId || undefined;
             void (async () => {
                 await internalViewerState.setManifestData(
                     manifestId,
                     manifestJson,
+                    { canvasId: requestedCanvasId },
                 );
                 lastAppliedCanvasId = '';
             })();
@@ -225,26 +227,16 @@
             ) {
                 return;
             }
+            // Pass the requested canvas along so the manifest load selects it
+            // directly, without a transient first-canvas state that consumers
+            // mirroring viewer state could echo back into the prop.
+            const requestedCanvasId = canvasId || undefined;
             void (async () => {
-                const requestedManifestId = manifestId;
-                const requestedCanvasId = canvasId;
                 await internalViewerState.setManifest(manifestId, {
                     requestConfig: config?.requests,
+                    canvasId: requestedCanvasId,
                 });
                 lastAppliedCanvasId = '';
-
-                // Manifest loading clears the active canvas before it picks a default.
-                // Re-apply the requested prop value once the manifest is ready.
-                if (
-                    requestedManifestId === manifestId &&
-                    requestedCanvasId &&
-                    requestedCanvasId === canvasId &&
-                    requestedCanvasId !== internalViewerState.canvasId &&
-                    hasCanvas(requestedCanvasId)
-                ) {
-                    lastAppliedCanvasId = requestedCanvasId;
-                    internalViewerState.setCanvas(requestedCanvasId);
-                }
             })();
         }
     });
