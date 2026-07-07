@@ -160,6 +160,157 @@ describe('ViewerState manifest behavior', () => {
         expect(state.canvasId).toBe('canvas-2');
     });
 
+    it('keeps a canvas requested before the manifest loads when the manifest contains it', async () => {
+        const canvases = [
+            { id: 'canvas-1' },
+            { id: 'canvas-2' },
+            { id: 'canvas-3' },
+        ];
+        const manifest = {
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        };
+
+        vi.mocked(manifestsState.fetchResource).mockResolvedValue({
+            id: 'manifest-1',
+            type: 'Manifest',
+        });
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        // Consumer requests a canvas while the manifest is still loading
+        state.setCanvas('canvas-2');
+        await state.setManifest('manifest-1');
+
+        expect(state.canvasId).toBe('canvas-2');
+    });
+
+    it('keeps a pre-requested canvas when loading manifest data directly', async () => {
+        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
+        const manifest = {
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        };
+
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        state.setCanvas('canvas-2');
+        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+
+        expect(state.canvasId).toBe('canvas-2');
+    });
+
+    it('keeps a pre-requested canvas when the manifest loads via the fetch fallback', async () => {
+        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
+        const manifest = {
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        };
+
+        vi.mocked(manifestsState.fetchResource).mockRejectedValue(
+            new Error('network error'),
+        );
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        state.setCanvas('canvas-2');
+        await state.setManifest('manifest-1');
+
+        expect(state.canvasId).toBe('canvas-2');
+    });
+
+    it('keeps a pre-requested canvas when a collection auto-loads its first manifest', async () => {
+        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
+        const manifest = {
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        };
+
+        vi.mocked(manifestsState.fetchResource).mockResolvedValue(
+            collectionV3WithNavDates,
+        );
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        state.setCanvas('canvas-2');
+        await state.setManifest('http://example.org/collection/navdate');
+
+        expect(state.manifestId).toBe('http://example.org/manifest/1986');
+        expect(state.canvasId).toBe('canvas-2');
+    });
+
+    it('selects the canvas requested via setManifest options over the current one', async () => {
+        const canvases = [
+            { id: 'canvas-1' },
+            { id: 'canvas-2' },
+            { id: 'canvas-3' },
+        ];
+        const manifest = {
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        };
+
+        vi.mocked(manifestsState.fetchResource).mockResolvedValue({
+            id: 'manifest-2',
+            type: 'Manifest',
+        });
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        // Simulates switching manifests with a target canvas: the previous
+        // canvas is stale, the requested one must win over the first canvas.
+        state.canvasId = 'stale-canvas-from-previous-manifest';
+        await state.setManifest('manifest-2', { canvasId: 'canvas-3' });
+
+        expect(state.canvasId).toBe('canvas-3');
+    });
+
+    it('honors the requested canvas when the manifest id resolves to a collection', async () => {
+        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
+        const manifest = {
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        };
+
+        vi.mocked(manifestsState.fetchResource).mockResolvedValue(
+            collectionV3WithNavDates,
+        );
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        await state.setManifest('http://example.org/collection/navdate', {
+            canvasId: 'canvas-2',
+        });
+
+        expect(state.canvasId).toBe('canvas-2');
+    });
+
+    it('honors the requested canvas when the manifest loads via the fetch fallback', async () => {
+        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
+        const manifest = {
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        };
+
+        vi.mocked(manifestsState.fetchResource).mockRejectedValue(
+            new Error('network error'),
+        );
+        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
+        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+
+        await state.setManifest('manifest-1', { canvasId: 'canvas-2' });
+
+        expect(state.canvasId).toBe('canvas-2');
+    });
+
     it('navigates paged spreads around non-paged canvases', () => {
         const canvases = [
             { id: 'canvas-1' },
