@@ -1575,6 +1575,19 @@ export class ViewerState {
     osdViewer: any | null = $state.raw(null);
 
     /**
+     * Per-viewer annotation-edit channel shared by OSDViewer and the annotation
+     * editor plugin. Keeping this on ViewerState scopes edit requests and the
+     * active edit id to one viewer instance instead of using global listeners.
+     */
+    annotationEditBus: {
+        requestEdit: (annotationId: string) => void;
+        activeEditAnnotationId: string | null;
+    } = $state({
+        requestEdit: (_annotationId: string) => {},
+        activeEditAnnotationId: null,
+    });
+
+    /**
      * Internal plugin UI state keyed by plugin ID.
      * Keeps panel open state and toolbar visibility in one reactive place.
      */

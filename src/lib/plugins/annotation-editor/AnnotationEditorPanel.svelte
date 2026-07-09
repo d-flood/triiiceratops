@@ -6,17 +6,23 @@
     import Trash from 'phosphor-svelte/lib/Trash';
     import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
     import ArrowClockwise from 'phosphor-svelte/lib/ArrowClockwise';
-    import Plus from 'phosphor-svelte/lib/Plus';
     import Warning from 'phosphor-svelte/lib/Warning';
     import Target from 'phosphor-svelte/lib/Target';
-    import Check from 'phosphor-svelte/lib/Check';
-    import type { DrawingTool, W3CAnnotationBody } from './types';
-    import { W3C_PURPOSES } from './types';
+    import type {
+        AnnotationBodyEditor,
+        AnnotationBodyEditorApi,
+        AnnotationEditorRuntimeContext,
+        AnnotationPersistenceOp,
+        DrawingTool,
+    } from './types';
     import { m } from '../../paraglide/messages';
-    import { Button, Select, TextInput, Tooltip } from '../../components/ui';
+    import { Button, Tooltip } from '../../components/ui';
+    import DefaultBodyEditor from './DefaultBodyEditor.svelte';
 
-    // Import Annotorious CSS for the drawing overlay to ensure it's loaded by Vite
-    import '@annotorious/openseadragon/annotorious-openseadragon.css';
+    // The Annotorious stylesheet is injected into the viewer's root node by
+    // AnnotationManager.injectStyles (shadow-root aware) — the single CSS path
+    // (F23). No side-effect import here: a light-DOM stylesheet never reaches
+    // the element build's shadow root.
 
     // Props
     let {
@@ -25,19 +31,28 @@
         selectedAnnotation = null as any,
         showDeleteConfirm = false,
         isHydratingSelection = false,
-        canUndo = false,
-        canRedo = false,
         canCreateAnnotation = true,
         createDisabledReason = null,
+        persistenceError = null,
+        bodyEditor = null,
+        showModeToggle = true,
+        showUndoRedo = true,
+        purposes = undefined,
+        allowMultipleBodies = true,
+        runtimeContext,
+        onDismissError,
+        canUndo = false,
+        canRedo = false,
+        onUndo,
+        onRedo,
         availableTools = ['rectangle', 'polygon', 'point'] as DrawingTool[],
         onToggleEditing,
         onSetTool,
         onSaveBodies,
+        onCancelSelection,
         onRequestDelete,
         onConfirmDelete,
         onCancelDelete,
-        onUndo,
-        onRedo,
         embedded = false,
     }: {
         isEditing: boolean;
@@ -45,21 +60,50 @@
         selectedAnnotation: any;
         showDeleteConfirm: boolean;
         isHydratingSelection: boolean;
-        canUndo: boolean;
-        canRedo: boolean;
         canCreateAnnotation: boolean;
         createDisabledReason: string | null;
+        persistenceError: {
+            op: AnnotationPersistenceOp;
+            annotationId?: string;
+        } | null;
+        bodyEditor: AnnotationBodyEditor | null;
+        showModeToggle?: boolean;
+        showUndoRedo?: boolean;
+        purposes?: readonly string[];
+        allowMultipleBodies?: boolean;
+        runtimeContext: AnnotationEditorRuntimeContext;
+        onDismissError: () => void;
+        canUndo: boolean;
+        canRedo: boolean;
+        onUndo: () => void;
+        onRedo: () => void;
         availableTools: DrawingTool[];
         onToggleEditing: () => void;
         onSetTool: (tool: DrawingTool) => void;
-        onSaveBodies: (bodies: W3CAnnotationBody[]) => void;
+        onSaveBodies: (bodies: unknown[] | unknown) => void | Promise<void>;
+        onCancelSelection: () => void;
         onRequestDelete: () => void;
         onConfirmDelete: () => void;
         onCancelDelete: () => void;
-        onUndo: () => void;
-        onRedo: () => void;
         embedded?: boolean;
     } = $props();
+
+    // Map a failed operation to its i18n'd, user-facing message (F20).
+    function persistenceErrorMessage(op: AnnotationPersistenceOp): string {
+        switch (op) {
+            case 'load':
+                return m.annotation_editor_error_load();
+            case 'create':
+                return m.annotation_editor_error_create();
+            case 'delete':
+                return m.annotation_editor_error_delete();
+            case 'hydrate':
+                return m.annotation_editor_error_hydrate();
+            case 'update':
+            default:
+                return m.annotation_editor_error_update();
+        }
+    }
 
     // Tool icons
     const toolIcons: Record<string, any> = {
@@ -68,39 +112,73 @@
         point: Target,
     };
 
-    // Body editor state (local copy for editing)
-    let editableBodies = $state<W3CAnnotationBody[]>([]);
+    let bodyEditorApi = $state<AnnotationBodyEditorApi | null>(null);
+    let bodyEditorApiSelectionId = $state<string | null>(null);
+    let customBodyEditorContainer = $state<HTMLElement | null>(null);
 
-    // Sync when a new annotation is selected
+    function normalizeBodies(annotation: any): unknown[] {
+        const body = annotation?.body;
+        if (Array.isArray(body)) return body;
+        if (body !== undefined && body !== null) return [body];
+        return [];
+    }
+
     $effect(() => {
-        if (selectedAnnotation) {
-            const body = selectedAnnotation.body;
-            if (Array.isArray(body)) {
-                editableBodies = body.map((b: any) => ({ ...b }));
-            } else if (body) {
-                editableBodies = [{ ...body }];
-            } else {
-                editableBodies = [];
-            }
+        if (!selectedAnnotation) {
+            bodyEditorApi = null;
+            bodyEditorApiSelectionId = null;
+            return;
         }
+
+        const bodies = normalizeBodies(selectedAnnotation);
+
+        if (
+            !bodyEditorApi ||
+            bodyEditorApiSelectionId !== selectedAnnotation.id
+        ) {
+            bodyEditorApiSelectionId = selectedAnnotation.id;
+            bodyEditorApi = {
+                annotation: selectedAnnotation,
+                bodies,
+                context: runtimeContext,
+                isHydrating: isHydratingSelection,
+                save: async (bodiesToSave) => {
+                    await onSaveBodies(bodiesToSave);
+                },
+                cancel: onCancelSelection,
+                requestDelete: onRequestDelete,
+            };
+            return;
+        }
+
+        bodyEditorApi.annotation = selectedAnnotation;
+        bodyEditorApi.bodies = bodies;
+        bodyEditorApi.context = runtimeContext;
+        bodyEditorApi.isHydrating = isHydratingSelection;
     });
 
-    function addBody() {
-        editableBodies = [
-            ...editableBodies,
-            { purpose: 'commenting', value: '' },
-        ];
-    }
+    $effect(() => {
+        const api = bodyEditorApi;
+        const editor = bodyEditor;
+        const container = customBodyEditorContainer;
+        if (!api || !editor || !('render' in editor) || !container) {
+            return;
+        }
 
-    function removeBody(index: number) {
-        editableBodies = editableBodies.filter((_, i) => i !== index);
-    }
+        // Track updates that DOM renderers must receive by cleanup + re-render:
+        // annotation replacement (including hydration), body replacement, and
+        // hydrating-state flips. The API object itself remains stable per
+        // selected annotation.
+        const _annotation = api.annotation;
+        const _bodies = api.bodies;
+        const _isHydrating = api.isHydrating;
 
-    function handleSaveBodies() {
-        // Filter empty bodies
-        const valid = editableBodies.filter((b) => b.value?.trim());
-        onSaveBodies(valid);
-    }
+        const cleanup = editor.render(container, api);
+        return () => {
+            cleanup?.();
+            container.replaceChildren();
+        };
+    });
 </script>
 
 <div class="panel" data-panel-id="annotation-editor" class:floating={!embedded}>
@@ -114,27 +192,49 @@
     {/if}
 
     <div class="content" class:scroll={!embedded}>
-        <!-- Drawing Mode Toggle -->
-        <div class="mode-section">
-            <div class="join mode-toggle">
+        <!-- Persistence error line (only shown without a host error handler) -->
+        {#if persistenceError}
+            <div class="error-line" role="alert">
+                <Warning size={16} class="error-icon" />
+                <span class="error-text">
+                    {persistenceErrorMessage(persistenceError.op)}
+                </span>
                 <Button
-                    class="join-item"
-                    size="sm"
-                    variant={!isEditing ? 'primary' : 'default'}
-                    onclick={() => isEditing && onToggleEditing()}
+                    class="error-dismiss"
+                    size="xs"
+                    ghost
+                    circle
+                    onclick={onDismissError}
+                    aria-label={m.annotation_editor_error_dismiss()}
                 >
-                    {m.annotation_editor_edit_mode()}
-                </Button>
-                <Button
-                    class="join-item"
-                    size="sm"
-                    variant={isEditing ? 'primary' : 'default'}
-                    disabled={!canCreateAnnotation}
-                    onclick={() => !isEditing && onToggleEditing()}
-                >
-                    {m.annotation_editor_create_mode()}
+                    <X size={14} />
                 </Button>
             </div>
+        {/if}
+
+        <!-- Drawing Mode Toggle -->
+        <div class="mode-section">
+            {#if showModeToggle}
+                <div class="join mode-toggle">
+                    <Button
+                        class="join-item"
+                        size="sm"
+                        variant={!isEditing ? 'primary' : 'default'}
+                        onclick={() => isEditing && onToggleEditing()}
+                    >
+                        {m.annotation_editor_edit_mode()}
+                    </Button>
+                    <Button
+                        class="join-item"
+                        size="sm"
+                        variant={isEditing ? 'primary' : 'default'}
+                        disabled={!canCreateAnnotation}
+                        onclick={() => !isEditing && onToggleEditing()}
+                    >
+                        {m.annotation_editor_create_mode()}
+                    </Button>
+                </div>
+            {/if}
             <p class="mode-instruction">
                 {isEditing
                     ? m.annotation_editor_instruction_create()
@@ -146,6 +246,32 @@
                 </p>
             {/if}
         </div>
+
+        <!-- Undo/Redo — persistence-aware, available in edit and create mode -->
+        {#if showUndoRedo}
+            <div class="undo-redo">
+                <Button
+                    class="undo-redo-btn"
+                    size="sm"
+                    outline
+                    disabled={!canUndo}
+                    onclick={onUndo}
+                >
+                    <ArrowCounterClockwise size={16} />
+                    {m.annotation_editor_undo()}
+                </Button>
+                <Button
+                    class="undo-redo-btn"
+                    size="sm"
+                    outline
+                    disabled={!canRedo}
+                    onclick={onRedo}
+                >
+                    <ArrowClockwise size={16} />
+                    {m.annotation_editor_redo()}
+                </Button>
+            </div>
+        {/if}
 
         <!-- Tool Selection -->
         {#if isEditing}
@@ -181,30 +307,6 @@
                     {/each}
                 </div>
             </div>
-
-            <!-- Undo/Redo -->
-            <div class="undo-redo">
-                <Button
-                    class="undo-redo-btn"
-                    size="sm"
-                    outline
-                    disabled={!canUndo}
-                    onclick={onUndo}
-                >
-                    <ArrowCounterClockwise size={16} />
-                    {m.annotation_editor_undo()}
-                </Button>
-                <Button
-                    class="undo-redo-btn"
-                    size="sm"
-                    outline
-                    disabled={!canRedo}
-                    onclick={onRedo}
-                >
-                    <ArrowClockwise size={16} />
-                    {m.annotation_editor_redo()}
-                </Button>
-            </div>
         {/if}
 
         <!-- Selected Annotation Editor (Inline) -->
@@ -228,92 +330,28 @@
                     </div>
                 </div>
 
-                <div class="bodies" class:bodies-scroll={!embedded}>
-                    {#each editableBodies as body, i (i)}
-                        <div class="card body-card">
-                            <div class="body-row">
-                                <Select
-                                    class="body-purpose"
-                                    size="xs"
-                                    bind:value={body.purpose}
-                                >
-                                    {#each W3C_PURPOSES as purpose (purpose)}
-                                        <option
-                                            value={purpose}
-                                            class="purpose-option">{purpose}</option
-                                        >
-                                    {/each}
-                                </Select>
-                                <Button
-                                    class="body-remove"
-                                    size="xs"
-                                    ghost
-                                    circle
-                                    onclick={() => removeBody(i)}
-                                >
-                                    <X size={14} />
-                                </Button>
-                            </div>
-
-                            {#if body.purpose === 'tagging'}
-                                <TextInput
-                                    class="body-input"
-                                    size="xs"
-                                    placeholder={m.annotation_editor_tag_placeholder()}
-                                    disabled={isHydratingSelection}
-                                    bind:value={body.value}
-                                />
-                            {:else if body.purpose === 'linking'}
-                                <TextInput
-                                    class="body-input"
-                                    type="url"
-                                    size="xs"
-                                    placeholder={m.annotation_editor_link_placeholder()}
-                                    disabled={isHydratingSelection}
-                                    bind:value={body.value}
-                                />
-                            {:else}
-                                <textarea
-                                    class="body-textarea"
-                                    rows="2"
-                                    placeholder={m.annotation_editor_text_placeholder()}
-                                    disabled={isHydratingSelection}
-                                    bind:value={body.value}
-                                ></textarea>
-                            {/if}
-                        </div>
-                    {/each}
-                </div>
+                {#if bodyEditorApi && bodyEditor && 'component' in bodyEditor}
+                    {@const BodyEditor = bodyEditor.component}
+                    <BodyEditor api={bodyEditorApi} />
+                {:else if bodyEditorApi && bodyEditor && 'render' in bodyEditor}
+                    <div
+                        class="custom-body-editor"
+                        bind:this={customBodyEditorContainer}
+                    ></div>
+                {:else if bodyEditorApi}
+                    <DefaultBodyEditor
+                        api={bodyEditorApi}
+                        {embedded}
+                        {purposes}
+                        {allowMultipleBodies}
+                    />
+                {/if}
 
                 {#if isHydratingSelection}
                     <p class="hydrating-note">
-                        Loading the full annotation text...
+                        {m.annotation_editor_hydrating()}
                     </p>
                 {/if}
-
-                <Button
-                    class="add-content"
-                    size="xs"
-                    ghost
-                    onclick={addBody}
-                    disabled={isHydratingSelection}
-                >
-                    <Plus size={14} />
-                    {m.annotation_editor_add_content()}
-                </Button>
-
-                <div class="save-row">
-                    <Button
-                        class="save-btn"
-                        size="sm"
-                        variant="primary"
-                        onclick={handleSaveBodies}
-                        disabled={isHydratingSelection}
-                    >
-                        <Check size={16} />
-                        {m.annotation_editor_save()}
-                    </Button>
-                </div>
             </div>
         {/if}
     </div>
@@ -395,6 +433,33 @@
         overflow-y: auto;
     }
 
+    /* Persistence error line */
+    .error-line {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-buttons);
+        background-color: color-mix(
+            in oklab,
+            var(--color-error) 15%,
+            var(--panel-surface)
+        );
+        color: var(--color-error);
+        font-size: 0.75rem;
+        line-height: 1rem;
+    }
+    .error-line :global(.error-icon) {
+        flex-shrink: 0;
+    }
+    .error-text {
+        flex: 1 1 0%;
+    }
+    .error-line :global(.error-dismiss) {
+        flex-shrink: 0;
+        color: var(--color-error);
+    }
+
     /* Drawing Mode Toggle */
     .mode-section {
         display: flex;
@@ -472,99 +537,14 @@
         color: var(--color-error);
     }
 
-    .bodies {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        padding-right: 0.25rem;
-    }
-    .bodies-scroll {
-        max-height: 40vh;
-        overflow-y: auto;
-    }
-
-    .body-card {
-        background-color: var(--panel-surface);
-        padding: 0.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .body-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .body-row :global(.body-purpose) {
-        flex: 1 1 0%;
-    }
-    .body-row :global(.body-remove) {
-        color: var(--color-error);
-    }
-    .purpose-option {
-        text-transform: capitalize;
-    }
-    .body-card :global(.body-input) {
+    .custom-body-editor {
         width: 100%;
-    }
-
-    .body-textarea {
-        border: var(--border) solid #0000;
-        border-color: var(--input-color);
-        min-height: calc(0.25rem * 20);
-        flex-shrink: 1;
-        appearance: none;
-        border-radius: var(--radius-buttons);
-        background-color: var(--input-bg);
-        padding-block: calc(0.25rem * 2);
-        vertical-align: middle;
-        width: 100%;
-        padding-inline-start: 0.75rem;
-        padding-inline-end: 0.75rem;
-        font-size: max(var(--font-size, 0.6875rem), 0.6875rem);
-        touch-action: manipulation;
-        box-shadow:
-            0 1px
-                color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000)
-                inset,
-            0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
-        --input-color: color-mix(in oklab, var(--panel-fg) 20%, #0000);
-    }
-    .body-textarea:focus,
-    .body-textarea:focus-within {
-        --input-color: var(--panel-fg);
-        box-shadow: 0 1px
-            color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000);
-        outline: 2px solid var(--input-color);
-        outline-offset: 2px;
-        isolation: isolate;
-    }
-    .body-textarea:is(:disabled, [disabled]) {
-        cursor: not-allowed;
-        border-color: var(--panel-surface);
-        background-color: var(--panel-surface);
-        color: color-mix(in oklab, var(--panel-fg) 40%, transparent);
-        box-shadow: none;
-    }
-    .body-textarea:is(:disabled, [disabled])::placeholder {
-        color: color-mix(in oklab, var(--panel-fg) 20%, transparent);
     }
 
     .hydrating-note {
         font-size: 0.75rem;
         line-height: 1rem;
         opacity: 0.6;
-    }
-
-    .editor-card :global(.add-content) {
-        width: 100%;
-    }
-
-    .save-row {
-        padding-top: 0.5rem;
-    }
-    .save-row :global(.save-btn) {
-        width: 100%;
     }
 
     /* join group (radii handled by the join-aware primitives) */

@@ -1,8 +1,13 @@
-import { createPanelPlugin, type PluginDef } from '../../types/plugin';
+import {
+    createFlyoutPlugin,
+    createPanelPlugin,
+    type PluginDef,
+} from '../../types/plugin';
 import AnnotationEditorController from './AnnotationEditorController.svelte';
 import PencilSimple from 'phosphor-svelte/lib/PencilSimple';
 import type { AnnotationEditorConfig } from './types';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
+import { AnnotationStore } from './AnnotationStore.svelte';
 import { createLoader } from './loader.svelte';
 
 /**
@@ -28,14 +33,34 @@ export function createAnnotationEditorPlugin(
     const adapter = config.adapter || new LocalStorageAdapter();
     const fullConfig = { ...config, adapter };
 
-    return createPanelPlugin({
+    // One store per plugin instance, shared between the loader (display sync when
+    // the panel is closed) and the controller/manager (editing). The store — not
+    // the adapter — is now the shared object (F10).
+    const store = new AnnotationStore(fullConfig);
+
+    const basePlugin = {
         id: 'annotation-editor',
         name: 'annotation_editor_title',
         icon: PencilSimple,
+        props: {
+            config: fullConfig,
+            store,
+            embedded: config.target === 'flyout',
+        },
+        onInit: createLoader(store),
+    } satisfies PluginDef;
+
+    if (config.target === 'flyout') {
+        return createFlyoutPlugin({
+            ...basePlugin,
+            flyout: AnnotationEditorController,
+        });
+    }
+
+    return createPanelPlugin({
+        ...basePlugin,
         panel: AnnotationEditorController,
-        position: 'left',
-        props: { config: fullConfig },
-        onInit: createLoader(adapter),
+        position: config.position ?? 'left',
     });
 }
 
@@ -60,13 +85,17 @@ export const AnnotationEditorPlugin: PluginDef = createAnnotationEditorPlugin({
 
 // Individual exports for customization
 export { AnnotationEditorController };
+export { default as DefaultBodyEditor } from './DefaultBodyEditor.svelte';
 export { default as AnnotationEditorIcon } from 'phosphor-svelte/lib/PencilSimple';
 
 // Type exports
 export type {
     AnnotationEditorConfig,
+    AnnotationBodyEditor,
+    AnnotationBodyEditorApi,
     AnnotationEditorExtension,
     AnnotationEditorRuntimeContext,
+    AnnotationEditorUiConfig,
     DrawingTool,
     W3CAnnotationBody,
     W3CPurpose,
@@ -75,5 +104,14 @@ export type {
 export { W3C_PURPOSES } from './types';
 
 // Adapter exports
-export type { W3CAnnotation } from './adapters/types';
+export type {
+    W3CAnnotation,
+    W3CTarget,
+    W3CSelector,
+    FragmentSelector,
+    PointSelector,
+    SvgSelector,
+    UnknownSelector,
+    AdapterLoadResult,
+} from './adapters/types';
 export { LocalStorageAdapter } from './adapters/LocalStorageAdapter';

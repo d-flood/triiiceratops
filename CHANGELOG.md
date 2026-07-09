@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Deprecated the annotation editor's global `triiiceratops:annotation-editor:request-edit` and `triiiceratops:annotation-editor:active-edit-id` window-event wiring. Events are still dispatched for one release, but in-viewer edit coordination now uses a per-viewer channel.
+
 - b80c118: Fix race condition when passing both canvas id and manifest id as props; was resulting in defaulting to first canvas
 
 ## 1.0.0-rc.23
