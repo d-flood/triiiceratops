@@ -102,3 +102,5 @@ __pycache__
 site/
 docs/demo*
 docs/viewer*
+docs/svelte*
+.tracker/

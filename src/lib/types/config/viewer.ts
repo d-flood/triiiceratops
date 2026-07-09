@@ -9,6 +9,7 @@ import type {
 } from './panels';
 import type { RequestConfig } from './requests';
 import type { ToolbarConfig } from './toolbar';
+import type { PointStyle } from '../../utils/pointMarker';
 
 /**
  * The viewer chrome layout is configured by a few independent knobs, each of
@@ -249,6 +250,13 @@ export interface ViewerConfig {
      * @see https://openseadragon.github.io/docs/OpenSeadragon.html#.Options
      */
     openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+
+    /**
+     * Marker styling for point annotations, shared by the read-only overlay and
+     * the annotation editor so a point renders consistently whether selected or
+     * not. `radius` is in screen pixels (default 5).
+     */
+    pointStyle?: PointStyle;
 
     /**
      * Enable drag-and-drop loading of IIIF manifest URLs/content state text.

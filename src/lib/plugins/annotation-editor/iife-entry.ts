@@ -17,10 +17,14 @@ import { createAnnotationEditorPlugin } from './index';
 
 const AnnotationEditorPlugin = createAnnotationEditorPlugin({
     adapter: new LocalStorageAdapter(),
-    tools: ['rectangle', 'polygon'],
+    tools: ['rectangle', 'polygon', 'point'],
     defaultTool: 'rectangle',
 });
 
 registerIifePlugin('AnnotationEditor', AnnotationEditorPlugin);
 
-export { AnnotationEditorPlugin };
+export {
+    AnnotationEditorPlugin,
+    createAnnotationEditorPlugin,
+    LocalStorageAdapter,
+};

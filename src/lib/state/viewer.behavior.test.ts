@@ -61,6 +61,28 @@ describe('ViewerState manifest behavior', () => {
         expect(state.viewingMode).toBe('continuous');
     });
 
+    it('keeps annotation edit bus requests and active ids scoped per viewer', () => {
+        const first = new ViewerState();
+        const second = new ViewerState();
+        const firstRequests: string[] = [];
+        const secondRequests: string[] = [];
+
+        first.annotationEditBus.requestEdit = (annotationId) => {
+            firstRequests.push(annotationId);
+        };
+        second.annotationEditBus.requestEdit = (annotationId) => {
+            secondRequests.push(annotationId);
+        };
+
+        first.annotationEditBus.requestEdit('anno-a');
+        first.annotationEditBus.activeEditAnnotationId = 'anno-a';
+
+        expect(firstRequests).toEqual(['anno-a']);
+        expect(secondRequests).toEqual([]);
+        expect(first.annotationEditBus.activeEditAnnotationId).toBe('anno-a');
+        expect(second.annotationEditBus.activeEditAnnotationId).toBeNull();
+    });
+
     it('falls back to the first sequence viewing direction when the manifest root omits it', async () => {
         const manifest = {
             __jsonld: {

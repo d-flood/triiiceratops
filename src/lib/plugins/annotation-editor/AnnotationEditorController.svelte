@@ -4,33 +4,45 @@
         VIEWER_STATE_KEY,
         type ViewerState,
     } from '../../state/viewer.svelte';
-    import { AnnotationManager } from './AnnotationManager.svelte';
+    import {
+        AnnotationManager,
+        resolveTools,
+    } from './AnnotationManager.svelte';
+    import type { AnnotationStore } from './AnnotationStore.svelte';
     import AnnotationEditorPanel from './AnnotationEditorPanel.svelte';
     import type {
         AnnotationEditorConfig,
         AnnotationEditorRuntimeContext,
         DrawingTool,
-        W3CAnnotationBody,
     } from './types';
 
-    const REQUEST_EDIT_EVENT = 'triiiceratops:annotation-editor:request-edit';
-
     // Props from the plugin system
-    let { config, embedded = false }: { config: AnnotationEditorConfig; embedded?: boolean } = $props();
+    let {
+        config,
+        store,
+        embedded = false,
+    }: {
+        config: AnnotationEditorConfig;
+        store?: AnnotationStore;
+        embedded?: boolean;
+    } = $props();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
     // UI state
-    let isEditing = $state(false);
-    let activeTool = $state<DrawingTool>(
-        untrack(() => config.defaultTool ?? 'rectangle'),
+    let isEditing = $state(
+        untrack(() => config.ui?.startInCreateMode ?? false),
     );
+    // Resolve the effective tool set once from config so the initial active
+    // tool and the panel's button list honor `config.tools`/`defaultTool`
+    // before the manager exists (F8).
+    const resolvedTools = untrack(() => resolveTools(config));
+    let activeTool = $state<DrawingTool>(resolvedTools.defaultTool);
     let selectedAnnotation = $state<any>(null);
     let isHydratingSelection = $state(false);
     let showDeleteConfirm = $state(false);
     let pendingDeleteId = $state<string | null>(null);
-    let canUndo = $state(false);
-    let canRedo = $state(false);
+    let contextVersion = $state(0);
     function getRuntimeContext(): AnnotationEditorRuntimeContext {
         return {
             manifestId: viewerState?.manifestId ?? null,
@@ -43,6 +55,7 @@
     }
 
     let canCreateAnnotation = $derived.by(() => {
+        void contextVersion;
         const context = getRuntimeContext();
         if (config.extension?.canCreate) {
             return config.extension.canCreate(context);
@@ -50,6 +63,7 @@
         return config.canCreateAnnotation ? config.canCreateAnnotation() : true;
     });
     let createDisabledReason = $derived.by(() => {
+        void contextVersion;
         const context = getRuntimeContext();
         if (config.extension?.getCreateDisabledReason) {
             return config.extension.getCreateDisabledReason(context);
@@ -60,22 +74,17 @@
     });
 
     // Create the annotation manager
-    let manager: AnnotationManager | null = $state.raw(null);
+    let manager = $state.raw<AnnotationManager | null>(null);
 
     $effect(() => {
         if (manager || !viewerState?.osdViewer) {
             return;
         }
 
-        const mgr = new AnnotationManager(config);
+        const mgr = new AnnotationManager(config, store);
 
         mgr.onSelectionChange = (annotation) => {
             selectedAnnotation = annotation;
-        };
-
-        mgr.onUndoRedoChange = (undo, redo) => {
-            canUndo = undo;
-            canRedo = redo;
         };
 
         mgr.onAnnotationCreated = (annotation) => {
@@ -86,7 +95,18 @@
             isHydratingSelection = isHydrating;
         };
 
+        mgr.onActiveEditingAnnotationChange = (annotationId) => {
+            if (viewerState?.annotationEditBus) {
+                viewerState.annotationEditBus.activeEditAnnotationId =
+                    annotationId;
+            }
+        };
+
         mgr.init(viewerState.osdViewer, viewerState.canvasId);
+
+        if (isEditing && canCreateAnnotation) {
+            mgr.setEditing(true);
+        }
 
         if (viewerState.manifestId && viewerState.canvasId) {
             void mgr.handleCanvasChange(
@@ -99,26 +119,36 @@
     });
 
     onDestroy(() => {
+        if (viewerState?.annotationEditBus) {
+            viewerState.annotationEditBus.requestEdit = () => {};
+            viewerState.annotationEditBus.activeEditAnnotationId = null;
+        }
         manager?.destroy();
     });
 
     onMount(() => {
-        const handleRequestEdit = (event: Event) => {
-            const annotationId = (
-                event as CustomEvent<{ annotationId?: string | null }>
-            ).detail?.annotationId;
+        const unsubscribe = config.extension?.subscribe?.(() => {
+            contextVersion++;
+        });
 
-            if (!annotationId) {
-                return;
-            }
+        const previousRequestEdit =
+            viewerState?.annotationEditBus?.requestEdit;
+        if (viewerState?.annotationEditBus) {
+            viewerState.annotationEditBus.requestEdit = (annotationId) => {
+                if (!annotationId) {
+                    return;
+                }
 
-            void (manager as any)?.selectAnnotationById(annotationId);
-        };
-
-        window.addEventListener(REQUEST_EDIT_EVENT, handleRequestEdit);
+                void (manager as any)?.selectAnnotationById(annotationId);
+            };
+        }
 
         return () => {
-            window.removeEventListener(REQUEST_EDIT_EVENT, handleRequestEdit);
+            unsubscribe?.();
+            if (viewerState?.annotationEditBus) {
+                viewerState.annotationEditBus.requestEdit =
+                    previousRequestEdit ?? (() => {});
+            }
         };
     });
 
@@ -151,12 +181,43 @@
         manager?.setTool(tool);
     }
 
-    async function handleSaveBodies(bodies: W3CAnnotationBody[]) {
+    // The store's unhandled persistence error, surfaced as a dismissible line in
+    // the panel when the host provides no onPersistenceError handler (F20).
+    let persistenceError = $derived(manager?.persistenceError ?? null);
+    function handleDismissError() {
+        manager?.dismissPersistenceError();
+    }
+
+    // Persistence-aware undo/redo, replayed through the adapter by the store so
+    // storage and display never disagree (F6). Availability is reactive store
+    // state read straight off the manager.
+    let canUndo = $derived(manager?.canUndo ?? false);
+    let canRedo = $derived(manager?.canRedo ?? false);
+    function handleUndo() {
+        void manager?.undo();
+    }
+    function handleRedo() {
+        void manager?.redo();
+    }
+
+    async function handleSaveBodies(bodies: unknown[] | unknown) {
         if (selectedAnnotation && manager && !isHydratingSelection) {
-            await manager.updateAnnotationBodies(selectedAnnotation.id, bodies);
-            selectedAnnotation = null;
-            manager.cancelSelection();
+            const ok = await manager.updateAnnotationBodies(
+                selectedAnnotation.id,
+                bodies,
+            );
+            // Keep the editor open on failure — the manager has re-signalled the
+            // rolled-back selection and the error line explains what happened.
+            if (ok) {
+                selectedAnnotation = null;
+                manager.cancelSelection();
+            }
         }
+    }
+
+    function handleCancelSelection() {
+        selectedAnnotation = null;
+        manager?.cancelSelection();
     }
 
     function handleRequestDelete() {
@@ -167,28 +228,25 @@
     }
 
     async function handleConfirmDelete() {
+        let ok = true;
         if (pendingDeleteId && manager) {
-            await manager.deleteAnnotation(pendingDeleteId);
+            ok = await manager.deleteAnnotation(pendingDeleteId);
         }
         showDeleteConfirm = false;
         pendingDeleteId = null;
-        selectedAnnotation = null;
+        // On failure keep the annotation selected so the user can retry; the
+        // error line explains the failure (F20).
+        if (ok) {
+            selectedAnnotation = null;
+        }
     }
 
     function handleCancelDelete() {
+        // Cancel returns the user to editing the same annotation — do not clear
+        // the selection here (F13).
         showDeleteConfirm = false;
         pendingDeleteId = null;
-        manager?.cancelSelection();
     }
-
-    function handleUndo() {
-        manager?.undo();
-    }
-
-    function handleRedo() {
-        manager?.redo();
-    }
-
 </script>
 
 <AnnotationEditorPanel
@@ -197,22 +255,27 @@
     {selectedAnnotation}
     {showDeleteConfirm}
     {isHydratingSelection}
-    {canUndo}
-    {canRedo}
     {canCreateAnnotation}
     {createDisabledReason}
-    availableTools={manager?.availableTools ?? [
-        'rectangle',
-        'polygon',
-        'point',
-    ]}
+    {persistenceError}
+    bodyEditor={config.bodyEditor ?? null}
+    showModeToggle={config.ui?.showModeToggle ?? true}
+    showUndoRedo={config.ui?.showUndoRedo ?? true}
+    purposes={config.ui?.purposes}
+    allowMultipleBodies={config.ui?.allowMultipleBodies ?? true}
+    runtimeContext={getRuntimeContext()}
+    onDismissError={handleDismissError}
+    {canUndo}
+    {canRedo}
+    onUndo={handleUndo}
+    onRedo={handleRedo}
+    availableTools={manager?.availableTools ?? resolvedTools.tools}
     onToggleEditing={handleToggleEditing}
     onSetTool={handleSetTool}
     onSaveBodies={handleSaveBodies}
+    onCancelSelection={handleCancelSelection}
     onRequestDelete={handleRequestDelete}
     onConfirmDelete={handleConfirmDelete}
     onCancelDelete={handleCancelDelete}
-    onUndo={handleUndo}
-    onRedo={handleRedo}
     {embedded}
 />
