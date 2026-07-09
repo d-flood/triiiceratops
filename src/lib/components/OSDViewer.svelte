@@ -21,12 +21,13 @@
         canvasRectToImageRect,
     } from '../utils/canvasImageSpace';
     import { resolveCanvasImage } from '../utils/resolveCanvasImage';
+    import { resolvePointRadius } from '../utils/pointMarker';
     import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
 
+    // Deprecated shim: external listeners may still observe this event for one
+    // release, but in-repo communication now uses viewerState.annotationEditBus.
     const REQUEST_EDIT_EVENT = 'triiiceratops:annotation-editor:request-edit';
-    const ACTIVE_EDIT_ID_EVENT =
-        'triiiceratops:annotation-editor:active-edit-id';
 
     let {
         tileSources,
@@ -37,7 +38,9 @@
     let container: HTMLElement | undefined = $state();
     let viewer: any | undefined = $state.raw();
     let OSD: any | undefined = $state();
-    let activeEditAnnotationId = $state<string | null>(null);
+    let activeEditAnnotationId = $derived(
+        viewerState.annotationEditBus.activeEditAnnotationId,
+    );
     let continuousLayouts: CanvasDisplayLayout[] = $state.raw([]);
     let readonlyTooltip = $state<{
         id: string;
@@ -47,7 +50,11 @@
         side: 'top' | 'bottom' | 'left' | 'right';
     } | null>(null);
 
-    const POINT_MARKER_SIZE = 10;
+    // Point marker diameter in screen pixels, from the shared point style so the
+    // read-only overlay matches the editor (spec §3.4). Radius → diameter.
+    const pointMarkerSize = $derived(
+        resolvePointRadius(viewerState.config?.pointStyle) * 2,
+    );
 
     type ViewerTileSourceError =
         | { type: 'auth' }
@@ -152,7 +159,7 @@
         if (anno.type === 'POINT') {
             const centerX = anno.point.x;
             const centerY = anno.point.y;
-            const radius = POINT_MARKER_SIZE / 2;
+            const radius = pointMarkerSize / 2;
 
             return (x - centerX) ** 2 + (y - centerY) ** 2 <= radius ** 2;
         }
@@ -252,8 +259,13 @@
         const editorPanel = viewerState.pluginPanels.find(
             (panel) => panel.id === 'annotation-editor:panel',
         );
+        const editorFlyoutButton = viewerState.pluginMenuButtons.find(
+            (button) => button.pluginId === 'annotation-editor',
+        );
 
-        return editorPanel?.isVisible() ?? false;
+        return (
+            editorPanel?.isVisible() ?? editorFlyoutButton?.isActive?.() ?? false
+        );
     });
 
     let currentCanvasImageDimensions = $derived.by(() => {
@@ -465,17 +477,6 @@
 
         let mounted = true;
 
-        const handleActiveEditAnnotation = (event: Event) => {
-            activeEditAnnotationId =
-                (event as CustomEvent<{ annotationId?: string | null }>).detail
-                    ?.annotationId ?? null;
-        };
-
-        window.addEventListener(
-            ACTIVE_EDIT_ID_EVENT,
-            handleActiveEditAnnotation,
-        );
-
         (async () => {
             // Dynamically import OpenSeadragon to avoid SSR issues
             const osdModule = await import('openseadragon');
@@ -567,10 +568,6 @@
 
         return () => {
             mounted = false;
-            window.removeEventListener(
-                ACTIVE_EDIT_ID_EVENT,
-                handleActiveEditAnnotation,
-            );
             viewer?.destroy();
             viewerState.osdViewer = null;
         };
@@ -589,6 +586,7 @@
         }
 
         event.stopPropagation();
+        viewerState.annotationEditBus.requestEdit(annotationId);
         window.dispatchEvent(
             new CustomEvent(REQUEST_EDIT_EVENT, {
                 detail: { annotationId },
@@ -1038,10 +1036,10 @@
                             : undefined}
                         aria-label={anno.tooltip}
                         style="
-		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
-		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
-		  width: {POINT_MARKER_SIZE}px;
-		  height: {POINT_MARKER_SIZE}px;
+		  left: {anno.point.x - pointMarkerSize / 2}px;
+		  top: {anno.point.y - pointMarkerSize / 2}px;
+		  width: {pointMarkerSize}px;
+		  height: {pointMarkerSize}px;
 		"
                         onclick={(event) =>
                             requestAnnotationEdit(anno.annotationId, event)}
@@ -1057,10 +1055,10 @@
                         data-annotation-id={anno.annotationId}
                         class="anno-readonly-wrap"
                         style="
-		  left: {anno.point.x - POINT_MARKER_SIZE / 2}px;
-		  top: {anno.point.y - POINT_MARKER_SIZE / 2}px;
-		  width: {POINT_MARKER_SIZE}px;
-		  height: {POINT_MARKER_SIZE}px;
+		  left: {anno.point.x - pointMarkerSize / 2}px;
+		  top: {anno.point.y - pointMarkerSize / 2}px;
+		  width: {pointMarkerSize}px;
+		  height: {pointMarkerSize}px;
 		"
                     >
                         <div

@@ -1,35 +1,34 @@
-import type { W3CAnnotation, AnnotationStorageAdapter } from './types';
-import { manifestsState } from '../../../state/manifests.svelte';
+import type {
+    W3CAnnotation,
+    AdapterLoadResult,
+    AnnotationStorageAdapter,
+} from './types';
 
 /**
- * LocalStorage-based annotation adapter.
- * Stores annotations in localStorage and injects them into manifestsState for display.
+ * LocalStorage-based annotation adapter — the reference minimal adapter.
+ *
+ * It is pure storage: `localStorage` reads and writes, nothing more. Display
+ * sync (`manifestsState`), caching, id reconciliation, and error handling are
+ * all owned by the plugin's `AnnotationStore`, so a custom adapter only needs to
+ * implement these few storage methods (F10). This is the shape every adapter
+ * should aim for.
  */
 export class LocalStorageAdapter implements AnnotationStorageAdapter {
     readonly id = 'localStorage';
     readonly name = 'Local Storage';
 
-    private injectedCanvases = new Set<string>();
-
     private storageKey(manifestId: string, canvasId: string): string {
         return `triiiceratops:annotations:${encodeURIComponent(manifestId)}:${encodeURIComponent(canvasId)}`;
     }
 
-    private canvasKey(manifestId: string, canvasId: string): string {
-        return `${manifestId}::${canvasId}`;
-    }
-
-    async load(manifestId: string, canvasId: string): Promise<W3CAnnotation[]> {
-        const key = this.storageKey(manifestId, canvasId);
-        const data = localStorage.getItem(key);
-        const annotations: W3CAnnotation[] = data ? JSON.parse(data) : [];
+    async load(
+        manifestId: string,
+        canvasId: string,
+    ): Promise<AdapterLoadResult[]> {
+        const annotations = await this.loadFromStorage(manifestId, canvasId);
         for (const annotation of annotations) {
             annotation.__fullBodyLoaded = true;
         }
-
-        // Inject into manifestsState for display
-        this.injectIntoManifestsState(manifestId, canvasId, annotations);
-
         return annotations;
     }
 
@@ -37,7 +36,7 @@ export class LocalStorageAdapter implements AnnotationStorageAdapter {
         manifestId: string,
         canvasId: string,
         annotationId: string,
-    ): Promise<W3CAnnotation | null> {
+    ): Promise<AdapterLoadResult | null> {
         const annotations = await this.loadFromStorage(manifestId, canvasId);
         const annotation = annotations.find((entry) => entry.id === annotationId) ?? null;
         if (!annotation) return null;
@@ -53,7 +52,6 @@ export class LocalStorageAdapter implements AnnotationStorageAdapter {
         const annotations = await this.loadFromStorage(manifestId, canvasId);
         annotations.push(annotation);
         this.saveToStorage(manifestId, canvasId, annotations);
-        this.injectIntoManifestsState(manifestId, canvasId, annotations);
     }
 
     async update(
@@ -66,7 +64,6 @@ export class LocalStorageAdapter implements AnnotationStorageAdapter {
         if (index >= 0) {
             annotations[index] = annotation;
             this.saveToStorage(manifestId, canvasId, annotations);
-            this.injectIntoManifestsState(manifestId, canvasId, annotations);
         }
     }
 
@@ -78,32 +75,12 @@ export class LocalStorageAdapter implements AnnotationStorageAdapter {
         const annotations = await this.loadFromStorage(manifestId, canvasId);
         const filtered = annotations.filter((a) => a.id !== annotationId);
         this.saveToStorage(manifestId, canvasId, filtered);
-        this.injectIntoManifestsState(manifestId, canvasId, filtered);
-    }
-
-    destroy(): void {
-        // Clear injected annotations from manifestsState
-        for (const canvasKey of this.injectedCanvases) {
-            const [manifestId, canvasId] = canvasKey.split('::');
-            manifestsState.clearUserAnnotations(manifestId, canvasId);
-        }
-        this.injectedCanvases.clear();
-    }
-
-    private injectIntoManifestsState(
-        manifestId: string,
-        canvasId: string,
-        annotations: W3CAnnotation[],
-    ): void {
-        const key = this.canvasKey(manifestId, canvasId);
-        this.injectedCanvases.add(key);
-        manifestsState.setUserAnnotations(manifestId, canvasId, annotations);
     }
 
     private async loadFromStorage(
         manifestId: string,
         canvasId: string,
-    ): Promise<W3CAnnotation[]> {
+    ): Promise<AdapterLoadResult[]> {
         const key = this.storageKey(manifestId, canvasId);
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : [];
