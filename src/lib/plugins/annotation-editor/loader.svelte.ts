@@ -1,14 +1,17 @@
 import type { ViewerState } from '../../state/viewer.svelte';
-import type { AnnotationStorageAdapter } from './types';
+import type { AnnotationStore } from './AnnotationStore.svelte';
 
 /**
- * Creates a reactive loader that syncs annotations from the adapter to the viewer state.
- * This runs independently of the Annotation Editor UI component.
+ * Creates a reactive loader that syncs annotations from storage to the viewer's
+ * read-only overlay. It runs independently of the Annotation Editor UI component
+ * (the panel may never open), so it drives the shared store directly: point the
+ * store at the current canvas and load — the store injects into `manifestsState`
+ * (F10). When the editor panel is mounted, its manager shares this same store,
+ * so both paths converge on one cache.
  */
-export function createLoader(adapter: AnnotationStorageAdapter) {
+export function createLoader(store: AnnotationStore) {
     return (viewerState: ViewerState) => {
-        // Track the last loaded combination to prevent duplicate loads
-        // Although the adapter generally handles idempotency, this is a good optimization
+        // Track the last loaded combination to prevent duplicate loads.
         let lastLoadedId: string | null = null;
 
         $effect(() => {
@@ -23,13 +26,23 @@ export function createLoader(adapter: AnnotationStorageAdapter) {
             // Update IMMEDIATELY to prevent re-entrant calls or rapid-fire effects
             lastLoadedId = comboId;
 
-            // Load annotations for this canvas
-            void adapter.load(manifestId, canvasId).catch((err) => {
-                    console.error(
-                        '[AnnotationLoader] Failed to load annotations',
-                        err,
-                    );
-                });
+            // Point the shared store at this canvas, then load. The store's
+            // load-race token discards stale results and it injects the loaded
+            // annotations into the display overlay.
+            store.setCanvas(manifestId, canvasId);
+            void store.load().catch((err) => {
+                console.error(
+                    '[AnnotationLoader] Failed to load annotations',
+                    err,
+                );
+            });
+        });
+
+        // The shared store's lifecycle is tied to the loader (which lives as long
+        // as the plugin), not the editor panel. Clear its injected overlays and
+        // release the adapter when the loader is torn down (F11).
+        $effect(() => {
+            return () => store.destroy();
         });
     };
 }

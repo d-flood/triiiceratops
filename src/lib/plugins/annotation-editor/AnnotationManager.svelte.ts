@@ -1,26 +1,35 @@
 import type {
+    DrawingStyle,
     OpenSeadragonAnnotator,
     W3CImageAnnotation,
 } from '@annotorious/openseadragon';
 import type { ImageAnnotation } from '@annotorious/annotorious';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap } from 'svelte/reactivity';
 
 import type {
     AnnotationEditorConfig,
     AnnotationEditorRuntimeContext,
+    AnnotationPersistenceOp,
     DrawingTool,
-    W3CAnnotationBody,
-    AnnotationStorageAdapter,
 } from './types';
-import type { W3CAnnotation } from './adapters/types';
-import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
+import type { W3CAnnotation, W3CTarget } from './adapters/types';
+import { AnnotationStore } from './AnnotationStore.svelte';
 import { manifestsState } from '../../state/manifests.svelte';
 import {
+    canvasPointToImagePoint,
+    imagePointToCanvasPoint,
     transformAnnotationToCanvasSpace,
     transformAnnotationToImageSpace,
     type CanvasImageSpaceDimensions,
 } from '../../utils/canvasImageSpace';
 import { resolveCanvasImage } from '../../utils/resolveCanvasImage';
+import { resolvePointRadius } from '../../utils/pointMarker';
+// The real Annotorious stylesheet, imported as a string so it can be injected
+// into the OSD viewer's root node — the shadow root in the element build, where
+// a document-head `<link>` never reaches (F23). This is the single source of
+// truth: bundlers track it against the installed `@annotorious/*` version, so it
+// can't silently drift like the old vendored, hash-classed copy did.
+import annotoriousCss from '@annotorious/openseadragon/annotorious-openseadragon.css?inline';
 
 /** Every tool the plugin knows how to draw, in default button order. */
 export const ALL_TOOLS: DrawingTool[] = ['rectangle', 'polygon', 'point'];
@@ -48,12 +57,30 @@ export function resolveTools(config: {
  * Instantiated within the controller component.
  */
 export class AnnotationManager {
-    private static readonly POINT_SELECTOR_RENDER_SIZE = 6;
     private static readonly ACTIVE_EDIT_ID_EVENT =
         'triiiceratops:annotation-editor:active-edit-id';
 
+    // Fallback marker colours for the editor's Annotorious styling when the host
+    // hasn't set `pointStyle` (§3.3). Annotorious `DrawingStyle` colours must be
+    // rgb/hex, so these approximate the read-only overlay's `--anno-red` token.
+    private static readonly DEFAULT_POINT_FILL = '#e5484d';
+    private static readonly DEFAULT_POINT_STROKE = '#e5484d';
+    private static readonly DEFAULT_POINT_STROKE_WIDTH = 2;
+    private static readonly DEFAULT_DRAWING_STYLE = {
+        fill: '#1e90ff',
+        fillOpacity: 0.25,
+        stroke: '#1e90ff',
+        strokeWidth: 2,
+    } as const;
+
     private config: AnnotationEditorConfig;
-    private adapter: AnnotationStorageAdapter;
+    // All persistence (cache, hydration state, save queue, load-race token, the
+    // raw adapter, and the current canvas context) lives in the store; the
+    // manager only drives Annotorious/OSD mechanics and calls the store (issue 05).
+    private store: AnnotationStore;
+    // True only when the manager created its own store (no shared store passed).
+    // A shared store's lifecycle belongs to the plugin/loader, not the panel.
+    private readonly ownsStore: boolean;
     private annotorious: OpenSeadragonAnnotator<
         ImageAnnotation,
         W3CImageAnnotation
@@ -62,32 +89,52 @@ export class AnnotationManager {
     // Store reference to OSD viewer for mouse nav toggling
     private osdViewer: any = null;
 
+    // Retained references to the viewer handlers registered in init() so
+    // destroy() can remove them and not leak listeners on the OSD viewer (F12).
+    private openHandler: ((...args: any[]) => void) | null = null;
+    private canvasClickHandler: ((...args: any[]) => void) | null = null;
+
     // Dynamic dependencies
-    private OSD: any = null;
     private createOSDAnnotator: any = null;
     private W3CImageFormat: any = null;
+    // OpenSeadragon module, loaded lazily; used to measure screen-pixel size for
+    // the point editing marker (§3.2).
+    private OSD: any = null;
 
-    // Current canvas tracking
-    private currentManifestId: string | null = null;
-    private currentCanvasId: string | null = null;
-    private persistedAnnotations = new SvelteMap<string, W3CAnnotation>();
-    // Per-annotation hydration state, kept manager-internal because the
-    // `__fullBodyLoaded` marker does not survive Annotorious's parse/serialize
-    // round-trip (F7). Populated from adapter `load()` results; markers are then
-    // stripped before anything reaches Annotorious, the cache, or the panel.
-    private hydrationState = new Map<string, 'skeleton' | 'full'>();
+    // The exact canvas-space point for each annotation currently open for
+    // editing (§3.2). Annotorious v3 has no point tool, so a point is edited via
+    // a small fragment rectangle; keeping the origin here lets an unmoved point
+    // round-trip bit-identically instead of drifting through the rect centre.
+    private editingPointOrigin = new SvelteMap<
+        string,
+        { x: number; y: number }
+    >();
+
+    // Current canvas context is owned by the store; these getters keep the
+    // manager's Annotorious/transform call sites reading it unchanged (issue 05).
+    private get currentManifestId(): string | null {
+        return this.store.currentManifestId;
+    }
+    private get currentCanvasId(): string | null {
+        return this.store.currentCanvasId;
+    }
     private activeEditingAnnotationId: string | null = null;
+    // The canvas key the manager last ran handleCanvasChange for. Owned by the
+    // manager (not read from the shared store) so the loader advancing the
+    // store's context can't cause the guard to skip real changes.
+    private lastHandledCanvasKey: string | null = null;
 
-    // Serializes adapter writes per annotation id so rapid saves of the same
-    // annotation can't interleave create/update (F4).
-    private saveQueue = new SvelteMap<string, Promise<void>>();
-    // Ids whose next Annotorious `updateAnnotation` echo we triggered ourselves
-    // and must not re-persist (F3). See withSuppressedEcho() for why this is an
-    // id set rather than a boolean flag.
-    private suppressedEchoIds = new SvelteSet<string>();
-    // Bumped on every loadAnnotations() entry; a stale async load discards its
-    // result if the token changed while it was awaiting (F14).
-    private loadSequence = 0;
+    // Ids whose next Annotorious `updateAnnotation`/`deleteAnnotation` echo we
+    // triggered ourselves and must not re-persist (F3/F27). This is Annotorious
+    // event bookkeeping, so it stays with the manager. See withSuppressedEcho()
+    // for why this is an id set rather than a boolean flag.
+    // A per-id *count* of Annotorious lifecycle echoes we triggered ourselves and
+    // must not re-persist. A count, not a set, because one id can have more than
+    // one echo in flight at once: saving a body pushes an `updateAnnotation` echo
+    // and the editor teardown's `clearAnnotations()` pushes a `deleteAnnotation`
+    // echo for the same id. A single-bit mark suppressed only the first and let
+    // the delete leak, deleting the just-saved annotation (F3/F27).
+    private suppressedEchoIds = new SvelteMap<string, number>();
 
     // Internal state tracking
     private isDrawingEnabled = false;
@@ -100,13 +147,28 @@ export class AnnotationManager {
 
     // Callbacks for state updates (set by controller)
     onSelectionChange?: (annotation: any | null) => void;
-    onUndoRedoChange?: (canUndo: boolean, canRedo: boolean) => void;
     onAnnotationCreated?: (annotation: any) => void;
     onAnnotationHydrationChange?: (isHydrating: boolean) => void;
+    onActiveEditingAnnotationChange?: (annotationId: string | null) => void;
 
-    constructor(config: AnnotationEditorConfig) {
+    constructor(config: AnnotationEditorConfig, store?: AnnotationStore) {
         this.config = config;
-        this.adapter = config.adapter ?? new LocalStorageAdapter();
+        // The plugin constructs one store and shares it with the loader; when a
+        // manager is created outside that wiring (e.g. tests) it falls back to
+        // its own store built from config. A shared store outlives the panel, so
+        // the manager only tears down a store it created itself.
+        this.ownsStore = !store;
+        this.store = store ?? new AnnotationStore(config);
+        // When a create reconciles onto a server-assigned id (F5), re-open the
+        // annotation in Annotorious under the canonical id so later edits/deletes
+        // reference it and the active-edit-id signal carries the new id.
+        this.store.onReconcileId = (oldId, canonical) =>
+            this.handleIdReconciled(oldId, canonical);
+        // Keep the open Annotorious editing session in step with an undo/redo
+        // replay (F6): refresh it under the affected id, or clear it when the
+        // replay removed the annotation being edited.
+        this.store.onReplay = (affectedId, annotation) =>
+            this.handleReplay(affectedId, annotation);
         const { tools, defaultTool } = resolveTools(config);
         this.resolvedTools = tools;
         this.resolvedDefaultTool = defaultTool;
@@ -121,7 +183,9 @@ export class AnnotationManager {
 
         // Store viewer reference
         this.osdViewer = viewer;
-        this.currentCanvasId = canvasId;
+        // Seed the store's canvas context (the manifest arrives via the
+        // controller's handleCanvasChange right after init).
+        this.store.setCanvas(this.store.currentManifestId, canvasId);
 
         // If viewer is already open, init immediately
         const worldCount = viewer.world?.getItemCount() ?? 0;
@@ -129,28 +193,31 @@ export class AnnotationManager {
         if (worldCount > 0) {
             this.initAnnotorious(viewer, canvasId);
         } else {
-            // Wait for open event and give it a moment to settle layout
-            viewer.addHandler('open', () => {
-                setTimeout(() => {
-                    this.initAnnotorious(viewer, canvasId);
-                }, 250);
-            });
+            // Wait for the open event, then let layout settle for one frame
+            // before initializing — event-driven rather than a magic delay (F25).
+            this.openHandler = () => {
+                requestAnimationFrame(() => {
+                    void this.initAnnotorious(viewer, canvasId);
+                });
+            };
+            viewer.addHandler('open', this.openHandler);
         }
 
         // Attach global click handler for Point tool
         // "canvas-click" is robust and handles drag vs click detection
         // Attach global click handler for ALL tools when drawing is enabled
         // This ensures we can block Zoom on click, while allowing Panning (Drag)
-        viewer.addHandler('canvas-click', (event: any) => {
+        this.canvasClickHandler = (event: any) => {
             if (this.isDrawingEnabled && event.quick) {
                 // Prevent default OSD navigation (zoom on click)
                 event.preventDefaultAction = true;
 
                 if (this.activeTool === 'point' && this.annotorious) {
-                    this.handlePointClick(event);
+                    void this.handlePointClick(event);
                 }
             }
-        });
+        };
+        viewer.addHandler('canvas-click', this.canvasClickHandler);
     }
 
     private async initAnnotorious(
@@ -166,9 +233,10 @@ export class AnnotationManager {
                 this.createOSDAnnotator = mod.createOSDAnnotator;
                 this.W3CImageFormat = mod.W3CImageFormat;
             }
+            // OpenSeadragon itself, for screen-pixel measurement (§3.2).
             if (!this.OSD) {
-                const mod = await import('openseadragon');
-                this.OSD = mod.default || mod;
+                const osdModule = await import('openseadragon');
+                this.OSD = (osdModule as any).default || osdModule;
             }
 
             // The serializer stamps this into target.source, but forceTargetSource()
@@ -185,18 +253,13 @@ export class AnnotationManager {
                 drawingEnabled: initialDrawingEnabled,
                 autoSave: false,
                 drawingMode: 'click' as const,
-                style: this.config.drawingStyle ?? {
-                    fill: '#1e90ff',
-                    fillOpacity: 0.25,
-                    stroke: '#1e90ff',
-                    strokeWidth: 2,
-                },
-                formatter: (annotation: any) => {
-                    if (this.isPointAnnotation(annotation)) {
-                        return 'point-annotation';
-                    }
-                    return ''; // No class for normal annotations
-                },
+                // Annotorious v3's supported per-annotation styling is the
+                // `style` function form `(annotation, state) => DrawingStyle`
+                // (v3.7 has no per-annotation className), replacing the dead v2
+                // `formatter` (F9). Points render with the configured point
+                // marker colours; everything else uses the drawing style.
+                style: (annotation: any) =>
+                    this.styleForAnnotation(annotation),
             };
 
             const anno = this.createOSDAnnotator(viewer, config);
@@ -231,73 +294,83 @@ export class AnnotationManager {
         }
     }
 
-    private handlePointClick(event: any): void {
+    /**
+     * Create a true IIIF `PointSelector` annotation at the exact click point
+     * (F17). The click is converted click → viewport → image coords → canvas
+     * coords and rounded once to integer canvas pixels (D2) — no synthetic
+     * fragment rectangle, no zoom-dependent geometry, no `point-` id heuristic.
+     * The annotation goes through the same store create path as drawn shapes
+     * (prepareDraft, stamping, display sync); it is already canvas-space, so the
+     * image→canvas transform is skipped. It is then opened for body editing.
+     */
+    private async handlePointClick(event: any): Promise<void> {
         if (!this.osdViewer || !this.annotorious) return;
         // Never create an annotation without a real canvas to target (F1/F26).
         if (this.currentCanvasId === null) return;
 
-        // Helper to get the TiledImage (first item) for accurate conversion
+        // The TiledImage (first item) drives the accurate pixel→image conversion.
         const tiledImage = this.osdViewer.world.getItemAt(0);
         if (!tiledImage) return;
 
-        // 1. Resolve Click Position
-        // event.position is in "Web Coordinates" (Pixels relative to viewer)
-        // We MUST convert to Viewport coordinates first.
+        // event.position is in web pixels relative to the viewer; convert to
+        // viewport coords, then to image coords via the tiled image.
         const viewportPoint = this.osdViewer.viewport.pointFromPixel(
             event.position,
         );
-
-        // Then convert Viewport -> Image
         const imagePoint = tiledImage.viewportToImageCoordinates(viewportPoint);
 
-        // Calculate width/height based on "Screen Pixels" to ensure visibility
-        // User requested a 2x2 pixel rectangle.
-        const targetScreenPixels = 2;
-
-        const OSD = this.OSD;
-
-        const p1 = this.osdViewer.viewport.pointFromPixel(new OSD.Point(0, 0));
-        const p2 = this.osdViewer.viewport.pointFromPixel(
-            new OSD.Point(targetScreenPixels, 0),
+        // Image coords → canvas coords, rounding once on the final canvas-space
+        // values (D2). No center-derivation, no screen-pixel sizing.
+        const canvasPoint = imagePointToCanvasPoint(
+            { x: imagePoint.x, y: imagePoint.y },
+            this.getCurrentCanvasImageDimensions(),
         );
+        const x = Math.round(canvasPoint.x);
+        const y = Math.round(canvasPoint.y);
 
-        const imgP1 = tiledImage.viewportToImageCoordinates(p1);
-        const imgP2 = tiledImage.viewportToImageCoordinates(p2);
-
-        const imageDist = Math.abs(imgP2.x - imgP1.x);
-
-        // Ensure at least 1 image unit, but otherwise strictly follow the screen-pixel math
-        const size = Math.max(Math.round(imageDist), 1);
-        const width = size;
-        const height = size;
-
-        // Center the rectangle on the click in image coordinates for Annotorious.
-        const x = Math.round(imagePoint.x - width / 2);
-        const y = Math.round(imagePoint.y - height / 2);
-
-        const id = `point-${crypto.randomUUID()}`;
         const annotation = {
             '@context': 'http://www.w3.org/ns/anno.jsonld' as const,
-            id: id,
+            // Replaced via the store's id reconciliation when the adapter
+            // returns a server-assigned id (F5).
+            id: `temp-${crypto.randomUUID()}`,
             type: 'Annotation' as const,
             body: [],
             target: {
+                type: 'SpecificResource' as const,
                 source: this.currentCanvasId,
                 selector: {
-                    type: 'FragmentSelector' as const,
-                    conformsTo: 'http://www.w3.org/TR/media-frags/' as const,
-                    value: `xywh=${x},${y},${width},${height}`,
+                    type: 'PointSelector' as const,
+                    x,
+                    y,
                 },
             },
         };
 
-        // 5. Add to Annotorious
-        this.annotorious.addAnnotation(annotation);
+        // Same create pipeline as drawn shapes (prepareDraft, stamping, display
+        // sync), but the point is already canvas-space so the image→canvas
+        // transform is skipped. Mark it active before persisting so an id
+        // reconciliation (temp → server id) re-opens it under the canonical id.
+        const prepared = this.prepareAnnotation(annotation, {
+            canvasSpace: true,
+        });
+        this.onAnnotationCreated?.(prepared);
+        this.setActiveEditingAnnotationId(prepared.id);
 
-        // Wait for render cycle before selecting coverage
-        setTimeout(() => {
-            (this.annotorious as any).setSelected(id);
-        }, 50);
+        const ok = await this.persistCreate(prepared);
+        if (!ok) {
+            // The store rolled back the failed create; drop the transient
+            // selection so the panel isn't left editing a phantom point (F20).
+            if (this.activeEditingAnnotationId === prepared.id) {
+                this.clearSelectionState();
+            }
+            return;
+        }
+
+        // Open the created point for body editing under its canonical id (id
+        // reconciliation advances activeEditingAnnotationId when it changed).
+        await this.selectAnnotationById(
+            this.activeEditingAnnotationId ?? prepared.id,
+        );
     }
 
     // === Public API ===
@@ -342,13 +415,16 @@ export class AnnotationManager {
         // We also do NOT isolate events, so that MouseDown/Up bubble to OSD for Panning.
     }
 
+    /**
+     * A point annotation is one whose target carries a `PointSelector` (F17).
+     * Recurses one level into `selector.item` for wrapped selectors, matching
+     * `annotationAdapter.ts`. No `point-` id heuristic — geometry, not id, is
+     * authoritative.
+     */
     private isPointAnnotation(annotation: any): boolean {
         const selector = annotation?.target?.selector;
-
-        return (
-            annotation?.id?.startsWith?.('point-') ||
-            selector?.type === 'PointSelector'
-        );
+        const item = selector?.item ?? selector;
+        return item?.type === 'PointSelector';
     }
 
     private getPointCoordinates(
@@ -386,6 +462,17 @@ export class AnnotationManager {
     }
 
     private toPointSelectorTarget(annotation: W3CAnnotation): W3CAnnotation {
+        const selector = (annotation as any)?.target?.selector;
+        // New (and previously stored) points are authored as PointSelector
+        // already — pass them through untouched (issue 11). Reconstructing would
+        // needlessly drop unrelated target fields.
+        if (selector?.type === 'PointSelector') {
+            return annotation;
+        }
+
+        // Read-compat: derive a PointSelector from legacy fragment-center data
+        // so odd previously-stored points still resolve (D3). New writes never
+        // reach this branch — the point tool authors PointSelector directly.
         if (!this.isPointAnnotation(annotation)) {
             return annotation;
         }
@@ -399,7 +486,9 @@ export class AnnotationManager {
             ...annotation,
             target: {
                 type: 'SpecificResource',
-                source: annotation.target?.source ?? this.currentCanvasId,
+                source:
+                    (annotation.target as W3CTarget)?.source ??
+                    this.currentCanvasId,
                 selector: {
                     type: 'PointSelector',
                     x: point.x,
@@ -409,21 +498,37 @@ export class AnnotationManager {
         } as W3CAnnotation;
     }
 
+    /**
+     * Convert a cached (canvas-space) annotation into the image-space shape
+     * Annotorious edits. Non-points scale straight to image space. A point has
+     * no Annotorious tool, so it becomes a small fragment rectangle centred on
+     * the point and sized in **screen pixels at selection time** (§3.2): the
+     * marker keeps a constant visual size regardless of image resolution or
+     * zoom. The exact point is recorded separately (`editingPointOrigin`) so the
+     * reverse conversion never re-derives it from the rect centre.
+     */
     private toAnnotoriousTarget(annotation: W3CAnnotation): W3CAnnotation {
-        const selector = annotation?.target?.selector as any;
+        const dimensions = this.getCurrentCanvasImageDimensions();
+        const selector = (annotation?.target as W3CTarget)?.selector as any;
 
         if (selector?.type !== 'PointSelector') {
-            return annotation;
+            return transformAnnotationToImageSpace(annotation, dimensions);
         }
 
-        const size = AnnotationManager.POINT_SELECTOR_RENDER_SIZE;
-        const x = selector.x - size / 2;
-        const y = selector.y - size / 2;
+        const imageCenter = canvasPointToImagePoint(
+            { x: selector.x, y: selector.y },
+            dimensions,
+        );
+        const size = this.pointEditRectImageSize();
+        const x = imageCenter.x - size / 2;
+        const y = imageCenter.y - size / 2;
 
         return {
             ...annotation,
             target: {
-                source: annotation.target?.source ?? this.currentCanvasId,
+                source:
+                    (annotation.target as W3CTarget)?.source ??
+                    this.currentCanvasId,
                 selector: {
                     type: 'FragmentSelector',
                     conformsTo: 'http://www.w3.org/TR/media-frags/',
@@ -431,6 +536,140 @@ export class AnnotationManager {
                 },
             },
         } as W3CAnnotation;
+    }
+
+    /**
+     * Reverse of {@link toAnnotoriousTarget} for a point being edited: turn the
+     * image-space fragment rect Annotorious holds back into a canvas-space
+     * `PointSelector`. If the rect's centre still maps to the recorded origin
+     * (integer canvas px, D2), the point wasn't dragged and the origin is emitted
+     * verbatim — a bit-identical round-trip. If it moved, the new rect centre is
+     * used (§3.2).
+     */
+    private pointFromEditingRect(annotation: W3CAnnotation): W3CAnnotation {
+        const dimensions = this.getCurrentCanvasImageDimensions();
+        const origin = this.editingPointOrigin.get((annotation as any)?.id);
+        const rect = this.parseFragmentRect(
+            (annotation as any)?.target?.selector?.value,
+        );
+
+        let point = origin ?? null;
+        if (rect) {
+            const centerCanvas = imagePointToCanvasPoint(
+                { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+                dimensions,
+            );
+            const candidate = {
+                x: Math.round(centerCanvas.x),
+                y: Math.round(centerCanvas.y),
+            };
+            if (
+                !origin ||
+                candidate.x !== origin.x ||
+                candidate.y !== origin.y
+            ) {
+                point = candidate;
+            }
+        }
+
+        if (!point) {
+            return annotation;
+        }
+
+        return {
+            ...annotation,
+            target: {
+                type: 'SpecificResource',
+                source:
+                    (annotation as any)?.target?.source ??
+                    this.currentCanvasId,
+                selector: {
+                    type: 'PointSelector',
+                    x: point.x,
+                    y: point.y,
+                },
+            },
+        } as W3CAnnotation;
+    }
+
+    private parseFragmentRect(
+        value: unknown,
+    ): { x: number; y: number; width: number; height: number } | null {
+        if (typeof value !== 'string') return null;
+        const match = value.match(
+            /xywh=(?:pixel:)?(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)/,
+        );
+        if (!match) return null;
+        const [, x, y, width, height] = match;
+        return {
+            x: Number(x),
+            y: Number(y),
+            width: Number(width),
+            height: Number(height),
+        };
+    }
+
+    /**
+     * The point editing rectangle's side length in **image units**, derived from
+     * the configured marker diameter (screen px) and the current
+     * image-units-per-screen-pixel. Falls back to treating the diameter as
+     * canvas units (scaled to image space) when the viewport can't be measured
+     * yet — e.g. before the viewer's first render.
+     */
+    private pointEditRectImageSize(): number {
+        const diameter = 2 * resolvePointRadius(this.config.pointStyle);
+        const perScreenPixel = this.imageUnitsPerScreenPixel();
+        if (perScreenPixel && perScreenPixel > 0) {
+            return perScreenPixel * diameter;
+        }
+        const fallback = canvasPointToImagePoint(
+            { x: diameter, y: 0 },
+            this.getCurrentCanvasImageDimensions(),
+        );
+        return Math.abs(fallback.x) || diameter;
+    }
+
+    /**
+     * Image units spanned by one screen pixel at the current zoom, measured the
+     * way the old point-authoring code did: convert two 1px-apart screen points
+     * to image coordinates and take the delta. Returns null when the viewport
+     * isn't available.
+     */
+    private imageUnitsPerScreenPixel(): number | null {
+        const viewport = this.osdViewer?.viewport;
+        const tiledImage = this.osdViewer?.world?.getItemAt?.(0);
+        if (!viewport || !tiledImage || !this.OSD?.Point) {
+            return null;
+        }
+        const v0 = viewport.pointFromPixel(new this.OSD.Point(0, 0));
+        const v1 = viewport.pointFromPixel(new this.OSD.Point(1, 0));
+        const i0 = tiledImage.viewportToImageCoordinates(v0);
+        const i1 = tiledImage.viewportToImageCoordinates(v1);
+        const delta = Math.abs(i1.x - i0.x);
+        return Number.isFinite(delta) && delta > 0 ? delta : null;
+    }
+
+    /**
+     * Annotorious `style` callback: points get the configured marker colours,
+     * every other shape gets the host's drawing style (F9). A point is
+     * identified by having an editing origin recorded for its id.
+     */
+    private styleForAnnotation(annotation: any): DrawingStyle {
+        if (annotation?.id && this.editingPointOrigin.has(annotation.id)) {
+            const ps = this.config.pointStyle;
+            return {
+                fill: (ps?.fill ??
+                    AnnotationManager.DEFAULT_POINT_FILL) as DrawingStyle['fill'],
+                fillOpacity: 1,
+                stroke: (ps?.stroke ??
+                    AnnotationManager.DEFAULT_POINT_STROKE) as DrawingStyle['stroke'],
+                strokeWidth:
+                    ps?.strokeWidth ??
+                    AnnotationManager.DEFAULT_POINT_STROKE_WIDTH,
+            };
+        }
+        return (this.config.drawingStyle ??
+            AnnotationManager.DEFAULT_DRAWING_STYLE) as DrawingStyle;
     }
 
     private getCurrentCanvasImageDimensions(): CanvasImageSpaceDimensions | null {
@@ -484,17 +723,54 @@ export class AnnotationManager {
         return this.resolvedTools;
     }
 
+    /**
+     * The store's current unhandled persistence error for the panel's default
+     * error line, or `null` when there's nothing to show (F20).
+     */
+    get persistenceError(): {
+        op: AnnotationPersistenceOp;
+        annotationId?: string;
+    } | null {
+        return this.store.panelError;
+    }
+
+    /** Dismiss the panel's persistence error line. */
+    dismissPersistenceError(): void {
+        this.store.dismissError();
+    }
+
+    /** Whether an undo is available (reactive; drives the panel button — F6). */
+    get canUndo(): boolean {
+        return this.store.canUndo;
+    }
+
+    /** Whether a redo is available (reactive; drives the panel button — F6). */
+    get canRedo(): boolean {
+        return this.store.canRedo;
+    }
+
+    /**
+     * Reverse the most recent persisted operation through the store's op stack,
+     * replaying its inverse against the adapter so storage and display stay in
+     * agreement (F6).
+     */
+    async undo(): Promise<void> {
+        await this.store.undo();
+    }
+
+    /** Re-apply the most recently undone operation (F6). */
+    async redo(): Promise<void> {
+        await this.store.redo();
+    }
+
     private injectStyles(viewer: any): void {
         if (!viewer.element) return;
 
         const root = viewer.element.getRootNode();
         const styleId = 'annotorious-fixes';
 
-        // Annotorious default CSS (minified) to ensure it works in Shadow DOM
-        const annotoriousCss =
-            'canvas.a9s-gl-canvas{height:100%;left:0;position:absolute;top:0;width:100%}canvas.a9s-gl-canvas.hidden{display:none}canvas.a9s-gl-canvas.hover{cursor:pointer!important}svg.svelte-g4ws1v.svelte-g4ws1v{pointer-events:none}svg.drawing.svelte-g4ws1v.svelte-g4ws1v,svg.editing.svelte-g4ws1v .svelte-g4ws1v{pointer-events:all}svg.hover.svelte-g4ws1v.svelte-g4ws1v{cursor:pointer}svg.svelte-g4ws1v .svelte-g4ws1v{pointer-events:all}text.svelte-1rehw2p{fill:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:600}rect.svelte-1rehw2p{stroke-width:1.2;vector-effect:non-scaling-stroke}polygon.svelte-fgq4n0{stroke-width:1.2;vector-effect:non-scaling-stroke}rect.svelte-gze948{stroke-width:1.2;vector-effect:non-scaling-stroke}svg.svelte-1krwc4m{position:absolute;top:0;left:0;width:100%;height:100%;outline:none;pointer-events:none}svg.svelte-jwrce3{overflow:visible;position:absolute;top:0;left:0;width:100%;height:100%;outline:none;pointer-events:none}.a9s-osd-selectionlayer :is(rect,path,polygon,ellipse,line){fill:#3182ed40;stroke:#3182ed;stroke-width:1.5px;vector-effect:non-scaling-stroke}rect.a9s-union-fg.svelte-jwrce3{fill:#3182ed1f;stroke-width:1px}rect.a9s-union-bg.svelte-jwrce3{fill:transparent;stroke:#fff;stroke-width:2px}circle.a9s-handle-buffer.svelte-qtyc7s:focus{outline:none}circle.a9s-handle-buffer.svelte-qtyc7s:focus-visible{stroke:#fffc;stroke-width:3px}.a9s-polygon-midpoint.svelte-12ykj76{cursor:crosshair}.a9s-polygon-midpoint-buffer.svelte-12ykj76{fill:transparent}.a9s-polygon-midpoint-outer.svelte-12ykj76{display:none;fill:transparent;pointer-events:none;stroke:#00000059;stroke-width:1.5px;vector-effect:non-scaling-stroke}.a9s-polygon-midpoint-inner.svelte-12ykj76{fill:#00000040;pointer-events:none;stroke:#fff;stroke-width:1px;vector-effect:non-scaling-stroke}mask.a9s-polygon-editor-mask.svelte-1h2slbm>rect.svelte-1h2slbm{fill:#fff}mask.a9s-polygon-editor-mask.svelte-1h2slbm>circle.svelte-1h2slbm,mask.a9s-polygon-editor-mask.svelte-1h2slbm>polygon.svelte-1h2slbm{fill:#000}mask.a9s-rectangle-editor-mask.svelte-1njczvj>rect.rect-mask-bg.svelte-1njczvj{fill:#fff}mask.a9s-rectangle-editor-mask.svelte-1njczvj>rect.rect-mask-fg.svelte-1njczvj{fill:#000}mask.a9s-multipolygon-editor-mask.svelte-1vxo6dc>rect.svelte-1vxo6dc{fill:#fff}mask.a9s-multipolygon-editor-mask.svelte-1vxo6dc>circle.svelte-1vxo6dc,mask.a9s-multipolygon-editor-mask.svelte-1vxo6dc>path.svelte-1vxo6dc{fill:#000}mask.a9s-rubberband-rectangle-mask.svelte-1a76qe7>rect.rect-mask-bg.svelte-1a76qe7{fill:#fff}mask.a9s-rubberband-rectangle-mask.svelte-1a76qe7>rect.rect-mask-fg.svelte-1a76qe7{fill:#000}mask.a9s-rubberband-polygon-mask.svelte-18wrg3t>rect.svelte-18wrg3t{fill:#fff}mask.a9s-rubberband-polygon-mask.svelte-18wrg3t>polygon.svelte-18wrg3t{fill:#000}circle.a9s-handle.svelte-18wrg3t.svelte-18wrg3t{fill:#fff;pointer-events:none;stroke:#00000059;stroke-width:1px;vector-effect:non-scaling-stroke}path.open.svelte-1w0132l{fill:transparent!important}.a9s-annotationlayer{box-sizing:border-box;height:100%;left:0;outline:none;position:absolute;top:0;touch-action:none;width:100%;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-o-user-select:none;user-select:none}.a9s-annotationlayer.hover{cursor:pointer}.a9s-annotationlayer.hidden{display:none}.a9s-annotationlayer ellipse,.a9s-annotationlayer line,.a9s-annotationlayer path,.a9s-annotationlayer polygon,.a9s-annotationlayer rect{fill:transparent;shape-rendering:geometricPrecision;vector-effect:non-scaling-stroke;-webkit-tap-highlight-color:transparent}.a9s-touch-halo{fill:transparent;pointer-events:none;stroke-width:0;transition:fill .15s}.a9s-touch-halo.touched{fill:#fff6}.a9s-handle-buffer{fill:transparent}.a9s-handle [role=button]{cursor:inherit!important}.a9s-handle-dot{fill:#fff;pointer-events:none;stroke:#00000059;stroke-width:1px;vector-effect:non-scaling-stroke}.a9s-handle-dot.selected{fill:#1a1a1a;stroke:none}.a9s-handle-selected{animation:dash-rotate .35s linear infinite reverse;fill:#ffffff40;stroke:#000000e6;stroke-dasharray:2 2;stroke-width:1px;pointer-events:none;vector-effect:non-scaling-stroke}@keyframes dash-rotate{0%{stroke-dashoffset:0}to{stroke-dashoffset:4}}.a9s-edge-handle{fill:transparent;stroke:transparent;stroke-width:6px}.a9s-shape-handle,.a9s-handle{cursor:move}.a9s-handle.a9s-corner-handle{cursor:crosshair}.a9s-edge-handle-top{cursor:n-resize}.a9s-edge-handle-right{cursor:e-resize}.a9s-edge-handle-bottom{cursor:s-resize}.a9s-edge-handle-left{cursor:w-resize}.a9s-handle.a9s-corner-handle-topleft{cursor:nw-resize}.a9s-handle.a9s-corner-handle-topright{cursor:ne-resize}.a9s-handle.a9s-corner-handle-bottomright{cursor:se-resize}.a9s-handle.a9s-corner-handle-bottomleft{cursor:sw-resize}.a9s-annotationlayer .a9s-outer,div[data-theme=dark] .a9s-annotationlayer .a9s-outer{display:none}.a9s-annotationlayer .a9s-inner,div[data-theme=dark] .a9s-annotationlayer .a9s-inner{fill:#0000001f;stroke:#000;stroke-width:1px}rect.a9s-handle,div[data-theme=dark] rect.a9s-handle{fill:#000;rx:2px}rect.a9s-close-polygon-handle,div[data-theme=dark] rect.a9s-close-polygon-handle{fill:#000;rx:1px}.a9s-annotationlayer .a9s-outer,div[data-theme=light] .a9s-annotationlayer .a9s-outer{display:block;stroke:#00000059;stroke-width:3px}.a9s-annotationlayer .a9s-inner,div[data-theme=light] .a9s-annotationlayer .a9s-inner{fill:#ffffff26;stroke:#fff;stroke-width:1.5px}rect.a9s-handle,div[data-theme=light] rect.a9s-handle{fill:#fff;rx:1px;stroke:#00000073;stroke-width:1px}rect.a9s-close-polygon-handle,div[data-theme=light] rect.a9s-close-polygon-handle{fill:#fff;rx:1px;stroke:#00000073;stroke-width:1px}';
-
-        // Define the critical CSS fixes
+        // Define the critical CSS fixes, appended to the real Annotorious
+        // stylesheet imported at module scope (F23).
         const cssContent = `
             ${annotoriousCss}
 
@@ -535,9 +811,9 @@ export class AnnotationManager {
                 pointer-events: visiblePainted; 
             }
 
-            /* Render point annotations as circular markers even though
-               Annotorious edits them via a tiny fragment rectangle. */
-            .a9s-annotation.point-annotation rect,
+            /* Render the edited point as a circular marker even though
+               Annotorious edits it via a tiny fragment rectangle. The
+               manager toggles the .point-selected class on the viewer. */
             .point-selected .a9s-osd-selectionlayer rect {
                 rx: 999px;
                 ry: 999px;
@@ -587,14 +863,15 @@ export class AnnotationManager {
             void this.handleUpdateAnnotation(updated);
         });
 
+        this.annotorious.on('deleteAnnotation', (annotation) => {
+            void this.handleDeleteAnnotation(annotation);
+        });
+
         this.annotorious.on('selectionChanged', (annotations) => {
             const selected =
                 annotations.length > 0
-                    ? transformAnnotationToCanvasSpace(
-                          this.toPointSelectorTarget(
-                              annotations[0] as unknown as W3CAnnotation,
-                          ),
-                          this.getCurrentCanvasImageDimensions(),
+                    ? this.annotationToCanvasSpace(
+                          annotations[0] as unknown as W3CAnnotation,
                       )
                     : null;
             this.selectedAnnotation = selected;
@@ -622,6 +899,7 @@ export class AnnotationManager {
 
     private setActiveEditingAnnotationId(annotationId: string | null): void {
         this.activeEditingAnnotationId = annotationId;
+        this.onActiveEditingAnnotationChange?.(annotationId);
 
         if (typeof window === 'undefined') {
             return;
@@ -634,136 +912,90 @@ export class AnnotationManager {
         );
     }
 
-    private cachePersistedAnnotations(annotations: W3CAnnotation[]): void {
-        // Rebuild both maps together: read each adapter-supplied
-        // `__fullBodyLoaded` marker once into internal hydration state, then
-        // strip the markers so nothing downstream depends on them (F7).
-        this.hydrationState.clear();
-        this.persistedAnnotations = new SvelteMap(
-            annotations.map((annotation) => {
-                this.hydrationState.set(
-                    annotation.id,
-                    annotation.__fullBodyLoaded === false
-                        ? 'skeleton'
-                        : 'full',
-                );
-                return [
-                    annotation.id,
-                    this.stripInternalMarkers(annotation),
-                ] as const;
-            }),
-        );
-    }
-
-    private async resolvePersistedAnnotation(
-        annotationId: string,
-    ): Promise<W3CAnnotation | null> {
-        const cached = this.persistedAnnotations.get(annotationId);
-
-        if (cached?.__fullBodyLoaded !== false) {
-            return cached ?? null;
-        }
-
-        if (
-            cached &&
-            this.adapter.hydrate &&
-            this.currentManifestId &&
-            this.currentCanvasId
-        ) {
-            const hydrated = await this.adapter.hydrate(
-                this.currentManifestId,
-                this.currentCanvasId,
-                annotationId,
-            );
-
-            if (hydrated) {
-                this.persistedAnnotations.set(annotationId, hydrated);
-                return hydrated;
-            }
-        }
-
-        if (!cached && this.currentManifestId && this.currentCanvasId) {
-            const annotations = await this.adapter.load(
-                this.currentManifestId,
-                this.currentCanvasId,
-            );
-            this.cachePersistedAnnotations(annotations);
-            return this.persistedAnnotations.get(annotationId) ?? null;
-        }
-
-        return cached ?? null;
-    }
-
-    private clearAnnotoriousEditingAnnotation(): void {
+    /**
+     * Reset the manager's Annotorious-facing selection fields. Shared by the two
+     * teardown paths: `clearSelectionState()` (also notifies the host, leaves
+     * Annotorious untouched) and `clearAnnotoriousEditingAnnotation()` (also
+     * clears Annotorious's annotation set).
+     */
+    private resetSelectionFields(): void {
         this.selectedAnnotation = null;
         this.osdViewer?.element?.classList.remove('point-selected');
         this.setActiveEditingAnnotationId(null);
-
-        if (!this.annotorious) {
-            return;
-        }
-
-        const annotations = this.annotorious.getAnnotations() ?? [];
-
-        if (annotations.length > 0) {
-            this.annotorious.clearAnnotations();
-        }
     }
 
-    private updateUndoRedoState(): void {
-        const canUndo = this.annotorious?.canUndo() ?? false;
-        const canRedo = this.annotorious?.canRedo() ?? false;
-        this.onUndoRedoChange?.(canUndo, canRedo);
+    /**
+     * Tear down the current selection and tell the host it's gone, without
+     * touching Annotorious's own annotation set. Used on the create/delete/
+     * rollback paths where Annotorious's shape is managed separately.
+     */
+    private clearSelectionState(): void {
+        this.resetSelectionFields();
+        this.onSelectionChange?.(null);
+        this.notifyExtensionSelectionChange(null);
+    }
+
+    private clearAnnotoriousEditingAnnotation(): void {
+        this.resetSelectionFields();
+        this.clearAnnotationsSuppressed();
+    }
+
+    /**
+     * Clear all annotations from Annotorious, marking each so the resulting
+     * (async) `deleteAnnotation` echo is consumed by handleDeleteAnnotation and
+     * never mistaken for a user-originated deletion (F27). Only ids actually
+     * present are marked, so no stale marks accrue.
+     */
+    private clearAnnotationsSuppressed(): void {
+        if (!this.annotorious) return;
+
+        const annotations = this.annotorious.getAnnotations() ?? [];
+        if (annotations.length === 0) return;
+
+        for (const entry of annotations) {
+            const id = (entry as any)?.id;
+            if (id) this.markSuppressedEcho(id);
+        }
+        this.annotorious.clearAnnotations();
     }
 
     async handleCanvasChange(
         manifestId: string | null,
         canvasId: string | null,
     ): Promise<void> {
-        if (
-            manifestId === this.currentManifestId &&
-            canvasId === this.currentCanvasId
-        ) {
+        // Guard against the canvas the manager itself last handled, not the
+        // store's context: the shared loader can advance the store's context
+        // first, and reading it here would make the manager skip its own
+        // selection cleanup + Annotorious reload for a genuine change.
+        const canvasKey = `${manifestId}::${canvasId}`;
+        if (canvasKey === this.lastHandledCanvasKey) {
             return;
         }
+        this.lastHandledCanvasKey = canvasKey;
 
-        this.currentManifestId = manifestId;
-        this.currentCanvasId = canvasId;
-        this.persistedAnnotations.clear();
+        // The store owns the canvas context and drops the previous canvas's
+        // cache; the manager clears its Annotorious-facing selection state.
+        this.store.setCanvas(manifestId, canvasId);
         this.selectedAnnotation = null;
+        // Point origins belong to the previous canvas's editing session.
+        this.editingPointOrigin.clear();
         this.onSelectionChange?.(null);
         this.notifyExtensionSelectionChange(null);
         await this.loadAnnotations();
     }
 
     private async loadAnnotations(): Promise<void> {
-        if (
-            !this.annotorious ||
-            !this.currentManifestId ||
-            !this.currentCanvasId
-        ) {
+        if (!this.annotorious || !this.store.ready) {
             return;
         }
 
-        const seq = ++this.loadSequence;
+        this.clearAnnotoriousEditingAnnotation();
 
         try {
-            this.clearAnnotoriousEditingAnnotation();
-
-            const annotations = await this.adapter.load(
-                this.currentManifestId,
-                this.currentCanvasId,
-            );
-
-            // A newer load (e.g. a canvas change) started while we awaited —
-            // discard this stale result so it can't clobber the current canvas.
-            if (seq !== this.loadSequence) return;
-
-            this.cachePersistedAnnotations(annotations);
-
-            this.updateUndoRedoState();
+            // The store bumps its load-race token and discards a stale result
+            // if the canvas changed while awaiting (F14).
+            await this.store.load();
         } catch (error) {
-            if (seq !== this.loadSequence) return;
             console.error(
                 '[AnnotationEditor] Failed to load annotations:',
                 error,
@@ -779,8 +1011,20 @@ export class AnnotationManager {
     private async handleCreateAnnotation(annotation: any): Promise<void> {
         const prepared = this.prepareAnnotation(annotation);
         this.onAnnotationCreated?.(prepared);
-        await this.persistCreate(prepared);
-        this.updateUndoRedoState();
+        const ok = await this.persistCreate(prepared);
+        if (ok) return;
+
+        // The create failed and the store rolled back its optimistic entry.
+        // Remove the just-drawn shape from Annotorious and clear the selection so
+        // the panel isn't left editing an annotation that was never persisted
+        // (F20). Suppress the resulting delete echo — the cache never held it.
+        const id = prepared.id;
+        if (this.annotorious && id) {
+            this.withSuppressedEcho(id, () => {
+                this.annotorious?.removeAnnotation(id);
+            });
+        }
+        this.clearSelectionState();
     }
 
     /**
@@ -792,7 +1036,32 @@ export class AnnotationManager {
         if (this.consumeSuppressedEcho(updated?.id)) return;
 
         await this.saveAnnotation(updated);
-        this.updateUndoRedoState();
+    }
+
+    /**
+     * Handles Annotorious's (async) `deleteAnnotation` lifecycle event. Echoes
+     * from our own `clearAnnotations()` teardown are marked and consumed here so
+     * they never reach the adapter. A genuine Annotorious-originated deletion of
+     * a persisted annotation syncs the adapter, cache, and selection state (F27).
+     */
+    private async handleDeleteAnnotation(annotation: any): Promise<void> {
+        const id = annotation?.id;
+        if (this.consumeSuppressedEcho(id)) return;
+        if (!id || !this.store.ready) return;
+
+        // Not in the cache → either we already deleted it ourselves (the trash
+        // button removes it from the cache before Annotorious) or it was never
+        // persisted. Nothing to sync.
+        if (!this.store.has(id)) return;
+
+        // On failure the store keeps the cache entry and reports the error; the
+        // annotation reappears on the next load (F20).
+        const ok = await this.store.delete(id);
+        if (!ok) return;
+
+        if (this.activeEditingAnnotationId === id) {
+            this.clearSelectionState();
+        }
     }
 
     /**
@@ -800,88 +1069,44 @@ export class AnnotationManager {
      * payloads, geometry edits). Transforms to canvas space, forces the target
      * source, applies beforeSave, then persists.
      */
-    async saveAnnotation(annotation: any): Promise<void> {
-        if (!this.currentManifestId || !this.currentCanvasId) return;
+    async saveAnnotation(annotation: any): Promise<boolean> {
+        if (!this.store.ready) return false;
 
-        const dimensions = this.getCurrentCanvasImageDimensions();
         const w3cAnnotation = await this.applyBeforeSave(
-            transformAnnotationToCanvasSpace(
-                this.toPointSelectorTarget(this.forceTargetSource(annotation)),
-                dimensions,
-            ),
+            this.annotationToCanvasSpace(this.forceTargetSource(annotation)),
         );
 
-        await this.persist(w3cAnnotation);
+        return await this.store.persist(w3cAnnotation);
+    }
+
+    /**
+     * Convert an image-space annotation from Annotorious into canvas space for
+     * the cache/panel/store. An actively-edited point takes the lossless
+     * origin-aware path (§3.2); everything else scales normally, with legacy
+     * fragment-centre read-compat via `toPointSelectorTarget` (D3).
+     */
+    private annotationToCanvasSpace(
+        annotation: W3CAnnotation,
+    ): W3CAnnotation {
+        if (this.editingPointOrigin.has((annotation as any)?.id)) {
+            return this.pointFromEditingRect(annotation);
+        }
+        return transformAnnotationToCanvasSpace(
+            this.toPointSelectorTarget(annotation),
+            this.getCurrentCanvasImageDimensions(),
+        );
     }
 
     /**
      * Persist a freshly created annotation that is already in **canvas space**
      * (the output of prepareAnnotation). Skips the image→canvas re-transform;
-     * beforeSave still runs last.
+     * beforeSave still runs last. Returns whether the write succeeded.
      */
-    private async persistCreate(prepared: W3CAnnotation): Promise<void> {
-        if (!this.currentManifestId || !this.currentCanvasId) return;
+    private async persistCreate(prepared: W3CAnnotation): Promise<boolean> {
+        if (!this.store.ready) return false;
 
         const w3cAnnotation = await this.applyBeforeSave(prepared);
-        await this.persist(w3cAnnotation);
-    }
-
-    /**
-     * Single chokepoint for adapter writes. Decides create-vs-update from the
-     * in-memory cache (no per-save adapter.load round-trip — F4), serializes
-     * writes per annotation id (F4), and updates the cache only after the
-     * adapter call resolves. Rollback on failure lands in slice-08.
-     */
-    private async persist(w3cAnnotation: W3CAnnotation): Promise<void> {
-        if (!this.currentManifestId || !this.currentCanvasId) return;
-
-        const manifestId = this.currentManifestId;
-        const canvasId = this.currentCanvasId;
-        const id = w3cAnnotation.id;
-        const payload = this.stripInternalMarkers(w3cAnnotation);
-
-        const run = async () => {
-            const isUpdate = this.persistedAnnotations.has(id);
-            try {
-                if (isUpdate) {
-                    await this.adapter.update(manifestId, canvasId, payload);
-                } else {
-                    await this.adapter.create(manifestId, canvasId, payload);
-                }
-                this.persistedAnnotations.set(id, payload);
-            } catch (error) {
-                console.error(
-                    '[AnnotationEditor] Failed to save annotation:',
-                    error,
-                );
-            }
-        };
-
-        const previous = this.saveQueue.get(id) ?? Promise.resolve();
-        // Chain regardless of whether the previous save resolved or rejected.
-        const next = previous.then(run, run);
-        this.saveQueue.set(id, next);
-        await next;
-        if (this.saveQueue.get(id) === next) {
-            this.saveQueue.delete(id);
-        }
-    }
-
-    /**
-     * Strip plugin-internal bookkeeping markers so they never reach an adapter
-     * or the cache. Hydration state becomes fully manager-internal in slice-03.
-     */
-    private stripInternalMarkers(annotation: W3CAnnotation): W3CAnnotation {
-        if (
-            annotation.__fullBodyLoaded === undefined &&
-            annotation.__bodyPreview === undefined
-        ) {
-            return annotation;
-        }
-        const clone: any = { ...annotation };
-        delete clone.__fullBodyLoaded;
-        delete clone.__bodyPreview;
-        return clone as W3CAnnotation;
+        return await this.store.persist(w3cAnnotation);
     }
 
     /**
@@ -895,15 +1120,33 @@ export class AnnotationManager {
      * update emits exactly one echo, so one mark == one consumed echo.
      */
     private withSuppressedEcho(annotationId: string, mutate: () => void): void {
-        this.suppressedEchoIds.add(annotationId);
+        this.markSuppressedEcho(annotationId);
         mutate();
     }
 
+    /** Record one more expected self-triggered echo for this id. */
+    private markSuppressedEcho(annotationId: string): void {
+        this.suppressedEchoIds.set(
+            annotationId,
+            (this.suppressedEchoIds.get(annotationId) ?? 0) + 1,
+        );
+    }
+
+    /**
+     * Consume one expected echo for this id. Returns true (and decrements the
+     * count, deleting the entry at zero) while echoes remain outstanding, so two
+     * concurrent echoes — e.g. a body-save update echo and a teardown delete echo
+     * for the same id — are each matched and neither leaks (F3/F27).
+     */
     private consumeSuppressedEcho(annotationId: string | undefined): boolean {
-        if (!annotationId || !this.suppressedEchoIds.has(annotationId)) {
-            return false;
+        if (!annotationId) return false;
+        const count = this.suppressedEchoIds.get(annotationId) ?? 0;
+        if (count <= 0) return false;
+        if (count === 1) {
+            this.suppressedEchoIds.delete(annotationId);
+        } else {
+            this.suppressedEchoIds.set(annotationId, count - 1);
         }
-        this.suppressedEchoIds.delete(annotationId);
         return true;
     }
 
@@ -923,7 +1166,10 @@ export class AnnotationManager {
         return clone;
     }
 
-    private prepareAnnotation(annotation: any): W3CAnnotation {
+    private prepareAnnotation(
+        annotation: any,
+        options?: { canvasSpace?: boolean },
+    ): W3CAnnotation {
         const base = this.forceTargetSource(annotation);
         const prepared = this.config.extension?.prepareDraft
             ? this.config.extension.prepareDraft(
@@ -936,12 +1182,18 @@ export class AnnotationManager {
         const clone = this.toPointSelectorTarget(
             JSON.parse(JSON.stringify(prepared)),
         );
-        const canvasSpaceClone = transformAnnotationToCanvasSpace(
+        // The point tool authors canvas-space coordinates directly (issue 11);
+        // drawn shapes arrive in Annotorious image space and must be scaled.
+        // No hydration marker: a freshly prepared draft always has its full
+        // body, and persist() records its hydration state as 'full' (F7). The
+        // marker is intentionally omitted so it can't leak to the panel.
+        if (options?.canvasSpace) {
+            return clone;
+        }
+        return transformAnnotationToCanvasSpace(
             clone,
             this.getCurrentCanvasImageDimensions(),
         );
-        canvasSpaceClone.__fullBodyLoaded = true;
-        return canvasSpaceClone;
     }
 
     private async applyBeforeSave(
@@ -979,46 +1231,32 @@ export class AnnotationManager {
     }
 
     private async hydrateAnnotation(annotationId: string): Promise<void> {
-        if (
-            !this.currentManifestId ||
-            !this.currentCanvasId ||
-            !this.adapter.hydrate ||
-            !this.annotorious
-        ) {
+        if (!this.annotorious || !this.store.ready || !this.store.hydrateSupported) {
             return;
         }
 
-        const annotations = this.annotorious.getAnnotations() ?? [];
-        const selected = annotations.find(
-            (entry: any) => entry.id === annotationId,
-        );
-        if (!selected || selected.__fullBodyLoaded !== false) {
+        // Consult internal hydration state, not a body marker — the
+        // `__fullBodyLoaded` marker is stripped before annotations reach
+        // Annotorious, so it can never be read back off the selection (F7).
+        if (!this.store.isSkeleton(annotationId)) {
             this.onAnnotationHydrationChange?.(false);
             return;
         }
 
         this.onAnnotationHydrationChange?.(true);
 
-        const seq = this.loadSequence;
-
         try {
-            const hydrated = await this.adapter.hydrate(
-                this.currentManifestId,
-                this.currentCanvasId,
-                annotationId,
-            );
-            if (!hydrated) return;
+            // The store fetches + caches the full body, discarding the result if
+            // the canvas changed underneath it (F14); we also veto committing it
+            // if the annotation is no longer present in Annotorious for editing.
+            const full = await this.store.hydrate(annotationId, () => {
+                const current = this.annotorious?.getAnnotations() ?? [];
+                return current.some((entry: any) => entry.id === annotationId);
+            });
 
-            // Bail if a canvas change (which bumps loadSequence) happened while
-            // we were hydrating, or if the annotation is no longer being edited.
-            if (seq !== this.loadSequence) return;
-
-            const current = this.annotorious.getAnnotations() ?? [];
-            const stillPresent = current.some(
-                (entry: any) => entry.id === annotationId,
-            );
-            if (!stillPresent) return;
-            this.onSelectionChange?.(hydrated);
+            if (full) {
+                this.onSelectionChange?.(full);
+            }
         } catch (error) {
             console.error(
                 '[AnnotationEditor] Failed to hydrate annotation body:',
@@ -1029,70 +1267,108 @@ export class AnnotationManager {
         }
     }
 
-    async deleteAnnotation(annotationId: string): Promise<void> {
-        if (!this.currentManifestId || !this.currentCanvasId) return;
+    async deleteAnnotation(annotationId: string): Promise<boolean> {
+        if (!this.store.ready) return false;
 
-        try {
-            await this.adapter.delete(
-                this.currentManifestId,
-                this.currentCanvasId,
-                annotationId,
-            );
-            this.persistedAnnotations.delete(annotationId);
-            this.annotorious?.removeAnnotation(annotationId);
+        // Drop from the store (cache first) before removing from Annotorious, so
+        // the resulting delete echo finds no cache entry and is ignored. On
+        // failure the store keeps the entry + reports the error; leave the
+        // annotation on screen and the selection open (F20).
+        const ok = await this.store.delete(annotationId);
+        if (!ok) return false;
 
-            if (this.activeEditingAnnotationId === annotationId) {
-                this.clearAnnotoriousEditingAnnotation();
-                this.onSelectionChange?.(null);
-                this.notifyExtensionSelectionChange(null);
-            }
+        this.annotorious?.removeAnnotation(annotationId);
 
-            this.updateUndoRedoState();
-        } catch (error) {
-            console.error(
-                '[AnnotationEditor] Failed to delete annotation:',
-                error,
-            );
+        if (this.activeEditingAnnotationId === annotationId) {
+            this.clearAnnotoriousEditingAnnotation();
+            this.onSelectionChange?.(null);
+            this.notifyExtensionSelectionChange(null);
         }
+        return true;
     }
 
     async updateAnnotationBodies(
         annotationId: string,
-        bodies: W3CAnnotationBody[],
-    ): Promise<void> {
+        bodies: unknown[] | unknown,
+    ): Promise<boolean> {
         const annotations = this.annotorious?.getAnnotations() ?? [];
         const annotation = annotations.find((a: any) => a.id === annotationId);
 
-        if (annotation) {
-            const updated = {
-                ...annotation,
-                body: bodies.length === 1 ? bodies[0] : bodies,
-            };
-            // Persist exactly once (this updates the cache on success).
-            await this.saveAnnotation(updated);
+        if (!annotation) return false;
 
-            // Push the edited bodies back into Annotorious so a subsequent
-            // geometry edit carries them, but suppress the resulting async
-            // updateAnnotation echo so it doesn't persist a second time (F3).
-            if (this.annotorious) {
-                this.withSuppressedEcho(annotationId, () => {
-                    // Cast to any to avoid type conflicts with Annotorious internals
-                    this.annotorious?.updateAnnotation(updated as any);
-                });
+        const updated = {
+            ...annotation,
+            body: bodies,
+        };
+        // Persist exactly once (this updates the cache on success).
+        const ok = await this.saveAnnotation(updated);
+
+        if (!ok) {
+            // The save failed and the store rolled back to the previous cached
+            // copy. Re-signal selection with that copy so the panel reverts the
+            // phantom edit instead of showing unsaved state (F20). Annotorious
+            // is intentionally left untouched — it never received the edit.
+            const rolledBack = this.store.get(annotationId);
+            if (rolledBack) {
+                this.onSelectionChange?.(rolledBack);
             }
+            return false;
+        }
+
+        // Push the edited bodies back into Annotorious so a subsequent geometry
+        // edit carries them, but suppress the resulting async updateAnnotation
+        // echo so it doesn't persist a second time (F3).
+        if (this.annotorious) {
+            this.withSuppressedEcho(annotationId, () => {
+                // Cast to any to avoid type conflicts with Annotorious internals
+                this.annotorious?.updateAnnotation(updated as any);
+            });
+        }
+        return true;
+    }
+
+    /**
+     * React to the store swapping a freshly-created annotation onto its
+     * server-assigned id (F5). If that annotation is the one currently open for
+     * editing, re-open it under the canonical id: this re-adds it to Annotorious,
+     * reselects it, and re-emits the active-edit-id signal with the new id.
+     */
+    private handleIdReconciled(
+        oldId: string,
+        canonical: W3CAnnotation,
+    ): void {
+        if (this.activeEditingAnnotationId !== oldId) return;
+        void this.selectAnnotationById(canonical.id);
+    }
+
+    /**
+     * Reconcile the open Annotorious editing session with an undo/redo replay
+     * (F6). Only the annotation currently open is affected: if the replay left
+     * it in storage, re-open it so its geometry and body reflect the restored
+     * state; if the replay removed it (e.g. undoing the create of the annotation
+     * being edited), tear the editing session down.
+     */
+    private handleReplay(
+        affectedId: string,
+        annotation: W3CAnnotation | null,
+    ): void {
+        if (this.activeEditingAnnotationId !== affectedId) return;
+
+        if (annotation) {
+            void this.selectAnnotationById(affectedId);
+        } else {
+            this.clearAnnotoriousEditingAnnotation();
+            this.onSelectionChange?.(null);
+            this.notifyExtensionSelectionChange(null);
         }
     }
 
     async selectAnnotationById(annotationId: string): Promise<void> {
-        if (
-            !this.annotorious ||
-            !this.currentManifestId ||
-            !this.currentCanvasId
-        ) {
+        if (!this.annotorious || !this.store.ready) {
             return;
         }
 
-        const annotation = await this.resolvePersistedAnnotation(annotationId);
+        const annotation = await this.store.resolve(annotationId);
 
         if (!annotation) {
             console.warn(
@@ -1102,21 +1378,32 @@ export class AnnotationManager {
             return;
         }
 
-        const editableAnnotation = transformAnnotationToImageSpace(
-            this.toAnnotoriousTarget(annotation),
-            this.getCurrentCanvasImageDimensions(),
-        );
+        // toAnnotoriousTarget returns the fully image-space editable shape
+        // (points become a screen-sized fragment rect; other shapes are scaled
+        // straight to image space), so no further transform here.
+        const editableAnnotation = this.toAnnotoriousTarget(annotation);
 
         this.clearAnnotoriousEditingAnnotation();
+
+        // Record the exact canvas-space point before Annotorious ever sees the
+        // fragment rect, so an unmoved point round-trips bit-identically (§3.2).
+        const pointSelector = (annotation as any)?.target?.selector;
+        if (pointSelector?.type === 'PointSelector') {
+            this.editingPointOrigin.set(annotationId, {
+                x: pointSelector.x,
+                y: pointSelector.y,
+            });
+        }
+
         this.annotorious.setAnnotations(
             [editableAnnotation] as Partial<W3CImageAnnotation>[],
             true,
         );
         this.setActiveEditingAnnotationId(annotationId);
 
-        setTimeout(() => {
-            (this.annotorious as any)?.setSelected(annotationId);
-        }, 0);
+        // v3 store state mutates synchronously, so the annotation set above is
+        // immediately selectable — no timing guess needed (F25).
+        (this.annotorious as any)?.setSelected(annotationId);
     }
 
     cancelSelection(): void {
@@ -1127,19 +1414,36 @@ export class AnnotationManager {
         this.clearAnnotoriousEditingAnnotation();
     }
 
-    undo(): void {
-        this.annotorious?.undo();
-        this.updateUndoRedoState();
-    }
-
-    redo(): void {
-        this.annotorious?.redo();
-        this.updateUndoRedoState();
-    }
-
     destroy(): void {
+        // Remove the viewer handlers registered in init() so no listeners leak
+        // once the plugin is torn down (F12).
+        if (this.osdViewer) {
+            if (this.openHandler) {
+                this.osdViewer.removeHandler('open', this.openHandler);
+            }
+            if (this.canvasClickHandler) {
+                this.osdViewer.removeHandler(
+                    'canvas-click',
+                    this.canvasClickHandler,
+                );
+            }
+        }
+        this.openHandler = null;
+        this.canvasClickHandler = null;
+
         this.clearAnnotoriousEditingAnnotation();
+        this.editingPointOrigin.clear();
         this.annotorious?.destroy();
         this.annotorious = null;
+
+        // A shared store outlives the panel (the loader keeps displaying the
+        // overlay), so only tear it down when the manager created it. When
+        // shared, the loader's effect cleanup owns store.destroy().
+        if (this.ownsStore) {
+            // Store clears its cache/hydration state, its injected overlays, and
+            // releases the adapter (F11).
+            this.store.destroy();
+        }
+        this.osdViewer = null;
     }
 }

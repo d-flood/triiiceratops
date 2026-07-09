@@ -93,6 +93,28 @@ A plugin render target: a popover anchored to its toolbar button, auto-placed to
 the canvas. The compact alternative to a panel.
 _Avoid_: popup, popover (as the term of art)
 
+## Content state domain
+
+**Content state**:
+A portable IIIF description of a view — either a bare IIIF URI, or a JSON-LD W3C
+Annotation with `motivation: contentState` whose `target` is a Canvas (optionally with
+an `#xywh=` region) and whose `partOf` names the Manifest. Says _what to show_, not how
+it is delivered.
+_Avoid_: content state URL, "the iiif-content" (both conflate the payload with its delivery)
+
+**`iiif-content` parameter**:
+The IIIF-mandated name for the HTTP GET/POST request parameter that delivers a content
+state. One of several delivery channels (also paste, drag-and-drop, FileReader, `data-*`
+attribute); it is not the payload itself. Carries a base64url-encoded Annotation or a
+bare URI.
+_Avoid_: content state param (implies it is the only channel)
+
+**View target**:
+Triiiceratops' resolved projection of a content state after parsing —
+`{ manifestId, canvasId?, region? }`. What the viewer consumes; distinct from the
+incoming content state. (Currently typed `ContentStateTarget` in `contentState.ts`.)
+_Avoid_: content state (that is the spec artifact, not the parsed result)
+
 ## Relationships
 
 - **Manager → Store → Adapter**: the manager (Annotorious/OSD mechanics) calls the
@@ -102,3 +124,6 @@ _Avoid_: popup, popover (as the term of art)
   holds only the annotation currently being edited.
 - **Host ↔ Plugin**: the host customizes via the extension (behavior), the body editor
   (body UI), and the adapter (storage).
+- **Content state → delivery → View target**: a content state (the payload) arrives
+  through a delivery channel (the `iiif-content` parameter, drag-and-drop, etc.), is
+  parsed into a view target, and the viewer loads its manifest and frames its canvas/region.
