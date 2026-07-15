@@ -1,5 +1,15 @@
 # triiiceratops
 
+## 1.0.0-rc.25
+
+### Minor Changes
+
+- 35b071a: Annotation editor overhaul: the plugin now owns display sync (storage adapters are pure `load`/`hydrate`/`create`/`update`/`delete`), surfaces adapter failures via `onPersistenceError` with rollback and retry, adds a custom body editor API (Svelte or DOM `render` hook), adds persistence-aware undo/redo, adds UI configuration knobs and flyout rendering, and treats points as first-class IIIF `PointSelector` annotations with a shared `pointStyle` config for consistent read-only/edit rendering. The public types are generic over the annotation body (`AnnotationEditorConfig<TBody, THostContext>`, generic `W3CAnnotation`) and the `AnnotationStorageAdapter` contract is fully typed. Also fixes a data-loss bug (body save on a fresh annotation could trigger a spurious delete), a stale-cache race in `AnnotationStore.resolve()`, and de-duplicates the vendored Annotorious stylesheet in favor of a single imported source. Ships a vitest adapter conformance suite (`triiiceratops/plugins/annotation-editor/testing`) and expanded docs, including v1 adapter migration notes.
+
+### Patch Changes
+
+- 518c3e0: fix summary/description parsing for v2 manifests
+
 ## 1.0.0-rc.24
 
 ### Patch Changes
