@@ -41,7 +41,7 @@
         if (json?.summary) {
             return resolveLanguageValue(json.summary, viewerLocale);
         }
-        return manifest.getDescription?.() || '';
+        return manifest.getDescription?.()?.getValue(viewerLocale) || '';
     });
 
     // --- Metadata entries ---
