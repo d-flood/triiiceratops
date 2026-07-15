@@ -142,7 +142,7 @@ export interface ThemeConfig {
      * Raw CSS-variable overrides for anything not covered by a typed key — most
      * usefully per-panel overrides on plugin panels. Keys are CSS variable names
      * WITHOUT the leading `--`; values are used verbatim (NOT normalized to oklch).
-     * @example { 'image-manipulation-panel-bg': '#eef', 'pdf-export-panel-bg': '#fff' }
+     * @example { 'annotation-editor-panel-bg': '#eef', 'pdf-export-panel-bg': '#fff' }
      */
     cssVars?: Record<string, string>;
 }

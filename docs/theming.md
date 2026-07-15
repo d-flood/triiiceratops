@@ -108,8 +108,8 @@ additionally setting `metadataPanelBg: 'white'` overrides just the metadata pane
 | `collectionPanel…`           | Collection panel             | `--collection-panel-…`              |
 
 Plugin panels follow `panelBg` too, and can be overridden via [`cssVars`](#raw-css-variables)
-or raw CSS variables: `--image-manipulation-panel-bg`, `--pdf-export-panel-bg`,
-`--annotation-editor-panel-bg` (and their `-content` counterparts).
+or raw CSS variables: `--pdf-export-panel-bg` and `--annotation-editor-panel-bg` (and
+their `-content` counterparts).
 
 ### Border radius
 
