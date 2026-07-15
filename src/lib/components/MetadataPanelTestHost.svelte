@@ -21,7 +21,7 @@
             return {
                 __jsonld: manifest,
                 getLabel: () => manifest.label,
-                getDescription: () => '',
+                getDescription: () => ({ getValue: () => '' }),
                 getRequiredStatement: () => null,
                 getLicense: () => '',
             };
