@@ -13,6 +13,9 @@
 export { definePlugin } from './definePlugin.js';
 export type { DefinePluginConfig } from './definePlugin.js';
 
+// Validated toolbar-icon helper (throws synchronously on unsafe markup).
+export { svgIcon, SvgIconError } from './svgIcon.js';
+
 // Activation (per viewer, isolated context).
 export { activatePlugin, runActivation } from './activate.js';
 
@@ -45,7 +48,9 @@ export type {
     Selector,
     PluginStyleService,
     PluginLocaleService,
+    LocaleCatalog,
     PluginUiService,
+    IconDescriptor,
     PluginIcon,
     PluginUiTarget,
     PluginHost,

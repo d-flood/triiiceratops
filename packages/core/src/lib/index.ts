@@ -36,6 +36,8 @@ export type {
     ViewerSelectors,
     PluginStyleService,
     PluginLocaleService,
+    LocaleCatalog,
+    IconDescriptor,
     PluginIcon,
     PluginUiService,
     PluginContext,

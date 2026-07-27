@@ -12,12 +12,12 @@ import {
     pluginApiVersion,
     capabilities,
 } from 'triiiceratops';
-import { definePlugin, activatePlugin } from '@triiiceratops/plugin-sdk';
+import { definePlugin, activatePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
 import { useViewerSelector } from '@triiiceratops/plugin-sdk/react';
 import { StrictMode, createElement as h } from 'react';
 import { createRoot } from 'react-dom/client';
 
-const ICON = { kind: 'svg', svg: '<svg viewBox="0 0 1 1"></svg>' };
+const ICON = svgIcon('<svg viewBox="0 0 1 1"></svg>');
 
 function PluginUI({ context }) {
     const open = useViewerSelector(context, (s) => s.toolbarOpen);

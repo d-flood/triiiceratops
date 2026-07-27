@@ -21,7 +21,7 @@ function makePlugin(name: string, version: string): SdkPlugin {
         coreRange: '*',
         pluginApiRange: '*',
         requiredCapabilities: [],
-        icon: { kind: 'svg', svg: '<svg></svg>' } as SdkPlugin['icon'],
+        icon: { kind: 'svg', inner: '', viewBox: '0 0 24 24' } as SdkPlugin['icon'],
         target: 'panel',
         view: { mount: () => () => {} },
         activate: () => ({ deactivate() {} }),

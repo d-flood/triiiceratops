@@ -12,11 +12,11 @@ import {
     pluginApiVersion,
     capabilities,
 } from 'triiiceratops';
-import { definePlugin, activatePlugin } from '@triiiceratops/plugin-sdk';
+import { definePlugin, activatePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
 import { useViewerSelector } from '@triiiceratops/plugin-sdk/vue';
 import { createApp, defineComponent, h } from 'vue';
 
-const ICON = { kind: 'svg', svg: '<svg viewBox="0 0 1 1"></svg>' };
+const ICON = svgIcon('<svg viewBox="0 0 1 1"></svg>');
 
 const PluginUI = defineComponent({
     props: { context: { type: Object, required: true } },
