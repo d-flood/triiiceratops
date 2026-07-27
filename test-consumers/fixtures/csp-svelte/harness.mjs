@@ -45,9 +45,13 @@ export default {
             'rgba(0, 0, 0, 0)',
         );
 
-        // The plugin activated (its toolbar toggle rendered), so its
-        // `context.styles.install` ran.
-        await expect(page.locator('[data-tri-im-toggle]')).toBeVisible({
+        // The plugin activated (core renders its toolbar button on the
+        // core-owned-chrome path), so its `context.styles.install` ran.
+        await expect(
+            page.locator(
+                '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+            ),
+        ).toBeAttached({
             timeout: 30_000,
         });
 

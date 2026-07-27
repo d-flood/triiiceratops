@@ -37,9 +37,14 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // The plugin activated via the shared namespace; its toolbar toggle (in
-        // the shadow root) rendered, so `context.styles.install` ran.
-        await expect(page.locator('[data-tri-im-toggle]')).toBeVisible({
+        // The plugin activated via the shared namespace; core renders its
+        // toolbar button (in the shadow root) on the core-owned-chrome path, so
+        // `context.styles.install` ran.
+        await expect(
+            page.locator(
+                '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+            ),
+        ).toBeAttached({
             timeout: 30_000,
         });
 

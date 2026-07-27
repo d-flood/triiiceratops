@@ -36,9 +36,13 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
         window.__triDownloads = [];
     });
 
-    // Open the plugin panel (its DOM lives in the viewer's shadow root; the
-    // Playwright locator pierces it).
-    const toggle = page.locator('[data-tri-id-toggle]');
+    // Open the plugin panel via the core-rendered toolbar button (core-owned
+    // chrome, ticket 04) — labelled with the plugin name, living in the viewer's
+    // shadow root; the Playwright locator pierces it. The page opens the toolbar
+    // via the element's `config` (`toolbarOpen`) so the button is visible.
+    const toggle = page.locator(
+        '[aria-label="@triiiceratops/plugin-image-download"]',
+    );
     await expect(toggle).toBeVisible({ timeout: 30_000 });
     await toggle.click();
 

@@ -15,6 +15,8 @@
      */
     import { getContext } from 'svelte';
 
+    import { Button, Select } from '@triiiceratops/ui';
+
     import {
         downloadBlob,
         getCanvasId,
@@ -72,8 +74,6 @@
         void localeTick;
         return locale.t(key, params);
     };
-
-    let open = $state(false);
 
     let mode = $state<ImageDownloadMode>('single');
     let selectedCanvasIndex = $state(0);
@@ -300,172 +300,174 @@
     }
 </script>
 
-<div class="tri-id" data-tri-id bind:this={rootEl}>
-    {#if open}
-        <div
-            class="tri-id-panel"
-            role="group"
-            aria-label={t('image_download_title')}
-            data-tri-id-panel
-        >
-            <div class="tri-id-header">
-                <span use:renderGlyph aria-hidden="true"></span>
-                {t('image_download_title')}
-            </div>
-            <p class="tri-id-desc">{t('image_download_description')}</p>
+<!--
+    Panel CONTENT ONLY (core-owned-chrome path, ticket 04). Core renders the
+    toolbar button (from `meta.icon`) and the docked panel header/title, and owns
+    open/close + docking; this component mounts only the panel body + footer into
+    the core-provided container. No self-rendered toggle, no `position: absolute`.
+-->
+<div
+    class="tri-id"
+    data-tri-id
+    data-panel-id="image-download"
+    bind:this={rootEl}
+>
+    <div class="tri-id-body">
+        <p class="tri-id-desc">{t('image_download_description')}</p>
 
-            <div class="tri-id-fields">
-                {#if showModeSelect}
-                    <div class="tri-id-field">
-                        <label class="tri-id-label" for="tri-id-mode">
-                            {t('image_download_mode')}
-                        </label>
-                        <select
-                            id="tri-id-mode"
-                            class="tri-id-select"
-                            data-tri-id-mode
-                            disabled={isDownloading}
-                            value={mode}
-                            onchange={(e) => {
-                                mode = e.currentTarget
-                                    .value as ImageDownloadMode;
-                            }}
-                        >
-                            {#if showCompositeOption}
-                                <option value="composite"
-                                    >{t(
-                                        'image_download_mode_composite',
-                                    )}</option
-                                >
-                            {/if}
-                            <option value="single"
-                                >{t('image_download_mode_single')}</option
-                            >
-                            {#if showWorldOption}
-                                <option value="world"
-                                    >{t('image_download_mode_world')}</option
-                                >
-                            {/if}
-                        </select>
-                    </div>
-                {/if}
-
-                {#if mode === 'single' && hasMultipleVisibleCanvases}
-                    <div class="tri-id-field">
-                        <label class="tri-id-label" for="tri-id-canvas">
-                            {t('image_download_canvas')}
-                        </label>
-                        <select
-                            id="tri-id-canvas"
-                            class="tri-id-select"
-                            disabled={isDownloading}
-                            value={selectedCanvasIndex}
-                            onchange={(e) => {
-                                selectedCanvasIndex = parseIndex(
-                                    e.currentTarget.value,
-                                );
-                            }}
-                        >
-                            {#each visibleCanvases as visibleCanvas, index (index)}
-                                <option value={index}>
-                                    {getCanvasLabel(visibleCanvas, index)}
-                                </option>
-                            {/each}
-                        </select>
-                    </div>
-                {/if}
-
-                {#if mode === 'single' && singleModeHasMultipleImages}
-                    <div class="tri-id-field">
-                        <label class="tri-id-label" for="tri-id-image">
-                            {t('image_download_image')}
-                        </label>
-                        <select
-                            id="tri-id-image"
-                            class="tri-id-select"
-                            disabled={isDownloading}
-                            value={selectedImageIndex}
-                            onchange={(e) => {
-                                selectedImageIndex = parseIndex(
-                                    e.currentTarget.value,
-                                );
-                            }}
-                        >
-                            {#each singleModeCanvasImages as image, index (index)}
-                                <option value={index}>
-                                    {image.label ??
-                                        `${t('image_download_image')} ${index + 1}`}
-                                </option>
-                            {/each}
-                        </select>
-                    </div>
-                {/if}
-
+        <div class="tri-id-fields">
+            {#if showModeSelect}
                 <div class="tri-id-field">
-                    <label class="tri-id-label" for="tri-id-resolution">
-                        {t('image_download_resolution')}
+                    <label class="tri-id-label" for="tri-id-mode">
+                        <span>{t('image_download_mode')}</span>
                     </label>
-                    <select
-                        id="tri-id-resolution"
-                        class="tri-id-select"
-                        data-tri-id-resolution
-                        disabled={isDownloading ||
-                            isLoadingSizes ||
-                            !sizeOptions.length}
-                        value={selectedSizeIndex ?? ''}
+                    <Select
+                        id="tri-id-mode"
+                        class="tri-id-field-select"
+                        data-tri-id-mode
+                        aria-label={t('image_download_mode')}
+                        disabled={isDownloading}
+                        value={mode}
                         onchange={(e) => {
-                            selectedSizeIndex = parseIndex(
-                                e.currentTarget.value,
+                            mode = (e.currentTarget as HTMLSelectElement)
+                                .value as ImageDownloadMode;
+                        }}
+                    >
+                        {#if showCompositeOption}
+                            <option value="composite"
+                                >{t('image_download_mode_composite')}</option
+                            >
+                        {/if}
+                        <option value="single"
+                            >{t('image_download_mode_single')}</option
+                        >
+                        {#if showWorldOption}
+                            <option value="world"
+                                >{t('image_download_mode_world')}</option
+                            >
+                        {/if}
+                    </Select>
+                </div>
+            {/if}
+
+            {#if mode === 'single' && hasMultipleVisibleCanvases}
+                <div class="tri-id-field">
+                    <label class="tri-id-label" for="tri-id-canvas">
+                        <span>{t('image_download_canvas')}</span>
+                    </label>
+                    <Select
+                        id="tri-id-canvas"
+                        class="tri-id-field-select"
+                        aria-label={t('image_download_canvas')}
+                        disabled={isDownloading}
+                        value={selectedCanvasIndex}
+                        onchange={(e) => {
+                            selectedCanvasIndex = parseIndex(
+                                (e.currentTarget as HTMLSelectElement).value,
                             );
                         }}
                     >
-                        <option value="" disabled>
-                            {t('image_download_resolution_placeholder')}
-                        </option>
-                        {#each sizeOptions as option, index (index)}
-                            <option value={index}>{option.label}</option>
+                        {#each visibleCanvases as visibleCanvas, index (index)}
+                            <option value={index}>
+                                {getCanvasLabel(visibleCanvas, index)}
+                            </option>
                         {/each}
-                    </select>
+                    </Select>
+                </div>
+            {/if}
+
+            {#if mode === 'single' && singleModeHasMultipleImages}
+                <div class="tri-id-field">
+                    <label class="tri-id-label" for="tri-id-image">
+                        <span>{t('image_download_image')}</span>
+                    </label>
+                    <Select
+                        id="tri-id-image"
+                        class="tri-id-field-select"
+                        aria-label={t('image_download_image')}
+                        disabled={isDownloading}
+                        value={selectedImageIndex}
+                        onchange={(e) => {
+                            selectedImageIndex = parseIndex(
+                                (e.currentTarget as HTMLSelectElement).value,
+                            );
+                        }}
+                    >
+                        {#each singleModeCanvasImages as image, index (index)}
+                            <option value={index}>
+                                {image.label ??
+                                    `${t('image_download_image')} ${index + 1}`}
+                            </option>
+                        {/each}
+                    </Select>
+                </div>
+            {/if}
+
+            <div class="tri-id-field">
+                <label class="tri-id-label" for="tri-id-resolution">
+                    <span>{t('image_download_resolution')}</span>
+                </label>
+                <Select
+                    id="tri-id-resolution"
+                    class="tri-id-field-select"
+                    data-tri-id-resolution
+                    aria-label={t('image_download_resolution')}
+                    disabled={isDownloading ||
+                        isLoadingSizes ||
+                        !sizeOptions.length}
+                    value={selectedSizeIndex ?? ''}
+                    onchange={(e) => {
+                        selectedSizeIndex = parseIndex(
+                            (e.currentTarget as HTMLSelectElement).value,
+                        );
+                    }}
+                >
+                    <option value="" disabled>
+                        {t('image_download_resolution_placeholder')}
+                    </option>
+                    {#each sizeOptions as option, index (index)}
+                        <option value={index}>{option.label}</option>
+                    {/each}
+                </Select>
+            </div>
+        </div>
+
+        {#if resultMessage || errorMessage || disabledReason}
+            <div class="tri-id-card">
+                <div class="tri-id-card-body">
+                    {#if resultMessage}
+                        <div class="tri-id-alert is-success" data-tri-id-result>
+                            <span>{resultMessage}</span>
+                        </div>
+                    {/if}
+                    {#if errorMessage}
+                        <div class="tri-id-alert is-error" data-tri-id-error>
+                            <span>{errorMessage}</span>
+                        </div>
+                    {/if}
+                    {#if disabledReason}
+                        <div class="tri-id-alert">
+                            <span>{disabledReason}</span>
+                        </div>
+                    {/if}
                 </div>
             </div>
+        {/if}
+    </div>
 
-            {#if resultMessage}
-                <div class="tri-id-alert is-success" data-tri-id-result>
-                    {resultMessage}
-                </div>
-            {/if}
-            {#if errorMessage}
-                <div class="tri-id-alert is-error" data-tri-id-error>
-                    {errorMessage}
-                </div>
-            {/if}
-            {#if disabledReason}
-                <div class="tri-id-alert">{disabledReason}</div>
-            {/if}
-
-            <button
-                type="button"
-                class="tri-id-download"
-                data-tri-id-download
-                disabled={!canDownload}
-                onclick={handleDownload}
-            >
-                <span use:renderGlyph aria-hidden="true"></span>
-                {isDownloading
-                    ? t('image_download_downloading')
-                    : t('image_download_download')}
-            </button>
-        </div>
-    {/if}
-
-    <button
-        type="button"
-        class="tri-id-toggle"
-        data-tri-id-toggle
-        aria-expanded={open}
-        aria-label={t('image_download_title')}
-        title={t('image_download_title')}
-        onclick={() => (open = !open)}
-        use:renderGlyph
-    ></button>
+    <div class="tri-id-footer">
+        <Button
+            variant="primary"
+            class="tri-id-download"
+            data-tri-id-download
+            style="width:100%"
+            disabled={!canDownload}
+            onclick={handleDownload}
+        >
+            <span use:renderGlyph aria-hidden="true"></span>
+            {isDownloading
+                ? t('image_download_downloading')
+                : t('image_download_download')}
+        </Button>
+    </div>
 </div>

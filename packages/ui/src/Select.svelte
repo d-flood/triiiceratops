@@ -154,7 +154,7 @@
         let i = activeIndex;
         for (let step = 0; step < items.length; step++) {
             i = (i + dir + items.length) % items.length;
-            if (!items[i].disabled) {
+            if (!items[i]?.disabled) {
                 activeIndex = i;
                 scrollActiveIntoView();
                 return;
@@ -168,7 +168,7 @@
                 ? items.map((_, i) => i)
                 : items.map((_, i) => items.length - 1 - i);
         for (const i of order) {
-            if (!items[i].disabled) {
+            if (!items[i]?.disabled) {
                 activeIndex = i;
                 scrollActiveIntoView();
                 return;

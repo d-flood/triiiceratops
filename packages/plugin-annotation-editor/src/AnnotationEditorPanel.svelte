@@ -9,10 +9,13 @@
     import { GLYPHS, VIEW_BOX, type GlyphName } from './icons';
     import { useT } from './i18n.svelte';
     import DefaultBodyEditor from './DefaultBodyEditor.svelte';
+    import { Button, Tooltip } from '@triiiceratops/ui';
 
-    // The Annotorious stylesheet + the plugin chrome install once at activation
-    // through the SDK style service (root-aware) — see `styles.ts`. No CSS import
-    // here; a light-DOM import never reaches the element build's shadow root (F23).
+    // The Annotorious stylesheet installs once at activation through the SDK
+    // style service (root-aware) — see `styles.ts`. No CSS import here; a
+    // light-DOM import never reaches the element build's shadow root (F23). The
+    // panel's own look uses the shared `@triiiceratops/ui` primitives (Button,
+    // Tooltip) and current `--tri-` theme tokens, restoring `main`'s design.
 
     const t = useT();
 
@@ -210,14 +213,16 @@
                 <span class="error-text">
                     {persistenceErrorMessage(persistenceError.op)}
                 </span>
-                <button
-                    type="button"
-                    class="tri-ae-btn tri-ae-btn-icon error-dismiss"
+                <Button
+                    class="error-dismiss"
+                    size="xs"
+                    ghost
+                    circle
                     onclick={onDismissError}
                     aria-label={t('annotation_editor_error_dismiss')}
                 >
                     {@render glyph('X', 14)}
-                </button>
+                </Button>
             </div>
         {/if}
 
@@ -225,23 +230,23 @@
         <div class="mode-section">
             {#if showModeToggle}
                 <div class="join mode-toggle">
-                    <button
-                        type="button"
-                        class="tri-ae-btn join-item"
-                        class:is-primary={!isEditing}
+                    <Button
+                        class="join-item"
+                        size="sm"
+                        variant={!isEditing ? 'primary' : 'default'}
                         onclick={() => isEditing && onToggleEditing()}
                     >
                         {t('annotation_editor_edit_mode')}
-                    </button>
-                    <button
-                        type="button"
-                        class="tri-ae-btn join-item"
-                        class:is-primary={isEditing}
+                    </Button>
+                    <Button
+                        class="join-item"
+                        size="sm"
+                        variant={isEditing ? 'primary' : 'default'}
                         disabled={!canCreateAnnotation}
                         onclick={() => !isEditing && onToggleEditing()}
                     >
                         {t('annotation_editor_create_mode')}
-                    </button>
+                    </Button>
                 </div>
             {/if}
             <p class="mode-instruction">
@@ -259,24 +264,26 @@
         <!-- Undo/Redo — persistence-aware, available in edit and create mode -->
         {#if showUndoRedo}
             <div class="undo-redo">
-                <button
-                    type="button"
-                    class="tri-ae-btn undo-redo-btn"
+                <Button
+                    class="undo-redo-btn"
+                    size="sm"
+                    outline
                     disabled={!canUndo}
                     onclick={onUndo}
                 >
                     {@render glyph('ArrowCounterClockwise', 16)}
                     {t('annotation_editor_undo')}
-                </button>
-                <button
-                    type="button"
-                    class="tri-ae-btn undo-redo-btn"
+                </Button>
+                <Button
+                    class="undo-redo-btn"
+                    size="sm"
+                    outline
                     disabled={!canRedo}
                     onclick={onRedo}
                 >
                     {@render glyph('ArrowClockwise', 16)}
                     {t('annotation_editor_redo')}
-                </button>
+                </Button>
             </div>
         {/if}
 
@@ -292,16 +299,22 @@
                         {@const toolName = t(
                             toolLabels[tool] ?? 'annotation_tool_rectangle',
                         )}
-                        <button
-                            type="button"
-                            class="tri-ae-btn tri-ae-btn-icon join-item"
-                            class:is-primary={activeTool === tool}
-                            onclick={() => onSetTool(tool)}
-                            aria-label={toolName}
-                            title={toolName}
+                        <Tooltip
+                            tip={toolName}
+                            placement="bottom"
+                            class="join-item tool-tip"
                         >
-                            {@render glyph(toolIconName, 18)}
-                        </button>
+                            <Button
+                                size="sm"
+                                variant={activeTool === tool
+                                    ? 'primary'
+                                    : 'default'}
+                                onclick={() => onSetTool(tool)}
+                                aria-label={toolName}
+                            >
+                                {@render glyph(toolIconName, 18)}
+                            </Button>
+                        </Tooltip>
                     {/each}
                 </div>
             </div>
@@ -315,14 +328,16 @@
                         {t('annotation_editor_edit_section')}
                     </h3>
                     <div class="editor-actions">
-                        <button
-                            type="button"
-                            class="tri-ae-btn tri-ae-btn-icon delete-btn"
+                        <Button
+                            class="delete-btn"
+                            size="sm"
+                            ghost
+                            circle
                             onclick={onRequestDelete}
                             aria-label={t('annotation_editor_delete_tooltip')}
                         >
                             {@render glyph('Trash', 16)}
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
@@ -367,20 +382,12 @@
                 {t('annotation_editor_delete_message')}
             </p>
             <div class="modal-action">
-                <button
-                    type="button"
-                    class="tri-ae-btn"
-                    onclick={onCancelDelete}
-                >
+                <Button ghost onclick={onCancelDelete}>
                     {t('annotation_editor_cancel')}
-                </button>
-                <button
-                    type="button"
-                    class="tri-ae-btn is-error"
-                    onclick={onConfirmDelete}
-                >
+                </Button>
+                <Button variant="error" onclick={onConfirmDelete}>
                     {t('annotation_editor_delete')}
-                </button>
+                </Button>
             </div>
         </div>
         <form method="dialog" class="modal-backdrop">
@@ -414,41 +421,6 @@
         display: inline-block;
         vertical-align: middle;
         flex-shrink: 0;
-    }
-
-    /* Buttons (replacing the former core `Button` primitive) */
-    .tri-ae-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.375rem;
-        padding: 0.375rem 0.75rem;
-        border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.15));
-        border-radius: var(--tri-radius-buttons, 0.5rem);
-        background-color: var(--tri-input-bg, transparent);
-        color: inherit;
-        font-size: 0.8125rem;
-        cursor: pointer;
-    }
-    .tri-ae-btn:hover:not(:disabled) {
-        background-color: color-mix(in oklab, currentColor 10%, transparent);
-    }
-    .tri-ae-btn.is-primary {
-        background-color: var(--tri-color-primary, #2563eb);
-        color: var(--tri-color-primary-content, #fff);
-        border-color: transparent;
-    }
-    .tri-ae-btn.is-error {
-        background-color: var(--tri-color-error, #dc2626);
-        color: #fff;
-        border-color: transparent;
-    }
-    .tri-ae-btn:disabled {
-        opacity: 0.5;
-        cursor: default;
-    }
-    .tri-ae-btn-icon {
-        padding: 0.375rem;
     }
 
     .header {
@@ -503,11 +475,9 @@
     .error-text {
         flex: 1 1 0%;
     }
-    .error-dismiss {
+    .error-line :global(.error-dismiss) {
         flex-shrink: 0;
         color: var(--tri-color-error);
-        border-color: transparent;
-        background: transparent;
     }
 
     /* Drawing Mode Toggle */
@@ -540,13 +510,17 @@
         line-height: 1.25rem;
         font-weight: 500;
     }
+    /* Tooltip wrapper acts as the join item so its button inherits join radii. */
+    .tool-section :global(.tool-tip) {
+        display: inline-flex;
+    }
 
     /* Undo/Redo */
     .undo-redo {
         display: flex;
         gap: 0.5rem;
     }
-    .undo-redo-btn {
+    .undo-redo :global(.undo-redo-btn) {
         flex: 1 1 0%;
     }
 
@@ -579,10 +553,8 @@
         display: flex;
         gap: 0.25rem;
     }
-    .delete-btn {
+    .editor-actions :global(.delete-btn) {
         color: var(--tri-color-error);
-        border-color: transparent;
-        background: transparent;
     }
 
     .custom-body-editor {
@@ -595,19 +567,25 @@
         opacity: 0.6;
     }
 
-    /* join group */
+    /* join group (radii handled by the join-aware primitives) */
     .join {
         display: inline-flex;
         align-items: stretch;
+        --join-ss: 0;
+        --join-se: 0;
+        --join-es: 0;
+        --join-ee: 0;
     }
-    .join > .join-item:not(:first-child) {
-        margin-inline-start: -1px;
-        border-start-start-radius: 0;
-        border-end-start-radius: 0;
+    .join > :global(.join-item:first-child) {
+        --join-ss: var(--tri-radius-buttons);
+        --join-es: var(--tri-radius-buttons);
     }
-    .join > .join-item:not(:last-child) {
-        border-start-end-radius: 0;
-        border-end-end-radius: 0;
+    .join > :global(.join-item:last-child) {
+        --join-se: var(--tri-radius-buttons);
+        --join-ee: var(--tri-radius-buttons);
+    }
+    .join > :global(.join-item:not(:first-child)) {
+        margin-inline-start: calc(var(--tri-border, 1px) * -1);
     }
 
     /* Mode toggle: a 2-column grid join filling the row */

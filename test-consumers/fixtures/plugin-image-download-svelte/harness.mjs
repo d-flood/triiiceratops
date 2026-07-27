@@ -50,8 +50,13 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // The plugin renders its own toolbar button. Open its panel.
-        const toggle = page.locator('[data-tri-id-toggle]');
+        // Core renders the plugin's toolbar button (core-owned chrome, ticket
+        // 04) — labelled with the plugin name — and owns opening the docked
+        // panel. The app opens the toolbar via config (`toolbarOpen`), so the
+        // button sits visible among the toolbar buttons.
+        const toggle = page.locator(
+            '[aria-label="@triiiceratops/plugin-image-download"]',
+        );
         await expect(toggle).toBeVisible({ timeout: 30_000 });
         await toggle.click();
 

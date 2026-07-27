@@ -3,6 +3,7 @@
     import { W3C_PURPOSES } from './types';
     import { GLYPHS, VIEW_BOX, type GlyphName } from './icons';
     import { useT } from './i18n.svelte';
+    import { Button, Select, TextInput } from '@triiiceratops/ui';
 
     const t = useT();
 
@@ -124,34 +125,41 @@
                 </div>
             {:else}
                 <div class="body-row">
-                    <select class="body-purpose" bind:value={body.purpose}>
+                    <Select
+                        class="body-purpose"
+                        size="xs"
+                        bind:value={body.purpose}
+                    >
                         {#each purposes as purpose (purpose)}
                             <option value={purpose} class="purpose-option">
                                 {purpose}
                             </option>
                         {/each}
-                    </select>
-                    <button
-                        type="button"
-                        class="tri-ae-btn tri-ae-btn-icon body-remove"
+                    </Select>
+                    <Button
+                        class="body-remove"
+                        size="xs"
+                        ghost
+                        circle
                         onclick={() => removeBody(i)}
                     >
                         {@render glyph('X', 14)}
-                    </button>
+                    </Button>
                 </div>
 
                 {#if body.purpose === 'tagging'}
-                    <input
+                    <TextInput
                         class="body-input"
-                        type="text"
+                        size="xs"
                         placeholder={t('annotation_editor_tag_placeholder')}
                         disabled={api.isHydrating}
                         bind:value={body.value}
                     />
                 {:else if body.purpose === 'linking'}
-                    <input
+                    <TextInput
                         class="body-input"
                         type="url"
+                        size="xs"
                         placeholder={t('annotation_editor_link_placeholder')}
                         disabled={api.isHydrating}
                         bind:value={body.value}
@@ -171,27 +179,29 @@
 </div>
 
 {#if allowMultipleBodies}
-    <button
-        type="button"
-        class="tri-ae-btn add-content"
+    <Button
+        class="add-content"
+        size="xs"
+        ghost
         onclick={addBody}
         disabled={api.isHydrating}
     >
         {@render glyph('Plus', 14)}
         {t('annotation_editor_add_content')}
-    </button>
+    </Button>
 {/if}
 
 <div class="save-row">
-    <button
-        type="button"
-        class="tri-ae-btn is-primary save-btn"
+    <Button
+        class="save-btn"
+        size="sm"
+        variant="primary"
         onclick={handleSaveBodies}
         disabled={api.isHydrating}
     >
         {@render glyph('Check', 16)}
         {t('annotation_editor_save')}
-    </button>
+    </Button>
 </div>
 
 <style>
@@ -206,35 +216,6 @@
         display: inline-block;
         vertical-align: middle;
         flex-shrink: 0;
-    }
-
-    .tri-ae-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.375rem;
-        padding: 0.375rem 0.75rem;
-        border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.15));
-        border-radius: var(--tri-radius-buttons, 0.5rem);
-        background-color: var(--tri-input-bg, transparent);
-        color: inherit;
-        font-size: 0.75rem;
-        cursor: pointer;
-    }
-    .tri-ae-btn:hover:not(:disabled) {
-        background-color: color-mix(in oklab, currentColor 10%, transparent);
-    }
-    .tri-ae-btn.is-primary {
-        background-color: var(--tri-color-primary, #2563eb);
-        color: var(--tri-color-primary-content, #fff);
-        border-color: transparent;
-    }
-    .tri-ae-btn:disabled {
-        opacity: 0.5;
-        cursor: default;
-    }
-    .tri-ae-btn-icon {
-        padding: 0.375rem;
     }
 
     .bodies {
@@ -260,31 +241,17 @@
         align-items: center;
         gap: 0.5rem;
     }
-    .body-purpose {
+    .body-row :global(.body-purpose) {
         flex: 1 1 0%;
-        border-radius: var(--tri-radius-buttons);
-        border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.15));
-        background-color: var(--tri-input-bg);
-        color: inherit;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
     }
-    .body-remove {
+    .body-row :global(.body-remove) {
         color: var(--tri-color-error);
-        border-color: transparent;
-        background: transparent;
     }
     .purpose-option {
         text-transform: capitalize;
     }
-    .body-input {
+    .body-card :global(.body-input) {
         width: 100%;
-        border-radius: var(--tri-radius-buttons);
-        border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.15));
-        background-color: var(--tri-input-bg);
-        color: inherit;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
     }
 
     .body-textarea {
@@ -343,14 +310,14 @@
         line-height: 1rem;
     }
 
-    .add-content {
+    :global(.add-content) {
         width: 100%;
     }
 
     .save-row {
         padding-top: 0.5rem;
     }
-    .save-btn {
+    .save-row :global(.save-btn) {
         width: 100%;
     }
 </style>

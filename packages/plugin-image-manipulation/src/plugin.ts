@@ -3,12 +3,22 @@
  *
  * `definePlugin` returns the framework-neutral factory core activates through the
  * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. The UI is Svelte, mounted through the neutral
- * `view.mount(container, context)` contract and torn down by the returned
- * cleanup. Styles install through the SDK style service (root-aware), strings
- * resolve through the per-viewer locale service over this package's catalog, and
- * the toolbar glyph is a `svgIcon` descriptor. Filters touch the raw OSD viewer,
- * so the plugin declares `requiredCapabilities: ['osd@5']`.
+ * package or its Svelte runtime. Chrome is core-owned (epic
+ * restore-plugin-toolbar-chrome, ticket 02): core renders the toolbar button
+ * from `meta.icon`, owns the button's open/close state, and anchors + auto-places
+ * the flyout toward the canvas. `view.mount(container, context)` receives a
+ * content-only element core has already placed, and this plugin renders ONLY the
+ * flyout content into it — it draws no button and positions nothing.
+ *
+ * `dismiss: 'explicit'` keeps the Flyout open while adjusting (a canvas click
+ * pans/zooms without dismissing the editing session). The plugin ships the
+ * transitional `__coreChrome` flag until core-chrome is the only path (ticket 07).
+ *
+ * Filter state lives in the Activation-scoped {@link FilterController} created
+ * here (per viewer, above the mounted component), so slider positions survive
+ * close→reopen and the canvas-change / deactivation resets fire whether the
+ * Flyout is open or closed. Filters touch the raw OSD viewer, so the plugin
+ * declares `requiredCapabilities: ['osd@5']` and gates on OSD readiness.
  */
 
 import { mount, unmount } from 'svelte';
@@ -21,6 +31,7 @@ import {
 
 import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type FlyoutContext } from './contextKey';
+import { createFilterController } from './filterController.svelte';
 import Flyout from './Flyout.svelte';
 import { SLIDERS_ICON } from './icons';
 import { STYLE_ID, STYLES } from './styles';
@@ -30,22 +41,26 @@ const view: PluginView = {
         const releaseStyles = context.styles.install(STYLES, STYLE_ID);
         // Own an abort controller for the OSD-readiness wait here, so the wait is
         // cancelled synchronously by the view cleanup (which `runActivation` runs
-        // on deactivation) — not on the component's async `onDestroy`. This
-        // guarantees the SDK helper's subscription is dropped on deactivation.
+        // on deactivation) — not on the component's async `onDestroy`.
         const teardown = new AbortController();
-        // Hand the (stable) activation context + teardown signal to the flyout
-        // through Svelte's component-context map. `getContext` returns them as a
-        // plain, non-reactive value — correct, since a fresh mount gets a fresh
-        // context.
+        // Activation-scoped filter state + OSD wiring. Created ABOVE the mounted
+        // component so the last slider positions survive close→reopen and the
+        // canvas-change / deactivation resets take effect whether open or closed.
+        const controller = createFilterController(context, teardown.signal);
+        // Hand the controller + locale to the flyout through Svelte's
+        // component-context map. `getContext` returns them as plain, non-reactive
+        // values — correct, since a fresh mount gets a fresh activation and the
+        // controller's own `$state` carries the reactivity.
         const app = mount(Flyout, {
             target: container,
             context: new Map<symbol, FlyoutContext>([
-                [PLUGIN_CONTEXT_KEY, { context, signal: teardown.signal }],
+                [PLUGIN_CONTEXT_KEY, { controller, locale: context.locale }],
             ]),
         });
         return () => {
             teardown.abort();
             unmount(app);
+            controller.dispose();
             releaseStyles();
         };
     },
@@ -60,6 +75,11 @@ export const ImageManipulationPlugin: SdkPlugin = definePlugin({
     requiredCapabilities: ['osd@5'],
     icon: SLIDERS_ICON,
     target: 'flyout',
+    // A live-editing surface: closes only via its toolbar button, never on a
+    // canvas click (SPEC.md — Dismiss).
+    dismiss: 'explicit',
+    // TRANSITIONAL: route through the core-owned-chrome path (ticket 02).
+    __coreChrome: true,
     catalog,
     view,
 });

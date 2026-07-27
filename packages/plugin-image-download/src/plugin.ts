@@ -58,6 +58,12 @@ export const ImageDownloadPlugin: SdkPlugin = definePlugin({
     requiredCapabilities: ['osd@5'],
     icon: DOWNLOAD_ICON,
     target: 'panel',
+    // TRANSITIONAL routing marker (epic restore-plugin-toolbar-chrome, ticket
+    // 04): activate on the core-owned-chrome path — core renders the toolbar
+    // button from `icon` and owns open/close + docking; `view.mount` renders
+    // only the panel content into the core-provided docked container. Removed
+    // once core-chrome is the only path (ticket 07).
+    __coreChrome: true,
     catalog,
     view,
 });

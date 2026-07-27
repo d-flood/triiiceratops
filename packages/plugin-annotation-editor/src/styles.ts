@@ -67,74 +67,16 @@ const ANNOTORIOUS_FIXES = `
 `;
 
 /**
- * Plugin chrome: the toggle button + the docked panel container.
+ * The combined stylesheet (base Annotorious sheet + layer fixes) installed under
+ * the `annotorious` id at activation, shaped by {@link definePluginStyles} into
+ * the `STYLES` / `STYLE_ID` exports.
  *
- * The toggle sits at the BOTTOM-LEFT (clear of core's top toolbar and the
- * image-manipulation flyout's bottom-right) at a z-index above core's toolbar
- * (50) and error rail (55), so it is always clickable. The dock renders BEFORE
- * the toggle in the DOM (see `AnnotationEditorApp.svelte`), so the toggle stacks
- * on top of the open panel as its close affordance.
- */
-const CHROME = `
-.tri-ae {
-    position: absolute;
-    inset: 0;
-    z-index: 60;
-    pointer-events: none;
-}
-.tri-ae > * {
-    pointer-events: auto;
-}
-.tri-ae-toggle {
-    position: absolute;
-    bottom: var(--ui-inset, 0.5rem);
-    left: var(--ui-inset, 0.5rem);
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--ui-hit, 2.25rem);
-    height: var(--ui-hit, 2.25rem);
-    padding: 0;
-    border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.15));
-    border-radius: var(--tri-radius-buttons, 0.5rem);
-    background-color: var(--tri-toolbar-bg, rgb(255 255 255 / 0.9));
-    color: var(--tri-toolbar-content, currentColor);
-    cursor: pointer;
-    box-shadow: var(--ui-chrome-shadow, 0 4px 6px -4px rgb(0 0 0 / 0.2));
-}
-.tri-ae-toggle:hover {
-    background-color: color-mix(in oklab, var(--tri-toolbar-bg, #fff) 80%, transparent);
-}
-.tri-ae-toggle[aria-expanded='true'] {
-    background-color: var(--tri-color-primary, #2563eb);
-    color: var(--tri-color-primary-content, #fff);
-    border-color: transparent;
-}
-.tri-ae-toggle svg {
-    width: 1.25rem;
-    height: 1.25rem;
-    fill: currentColor;
-}
-.tri-ae-dock {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    max-height: 100%;
-    z-index: 1;
-    display: flex;
-    padding-top: calc(var(--ui-inset, 0.5rem) + var(--ui-hit, 2.25rem) + 0.5rem);
-    box-sizing: border-box;
-}
-`;
-
-/**
- * The combined stylesheet (base Annotorious sheet + fixes + chrome) installed
- * under the `annotorious` id at activation, shaped by {@link definePluginStyles}
- * into the `STYLES` / `STYLE_ID` exports.
+ * No plugin chrome CSS lives here anymore: core owns the toolbar button and the
+ * docked-panel / anchored-flyout surface (epic restore-plugin-toolbar-chrome),
+ * so the plugin ships only the Annotorious annotation-layer styles. The panel's
+ * own presentation is scoped component CSS rendered inside `view.mount`.
  */
 export const { STYLES, STYLE_ID } = definePluginStyles(
-    `${annotoriousCss}\n${ANNOTORIOUS_FIXES}\n${CHROME}`,
+    `${annotoriousCss}\n${ANNOTORIOUS_FIXES}`,
     'annotorious',
 );

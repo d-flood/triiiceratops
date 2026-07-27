@@ -55,8 +55,18 @@ export default {
         const canvas = page.locator('#triiiceratops-viewer canvas').first();
         await expect(canvas).toBeVisible({ timeout: 30_000 });
 
-        // Open the plugin's self-contained panel and enter create mode.
-        await page.locator('[data-tri-ae-toggle]').click();
+        // Core now owns the plugin chrome: the plugin's button lives in the
+        // viewer's floating toolbar, which starts collapsed. Open the toolbar,
+        // then open the plugin's docked panel from its core-rendered button
+        // (accessible name = the plugin's package-qualified name), and enter
+        // create mode.
+        const openMenu = page.getByRole('button', { name: 'Open Menu' });
+        if (await openMenu.count()) await openMenu.first().click();
+        await page
+            .getByRole('button', {
+                name: '@triiiceratops/plugin-annotation-editor',
+            })
+            .click();
         await page.getByRole('button', { name: 'Create', exact: true }).click();
 
         const box = await canvas.boundingBox();

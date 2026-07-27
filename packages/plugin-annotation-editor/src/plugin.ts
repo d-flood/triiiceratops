@@ -56,6 +56,16 @@ export function createAnnotationEditorPlugin(
         requiredCapabilities: ['osd@5'],
         icon: ICON,
         target: config.target ?? 'panel',
+        // Editing surface: when hosted as a flyout, canvas clicks are how the
+        // user draws, so it must not light-dismiss on outside pointer-down.
+        // Ignored for the default `panel` target (panels toggle from the button).
+        dismiss: 'explicit',
+        // TRANSITIONAL (epic restore-plugin-toolbar-chrome, ticket 06): opt onto
+        // the core-owned-chrome path so core renders the toolbar button from
+        // `icon`/`target` and places the docked panel / anchored flyout container.
+        // The plugin renders only its content. Removed in ticket 07 when
+        // core-chrome becomes the sole path.
+        __coreChrome: true,
         catalog,
         view,
     });

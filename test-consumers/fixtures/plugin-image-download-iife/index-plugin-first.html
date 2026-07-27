@@ -21,8 +21,12 @@
         <script src="/node_modules/triiiceratops/dist/triiiceratops-element.iife.js"></script>
     </head>
     <body>
+        <!-- config toolbarOpen expands the toolbar so the plugin's
+             core-rendered toolbar button (core-owned chrome, ticket 04) is
+             visible for the journey. -->
         <triiiceratops-viewer
             manifest-id="/manifest.json"
+            config='{"toolbarOpen":true}'
         ></triiiceratops-viewer>
         <script>
             customElements.whenDefined('triiiceratops-viewer').then(() => {
