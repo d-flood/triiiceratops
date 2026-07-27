@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "strict": true,
+        "noEmit": true,
+        "esModuleInterop": true,
+        "verbatimModuleSyntax": false,
+        // The whole point of this fixture: check the PUBLISHED declarations too
+        // (`skipLibCheck: false`), so a strict consumer proves core's public
+        // `.d.ts` resolves the `OpenSeadragon` types WITHOUT manually installing
+        // `@types/openseadragon`. `types: []` disables ambient auto-inclusion so
+        // resolution can only succeed through core's own `@types/openseadragon`
+        // dependency (ticket 21).
+        "skipLibCheck": false,
+        "types": []
+    },
+    "include": ["index.ts"]
+}

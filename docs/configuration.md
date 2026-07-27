@@ -4,14 +4,20 @@ icon: lucide/wrench
 
 # Configuration & State Management
 
-Triiiceratops provides a flexible configuration system that works consistently across both the Web Component and Svelte Component implementations.
+Triiiceratops provides a flexible configuration system that works consistently
+across every host — React, Vue, Svelte, or plain HTML.
 
-The web component and the Svelte component share the same UI configuration object. Both can load manifest JSON directly, while `searchProvider` remains a Svelte-only integration prop.
+Every host shares the same `ViewerConfig` object, documented once below. Every
+host can also load manifest JSON directly; `searchProvider` remains a
+Svelte-only integration prop (a nice bonus of the native integration).
 
 ## Configuration Object
 
 !!! tip "Interactive Configuration"
-You can experiment with these settings in the [Live Demo](./viewer/){target=\_blank}. Open the settings menu (gear icon), tweak the configuration, and then click **"Copy Config"** to get the JSON for your project.
+
+    You can experiment with these settings in the [Live Demo](./viewer/){target=_blank}.
+    Open the settings menu (gear icon), tweak the configuration, then click
+    **"Copy Config"** to get the JSON for your project.
 
 The viewer accepts a configuration object to customize the UI and behavior. Below is the structure of the configuration object with default values:
 
@@ -57,11 +63,13 @@ interface ViewerConfig {
         showCollection?: boolean; // Default: true (only visible when a collection is loaded)
     };
 
-    // Plugin UI Settings (keyed by plugin id)
+    // Plugin UI Settings (keyed by plugin id — PluginDef.id or SDK uiId)
     plugins?: {
         [pluginId: string]: {
             visible?: boolean; // Default: true (Toolbar button visible)
             open?: boolean; // Default: false (Plugin panel open)
+            target?: 'panel' | 'flyout'; // Override where the plugin renders
+            position?: 'left' | 'right'; // Override docked panel side; ignored when target is 'flyout'
         };
     };
 
@@ -126,8 +134,23 @@ interface ViewerConfig {
     // OpenSeadragon overrides
     openSeadragonConfig?: Partial<OpenSeadragon.Options>;
 
+    // Marker styling for point annotations, shared by the read-only overlay
+    // and the annotation editor
+    pointStyle?: {
+        radius?: number; // Screen pixels; Default: 5
+        fill?: string;
+        stroke?: string;
+        strokeWidth?: number;
+    };
+
     // Drag-and-drop manifest/content-state loading
     enableDragDrop?: boolean; // Default: false
+
+    // Opt-in developer diagnostics. When true, viewer diagnostics are logged
+    // through the core logger (prefixed `[triiiceratops]`). Actionable
+    // failures always surface through `viewererror`/`pluginerror` regardless
+    // of this flag.
+    debug?: boolean; // Default: false
 }
 ```
 
@@ -139,7 +162,7 @@ When multiple panels are open on the same side, they stack vertically. `search`,
 
 ### Plugin UI Control
 
-Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's `id` as the key:
+Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's stable id as the key — `PluginDef.id` for legacy plugins, or the SDK `uiId` for `definePlugin` plugins (first-party plugins use `pdf-export`, `image-download`, `image-manipulation`, `annotation-editor`):
 
 ```typescript
 const config = {
@@ -151,20 +174,29 @@ const config = {
         'image-manipulation': {
             visible: false,
             open: false,
+            target: 'flyout',
+        },
+        'annotation-editor': {
+            position: 'right',
         },
     },
 };
 ```
 
-`visible` controls whether the plugin's toolbar button is rendered, and `open` controls whether the plugin panel is expanded.
+`visible` controls whether the plugin's toolbar button is rendered, `open` controls whether the plugin surface is expanded, `target` overrides where the plugin renders (`'panel'` or `'flyout'`), and `position` overrides which side a docked panel opens on (`'left' | 'right'`; ignored while the plugin's effective `target` is `'flyout'`, since a flyout anchors to its toolbar button rather than docking to a side). All four apply reactively after mount, so a host can, for example, switch a plugin to a flyout on narrow viewports. See [controlling plugin UI at runtime](plugins.md#controlling-plugin-ui-at-runtime) for the per-framework code and a responsive example.
 
 ## Usage
 
-=== "Web Component"
+Everywhere but Svelte, the viewer is the `<triiiceratops-viewer>` custom
+element and `config` is a **property** on it (objects can't go through HTML
+attributes — see [use with any framework](integration.md)). In Svelte,
+`config` is a normal reactive **prop** on `<TriiiceratopsViewer>`.
 
-    ### Passing Configuration
+### Passing Configuration
 
-    For the Web Component (`<triiiceratops-viewer>`), inline HTML uses a **JSON string** in the `config` attribute.
+=== "HTML"
+
+    Inline HTML uses a **JSON string** in the `config` attribute:
 
     ```html
     <triiiceratops-viewer
@@ -173,7 +205,7 @@ const config = {
     ></triiiceratops-viewer>
     ```
 
-    When setting configuration from JavaScript, prefer assigning a plain object to the `config` property:
+    From JavaScript, prefer assigning a plain object to the `config` property:
 
     ```javascript
     const viewer = document.querySelector('triiiceratops-viewer');
@@ -183,11 +215,63 @@ const config = {
     };
     ```
 
-    If you use `setAttribute('config', ...)`, stringify the object yourself. Assign a new `viewer.config` object for updates; mutating nested keys on the existing object does not notify the custom element.
+=== "React"
 
-    ### Direct Manifest Data
+    ```jsx
+    useEffect(() => {
+        if (ref.current) {
+            ref.current.config = { toolbar: { side: 'left' }, gallery: { dockPosition: 'right' } };
+        }
+    }, []);
 
-    To load a manifest from in-memory JSON instead of fetching `manifest-id`, set the `manifestJson` property from JavaScript:
+    <triiiceratops-viewer ref={ref} manifest-id="https://example.org/iiif/manifest.json" />
+    ```
+
+=== "Vue"
+
+    ```vue
+    <script setup>
+    onMounted(() => {
+        viewer.value.config = { toolbar: { side: 'left' }, gallery: { dockPosition: 'right' } };
+    });
+    </script>
+
+    <template>
+        <triiiceratops-viewer ref="viewer" manifest-id="https://example.org/iiif/manifest.json" />
+    </template>
+    ```
+
+=== "Svelte"
+
+    ```html
+    <script>
+      import { TriiiceratopsViewer } from 'triiiceratops';
+      import 'triiiceratops/style.css';
+
+      let config = $state({
+        toolbar: { side: 'left' },
+        gallery: { open: true }
+      });
+    </script>
+
+    <TriiiceratopsViewer {config} manifestId="https://example.org/iiif/manifest.json" />
+    ```
+
+For the custom element (React, Vue, HTML): if you use `setAttribute('config',
+...)`, stringify the object yourself. Assign a new `config` object for
+updates; mutating nested keys on the existing object does not notify the
+custom element.
+
+### Direct Manifest Data
+
+To load a manifest from in-memory JSON instead of fetching by id, set
+`manifestJson` alongside `manifestId` — the viewer uses the supplied JSON
+directly and never fetches over HTTP.
+
+=== "HTML"
+
+    `manifestJson` is a property-based API — set it after the element
+    upgrades, not as an inline attribute:
 
     ```javascript
     const viewer = document.querySelector('triiiceratops-viewer');
@@ -200,42 +284,80 @@ const config = {
     };
     ```
 
-    `manifestJson` is a property-based API for the web component. It is not intended to be authored as a large inline HTML attribute.
+=== "React"
 
-    ### Reacting to State Changes
+    ```jsx
+    useEffect(() => {
+        if (ref.current) ref.current.manifestJson = manifestJson;
+    }, [manifestJson]);
+    ```
 
-    The Web Component keeps its internal state in sync with the user's interactions (e.g., opening/closing panels, changing canvas). It dispatches events to notify the host application of these changes.
+=== "Vue"
 
-    #### Events
+    ```ts
+    onMounted(() => {
+        viewer.value.manifestJson = manifestJson;
+    });
+    ```
 
-    *   `statechange`: Fired when UI state changes (panels open/close, docking, etc.).
-    *   `canvaschange`: Fired when the active canvas changes.
-    *   `manifestchange`: Fired when a new manifest is loaded.
+=== "Svelte"
 
-    The event `detail` contains a `ViewerStateSnapshot`:
+    ```html
+    <TriiiceratopsViewer manifestId="urn:example:manifest" {manifestJson} />
+    ```
 
     ```typescript
-    interface ViewerStateSnapshot {
-        manifestId: string | null;
-        canvasId: string | null;
-        currentCanvasIndex: number;
-        showAnnotations: boolean;
-        showInformationPanel: boolean;
-        showThumbnailGallery: boolean;
-        showSearchPanel: boolean;
-        showStructuresPanel: boolean;
-        toolbarOpen: boolean;
-        searchQuery: string;
-        isFullScreen: boolean;
-        dockSide: string;
-        viewingMode: 'individuals' | 'paged' | 'continuous';
-        viewingDirection: 'left-to-right' | 'right-to-left'
-            | 'top-to-bottom' | 'bottom-to-top';
-        preserveCanvasScale: boolean;
-        galleryPosition: { x: number; y: number };
-        gallerySize: { width: number; height: number };
+    // Only the props relevant to direct-manifest loading — the component
+    // accepts more (config, plugins, theme, viewerState, and others),
+    // documented in their own sections on this page.
+    interface TriiiceratopsViewerProps {
+      manifestId?: string;
+      manifestJson?: Record<string, any>;
+      searchProvider?: SearchProvider | null;
     }
     ```
+
+This is useful when your app stores or assembles manifests locally.
+
+### Reacting to State Changes
+
+The viewer keeps its internal state in sync with the user's interactions
+(e.g., opening/closing panels, changing canvas). The custom element (React,
+Vue, HTML) dispatches events to notify the host; the Svelte component instead
+exposes state through a two-way bound prop.
+
+#### Events (custom element)
+
+- `statechange`: Fired when UI state changes (panels open/close, docking, etc.).
+- `canvaschange`: Fired when the active canvas changes.
+- `manifestchange`: Fired when a new manifest is loaded.
+
+The event `detail` contains a `ViewerStateSnapshot`:
+
+```typescript
+interface ViewerStateSnapshot {
+    manifestId: string | null;
+    canvasId: string | null;
+    currentCanvasIndex: number;
+    showAnnotations: boolean;
+    showInformationPanel: boolean;
+    showThumbnailGallery: boolean;
+    showSearchPanel: boolean;
+    showStructuresPanel: boolean;
+    toolbarOpen: boolean;
+    searchQuery: string;
+    isFullScreen: boolean;
+    dockSide: string;
+    viewingMode: 'individuals' | 'paged' | 'continuous';
+    viewingDirection: 'left-to-right' | 'right-to-left'
+        | 'top-to-bottom' | 'bottom-to-top';
+    preserveCanvasScale: boolean;
+    galleryPosition: { x: number; y: number };
+    gallerySize: { width: number; height: number };
+}
+```
+
+=== "HTML"
 
     ```typescript
     viewer.addEventListener('statechange', (e) => {
@@ -245,52 +367,34 @@ const config = {
     });
     ```
 
-    You can use these events to sync your application's UI with the viewer, as demonstrated in `src/demo/Demo.svelte`.
+    You can use these events to sync your application's UI with the viewer, as
+    demonstrated in `src/demo/Demo.svelte`.
 
-=== "Svelte Component"
+=== "React"
 
-    ### Passing Configuration
-
-    For the Svelte Component (`<TriiiceratopsViewer>`), configuration is passed directly as a **prop**.
-
-    ```html
-    <script>
-      import { TriiiceratopsViewer } from 'triiiceratops';
-      import 'triiiceratops/style.css';
-
-      let config = $state({
-        toolbar: { side: 'left' },
-        gallery: { open: true }
-      });
-
-      let manifestJson = {
-        id: 'urn:example:manifest',
-        type: 'Manifest',
-        label: { none: ['Local manifest'] },
-        items: []
-      };
-    </script>
-
-    <TriiiceratopsViewer {config} manifestId="urn:example:manifest" {manifestJson} />
+    ```jsx
+    useEffect(() => {
+        const el = ref.current;
+        const onStateChange = (e) => console.log('Gallery open:', e.detail.showThumbnailGallery);
+        el.addEventListener('statechange', onStateChange);
+        return () => el.removeEventListener('statechange', onStateChange);
+    }, []);
     ```
 
-    ### Direct Manifest Data
+=== "Vue"
 
-    If `manifestJson` is provided alongside `manifestId`, the viewer uses the supplied JSON directly and does not fetch the manifest over HTTP.
-
-    ```typescript
-    interface TriiiceratopsViewerProps {
-      manifestId?: string;
-      manifestJson?: Record<string, any>;
-      searchProvider?: SearchProvider | null;
-    }
+    ```ts
+    onMounted(() => {
+        viewer.value.addEventListener('statechange', (e) => {
+            console.log('Gallery open:', e.detail.showThumbnailGallery);
+        });
+    });
     ```
 
-    This is useful when your app stores or assembles manifests locally.
+=== "Svelte"
 
-    ### Two-Way State Binding
-
-    The Svelte component exports a `viewerState` prop that allows for two-way binding. This gives you direct, reactive access to the internal state.
+    The Svelte component exports a `viewerState` prop for **two-way binding** —
+    direct, reactive access to the internal state, no events needed:
 
     ```html
     <script>
@@ -301,17 +405,17 @@ const config = {
       let state = $state();
     </script>
 
-    <TriiiceratopsViewer
-      manifestId="..."
-      bind:viewerState={state}
-    />
+    <TriiiceratopsViewer manifestId="..." bind:viewerState={state} />
 
     <div>
       Gallery is: {state?.showThumbnailGallery ? 'Open' : 'Closed'}
     </div>
     ```
 
-    If you change the bound configuration prop, the viewer will update. If the user interacts with the viewer (e.g., closes the gallery), the `viewerState` binding will update your local variable.
+    If you change the bound configuration prop, the viewer updates. If the
+    user interacts with the viewer (e.g., closes the gallery), the
+    `viewerState` binding updates your local variable — a nice bonus of the
+    native integration.
 
 ## Programmatic Search
 
@@ -319,7 +423,7 @@ You can trigger a search programmatically by setting the `search.query` property
 
 For Svelte integrations, you can also provide a `searchProvider` prop when the search source is local application state rather than a manifest-declared IIIF Search service.
 
-=== "Web Component"
+=== "HTML"
 
     ```html
     <triiiceratops-viewer
@@ -342,9 +446,23 @@ For Svelte integrations, you can also provide a `searchProvider` prop when the s
     </script>
     ```
 
-    Note that the viewer does **not** write user interactions back to the external `config` attribute/property. If the user clears the search in the viewer, your external `config` object will still have the old query unless you reset it.
+=== "React"
 
-=== "Svelte Component"
+    ```jsx
+    function search(query) {
+        ref.current.config = { search: { open: true, query } };
+    }
+    ```
+
+=== "Vue"
+
+    ```ts
+    function search(query) {
+        viewer.value.config = { search: { open: true, query } };
+    }
+    ```
+
+=== "Svelte"
 
     ```html
     <script>
@@ -363,6 +481,11 @@ For Svelte integrations, you can also provide a `searchProvider` prop when the s
 
     <TriiiceratopsViewer {config} ... />
     ```
+
+For the custom element (React, Vue, HTML): the viewer does **not** write user
+interactions back to the external `config` object. If the user clears the
+search in the viewer, your external `config` will still have the old query
+unless you reset it.
 
 ## Custom Search Providers
 
@@ -395,7 +518,7 @@ type SearchProvider = (
 >;
 ```
 
-```svelte
+```html
 <script>
     import { TriiiceratopsViewer } from 'triiiceratops';
 
@@ -425,7 +548,7 @@ If `searchProvider` is supplied, the viewer uses that callback instead of fetchi
 
 You can control which canvas is displayed and stay in sync with the viewer's navigation.
 
-=== "Web Component"
+=== "HTML"
 
     To set the canvas, use the `canvas-id` attribute. To listen for changes, handle the `canvaschange` event.
 
@@ -452,7 +575,34 @@ You can control which canvas is displayed and stay in sync with the viewer's nav
     </script>
     ```
 
-=== "Svelte Component"
+=== "React"
+
+    Set `canvasId` as a property; listen for `canvaschange` on the same ref.
+
+    ```jsx
+    useEffect(() => {
+        const el = ref.current;
+        el.canvasId = canvasId;
+        const onChange = (e) => console.log('New Canvas ID:', e.detail.canvasId);
+        el.addEventListener('canvaschange', onChange);
+        return () => el.removeEventListener('canvaschange', onChange);
+    }, [canvasId]);
+    ```
+
+=== "Vue"
+
+    Set `canvasId` as a property; listen for `canvaschange` on the same ref.
+
+    ```ts
+    onMounted(() => {
+        viewer.value.canvasId = canvasId.value;
+        viewer.value.addEventListener('canvaschange', (e) => {
+            console.log('New Canvas ID:', e.detail.canvasId);
+        });
+    });
+    ```
+
+=== "Svelte"
 
     The `canvasId` prop is **one-way** (Owner -> Viewer). To keep your local state in sync with the viewer, you should bind to `viewerState` (two-way) to read the authoritative state.
 
@@ -501,7 +651,7 @@ Triiiceratops supports [IIIF Collections](https://iiif.io/api/presentation/3.0/#
 
 Both IIIF Presentation API v2 (`sc:Collection`) and v3 (`Collection`) formats are supported.
 
-=== "Web Component"
+=== "HTML"
 
     ```html
     <triiiceratops-viewer
@@ -509,9 +659,27 @@ Both IIIF Presentation API v2 (`sc:Collection`) and v3 (`Collection`) formats ar
     ></triiiceratops-viewer>
     ```
 
-=== "Svelte Component"
+=== "React"
 
-    ```svelte
+    ```jsx
+    <triiiceratops-viewer
+      ref={ref}
+      manifest-id="https://iiif.io/api/cookbook/recipe/0032-collection/collection.json"
+    />
+    ```
+
+=== "Vue"
+
+    ```vue
+    <triiiceratops-viewer
+      ref="viewer"
+      manifest-id="https://iiif.io/api/cookbook/recipe/0032-collection/collection.json"
+    />
+    ```
+
+=== "Svelte"
+
+    ```html
     <TriiiceratopsViewer
       manifestId="https://iiif.io/api/cookbook/recipe/0032-collection/collection.json"
     />
@@ -534,7 +702,9 @@ config = {
 ```
 
 !!! note "Nested Collections"
-Sub-collections within a collection are listed but not yet browsable. Only Manifests can be selected and loaded.
+
+    Sub-collections within a collection are listed but not yet browsable. Only
+    Manifests can be selected and loaded.
 
 ## Structures / Table of Contents
 
@@ -565,7 +735,9 @@ config = {
 ```
 
 !!! tip "Single Root Range"
-When the manifest has only one top-level range, it is automatically expanded so you immediately see its children.
+
+    When the manifest has only one top-level range, it is automatically expanded
+    so you immediately see its children.
 
 ## Start Canvas
 
@@ -587,6 +759,11 @@ https://your-site.com/demo?iiif-content=<base64url-encoded-content-state>
 ```
 
 The viewer extracts the manifest URL, canvas ID, and `xywh` region from the decoded value and opens the viewer at that location. If a `manifest` query parameter is also present, it takes priority over `iiif-content`.
+
+Reading `iiif-content` is **opt-in** and never takes over your routing:
+precedence is discrete props/properties (`manifestId`/`canvasId`) win over
+`initialCanvasRegion` (Svelte prop, or the custom element's property of the
+same name), which wins over the URL parameter.
 
 ## Multiple Sequences / Alternative Page Sequences
 

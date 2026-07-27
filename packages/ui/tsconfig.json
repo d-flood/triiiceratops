@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "isolatedModules": true,
+        "moduleDetection": "force",
+        "resolveJsonModule": true,
+        "allowJs": true,
+        "checkJs": false,
+
+        // Match core's type-check strictness (packages/core/tsconfig.app.json):
+        // these primitives were authored under core's config, so the shared
+        // package must check them under the same flags — this is a byte-for-byte
+        // move, not a re-tightening of their types.
+        "strict": true,
+        "noImplicitAny": true,
+
+        "noEmit": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true
+    },
+    "include": ["src/**/*.ts", "src/**/*.svelte", "src/**/*.d.ts"],
+    "exclude": ["dist", "node_modules"]
+}

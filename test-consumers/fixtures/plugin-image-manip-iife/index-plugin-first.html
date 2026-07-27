@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>plugin-image-manip-iife (plugin first)</title>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            triiiceratops-viewer {
+                display: block;
+                width: 100vw;
+                height: 100vh;
+            }
+        </style>
+        <!-- Script order B: the plugin IIFE FIRST (bootstraps the namespace and
+             registers before core), then the core element IIFE. -->
+        <script src="/node_modules/@triiiceratops/plugin-image-manipulation/dist/iife.js"></script>
+        <script src="/node_modules/triiiceratops/dist/triiiceratops-element.iife.js"></script>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            manifest-id="/manifest.json"
+        ></triiiceratops-viewer>
+        <script>
+            customElements.whenDefined('triiiceratops-viewer').then(() => {
+                const viewer = document.querySelector('triiiceratops-viewer');
+                const plugin = window.Triiiceratops.plugins.get(
+                    '@triiiceratops/plugin-image-manipulation',
+                );
+                viewer.plugins = [plugin];
+            });
+        </script>
+    </body>
+</html>

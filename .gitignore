@@ -17,6 +17,16 @@ dist-ssr/
 build/
 *.local
 
+# Generated code (see SPEC "Dependency, Type, And Generated-Code Policy"):
+# emitted under ignored, clearly named generated dirs; type-checked via build.
+# icons.ts (ticket 02) + the paraglide message runtime (compiled from
+# ./messages into ./src/paraglide, then staged into ./src/lib/paraglide by
+# build:lib). Ignored here via config rather than relying on paraglide's own
+# self-generated .gitignore.
+packages/core/src/lib/generated/
+packages/core/src/lib/paraglide/
+packages/core/src/paraglide/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -92,6 +102,13 @@ coverage/
 playwright-report/
 test-results/
 
+# Performance comparison output (raw JSON + traces, uploaded as CI artifacts)
+perf-results/
+
+# Release artifacts (ticket 27): local `pnpm release:pack --out release-artifacts`
+# output — six .tgz + SHA256SUMS + release-manifest.json, uploaded as CI artifacts.
+release-artifacts/
+
 # Storybook
 storybook-static/
 
@@ -100,6 +117,8 @@ storybook-static/
 .venv/
 __pycache__
 site/
+# Generated effective zensical config (docs-build.mjs); never committed.
+.zensical.effective.toml
 docs/demo*
 docs/viewer*
 docs/svelte*

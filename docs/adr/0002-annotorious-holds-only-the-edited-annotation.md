@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # Annotorious holds only the annotation being edited
 
 Persisted annotations render through the lightweight read-only overlay

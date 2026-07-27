@@ -1,7 +1,53 @@
-dist/
-.svelte-kit/
-.venv/
-site/
+# Root prettier ignore (ticket 37). `pnpm format:check` runs `prettier --check .`
+# from the repo root, so these globs are matched workspace-wide with gitignore
+# semantics (a bare `dir/` matches that directory at any depth). Keep this list
+# aligned with the eslint ignores (eslint.config.js) and ticket 22's
+# generated-code policy: formatting generated/vendored output creates permanent
+# diff noise against the tools that produce it.
+
+# Dependencies & lockfiles
 node_modules/
-src/lib/paraglide/
 pnpm-lock.yaml
+uv.lock
+
+# Build outputs (every package's dist/, the SvelteKit + demo build dirs)
+dist/
+build/
+.svelte-kit/
+site/
+storybook-static/
+
+# Generated code (ticket 22 generated-code policy; mirrors eslint ignores):
+# the paraglide message runtime, generated icons/tokens, and the committed
+# docs-example fixtures compiled from docs/ by scripts/docs-examples.mjs
+# ("do not edit by hand"). Bare names match these dirs in every package.
+paraglide/
+generated/
+
+# Generated API snapshots (scripts/api-report.ts) — regenerated & checked in CI.
+api-reports/
+
+# Docs prose and docs build artifacts (docs/viewer, docs/demo, docs/svelte);
+# eslint ignores docs/ as well. Not source files this gate should reflow.
+docs/
+
+# Changeset tooling state (managed by @changesets/cli — pre.json/config.json).
+.changeset/
+
+# Python / tooling caches
+.venv/
+__pycache__/
+
+# Test, coverage, perf, and release output (mostly gitignored, but ignore here
+# too so a local run doesn't trip the check on uncommitted artifacts).
+coverage/
+*.lcov
+.nyc_output/
+playwright-report/
+test-results/
+perf-results/
+release-artifacts/
+
+# Local tooling state / agent worktrees (nested full checkouts must never be format-gated)
+.claude/
+.opencode/

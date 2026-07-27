@@ -1,0 +1,17 @@
+{
+    "name": "consumer-plugin-annotation-conformance",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@triiiceratops/plugin-annotation-editor": "file:./vendor/_triiiceratops_plugin-annotation-editor.tgz",
+        "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    },
+    "devDependencies": {
+        "vitest": "^4.0.15"
+    }
+}

@@ -1,0 +1,10 @@
+/**
+ * The `virtual:tri-bundled-css` module is provided at build time by `bundledCss()`
+ * (from `@triiiceratops/ui/vite`, wired in vite.config.ts). Its default export is
+ * the plugin bundle's extracted, Svelte-scoped component CSS as a string, which
+ * the plugin installs through the SDK style service to stay CSP-safe.
+ */
+declare module 'virtual:tri-bundled-css' {
+    const css: string;
+    export default css;
+}

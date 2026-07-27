@@ -1,0 +1,22 @@
+{
+    "globalKey": "Triiiceratops",
+    "elementTag": "triiiceratops-viewer",
+    "interfaces": {
+        "TriiiceratopsBrowserRuntime": [
+            "readonly coreVersion: string",
+            "readonly pluginApiVersion: string",
+            "readonly capabilities: readonly string[]",
+            "readonly plugins: PluginFactoryRegistry"
+        ],
+        "PluginFactoryRegistry": [
+            "register(factory: SdkPlugin): void",
+            "get(name: string): SdkPlugin | undefined",
+            "has(name: string): boolean",
+            "list(): readonly SdkPlugin[]"
+        ]
+    },
+    "capabilities": [
+        "osd@5"
+    ],
+    "pluginApiVersion": "1.0.0"
+}

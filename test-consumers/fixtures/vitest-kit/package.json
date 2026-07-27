@@ -1,0 +1,17 @@
+{
+    "name": "consumer-vitest-kit",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    },
+    "devDependencies": {
+        "jsdom": "^27.3.0",
+        "vitest": "^4.0.15"
+    }
+}

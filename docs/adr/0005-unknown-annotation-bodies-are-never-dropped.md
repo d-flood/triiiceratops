@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # The built-in body editor never drops annotation bodies it doesn't understand
 
 Unknown/structured body shapes (no string `value`, unrecognized `type`) render as
