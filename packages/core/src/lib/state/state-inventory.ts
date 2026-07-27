@@ -158,6 +158,19 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         commands: ['setHoveredAnnotationId'],
         notes: 'Set on annotation hover by the overlay and panel. Parity command added this ticket.',
     },
+    {
+        member: 'userAnnotations',
+        classification: 'command',
+        commands: ['setUserAnnotations', 'clearUserAnnotations'],
+        notes: 'Per-viewer plugin-written annotation display state (SvelteMap keyed by manifestId::canvasId). Moved off the page-shared manifest cache onto ViewerState (ticket 05, ADR 0007) so annotations never leak between viewers; the annotation-editor store display-syncs through these commands.',
+    },
+
+    // ---- Manifest readiness (per-viewer view of the shared cache) ------------
+    {
+        member: 'loadedManifestIds',
+        classification: 'observable',
+        notes: 'Manifest ids this viewer has finished loading (SvelteSet). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady(). Added ticket 05.',
+    },
 
     // ---- Viewing mode / direction / paging -----------------------------------
     {

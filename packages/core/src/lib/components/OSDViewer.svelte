@@ -22,7 +22,6 @@
     } from '../utils/canvasImageSpace';
     import { resolveCanvasImage } from '../utils/resolveCanvasImage';
     import { resolvePointRadius } from '../utils/pointMarker';
-    import { manifestsState } from '../state/manifests.svelte';
     import type { ViewerState } from '../state/viewer.svelte';
 
     // Deprecated shim: external listeners may still observe this event for one
@@ -232,7 +231,7 @@
         if (!viewerState.manifestId || !viewerState.canvasId) {
             return [];
         }
-        const manifestAnnotations = manifestsState.getAnnotations(
+        const manifestAnnotations = viewerState.getAnnotations(
             viewerState.manifestId,
             viewerState.canvasId,
         );
@@ -273,7 +272,7 @@
             return null;
         }
 
-        const canvas = manifestsState
+        const canvas = viewerState
             .getCanvases(viewerState.manifestId)
             .find((entry: any) => {
                 const id =

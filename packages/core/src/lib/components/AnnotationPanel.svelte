@@ -2,7 +2,6 @@
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { manifestsState } from '../state/manifests.svelte';
     import { m } from '../state/i18n.svelte';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
@@ -19,7 +18,7 @@
         if (!viewerState.manifestId || !viewerState.canvasId) {
             return [];
         }
-        const manifestAnnotations = manifestsState.getAnnotations(
+        const manifestAnnotations = viewerState.getAnnotations(
             viewerState.manifestId,
             viewerState.canvasId,
         );

@@ -234,6 +234,13 @@ const commandScenarios: CapabilityScenario[] = [
         member: 'hoveredAnnotationId',
         act: (state) => state.setHoveredAnnotationId('anno-1'),
     },
+    {
+        member: 'userAnnotations',
+        act: (state) =>
+            state.setUserAnnotations('manifest-1', 'canvas-1', [
+                { id: 'user-anno-1' },
+            ]),
+    },
     { member: 'viewingMode', act: (state) => state.setViewingMode('paged') },
     {
         member: 'viewingDirection',
@@ -353,6 +360,14 @@ const observableScenarios: CapabilityScenario[] = [
         member: 'osdViewer',
         act: (state) =>
             state.notifyOSDReady({} as unknown as OpenSeadragon.Viewer),
+    },
+    {
+        member: 'loadedManifestIds',
+        // Simulate core marking a manifest ready (private markManifestReady adds
+        // to this set at manifest-load completion).
+        act: (state) => {
+            state.loadedManifestIds.add('manifest-1');
+        },
     },
 ];
 
@@ -594,5 +609,77 @@ describe('ViewerState subscribe semantics', () => {
 
         first.destroy();
         second.destroy();
+    });
+});
+
+// ============================================================================
+// Ticket 05 — per-viewer display state and manifest queries (ADR 0007)
+// ============================================================================
+
+describe('ViewerState per-viewer display state (ticket 05)', () => {
+    beforeEach(() => {
+        resetManifestMocks();
+    });
+
+    it('scopes user annotations to the viewer they were synced into', () => {
+        const withAnnotations = new ViewerState();
+        const other = new ViewerState();
+
+        withAnnotations.setUserAnnotations('manifest-1', 'canvas-1', [
+            { id: 'user-anno-1' },
+        ]);
+
+        // The owning viewer sees them (merged, origin-tagged); the other stays
+        // empty — annotations never leak between viewers on one page.
+        expect(
+            withAnnotations.getUserAnnotations('manifest-1', 'canvas-1'),
+        ).toHaveLength(1);
+        const merged = withAnnotations.getAnnotations('manifest-1', 'canvas-1');
+        expect(
+            merged.some(
+                (a: any) =>
+                    a.id === 'user-anno-1' &&
+                    a.__triiiceratopsAnnotationOrigin === 'user',
+            ),
+        ).toBe(true);
+
+        expect(other.getUserAnnotations('manifest-1', 'canvas-1')).toEqual([]);
+        expect(other.getAnnotations('manifest-1', 'canvas-1')).toEqual([]);
+
+        withAnnotations.destroy();
+        other.destroy();
+    });
+
+    it('clearUserAnnotations only affects the owning viewer', () => {
+        const state = new ViewerState();
+        state.setUserAnnotations('manifest-1', 'canvas-1', [{ id: 'a' }]);
+        state.clearUserAnnotations('manifest-1', 'canvas-1');
+        expect(state.getUserAnnotations('manifest-1', 'canvas-1')).toEqual([]);
+        state.destroy();
+    });
+
+    it('notifies subscribers and reports readiness when a manifest loads', async () => {
+        vi.mocked(manifestsState.getManifest).mockReturnValue({
+            __jsonld: {},
+            getBehavior: () => ['individuals'],
+            getSequences: () => [{ __jsonld: {} }],
+        });
+        vi.mocked(manifestsState.getCanvases).mockReturnValue([
+            { id: 'canvas-1' },
+        ]);
+
+        const state = new ViewerState();
+        const listener = vi.fn();
+        state.subscribe(listener);
+
+        expect(state.isManifestReady('manifest-1')).toBe(false);
+
+        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+        await tick();
+
+        expect(state.isManifestReady('manifest-1')).toBe(true);
+        expect(listener).toHaveBeenCalled();
+
+        state.destroy();
     });
 });

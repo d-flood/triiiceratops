@@ -15,9 +15,6 @@ export class ManifestsState {
     manifests: Record<string, ManifestEntry> = $state({});
     private pendingFetches = new Map<string, Promise<void>>();
 
-    // User-created annotations (from plugins like annotation editor)
-    userAnnotations: SvelteMap<string, any[]> = new SvelteMap();
-
     async registerManifest(manifestId: string, json: any): Promise<void> {
         const manifestoModule = await loadManifestoModule();
         const manifestoObject = manifestoModule.parseManifest(json);
@@ -26,33 +23,6 @@ export class ManifestsState {
             manifesto: manifestoObject,
             isFetching: false,
         };
-    }
-
-    // === User Annotations API ===
-
-    private userAnnotationKey(manifestId: string, canvasId: string): string {
-        return `${manifestId}::${canvasId}`;
-    }
-
-    setUserAnnotations(
-        manifestId: string,
-        canvasId: string,
-        annotations: any[],
-    ): void {
-        const key = this.userAnnotationKey(manifestId, canvasId);
-        this.userAnnotations.set(key, annotations);
-    }
-
-    clearUserAnnotations(manifestId: string, canvasId: string): void {
-        const key = this.userAnnotationKey(manifestId, canvasId);
-        if (this.userAnnotations.has(key)) {
-            this.userAnnotations.delete(key);
-        }
-    }
-
-    getUserAnnotations(manifestId: string, canvasId: string): any[] {
-        const key = this.userAnnotationKey(manifestId, canvasId);
-        return this.userAnnotations.get(key) ?? [];
     }
 
     // === Manifest Fetching ===
@@ -344,32 +314,11 @@ export class ManifestsState {
     }
 
     getAnnotations(manifestId: string, canvasId: string, sourceId?: string) {
-        // Get manifest annotations
-        const manifestAnnos = this.manualGetAnnotations(
-            manifestId,
-            canvasId,
-            sourceId,
-        );
-
-        if (sourceId) {
-            return manifestAnnos;
-        }
-
-        // Get user-created annotations
-        const userAnnos = this.getUserAnnotations(manifestId, canvasId).map(
-            (annotation) => {
-                if (!annotation || typeof annotation !== 'object') {
-                    return annotation;
-                }
-
-                return {
-                    ...annotation,
-                    __triiiceratopsAnnotationOrigin: 'user',
-                };
-            },
-        );
-        // Merge both sources
-        return [...manifestAnnos, ...userAnnos];
+        // Manifest-defined annotations only. Plugin-written display state (user
+        // annotations) is per-viewer on `ViewerState` now (ADR 0007); the shared
+        // manifest cache is not plugin-facing and no longer stores it. The viewer
+        // merges its own user annotations on top of this result.
+        return this.manualGetAnnotations(manifestId, canvasId, sourceId);
     }
 
     // We can refactor this to use Manifesto's resource handling later if needed.

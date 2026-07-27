@@ -8,8 +8,8 @@ import type {
  * LocalStorage-based annotation adapter — the reference minimal adapter.
  *
  * It is pure storage: `localStorage` reads and writes, nothing more. Display
- * sync (`manifestsState`), caching, id reconciliation, and error handling are
- * all owned by the plugin's `AnnotationStore`, so a custom adapter only needs to
+ * sync (to the owning viewer's state), caching, id reconciliation, and error
+ * handling are all owned by the plugin's `AnnotationStore`, so a custom adapter only needs to
  * implement these few storage methods (F10). This is the shape every adapter
  * should aim for.
  */

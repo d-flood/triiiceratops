@@ -1,6 +1,5 @@
 <script lang="ts">
     import { getContext } from 'svelte';
-    import { manifestsState } from '../state/manifests.svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
 
@@ -10,7 +9,7 @@
         if (!viewerState.manifestId || !viewerState.canvasId) {
             return [];
         }
-        const manifestAnnotations = manifestsState.getAnnotations(
+        const manifestAnnotations = viewerState.getAnnotations(
             viewerState.manifestId,
             viewerState.canvasId,
         );
