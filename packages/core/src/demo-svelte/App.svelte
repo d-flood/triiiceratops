@@ -17,10 +17,6 @@
      */
     import { TriiiceratopsViewer } from 'triiiceratops';
     import type { BuiltInTheme } from 'triiiceratops';
-    import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
-    import { AnnotationEditorPlugin } from 'triiiceratops/plugins/annotation-editor';
-    import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
-    import { ImageDownloadPlugin } from 'triiiceratops/plugins/image-download';
 
     const SUGGESTED = [
         {
@@ -45,12 +41,7 @@
         { value: 'dracula', label: 'Dracula' },
     ];
 
-    const plugins = [
-        ImageManipulationPlugin,
-        AnnotationEditorPlugin,
-        PdfExportPlugin,
-        ImageDownloadPlugin,
-    ];
+    const plugins: never[] = [];
 
     // Full-featured config so the viewer chrome renders like /viewer/.
     const config = {

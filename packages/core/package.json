@@ -31,30 +31,10 @@
             "types": "./dist/testing/index.d.ts",
             "import": "./dist/testing/index.js"
         },
-        "./plugins/image-manipulation": {
-            "types": "./dist/plugins/image-manipulation/index.d.ts",
-            "svelte": "./dist/plugins/image-manipulation/index.js",
-            "import": "./dist/plugins/image-manipulation/index.js"
-        },
-        "./plugins/annotation-editor": {
-            "types": "./dist/plugins/annotation-editor/index.d.ts",
-            "svelte": "./dist/plugins/annotation-editor/index.js",
-            "import": "./dist/plugins/annotation-editor/index.js"
-        },
-        "./plugins/annotation-editor/testing": {
-            "types": "./dist/plugins/annotation-editor/testing/index.d.ts",
-            "svelte": "./dist/plugins/annotation-editor/testing/index.js",
-            "import": "./dist/plugins/annotation-editor/testing/index.js"
-        },
-        "./plugins/pdf-export": {
-            "types": "./dist/plugins/pdf-export/index.d.ts",
-            "svelte": "./dist/plugins/pdf-export/index.js",
-            "import": "./dist/plugins/pdf-export/index.js"
-        },
-        "./plugins/image-download": {
-            "types": "./dist/plugins/image-download/index.d.ts",
-            "svelte": "./dist/plugins/image-download/index.js",
-            "import": "./dist/plugins/image-download/index.js"
+        "./image-export": {
+            "types": "./dist/image-export.d.ts",
+            "svelte": "./dist/image-export.js",
+            "import": "./dist/image-export.js"
         },
         "./bundle": {
             "types": "./dist/index-bundle.d.ts",
@@ -62,10 +42,6 @@
         },
         "./element": "./dist/triiiceratops-element.iife.js",
         "./element/register": "./dist/triiiceratops-element.js",
-        "./plugins/image-manipulation.iife": "./dist/triiiceratops-plugin-image-manipulation.iife.js",
-        "./plugins/annotation-editor.iife": "./dist/triiiceratops-plugin-annotation-editor.iife.js",
-        "./plugins/pdf-export.iife": "./dist/triiiceratops-plugin-pdf-export.iife.js",
-        "./plugins/image-download.iife": "./dist/triiiceratops-plugin-image-download.iife.js",
         "./style.css": "./dist/triiiceratops.css"
     },
     "peerDependencies": {
@@ -90,7 +66,7 @@
         "build:svelte-demo": "vite build --config vite.config.svelte-demo.ts",
         "build:consumer": "rm -rf ../../docs/demo-consumer && mkdir -p ../../docs/demo-consumer && cp src/demo-consumer/index.html ../../docs/demo-consumer/index.html && cp src/demo-consumer/app.css ../../docs/demo-consumer/app.css && rm -rf ../../docs/dist && cp -r dist ../../docs/dist",
         "build:webcomponent-demo": "rm -rf ../../docs/demo/webcomponent && mkdir -p ../../docs/demo/webcomponent && cp src/demo-webcomponent/index.html ../../docs/demo/webcomponent/index.html && cp src/demo-webcomponent/app.css ../../docs/demo/webcomponent/app.css && rm -rf ../../docs/dist && cp -r dist ../../docs/dist",
-        "build:plugins-iife": "PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=pdf-export vite build --config vite.config.plugins-iife.ts && PLUGIN_NAME=image-download vite build --config vite.config.plugins-iife.ts",
+        "build:plugins-iife": "echo 'no in-core plugins; all migrated to their own packages' && exit 0",
         "build:all": "pnpm build:lib && pnpm build:testing && pnpm build:element && pnpm build:plugins-iife && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo && pnpm build:consumer",
         "preview": "vite preview",
         "dev:consumer": "vite --config vite.config.demo-consumer.ts",
@@ -131,11 +107,8 @@
         "vitest": "^4.0.15"
     },
     "dependencies": {
-        "@annotorious/annotorious": "^3.7.19",
-        "@annotorious/openseadragon": "^3.7.19",
         "dompurify": "^3.4.11",
         "manifesto.js": "^4.3.0",
-        "openseadragon": "^5.0.1",
-        "pdf-lib": "^1.17.1"
+        "openseadragon": "^5.0.1"
     }
 }

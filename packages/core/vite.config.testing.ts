@@ -23,7 +23,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXTERNAL = [
     /^openseadragon(\/|$)/,
     /^@annotorious\//,
-    /^pdf-lib(\/|$)/,
 ];
 
 /**

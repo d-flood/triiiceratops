@@ -68,6 +68,41 @@ const PACKAGES_TO_PACK = [
         build: ['build'],
         tarballName: '_triiiceratops_plugin-sdk.tgz',
     },
+    {
+        // Ticket 12 tracer plugin. `build` = ESM + IIFE (vite) + types (tsc);
+        // resolves `triiiceratops` and `@triiiceratops/plugin-sdk` types/dist
+        // from the entries built above, so it must stay AFTER both. Tickets
+        // 15–17 add their plugin packages here the same way (AFTER the SDK).
+        filter: '@triiiceratops/plugin-image-manipulation',
+        build: ['build'],
+        tarballName: '_triiiceratops_plugin-image-manipulation.tgz',
+    },
+    {
+        // Ticket 15 image-download plugin. Same shape as the tracer: `build` =
+        // ESM + IIFE (vite) + types (tsc). Its export helpers consume core's
+        // `triiiceratops/image-export` seam, so it must stay AFTER core and the
+        // SDK.
+        filter: '@triiiceratops/plugin-image-download',
+        build: ['build'],
+        tarballName: '_triiiceratops_plugin-image-download.tgz',
+    },
+    {
+        // Ticket 16 pdf-export plugin. `build` = ESM + IIFE (vite) + types (tsc);
+        // it carries its own `pdf-lib` runtime dependency (moved out of core) and
+        // resolves `triiiceratops` + `@triiiceratops/plugin-sdk` types/dist from
+        // the entries built above, so it must stay AFTER both.
+        filter: '@triiiceratops/plugin-pdf-export',
+        build: ['build'],
+        tarballName: '_triiiceratops_plugin-pdf-export.tgz',
+    },
+    {
+        // Ticket 17: the annotation-editor plugin. `build` = ESM + IIFE (vite) +
+        // types (tsc); resolves `triiiceratops` and `@triiiceratops/plugin-sdk`
+        // from the entries built above, so it must stay AFTER both.
+        filter: '@triiiceratops/plugin-annotation-editor',
+        build: ['build'],
+        tarballName: '_triiiceratops_plugin-annotation-editor.tgz',
+    },
 ];
 
 // Fixtures. Ticket 11 seeded the core-only consumers; ticket 13 appends the SDK
@@ -85,6 +120,38 @@ const FIXTURES = [
     // Ticket 14: plain vitest project (no Svelte tooling) exercising the SDK
     // test kit + compiled `triiiceratops/testing` entry against real state.
     'vitest-kit',
+    // Ticket 12: the migrated image-manipulation plugin, consumed from its
+    // packed tarball. `-svelte` activates the ESM entry on a real viewer and
+    // asserts the OSD canvas gets the CSS filter; `-iife` loads core + plugin
+    // IIFEs in BOTH script orders; `-failure` proves plugin failure isolation
+    // (ticket 09) for a real SDK plugin.
+    'plugin-image-manip-svelte',
+    'plugin-image-manip-iife',
+    'plugin-image-manip-failure',
+    // Ticket 15: the migrated image-download plugin, consumed from its packed
+    // tarball. `-svelte` activates the ESM entry on a real viewer, triggers an
+    // export, and asserts a download-ready binary Blob is produced (async +
+    // binary output validation duty); `-iife` loads core + plugin IIFEs in BOTH
+    // script orders and asserts the same.
+    'plugin-image-download-svelte',
+    'plugin-image-download-iife',
+    // Ticket 16: the migrated pdf-export plugin, consumed from its packed
+    // tarball. `-svelte` activates the ESM entry on a real viewer and asserts a
+    // real multi-page PDF export completes (download intercepted; bytes start
+    // `%PDF`); `-iife` loads core + plugin IIFEs in BOTH script orders and
+    // asserts the same export from the self-contained no-bundler path.
+    'plugin-pdf-export-svelte',
+    'plugin-pdf-export-iife',
+    // Ticket 17: the migrated annotation-editor plugin, consumed from its packed
+    // tarball. `-svelte` drives the full annotate journey (create a point + a
+    // region, edit a body, undo, redo, reload) against the packed
+    // `LocalStorageAdapter`, asserting persisted annotations render via the
+    // read-only overlay while Annotorious holds only the edited one.
+    // `-conformance` runs the adapter conformance suite from the packed
+    // `@triiiceratops/plugin-annotation-editor/testing` subpath in a plain vitest
+    // project (no Svelte tooling).
+    'plugin-annotation-svelte',
+    'plugin-annotation-conformance',
 ];
 
 const PACKAGE_MANAGERS = ['npm', 'pnpm'];

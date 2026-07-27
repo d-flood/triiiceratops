@@ -36,22 +36,6 @@ export default defineConfig({
                     __dirname,
                     'src/lib/state/manifestoRuntime.browser.ts',
                 ),
-                'plugins/image-manipulation': resolve(
-                    __dirname,
-                    'src/lib/plugins/image-manipulation/index.ts',
-                ),
-                'plugins/annotation-editor': resolve(
-                    __dirname,
-                    'src/lib/plugins/annotation-editor/index.ts',
-                ),
-                'plugins/pdf-export': resolve(
-                    __dirname,
-                    'src/lib/plugins/pdf-export/index.ts',
-                ),
-                'plugins/image-download': resolve(
-                    __dirname,
-                    'src/lib/plugins/image-download/index.ts',
-                ),
             },
             name: 'Triiiceratops',
 

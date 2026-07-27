@@ -5,8 +5,6 @@ const distDir = path.resolve('dist');
 const entryFiles = [
     path.join(distDir, 'state', 'manifestoRuntime.browser.js'),
     path.join(distDir, 'triiiceratops-bundle.js'),
-    path.join(distDir, 'plugins', 'image-manipulation.js'),
-    path.join(distDir, 'plugins', 'annotation-editor.js'),
 ];
 
 const forbiddenSpecifiers = new Set(['manifesto.js', 'openseadragon']);

@@ -16,6 +16,10 @@ export type { DefinePluginConfig } from './definePlugin.js';
 // Validated toolbar-icon helper (throws synchronously on unsafe markup).
 export { svgIcon, SvgIconError } from './svgIcon.js';
 
+// Await OSD readiness before touching the raw OpenSeadragon viewer.
+export { whenOsdReady } from './osd.js';
+export type { WhenOsdReadyOptions } from './osd.js';
+
 // Activation (per viewer, isolated context).
 export { activatePlugin, runActivation } from './activate.js';
 

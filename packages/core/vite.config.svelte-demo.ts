@@ -21,22 +21,6 @@ export default defineConfig({
     resolve: {
         alias: [
             { find: 'triiiceratops/style.css', replacement: dist('triiiceratops.css') },
-            {
-                find: 'triiiceratops/plugins/image-manipulation',
-                replacement: dist('plugins/image-manipulation/index.js'),
-            },
-            {
-                find: 'triiiceratops/plugins/annotation-editor',
-                replacement: dist('plugins/annotation-editor/index.js'),
-            },
-            {
-                find: 'triiiceratops/plugins/pdf-export',
-                replacement: dist('plugins/pdf-export/index.js'),
-            },
-            {
-                find: 'triiiceratops/plugins/image-download',
-                replacement: dist('plugins/image-download/index.js'),
-            },
             { find: /^triiiceratops$/, replacement: dist('index.js') },
         ],
     },
