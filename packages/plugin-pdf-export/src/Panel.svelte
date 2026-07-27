@@ -40,20 +40,29 @@
     let manifestId = $state<string | null>(viewerState.manifestId);
     let osd = $state<unknown>(viewerState.osdViewer ?? null);
 
-    selectors.select((s) => s.canvases).subscribe((value) => {
-        canvases = value ?? [];
-    });
-    selectors.select((s) => s.manifestId).subscribe((value) => {
-        manifestId = value;
-    });
-    selectors.select((s) => s.osdViewer).subscribe((value) => {
-        osd = value;
-    });
+    selectors
+        .select((s) => s.canvases)
+        .subscribe((value) => {
+            canvases = value ?? [];
+        });
+    selectors
+        .select((s) => s.manifestId)
+        .subscribe((value) => {
+            manifestId = value;
+        });
+    selectors
+        .select((s) => s.osdViewer)
+        .subscribe((value) => {
+            osd = value;
+        });
 
     // Active-locale reactivity: bump a tick on change so `t()`-derived labels
     // recompute in the viewer's active locale.
     let localeTick = $state(0);
-    const t = (key: string, params?: Record<string, string | number>): string => {
+    const t = (
+        key: string,
+        params?: Record<string, string | number>,
+    ): string => {
         void localeTick;
         return locale.t(key, params);
     };
@@ -198,8 +207,7 @@
             errorNoCanvasesExported: () =>
                 t('pdf_export_error_no_canvases_exported'),
             progressCoverSheet: () => t('pdf_export_progress_cover_sheet'),
-            progressCanvas: (params) =>
-                t('pdf_export_progress_canvas', params),
+            progressCanvas: (params) => t('pdf_export_progress_canvas', params),
             progressDownload: (params) =>
                 t('pdf_export_progress_download', params),
         };
@@ -248,9 +256,7 @@
                           )
                         : [],
                 currentUrl:
-                    typeof window !== 'undefined'
-                        ? window.location.href
-                        : null,
+                    typeof window !== 'undefined' ? window.location.href : null,
                 messages,
                 onProgress: (message) => {
                     progressMessage = message;

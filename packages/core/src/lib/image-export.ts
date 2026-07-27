@@ -51,7 +51,10 @@ export {
 } from './utils/canvasImageSpace';
 
 // Multi-canvas layout math.
-export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP } from './components/osdLayout';
+export {
+    getCanvasDisplayLayouts,
+    MULTI_CANVAS_GAP,
+} from './components/osdLayout';
 
 // Visible canvas entries for the current viewport.
 export { getVisibleCanvasEntries } from './components/viewerControls';

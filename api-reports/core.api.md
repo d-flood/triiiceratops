@@ -164,7 +164,7 @@ export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, curr
 export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
-export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP } from './components/osdLayout';
+export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP, } from './components/osdLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
@@ -186,7 +186,7 @@ export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorRep
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
 export type { Logger, LogLevel, LogSink } from './logging/logger';
 export { logger, configureLogging, isDebugEnabled } from './logging/logger';
-export { CORE_VERSION, pluginApiVersion, capabilities, } from './plugin/api';
+export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 export type { ThemeConfig, BuiltInTheme } from './theme/types';

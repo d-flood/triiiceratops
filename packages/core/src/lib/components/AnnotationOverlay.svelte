@@ -165,10 +165,7 @@
 </script>
 
 {#if lines.length > 0}
-    <svg
-        class="connecting-lines"
-        style="width: 100vw; height: 100vh;"
-    >
+    <svg class="connecting-lines" style="width: 100vw; height: 100vh;">
         {#each lines as line, index (`${line.x1}:${line.y1}:${line.x2}:${line.y2}:${index}`)}
             <line
                 x1={line.x1}

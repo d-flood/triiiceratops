@@ -55,7 +55,8 @@ export class LocalStorageAdapter implements AnnotationStorageAdapter {
         annotationId: string,
     ): Promise<AdapterLoadResult | null> {
         const annotations = await this.loadFromStorage(manifestId, canvasId);
-        const annotation = annotations.find((entry) => entry.id === annotationId) ?? null;
+        const annotation =
+            annotations.find((entry) => entry.id === annotationId) ?? null;
         if (!annotation) return null;
         annotation.__fullBodyLoaded = true;
         return annotation;

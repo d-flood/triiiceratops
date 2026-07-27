@@ -144,10 +144,7 @@ async function buildComposeEntry(
     canvasHeight: number,
     scale: number,
 ): Promise<ComposeImageEntry> {
-    const width = Math.max(
-        1,
-        Math.round(resolved.width * canvasWidth * scale),
-    );
+    const width = Math.max(1, Math.round(resolved.width * canvasWidth * scale));
     const aspect =
         resolved.resourceWidth && resolved.resourceHeight
             ? resolved.resourceHeight / resolved.resourceWidth
@@ -193,9 +190,7 @@ type WorldLayout = {
  * and to let "single image" mode target one of several visible canvases
  * instead of only ever the active one.
  */
-export function getVisibleCanvasesForDownload(
-    viewerState: ViewerState,
-): any[] {
+export function getVisibleCanvasesForDownload(viewerState: ViewerState): any[] {
     return getVisibleCanvasEntries({
         canvases: viewerState.canvases,
         currentCanvasId: viewerState.canvasId,
@@ -243,12 +238,8 @@ function buildWorldLayout(
 
     const minX = Math.min(...layouts.map((layout) => layout.x));
     const minY = Math.min(...layouts.map((layout) => layout.y));
-    const maxX = Math.max(
-        ...layouts.map((layout) => layout.x + layout.width),
-    );
-    const maxY = Math.max(
-        ...layouts.map((layout) => layout.y + layout.height),
-    );
+    const maxX = Math.max(...layouts.map((layout) => layout.x + layout.width));
+    const maxY = Math.max(...layouts.map((layout) => layout.y + layout.height));
 
     const entries: WorldLayoutEntry[] = sources.map((source) => ({
         resolved: (source.tileSource as { resolved: ResolvedCanvasImage })

@@ -65,7 +65,10 @@
         localeTick++;
     });
 
-    const t = (key: string, params?: Record<string, string | number>): string => {
+    const t = (
+        key: string,
+        params?: Record<string, string | number>,
+    ): string => {
         void localeTick;
         return locale.t(key, params);
     };
@@ -249,7 +252,10 @@
                 const resolvedImage =
                     singleModeCanvasImages[selectedImageIndex];
                 if (!resolvedImage) return;
-                blob = await exportSingleImage(resolvedImage, selectedSizeOption);
+                blob = await exportSingleImage(
+                    resolvedImage,
+                    selectedSizeOption,
+                );
             } else if (mode === 'composite') {
                 blob = await exportCompositeCanvas(canvas, selectedSizeOption, {
                     getSelectedChoice,
@@ -275,8 +281,10 @@
             // addition to the panel-local message) so integrations can react
             // without scraping the browser console for diagnostics.
             if (rootEl) {
-                reportImageDownloadError(rootEl, error, () =>
-                    void handleDownload(),
+                reportImageDownloadError(
+                    rootEl,
+                    error,
+                    () => void handleDownload(),
                 );
             }
         } finally {
@@ -319,12 +327,15 @@
                             disabled={isDownloading}
                             value={mode}
                             onchange={(e) => {
-                                mode = e.currentTarget.value as ImageDownloadMode;
+                                mode = e.currentTarget
+                                    .value as ImageDownloadMode;
                             }}
                         >
                             {#if showCompositeOption}
                                 <option value="composite"
-                                    >{t('image_download_mode_composite')}</option
+                                    >{t(
+                                        'image_download_mode_composite',
+                                    )}</option
                                 >
                             {/if}
                             <option value="single"
@@ -403,7 +414,9 @@
                             !sizeOptions.length}
                         value={selectedSizeIndex ?? ''}
                         onchange={(e) => {
-                            selectedSizeIndex = parseIndex(e.currentTarget.value);
+                            selectedSizeIndex = parseIndex(
+                                e.currentTarget.value,
+                            );
                         }}
                     >
                         <option value="" disabled>

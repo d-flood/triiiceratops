@@ -323,8 +323,13 @@ function findForbiddenDeps(nodeModulesDir, forbidden, found = new Set()) {
                 continue;
             }
             for (const scoped of readdirSync(full)) {
-                if (forbidden.has(`${name}/${scoped}`)) found.add(`${name}/${scoped}`);
-                findForbiddenDeps(join(full, scoped, 'node_modules'), forbidden, found);
+                if (forbidden.has(`${name}/${scoped}`))
+                    found.add(`${name}/${scoped}`);
+                findForbiddenDeps(
+                    join(full, scoped, 'node_modules'),
+                    forbidden,
+                    found,
+                );
             }
             continue;
         }
@@ -352,10 +357,14 @@ async function assertCoreOnlyDeps(coreTarball, workRoot) {
         ) + '\n',
     );
     step('core-only: npm install triiiceratops alone');
-    await run('npm', ['install', '--no-audit', '--no-fund', '--loglevel=error'], {
-        cwd: fixtureDir,
-        timeout: 300_000,
-    });
+    await run(
+        'npm',
+        ['install', '--no-audit', '--no-fund', '--loglevel=error'],
+        {
+            cwd: fixtureDir,
+            timeout: 300_000,
+        },
+    );
 
     // Plugin-only runtime deps that MUST NOT resolve into a core-only install.
     const forbidden = new Set(['@annotorious', 'pdf-lib', 'phosphor-svelte']);
@@ -519,9 +528,7 @@ async function main() {
         const only = process.env.PACKED_ONLY
             ? new Set(process.env.PACKED_ONLY.split(','))
             : null;
-        const fixtures = only
-            ? FIXTURES.filter((f) => only.has(f))
-            : FIXTURES;
+        const fixtures = only ? FIXTURES.filter((f) => only.has(f)) : FIXTURES;
 
         for (const fixtureName of fixtures) {
             heading(`Fixture: ${fixtureName}`);

@@ -45,10 +45,7 @@
             <li class="menu-title">{m.theme_menu_title()}</li>
             {#each themes as t (t)}
                 <li>
-                    <button
-                        class="theme-item"
-                        onclick={() => onThemeChange(t)}
-                    >
+                    <button class="theme-item" onclick={() => onThemeChange(t)}>
                         <div data-theme={t} class="swatch swatch-preview">
                             <div class="dot dot-base"></div>
                             <div class="dot dot-primary"></div>
@@ -163,7 +160,8 @@
         background-color: var(--tri-viewer-bg);
     }
     .swatch-trigger {
-        border: 1px solid color-mix(in oklab, var(--tri-content) 10%, transparent);
+        border: 1px solid
+            color-mix(in oklab, var(--tri-content) 10%, transparent);
         transition: border-color 0.2s;
     }
     .trigger:hover .swatch-trigger {

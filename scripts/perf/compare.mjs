@@ -76,10 +76,7 @@ async function buildRoot(root) {
 
 async function measureSha(ref, label, opts) {
     const sha = await resolveSha(ref);
-    const dir = join(
-        opts.outDir,
-        `worktree-${label}-${sha.slice(0, 10)}`,
-    );
+    const dir = join(opts.outDir, `worktree-${label}-${sha.slice(0, 10)}`);
     heading(`Measuring ${label}: ${ref} (${sha})`);
     await addWorktree(dir, sha);
     try {
@@ -119,7 +116,10 @@ function emitSummary(md) {
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     const opts = {
-        outDir: join(REPO_ROOT, args['out-dir'] ? String(args['out-dir']) : 'perf-results'),
+        outDir: join(
+            REPO_ROOT,
+            args['out-dir'] ? String(args['out-dir']) : 'perf-results',
+        ),
         warmups: args.warmups ? Number(args.warmups) : undefined,
         runs: args.runs ? Number(args.runs) : undefined,
         sizeOnly: Boolean(args['size-only']),
@@ -152,8 +152,14 @@ async function main() {
         process.exit(2);
     }
 
-    writeFileSync(join(opts.outDir, 'base.json'), JSON.stringify(base, null, 2));
-    writeFileSync(join(opts.outDir, 'head.json'), JSON.stringify(head, null, 2));
+    writeFileSync(
+        join(opts.outDir, 'base.json'),
+        JSON.stringify(base, null, 2),
+    );
+    writeFileSync(
+        join(opts.outDir, 'head.json'),
+        JSON.stringify(head, null, 2),
+    );
 
     // Optionally (re)capture the committed budget file from head.
     if (args['update-budgets']) {

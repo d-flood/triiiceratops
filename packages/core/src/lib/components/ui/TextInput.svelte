@@ -53,7 +53,11 @@
         touch-action: manipulation;
         box-shadow:
             0 1px
-                color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000)
+                color-mix(
+                    in oklab,
+                    var(--input-color) calc(var(--tri-depth) * 10%),
+                    #0000
+                )
                 inset,
             0 -1px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
         --size: calc(var(--tri-size-field, 0.25rem) * 10);
@@ -75,7 +79,11 @@
     .input:focus-within {
         --input-color: var(--tri-content);
         box-shadow: 0 1px
-            color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000);
+            color-mix(
+                in oklab,
+                var(--input-color) calc(var(--tri-depth) * 10%),
+                #0000
+            );
         outline: 2px solid var(--input-color);
         outline-offset: 2px;
         isolation: isolate;

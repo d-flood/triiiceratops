@@ -152,7 +152,10 @@ export function runAdapterContractTests(
             const { id, resolved } = await createAndResolve(created);
 
             expect(resolved).not.toBeNull();
-            expect(strip(resolved as W3CAnnotation)).toEqual({ ...created, id });
+            expect(strip(resolved as W3CAnnotation)).toEqual({
+                ...created,
+                id,
+            });
         });
 
         it('create preserves structured / unknown body shapes verbatim', async () => {
@@ -165,7 +168,11 @@ export function runAdapterContractTests(
                 },
                 extra: null,
             } as unknown as W3CAnnotation['body'];
-            const created = sampleAnnotation('anno-structured', canvasId, structuredBody);
+            const created = sampleAnnotation(
+                'anno-structured',
+                canvasId,
+                structuredBody,
+            );
 
             const { resolved } = await createAndResolve(created);
 
@@ -181,10 +188,18 @@ export function runAdapterContractTests(
                 ...created,
                 id,
                 body: [
-                    { type: 'TextualBody', purpose: 'commenting', value: 'edited' },
+                    {
+                        type: 'TextualBody',
+                        purpose: 'commenting',
+                        value: 'edited',
+                    },
                 ],
             };
-            await adapter.update(manifestId, canvasId, structuredClone(updated));
+            await adapter.update(
+                manifestId,
+                canvasId,
+                structuredClone(updated),
+            );
 
             const loaded = await adapter.load(manifestId, canvasId);
             const entry = loaded.find((a) => a.id === id);
@@ -258,14 +273,20 @@ export function runAdapterContractTests(
                 expect(entry).toBeDefined();
                 const full =
                     entry?.__fullBodyLoaded === false
-                        ? await adapter.hydrate!(manifestId, canvasId, canonicalId)
+                        ? await adapter.hydrate!(
+                              manifestId,
+                              canvasId,
+                              canonicalId,
+                          )
                         : entry;
                 expect(strip(full as W3CAnnotation).body).toEqual(updated.body);
 
                 // Delete under the canonical id removes it.
                 await adapter.delete(manifestId, canvasId, canonicalId);
                 loaded = await adapter.load(manifestId, canvasId);
-                expect(loaded.find((a) => a.id === canonicalId)).toBeUndefined();
+                expect(
+                    loaded.find((a) => a.id === canonicalId),
+                ).toBeUndefined();
             });
         }
 

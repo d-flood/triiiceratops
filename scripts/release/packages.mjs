@@ -13,7 +13,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const REPO_ROOT = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+);
 
 /**
  * The six publishable packages. `build` lists the package scripts that must run
@@ -55,7 +59,10 @@ export const PUBLISHABLE_PACKAGES = [
 /** Read a package's current version from its committed package.json. */
 export function readVersion(pkg) {
     const manifest = JSON.parse(
-        readFileSync(join(REPO_ROOT, 'packages', pkg.dir, 'package.json'), 'utf8'),
+        readFileSync(
+            join(REPO_ROOT, 'packages', pkg.dir, 'package.json'),
+            'utf8',
+        ),
     );
     return manifest.version;
 }

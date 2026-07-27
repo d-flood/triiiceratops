@@ -266,8 +266,7 @@ export class AnnotationManager {
                 // (v3.7 has no per-annotation className), replacing the dead v2
                 // `formatter` (F9). Points render with the configured point
                 // marker colours; everything else uses the drawing style.
-                style: (annotation: any) =>
-                    this.styleForAnnotation(annotation),
+                style: (annotation: any) => this.styleForAnnotation(annotation),
             };
 
             const anno = this.createOSDAnnotator(viewer, config);
@@ -587,8 +586,7 @@ export class AnnotationManager {
             target: {
                 type: 'SpecificResource',
                 source:
-                    (annotation as any)?.target?.source ??
-                    this.currentCanvasId,
+                    (annotation as any)?.target?.source ?? this.currentCanvasId,
                 selector: {
                     type: 'PointSelector',
                     x: point.x,
@@ -683,17 +681,18 @@ export class AnnotationManager {
             return null;
         }
 
-        const canvas = (this.viewerState?.getCanvases(this.currentManifestId) ?? [])
-            .find((entry: any) => {
-                const id =
-                    entry?.id ||
-                    entry?.['@id'] ||
-                    entry?.__jsonld?.id ||
-                    entry?.__jsonld?.['@id'] ||
-                    entry?.getCanvasId?.() ||
-                    entry?.getId?.();
-                return id === this.currentCanvasId;
-            });
+        const canvas = (
+            this.viewerState?.getCanvases(this.currentManifestId) ?? []
+        ).find((entry: any) => {
+            const id =
+                entry?.id ||
+                entry?.['@id'] ||
+                entry?.__jsonld?.id ||
+                entry?.__jsonld?.['@id'] ||
+                entry?.getCanvasId?.() ||
+                entry?.getId?.();
+            return id === this.currentCanvasId;
+        });
 
         const resolved = canvas ? resolveCanvasImage(canvas) : null;
         if (
@@ -1000,9 +999,7 @@ export class AnnotationManager {
      * origin-aware path (§3.2); everything else scales normally, with legacy
      * fragment-centre read-compat via `toPointSelectorTarget` (D3).
      */
-    private annotationToCanvasSpace(
-        annotation: W3CAnnotation,
-    ): W3CAnnotation {
+    private annotationToCanvasSpace(annotation: W3CAnnotation): W3CAnnotation {
         if (this.editingPointOrigin.has((annotation as any)?.id)) {
             return this.pointFromEditingRect(annotation);
         }
@@ -1146,7 +1143,11 @@ export class AnnotationManager {
     }
 
     private async hydrateAnnotation(annotationId: string): Promise<void> {
-        if (!this.annotorious || !this.store.ready || !this.store.hydrateSupported) {
+        if (
+            !this.annotorious ||
+            !this.store.ready ||
+            !this.store.hydrateSupported
+        ) {
             return;
         }
 
@@ -1246,10 +1247,7 @@ export class AnnotationManager {
      * editing, re-open it under the canonical id: this re-adds it to Annotorious,
      * reselects it, and re-emits the active-edit-id signal with the new id.
      */
-    private handleIdReconciled(
-        oldId: string,
-        canonical: W3CAnnotation,
-    ): void {
+    private handleIdReconciled(oldId: string, canonical: W3CAnnotation): void {
         if (this.activeEditingAnnotationId !== oldId) return;
         void this.selectAnnotationById(canonical.id);
     }

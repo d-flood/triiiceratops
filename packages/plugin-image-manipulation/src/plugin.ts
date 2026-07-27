@@ -13,7 +13,11 @@
 
 import { mount, unmount } from 'svelte';
 
-import { definePlugin, type PluginView, type SdkPlugin } from '@triiiceratops/plugin-sdk';
+import {
+    definePlugin,
+    type PluginView,
+    type SdkPlugin,
+} from '@triiiceratops/plugin-sdk';
 
 import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type FlyoutContext } from './contextKey';

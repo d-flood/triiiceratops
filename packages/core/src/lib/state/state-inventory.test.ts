@@ -149,7 +149,9 @@ function resetManifestMocks(): void {
     vi.mocked(manifestsState.fetchManifest).mockReset();
     vi.mocked(manifestsState.fetchResource).mockReset();
     vi.mocked(manifestsState.registerManifest).mockReset();
-    vi.mocked(manifestsState.getManifest).mockReset().mockReturnValue(undefined);
+    vi.mocked(manifestsState.getManifest)
+        .mockReset()
+        .mockReturnValue(undefined);
     vi.mocked(manifestsState.getManifestEntry)
         .mockReset()
         .mockReturnValue(undefined);
@@ -179,7 +181,8 @@ const commandScenarios: CapabilityScenario[] = [
                 { id: 'canvas-1' },
             ]);
         },
-        act: (state) => state.setManifestData('manifest-1', { id: 'manifest-1' }),
+        act: (state) =>
+            state.setManifestData('manifest-1', { id: 'manifest-1' }),
     },
     { member: 'canvasId', act: (state) => state.setCanvas('canvas-1') },
     {
@@ -211,7 +214,10 @@ const commandScenarios: CapabilityScenario[] = [
         act: (state) => state.toggleThumbnailGallery(),
     },
     { member: 'toolbarOpen', act: (state) => state.toggleToolbar() },
-    { member: 'showMetadataPanel', act: (state) => state.toggleMetadataPanel() },
+    {
+        member: 'showMetadataPanel',
+        act: (state) => state.toggleMetadataPanel(),
+    },
     { member: 'showCanvasInfo', act: (state) => state.toggleCanvasInfo() },
     {
         member: 'showStructuresPanel',
@@ -244,7 +250,8 @@ const commandScenarios: CapabilityScenario[] = [
     { member: 'viewingMode', act: (state) => state.setViewingMode('paged') },
     {
         member: 'viewingDirection',
-        act: (state) => state.updateConfig({ viewingDirection: 'right-to-left' }),
+        act: (state) =>
+            state.updateConfig({ viewingDirection: 'right-to-left' }),
     },
     { member: 'pagedOffset', act: (state) => state.togglePagedOffset() },
     {

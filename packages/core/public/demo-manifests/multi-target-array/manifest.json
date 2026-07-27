@@ -3,9 +3,7 @@
     "id": "demo-manifests/multi-target-array/manifest.json",
     "type": "Manifest",
     "label": {
-        "en": [
-            "Picture of Gottingen taken during the 2019 IIIF Conference"
-        ]
+        "en": ["Picture of Gottingen taken during the 2019 IIIF Conference"]
     },
     "items": [
         {

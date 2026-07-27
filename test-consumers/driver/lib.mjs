@@ -136,7 +136,11 @@ export function vendoredTarballName(depName) {
  * own integrity hash. `depName` defaults to `triiiceratops`; pass the scoped
  * name (e.g. `@triiiceratops/plugin-sdk`) to inject additional packed packages.
  */
-export function injectTarball(fixtureDir, tarballPath, depName = 'triiiceratops') {
+export function injectTarball(
+    fixtureDir,
+    tarballPath,
+    depName = 'triiiceratops',
+) {
     const vendorDir = join(fixtureDir, 'vendor');
     mkdirSync(vendorDir, { recursive: true });
     const fileName = vendoredTarballName(depName);

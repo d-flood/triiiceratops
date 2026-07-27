@@ -66,7 +66,9 @@ export function provideActiveLocale(source: ActiveLocaleSource): void {
 
 /** The active-locale source from context, or null outside any viewer subtree. */
 function useActiveLocaleSource(): ActiveLocaleSource | null {
-    return getContext<ActiveLocaleSource | undefined>(ACTIVE_LOCALE_KEY) ?? null;
+    return (
+        getContext<ActiveLocaleSource | undefined>(ACTIVE_LOCALE_KEY) ?? null
+    );
 }
 
 /**

@@ -162,8 +162,14 @@ describe('plugin failure isolation (SDK contract on a live ViewerState)', () => 
         const coreListener = vi.fn();
         state.subscribe(coreListener);
 
-        activatePlugin(pluginA, makeHost(containerA, state, reporterFor('@t/a')));
-        activatePlugin(pluginB, makeHost(containerB, state, reporterFor('@t/b')));
+        activatePlugin(
+            pluginA,
+            makeHost(containerA, state, reporterFor('@t/a')),
+        );
+        activatePlugin(
+            pluginB,
+            makeHost(containerB, state, reporterFor('@t/b')),
+        );
 
         expect(reports).toHaveLength(1);
         expect(reports[0].phase).toBe('setup');
@@ -189,8 +195,14 @@ describe('plugin failure isolation (SDK contract on a live ViewerState)', () => 
         });
         const pluginB = makePlugin({ name: '@t/b', capture: capB });
 
-        activatePlugin(pluginA, makeHost(containerA, state, reporterFor('@t/a')));
-        activatePlugin(pluginB, makeHost(containerB, state, reporterFor('@t/b')));
+        activatePlugin(
+            pluginA,
+            makeHost(containerA, state, reporterFor('@t/a')),
+        );
+        activatePlugin(
+            pluginB,
+            makeHost(containerB, state, reporterFor('@t/b')),
+        );
 
         expect(reports).toHaveLength(1);
         expect(reports[0].phase).toBe('mount');
@@ -212,8 +224,14 @@ describe('plugin failure isolation (SDK contract on a live ViewerState)', () => 
         });
         const pluginB = makePlugin({ name: '@t/b', capture: capB });
 
-        activatePlugin(pluginA, makeHost(containerA, state, reporterFor('@t/a')));
-        activatePlugin(pluginB, makeHost(containerB, state, reporterFor('@t/b')));
+        activatePlugin(
+            pluginA,
+            makeHost(containerA, state, reporterFor('@t/a')),
+        );
+        activatePlugin(
+            pluginB,
+            makeHost(containerB, state, reporterFor('@t/b')),
+        );
 
         // Both mounted fine; the projection only throws once toolbarOpen flips.
         expect(capA.mounted).toBe(true);
@@ -243,8 +261,14 @@ describe('plugin failure isolation (SDK contract on a live ViewerState)', () => 
         const coreListener = vi.fn();
         state.subscribe(coreListener);
 
-        activatePlugin(pluginA, makeHost(containerA, state, reporterFor('@t/a')));
-        activatePlugin(pluginB, makeHost(containerB, state, reporterFor('@t/b')));
+        activatePlugin(
+            pluginA,
+            makeHost(containerA, state, reporterFor('@t/a')),
+        );
+        activatePlugin(
+            pluginB,
+            makeHost(containerB, state, reporterFor('@t/b')),
+        );
 
         state.toggleToolbar();
         await tick();

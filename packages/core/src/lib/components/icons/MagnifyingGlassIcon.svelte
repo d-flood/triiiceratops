@@ -16,4 +16,11 @@
     }: Omit<ComponentProps<typeof Icon>, 'name'> = $props();
 </script>
 
-<Icon name="MagnifyingGlass" {size} {weight} {color} class={className} {label} />
+<Icon
+    name="MagnifyingGlass"
+    {size}
+    {weight}
+    {color}
+    class={className}
+    {label}
+/>

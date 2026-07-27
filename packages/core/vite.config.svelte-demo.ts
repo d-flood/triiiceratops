@@ -20,7 +20,10 @@ export default defineConfig({
     plugins: [svelte({ configFile: false })],
     resolve: {
         alias: [
-            { find: 'triiiceratops/style.css', replacement: dist('triiiceratops.css') },
+            {
+                find: 'triiiceratops/style.css',
+                replacement: dist('triiiceratops.css'),
+            },
             { find: /^triiiceratops$/, replacement: dist('index.js') },
         ],
     },

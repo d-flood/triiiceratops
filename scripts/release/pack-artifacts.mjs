@@ -20,10 +20,21 @@
 //     --no-build    skip the per-package build steps (dist must already exist)
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    readFileSync,
+    readdirSync,
+    writeFileSync,
+} from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
-import { PUBLISHABLE_PACKAGES, REPO_ROOT, distTagFor, readVersion } from './packages.mjs';
+import {
+    PUBLISHABLE_PACKAGES,
+    REPO_ROOT,
+    distTagFor,
+    readVersion,
+} from './packages.mjs';
 
 function parseArgs(argv) {
     const args = { build: true, out: null };
@@ -73,7 +84,9 @@ function main() {
         const pkgDir = join(REPO_ROOT, 'packages', pkg.dir);
         if (args.build) {
             for (const script of pkg.build) {
-                console.log(`\n[pack] ${pkg.name}: pnpm --filter ${pkg.name} run ${script}`);
+                console.log(
+                    `\n[pack] ${pkg.name}: pnpm --filter ${pkg.name} run ${script}`,
+                );
                 run('pnpm', ['--filter', pkg.name, 'run', script], REPO_ROOT);
             }
         }
@@ -94,7 +107,8 @@ function main() {
 
     // SHA256SUMS: standard `sha256sum -c` format so the publish job can verify
     // integrity with a single `sha256sum -c SHA256SUMS`.
-    const sums = summary.map((s) => `${s.sha256}  ${s.tarball}`).join('\n') + '\n';
+    const sums =
+        summary.map((s) => `${s.sha256}  ${s.tarball}`).join('\n') + '\n';
     writeFileSync(join(outDir, 'SHA256SUMS'), sums);
 
     // release-manifest.json: machine-readable name/version/dist-tag/checksum map
@@ -105,9 +119,13 @@ function main() {
         JSON.stringify({ packages: summary }, null, 2) + '\n',
     );
 
-    console.log(`\n[pack] wrote ${summary.length} tarballs + SHA256SUMS to ${outDir}`);
+    console.log(
+        `\n[pack] wrote ${summary.length} tarballs + SHA256SUMS to ${outDir}`,
+    );
     for (const s of summary) {
-        console.log(`  ${s.name}@${s.version} (${s.distTag})  ${s.sha256.slice(0, 12)}…  ${s.tarball}`);
+        console.log(
+            `  ${s.name}@${s.version} (${s.distTag})  ${s.sha256.slice(0, 12)}…  ${s.tarball}`,
+        );
     }
 
     // Sanity: exactly the six expected tarballs, nothing stray.

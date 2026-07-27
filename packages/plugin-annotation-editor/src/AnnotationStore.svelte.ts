@@ -51,8 +51,7 @@ type UndoableOp =
  * (issues 01–04); behavior is intentionally unchanged (issue 05).
  */
 export class AnnotationStore {
-    private static readonly W3C_CONTEXT =
-        'http://www.w3.org/ns/anno.jsonld';
+    private static readonly W3C_CONTEXT = 'http://www.w3.org/ns/anno.jsonld';
     private static readonly DEFAULT_MOTIVATION = 'commenting';
 
     private adapter: AnnotationStorageAdapter;
@@ -175,7 +174,10 @@ export class AnnotationStore {
      * panel's default error line. `null` when there's nothing to show or a host
      * `onPersistenceError` handler took ownership of the failure (F20).
      */
-    get panelError(): { op: AnnotationPersistenceOp; annotationId?: string } | null {
+    get panelError(): {
+        op: AnnotationPersistenceOp;
+        annotationId?: string;
+    } | null {
         return this._panelError;
     }
 
@@ -342,7 +344,10 @@ export class AnnotationStore {
                     this.syncDisplay();
                     this._panelError = null;
                     ok = true;
-                    this.recordForward({ kind: 'create', annotation: canonical });
+                    this.recordForward({
+                        kind: 'create',
+                        annotation: canonical,
+                    });
                 } catch (error) {
                     // Nothing was cached → no optimistic entry to remove.
                     this.reportError('create', id, error, () =>
@@ -526,7 +531,10 @@ export class AnnotationStore {
                     if (await this.persist(op.annotation)) {
                         const canonical =
                             this.lastCreateCanonical ?? op.annotation;
-                        this.pushRedo({ kind: 'delete', annotation: canonical });
+                        this.pushRedo({
+                            kind: 'delete',
+                            annotation: canonical,
+                        });
                         this.onReplay?.(canonical.id, this.get(canonical.id));
                     } else {
                         this.restoreUndo(op);
@@ -558,7 +566,10 @@ export class AnnotationStore {
                     if (await this.persist(op.annotation)) {
                         const canonical =
                             this.lastCreateCanonical ?? op.annotation;
-                        this.pushUndo({ kind: 'create', annotation: canonical });
+                        this.pushUndo({
+                            kind: 'create',
+                            annotation: canonical,
+                        });
                         this.onReplay?.(canonical.id, this.get(canonical.id));
                     } else {
                         this.restoreRedo(op);
@@ -797,9 +808,7 @@ export class AnnotationStore {
             annotations.map((annotation) => {
                 this.hydrationState.set(
                     annotation.id,
-                    annotation.__fullBodyLoaded === false
-                        ? 'skeleton'
-                        : 'full',
+                    annotation.__fullBodyLoaded === false ? 'skeleton' : 'full',
                 );
                 return [
                     annotation.id,

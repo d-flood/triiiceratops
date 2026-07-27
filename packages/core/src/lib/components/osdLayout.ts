@@ -85,13 +85,18 @@ function groupSources(sources: unknown[]): CanvasGroup[] {
     sources.forEach((source, index) => {
         const positioned = isPositionedSource(source);
         const tileSource = positioned ? source.tileSource : source;
-        const canvasId = positioned ? (source.canvasId ?? `canvas-${index}`) : `canvas-${index}`;
+        const canvasId = positioned
+            ? (source.canvasId ?? `canvas-${index}`)
+            : `canvas-${index}`;
         const localX = positioned ? (source.x ?? 0) : 0;
         const localY = positioned ? (source.y ?? 0) : 0;
         const localWidth = positioned ? (source.width ?? 1) : 1;
         const imageWidth = getDimension(tileSource, 'width');
         const imageHeight = getDimension(tileSource, 'height');
-        const localHeight = imageWidth && imageHeight ? (localWidth * imageHeight) / imageWidth : null;
+        const localHeight =
+            imageWidth && imageHeight
+                ? (localWidth * imageHeight) / imageWidth
+                : null;
 
         let group = groups.get(canvasId);
         if (!group) {
@@ -99,9 +104,19 @@ function groupSources(sources: unknown[]): CanvasGroup[] {
             groups.set(canvasId, group);
         }
 
-        group.sources.push({ source, tileSource, localX, localY, localWidth, localHeight });
+        group.sources.push({
+            source,
+            tileSource,
+            localX,
+            localY,
+            localWidth,
+            localHeight,
+        });
         group.width = Math.max(group.width, localX + localWidth);
-        group.height = localHeight === null ? null : Math.max(group.height ?? 0, localY + localHeight);
+        group.height =
+            localHeight === null
+                ? null
+                : Math.max(group.height ?? 0, localY + localHeight);
     });
 
     return [...groups.values()];
@@ -165,8 +180,12 @@ export function getCanvasDisplayLayouts(
 
     if (options.mode === 'continuous') {
         let offset = 0;
-        const isVertical = options.direction === 'top-to-bottom' || options.direction === 'bottom-to-top';
-        const isReverse = options.direction === 'right-to-left' || options.direction === 'bottom-to-top';
+        const isVertical =
+            options.direction === 'top-to-bottom' ||
+            options.direction === 'bottom-to-top';
+        const isReverse =
+            options.direction === 'right-to-left' ||
+            options.direction === 'bottom-to-top';
 
         for (const layout of scaled) {
             if (isVertical) {
@@ -203,13 +222,15 @@ export function getCanvasDisplayLayouts(
             height: layout.height,
         })),
         sources: scaled.flatMap((layout) =>
-            layout.group.sources.map(({ tileSource, localX, localY, localWidth }) => ({
-                tileSource,
-                x: layout.x + localX * layout.scale,
-                y: layout.y + localY * layout.scale,
-                width: localWidth * layout.scale,
-                canvasId: layout.group.canvasId,
-            })),
+            layout.group.sources.map(
+                ({ tileSource, localX, localY, localWidth }) => ({
+                    tileSource,
+                    x: layout.x + localX * layout.scale,
+                    y: layout.y + localY * layout.scale,
+                    width: localWidth * layout.scale,
+                    canvasId: layout.group.canvasId,
+                }),
+            ),
         ),
     };
 }

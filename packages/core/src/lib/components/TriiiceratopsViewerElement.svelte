@@ -1,13 +1,4 @@
 <!--
-    No `tag` here on purpose: with a string `tag`, the Svelte compiler emits an
-    unconditional `customElements.define` at module import, which (a) crashes on a
-    same-version double-load and (b) can't be made version-aware. Omitting `tag`
-    compiles the component to a custom-element class exposed as
-    `TriiiceratopsViewerElement.element` without registering it, so
-    `browser-runtime.ts` owns idempotent, first-wins, version-aware registration
-    for both the IIFE and ESM Web Component entries (ticket 10).
--->
-<!--
     svelte-check runs with `customElement: false` (ticket 22) so ordinary
     components are not analyzed as custom elements. This wrapper IS compiled as a
     custom element in the real element builds (vite.config.element*.ts, static
@@ -83,12 +74,8 @@
         themeConfig = undefined as string | ThemeConfig | undefined,
         config = undefined as string | ViewerConfig | undefined,
         initialCanvasRegion = undefined as string | CanvasRegion | undefined,
-        onpluginerror = undefined as
-            | ((error: PluginError) => void)
-            | undefined,
-        onviewererror = undefined as
-            | ((error: ViewerError) => void)
-            | undefined,
+        onpluginerror = undefined as ((error: PluginError) => void) | undefined,
+        onviewererror = undefined as ((error: ViewerError) => void) | undefined,
     }: {
         manifestId?: string;
         manifestJson?: string | Record<string, any>;

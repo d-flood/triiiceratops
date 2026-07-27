@@ -5,10 +5,7 @@
     import { language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { resolveLanguageValue } from '../utils/languageMap';
-    import {
-        getCanvasId,
-        getPagedCanvasGroups,
-    } from './viewerControls';
+    import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
 
     // Minimal canvas/annotation types covering methods used here
     type ManifestService = {
@@ -586,7 +583,8 @@
                                             alt={thumbGroup.labels[0]}
                                             class={[
                                                 'thumb-img',
-                                                isHorizontal && 'img-horizontal',
+                                                isHorizontal &&
+                                                    'img-horizontal',
                                                 !isHorizontal && 'img-fill',
                                                 thumbGroup.srcs.length > 1 &&
                                                     'img-right',
@@ -648,7 +646,8 @@
                                         .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
                                             class="choice-badge"
                                             title="Has choices/layers"
-                                            ><Icon name="Stack"
+                                            ><Icon
+                                                name="Stack"
                                                 size={12}
                                                 class="choice-icon"
                                             /></span
@@ -662,7 +661,8 @@
                                             .labels[1]}{#if thumbGroup.hasChoice}<span
                                                 class="choice-badge"
                                                 title="Has choices/layers"
-                                                ><Icon name="Stack"
+                                                ><Icon
+                                                    name="Stack"
                                                     size={12}
                                                     class="choice-icon"
                                                 /></span
@@ -716,14 +716,19 @@
                                 {/if}
                             </div>
                             <div class="thumb-label label-simple">
-                                <span class="label-num">{thumb.index + 1}.</span>
+                                <span class="label-num">{thumb.index + 1}.</span
+                                >
                                 {thumb.label}
                                 {#if thumb.hasChoice}
                                     <span
                                         class="choice-badge choice-badge-simple"
                                         title="Has choices/layers"
                                     >
-                                        <Icon name="Stack" size={12} class="choice-icon" />
+                                        <Icon
+                                            name="Stack"
+                                            size={12}
+                                            class="choice-icon"
+                                        />
                                     </span>
                                 {/if}
                             </div>
@@ -833,8 +838,7 @@
         border-width: 1px;
         border-style: solid;
         border-color: var(--tri-surface-border);
-        box-shadow:
-            0 25px 50px -12px #00000040;
+        box-shadow: 0 25px 50px -12px #00000040;
     }
     .gallery-root.dock-horizontal {
         flex-direction: row;
@@ -882,8 +886,9 @@
         align-items: center;
         justify-content: center;
         cursor: move;
-        transition-property: color, background-color, border-color,
-            text-decoration-color, fill, stroke;
+        transition-property:
+            color, background-color, border-color, text-decoration-color, fill,
+            stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
@@ -957,8 +962,9 @@
         text-align: left;
         position: relative;
         flex-shrink: 0;
-        transition-property: color, background-color, border-color,
-            text-decoration-color, fill, stroke;
+        transition-property:
+            color, background-color, border-color, text-decoration-color, fill,
+            stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
@@ -1118,8 +1124,9 @@
         cursor: se-resize;
         z-index: 50;
         background-color: var(--tri-color-primary);
-        transition-property: color, background-color, border-color,
-            text-decoration-color, fill, stroke;
+        transition-property:
+            color, background-color, border-color, text-decoration-color, fill,
+            stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }

@@ -11,7 +11,9 @@ export function parseJsonProp<T>(
     try {
         return JSON.parse(value) as T;
     } catch {
-        options.onError?.(`Invalid ${options.label} JSON: "${value}". Ignoring.`);
+        options.onError?.(
+            `Invalid ${options.label} JSON: "${value}". Ignoring.`,
+        );
         return options.fallback;
     }
 }

@@ -59,23 +59,40 @@ async function main() {
 
     // Exact, pinned versions — no ranges. This is the release gate: the versions
     // just published are the versions installed.
-    const dependencies = Object.fromEntries(packages.map((p) => [p.name, v(p.name)]));
+    const dependencies = Object.fromEntries(
+        packages.map((p) => [p.name, v(p.name)]),
+    );
     writeFileSync(
         join(dir, 'package.json'),
         JSON.stringify(
-            { name: 'triiiceratops-registry-smoke', version: '0.0.0', private: true, type: 'module', dependencies },
+            {
+                name: 'triiiceratops-registry-smoke',
+                version: '0.0.0',
+                private: true,
+                type: 'module',
+                dependencies,
+            },
             null,
             2,
         ) + '\n',
     );
 
-    console.log('[smoke] npm install (exact published versions from the registry)');
+    console.log(
+        '[smoke] npm install (exact published versions from the registry)',
+    );
     const install = spawnSync(
         'npm',
-        ['install', '--no-audit', '--no-fund', '--loglevel=error', `--registry=${registry}`],
+        [
+            'install',
+            '--no-audit',
+            '--no-fund',
+            '--loglevel=error',
+            `--registry=${registry}`,
+        ],
         { cwd: dir, stdio: 'inherit' },
     );
-    if (install.status !== 0) throw new Error('npm install from registry failed');
+    if (install.status !== 0)
+        throw new Error('npm install from registry failed');
 
     // Resolution + load assertions run in a child node process rooted in the
     // consumer, so every specifier resolves through the consumer's node_modules
@@ -109,7 +126,13 @@ for (const sub of ['react', 'vue', 'svelte', 'lit']) {
     });
 }
 for (const p of ${JSON.stringify(
-        packages.map((p) => p.name).filter((n) => n.startsWith('@triiiceratops/plugin-') && n !== '@triiiceratops/plugin-sdk'),
+        packages
+            .map((p) => p.name)
+            .filter(
+                (n) =>
+                    n.startsWith('@triiiceratops/plugin-') &&
+                    n !== '@triiiceratops/plugin-sdk',
+            ),
     )}) {
     await check(\`plugin: import \${p}\`, async () => {
         assert.ok(await import(p));
@@ -124,7 +147,10 @@ process.exit(ok ? 0 : 1);
 `;
     writeFileSync(join(dir, 'smoke.mjs'), smoke);
     console.log('[smoke] resolving + importing published entries');
-    const loaded = spawnSync('node', ['smoke.mjs'], { cwd: dir, stdio: 'inherit' });
+    const loaded = spawnSync('node', ['smoke.mjs'], {
+        cwd: dir,
+        stdio: 'inherit',
+    });
 
     // No-bundler asset fetch: a plain <script src> user pulls the element IIFE and
     // CSS straight off a CDN pinned to the exact published version.
@@ -138,7 +164,8 @@ process.exit(ok ? 0 : 1);
         try {
             const res = await fetch(url);
             const body = await res.text();
-            if (!res.ok || body.length === 0) throw new Error(`status ${res.status}, ${body.length} bytes`);
+            if (!res.ok || body.length === 0)
+                throw new Error(`status ${res.status}, ${body.length} bytes`);
             console.log(`PASS no-bundler fetch: ${url} (${body.length} bytes)`);
         } catch (err) {
             assetsOk = false;
@@ -149,7 +176,9 @@ process.exit(ok ? 0 : 1);
     rmSync(dir, { recursive: true, force: true });
 
     if (loaded.status !== 0 || !assetsOk) {
-        console.error('\n::error::registry smoke test failed — NOT creating a GitHub release');
+        console.error(
+            '\n::error::registry smoke test failed — NOT creating a GitHub release',
+        );
         process.exit(1);
     }
     console.log('\n[smoke] all registry smoke assertions passed.');

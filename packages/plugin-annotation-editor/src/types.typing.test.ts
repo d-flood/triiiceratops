@@ -94,12 +94,17 @@ describe('annotation-editor public types', () => {
         const created = await adapter.create('m', 'c', wellFormed);
         expect(created.id).toBe('temp-1');
 
+        // The @ts-expect-error assertions below must stay single-line so the
+        // directive sits on the exact line tsc reports the error (see header).
+        // prettier-ignore
         // @ts-expect-error `type` must be the literal 'Annotation'.
         const _wrongType: W3CAnnotation = { id: 'x', type: 'Comment', target: { source: 'c' } };
 
+        // prettier-ignore
         // @ts-expect-error a body of the wrong shape is rejected for this adapter.
         void adapter.create('m', 'c', { ...wellFormed, body: { type: 'RatingBody' } });
 
+        // prettier-ignore
         // @ts-expect-error `id` is required on every annotation.
         const _missingId: W3CAnnotation = { type: 'Annotation', target: { source: 'c' } };
 

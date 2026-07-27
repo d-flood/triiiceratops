@@ -62,7 +62,8 @@
         vertical-align: middle;
         --radius-selector-max: calc(var(--tri-radius-selector) * 3);
         border-radius: calc(
-            var(--tri-radius-selector) + min(var(--range-p), var(--radius-selector-max))
+            var(--tri-radius-selector) +
+                min(var(--range-p), var(--radius-selector-max))
         );
         width: clamp(3rem, 20rem, 100%);
         height: var(--range-thumb-size);
@@ -88,7 +89,8 @@
     .range::-webkit-slider-thumb {
         box-sizing: border-box;
         border-radius: calc(
-            var(--tri-radius-selector) + min(var(--range-p), var(--radius-selector-max))
+            var(--tri-radius-selector) +
+                min(var(--range-p), var(--radius-selector-max))
         );
         background-color: var(--range-thumb);
         height: var(--range-thumb-size);
@@ -100,7 +102,12 @@
         box-shadow:
             0 -1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
             0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
-            0 1px color-mix(in oklab, currentColor calc(var(--tri-depth) * 10%), #0000),
+            0 1px
+                color-mix(
+                    in oklab,
+                    currentColor calc(var(--tri-depth) * 10%),
+                    #0000
+                ),
             0 0 0 2rem var(--range-thumb) inset,
             calc(
                     (var(--range-dir, 1) * -100rem) -
@@ -121,7 +128,8 @@
     .range::-moz-range-thumb {
         box-sizing: border-box;
         border-radius: calc(
-            var(--tri-radius-selector) + min(var(--range-p), var(--radius-selector-max))
+            var(--tri-radius-selector) +
+                min(var(--range-p), var(--radius-selector-max))
         );
         height: var(--range-thumb-size);
         width: var(--range-thumb-size);
@@ -130,7 +138,12 @@
         box-shadow:
             0 -1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
             0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
-            0 1px color-mix(in oklab, currentColor calc(var(--tri-depth) * 10%), #0000),
+            0 1px
+                color-mix(
+                    in oklab,
+                    currentColor calc(var(--tri-depth) * 10%),
+                    #0000
+                ),
             0 0 0 2rem var(--range-thumb) inset,
             calc(
                     (var(--range-dir, 1) * -100rem) -

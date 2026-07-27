@@ -173,8 +173,10 @@ _Avoid_: fake viewer context, mock viewer state (the state is real by design)
 
 **Retry** (plugin):
 Manual full re-activation of a failed plugin instance: run its cleanups, drop its
-subscriptions, then activate fresh. Offered to the user in the plugin-local error state
-and to the host via the `pluginerror` channel. Never automatic.
+subscriptions, then activate fresh. Exposed to the host through the `pluginerror`
+channel's `retry()`; never surfaced to the end-user and never automatic. A plugin whose
+activation fails degrades silently — logged for developers and left unsurfaced (no
+toolbar button) rather than shown as a user-facing error.
 _Avoid_: re-mount (retry re-runs the whole activation, not just the UI step)
 
 ## Plugin chrome

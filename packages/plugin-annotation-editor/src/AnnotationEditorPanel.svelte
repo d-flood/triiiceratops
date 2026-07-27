@@ -358,14 +358,20 @@
     <dialog class="modal modal-open">
         <div class="modal-box">
             <h3 class="modal-title">
-                <span class="modal-warning-icon">{@render glyph('Warning', 24)}</span>
+                <span class="modal-warning-icon"
+                    >{@render glyph('Warning', 24)}</span
+                >
                 {t('annotation_editor_delete_title')}
             </h3>
             <p class="modal-message">
                 {t('annotation_editor_delete_message')}
             </p>
             <div class="modal-action">
-                <button type="button" class="tri-ae-btn" onclick={onCancelDelete}>
+                <button
+                    type="button"
+                    class="tri-ae-btn"
+                    onclick={onCancelDelete}
+                >
                     {t('annotation_editor_cancel')}
                 </button>
                 <button

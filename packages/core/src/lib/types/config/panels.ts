@@ -27,8 +27,7 @@ export interface SearchConfig extends ClosablePanelConfig, SidebarPanelConfig {
 }
 
 export interface AnnotationsConfig
-    extends ClosablePanelConfig,
-        SidebarPanelConfig {
+    extends ClosablePanelConfig, SidebarPanelConfig {
     /**
      * Whether the annotations panel/list is open.
      * @default false
@@ -37,8 +36,7 @@ export interface AnnotationsConfig
 }
 
 export interface InformationConfig
-    extends ClosablePanelConfig,
-        SidebarPanelConfig {
+    extends ClosablePanelConfig, SidebarPanelConfig {
     /**
      * Whether the information panel is currently open.
      * @default false

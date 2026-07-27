@@ -587,7 +587,9 @@ describe('ThumbnailGallery - Thumbnail extraction', () => {
             };
 
             // Mock console.warn to prevent test output pollution
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const warnSpy = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
 
             const result = extractThumbnail(canvas, 0);
 

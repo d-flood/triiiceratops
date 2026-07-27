@@ -74,11 +74,9 @@ describe('AnnotationStore display sync (F10)', () => {
         store.setCanvas(MANIFEST, CANVAS);
         await store.load();
 
-        expect(setUserAnnotations).toHaveBeenLastCalledWith(
-            MANIFEST,
-            CANVAS,
-            [expect.objectContaining({ id: 'a' })],
-        );
+        expect(setUserAnnotations).toHaveBeenLastCalledWith(MANIFEST, CANVAS, [
+            expect.objectContaining({ id: 'a' }),
+        ]);
     });
 
     it('re-injects the updated set on create, update, and delete', async () => {
@@ -101,7 +99,11 @@ describe('AnnotationStore display sync (F10)', () => {
 
         setUserAnnotations.mockClear();
         await store.delete('a');
-        expect(setUserAnnotations).toHaveBeenLastCalledWith(MANIFEST, CANVAS, []);
+        expect(setUserAnnotations).toHaveBeenLastCalledWith(
+            MANIFEST,
+            CANVAS,
+            [],
+        );
     });
 
     it('clears every populated canvas and releases the adapter on destroy', async () => {
@@ -498,7 +500,11 @@ describe('AnnotationStore undo/redo (F6)', () => {
         await store.undo();
         expect(deleteSpy).toHaveBeenCalledWith(MANIFEST, CANVAS, 'a');
         expect(store.has('a')).toBe(false);
-        expect(setUserAnnotations).toHaveBeenLastCalledWith(MANIFEST, CANVAS, []);
+        expect(setUserAnnotations).toHaveBeenLastCalledWith(
+            MANIFEST,
+            CANVAS,
+            [],
+        );
         expect(store.canUndo).toBe(false);
         expect(store.canRedo).toBe(true);
 

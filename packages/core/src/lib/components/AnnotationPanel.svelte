@@ -115,7 +115,8 @@
         data-panel-id="annotations"
         class="panel"
         class:floating={!embedded}
-        class:transparent={!embedded && viewerState.config.transparentBackground}
+        class:transparent={!embedded &&
+            viewerState.config.transparentBackground}
         class:border-left={!embedded &&
             !viewerState.config.transparentBackground &&
             position !== 'left'}
@@ -264,9 +265,7 @@
                             {/each}
 
                             {#if anno.bodies.length === 0}
-                                <span class="no-content"
-                                    >{m.no_content()}</span
-                                >
+                                <span class="no-content">{m.no_content()}</span>
                             {/if}
                         </div>
                     </div>
@@ -380,8 +379,9 @@
         width: 100%;
         text-align: left;
         padding: 1rem;
-        transition-property: color, background-color, border-color,
-            text-decoration-color, fill, stroke;
+        transition-property:
+            color, background-color, border-color, text-decoration-color, fill,
+            stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
         display: flex;
@@ -479,8 +479,9 @@
         padding: 0.25rem;
         border-radius: 0.25rem;
         margin-left: -0.25rem;
-        transition-property: color, background-color, border-color,
-            text-decoration-color, fill, stroke;
+        transition-property:
+            color, background-color, border-color, text-decoration-color, fill,
+            stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }

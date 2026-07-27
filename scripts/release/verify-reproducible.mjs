@@ -23,11 +23,18 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PUBLISHABLE_PACKAGES, REPO_ROOT } from './packages.mjs';
 
-const PACK_SCRIPT = fileURLToPath(new URL('./pack-artifacts.mjs', import.meta.url));
+const PACK_SCRIPT = fileURLToPath(
+    new URL('./pack-artifacts.mjs', import.meta.url),
+);
 
 function run(cmd, args, opts = {}) {
-    const res = spawnSync(cmd, args, { cwd: REPO_ROOT, stdio: 'inherit', ...opts });
-    if (res.status !== 0) throw new Error(`${cmd} ${args.join(' ')} exited ${res.status}`);
+    const res = spawnSync(cmd, args, {
+        cwd: REPO_ROOT,
+        stdio: 'inherit',
+        ...opts,
+    });
+    if (res.status !== 0)
+        throw new Error(`${cmd} ${args.join(' ')} exited ${res.status}`);
 }
 
 function cleanDist() {
@@ -41,7 +48,9 @@ function cleanDist() {
 
 /** Clean, build, and pack into a fresh temp dir; return { dir, sums }. */
 function buildAndPack(label) {
-    console.log(`\n=== reproducibility build ${label}: clean + build + pack ===`);
+    console.log(
+        `\n=== reproducibility build ${label}: clean + build + pack ===`,
+    );
     cleanDist();
     const dir = mkdtempSync(join(tmpdir(), `tri-repro-${label}-`));
     run('node', [PACK_SCRIPT, '--out', dir]);
@@ -73,7 +82,9 @@ function main() {
     const files = new Set([...Object.keys(mapA), ...Object.keys(mapB)]);
     for (const file of files) {
         if (mapA[file] !== mapB[file]) {
-            mismatches.push(`${file}: A=${mapA[file] ?? 'MISSING'} B=${mapB[file] ?? 'MISSING'}`);
+            mismatches.push(
+                `${file}: A=${mapA[file] ?? 'MISSING'} B=${mapB[file] ?? 'MISSING'}`,
+            );
         }
     }
 

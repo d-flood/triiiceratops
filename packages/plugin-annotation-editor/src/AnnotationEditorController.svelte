@@ -129,8 +129,7 @@
             contextVersion++;
         });
 
-        const previousRequestEdit =
-            viewerState?.annotationEditBus?.requestEdit;
+        const previousRequestEdit = viewerState?.annotationEditBus?.requestEdit;
         if (viewerState?.annotationEditBus) {
             viewerState.annotationEditBus.requestEdit = (annotationId) => {
                 if (!annotationId) {

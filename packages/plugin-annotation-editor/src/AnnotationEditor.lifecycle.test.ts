@@ -63,18 +63,22 @@ function recordingAdapter(): AnnotationStorageAdapter {
         load: vi.fn(async (m: string, c: string) => [
             ...(store.get(KEY(m, c)) ?? []),
         ]),
-        create: vi.fn(async (m: string, c: string, annotation: W3CAnnotation) => {
-            const list = store.get(KEY(m, c)) ?? [];
-            list.push(annotation);
-            store.set(KEY(m, c), list);
-        }),
-        update: vi.fn(async (m: string, c: string, annotation: W3CAnnotation) => {
-            const list = store.get(KEY(m, c)) ?? [];
-            const i = list.findIndex((a) => a.id === annotation.id);
-            if (i >= 0) list[i] = annotation;
-            else list.push(annotation);
-            store.set(KEY(m, c), list);
-        }),
+        create: vi.fn(
+            async (m: string, c: string, annotation: W3CAnnotation) => {
+                const list = store.get(KEY(m, c)) ?? [];
+                list.push(annotation);
+                store.set(KEY(m, c), list);
+            },
+        ),
+        update: vi.fn(
+            async (m: string, c: string, annotation: W3CAnnotation) => {
+                const list = store.get(KEY(m, c)) ?? [];
+                const i = list.findIndex((a) => a.id === annotation.id);
+                if (i >= 0) list[i] = annotation;
+                else list.push(annotation);
+                store.set(KEY(m, c), list);
+            },
+        ),
         delete: vi.fn(async (m: string, c: string, id: string) => {
             const list = store.get(KEY(m, c)) ?? [];
             store.set(

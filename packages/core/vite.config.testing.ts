@@ -20,10 +20,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *   bundler resolves them at build time, so the chunk is self-contained and runs
  *   in a project that installed only the tarball + vitest.
  */
-const EXTERNAL = [
-    /^openseadragon(\/|$)/,
-    /^@annotorious\//,
-];
+const EXTERNAL = [/^openseadragon(\/|$)/, /^@annotorious\//];
 
 /**
  * Build the compiled headless `triiiceratops/testing` entry (ticket 14).

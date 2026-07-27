@@ -1,7 +1,4 @@
-import {
-    resolveAllLanguageValues,
-    resolveLanguageValue,
-} from './languageMap';
+import { resolveAllLanguageValues, resolveLanguageValue } from './languageMap';
 
 export type NormalizedLink = {
     id: string;

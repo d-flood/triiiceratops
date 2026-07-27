@@ -263,7 +263,9 @@
         );
 
         return (
-            editorPanel?.isVisible() ?? editorFlyoutButton?.isActive?.() ?? false
+            editorPanel?.isVisible() ??
+            editorFlyoutButton?.isActive?.() ??
+            false
         );
     });
 
@@ -1118,8 +1120,9 @@
     .anno-point,
     .anno-point-fill,
     .anno-polygon-shape {
-        transition-property: color, background-color, border-color,
-            text-decoration-color, fill, stroke;
+        transition-property:
+            color, background-color, border-color, text-decoration-color, fill,
+            stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
@@ -1132,11 +1135,7 @@
         cursor: pointer;
         pointer-events: auto;
         border-color: var(--anno-red);
-        background-color: color-mix(
-            in oklab,
-            var(--anno-red) 20%,
-            transparent
-        );
+        background-color: color-mix(in oklab, var(--anno-red) 20%, transparent);
     }
     .anno-rect.search-hit {
         border-color: var(--anno-yellow);
@@ -1147,11 +1146,7 @@
         );
     }
     .anno-rect:hover {
-        background-color: color-mix(
-            in oklab,
-            var(--anno-red) 40%,
-            transparent
-        );
+        background-color: color-mix(in oklab, var(--anno-red) 40%, transparent);
     }
     .anno-rect.search-hit:hover {
         background-color: color-mix(
@@ -1175,18 +1170,10 @@
         border-width: 2px;
         border-style: solid;
         border-color: var(--anno-red);
-        background-color: color-mix(
-            in oklab,
-            var(--anno-red) 20%,
-            transparent
-        );
+        background-color: color-mix(in oklab, var(--anno-red) 20%, transparent);
     }
     .anno-rect-fill.hovered {
-        background-color: color-mix(
-            in oklab,
-            var(--anno-red) 40%,
-            transparent
-        );
+        background-color: color-mix(in oklab, var(--anno-red) 40%, transparent);
     }
     .anno-rect-fill.search-hit {
         border-color: var(--anno-yellow);
@@ -1263,11 +1250,7 @@
         background-color: var(--anno-yellow);
     }
     .anno-point:hover {
-        background-color: color-mix(
-            in oklab,
-            var(--anno-red) 80%,
-            transparent
-        );
+        background-color: color-mix(in oklab, var(--anno-red) 80%, transparent);
     }
     .anno-point.search-hit:hover {
         background-color: color-mix(
@@ -1289,11 +1272,7 @@
         background-color: var(--anno-red);
     }
     .anno-point-fill.hovered {
-        background-color: color-mix(
-            in oklab,
-            var(--anno-red) 80%,
-            transparent
-        );
+        background-color: color-mix(in oklab, var(--anno-red) 80%, transparent);
     }
     .anno-point-fill.search-hit {
         border-color: var(--anno-yellow);

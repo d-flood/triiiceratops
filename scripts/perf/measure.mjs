@@ -53,9 +53,7 @@ const { chromium } = driverRequire('@playwright/test');
 // Reuse the packed-harness static file server so the perf page is served
 // exactly like the packed-consumer fixtures.
 const { serveDir } = await import(
-    pathToFileURL(
-        join(REPO_ROOT, 'test-consumers', 'driver', 'lib.mjs'),
-    ).href
+    pathToFileURL(join(REPO_ROOT, 'test-consumers', 'driver', 'lib.mjs')).href
 );
 
 // Software WebGL so OpenSeadragon's drawer paints headless without a GPU (same
@@ -131,7 +129,9 @@ function stageWebRoot(root, webRoot) {
         const from = join(root, fromPkgDir, 'dist');
         const to = join(webRoot, 'node_modules', toNodeModulesPath, 'dist');
         if (!existsSync(from)) {
-            throw new Error(`missing built dist: ${from} (build the SHA first)`);
+            throw new Error(
+                `missing built dist: ${from} (build the SHA first)`,
+            );
         }
         mkdirSync(to, { recursive: true });
         cpSync(from, to, { recursive: true });
@@ -296,7 +296,8 @@ const ACTIVATE_FN = ({ pkg, toggle }) =>
         };
         const doActivate = () => {
             const factory = window.Triiiceratops.plugins.get(pkg);
-            if (!factory) return reject(new Error(`plugin not registered: ${pkg}`));
+            if (!factory)
+                return reject(new Error(`plugin not registered: ${pkg}`));
             const t0 = performance.now();
             el.plugins = [factory];
             const poll = () => {
@@ -431,7 +432,9 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
             median: median(interSamples),
             samples: interSamples.map(round2),
         };
-        log(`    theme_switch: median ${round2(runtime.theme_switch.median)} ms`);
+        log(
+            `    theme_switch: median ${round2(runtime.theme_switch.median)} ms`,
+        );
         log(
             `    core_interaction: median ${round2(runtime.core_interaction.median)} ms`,
         );

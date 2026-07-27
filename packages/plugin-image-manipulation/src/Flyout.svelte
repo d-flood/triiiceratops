@@ -50,14 +50,18 @@
             // Aborted on teardown (or OSD never became ready) — nothing to do.
         });
 
-    selectors.select((s) => s.osdViewer).subscribe((viewer) => {
-        osd = viewer;
-    });
+    selectors
+        .select((s) => s.osdViewer)
+        .subscribe((viewer) => {
+            osd = viewer;
+        });
 
     // Reset filters when a new image (canvas) is opened.
-    selectors.select((s) => s.canvasId).subscribe(() => {
-        filters = { ...DEFAULT_FILTERS };
-    });
+    selectors
+        .select((s) => s.canvasId)
+        .subscribe(() => {
+            filters = { ...DEFAULT_FILTERS };
+        });
 
     locale.subscribe(() => {
         localeTick++;

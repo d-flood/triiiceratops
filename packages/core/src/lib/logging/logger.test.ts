@@ -2,12 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-    configureLogging,
-    isDebugEnabled,
-    logger,
-    LOG_PREFIX,
-} from './logger';
+import { configureLogging, isDebugEnabled, logger, LOG_PREFIX } from './logger';
 
 afterEach(() => {
     // Restore the default silent state + console sink between tests.

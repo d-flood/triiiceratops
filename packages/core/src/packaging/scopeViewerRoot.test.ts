@@ -100,7 +100,9 @@ describe('scopeSelector', () => {
     });
 
     it('does not double-scope selectors that already reference .viewer-root', () => {
-        expect(scopeSelector('.viewer-root.opaque')).toBe('.viewer-root.opaque');
+        expect(scopeSelector('.viewer-root.opaque')).toBe(
+            '.viewer-root.opaque',
+        );
     });
 
     it('handles :where()/:is() groups that are NOT root tokens', () => {

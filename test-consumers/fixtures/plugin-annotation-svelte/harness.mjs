@@ -92,7 +92,9 @@ export default {
                     const annos = await stored(page);
                     return annos.some((a) => {
                         const body = Array.isArray(a.body) ? a.body : [a.body];
-                        return body.some((b) => b?.value === 'a persisted note');
+                        return body.some(
+                            (b) => b?.value === 'a persisted note',
+                        );
                     });
                 },
                 { timeout: 15_000 },

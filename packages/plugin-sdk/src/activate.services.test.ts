@@ -96,7 +96,10 @@ describe('activation service auto-cleanup', () => {
             },
         });
 
-        const activation = runActivation(meta, makeHost(styles.service, locale.service));
+        const activation = runActivation(
+            meta,
+            makeHost(styles.service, locale.service),
+        );
         expect(styles.installs.map((i) => i.id)).toEqual(['a', 'b']);
         expect(styles.installs.every((i) => i.released)).toBe(false);
 
@@ -118,7 +121,10 @@ describe('activation service auto-cleanup', () => {
         });
 
         // Wrap install to observe underlying release count via the record.
-        const activation = runActivation(meta, makeHost(styles.service, locale.service));
+        const activation = runActivation(
+            meta,
+            makeHost(styles.service, locale.service),
+        );
         expect(styles.installs[0]?.released).toBe(true);
         // Deactivation must not throw or "re-release".
         expect(() => activation.deactivate()).not.toThrow();
@@ -136,7 +142,10 @@ describe('activation service auto-cleanup', () => {
             },
         });
 
-        const activation = runActivation(meta, makeHost(styles.service, locale.service));
+        const activation = runActivation(
+            meta,
+            makeHost(styles.service, locale.service),
+        );
         expect(locale.subs).toHaveLength(1);
         expect(locale.subs[0]?.unsubscribed).toBe(false);
 
@@ -156,7 +165,10 @@ describe('activation service auto-cleanup', () => {
             },
         });
 
-        const activation = runActivation(meta, makeHost(styles.service, locale.service));
+        const activation = runActivation(
+            meta,
+            makeHost(styles.service, locale.service),
+        );
         expect(seen).toBe('en:k');
         activation.deactivate();
     });

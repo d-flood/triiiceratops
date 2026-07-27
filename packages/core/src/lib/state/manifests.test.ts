@@ -129,7 +129,9 @@ describe('ManifestsState', () => {
                 }),
             );
 
-            const firstFetch = state.fetchManifest('http://example.org/manifest');
+            const firstFetch = state.fetchManifest(
+                'http://example.org/manifest',
+            );
             const secondFetch = state.fetchManifest(
                 'http://example.org/manifest',
             );
@@ -142,9 +144,9 @@ describe('ManifestsState', () => {
             await Promise.all([firstFetch, secondFetch]);
 
             expect(mockFetch).toHaveBeenCalledTimes(1);
-            expect(
-                state.manifests['http://example.org/manifest'].json,
-            ).toEqual(mockManifest);
+            expect(state.manifests['http://example.org/manifest'].json).toEqual(
+                mockManifest,
+            );
             expect(parseManifestMock).toHaveBeenCalledWith(mockManifest);
         });
     });

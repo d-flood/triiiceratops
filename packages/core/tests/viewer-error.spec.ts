@@ -14,7 +14,8 @@ test('conflicting nav config dispatches a structured viewererror event', async (
 }) => {
     // Capture the composed event at the document level before the app loads.
     await page.addInitScript(() => {
-        (window as unknown as { __viewerErrors: unknown[] }).__viewerErrors = [];
+        (window as unknown as { __viewerErrors: unknown[] }).__viewerErrors =
+            [];
         document.addEventListener('viewererror', (e) => {
             (
                 window as unknown as { __viewerErrors: unknown[] }

@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-    AnnotationEditorPlugin,
-    createAnnotationEditorPlugin,
-} from './index';
+import { AnnotationEditorPlugin, createAnnotationEditorPlugin } from './index';
 
 /**
  * The factory now returns an SDK plugin (framework-neutral `definePlugin`

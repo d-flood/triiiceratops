@@ -50,7 +50,9 @@ function mountProbe() {
 }
 
 function text(): string | null {
-    return container.querySelector('[data-testid="value"]')?.textContent ?? null;
+    return (
+        container.querySelector('[data-testid="value"]')?.textContent ?? null
+    );
 }
 
 describe('useViewerSelector (Vue)', () => {
@@ -64,7 +66,10 @@ describe('useViewerSelector (Vue)', () => {
         let captured: unknown;
         const Probe = defineComponent({
             setup() {
-                captured = useViewerSelector(harness.context, selectToolbarOpen);
+                captured = useViewerSelector(
+                    harness.context,
+                    selectToolbarOpen,
+                );
                 return () => null;
             },
         });

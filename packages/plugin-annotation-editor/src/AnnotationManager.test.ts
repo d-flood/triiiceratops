@@ -67,10 +67,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
  * new point flow (proving zoom-invariance — F17). `viewportToImageCoordinates`
  * returns `imagePoint` regardless of the intermediate viewport value.
  */
-function fakePointViewer(
-    imagePoint: { x: number; y: number },
-    zoom = 1,
-): any {
+function fakePointViewer(imagePoint: { x: number; y: number }, zoom = 1): any {
     return {
         element: { classList: { add: vi.fn(), remove: vi.fn() } },
         world: {
@@ -487,7 +484,10 @@ describe('AnnotationManager point authoring (F17)', () => {
                 'http://example.org/canvas/1',
             );
             (manager as any).annotorious = fakeAnnotorious([]);
-            (manager as any).osdViewer = fakePointViewer({ x: 123, y: 77 }, zoom);
+            (manager as any).osdViewer = fakePointViewer(
+                { x: 123, y: 77 },
+                zoom,
+            );
 
             await (manager as any).handlePointClick({
                 quick: true,
@@ -928,7 +928,9 @@ describe('AnnotationManager persistence flow', () => {
         await loadA;
         await flush();
 
-        expect((manager as any).store.persistedAnnotations.get('B-anno')).toBeTruthy();
+        expect(
+            (manager as any).store.persistedAnnotations.get('B-anno'),
+        ).toBeTruthy();
         expect(
             (manager as any).store.persistedAnnotations.get('A-anno'),
         ).toBeUndefined();
@@ -981,7 +983,9 @@ describe('AnnotationManager lazy hydration (F7)', () => {
         await (manager as any).loadAnnotations();
 
         // Marker is read into internal state, then stripped from the cache.
-        expect((manager as any).store.hydrationState.get('anno-1')).toBe('skeleton');
+        expect((manager as any).store.hydrationState.get('anno-1')).toBe(
+            'skeleton',
+        );
         expect(
             (manager as any).store.persistedAnnotations.get('anno-1')
                 .__fullBodyLoaded,
@@ -996,7 +1000,9 @@ describe('AnnotationManager lazy hydration (F7)', () => {
         );
         // The panel (onSelectionChange) receives the full body.
         expect(selections.at(-1).body).toEqual(FULL_BODY);
-        expect((manager as any).store.hydrationState.get('anno-1')).toBe('full');
+        expect((manager as any).store.hydrationState.get('anno-1')).toBe(
+            'full',
+        );
         expect(
             (manager as any).store.persistedAnnotations.get('anno-1').body,
         ).toEqual(FULL_BODY);
@@ -1086,7 +1092,10 @@ describe('AnnotationManager teardown (F11, F12)', () => {
 
         manager.destroy();
 
-        expect(removeHandler).toHaveBeenCalledWith('open', expect.any(Function));
+        expect(removeHandler).toHaveBeenCalledWith(
+            'open',
+            expect.any(Function),
+        );
         expect(removeHandler).toHaveBeenCalledWith(
             'canvas-click',
             expect.any(Function),
@@ -1121,7 +1130,9 @@ describe('AnnotationManager delete echo handling (F27)', () => {
             'http://example.org/canvas/1',
             'anno-1',
         );
-        expect((manager as any).store.persistedAnnotations.has('anno-1')).toBe(false);
+        expect((manager as any).store.persistedAnnotations.has('anno-1')).toBe(
+            false,
+        );
         expect((manager as any).store.hydrationState.has('anno-1')).toBe(false);
     });
 

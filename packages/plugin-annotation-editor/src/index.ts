@@ -12,10 +12,7 @@
  * ```
  */
 
-export {
-    createAnnotationEditorPlugin,
-    AnnotationEditorPlugin,
-} from './plugin';
+export { createAnnotationEditorPlugin, AnnotationEditorPlugin } from './plugin';
 
 // Public type surface.
 export type {

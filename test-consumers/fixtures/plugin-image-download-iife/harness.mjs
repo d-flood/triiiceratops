@@ -27,7 +27,9 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
             ),
         ),
     );
-    expect(registered, `${pathname}: plugin registered in namespace`).toBe(true);
+    expect(registered, `${pathname}: plugin registered in namespace`).toBe(
+        true,
+    );
 
     // Reset the blob-interception log for this page load.
     await page.evaluate(() => {

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -76,7 +82,9 @@ describe('pruneDist', () => {
             );
             expect(existsSync(join(dir, 'index.js'))).toBe(true);
             expect(
-                existsSync(join(dir, 'components', 'TriiiceratopsViewer.svelte')),
+                existsSync(
+                    join(dir, 'components', 'TriiiceratopsViewer.svelte'),
+                ),
             ).toBe(true);
             expect(removed.length).toBeGreaterThan(0);
         } finally {

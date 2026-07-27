@@ -138,7 +138,11 @@
         transition-duration: 150ms;
     }
     .row.active {
-        background-color: color-mix(in oklab, var(--tri-color-primary) 10%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-color-primary) 10%,
+            transparent
+        );
         color: var(--tri-color-primary-text);
     }
     /* hover comes after .active so it wins on hover */

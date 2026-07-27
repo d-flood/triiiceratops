@@ -126,12 +126,24 @@
         --btn-bg: var(--btn-color, var(--tri-toolbar-bg));
         --btn-fg: var(--tri-content);
         --btn-p: 1rem;
-        --btn-border: color-mix(in oklab, var(--btn-bg), #000 calc(var(--tri-depth) * 5%));
+        --btn-border: color-mix(
+            in oklab,
+            var(--btn-bg),
+            #000 calc(var(--tri-depth) * 5%)
+        );
         --btn-shadow:
             0 3px 2px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000),
+                color-mix(
+                    in oklab,
+                    var(--btn-bg) calc(var(--tri-depth) * 30%),
+                    #0000
+                ),
             0 4px 3px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000);
+                color-mix(
+                    in oklab,
+                    var(--btn-bg) calc(var(--tri-depth) * 30%),
+                    #0000
+                );
     }
 
     @media (hover: hover) {
@@ -161,9 +173,7 @@
             var(--btn-color, var(--tri-toolbar-bg)),
             #000 7%
         );
-        --btn-shadow:
-            0 0 0 0 oklch(0% 0 0 / 0),
-            0 0 0 0 oklch(0% 0 0 / 0);
+        --btn-shadow: 0 0 0 0 oklch(0% 0 0 / 0), 0 0 0 0 oklch(0% 0 0 / 0);
         translate: 0 0.5px;
     }
 
@@ -216,11 +226,7 @@
     }
     @media (hover: hover) {
         .ghost:hover {
-            --btn-bg: color-mix(
-                in oklab,
-                var(--tri-content) 10%,
-                transparent
-            );
+            --btn-bg: color-mix(in oklab, var(--tri-content) 10%, transparent);
         }
     }
     .ghost:active:not(.active),
