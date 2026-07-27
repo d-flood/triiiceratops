@@ -38,6 +38,7 @@
         "docs:examples:check": "node scripts/docs-examples.mjs --check",
         "docs:build": "node scripts/docs-examples.mjs --check && node scripts/docs-build.mjs",
         "docs:publish": "node scripts/docs-publish.mjs",
+        "prepare": "simple-git-hooks",
         "lint": "pnpm --filter @triiiceratops/ui lint && pnpm --filter triiiceratops lint && pnpm --filter @triiiceratops/plugin-sdk lint && pnpm --filter @triiiceratops/plugin-image-manipulation lint && pnpm --filter @triiiceratops/plugin-image-download lint && pnpm --filter @triiiceratops/plugin-pdf-export lint && pnpm --filter @triiiceratops/plugin-annotation-editor lint",
         "lint:fix": "pnpm --filter triiiceratops lint:fix && pnpm --filter @triiiceratops/plugin-sdk lint:fix && pnpm --filter @triiiceratops/plugin-image-manipulation lint:fix && pnpm --filter @triiiceratops/plugin-image-download lint:fix && pnpm --filter @triiiceratops/plugin-pdf-export lint:fix && pnpm --filter @triiiceratops/plugin-annotation-editor lint:fix",
         "format": "prettier --write .",
@@ -58,9 +59,13 @@
         "globals": "^17.1.0",
         "prettier": "^3.7.4",
         "prettier-plugin-svelte": "^3.4.0",
+        "simple-git-hooks": "^2.13.1",
         "svelte": "^5.43.8",
         "typescript": "~5.9.3",
         "typescript-eslint": "^8.53.1"
+    },
+    "simple-git-hooks": {
+        "pre-commit": "bash scripts/pre-commit.sh"
     },
     "pnpm": {
         "overrides": {
