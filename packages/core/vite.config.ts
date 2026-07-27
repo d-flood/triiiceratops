@@ -4,6 +4,8 @@ import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
+import { coverage } from '../../vitest.coverage.js';
+
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [
@@ -46,5 +48,6 @@ export default defineConfig({
         include: ['src/**/*.{test,spec}.{js,ts}'],
         environment: 'happy-dom',
         globals: true,
+        coverage,
     },
 });

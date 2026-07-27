@@ -4,5 +4,6 @@ dist/
 site/
 node_modules/
 src/lib/paraglide/
+src/paraglide/
 src/lib/generated/
 pnpm-lock.yaml

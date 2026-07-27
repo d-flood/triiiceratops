@@ -2,7 +2,6 @@ import {
     extractIiifTargetId,
     getIiifCanvasId,
     normalizeIiifTargets,
-    parseIiifXywh,
 } from './iiifTargets';
 import { logger } from '../logging/logger';
 
@@ -63,25 +62,6 @@ function getAnnotationId(anno: any): string {
         anno['@id'] ||
         (typeof anno.getId === 'function' ? anno.getId() : '')
     );
-}
-
-/**
- * Parse xywh media fragment from target string
- * Format: "canvas-id#xywh=x,y,w,h"
- */
-function parseXywh(
-    targetStr: string,
-): { x: number; y: number; w: number; h: number } | null {
-    const xywh = parseIiifXywh(targetStr);
-    if (xywh) {
-        return {
-            x: xywh[0],
-            y: xywh[1],
-            w: xywh[2],
-            h: xywh[3],
-        };
-    }
-    return null;
 }
 
 /**
@@ -257,47 +237,6 @@ function resolveCoordinateSpace(
     }
 
     return 'image';
-}
-
-/**
- * Find SVG selector in annotation target
- */
-function findSvgSelector(annotation: any): string | null {
-    // Try Manifesto method
-    if (typeof annotation.getTarget === 'function') {
-        // For Manifesto, check raw JSON for SVG
-        const rawOn = annotation.__jsonld?.on || annotation.__jsonld?.target;
-        if (rawOn) {
-            return extractSvgFromTarget(rawOn);
-        }
-    }
-
-    // Check common locations in raw JSON
-    const target = annotation.target || annotation.on;
-    if (target) {
-        return extractSvgFromTarget(target);
-    }
-
-    return null;
-}
-
-/**
- * Extract SVG from target object/array
- */
-function extractSvgFromTarget(target: any): string | null {
-    if (!target) return null;
-
-    // Handle array of targets
-    if (Array.isArray(target)) {
-        for (const t of target) {
-            const svg = extractSvgValue(t);
-            if (svg) return svg;
-        }
-    } else {
-        return extractSvgValue(target);
-    }
-
-    return null;
 }
 
 /**

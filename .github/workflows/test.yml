@@ -30,6 +30,67 @@ jobs:
             - name: Run Unit Tests
               run: pnpm --filter triiiceratops test run
 
+    # Ticket 22: quality gates. Zero-warning lint + Svelte diagnostics, a
+    # clean-build check (build:all must not dirty tracked files), and per-package
+    # coverage floors that cannot silently decrease. Required.
+    #
+    # `build:all` runs first because `pnpm check` type-checks each package
+    # against its dependencies' built `.d.ts` (the workspace is "type-checked
+    # through the build"), and the coverage run imports the compiled paraglide +
+    # generated modules produced by the build.
+    quality:
+        name: Quality Gates (lint, diagnostics, coverage, clean build)
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            # Build every package. This also proves the clean-build contract:
+            # a clean generation/build must not modify any tracked file.
+            - name: Build all packages
+              run: pnpm build:all
+
+            - name: Clean-build check (git status must be empty)
+              run: |
+                  if [ -n "$(git status --porcelain)" ]; then
+                    echo "::error::build:all dirtied tracked files (generated output must be gitignored or deterministic):"
+                    git status --porcelain
+                    git diff
+                    exit 1
+                  fi
+                  echo "Working tree clean after build:all."
+
+            # eslint --max-warnings 0 (blanket eslint-disable is itself a lint
+            # error via local/no-blanket-eslint-disable).
+            - name: Lint (zero warnings)
+              run: pnpm lint
+
+            # svelte-check --threshold warning across every package: any warning
+            # fails. The only sanctioned exceptions are recorded in
+            # lint-allowlist.md.
+            - name: Svelte diagnostics + type check (zero warnings)
+              run: pnpm check
+
+            # Per-package v8 coverage, then compare against the committed floor.
+            - name: Coverage
+              run: pnpm test:coverage
+
+            - name: Coverage floor (may not drop below coverage-baseline.json)
+              run: pnpm coverage:check
+
     # Ticket 24: browser E2E matrix. Sharded by Playwright project so the desktop
     # engines (chromium, firefox, webkit) and the mobile profiles (android-chrome,
     # mobile-webkit) run in parallel; each shard installs only the engine it needs.

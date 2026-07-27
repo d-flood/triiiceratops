@@ -1,6 +1,8 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vitest/config';
 
+import { coverage } from '../../vitest.coverage.js';
+
 // The tests mount the plugin's Svelte components into a jsdom container and drive
 // the real Store/Manager domain machinery, so the Svelte compiler plugin is
 // required and the browser condition is selected. `@triiiceratops/plugin-sdk/testing`
@@ -10,6 +12,7 @@ export default defineConfig({
     plugins: [svelte()],
     resolve: { conditions: ['browser'] },
     test: {
+        coverage,
         environment: 'jsdom',
         include: ['src/**/*.test.ts'],
         globals: false,

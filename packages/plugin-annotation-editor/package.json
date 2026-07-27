@@ -42,9 +42,10 @@
         "build:esm": "BUILD_FORMAT=es vite build",
         "build:iife": "BUILD_FORMAT=iife vite build",
         "build:types": "tsc -p tsconfig.build.json",
-        "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.build.json --noEmit",
+        "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.build.json --noEmit",
         "test": "vitest run",
-        "clean": "rm -rf dist"
+        "clean": "rm -rf dist",
+        "test:coverage": "vitest run --coverage"
     },
     "peerDependencies": {
         "triiiceratops": "workspace:*",
@@ -60,6 +61,7 @@
         "@triiiceratops/plugin-sdk": "workspace:*",
         "@types/node": "^24.10.1",
         "@types/openseadragon": "^5.0.1",
+        "@vitest/coverage-v8": "4.0.15",
         "svelte": "5.45.5",
         "svelte-check": "^4.3.4",
         "triiiceratops": "workspace:*",
