@@ -1261,7 +1261,7 @@
                         size="sm"
                         ghost
                         style="width:100%;justify-content:flex-start;gap:0.5rem;{copied
-                            ? 'color:var(--color-success);'
+                            ? 'color:var(--tri-color-success);'
                             : ''}"
                         onclick={copyConfig}
                     >
@@ -1280,7 +1280,7 @@
                             size="sm"
                             ghost
                             style="width:100%;justify-content:flex-start;gap:0.5rem;{shared
-                                ? 'color:var(--color-success);'
+                                ? 'color:var(--tri-color-success);'
                                 : ''}"
                             onclick={shareState}
                         >
@@ -1308,7 +1308,7 @@
 
     .group-label {
         display: block;
-        color: color-mix(in oklab, var(--content) 40%, transparent);
+        color: color-mix(in oklab, var(--tri-content) 40%, transparent);
         font-weight: 600;
         font-size: 0.75rem;
         text-transform: uppercase;
@@ -1335,10 +1335,10 @@
         justify-content: center;
         gap: 0.375rem;
         padding: 0.5rem 0.5rem;
-        border-radius: var(--radius-buttons);
-        border: var(--border) solid var(--surface-border);
-        background-color: var(--viewer-bg);
-        color: var(--content);
+        border-radius: var(--tri-radius-buttons);
+        border: var(--tri-border) solid var(--tri-surface-border);
+        background-color: var(--tri-viewer-bg);
+        color: var(--tri-content);
         cursor: pointer;
         text-align: center;
         transition:
@@ -1346,13 +1346,13 @@
             border-color 0.2s;
     }
     .theme-chip.active {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 2px var(--color-primary);
+        border-color: var(--tri-color-primary);
+        box-shadow: 0 0 0 2px var(--tri-color-primary);
     }
     .chip-icon {
         display: inline-flex;
         flex-shrink: 0;
-        color: var(--color-primary);
+        color: var(--tri-color-primary);
     }
     .chip-name {
         font-size: 0.75rem;
@@ -1379,9 +1379,9 @@
         padding: 0.5rem 0.75rem;
         font-size: 0.8125rem;
         font-weight: 600;
-        border-radius: var(--radius-buttons);
-        border: var(--border) solid
-            color-mix(in oklab, var(--content) 12%, transparent);
+        border-radius: var(--tri-radius-buttons);
+        border: var(--tri-border) solid
+            color-mix(in oklab, var(--tri-content) 12%, transparent);
         background-color: transparent;
         color: inherit;
         cursor: pointer;
@@ -1393,15 +1393,15 @@
         .preset-btn:hover {
             background-color: color-mix(
                 in oklab,
-                var(--content) 8%,
+                var(--tri-content) 8%,
                 transparent
             );
         }
     }
     .preset-btn.active {
-        border-color: var(--color-primary);
-        background-color: var(--color-primary);
-        color: var(--color-primary-content);
+        border-color: var(--tri-color-primary);
+        background-color: var(--tri-color-primary);
+        color: var(--tri-color-primary-content);
     }
     .preset-btn--custom {
         border-style: dashed;
@@ -1429,7 +1429,7 @@
 
     /* Menu section heading. */
     .menu-title {
-        color: color-mix(in oklab, var(--content) 40%, transparent);
+        color: color-mix(in oklab, var(--tri-content) 40%, transparent);
         font-weight: 600;
         font-size: 0.875rem;
         padding-inline: 1rem;
@@ -1480,7 +1480,7 @@
         height: 1rem;
         margin-block: 0.25rem;
         margin-inline: 0;
-        --divider-color: color-mix(in oklab, var(--content) 10%, transparent);
+        --divider-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
     }
     .divider::before,
     .divider::after {
@@ -1512,7 +1512,7 @@
         text-wrap: balance;
         user-select: none;
         -webkit-user-select: none;
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         padding-block: 0.375rem;
         padding-inline: 0.75rem;
         outline-style: none;
@@ -1543,7 +1543,7 @@
     }
     summary:hover {
         cursor: pointer;
-        background-color: color-mix(in oklab, var(--content) 10%, transparent);
+        background-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
     }
 
     details {
@@ -1563,8 +1563,8 @@
         inset-inline-start: 0;
         top: 0.75rem;
         bottom: 0.75rem;
-        width: var(--border);
-        background-color: var(--content);
+        width: var(--tri-border);
+        background-color: var(--tri-content);
         opacity: 0.1;
     }
 </style>

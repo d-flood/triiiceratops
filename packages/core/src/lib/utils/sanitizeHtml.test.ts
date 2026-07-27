@@ -78,7 +78,7 @@ describe('sanitizeHtml utilities', () => {
                 '<img src=x onerror=alert(1)><p><a href="/x">ok</a></p>',
             ),
         ).resolves.toBe(
-            '<p style="margin: 0 0 0.75rem; margin-bottom: 0;"><a href="/x" style="color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 0.2em;">ok</a></p>',
+            '<p style="margin: 0 0 0.75rem; margin-bottom: 0;"><a href="/x" style="color: var(--tri-color-primary-text); text-decoration: underline; text-underline-offset: 0.2em;">ok</a></p>',
         );
 
         if (originalSetHTML) {

@@ -151,7 +151,7 @@
 
     /* Trigger button: ghost circle with primary-colored icon (text-primary). */
     .wrapper :global(.trigger) {
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
     }
 
     .backdrop {
@@ -165,11 +165,11 @@
         position: absolute;
         bottom: 100%;
         margin-bottom: 0.5rem;
-        background-color: var(--panel-bg);
+        background-color: var(--tri-panel-bg);
         border-width: 1px;
         border-style: solid;
-        border-color: var(--surface-border);
-        border-radius: var(--radius-panels);
+        border-color: var(--tri-surface-border);
+        border-radius: var(--tri-radius-panels);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -232,7 +232,7 @@
         padding-top: 0.5rem;
         border-top-width: 1px;
         border-top-style: solid;
-        border-top-color: var(--surface-border);
+        border-top-color: var(--tri-surface-border);
     }
 
     .rendering-title {
@@ -243,7 +243,7 @@
     }
 
     .rendering-link {
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
         text-decoration-line: underline;
         cursor: pointer;
         font-size: 0.75rem;

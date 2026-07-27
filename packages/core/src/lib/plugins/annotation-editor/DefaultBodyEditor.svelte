@@ -193,7 +193,7 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
     }
 
     .bodies {
@@ -223,7 +223,7 @@
         flex: 1 1 0%;
     }
     .body-row :global(.body-remove) {
-        color: var(--color-error);
+        color: var(--tri-color-error);
     }
     .purpose-option {
         text-transform: capitalize;
@@ -233,13 +233,13 @@
     }
 
     .body-textarea {
-        border: var(--border) solid #0000;
+        border: var(--tri-border) solid #0000;
         border-color: var(--input-color);
         min-height: calc(0.25rem * 20);
         flex-shrink: 1;
         appearance: none;
-        border-radius: var(--radius-buttons);
-        background-color: var(--input-bg);
+        border-radius: var(--tri-radius-buttons);
+        background-color: var(--tri-input-bg);
         padding-block: calc(0.25rem * 2);
         vertical-align: middle;
         width: 100%;
@@ -251,11 +251,11 @@
             0 1px
                 color-mix(
                     in oklab,
-                    var(--input-color) calc(var(--depth) * 10%),
+                    var(--input-color) calc(var(--tri-depth) * 10%),
                     #0000
                 )
                 inset,
-            0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
+            0 -1px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
         --input-color: color-mix(in oklab, var(--panel-fg) 20%, #0000);
     }
     .body-textarea:focus,
@@ -264,7 +264,7 @@
         box-shadow: 0 1px
             color-mix(
                 in oklab,
-                var(--input-color) calc(var(--depth) * 10%),
+                var(--input-color) calc(var(--tri-depth) * 10%),
                 #0000
             );
         outline: 2px solid var(--input-color);
@@ -298,8 +298,8 @@
         overflow: auto;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
-        border-radius: var(--radius-buttons);
-        background-color: var(--input-bg);
+        border-radius: var(--tri-radius-buttons);
+        background-color: var(--tri-input-bg);
         padding: 0.5rem;
         font-size: 0.6875rem;
         line-height: 1rem;

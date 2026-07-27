@@ -408,7 +408,7 @@
         width: 20rem;
         height: 100%;
         background-color: var(--panel-surface);
-        border-right: 1px solid var(--surface-border);
+        border-right: 1px solid var(--tri-surface-border);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -418,7 +418,7 @@
         display: flex;
         align-items: center;
         padding: 1rem;
-        border-bottom: 1px solid var(--surface-border);
+        border-bottom: 1px solid var(--tri-surface-border);
     }
 
     .header-title {
@@ -472,12 +472,12 @@
     }
 
     .card {
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
         display: flex;
         flex-direction: column;
         position: relative;
-        background-color: var(--input-bg);
-        border: 1px solid var(--surface-border);
+        background-color: var(--tri-input-bg);
+        border: 1px solid var(--tri-surface-border);
     }
 
     .card-body {
@@ -496,20 +496,20 @@
      */
     .alert {
         --alert-color: var(--panel-fg);
-        border-width: var(--border);
+        border-width: var(--tri-border);
         border-style: solid;
         border-color: var(--alert-border-color);
         --alert-border-color: color-mix(
             in oklab,
             var(--alert-color) 10%,
-            var(--input-bg)
+            var(--tri-input-bg)
         );
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
         color: var(--panel-fg);
         background: color-mix(
             in oklab,
             var(--alert-color) 8%,
-            var(--input-bg)
+            var(--tri-input-bg)
         );
         background-image: none;
         box-shadow: none;
@@ -531,19 +531,19 @@
     }
 
     .alert.alert-success {
-        --alert-color: var(--color-success);
-        color: var(--color-success-content);
+        --alert-color: var(--tri-color-success);
+        color: var(--tri-color-success-content);
     }
 
     .alert.alert-error {
-        --alert-color: var(--color-error);
-        color: var(--color-error-content);
+        --alert-color: var(--tri-color-error);
+        color: var(--tri-color-error-content);
     }
 
     .footer {
         width: 100%;
         padding: 1rem;
-        border-top: 1px solid var(--surface-border);
+        border-top: 1px solid var(--tri-surface-border);
     }
 
     .footer :global(.download-button) {

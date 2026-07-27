@@ -179,12 +179,12 @@
         display: inline-flex;
         flex-direction: column;
         align-items: stretch;
-        color: var(--toolbar-content);
+        color: var(--tri-toolbar-content);
         /* A slight frosted backing on the whole flyout so the bare sliders stay
            readable when it's overlaid on an opaque same-side panel. Lighter than
            the .base glass, which sits on top and keeps its own look. */
-        border-radius: var(--radius-toolbar);
-        background-color: color-mix(in oklab, var(--toolbar-bg) 35%, transparent);
+        border-radius: var(--tri-radius-toolbar);
+        background-color: color-mix(in oklab, var(--tri-toolbar-bg) 35%, transparent);
     }
     /* Downward flyout (top toolbar): sliders hang below the glass base. */
     .cluster[data-dir='down'] {
@@ -224,9 +224,9 @@
         flex-direction: column;
         gap: 0.375rem;
         padding-block: 0.375rem;
-        border-radius: var(--radius-toolbar);
-        border: 1px solid var(--surface-border);
-        color: var(--toolbar-content);
+        border-radius: var(--tri-radius-toolbar);
+        border: 1px solid var(--tri-surface-border);
+        color: var(--tri-toolbar-content);
         box-shadow: var(
             --ui-chrome-shadow,
             0 10px 15px -3px #0000001a,
@@ -238,10 +238,10 @@
         position: absolute;
         inset: 0;
         z-index: -1;
-        border-radius: calc(var(--radius-toolbar) - var(--border, 1px));
+        border-radius: calc(var(--tri-radius-toolbar) - var(--tri-border, 1px));
         background-color: color-mix(
             in oklab,
-            var(--toolbar-bg) 70%,
+            var(--tri-toolbar-bg) 70%,
             transparent
         );
         backdrop-filter: blur(8px);
@@ -270,12 +270,12 @@
            `backdrop-filter` on the track pseudo-element: it promotes the track
            into its own compositing layer that then paints on top of the thumb
            (handle) and its fill box-shadow. Use a solid-ish color-mix instead. */
-        --range-bg: color-mix(in oklab, var(--toolbar-bg) 90%, transparent);
+        --range-bg: color-mix(in oklab, var(--tri-toolbar-bg) 90%, transparent);
         /* The indicator (fill + handle) is drawn in `--range-progress`. Keep it
            the primary accent so it stays clearly distinct from the neutral glass
            track in every theme — a neutral fill blends into the track in the
            dark themes. */
-        --range-progress: var(--color-primary);
+        --range-progress: var(--tri-color-primary);
         filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.35));
     }
 
@@ -299,7 +299,7 @@
         height: var(--ui-hit, 2.25rem);
         padding: 0;
         border: none;
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         background: transparent;
         color: inherit;
         cursor: pointer;
@@ -310,8 +310,8 @@
         background-color: color-mix(in oklab, currentcolor 12%, transparent);
     }
     .act.on {
-        background-color: var(--color-primary);
-        color: var(--color-primary-content);
+        background-color: var(--tri-color-primary);
+        color: var(--tri-color-primary-content);
     }
     .act.reset:disabled {
         opacity: 0.4;

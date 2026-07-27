@@ -137,12 +137,12 @@
         transition-duration: 150ms;
     }
     .row.active {
-        background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
-        color: var(--color-primary-text);
+        background-color: color-mix(in oklab, var(--tri-color-primary) 10%, transparent);
+        color: var(--tri-color-primary-text);
     }
     /* hover comes after .active so it wins on hover */
     .row:hover {
-        background-color: var(--input-bg);
+        background-color: var(--tri-input-bg);
     }
 
     .caret {
@@ -185,7 +185,7 @@
         box-shadow: 0 25px 50px -12px #00000040;
         z-index: 100;
         transition: width 200ms;
-        border-left: 1px solid var(--surface-border);
+        border-left: 1px solid var(--tri-surface-border);
     }
 
     .panel-header {
@@ -193,7 +193,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 1rem;
-        border-bottom: 1px solid var(--surface-border);
+        border-bottom: 1px solid var(--tri-surface-border);
     }
     .panel-header-title {
         display: flex;

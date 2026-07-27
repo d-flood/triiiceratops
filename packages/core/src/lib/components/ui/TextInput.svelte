@@ -23,10 +23,10 @@
     }: Props = $props();
 
     const SIZE: Record<Size, string> = {
-        xs: 'calc(var(--size-field,0.25rem)*6)',
-        sm: 'calc(var(--size-field,0.25rem)*8)',
-        md: 'calc(var(--size-field,0.25rem)*10)',
-        lg: 'calc(var(--size-field,0.25rem)*12)',
+        xs: 'calc(var(--tri-size-field,0.25rem)*6)',
+        sm: 'calc(var(--tri-size-field,0.25rem)*8)',
+        md: 'calc(var(--tri-size-field,0.25rem)*10)',
+        lg: 'calc(var(--tri-size-field,0.25rem)*12)',
     };
     let computedStyle = $derived(`--size:${SIZE[size]};${style}`);
 </script>
@@ -43,9 +43,9 @@
 <style>
     .input {
         cursor: text;
-        border: var(--border) solid var(--input-color);
+        border: var(--tri-border) solid var(--input-color);
         appearance: none;
-        background-color: var(--input-bg);
+        background-color: var(--tri-input-bg);
         vertical-align: middle;
         width: clamp(3rem, 20rem, 100%);
         height: var(--size);
@@ -53,15 +53,15 @@
         touch-action: manipulation;
         box-shadow:
             0 1px
-                color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000)
+                color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000)
                 inset,
-            0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
-        --size: calc(var(--size-field, 0.25rem) * 10);
-        --input-color: color-mix(in oklab, var(--content) 20%, #0000);
-        border-start-start-radius: var(--join-ss, var(--radius-buttons));
-        border-start-end-radius: var(--join-se, var(--radius-buttons));
-        border-end-end-radius: var(--join-ee, var(--radius-buttons));
-        border-end-start-radius: var(--join-es, var(--radius-buttons));
+            0 -1px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
+        --size: calc(var(--tri-size-field, 0.25rem) * 10);
+        --input-color: color-mix(in oklab, var(--tri-content) 20%, #0000);
+        border-start-start-radius: var(--join-ss, var(--tri-radius-buttons));
+        border-start-end-radius: var(--join-se, var(--tri-radius-buttons));
+        border-end-end-radius: var(--join-ee, var(--tri-radius-buttons));
+        border-end-start-radius: var(--join-es, var(--tri-radius-buttons));
         flex-shrink: 1;
         align-items: center;
         gap: 0.5rem;
@@ -73,9 +73,9 @@
 
     .input:focus,
     .input:focus-within {
-        --input-color: var(--content);
+        --input-color: var(--tri-content);
         box-shadow: 0 1px
-            color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000);
+            color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000);
         outline: 2px solid var(--input-color);
         outline-offset: 2px;
         isolation: isolate;
@@ -84,13 +84,13 @@
 
     .input:is(:disabled, [disabled]) {
         cursor: not-allowed;
-        border-color: var(--panel-bg);
-        background-color: var(--panel-bg);
-        color: color-mix(in oklab, var(--content) 40%, transparent);
+        border-color: var(--tri-panel-bg);
+        background-color: var(--tri-panel-bg);
+        color: color-mix(in oklab, var(--tri-content) 40%, transparent);
         box-shadow: none;
     }
     .input:is(:disabled, [disabled])::placeholder {
-        color: color-mix(in oklab, var(--content) 20%, transparent);
+        color: color-mix(in oklab, var(--tri-content) 20%, transparent);
     }
 
     .ghost {
@@ -100,8 +100,8 @@
     }
     .ghost:focus,
     .ghost:focus-within {
-        background-color: var(--input-bg);
-        color: var(--content);
+        background-color: var(--tri-input-bg);
+        color: var(--tri-content);
         box-shadow: none;
         border-color: #0000;
     }

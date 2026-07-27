@@ -33,10 +33,10 @@
 
     // [--size multiplier, padding]
     const SIZE: Record<Size, string> = {
-        xs: '--size:calc(var(--size-selector,0.25rem)*4);padding:0.125rem;',
-        sm: '--size:calc(var(--size-selector,0.25rem)*5);padding:0.1875rem;',
-        md: '--size:calc(var(--size-selector,0.25rem)*6);padding:0.25rem;',
-        lg: '--size:calc(var(--size-selector,0.25rem)*7);padding:0.3125rem;',
+        xs: '--size:calc(var(--tri-size-selector,0.25rem)*4);padding:0.125rem;',
+        sm: '--size:calc(var(--tri-size-selector,0.25rem)*5);padding:0.1875rem;',
+        md: '--size:calc(var(--tri-size-selector,0.25rem)*6);padding:0.25rem;',
+        lg: '--size:calc(var(--tri-size-selector,0.25rem)*7);padding:0.3125rem;',
     };
     let computedStyle = $derived(
         `${SIZE[size]}${color ? `--input-color:var(--color-${color});` : ''}${style}`,
@@ -54,21 +54,21 @@
 
 <style>
     .checkbox {
-        border: var(--border) solid
+        border: var(--tri-border) solid
             var(
                 --input-color,
-                color-mix(in oklab, var(--content) 20%, #0000)
+                color-mix(in oklab, var(--tri-content) 20%, #0000)
             );
         cursor: pointer;
         appearance: none;
-        border-radius: var(--radius-selector);
+        border-radius: var(--tri-radius-selector);
         vertical-align: middle;
-        color: var(--content);
+        color: var(--tri-content);
         box-shadow:
-            0 1px oklch(0% 0 0 / calc(var(--depth) * 0.1)) inset,
+            0 1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
             0 0 #0000 inset,
             0 0 #0000;
-        --size: calc(var(--size-selector, 0.25rem) * 6);
+        --size: calc(var(--tri-size-selector, 0.25rem) * 6);
         width: var(--size);
         height: var(--size);
         flex-shrink: 0;
@@ -86,7 +86,7 @@
         clip-path: polygon(20% 100%, 20% 80%, 50% 80%, 50% 80%, 70% 80%, 70% 100%);
         width: 100%;
         height: 100%;
-        box-shadow: 0px 3px 0 0px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
+        box-shadow: 0px 3px 0 0px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
         background-color: currentColor;
         font-size: 1rem;
         line-height: 0.75;
@@ -109,8 +109,8 @@
         background-color: var(--input-color, #0000);
         box-shadow:
             0 0 #0000 inset,
-            0 8px 0 -4px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset,
-            0 1px oklch(0% 0 0 / calc(var(--depth) * 0.1));
+            0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
+            0 1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1));
     }
     .checkbox:checked::before,
     .checkbox[aria-checked='true']::before {
@@ -121,7 +121,7 @@
     .checkbox:indeterminate {
         background-color: var(
             --input-color,
-            color-mix(in oklab, var(--content) 20%, #0000)
+            color-mix(in oklab, var(--tri-content) 20%, #0000)
         );
     }
     .checkbox:indeterminate::before {

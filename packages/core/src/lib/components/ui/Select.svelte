@@ -29,10 +29,10 @@
     }: Props = $props();
 
     const SIZE: Record<Size, string> = {
-        xs: 'calc(var(--size-field,0.25rem)*6)',
-        sm: 'calc(var(--size-field,0.25rem)*8)',
-        md: 'calc(var(--size-field,0.25rem)*10)',
-        lg: 'calc(var(--size-field,0.25rem)*12)',
+        xs: 'calc(var(--tri-size-field,0.25rem)*6)',
+        sm: 'calc(var(--tri-size-field,0.25rem)*8)',
+        md: 'calc(var(--tri-size-field,0.25rem)*10)',
+        lg: 'calc(var(--tri-size-field,0.25rem)*12)',
     };
     let computedStyle = $derived(`--size:${SIZE[size]};${style}`);
 
@@ -314,9 +314,9 @@
     }
 
     .select {
-        border: var(--border) solid var(--input-color);
+        border: var(--tri-border) solid var(--input-color);
         appearance: none;
-        background-color: var(--input-bg);
+        background-color: var(--tri-input-bg);
         vertical-align: middle;
         width: 100%;
         height: var(--size);
@@ -324,11 +324,11 @@
         white-space: nowrap;
         box-shadow:
             0 1px
-                color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000)
+                color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000)
                 inset,
-            0 -1px oklch(100% 0 0 / calc(var(--depth) * 0.1)) inset;
-        --input-color: color-mix(in oklab, var(--content) 20%, #0000);
-        --size: calc(var(--size-field, 0.25rem) * 10);
+            0 -1px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
+        --input-color: color-mix(in oklab, var(--tri-content) 20%, #0000);
+        --size: calc(var(--tri-size-field, 0.25rem) * 10);
         background-image: linear-gradient(45deg, #0000 50%, currentColor 50%),
             linear-gradient(135deg, currentColor 50%, #0000 50%);
         background-position:
@@ -338,10 +338,10 @@
         background-size:
             4px 4px,
             4px 4px;
-        border-start-start-radius: var(--join-ss, var(--radius-buttons));
-        border-start-end-radius: var(--join-se, var(--radius-buttons));
-        border-end-end-radius: var(--join-ee, var(--radius-buttons));
-        border-end-start-radius: var(--join-es, var(--radius-buttons));
+        border-start-start-radius: var(--join-ss, var(--tri-radius-buttons));
+        border-start-end-radius: var(--join-se, var(--tri-radius-buttons));
+        border-end-end-radius: var(--join-ee, var(--tri-radius-buttons));
+        border-end-start-radius: var(--join-es, var(--tri-radius-buttons));
         align-items: center;
         gap: 0.375rem;
         padding-inline: 0.75rem 1.75rem;
@@ -360,18 +360,18 @@
         white-space: nowrap;
     }
     .select-label.placeholder {
-        color: color-mix(in oklab, var(--content) 55%, transparent);
+        color: color-mix(in oklab, var(--tri-content) 55%, transparent);
     }
 
     .select:hover:not(:disabled) {
-        --input-color: color-mix(in oklab, var(--content) 40%, #0000);
+        --input-color: color-mix(in oklab, var(--tri-content) 40%, #0000);
     }
 
     .select:focus-visible,
     .select.open {
-        --input-color: var(--content);
+        --input-color: var(--tri-content);
         box-shadow: 0 1px
-            color-mix(in oklab, var(--input-color) calc(var(--depth) * 10%), #0000);
+            color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000);
         outline: 2px solid var(--input-color);
         outline-offset: 2px;
         isolation: isolate;
@@ -380,9 +380,9 @@
 
     .select:is(:disabled, [disabled]) {
         cursor: not-allowed;
-        border-color: var(--panel-bg);
-        background-color: var(--panel-bg);
-        color: color-mix(in oklab, var(--content) 40%, transparent);
+        border-color: var(--tri-panel-bg);
+        background-color: var(--tri-panel-bg);
+        color: color-mix(in oklab, var(--tri-content) 40%, transparent);
     }
 
     .ghost {
@@ -392,12 +392,12 @@
         transition: background-color 0.2s;
     }
     .ghost:hover:not(:disabled) {
-        background-color: color-mix(in oklab, var(--content) 8%, transparent);
+        background-color: color-mix(in oklab, var(--tri-content) 8%, transparent);
     }
     .ghost:focus-visible,
     .ghost.open {
-        background-color: var(--input-bg);
-        color: var(--content);
+        background-color: var(--tri-input-bg);
+        color: var(--tri-content);
     }
 
     /* Themed popover list — fully controllable radius, colors, and states,
@@ -408,12 +408,12 @@
         inset: auto;
         margin: 0;
         padding: 0.1875rem;
-        border: var(--border) solid
-            color-mix(in oklab, var(--content) 20%, #0000);
-        background-color: var(--input-bg);
-        color: var(--content);
-        border-radius: var(--radius-buttons);
-        box-shadow: 0 8px 24px oklch(0 0 0 / calc(0.12 + var(--depth) * 0.06));
+        border: var(--tri-border) solid
+            color-mix(in oklab, var(--tri-content) 20%, #0000);
+        background-color: var(--tri-input-bg);
+        color: var(--tri-content);
+        border-radius: var(--tri-radius-buttons);
+        box-shadow: 0 8px 24px oklch(0 0 0 / calc(0.12 + var(--tri-depth) * 0.06));
         max-height: 16rem;
         overflow-y: auto;
         min-width: 8rem;
@@ -425,7 +425,7 @@
 
     .option {
         padding: 0.25rem 0.5rem;
-        border-radius: calc(var(--radius-buttons) * 0.6);
+        border-radius: calc(var(--tri-radius-buttons) * 0.6);
         cursor: pointer;
         font-size: 0.8125rem;
         line-height: 1.3;
@@ -433,18 +433,18 @@
         color: inherit;
     }
     .option.active {
-        background-color: color-mix(in oklab, var(--content) 12%, #0000);
+        background-color: color-mix(in oklab, var(--tri-content) 12%, #0000);
     }
     .option.selected {
-        background-color: color-mix(in oklab, var(--color-primary) 90%, #0000);
-        color: var(--color-primary-content);
+        background-color: color-mix(in oklab, var(--tri-color-primary) 90%, #0000);
+        color: var(--tri-color-primary-content);
     }
     .option.selected.active {
-        background-color: var(--color-primary);
+        background-color: var(--tri-color-primary);
     }
     .option[aria-disabled='true'] {
         opacity: 0.5;
         cursor: not-allowed;
-        color: color-mix(in oklab, var(--content) 55%, transparent);
+        color: color-mix(in oklab, var(--tri-content) 55%, transparent);
     }
 </style>

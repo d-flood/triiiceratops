@@ -236,12 +236,12 @@
     .panel.bordered-left {
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--surface-border);
+        border-right-color: var(--tri-surface-border);
     }
     .panel.bordered-right {
         border-left-width: 1px;
         border-left-style: solid;
-        border-left-color: var(--surface-border);
+        border-left-color: var(--tri-surface-border);
     }
 
     .header {
@@ -251,7 +251,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--surface-border);
+        border-bottom-color: var(--tri-surface-border);
     }
     .title {
         font-weight: 700;
@@ -263,7 +263,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--surface-border);
+        border-bottom-color: var(--tri-surface-border);
         flex-shrink: 0;
     }
     .search-input-wrap {
@@ -300,7 +300,7 @@
         padding: 2rem;
     }
     .loading-wrap :global(.loading-primary) {
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
     }
 
     .empty {
@@ -326,14 +326,14 @@
     .group {
         width: 100%;
         text-align: left;
-        background-color: var(--input-bg);
+        background-color: var(--tri-input-bg);
         box-shadow:
             0 1px 3px 0 #0000001a,
             0 1px 2px -1px #0000001a;
         border-width: 1px;
         border-style: solid;
         border-color: var(--panel-surface);
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
         cursor: pointer;
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -343,12 +343,12 @@
     }
     .group.current {
         box-shadow:
-            0 0 0 2px var(--color-primary),
+            0 0 0 2px var(--tri-color-primary),
             0 1px 3px 0 #0000001a,
             0 1px 2px -1px #0000001a;
         background-color: color-mix(
             in oklab,
-            var(--color-primary) 5%,
+            var(--tri-color-primary) 5%,
             transparent
         );
     }
@@ -359,7 +359,7 @@
     }
     .group.current:hover {
         box-shadow:
-            0 0 0 2px var(--color-primary),
+            0 0 0 2px var(--tri-color-primary),
             0 4px 6px -1px #0000001a,
             0 2px 4px -2px #0000001a;
     }
@@ -391,7 +391,7 @@
         user-select: text;
     }
     .separator {
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
         margin-inline: 0.5rem;
     }
     .match {
@@ -402,7 +402,7 @@
         border-radius: 0.25rem;
     }
     .excerpts :global(.show-more) {
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
         margin-left: 0.5rem;
     }
 </style>

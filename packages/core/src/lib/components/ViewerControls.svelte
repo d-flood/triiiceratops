@@ -186,7 +186,7 @@
                 <Select
                     size="xs"
                     value={selectedValue}
-                    style="border-radius:var(--radius-controls-buttons);max-width:20rem"
+                    style="border-radius:var(--tri-radius-controls-buttons);max-width:20rem"
                     onchange={(e: Event) => {
                         const idx = (e.currentTarget as HTMLSelectElement)
                             .selectedIndex;
@@ -407,9 +407,9 @@
         padding-inline: var(--ui-chrome-pad, 0.5rem);
         /* Vertically centre the stacked rows (a no-op on a single row). */
         align-content: center;
-        color: var(--toolbar-content);
-        border-radius: var(--radius-controls);
-        border: 1px solid var(--surface-border);
+        color: var(--tri-toolbar-content);
+        border-radius: var(--tri-radius-controls);
+        border: 1px solid var(--tri-surface-border);
         box-shadow: var(--ui-nav-shadow, none);
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -429,10 +429,10 @@
            radius must shrink by that same amount to stay concentric with the
            outer border — using the parent's radius as-is leaves a gap at the
            corners where the border's background peeks through. */
-        border-radius: calc(var(--radius-controls) - var(--border, 1px));
+        border-radius: calc(var(--tri-radius-controls) - var(--tri-border, 1px));
         background-color: color-mix(
             in oklab,
-            var(--toolbar-bg) 70%,
+            var(--tri-toolbar-bg) 70%,
             transparent
         );
         backdrop-filter: blur(8px);
@@ -554,10 +554,10 @@
        field radius) rather than being forced circles. Scoped to .btn-row so the choice
        .join-item buttons keep their own join radii. */
     .control-bar .btn-row :global(.btn) {
-        border-start-start-radius: var(--radius-controls-buttons);
-        border-start-end-radius: var(--radius-controls-buttons);
-        border-end-end-radius: var(--radius-controls-buttons);
-        border-end-start-radius: var(--radius-controls-buttons);
+        border-start-start-radius: var(--tri-radius-controls-buttons);
+        border-start-end-radius: var(--tri-radius-controls-buttons);
+        border-end-end-radius: var(--tri-radius-controls-buttons);
+        border-end-start-radius: var(--tri-radius-controls-buttons);
     }
 
     .divider-v {
@@ -565,7 +565,7 @@
         width: 1px;
         background-color: color-mix(
             in oklab,
-            var(--toolbar-content) 20%,
+            var(--tri-toolbar-content) 20%,
             transparent
         );
     }
@@ -591,15 +591,15 @@
         --join-ee: 0;
     }
     .join > :global(.join-item:first-child) {
-        --join-ss: var(--radius-buttons);
-        --join-es: var(--radius-buttons);
+        --join-ss: var(--tri-radius-buttons);
+        --join-es: var(--tri-radius-buttons);
     }
     .join > :global(.join-item:last-child) {
-        --join-se: var(--radius-buttons);
-        --join-ee: var(--radius-buttons);
+        --join-se: var(--tri-radius-buttons);
+        --join-ee: var(--tri-radius-buttons);
     }
     .join > :global(.join-item:not(:first-child)) {
-        margin-inline-start: calc(var(--border, 1px) * -1);
+        margin-inline-start: calc(var(--tri-border, 1px) * -1);
     }
 
     .join-desktop {

@@ -333,13 +333,13 @@
     .panel.bordered.border-left {
         border-right-width: 1px;
         border-right-style: solid;
-        border-color: var(--surface-border);
+        border-color: var(--tri-surface-border);
     }
 
     .panel.bordered.border-right {
         border-left-width: 1px;
         border-left-style: solid;
-        border-color: var(--surface-border);
+        border-color: var(--tri-surface-border);
     }
 
     .header {
@@ -350,7 +350,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-color: var(--surface-border);
+        border-color: var(--tri-surface-border);
     }
 
     .header-title {
@@ -397,10 +397,10 @@
     .thumbnail {
         max-height: 12rem;
         width: auto;
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
         border-width: 1px;
         border-style: solid;
-        border-color: var(--surface-border);
+        border-color: var(--tri-surface-border);
         object-fit: contain;
     }
 
@@ -474,7 +474,7 @@
     .link {
         cursor: pointer;
         text-decoration-line: underline;
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
     }
 
     .link:focus {
@@ -488,7 +488,7 @@
 
     @media (hover: hover) {
         .link:hover {
-            color: var(--color-primary-text);
+            color: var(--tri-color-primary-text);
         }
     }
 </style>

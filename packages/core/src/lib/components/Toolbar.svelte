@@ -855,26 +855,26 @@
         box-shadow: none;
         backdrop-filter: none;
         /* Solid edge furniture rather than translucent floating glass. */
-        background-color: var(--toolbar-bg);
+        background-color: var(--tri-toolbar-bg);
         align-items: stretch;
         justify-content: flex-start;
     }
     /* Round only the outer (screen-edge) corners so the rail reads as one piece
        with the panel inboard of it; the inner edge is square against the panel. */
     .actions.docked.left {
-        border-top-left-radius: var(--radius-toolbar);
-        border-bottom-left-radius: var(--radius-toolbar);
+        border-top-left-radius: var(--tri-radius-toolbar);
+        border-bottom-left-radius: var(--tri-radius-toolbar);
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
-        border-right: var(--border) solid var(--surface-border);
+        border-right: var(--tri-border) solid var(--tri-surface-border);
         padding-right: 0;
     }
     .actions.docked.right {
-        border-top-right-radius: var(--radius-toolbar);
-        border-bottom-right-radius: var(--radius-toolbar);
+        border-top-right-radius: var(--tri-radius-toolbar);
+        border-bottom-right-radius: var(--tri-radius-toolbar);
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
-        border-left: var(--border) solid var(--surface-border);
+        border-left: var(--tri-border) solid var(--tri-surface-border);
         padding-left: 0;
     }
 
@@ -1016,8 +1016,8 @@
 
     /* ===== Menu scaffolding ===== */
     .menu {
-        --menu-active-fg: var(--color-neutral-content);
-        --menu-active-bg: var(--color-neutral);
+        --menu-active-fg: var(--tri-color-neutral-content);
+        --menu-active-bg: var(--tri-color-neutral);
         flex-flow: column wrap;
         width: fit-content;
         padding: var(--ui-chrome-pad, 0.5rem);
@@ -1039,7 +1039,7 @@
     }
     /* menu items (buttons) */
     .menu-item {
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         text-align: start;
         text-wrap: balance;
         user-select: none;
@@ -1079,7 +1079,7 @@
         cursor: pointer;
         background-color: color-mix(
             in oklab,
-            var(--toolbar-content) 10%,
+            var(--tri-toolbar-content) 10%,
             transparent
         );
         box-shadow:
@@ -1094,8 +1094,8 @@
     }
     /* The original markup overrides menu-active with primary colors */
     .menu-item.menu-active {
-        background-color: var(--color-primary);
-        color: var(--color-primary-content);
+        background-color: var(--tri-color-primary);
+        color: var(--tri-color-primary-content);
         cursor: pointer;
     }
     .text-start {
@@ -1105,7 +1105,7 @@
     /* ===== Actions list look ===== */
     .actions {
         position: relative;
-        color: var(--toolbar-content);
+        color: var(--tri-toolbar-content);
         box-shadow: var(
             --ui-chrome-shadow,
             0 10px 15px -3px #0000001a,
@@ -1127,7 +1127,7 @@
         border-radius: inherit;
         background-color: color-mix(
             in oklab,
-            var(--toolbar-bg) 70%,
+            var(--tri-toolbar-bg) 70%,
             transparent
         );
         backdrop-filter: blur(8px);
@@ -1142,7 +1142,7 @@
     }
     .actions.top-right {
         flex-direction: row-reverse;
-        border-bottom-left-radius: var(--radius-toolbar);
+        border-bottom-left-radius: var(--tri-radius-toolbar);
         /* Zero the canvas-side (bottom) padding — mirroring the side rails'
            inboard-padding zeroing — so the flyout's placement margin reads as a
            real gap instead of merely cancelling this chrome padding. */
@@ -1153,7 +1153,7 @@
     }
     .actions.top-left {
         flex-direction: row;
-        border-bottom-right-radius: var(--radius-toolbar);
+        border-bottom-right-radius: var(--tri-radius-toolbar);
         /* See .actions.top-right: zero the canvas-side padding so the flyout gap
            shows. */
         padding-bottom: 0;
@@ -1162,14 +1162,14 @@
         margin-left: 1px;
     }
     .actions.left {
-        border-bottom-right-radius: var(--radius-toolbar);
+        border-bottom-right-radius: var(--tri-radius-toolbar);
         padding-right: 0.25rem;
     }
     .actions.left > :global(* + *) {
         margin-top: 1px;
     }
     .actions.right {
-        border-bottom-left-radius: var(--radius-toolbar);
+        border-bottom-left-radius: var(--tri-radius-toolbar);
         padding-left: 0.25rem;
     }
     .actions.right > :global(* + *) {
@@ -1192,12 +1192,12 @@
     }
     /* count badge inside indicators (badge badge-primary badge-sm min-w-5 px-1) */
     .count-badge {
-        --size: calc(var(--size-selector, 0.25rem) * 5);
-        border-radius: var(--radius-selector);
+        --size: calc(var(--tri-size-selector, 0.25rem) * 5);
+        border-radius: var(--tri-radius-selector);
         vertical-align: middle;
-        color: var(--color-primary-content);
-        border: var(--border) solid var(--color-primary);
-        background-color: var(--color-primary);
+        color: var(--tri-color-primary-content);
+        border: var(--tri-border) solid var(--tri-color-primary);
+        background-color: var(--tri-color-primary);
         height: var(--size);
         min-width: 1.25rem;
         padding-inline: 0.25rem;
@@ -1215,8 +1215,8 @@
        for why combining backdrop-filter + border breaks nested-content
        stacking. */
     .popover-menu {
-        border-radius: var(--radius-toolbar);
-        border: 1px solid var(--surface-border);
+        border-radius: var(--tri-radius-toolbar);
+        border: 1px solid var(--tri-surface-border);
         box-shadow: var(
             --ui-chrome-shadow,
             0 10px 15px -3px #0000001a,
@@ -1228,10 +1228,10 @@
         position: absolute;
         inset: 0;
         z-index: -1;
-        border-radius: calc(var(--radius-toolbar) - var(--border, 1px));
+        border-radius: calc(var(--tri-radius-toolbar) - var(--tri-border, 1px));
         background-color: color-mix(
             in oklab,
-            var(--toolbar-bg) 70%,
+            var(--tri-toolbar-bg) 70%,
             transparent
         );
         backdrop-filter: blur(8px);
@@ -1250,7 +1250,7 @@
         position: absolute;
         inset: auto;
         margin: 0;
-        color: var(--toolbar-content);
+        color: var(--tri-toolbar-content);
         z-index: 1;
         opacity: 0;
         scale: 95%;
@@ -1323,7 +1323,7 @@
         height: 1px;
         background-color: color-mix(
             in oklab,
-            var(--toolbar-content) 20%,
+            var(--tri-toolbar-content) 20%,
             transparent
         );
     }
@@ -1358,12 +1358,12 @@
         touch-action: manipulation;
         font-weight: 600;
         font-size: 0.75rem;
-        border-width: var(--border);
+        border-width: var(--tri-border);
         border-style: solid;
-        border-start-start-radius: var(--radius-buttons);
-        border-start-end-radius: var(--radius-buttons);
-        border-end-end-radius: var(--radius-buttons);
-        border-end-start-radius: var(--radius-buttons);
+        border-start-start-radius: var(--tri-radius-buttons);
+        border-start-end-radius: var(--tri-radius-buttons);
+        border-end-end-radius: var(--tri-radius-buttons);
+        border-end-start-radius: var(--tri-radius-buttons);
         outline-offset: 2px;
         /* custom overrides */
         width: var(--ui-hit, 2rem);
@@ -1371,12 +1371,12 @@
         padding: 0;
         background-color: color-mix(
             in oklab,
-            var(--toolbar-bg) 70%,
+            var(--tri-toolbar-bg) 70%,
             transparent
         );
         backdrop-filter: blur(8px);
-        border-color: var(--surface-border);
-        color: var(--toolbar-content);
+        border-color: var(--tri-surface-border);
+        color: var(--tri-toolbar-content);
         box-shadow: var(
             --ui-chrome-shadow,
             0 4px 6px -1px #0000001a,
@@ -1388,7 +1388,7 @@
         opacity: 1;
     }
     .handle:hover {
-        background-color: var(--surface-border);
+        background-color: var(--tri-surface-border);
     }
     .handle.invisible {
         opacity: 0;
@@ -1405,14 +1405,14 @@
         border-start-start-radius: 0;
         border-start-end-radius: 0;
         border-end-start-radius: 0;
-        border-end-end-radius: var(--radius-buttons);
+        border-end-end-radius: var(--tri-radius-buttons);
     }
     .handle.end {
         right: var(--ui-inset, 0.375rem);
         border-start-start-radius: 0;
         border-start-end-radius: 0;
         border-end-end-radius: 0;
-        border-end-start-radius: var(--radius-buttons);
+        border-end-start-radius: var(--tri-radius-buttons);
     }
     .handle.top {
         top: 0;
@@ -1433,14 +1433,14 @@
 
     /* ===== Tooltip scaffolding (sm sizing) ===== */
     .tooltip {
-        --tt-bg: var(--color-neutral);
-        --tt-fg: var(--color-neutral-content);
+        --tt-bg: var(--tri-color-neutral);
+        --tt-fg: var(--tri-color-neutral-content);
         --tt-off: calc(100% + 0.5rem);
         --tt-tail: calc(100% + 1px + 0.25rem);
         position: relative;
     }
     .tooltip[data-tip]:not([data-tip=''])::before {
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         text-align: center;
         white-space: normal;
         max-width: 20rem;

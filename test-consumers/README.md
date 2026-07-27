@@ -71,8 +71,9 @@ than building their own:
 - **Core-only dependency-absence assertion** (ticket 20): hooks in after the
   pack step (alongside the CSS assertion) once the plugin packages have moved
   their deps out of core.
-- **Theme identifier casing**: `assert-tarball-css.mjs` still expects the
-  pre-1.0 `Teal` identifier; ticket 22 renames it to lowercase `teal`.
+- **Theme identifier casing**: `assert-tarball-css.mjs` expects the lowercase
+  `teal` identifier (ticket 19 renamed the former `Teal`) and the `--tri-*`
+  public CSS token namespace.
 
 ## Out of scope (this ticket)
 

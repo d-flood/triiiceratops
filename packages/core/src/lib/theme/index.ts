@@ -61,6 +61,15 @@ export {
 } from './themeManager';
 export { getThemeCssVariables, getThemePropertyNames } from './introspection';
 
+// Public CSS token registry (semver-governed customization surface)
+export {
+    PUBLIC_TOKENS,
+    PUBLIC_CSS_TOKENS,
+    PUBLIC_TOKEN_PREFIX,
+    isPublicToken,
+} from './publicTokens';
+export type { PublicToken, PublicTokenCategory } from './publicTokens';
+
 // Color utilities
 export {
     hexToOklch,
