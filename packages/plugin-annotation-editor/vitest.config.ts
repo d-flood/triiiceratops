@@ -1,4 +1,5 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { bundledCss } from '@triiiceratops/ui/vite';
 import { defineConfig } from 'vitest/config';
 
 import { coverage } from '../../vitest.coverage.js';
@@ -9,7 +10,10 @@ import { coverage } from '../../vitest.coverage.js';
 // (and, through it, `triiiceratops/testing`) resolve from their built dists —
 // build the workspace before running (`pnpm build:all`).
 export default defineConfig({
-    plugins: [svelte()],
+    // `bundledCss()` resolves the `virtual:tri-bundled-css` module the plugin
+    // entry imports (to an empty string under vitest — tests don't need the
+    // build-extracted CSS).
+    plugins: [svelte(), bundledCss()],
     resolve: { conditions: ['browser'] },
     test: {
         coverage,

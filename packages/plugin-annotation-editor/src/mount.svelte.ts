@@ -28,6 +28,11 @@ import { mount, unmount } from 'svelte';
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';
 
+// Build-extracted, Svelte-scoped CSS of every bundled component (this plugin's +
+// the `@triiiceratops/ui` primitives), installed through the nonce-aware SDK
+// style service so idiomatic `<style>` blocks stay CSP-safe. See vite.config.ts.
+import BUNDLED_CSS from 'virtual:tri-bundled-css';
+
 import AnnotationEditorApp from './AnnotationEditorApp.svelte';
 import { AnnotationStore } from './AnnotationStore.svelte';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
@@ -46,6 +51,8 @@ export function mountAnnotationEditor(
     // Root-aware CSS (Annotorious layer + chrome), single-installed for this
     // activation and released on teardown.
     const releaseStyles = context.styles.install(STYLES, STYLE_ID);
+    // Build-extracted Svelte-scoped component CSS (this plugin's + `@triiiceratops/ui`).
+    const releaseBundled = context.styles.install(BUNDLED_CSS, 'bundled');
 
     // Reactive bridges: the mirror makes cross-realm state changes visible to the
     // plugin's own Svelte runtime; the locale bridge makes `t` re-render on an
@@ -94,6 +101,7 @@ export function mountAnnotationEditor(
         disposeLoader();
         unsubscribeLocale();
         destroyMirror();
+        releaseBundled();
         releaseStyles();
     };
 }

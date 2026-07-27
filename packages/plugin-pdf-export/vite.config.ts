@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { bundledCss } from '@triiiceratops/ui/vite';
 import { defineConfig } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -63,16 +64,30 @@ const external =
 
 export default defineConfig({
     plugins: [
+        // `emitCss: true` extracts each component's (still Svelte-scoped) CSS
+        // through Vite's CSS pipeline instead of Svelte's runtime `append_styles`
+        // injection — which would append an un-nonced `<style>` to the document
+        // head and be blocked under a strict `style-src` CSP. `bundledCss()`
+        // (from `@triiiceratops/ui/vite`) collects that extracted CSS into the
+        // `virtual:tri-bundled-css` module and strips the stray `.css` asset, so
+        // the plugin's entry can install it through the root-aware, nonce-aware
+        // SDK style service and keep shipping a single self-contained JS. This is
+        // what lets `@triiiceratops/ui` components (and this plugin's own) use
+        // idiomatic `<style>` blocks while staying CSP-safe.
         svelte({
-            emitCss: false,
+            emitCss: true,
             compilerOptions: { customElement: false },
         }),
+        bundledCss(),
     ],
     build: {
         // Production build so no dev-only `svelte/internal` strings or warnings
         // leak into the bundle (the dist is grepped for `svelte/internal` — it
         // must be absent; plugins share no Svelte runtime with core).
         minify: true,
+        // One extracted CSS asset (bundledCss concatenates + strips it), so the
+        // whole bundle's component CSS is installed through the style service.
+        cssCodeSplit: false,
         lib,
         rollupOptions: {
             external,

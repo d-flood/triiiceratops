@@ -23,6 +23,7 @@ export default {
         'triiiceratops',
         '@triiiceratops/plugin-sdk',
         '@triiiceratops/plugin-image-manipulation',
+        '@triiiceratops/plugin-pdf-export',
     ],
     async assert({ page, baseURL, pageErrors, browserName }) {
         const violations = await collectCspViolations(page);
@@ -74,6 +75,51 @@ export default {
             pluginStyle.nonce,
             'plugin fallback <style> carries the page nonce',
         ).toBe(NONCE);
+
+        // pdf-export uses idiomatic Svelte `<style>` + `@triiiceratops/ui`
+        // components. Their Svelte-scoped CSS is extracted at build (`bundledCss()`)
+        // and installed through the same style service under the id `bundled`.
+        // Open its core-rendered panel so `view.mount` runs, then assert the
+        // build-extracted component CSS took the nonce `<style>` fallback (the
+        // path Svelte's un-nonced `append_styles` would otherwise have taken and
+        // strict `style-src` would have blocked).
+        await page.getByRole('button', { name: 'Open Menu' }).click();
+        const pdfButton = page.locator(
+            '[aria-label="@triiiceratops/plugin-pdf-export"]',
+        );
+        await expect(pdfButton).toBeVisible({ timeout: 30_000 });
+        await pdfButton.click();
+
+        const bundledStyle = await page.evaluate(() => {
+            const el = document.querySelector(
+                'style[data-triiiceratops-plugin-style="@triiiceratops/plugin-pdf-export:bundled"]',
+            );
+            return el
+                ? {
+                      present: true,
+                      nonce: el.nonce || el.getAttribute('nonce'),
+                      // The `@triiiceratops/ui` Button ships a Svelte-scoped
+                      // `.btn.svelte-*` rule; its presence proves the extracted
+                      // component CSS (not just the plugin's hand-written sheet)
+                      // reached the DOM under CSP.
+                      hasScopedButton: /\.btn\.svelte-/.test(
+                          el.textContent || '',
+                      ),
+                  }
+                : { present: false, nonce: null, hasScopedButton: false };
+        });
+        expect(
+            bundledStyle.present,
+            'pdf-export build-extracted component CSS installed via nonce <style>',
+        ).toBe(true);
+        expect(
+            bundledStyle.nonce,
+            'pdf-export bundled <style> carries the page nonce',
+        ).toBe(NONCE);
+        expect(
+            bundledStyle.hasScopedButton,
+            'extracted CSS contains the @triiiceratops/ui Button scoped rule',
+        ).toBe(true);
 
         // Zero CSP violations across the whole journey.
         const found = await violations.read();

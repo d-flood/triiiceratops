@@ -59,11 +59,17 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
         true,
     );
 
-    // Open the plugin panel (its DOM lives in the viewer's shadow root; the
-    // Playwright locator pierces it).
-    const toggle = page.locator('[data-tri-pdf-toggle]');
-    await expect(toggle).toBeVisible({ timeout: 30_000 });
-    await toggle.click();
+    // Core owns the plugin chrome (epic restore-plugin-toolbar-chrome): the
+    // toolbar button is core-rendered from the plugin's icon and the panel docks
+    // in the viewer chrome. Open the (default-closed) toolbar, then click the
+    // plugin's core-rendered button to dock its panel. The viewer's DOM lives in
+    // the custom element's shadow root; Playwright role/CSS locators pierce it.
+    await page.getByRole('button', { name: 'Open Menu' }).click();
+    const pluginButton = page.locator(
+        '[aria-label="@triiiceratops/plugin-pdf-export"]',
+    );
+    await expect(pluginButton).toBeVisible({ timeout: 30_000 });
+    await pluginButton.click();
 
     // Select a two-canvas range and export.
     await page.locator('[data-tri-pdf-start]').selectOption('0');

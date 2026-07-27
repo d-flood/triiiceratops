@@ -29,6 +29,12 @@ import {
     type SdkPlugin,
 } from '@triiiceratops/plugin-sdk';
 
+// The Svelte-scoped CSS of every bundled component (this plugin's Flyout + the
+// `@triiiceratops/ui` Range/Tooltip primitives it renders), extracted at build
+// time by `bundledCss()` (see vite.config.ts). Installed through the root-aware,
+// nonce-aware SDK style service so idiomatic `<style>` blocks stay CSP-safe.
+import BUNDLED_CSS from 'virtual:tri-bundled-css';
+
 import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type FlyoutContext } from './contextKey';
 import { createFilterController } from './filterController.svelte';
@@ -38,7 +44,12 @@ import { STYLE_ID, STYLES } from './styles';
 
 const view: PluginView = {
     mount(container, context) {
+        // Package-owned global CSS (the ancestor-keyed downward-flyout flip)…
         const releaseStyles = context.styles.install(STYLES, STYLE_ID);
+        // …plus the build-extracted Svelte-scoped component CSS (this plugin's
+        // Flyout + the `@triiiceratops/ui` primitives). Separate install id so
+        // the style service refcounts each independently.
+        const releaseBundled = context.styles.install(BUNDLED_CSS, 'bundled');
         // Own an abort controller for the OSD-readiness wait here, so the wait is
         // cancelled synchronously by the view cleanup (which `runActivation` runs
         // on deactivation) — not on the component's async `onDestroy`.
@@ -61,6 +72,7 @@ const view: PluginView = {
             teardown.abort();
             unmount(app);
             controller.dispose();
+            releaseBundled();
             releaseStyles();
         };
     },
