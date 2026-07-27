@@ -1887,23 +1887,41 @@ export class ViewerState {
 
     /**
      * Internal plugin UI state keyed by plugin ID.
-     * Keeps panel open state and toolbar visibility in one reactive place.
+     * Keeps panel open state, toolbar visibility, the effective render
+     * target, and the effective panel position in one reactive place.
+     * `target` and `position` start at the plugin's authored values and can
+     * be overridden reactively after mount (via `config.plugins[id].target` /
+     * `.position`, or {@link setPluginTarget} / {@link setPluginPosition});
+     * the render sites read them through {@link getPluginTarget} and
+     * {@link getPluginPosition}, so a plugin moves between chrome and dock
+     * position without re-registering.
      */
     private pluginUiState = new SvelteMap<
         string,
-        { open: boolean; visible: boolean }
+        {
+            open: boolean;
+            visible: boolean;
+            target: PluginUiTarget;
+            position: 'left' | 'right' | 'bottom' | 'overlay';
+        }
     >();
 
     private getPluginUiConfig(pluginId: string): PluginUiConfig | undefined {
         return this.config.plugins?.[pluginId];
     }
 
-    private ensurePluginUiState(pluginId: string): void {
+    private ensurePluginUiState(
+        pluginId: string,
+        defaultTarget: PluginUiTarget = 'panel',
+        defaultPosition: 'left' | 'right' | 'bottom' | 'overlay' = 'left',
+    ): void {
         if (!this.pluginUiState.has(pluginId)) {
             const config = this.getPluginUiConfig(pluginId);
             this.pluginUiState.set(pluginId, {
                 open: config?.open ?? false,
                 visible: config?.visible ?? true,
+                target: config?.target ?? defaultTarget,
+                position: config?.position ?? defaultPosition,
             });
             return;
         }
@@ -1919,7 +1937,66 @@ export class ViewerState {
         this.pluginUiState.set(pluginId, {
             open: config?.open ?? current.open,
             visible: config?.visible ?? current.visible,
+            target: config?.target ?? current.target,
+            position: config?.position ?? current.position,
         });
+    }
+
+    /**
+     * The effective render target for a plugin — the authored default unless a
+     * config override (`config.plugins[id].target`) or {@link setPluginTarget}
+     * changed it. Read reactively by the toolbar (flyout vs plain button) and by
+     * each plugin panel's `isVisible`. Defaults to `'panel'` for an unknown id.
+     */
+    getPluginTarget(pluginId: string): PluginUiTarget {
+        return this.pluginUiState.get(pluginId)?.target ?? 'panel';
+    }
+
+    /**
+     * Move a plugin between its panel and flyout chrome after mount — the
+     * imperative sibling of {@link setPluginOpen}, and the same effect as setting
+     * `config.plugins[id].target`. A no-op if the plugin is unknown or already on
+     * `target`. Switching remounts the plugin's UI in the new container (see
+     * {@link PluginUiConfig.target}).
+     */
+    setPluginTarget(pluginId: string, target: PluginUiTarget): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current || current.target === target) return;
+
+        this.pluginUiState.set(pluginId, { ...current, target });
+        this.dispatchStateChange();
+    }
+
+    /**
+     * The effective panel dock position for a plugin — the authored default
+     * unless a config override (`config.plugins[id].position`) or
+     * {@link setPluginPosition} changed it. Read reactively by each of the
+     * left/right/bottom/overlay panel render sites. Meaningful only while the
+     * plugin's effective {@link getPluginTarget} is `'panel'`; a flyout ignores
+     * it. Defaults to `'left'` for an unknown id.
+     */
+    getPluginPosition(
+        pluginId: string,
+    ): 'left' | 'right' | 'bottom' | 'overlay' {
+        return this.pluginUiState.get(pluginId)?.position ?? 'left';
+    }
+
+    /**
+     * Move a plugin's panel to a new dock position after mount — the
+     * imperative sibling of {@link setPluginTarget}, and the same effect as
+     * setting `config.plugins[id].position`. A no-op if the plugin is unknown
+     * or already at `position`. Has no visible effect while the plugin's
+     * effective target is `'flyout'` (see {@link PluginUiConfig.position}).
+     */
+    setPluginPosition(
+        pluginId: string,
+        position: 'left' | 'right' | 'bottom' | 'overlay',
+    ): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current || current.position === position) return;
+
+        this.pluginUiState.set(pluginId, { ...current, position });
+        this.dispatchStateChange();
     }
 
     private applyPluginUiConfigToAll(): void {
@@ -1961,6 +2038,11 @@ export class ViewerState {
     closePluginFlyouts(): void {
         let changed = false;
         for (const flyout of this.pluginFlyouts) {
+            // Every plugin registers both a panel and a flyout entry; only the
+            // one matching the effective target is live. Skip flyouts whose
+            // plugin is currently rendering as a panel — a panel is not
+            // light-dismissed by an outside pointer-down.
+            if (this.getPluginTarget(flyout.pluginId) !== 'flyout') continue;
             if (flyout.dismiss === 'explicit') continue;
             const current = this.pluginUiState.get(flyout.pluginId);
             if (current?.open) {
@@ -1982,22 +2064,33 @@ export class ViewerState {
      */
     registerPlugin(def: PluginDef): void {
         const id = def.id || createPluginId();
-        const target = def.target ?? 'panel';
-        // The content component may be supplied under either field; resolve by
-        // target, falling back to the other so a single component can serve both.
-        const content =
-            target === 'flyout'
-                ? (def.flyout ?? def.panel)
-                : (def.panel ?? def.flyout);
+        const defaultTarget = def.target ?? 'panel';
+        // A plugin may supply a component under `panel`, `flyout`, or both.
+        // Resolve one for each container, falling back to the other so a single
+        // component can serve either target. Both a panel and a flyout entry are
+        // always registered; the effective target (getPluginTarget) decides
+        // which one renders, so the target can change reactively after mount
+        // without re-registering (like `open`/`visible`).
+        const panelContent = def.panel ?? def.flyout;
+        const flyoutContent = def.flyout ?? def.panel;
 
-        this.ensurePluginUiState(id);
+        this.ensurePluginUiState(id, defaultTarget, def.position || 'left');
 
-        // Register Menu Button
+        const domId = `tri-flyout-${id}`;
+        const close = () => {
+            this.setPluginOpen(id, false);
+        };
+
+        // Register Menu Button. It always carries `flyoutDomId` so the toolbar
+        // can anchor the flyout when the effective target is 'flyout'; when it
+        // is 'panel' the toolbar renders a plain toggle instead (it consults
+        // getPluginTarget).
         const button: PluginMenuButton = {
             id: `${id}:toggle`,
             pluginId: id,
             icon: def.icon,
             tooltip: def.name,
+            flyoutDomId: domId,
             onClick: () => {
                 this.togglePluginOpen(id);
             },
@@ -2006,53 +2099,41 @@ export class ViewerState {
             order: 200, // Default order for simple plugins
         };
 
-        if (target === 'flyout') {
-            const domId = `tri-flyout-${id}`;
-            // The button toggles the flyout open/closed (default onClick already
-            // toggles); `flyoutDomId` tells the toolbar to render the anchored
-            // flyout and derive its CSS anchor-name.
-            button.flyoutDomId = domId;
+        const flyout: PluginFlyout = {
+            id: `${id}:flyout`,
+            domId,
+            pluginId: id,
+            name: def.name,
+            icon: def.icon,
+            component: flyoutContent as PluginFlyout['component'],
+            props: {
+                ...def.props,
+                // Pass a closer to the component.
+                close,
+            },
+        };
 
-            const flyout: PluginFlyout = {
-                id: `${id}:flyout`,
-                domId,
-                pluginId: id,
-                name: def.name,
-                icon: def.icon,
-                component: content as PluginFlyout['component'],
-                props: {
-                    ...def.props,
-                    // Pass a closer to the component.
-                    close: () => {
-                        this.setPluginOpen(id, false);
-                    },
-                },
-            };
+        const panel: PluginPanel = {
+            id: `${id}:panel`,
+            pluginId: id,
+            name: def.name,
+            icon: def.icon,
+            component: panelContent as PluginPanel['component'],
+            // Live only while the effective target is 'panel' AND open; the
+            // flyout entry covers the 'flyout' target.
+            isVisible: () =>
+                this.getPluginTarget(id) === 'panel' &&
+                (this.pluginUiState.get(id)?.open ?? false),
+            props: {
+                ...def.props,
+                // Pass closer to component
+                close,
+            },
+        };
 
-            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
-            this.pluginFlyouts = [...this.pluginFlyouts, flyout];
-        } else {
-            // Register Panel
-            const panel: PluginPanel = {
-                id: `${id}:panel`,
-                pluginId: id,
-                name: def.name,
-                icon: def.icon,
-                component: content as PluginPanel['component'],
-                position: def.position || 'left',
-                isVisible: () => this.pluginUiState.get(id)?.open ?? false,
-                props: {
-                    ...def.props,
-                    // Pass closer to component
-                    close: () => {
-                        this.setPluginOpen(id, false);
-                    },
-                },
-            };
-
-            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
-            this.pluginPanels = [...this.pluginPanels, panel];
-        }
+        this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+        this.pluginPanels = [...this.pluginPanels, panel];
+        this.pluginFlyouts = [...this.pluginFlyouts, flyout];
 
         // Execute lifecycle hook if present
         if (def.onInit) {
@@ -2083,13 +2164,18 @@ export class ViewerState {
     }): void {
         const { id, name, icon, target, dismiss, mount } = config;
 
-        this.ensurePluginUiState(id);
+        this.ensurePluginUiState(id, target, config.position ?? 'left');
 
+        const domId = `tri-flyout-${id}`;
+
+        // Always carries `flyoutDomId`; the toolbar anchors the flyout only when
+        // the effective target is 'flyout' (see registerPlugin).
         const button: PluginMenuButton = {
             id: `${id}:toggle`,
             pluginId: id,
             iconDescriptor: icon,
             tooltip: name,
+            flyoutDomId: domId,
             onClick: () => {
                 this.togglePluginOpen(id);
             },
@@ -2098,36 +2184,34 @@ export class ViewerState {
             order: 200,
         };
 
-        if (target === 'flyout') {
-            const domId = `tri-flyout-${id}`;
-            button.flyoutDomId = domId;
+        // Both entries share the one core-owned `mount` thunk. Only the entry
+        // matching the effective target is ever live, so the thunk is called by
+        // at most one container at a time; a target switch re-parents the
+        // plugin's content element between the panel and flyout container.
+        const flyout: PluginFlyout = {
+            id: `${id}:flyout`,
+            domId,
+            pluginId: id,
+            name,
+            iconDescriptor: icon,
+            mount,
+            dismiss,
+        };
 
-            const flyout: PluginFlyout = {
-                id: `${id}:flyout`,
-                domId,
-                pluginId: id,
-                name,
-                iconDescriptor: icon,
-                mount,
-                dismiss,
-            };
+        const panel: PluginPanel = {
+            id: `${id}:panel`,
+            pluginId: id,
+            name,
+            iconDescriptor: icon,
+            mount,
+            isVisible: () =>
+                this.getPluginTarget(id) === 'panel' &&
+                (this.pluginUiState.get(id)?.open ?? false),
+        };
 
-            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
-            this.pluginFlyouts = [...this.pluginFlyouts, flyout];
-        } else {
-            const panel: PluginPanel = {
-                id: `${id}:panel`,
-                pluginId: id,
-                name,
-                iconDescriptor: icon,
-                mount,
-                position: config.position ?? 'left',
-                isVisible: () => this.pluginUiState.get(id)?.open ?? false,
-            };
-
-            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
-            this.pluginPanels = [...this.pluginPanels, panel];
-        }
+        this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+        this.pluginPanels = [...this.pluginPanels, panel];
+        this.pluginFlyouts = [...this.pluginFlyouts, flyout];
     }
 
     /**

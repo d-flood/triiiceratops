@@ -14,3 +14,11 @@ interface Window {
     Triiiceratops?: any;
     appSelection?: string | null;
 }
+
+// Reader-owned Svelte component files examples import by relative path (e.g.
+// "the `./PluginUI.svelte` you just wrote") — loosely typed, same rationale
+// as the STUBS in scripts/docs-examples.mjs.
+declare module '*.svelte' {
+    const component: any;
+    export default component;
+}

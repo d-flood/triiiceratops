@@ -6,7 +6,7 @@
 # downloads that SHA-matched artifact, re-verifies the checksums, and runs
 # `npm publish <tgz>` per package. There is deliberately NO build/compile step
 # here (see SPEC "Publishing promotes verified artifacts ... rather than
-# rebuilding" and docs/release-runbook.md).
+# rebuilding").
 #
 # Graph:  promote  →  registry smoke  →  GitHub release
 # The GitHub release is created ONLY after the registry smoke test passes.

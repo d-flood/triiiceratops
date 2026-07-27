@@ -117,7 +117,7 @@ const PACKAGES_TO_PACK = [
 // Fixtures. Ticket 11 seeded the core-only consumers; ticket 13 appends the SDK
 // framework-adapter fixtures (each consumes the packed SDK subpath + a live
 // packed `ViewerState`). Later tickets append per-plugin fixtures.
-const FIXTURES = [
+export const FIXTURES = [
     'svelte-vite',
     'sveltekit-ssr',
     'wc-esm',
@@ -194,7 +194,7 @@ function record(fixture, pm, ok, detail = '') {
     (ok ? pass : fail)(`${fixture} [${pm}]`, detail);
 }
 
-async function buildAndPack(tarballDir) {
+export async function buildAndPack(tarballDir) {
     heading('Building + packing publishable packages');
     const tarballs = {};
     for (const pkg of PACKAGES_TO_PACK) {
@@ -381,7 +381,7 @@ async function assertCoreOnlyDeps(coreTarball, workRoot) {
     return ok;
 }
 
-async function installFixture(pm, fixtureDir) {
+export async function installFixture(pm, fixtureDir) {
     if (pm === 'npm') {
         await run(
             'npm',
@@ -559,7 +559,13 @@ async function main() {
     process.exit(0);
 }
 
-main().catch((err) => {
-    console.error(err);
-    process.exit(1);
-});
+// Guarded so `view-fixture.mjs` (and anything else) can import the pieces
+// above — buildAndPack, installFixture, FIXTURES — without triggering the
+// full suite as an import side effect. Only run when this file is the
+// process entrypoint (`node run.mjs`, i.e. `pnpm test:packed`).
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+    main().catch((err) => {
+        console.error(err);
+        process.exit(1);
+    });
+}

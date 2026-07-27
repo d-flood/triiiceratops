@@ -39,17 +39,36 @@ Copyright &copy; 2025 David Flood
 
 # repo_url = "https://github.com/d-flood/triiiceratops"
 
-# Zensical supports both implicit navigation and explicitly defined navigation.
-# If you decide not to define a navigation here then Zensical will simply
-# derive the navigation structure from the directory structure of your
-# "docs_dir". The definition below demonstrates how a navigation structure
-# can be defined using TOML syntax.
+# Explicit navigation. Without this, Zensical derives nav from the directory
+# structure of "docs_dir", which would also surface docs/adr/* (internal
+# architecture decision records) and docs/security/* (internal audit notes,
+# plus a csp.md stub superseded by the top-level csp.md) in the published
+# site's navigation. Listing pages explicitly keeps those out of the public
+# nav while leaving the files themselves in the repo. They also carry
+# `search.exclude: true` frontmatter so they don't surface as orphan hits in
+# the site search either.
 #
 # Read more: https://zensical.org/docs/setup/navigation/
-# nav = [
-#   { "Get started" = "index.md" },
-#   { "Markdown in 5min" = "markdown.md" },
-# ]
+nav = [
+    { "Home" = "index.md" },
+    { "Use with any framework" = "integration.md" },
+    { "Configuration & State Management" = "configuration.md" },
+    { "Theming and Styling" = "theming.md" },
+    { "Content Security Policy" = "csp.md" },
+    { "Plugins" = [
+        { "Plugin System" = "plugins.md" },
+        { "First-party Plugins" = [
+            { "Image Manipulation" = "plugin-image-manipulation.md" },
+            { "Image Download" = "plugin-image-download.md" },
+            { "PDF Export" = "plugin-pdf-export.md" },
+            { "Annotation Editor" = "plugin-annotation-editor.md" },
+        ] },
+        { "Authoring & Testing" = [
+            { "Authoring a plugin (the SDK)" = "plugin-authoring.md" },
+            { "Testing a plugin" = "plugin-testing.md" },
+        ] },
+    ] },
+]
 
 # With the "extra_css" option you can add your own CSS styling to customize
 # your Zensical project according to your needs. You can add any number of

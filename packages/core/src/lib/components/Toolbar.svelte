@@ -788,7 +788,15 @@
                 {#each sortedPluginButtons as button (button.id)}
                     {@const LegacyIcon = button.icon}
                     {@const tooltipText = resolvePluginTooltip(button.tooltip)}
-                    {@const flyout = findFlyout(button.flyoutDomId)}
+                    <!-- Every plugin registers both a panel and a flyout entry;
+                         render the anchored flyout only when the plugin's
+                         effective target is 'flyout', otherwise a plain toggle
+                         (the panel renders in the viewer chrome). -->
+                    {@const flyout =
+                        button.pluginId &&
+                        viewerState.getPluginTarget(button.pluginId) === 'flyout'
+                            ? findFlyout(button.flyoutDomId)
+                            : undefined}
                     <li>
                         {#if flyout}
                             {@const Flyout = flyout.component}

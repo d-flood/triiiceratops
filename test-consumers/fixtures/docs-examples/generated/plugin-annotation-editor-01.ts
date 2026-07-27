@@ -1,4 +1,4 @@
-// GENERATED from docs/plugins.md — do not edit by hand.
+// GENERATED from docs/plugin-annotation-editor.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
 import {
     createAnnotationEditorPlugin,

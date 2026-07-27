@@ -6,13 +6,28 @@ icon: lucide/puzzle
 
 Write plugins with `@triiiceratops/plugin-sdk`. The SDK is framework-neutral and
 dependency-light: a plugin mounts into a plain `HTMLElement`, reads and controls
-the viewer through the live `ViewerState`, and returns a cleanup function. You can
-render with vanilla DOM, Svelte, React, Vue, Lit, or a custom element — anything
-that mounts into an element.
+the viewer through the live `ViewerState`, and returns a cleanup function. Render
+it with vanilla JavaScript, React, Vue, Svelte, Lit, or any other framework that
+mounts into an element — see [Rendering UI in your
+framework](#rendering-ui-in-your-framework) below.
 
-```bash
-pnpm add @triiiceratops/plugin-sdk
-```
+=== "pnpm"
+
+    ```bash
+    pnpm add @triiiceratops/plugin-sdk
+    ```
+
+=== "npm"
+
+    ```bash
+    npm install @triiiceratops/plugin-sdk
+    ```
+
+=== "bun"
+
+    ```bash
+    bun add @triiiceratops/plugin-sdk
+    ```
 
 This page is the authoring reference. For the packed-consumer test kit, see the
 [plugin testing guide](plugin-testing.md).
@@ -37,6 +52,185 @@ function mount(container: HTMLElement, context: PluginContext): () => void {
 }
 ```
 
+## Rendering UI in your framework
+
+`mount()` receives a plain `HTMLElement` — render into it with whatever you
+already use. Each framework has an optional adapter subpath
+(`@triiiceratops/plugin-sdk/{react,vue,svelte,lit}`) that turns a selector into
+that framework's native reactive primitive (a hook, a composable, a store, a
+reactive controller) so state reads stay idiomatic. Here is the same "show
+whether the toolbar is open" plugin, mounted five ways:
+
+=== "Vanilla JavaScript"
+
+    No adapter needed — read `context.selectors.select(fn)` directly (see
+    [Selectors](#selectors) below for the memoization/equality details):
+
+    ```ts
+    import type { PluginContext } from 'triiiceratops';
+
+    function mount(container: HTMLElement, context: PluginContext): () => void {
+        const label = document.createElement('span');
+        const open = context.selectors.select((s) => s.toolbarOpen);
+        label.textContent = open.get() ? 'open' : 'closed';
+        const stop = open.subscribe((value) => {
+            label.textContent = value ? 'open' : 'closed';
+        });
+        container.appendChild(label);
+        return () => {
+            stop();
+            label.remove();
+        };
+    }
+    ```
+
+=== "React"
+
+    `@triiiceratops/plugin-sdk/react` provides `useViewerSelector`, backed by
+    `useSyncExternalStore`:
+
+    ```tsx
+    import { createRoot } from 'react-dom/client';
+    import { useViewerSelector } from '@triiiceratops/plugin-sdk/react';
+    import type { PluginContext } from 'triiiceratops';
+
+    function PluginUI({ context }: { context: PluginContext }) {
+        const open = useViewerSelector(context, (s) => s.toolbarOpen);
+        return <span>{open ? 'open' : 'closed'}</span>;
+    }
+
+    function mount(container: HTMLElement, context: PluginContext): () => void {
+        const root = createRoot(container);
+        root.render(<PluginUI context={context} />);
+        return () => root.unmount();
+    }
+    ```
+
+=== "Vue"
+
+    `@triiiceratops/plugin-sdk/vue` provides a composable returning a readonly
+    `Ref`:
+
+    ```ts
+    import { createApp, defineComponent, h, type PropType } from 'vue';
+    import { useViewerSelector } from '@triiiceratops/plugin-sdk/vue';
+    import type { PluginContext } from 'triiiceratops';
+
+    const PluginUI = defineComponent({
+        props: {
+            context: { type: Object as PropType<PluginContext>, required: true },
+        },
+        setup(props) {
+            const open = useViewerSelector(props.context, (s) => s.toolbarOpen);
+            return () => h('span', open.value ? 'open' : 'closed');
+        },
+    });
+
+    function mount(container: HTMLElement, context: PluginContext): () => void {
+        const app = createApp(PluginUI, { context });
+        app.mount(container);
+        return () => app.unmount();
+    }
+    ```
+
+=== "Svelte"
+
+    `@triiiceratops/plugin-sdk/svelte` exposes a selector as a Svelte readable
+    store:
+
+    ```html
+    <!-- PluginUI.svelte -->
+    <script lang="ts">
+        import { viewerSelector } from '@triiiceratops/plugin-sdk/svelte';
+        let { context } = $props();
+        const open = viewerSelector(context, (s) => s.toolbarOpen);
+    </script>
+
+    <span>{$open ? 'open' : 'closed'}</span>
+    ```
+
+    ```ts
+    import { mount as mountComponent, unmount } from 'svelte';
+    import PluginUI from './PluginUI.svelte';
+    import type { PluginContext } from 'triiiceratops';
+
+    function mount(container: HTMLElement, context: PluginContext): () => void {
+        const app = mountComponent(PluginUI, {
+            target: container,
+            props: { context },
+        });
+        return () => unmount(app);
+    }
+    ```
+
+    !!! note "Svelte hosts: a lighter-weight legacy shortcut"
+
+        If your host app is Svelte and you'd rather not use the SDK at all, core
+        also accepts a plain `PluginDef` object whose panel/flyout are Svelte
+        components directly — no `mount()`, no `PluginContext`. This predates the
+        SDK and stays supported, but the SDK path above is recommended for new
+        plugins since it works in every host, not just Svelte.
+
+        ```typescript
+        import type { Component } from 'svelte';
+        import type { ViewerState } from 'triiiceratops';
+
+        interface PluginDef {
+            id?: string; // Unique identifier (auto-generated if not provided)
+            name: string; // Title shown in tooltips/headers
+            icon: Component; // Svelte icon component
+            target?: 'panel' | 'flyout'; // Where the UI renders (default: 'panel')
+            panel?: Component; // Component rendered when target is 'panel'
+            flyout?: Component; // Component rendered when target is 'flyout'
+            position?: 'left' | 'right'; // Panel position (default: 'left'; ignored for flyouts)
+            props?: Record<string, unknown>; // Optional props to pass to the component
+            onInit?: (viewerState: ViewerState) => void; // Called once when the plugin activates
+        }
+        ```
+
+        Set an explicit, stable `id` if you plan to control the plugin through
+        `config.plugins` — auto-generated ids are not stable across
+        re-registration. `createPanelPlugin` and `createFlyoutPlugin` wrap
+        `PluginDef` with the right target; the Svelte components read viewer
+        context via `getContext(VIEWER_STATE_KEY)`, and flyout components also
+        receive a `close()` prop.
+
+=== "Lit"
+
+    `@triiiceratops/plugin-sdk/lit` provides a `ReactiveController`:
+
+    ```ts
+    import { SelectorController } from '@triiiceratops/plugin-sdk/lit';
+    import { LitElement, html } from 'lit';
+    import type { PluginContext } from 'triiiceratops';
+
+    class PluginUI extends LitElement {
+        createRenderRoot() {
+            return this; // light DOM
+        }
+        toolbar?: SelectorController<boolean>;
+
+        setContext(context: PluginContext) {
+            this.toolbar = new SelectorController(
+                this,
+                context.selectors.select((s) => s.toolbarOpen),
+            );
+        }
+
+        render() {
+            return html`<span>${this.toolbar?.value ? 'open' : 'closed'}</span>`;
+        }
+    }
+    customElements.define('plugin-ui', PluginUI);
+
+    function mount(container: HTMLElement, context: PluginContext): () => void {
+        const el = document.createElement('plugin-ui') as PluginUI;
+        el.setContext(context);
+        container.appendChild(el);
+        return () => el.remove();
+    }
+    ```
+
 ## `definePlugin`
 
 `definePlugin` wraps declarative metadata and a view. Registration is
@@ -51,12 +245,17 @@ const icon = svgIcon('<svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z" /></svg>'
 export function createExamplePlugin() {
     return definePlugin({
         name: '@example/my-plugin', // package-qualified, keys the registry
+        uiId: 'my-plugin', // stable, DOM-safe key for config.plugins[uiId]
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0', // core versions this plugin supports
         pluginApiRange: '^1.0.0', // plugin API versions supported
         requiredCapabilities: [], // e.g. ['osd@5']
         icon,
-        target: 'panel', // or 'flyout'
+        target: 'panel', // default target; or 'flyout'. Host can override at
+        // runtime via config.plugins[uiId].target / setPluginTarget.
+        // There is no `position` field here — a panel's dock side is chosen
+        // by the consuming app, not the plugin. See "Panel position" below.
+        dismiss: 'light', // flyout dismiss: 'light' (default) or 'explicit'; ignored for panels
         catalog: { en: { title: 'Example' } }, // package-owned localization
         view: {
             mount(container, context) {
@@ -76,6 +275,25 @@ export function createExamplePlugin() {
     });
 }
 ```
+
+### Panel position
+
+A `definePlugin` plugin has no authoring-time way to pick where its panel
+docks — that choice belongs to the consuming app, since it's the app that
+knows its own layout. A host sets it per plugin, keyed by the same `uiId`
+used for `visible`/`open`/`target`:
+
+```ts
+// <TriiiceratopsViewer manifestId="..." config={{
+//     plugins: { 'my-plugin': { position: 'right' } },
+// }} />
+```
+
+`position` accepts `'left' | 'right'` (default `'left'`), applies reactively
+after mount like `target`, and has an imperative
+sibling, `ViewerState.setPluginPosition(uiId, position)`. It's ignored while
+the plugin's effective target is `'flyout'` — a flyout is anchored to its
+toolbar button, not docked to a side.
 
 ### Toolbar icons
 
@@ -100,9 +318,26 @@ try {
 
 ## Activating a plugin
 
-In module builds you activate a plugin against a live `ViewerState`. Core does
-this for you when you pass a plugin to the viewer's `plugins` prop; `activatePlugin`
-is the explicit API (and what the test kit uses):
+The common path: pass your plugin straight to the viewer's `plugins` prop and
+core activates it for you. The `createExamplePlugin()` from the sections above
+slots in exactly where a pre-built plugin like `ImageManipulationPlugin` would
+go — see [using plugins](plugins.md#adding-a-plugin-to-your-viewer) for the same
+example wired up in each supported framework:
+
+```html
+<script lang="ts">
+    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { createExamplePlugin } from './my-plugin';
+</script>
+
+<TriiiceratopsViewer manifestId="..." plugins={[createExamplePlugin()]} />
+```
+
+In module builds you can also activate a plugin explicitly against a live
+`ViewerState`, without going through the viewer component — this is what the
+[test kit](plugin-testing.md) uses, and what you'd reach for to activate a
+plugin outside of `TriiiceratopsViewer` (a custom host, a manual test, a
+one-off script):
 
 ```ts
 import {
@@ -126,6 +361,34 @@ const activation = activatePlugin(createExamplePlugin(), {
 // Later:
 activation.deactivate();
 ```
+
+### Shipping as a script tag (IIFE)
+
+To distribute your plugin as a `<script>` tag for no-build-step, Web Component
+hosts (see [how the plugin system works](plugins.md#how-the-plugin-system-works)
+for the delivery-format overview), register it into the page-level
+`window.Triiiceratops` registry with `@triiiceratops/plugin-sdk/register`
+instead of exporting it from a module:
+
+```ts
+// iife.ts — your plugin's IIFE entry point, bundled standalone
+import { registerBrowserPlugin } from '@triiiceratops/plugin-sdk/register';
+import { createExamplePlugin } from './my-plugin';
+
+registerBrowserPlugin(createExamplePlugin());
+```
+
+```html
+<script src="https://unpkg.com/@example/my-plugin/dist/iife.js"></script>
+```
+
+`registerBrowserPlugin` only imports a type from `triiiceratops` (erased at
+build), so bundling it pulls no runtime and no Svelte into your plugin's
+script. Registration follows the same rule as `definePlugin` itself — it is
+side-effect-free and does not activate anything; the host's core build
+discovers and activates registered plugins by name. If two scripts register
+the same plugin name with different versions, the first registration wins and
+the second logs a console warning.
 
 ## Reading and controlling state
 
@@ -202,7 +465,8 @@ The plugin context carries three root-aware services.
 `context.styles.install(css, id)` installs a global stylesheet under a
 package-qualified key. It is deduplicated across viewers sharing a root,
 reference-counted, and cleaned up automatically on deactivation. It works in both
-light DOM and shadow DOM and is nonce-aware for CSP:
+light DOM and shadow DOM and is nonce-aware for CSP (see the
+[Content Security Policy guide](csp.md)):
 
 ```ts
 import type { PluginContext } from 'triiiceratops';
@@ -214,6 +478,23 @@ function installStyles(context: PluginContext) {
     );
     return uninstall; // release one reference
 }
+```
+
+Shape your CSS and its install id with `definePluginStyles(css, id)` — a small,
+dependency-free helper that first-party plugins use to export a named `STYLES` /
+`STYLE_ID` pair instead of an inline string literal, so the CSS lives in its own
+module (conventionally `styles.ts`) and the id stays a stable, reusable
+constant. `context.styles.install` takes the pair exactly where it took the
+literal string and id above:
+
+```ts
+import { definePluginStyles } from '@triiiceratops/plugin-sdk';
+
+// Conventionally in its own styles.ts, imported by name wherever installed.
+export const { STYLES, STYLE_ID } = definePluginStyles(
+    '.my-plugin-panel { padding: 1rem; }',
+    'panel',
+);
 ```
 
 ### Localization
@@ -248,83 +529,6 @@ indicator and offers **retry** (a manual, full re-activation). Failures are also
 delivered through the structured `pluginerror` channel — as a DOM event from the
 viewer root and as a host callback — carrying
 `{ pluginName, pluginVersion, phase, error, retry() }`.
-
-## Framework adapters
-
-Each adapter is a separate SDK subpath with optional peer dependencies. Only the
-latest stable framework majors are supported. All adapters consume the same
-`ViewerState` subscription contract — they do not track signals from core's
-Svelte runtime.
-
-=== "Svelte"
-
-    `@triiiceratops/plugin-sdk/svelte` exposes a selector as a Svelte readable
-    store, read with `$`-auto-subscription:
-
-    ```svelte
-    <script lang="ts">
-        import { viewerSelector } from '@triiiceratops/plugin-sdk/svelte';
-        let { context } = $props();
-        const open = viewerSelector(context, (s) => s.toolbarOpen);
-    </script>
-
-    <span>{$open ? 'open' : 'closed'}</span>
-    ```
-
-=== "React"
-
-    `@triiiceratops/plugin-sdk/react` provides a hook backed by the subscription
-    contract:
-
-    ```tsx
-    import { useViewerSelector } from '@triiiceratops/plugin-sdk/react';
-    import type { PluginContext } from 'triiiceratops';
-
-    export function PluginUI({ context }: { context: PluginContext }) {
-        const open = useViewerSelector(context, (s) => s.toolbarOpen);
-        return <span>{open ? 'open' : 'closed'}</span>;
-    }
-    ```
-
-=== "Vue"
-
-    `@triiiceratops/plugin-sdk/vue` provides a composable returning a readonly
-    `Ref`:
-
-    ```ts
-    import { useViewerSelector } from '@triiiceratops/plugin-sdk/vue';
-    import type { PluginContext } from 'triiiceratops';
-
-    export function useToolbarOpen(context: PluginContext) {
-        const open = useViewerSelector(context, (s) => s.toolbarOpen);
-        return open; // Ref<boolean>; read open.value in a template
-    }
-    ```
-
-=== "Lit"
-
-    `@triiiceratops/plugin-sdk/lit` provides a `ReactiveController`:
-
-    ```ts
-    import { SelectorController } from '@triiiceratops/plugin-sdk/lit';
-    import { LitElement, html } from 'lit';
-    import type { PluginContext } from 'triiiceratops';
-
-    export class PluginEl extends LitElement {
-        toolbar?: SelectorController<boolean>;
-
-        setContext(context: PluginContext) {
-            this.toolbar = new SelectorController(
-                this,
-                context.selectors.select((s) => s.toolbarOpen),
-            );
-        }
-
-        render() {
-            return html`<span>${this.toolbar?.value ? 'open' : 'closed'}</span>`;
-        }
-    }
-    ```
 
 ## Verified against the packed packages
 

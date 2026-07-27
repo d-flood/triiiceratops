@@ -7,9 +7,9 @@
 # bytes. This is what keeps a build step out of publication: the version is baked
 # in before CI ever packs.
 #
-# This workflow NEVER publishes. It only opens/updates the release PR. See
-# docs/release-runbook.md for the full RC → soak → stable flow, including exiting
-# pre mode for the stable release.
+# This workflow NEVER publishes. It only opens/updates the release PR, part of
+# the full RC → soak → stable flow (which also exits pre mode for the stable
+# release).
 name: Version
 
 on:

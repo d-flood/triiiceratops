@@ -362,8 +362,6 @@ export interface AnnotationPersistenceError {
 export interface AnnotationEditorConfig<TBody = W3CAnnotationBody, THostContext = unknown> {
     /** Render target for the plugin chrome. Defaults to `'panel'`. */
     target?: PluginUiTarget;
-    /** Preferred panel position when `target` is `'panel'`. Defaults to `'left'`. */
-    position?: 'left' | 'right' | 'bottom' | 'overlay';
     /** Storage adapter for persistence */
     adapter?: AnnotationStorageAdapter<TBody>;
     /** Current user for attribution */

@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # Content state is an explicit component input; URL reading is opt-in
 
 The viewer accepts a content state as an explicit `content-state`

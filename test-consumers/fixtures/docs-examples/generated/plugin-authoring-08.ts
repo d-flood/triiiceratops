@@ -1,11 +1,38 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import type { PluginContext } from 'triiiceratops';
+import { definePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
 
-function installStyles(context: PluginContext) {
-    const uninstall = context.styles.install(
-        '.my-plugin-panel { padding: 1rem; }',
-        'panel',
-    );
-    return uninstall; // release one reference
+const icon = svgIcon('<svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z" /></svg>');
+
+export function createExamplePlugin() {
+    return definePlugin({
+        name: '@example/my-plugin', // package-qualified, keys the registry
+        uiId: 'my-plugin', // stable, DOM-safe key for config.plugins[uiId]
+        version: '1.0.0',
+        coreRange: '>=1.0.0-rc.0', // core versions this plugin supports
+        pluginApiRange: '^1.0.0', // plugin API versions supported
+        requiredCapabilities: [], // e.g. ['osd@5']
+        icon,
+        target: 'panel', // default target; or 'flyout'. Host can override at
+        // runtime via config.plugins[uiId].target / setPluginTarget.
+        // There is no `position` field here — a panel's dock side is chosen
+        // by the consuming app, not the plugin. See "Panel position" below.
+        dismiss: 'light', // flyout dismiss: 'light' (default) or 'explicit'; ignored for panels
+        catalog: { en: { title: 'Example' } }, // package-owned localization
+        view: {
+            mount(container, context) {
+                const selector = context.selectors.select((s) => s.toolbarOpen);
+                const label = document.createElement('span');
+                label.textContent = selector.get() ? 'open' : 'closed';
+                const stop = selector.subscribe((open) => {
+                    label.textContent = open ? 'open' : 'closed';
+                });
+                container.appendChild(label);
+                return () => {
+                    stop();
+                    label.remove();
+                };
+            },
+        },
+    });
 }

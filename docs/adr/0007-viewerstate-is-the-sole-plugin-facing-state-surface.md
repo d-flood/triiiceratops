@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # `ViewerState` is the sole plugin-facing state surface
 
 Plugins receive one live object — the per-viewer `ViewerState` — and reach everything

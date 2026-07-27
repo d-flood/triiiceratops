@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # Display sync is owned by the annotation-editor plugin, not by adapters
 
 Historically an adapter had to inject its loaded annotations into `manifestsState`

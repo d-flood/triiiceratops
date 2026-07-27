@@ -401,6 +401,6 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'pluginUiState',
         classification: 'internal',
-        notes: 'Private SvelteMap of per-plugin { open, visible } UI state.',
+        notes: 'Private SvelteMap of per-plugin { open, visible, target, position } UI state; mutated reactively via config.plugins, setPluginOpen, setPluginTarget, and setPluginPosition.',
     },
 ];

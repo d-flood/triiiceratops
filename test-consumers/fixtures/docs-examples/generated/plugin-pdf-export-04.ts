@@ -1,4 +1,4 @@
-// GENERATED from docs/plugins.md — do not edit by hand.
+// GENERATED from docs/plugin-pdf-export.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
 import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
 

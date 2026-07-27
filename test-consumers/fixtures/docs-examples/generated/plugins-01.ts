@@ -1,7 +1,7 @@
 // GENERATED from docs/plugins.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
+import 'triiiceratops/element/register';
 import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
-// Svelte:        <TriiiceratopsViewer plugins={[ImageManipulationPlugin]} />
-// Web Component: viewer.plugins = [ImageManipulationPlugin];
+// `viewer` is your <triiiceratops-viewer> element.
 viewer.plugins = [ImageManipulationPlugin];
