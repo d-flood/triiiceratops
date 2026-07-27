@@ -20,6 +20,7 @@
         normalizeCanvasRange,
         type PdfExportMessages,
     } from './exportPdf';
+    import { reportPdfExportError } from './reportError';
     import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
     import { FILE_PDF_ICON, GLYPHS } from './icons';
     import type { PdfExportSelection } from './types';
@@ -65,6 +66,10 @@
         viewerState.currentCanvasIndex >= 0
             ? viewerState.currentCanvasIndex
             : 0;
+
+    // The panel's root element, bound so an actionable export failure can be
+    // reported to the host on the structured `pluginerror` channel.
+    let rootEl = $state<HTMLElement | null>(null);
 
     let open = $state(false);
     let startSelection = $state<number | null>(initialSelection);
@@ -291,6 +296,12 @@
                 error.message === messages.errorNotAvailable()
                     ? error.message
                     : t('pdf_export_error_failed');
+            // Surface the failure to the host on the structured channel (in
+            // addition to the panel-local message) so integrations can react
+            // without scraping the browser console for diagnostics.
+            if (rootEl) {
+                reportPdfExportError(rootEl, error, () => void handleExport());
+            }
         } finally {
             isExporting = false;
         }
@@ -304,7 +315,7 @@
     }
 </script>
 
-<div class="tri-pdf" data-tri-pdf>
+<div class="tri-pdf" data-tri-pdf bind:this={rootEl}>
     {#if open}
         <div
             class="tri-pdf-panel"

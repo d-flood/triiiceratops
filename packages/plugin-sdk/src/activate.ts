@@ -214,6 +214,9 @@ export function runActivation(
                     if (report) {
                         report({ phase: 'cleanup', error });
                     } else {
+                        // triiiceratops-console-allow: report-channel-first
+                        // fallback. Only reached in direct SDK / test-kit use
+                        // with no host `reportError`. Recorded in lint-allowlist.md.
                         console.error(
                             `[triiiceratops] Plugin "${meta.name}" cleanup threw during deactivation; teardown continues.`,
                             error,

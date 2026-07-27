@@ -685,6 +685,10 @@ export class AnnotationStore {
             });
             return;
         }
+        // triiiceratops-console-allow: report-channel-first fallback. Only
+        // reached when the host provided no `onPersistenceError` handler; the
+        // dismissible panel error below is the primary user-facing surface.
+        // Recorded in lint-allowlist.md.
         console.error(`[AnnotationEditor] ${op} failed:`, cause);
         this._panelError = { op, annotationId };
     }

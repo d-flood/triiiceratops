@@ -241,14 +241,8 @@ function getManifestFilenameBase(
             sanitizeFilenamePart(lastSegment || 'iiif-canvases') ||
             'iiif-canvases'
         );
-    } catch (error) {
-        console.debug(
-            '[PDF export] Falling back to raw manifest id for filename',
-            {
-                manifestId,
-                error,
-            },
-        );
+    } catch {
+        // Not a URL: fall back to sanitizing the raw manifest id.
         return sanitizeFilenamePart(manifestId) || 'iiif-canvases';
     }
 }
@@ -269,27 +263,10 @@ function isPdfCoverSheetField(value: unknown): value is PdfCoverSheetField {
     return typeof field.label === 'string' && typeof field.value === 'string';
 }
 
-function describeValueShape(value: unknown): string {
-    if (Array.isArray(value)) {
-        return `array(${value.length})`;
-    }
-
-    if (value === null) {
-        return 'null';
-    }
-
-    return typeof value;
-}
-
 function normalizeCoverSheetFields(fields: unknown): PdfCoverSheetField[] {
     if (Array.isArray(fields)) {
-        console.debug(
-            '[PDF export] Normalizing cover sheet fields from array',
-            {
-                length: fields.length,
-            },
-        );
-
+        // Unsupported entries are dropped silently — the cover sheet is
+        // best-effort and any usable entries still render.
         return fields.flatMap((field) => {
             if (isPdfCoverSheetField(field)) {
                 return [{ ...field }];
@@ -304,42 +281,21 @@ function normalizeCoverSheetFields(fields: unknown): PdfCoverSheetField[] {
                 ];
             }
 
-            console.warn(
-                '[PDF export] Ignoring unsupported cover sheet entry',
-                {
-                    shape: describeValueShape(field),
-                    entry: field,
-                },
-            );
             return [];
         });
     }
 
     if (isPdfCoverSheetField(fields)) {
-        console.debug('[PDF export] Normalizing cover sheet field object');
         return [{ ...fields }];
     }
 
     if (fields && typeof fields === 'object') {
-        console.debug(
-            '[PDF export] Normalizing cover sheet fields from object map',
-            {
-                keys: Object.keys(fields),
-            },
-        );
         return Object.entries(fields).flatMap(([label, value]) => {
             if (value == null) {
                 return [];
             }
 
             return [{ label, value: String(value) }];
-        });
-    }
-
-    if (fields !== undefined) {
-        console.warn('[PDF export] Unsupported cover sheet fields input', {
-            shape: describeValueShape(fields),
-            fields,
         });
     }
 
@@ -955,30 +911,12 @@ async function addCoverSheetPage(
         y -= 28;
 
         // Ensure buildCoverSheetFields result is a plain array (might be Svelte proxy)
-        let fields: PdfCoverSheetField[];
-        try {
-            fields = Array.from(
-                buildCoverSheetFields(coverSheet, runtimeValues),
-            );
-        } catch (fieldsError) {
-            console.error('[PDF export] Error building cover sheet fields', {
-                fieldsError,
-                coverSheetKeys: Object.keys(coverSheet || {}),
-            });
-            throw fieldsError;
-        }
-
-        console.debug('[PDF export] Processing fields', {
-            fieldCount: fields.length,
-        });
+        const fields: PdfCoverSheetField[] = Array.from(
+            buildCoverSheetFields(coverSheet, runtimeValues),
+        );
 
         for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) {
             const field = fields[fieldIndex];
-            console.debug('[PDF export] Processing field', {
-                fieldIndex,
-                fieldLabel: typeof field?.label,
-                fieldValue: typeof field?.value,
-            });
 
             const labelLines = wrapText(
                 field.label,
@@ -1020,13 +958,8 @@ async function addCoverSheetPage(
             y -= rowHeight;
         }
     } catch (pageError) {
-        console.error('[PDF export] Error in addCoverSheetPage', {
-            message:
-                pageError instanceof Error
-                    ? pageError.message
-                    : String(pageError),
-            stack: pageError instanceof Error ? pageError.stack : undefined,
-        });
+        // Surface the failure to the caller (the panel reports it on the
+        // structured error channel); the raster export path is unaffected.
         throw pageError;
     }
 }
@@ -1052,26 +985,11 @@ async function addSelectableTextLayer(
     const scaleX = pageWidth / canvasDimensions.width;
     const scaleY = pageHeight / canvasDimensions.height;
     const imageDimensions = getResolvedImageDimensions(options.resolvedImage);
-    let hasLoggedMissingImageDimensions = false;
 
     // Ensure overlays is a plain array (might be Svelte proxy)
     for (const overlay of Array.from(overlays)) {
-        if (
-            overlay.coordinateSpace === 'image' &&
-            !imageDimensions &&
-            !hasLoggedMissingImageDimensions
-        ) {
-            console.warn(
-                '[PDF export] Missing source image dimensions for image-space OCR overlay; using legacy canvas-space placement',
-                {
-                    canvasId: options.canvasId,
-                    label: options.label,
-                    overlayCount: overlays.length,
-                },
-            );
-            hasLoggedMissingImageDimensions = true;
-        }
-
+        // When image-space overlays arrive without source image dimensions we
+        // fall back to legacy canvas-space placement (best effort, silent).
         const normalizedOverlay = normalizeOverlayToCanvasSpace({
             overlay,
             canvasDimensions,
@@ -1245,30 +1163,15 @@ async function resolveCanvasOcrOverlays({
             });
             if (overlays != null) {
                 if (!Array.isArray(overlays)) {
-                    console.warn(
-                        '[PDF export] Ignoring invalid OCR overlay provider result',
-                        {
-                            canvasId,
-                            canvasIndex,
-                            label,
-                            shape: describeValueShape(overlays),
-                        },
-                    );
+                    // Invalid provider result: ignore and fall through to the
+                    // manifest-annotation path (best effort, silent).
                     return [];
                 }
 
                 return Array.from(overlays);
             }
-        } catch (error) {
-            console.warn(
-                '[PDF export] OCR overlay provider failed; falling back to manifest annotations',
-                {
-                    canvasId,
-                    canvasIndex,
-                    label,
-                    error,
-                },
-            );
+        } catch {
+            // Provider threw: fall back to manifest annotations (best effort).
         }
     }
 
@@ -1318,15 +1221,6 @@ export async function exportCanvasRangeAsPdf({
     messages = DEFAULT_PDF_EXPORT_MESSAGES,
 }: ExportCanvasRangeAsPdfParams): Promise<ExportCanvasRangeAsPdfResult> {
     try {
-        console.debug('[PDF export] Starting export', {
-            canvasCount: canvases.length,
-            startIndex,
-            endIndex,
-            manifestId,
-            hasCoverSheet: !!coverSheet,
-            coverSheetFieldShape: describeValueShape(coverSheet?.fields),
-        });
-
         const range = normalizeCanvasRange(
             startIndex,
             endIndex,
@@ -1349,19 +1243,11 @@ export async function exportCanvasRangeAsPdf({
         const coverSheetFields = normalizeCoverSheetFields(coverSheet?.fields);
 
         if (coverSheet && coverSheetFields.length > 0) {
-            console.debug('[PDF export] Adding cover sheet page', {
-                fieldCount: coverSheetFields.length,
-                title: coverSheet.title || 'Export Summary',
-            });
             onProgress?.(messages.progressCoverSheet());
             await addCoverSheetPage(
                 pdfDoc,
                 coverSheet,
                 getRuntimeValues(createdAt, currentUrl),
-            );
-        } else if (coverSheet) {
-            console.debug(
-                '[PDF export] Skipping cover sheet page because no usable fields were found',
             );
         }
 
@@ -1373,11 +1259,6 @@ export async function exportCanvasRangeAsPdf({
         for (const [offset, index] of plainIndices.entries()) {
             const canvas = canvases[index];
             const label = getCanvasLabel(canvas, index);
-            console.debug('[PDF export] Exporting canvas', {
-                offset,
-                index,
-                label,
-            });
             onProgress?.(
                 messages.progressCanvas({
                     current: offset + 1,
@@ -1494,34 +1375,22 @@ export async function exportCanvasRangeAsPdf({
                                 resolvedImage,
                             },
                         );
-                    } catch (error) {
-                        console.error(
-                            '[PDF export] Failed to add selectable OCR text layer',
-                            {
-                                canvasId,
-                                label,
-                                overlayCount: overlays.length,
-                                error,
-                            },
-                        );
-                        // Keep the raster page export even if OCR text embedding fails.
+                    } catch {
+                        // Keep the raster page export even if OCR text
+                        // embedding fails (best effort, silent).
                     }
                 }
 
                 exportedCount += 1;
             } catch (error) {
+                // A CORS/auth failure is fatal for the whole export (every
+                // canvas would fail the same way): surface it to the caller,
+                // which reports it on the structured error channel.
                 if (isLikelyCorsOrAuthFailure(error)) {
-                    console.warn(
-                        'PDF export blocked by image source access policy.',
-                        error,
-                    );
                     throw new Error(messages.errorNotAvailable());
                 }
-                console.error('[PDF export] Failed to export canvas', {
-                    index,
-                    label,
-                    error,
-                });
+                // A single-canvas failure is non-fatal: record it so the
+                // caller can report a partial export via `failedCanvases`.
                 failedCanvases.push(label);
             }
         }
@@ -1558,11 +1427,6 @@ export async function exportCanvasRangeAsPdf({
         onProgress?.(
             messages.progressDownload({ filename: finalFilename }),
         );
-        console.debug('[PDF export] Saving PDF document', {
-            filename: finalFilename,
-            exportedCount,
-            failedCount: failedCanvases.length,
-        });
         const pdfBytes = await pdfDoc.save();
         const pdfArray = Uint8Array.from(pdfBytes);
         downloadBlob(
@@ -1576,20 +1440,8 @@ export async function exportCanvasRangeAsPdf({
             filename: finalFilename,
         };
     } catch (error) {
-        const errorMessage =
-            error instanceof Error ? error.message : String(error);
-        const errorStack =
-            error instanceof Error ? error.stack : 'No stack trace';
-        console.error('[PDF export] Critical export error', {
-            message: errorMessage,
-            stack: errorStack,
-            name: error instanceof Error ? error.name : 'Unknown',
-            cause: error instanceof Error ? error.cause : undefined,
-            canvasCount: canvases.length,
-            startIndex,
-            endIndex,
-            coverSheetFieldCount: coverSheet?.fields?.length ?? 0,
-        });
+        // Surface the failure to the caller (the panel reports it on the
+        // structured `pluginerror` channel and shows a panel-local message).
         throw error;
     }
 }

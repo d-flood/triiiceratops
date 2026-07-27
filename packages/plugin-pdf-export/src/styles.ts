@@ -1,19 +1,15 @@
+import { definePluginStyles } from '@triiiceratops/plugin-sdk';
+
 /**
- * The plugin's global CSS, installed through the SDK style service
- * (`context.styles.install`) so it is root-aware: it reaches the document head
- * for a light-DOM viewer and the shadow root for the Web Component (SPEC.md —
- * "Global plugin CSS is installed through a root-aware style service"). Class
- * names are namespaced `tri-pdf-*` since these rules are not Svelte-scoped.
- *
- * Styling inherits the core public token contract (`--tri-*`) because the
- * plugin's DOM lives inside the viewer root; only plugin-specific rules live
- * here (SPEC.md — "Plugin panel styling continues to inherit the core public
- * token contract while plugin-specific styles remain package-owned"). The panel
- * markup and look are carried over from core's former `PdfExportPanel.svelte`,
- * rendered here as a self-positioned toggle-plus-panel (the SDK mount seam owns
- * no docked-panel chrome).
+ * The plugin's package-owned global CSS + its style-service install id, shaped
+ * by {@link definePluginStyles} into the `STYLES` / `STYLE_ID` exports the
+ * activation installs. Class names are namespaced `tri-pdf-*` since these rules
+ * are not Svelte-scoped. The panel markup and look are carried over from core's
+ * former `PdfExportPanel.svelte`, rendered here as a self-positioned
+ * toggle-plus-panel (the SDK mount seam owns no docked-panel chrome).
  */
-export const STYLES = `
+export const { STYLES, STYLE_ID } = definePluginStyles(
+    `
 .tri-pdf {
     position: absolute;
     left: var(--ui-inset, 0.5rem);
@@ -180,7 +176,6 @@ export const STYLES = `
     opacity: 0.5;
     cursor: default;
 }
-`;
-
-/** Stable style-service install id (keyed `<pluginName>:<id>` by the service). */
-export const STYLE_ID = 'panel';
+`,
+    'panel',
+);

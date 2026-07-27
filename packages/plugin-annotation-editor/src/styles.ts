@@ -12,6 +12,8 @@
  * here from core with the plugin (the `distributions.test.ts` single-source rule
  * moved with it).
  */
+import { definePluginStyles } from '@triiiceratops/plugin-sdk';
+
 import annotoriousCss from '@annotorious/openseadragon/annotorious-openseadragon.css?inline';
 
 /** Layer fixes + point-marker rendering, appended after the base stylesheet. */
@@ -127,8 +129,12 @@ const CHROME = `
 }
 `;
 
-/** The combined stylesheet installed under the `annotorious` id at activation. */
-export const STYLES = `${annotoriousCss}\n${ANNOTORIOUS_FIXES}\n${CHROME}`;
-
-/** Stable style-service install id (keyed `<pluginName>:<id>` by the service). */
-export const STYLE_ID = 'annotorious';
+/**
+ * The combined stylesheet (base Annotorious sheet + fixes + chrome) installed
+ * under the `annotorious` id at activation, shaped by {@link definePluginStyles}
+ * into the `STYLES` / `STYLE_ID` exports.
+ */
+export const { STYLES, STYLE_ID } = definePluginStyles(
+    `${annotoriousCss}\n${ANNOTORIOUS_FIXES}\n${CHROME}`,
+    'annotorious',
+);

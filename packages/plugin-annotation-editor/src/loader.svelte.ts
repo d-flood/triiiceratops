@@ -32,14 +32,12 @@ export function createLoader(store: AnnotationStore) {
 
             // Point the shared store at this canvas, then load. The store's
             // load-race token discards stale results and it injects the loaded
-            // annotations into the display overlay.
+            // annotations into the display overlay. A load failure is reported
+            // by the store itself on its structured channel (`onPersistenceError`
+            // / panel error, F20); `load()` catches internally and never rejects,
+            // so there is nothing to handle — and nothing to log — here.
             store.setCanvas(manifestId, canvasId);
-            void store.load().catch((err) => {
-                console.error(
-                    '[AnnotationLoader] Failed to load annotations',
-                    err,
-                );
-            });
+            void store.load();
         });
 
         // The shared store's lifecycle is tied to the loader (which lives as long

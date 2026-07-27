@@ -297,7 +297,9 @@ describe('exportCanvasRangeAsPdf', () => {
         expect(getDrawnTexts(mockPdfDoc.page)).toContain('fallback text');
     });
 
-    it('falls back when the provider throws and logs a warning', async () => {
+    it('falls back to manifest annotations when the provider throws (silently)', async () => {
+        // The fallback is best-effort and quiet (ticket 28): no console output,
+        // only the observable behavior — manifest annotations are used instead.
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const getCanvasAnnotations = vi.fn(() => [
             createOcrAnnotation('fallback text'),
@@ -318,10 +320,7 @@ describe('exportCanvasRangeAsPdf', () => {
 
         expect(getCanvasAnnotations).toHaveBeenCalledWith('canvas-1');
         expect(getDrawnTexts(mockPdfDoc.page)).toContain('fallback text');
-        expect(warnSpy).toHaveBeenCalledWith(
-            '[PDF export] OCR overlay provider failed; falling back to manifest annotations',
-            expect.objectContaining({ canvasId: 'canvas-1' }),
-        );
+        expect(warnSpy).not.toHaveBeenCalled();
     });
 
     it('calls the provider only for canvases in the selected export range', async () => {
@@ -498,7 +497,9 @@ describe('exportCanvasRangeAsPdf', () => {
         );
     });
 
-    it('warns and falls back when image-space overlays lack source dimensions', async () => {
+    it('falls back to canvas-space placement when image-space overlays lack source dimensions', async () => {
+        // The fallback is best-effort and quiet (ticket 28): no console output,
+        // only the observable legacy canvas-space placement.
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         await exportCanvasRangeAsPdf({
@@ -527,10 +528,7 @@ describe('exportCanvasRangeAsPdf', () => {
             loadImageBlob: () => createImageBlob(),
         });
 
-        expect(warnSpy).toHaveBeenCalledWith(
-            '[PDF export] Missing source image dimensions for image-space OCR overlay; using legacy canvas-space placement',
-            expect.objectContaining({ canvasId: 'canvas-1' }),
-        );
+        expect(warnSpy).not.toHaveBeenCalled();
         expect(getLastDrawTextOptions(mockPdfDoc.page)).toEqual(
             expect.objectContaining({
                 x: 5,

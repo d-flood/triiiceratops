@@ -155,6 +155,82 @@ export function assertTarballContents(tarballPath, pkgName) {
     return { ok, checks };
 }
 
+/** Read and parse `package/package.json` out of a packed `.tgz`. */
+export function readTarballPackageJson(tarballPath) {
+    const out = execFileSync(
+        'tar',
+        ['xzOf', tarballPath, 'package/package.json'],
+        { encoding: 'utf8' },
+    );
+    return JSON.parse(out);
+}
+
+/**
+ * Classify one `peerDependencies` value from a PACKED tarball (ticket 35).
+ *
+ * A published peer must be a semver RANGE — never a bare exact pin and never a
+ * residual `workspace:` protocol. Workspace-internal peers are declared
+ * `workspace:^` in each package manifest, which `pnpm pack` rewrites to
+ * `^<current version>` (a CARET range). Caret (not tilde, not the pin that
+ * `workspace:*` produces) is deliberate: `^1.0.0-rc.x` admits future compatible
+ * minor/patch core releases, so an already-published plugin keeps peer-matching
+ * instead of mismatching on every core patch. External peers (svelte/react/…)
+ * are already caret ranges and pass the same rule.
+ */
+export function classifyPeerRange(value) {
+    if (typeof value !== 'string' || value === '')
+        return { ok: false, reason: 'empty/non-string peer range' };
+    if (value.startsWith('workspace:'))
+        return { ok: false, reason: `residual workspace: protocol (${value})` };
+    if (value.startsWith('^') || value.startsWith('~'))
+        return { ok: true, reason: '' };
+    return { ok: false, reason: `not a range — exact pin (${value})` };
+}
+
+/**
+ * Assert every `peerDependencies` value in a packed tarball is a range.
+ * Packages with no `peerDependencies` pass trivially. Returns { ok, checks }.
+ */
+export function assertTarballPeerRanges(tarballPath, pkgName) {
+    const pkg = readTarballPackageJson(tarballPath);
+    const peers = pkg.peerDependencies ?? {};
+    const problems = [];
+    for (const [name, range] of Object.entries(peers)) {
+        const { ok, reason } = classifyPeerRange(range);
+        if (!ok) problems.push(`${name} — ${reason}`);
+    }
+    return {
+        ok: problems.length === 0,
+        checks: [
+            {
+                name: `${pkgName}: peerDependencies are ranges (no pins / no workspace:)`,
+                ok: problems.length === 0,
+                detail: problems.join(' | '),
+            },
+        ],
+    };
+}
+
+/**
+ * One-time self-check: prove the peer-range classifier REJECTS an exact pin and
+ * a residual `workspace:*`, and ACCEPTS a caret range — a permanent guard so the
+ * assertion can't silently degrade to a no-op. Returns { ok, detail }.
+ */
+export function selfCheckPeerRangeRejectsPin() {
+    const exactPin = classifyPeerRange('1.0.0-rc.25');
+    const workspacePin = classifyPeerRange('workspace:*');
+    const caret = classifyPeerRange('^1.0.0-rc.25');
+    const tilde = classifyPeerRange('~1.0.0');
+    const ok =
+        !exactPin.ok && !workspacePin.ok && caret.ok && tilde.ok;
+    return {
+        ok,
+        detail: ok
+            ? ''
+            : 'peer-range classifier misclassified a sample value',
+    };
+}
+
 /**
  * One-time self-check: prove the validator REJECTS a planted `foo.test.js` in a
  * `dist/` (AC: "must fail if a planted foo.test.js lands in a dist/"). Kept as a

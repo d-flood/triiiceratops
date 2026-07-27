@@ -35,6 +35,8 @@ import { pathToFileURL } from 'node:url';
 import { assertTarballCss } from './assert-tarball-css.mjs';
 import {
     assertTarballContents,
+    assertTarballPeerRanges,
+    selfCheckPeerRangeRejectsPin,
     selfCheckPlantedTest,
 } from './assert-tarball-contents.mjs';
 import {
@@ -268,6 +270,16 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-contents-planted', ok: planted.ok });
     ok = ok && planted.ok;
 
+    // Ticket 35: one-time guard that the peer-range check rejects an exact pin /
+    // residual `workspace:` and accepts a caret/tilde range.
+    const peerSelf = selfCheckPeerRangeRejectsPin();
+    (peerSelf.ok ? pass : fail)(
+        'contract: peer-range check rejects a pin / workspace:',
+        peerSelf.detail,
+    );
+    results.push({ label: 'tarball-peer-range-self', ok: peerSelf.ok });
+    ok = ok && peerSelf.ok;
+
     for (const pkg of PACKAGES_TO_PACK) {
         const tarball = tarballs[pkg.filter];
         const { ok: pkgOk, checks } = assertTarballContents(
@@ -279,6 +291,18 @@ async function assertContentsFromTarballs(tarballs) {
         }
         results.push({ label: `tarball-contents:${pkg.filter}`, ok: pkgOk });
         ok = ok && pkgOk;
+
+        // Ticket 35: published peers must be ranges, not the exact pins that
+        // `workspace:*` used to produce (which mismatched on every core patch).
+        const { ok: peerOk, checks: peerChecks } = assertTarballPeerRanges(
+            tarball,
+            pkg.filter,
+        );
+        for (const chk of peerChecks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({ label: `tarball-peers:${pkg.filter}`, ok: peerOk });
+        ok = ok && peerOk;
     }
     return ok;
 }

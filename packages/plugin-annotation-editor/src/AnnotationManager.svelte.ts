@@ -185,7 +185,7 @@ export class AnnotationManager {
 
     init(viewer: any, canvasId: string | null): void {
         if (!viewer) {
-            console.error('[AnnotationManager] Cannot init: Viewer is null');
+            // Nothing to attach to yet; init is a no-op until a viewer arrives.
             return;
         }
 
@@ -294,11 +294,9 @@ export class AnnotationManager {
             if (this.currentManifestId && this.currentCanvasId) {
                 void this.loadAnnotations();
             }
-        } catch (error) {
-            console.error(
-                '[AnnotationManager] Failed to create annotator:',
-                error,
-            );
+        } catch {
+            // Annotator setup failed; the editor stays inert for this canvas
+            // rather than taking down the viewer (failure isolation).
         }
     }
 
@@ -911,13 +909,12 @@ export class AnnotationManager {
 
         try {
             // The store bumps its load-race token and discards a stale result
-            // if the canvas changed while awaiting (F14).
+            // if the canvas changed while awaiting (F14). A load failure is
+            // reported by the store on its structured channel (onPersistenceError
+            // / panel error, F20); nothing to log here.
             await this.store.load();
-        } catch (error) {
-            console.error(
-                '[AnnotationEditor] Failed to load annotations:',
-                error,
-            );
+        } catch {
+            // Defensive: the store handles load failures internally.
         }
     }
 
@@ -1175,11 +1172,9 @@ export class AnnotationManager {
             if (full) {
                 this.onSelectionChange?.(full);
             }
-        } catch (error) {
-            console.error(
-                '[AnnotationEditor] Failed to hydrate annotation body:',
-                error,
-            );
+        } catch {
+            // The store reports a failed hydrate on its structured channel
+            // (onPersistenceError / panel error, F20); nothing to log here.
         } finally {
             this.onAnnotationHydrationChange?.(false);
         }
@@ -1289,10 +1284,8 @@ export class AnnotationManager {
         const annotation = await this.store.resolve(annotationId);
 
         if (!annotation) {
-            console.warn(
-                '[AnnotationEditor] Could not resolve annotation for editing:',
-                annotationId,
-            );
+            // The annotation is gone (e.g. deleted underneath us); there is
+            // nothing to open for editing.
             return;
         }
 
