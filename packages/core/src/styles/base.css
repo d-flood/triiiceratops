@@ -66,3 +66,40 @@
 .osd-background .openseadragon-container {
     background-color: transparent;
 }
+
+/*
+ * Visible, theme-aware keyboard focus indicator (WCAG 2.2 — 2.4.7 Focus Visible,
+ * 2.4.11 Focus Not Obscured). A single baseline so every focusable control —
+ * including the div/role="button" rows in the panels and gallery that carry no
+ * ring of their own — shows a consistent, high-contrast outline on keyboard
+ * focus. `:focus-visible` keeps the ring off pointer interactions. Anchored to
+ * the theme primary so it re-tints per theme; the offset lifts it clear of the
+ * control edge. Component rules may override the color, but must not remove the
+ * ring. In the published stylesheet these rules are scoped to `.viewer-root`
+ * (see scopeViewerRoot); in the shadow DOM they apply within the host.
+ */
+:where(:root, :host) :focus-visible {
+    outline: 2px solid var(--tri-color-primary);
+    outline-offset: 2px;
+}
+
+/*
+ * Reduced-motion safety net (WCAG 2.2 — 2.3.3 Animation from Interactions).
+ * Individual components opt into animation via
+ * `@media (prefers-reduced-motion: no-preference)`, but this global guard zeroes
+ * any remaining CSS transition/animation and disables smooth scrolling when the
+ * user asks for reduced motion, so no viewer chrome animates regardless of which
+ * component authored it. JS-driven animations honor the preference separately
+ * (see PanelStack / TriiiceratopsViewer matchMedia checks).
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+        scroll-behavior: auto !important;
+    }
+}

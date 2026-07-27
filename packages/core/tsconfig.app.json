@@ -13,5 +13,11 @@
         "moduleDetection": "force",
         "composite": true
     },
-    "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]
+    "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"],
+    // The contrast unit test imports the standalone CLI script under scripts/
+    // (its single source of truth). Keep that script out of this (composite,
+    // svelte-package) program — otherwise svelte-package emits a stray
+    // scripts/*.d.ts. The script is type-checked via tsconfig.node.json instead;
+    // vitest still runs this test.
+    "exclude": ["src/lib/theme/contrast.test.ts"]
 }

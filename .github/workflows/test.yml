@@ -36,6 +36,39 @@ jobs:
             - name: Run E2E Tests
               run: pnpm --filter triiiceratops test:e2e
 
+    accessibility:
+        name: Accessibility (WCAG 2.2 AA)
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            # Per-theme AA contrast over the --tri-* token pairings (oklch,
+            # computed). Fails on any pairing below AA.
+            - name: Theme contrast check
+              run: pnpm --filter triiiceratops test:contrast
+
+            - name: Install Playwright Browsers
+              run: pnpm --filter triiiceratops exec playwright install --with-deps chromium
+
+            # Axe scans (states × themes), keyboard journeys, and reduced-motion,
+            # scoped to the desktop chromium project.
+            - name: Run accessibility E2E (axe + keyboard + reduced-motion)
+              run: pnpm --filter triiiceratops exec playwright test a11y --project=chromium
+
     packed-consumers:
         name: Packed Consumers
         runs-on: ubuntu-latest
