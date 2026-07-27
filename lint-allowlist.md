@@ -69,3 +69,53 @@ Rules:
   (listbox) operates with keyboard and exposes aria-activedescendant".
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-18 · **Review by:** 2027-01-18
+
+### 3. bare `console.warn` — `packages/plugin-sdk/src/register.ts` (duplicate-registration notice)
+
+- **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+- **Mechanism:** a `// triiiceratops-console-allow` marker comment on the
+  preceding lines (the guard's documented, narrowly-scoped allow marker) —
+  anchored to this exact site, not a blanket exception.
+- **Rationale:** `register()` runs at page-registration time, before any viewer
+  or `ViewerConfig` exists, so there is no `viewererror`/`pluginerror` channel to
+  route to. When a second copy of a plugin (a different version) registers on the
+  same page, the first-registration-wins rule silently ignores the newcomer; a
+  one-time `console.warn` is the only way to make that page-level
+  misconfiguration visible to the integrator. Ticket 30 moved this warn from the
+  four plugin packages into the single SDK `register.ts`, so it now exists once.
+  Two further report-channel-first fallbacks carry the same marker and are
+  covered by the same guard: `packages/plugin-sdk/src/activate.ts` (cleanup-phase
+  fallback when the host supplied no `reportError`) and
+  `packages/plugin-annotation-editor/src/AnnotationStore.svelte.ts` (persistence
+  fallback when the host supplied no `onPersistenceError`).
+- **Behavior test:** `packages/plugin-sdk/src/register.test.ts` — duplicate
+  registration keeps the first factory and warns; the plugin
+  `distribution-cleanup.guard.test.ts` suites prove every other console site is
+  gone.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-07-19 · **Review by:** 2027-01-19
+
+### 4. Public-declaration `any` — IIIF resources crossing the `manifesto.js` boundary
+
+- **Code:** public-`any` in emitted `.d.ts` (guarded by `scripts/check-public-api.mjs`)
+- **File / target:** `api-reports/dts-any-allowlist.txt` — the machine-readable
+  line list the gate reads. Each line is a normalized `any`-bearing public
+  declaration (e.g. `manifestJson?: any` on the main `<TriiiceratopsViewer>`, plus
+  the manifest / canvas / annotation accessors in `state/` and `utils/`, and the
+  IIIF resource params on the image-download / pdf-export plugins).
+- **Mechanism:** a single documented boundary, allowlisted per-line in the txt
+  file rather than suppressed inline. The gate FAILS on any NEW public `any` that
+  is not listed there.
+- **Rationale:** the viewer models fetched IIIF resources (manifest / canvas /
+  annotation) as `any` because its `manifesto.js` boundary is untyped. These are
+  PRE-EXISTING, STRUCTURAL exceptions at one boundary, not accidental leakage;
+  narrowing them is a deliberate, recorded out-of-scope decision. The SDK ABI
+  itself is `any`-clean. **Update protocol:** adding or removing a line requires
+  regenerating the txt via `node scripts/check-public-api.mjs --write-allowlist`
+  AND updating this entry's rationale/date in the same commit.
+- **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
+  `pnpm api:check` in required CI) — fails the build on any non-allowlisted
+  public `any`.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-07-19 · **Review by:** 2027-01-19

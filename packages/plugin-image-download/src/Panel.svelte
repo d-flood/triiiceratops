@@ -23,6 +23,7 @@
     } from 'triiiceratops/image-export';
 
     import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
+    import { reportImageDownloadError } from './reportError';
     import { DOWNLOAD_ICON } from './icons';
     import {
         buildImageDownloadFilename,
@@ -80,6 +81,9 @@
     let isDownloading = $state(false);
     let errorMessage = $state('');
     let resultMessage = $state('');
+    // The panel's root element, bound so an actionable download failure can be
+    // reported to the host on the structured `pluginerror` channel.
+    let rootEl = $state<HTMLElement | null>(null);
 
     const getSelectedChoice = (canvasId: string) =>
         viewerState.getSelectedChoice(canvasId);
@@ -266,12 +270,15 @@
             downloadBlob(blob, filename);
             resultMessage = t('image_download_result_downloaded', { filename });
         } catch (error) {
-            console.error('[Image download] Export failed', {
-                error,
-                mode,
-                canvasId: viewerState.canvasId,
-            });
             errorMessage = t('image_download_error_failed');
+            // Surface the failure to the host on the structured channel (in
+            // addition to the panel-local message) so integrations can react
+            // without scraping the browser console for diagnostics.
+            if (rootEl) {
+                reportImageDownloadError(rootEl, error, () =>
+                    void handleDownload(),
+                );
+            }
         } finally {
             isDownloading = false;
         }
@@ -285,7 +292,7 @@
     }
 </script>
 
-<div class="tri-id" data-tri-id>
+<div class="tri-id" data-tri-id bind:this={rootEl}>
     {#if open}
         <div
             class="tri-id-panel"

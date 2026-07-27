@@ -49,6 +49,10 @@ function createRegistry(): PluginFactoryRegistry {
                 return;
             }
             if (existing.version === factory.version) return;
+            // triiiceratops-console-allow: page-level duplicate-registration
+            // notice. There is no viewer/config (and so no structured channel)
+            // at page-registration time; a one-time warn is the only signal.
+            // Recorded in lint-allowlist.md.
             console.warn(
                 `[triiiceratops] Ignoring plugin "${factory.name}" version ` +
                     `${factory.version}: version ${existing.version} is already ` +

@@ -1,16 +1,13 @@
+import { definePluginStyles } from '@triiiceratops/plugin-sdk';
+
 /**
- * The plugin's global CSS, installed through the SDK style service
- * (`context.styles.install`) so it is root-aware: it reaches the document head
- * for a light-DOM viewer and the shadow root for the Web Component (SPEC.md —
- * "Global plugin CSS is installed through a root-aware style service"). Class
- * names are namespaced `tri-im-*` since these rules are not Svelte-scoped.
- *
- * Styling inherits the core public token contract (`--tri-*`) because the
- * plugin's DOM lives inside the viewer root; only plugin-specific rules live
- * here (SPEC.md — "Plugin panel styling continues to inherit the core public
- * token contract while plugin-specific styles remain package-owned").
+ * The plugin's package-owned global CSS + its style-service install id, shaped
+ * by {@link definePluginStyles} into the `STYLES` / `STYLE_ID` exports the
+ * activation installs. Class names are namespaced `tri-im-*` since these rules
+ * are not Svelte-scoped.
  */
-export const STYLES = `
+export const { STYLES, STYLE_ID } = definePluginStyles(
+    `
 .tri-im {
     position: absolute;
     right: var(--ui-inset, 0.5rem);
@@ -137,7 +134,6 @@ export const STYLES = `
     height: 1.125rem;
     fill: currentColor;
 }
-`;
-
-/** Stable style-service install id (keyed `<pluginName>:<id>` by the service). */
-export const STYLE_ID = 'flyout';
+`,
+    'flyout',
+);

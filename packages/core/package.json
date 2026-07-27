@@ -12,6 +12,9 @@
         "provenance": true
     },
     "private": false,
+    "engines": {
+        "node": ">=22"
+    },
     "license": "MIT",
     "files": [
         "dist",

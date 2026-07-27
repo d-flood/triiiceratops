@@ -16,6 +16,9 @@ export type { DefinePluginConfig } from './definePlugin.js';
 // Validated toolbar-icon helper (throws synchronously on unsafe markup).
 export { svgIcon, SvgIconError } from './svgIcon.js';
 
+// Shape a plugin's global stylesheet + install id for the SDK style service.
+export { definePluginStyles } from './pluginStyles.js';
+
 // Await OSD readiness before touching the raw OpenSeadragon viewer.
 export { whenOsdReady } from './osd.js';
 export type { WhenOsdReadyOptions } from './osd.js';

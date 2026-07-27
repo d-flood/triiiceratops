@@ -16,6 +16,9 @@
         "provenance": true
     },
     "private": false,
+    "engines": {
+        "node": ">=22"
+    },
     "sideEffects": [
         "./dist/iife.js"
     ],
@@ -48,8 +51,8 @@
         "test:coverage": "vitest run --coverage"
     },
     "peerDependencies": {
-        "triiiceratops": "workspace:*",
-        "@triiiceratops/plugin-sdk": "workspace:*"
+        "triiiceratops": "workspace:^",
+        "@triiiceratops/plugin-sdk": "workspace:^"
     },
     "dependencies": {
         "@annotorious/annotorious": "^3.7.19",

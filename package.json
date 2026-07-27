@@ -25,6 +25,7 @@
         "coverage:check": "node scripts/coverage-check.mjs",
         "coverage:baseline": "node scripts/coverage-check.mjs --update",
         "coverage:changed": "node scripts/coverage-changed-lines.mjs",
+        "audit:prod": "node scripts/audit-prod.mjs",
         "perf:compare": "node scripts/perf/compare.mjs",
         "perf:measure": "node scripts/perf/measure.mjs",
         "api:report": "node scripts/api-report.ts",
