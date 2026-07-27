@@ -30,7 +30,7 @@ export default defineConfig({
     root: 'src/demo',
     base: './', // Relative paths for GitHub Pages
     build: {
-        outDir: resolve(__dirname, 'docs/viewer'),
+        outDir: resolve(__dirname, '../../docs/viewer'),
         emptyOutDir: true,
     },
     publicDir: resolve(__dirname, 'public'),

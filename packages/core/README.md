@@ -1,0 +1,183 @@
+# Triiiceratops IIIF Viewer
+
+A modern IIIF viewer with a small footprint (despite the name) distributed as a web component that can be dropped into any HTML page or frontend framework.
+
+This is a work in progress and does not support all required IIIF client features (_yet_).
+
+This project is heavily inspired by Mirador 4, which I still view as the premier IIIF viewer.
+
+## Features
+
+- **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
+- **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
+- **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
+- **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom support)
+- **Start Canvas**: Supports the IIIF `start` property to open the manifest at a specific canvas
+- **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical table of contents navigation
+- **Collections**: Browse IIIF Collections and navigate between manifests within a collection; collection items with `navDate` are sorted chronologically
+- **Multiple Sequences**: Manifests with more than one sequence (including alternative page sequences via `behavior: sequence` ranges) show a sequence picker in the toolbar
+- **Annotations**:
+    - Renders IIIF annotations from embedded or external annotation lists
+    - Supports rectangle (`xywh`), polygon (SVG selector), and point (`PointSelector`) geometries
+    - Tagging annotations displayed as badges; full-canvas annotations listed without an overlay
+    - Toggle per-annotation or all-annotations visibility
+- **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
+- **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
+- **IIIF Search**: Full Content Search API support with hit highlighting
+- **Content State API**: Accepts the `iiif-content` URL parameter (base64-encoded JSON or plain URL) to open a manifest at a specific canvas and region
+- **Direct Manifest Injection**: Svelte and web component consumers can pass manifest JSON directly instead of loading over HTTP
+- **Custom Search Providers**: Svelte consumers can supply local or app-backed search results without exposing an HTTP IIIF Search endpoint
+- **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
+- **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
+- **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
+- **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
+- **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
+
+## Current Limitations
+
+This project is actively developed. The following IIIF features are not yet supported:
+
+### Content
+
+- **Audio/Video**: Time-based media (canvases with `duration`) not supported
+
+### Navigation
+
+- **Nested collections**: Only the first level of a Collection is navigable; deeply nested sub-collections are listed but not yet browsable
+- **`navDate` within manifests**: Collection items with `navDate` are sorted chronologically, but date-based browsing within a manifest (e.g., a newspaper date picker) is not yet implemented
+
+### Annotations
+
+- **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
+
+The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
+
+There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See `docs/plugins.md`.
+
+For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See `docs/plugins.md`.
+
+### Other
+
+- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported
+
+The goal is to support all IIIF client mandatory features with pluggable optional features. The footprint of Triiiceratops, despite the name, is intended to remain considerably smaller than other fully featured viewers while attaining feature parity.
+
+## Usage
+
+### Web Component
+
+The viewer is available as a web component that works in any framework or static HTML.
+
+**Via CDN:**
+
+```html
+<script
+    type="module"
+    src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.js"
+></script>
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/triiiceratops/dist/triiiceratops-element.css"
+/>
+
+<div style="height: 600px; width: 100%;">
+    <triiiceratops-viewer
+        style="height: 100%; width: 100%; display: block;"
+        manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+    >
+    </triiiceratops-viewer>
+</div>
+```
+
+To load a manifest directly from JSON, assign it as a property from JavaScript:
+
+```html
+<triiiceratops-viewer id="viewer"></triiiceratops-viewer>
+
+<script type="module">
+    const viewer = document.getElementById('viewer');
+    viewer.manifestId = 'urn:example:manifest';
+    viewer.manifestJson = {
+        id: 'urn:example:manifest',
+        type: 'Manifest',
+        label: { none: ['Local manifest'] },
+        items: [],
+    };
+</script>
+```
+
+### Svelte Component
+
+If you are using Svelte, you can import the component directly.
+
+**Installation:**
+
+```bash
+pnpm add triiiceratops
+```
+
+**Usage:**
+
+```svelte
+<script>
+    import { TriiiceratopsViewer } from 'triiiceratops';
+    import 'triiiceratops/style.css';
+
+    const manifestJson = {
+        id: 'urn:example:manifest',
+        type: 'Manifest',
+        label: { none: ['Local manifest'] },
+        items: [],
+    };
+</script>
+
+<!-- Container must have height -->
+<div style="height: 600px;">
+    <TriiiceratopsViewer manifestId="urn:example:manifest" {manifestJson} />
+</div>
+```
+
+### Local Search in Svelte
+
+If your application stores transcript or annotation data locally, you can provide search results directly with `searchProvider`:
+
+```svelte
+<script>
+    import { TriiiceratopsViewer } from 'triiiceratops';
+
+    const searchProvider = async (query, context) => {
+        return [
+            {
+                canvasIndex: 0,
+                canvasLabel: 'Page 1',
+                hits: [{ type: 'hit', before: '', match: query, after: '' }],
+            },
+        ];
+    };
+</script>
+
+<TriiiceratopsViewer
+    manifestId="urn:example:manifest"
+    {manifestJson}
+    {searchProvider}
+/>
+```
+
+`searchProvider` is a callback hook, not a IIIF Search service declaration. It does not add, replace, or override a search service URI in the manifest. If your manifest already declares a normal IIIF Search service, Triiiceratops will use that service when `searchProvider` is not supplied.
+
+The web component can also load manifest JSON directly via the `manifestJson` property, but custom search providers remain a Svelte-only integration hook for now.
+
+## Development
+
+```bash
+pnpm install
+
+pnpm dev           # Start local demo server
+pnpm build:all     # Build library, web component, and demo
+pnpm test          # Run unit tests
+pnpm test:e2e      # Run end-to-end tests
+```
+
+## License
+
+MIT
