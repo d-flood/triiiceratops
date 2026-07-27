@@ -163,6 +163,7 @@ export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, curr
  */
 export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
+export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
 export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP } from './components/osdLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
@@ -2102,6 +2103,40 @@ export declare function parseAnnotation(annotation: any, index: number, isSearch
  * Batch parse annotations
  */
 export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>): ParsedAnnotation[];
+
+// ======================================================================
+// FILE: dist/utils/canvasImageSpace.d.ts
+// ======================================================================
+export type CanvasImageSpaceDimensions = {
+    canvasWidth: number;
+    canvasHeight: number;
+    imageWidth: number;
+    imageHeight: number;
+};
+type Rect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+type Point = {
+    x: number;
+    y: number;
+};
+export declare function canvasRectToImageRect(rect: Rect, dimensions: CanvasImageSpaceDimensions | null | undefined): Rect;
+export declare function imageRectToCanvasRect(rect: Rect, dimensions: CanvasImageSpaceDimensions | null | undefined): Rect;
+export declare function canvasPointToImagePoint(point: Point, dimensions: CanvasImageSpaceDimensions | null | undefined): Point;
+export declare function imagePointToCanvasPoint(point: Point, dimensions: CanvasImageSpaceDimensions | null | undefined): Point;
+export declare function canvasPointsToImagePoints(points: Array<[number, number]>, dimensions: CanvasImageSpaceDimensions | null | undefined): Array<[number, number]>;
+export declare function transformAnnotationToImageSpace<T extends {
+    target?: any;
+    on?: any;
+}>(annotation: T, dimensions: CanvasImageSpaceDimensions | null | undefined): T;
+export declare function transformAnnotationToCanvasSpace<T extends {
+    target?: any;
+    on?: any;
+}>(annotation: T, dimensions: CanvasImageSpaceDimensions | null | undefined): T;
+export {};
 
 // ======================================================================
 // FILE: dist/utils/canvasLabels.d.ts

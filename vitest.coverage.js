@@ -12,7 +12,11 @@
 // and type-only declarations are excluded from the denominator.
 export const coverage = {
     provider: 'v8',
-    reporter: ['text-summary', 'json-summary'],
+    // `json-summary` feeds the per-package floor gate (`coverage:check`);
+    // `json` emits `coverage-final.json` with per-line hit data, which the
+    // changed-lines report (`coverage:changed`, ticket 34) intersects with a
+    // PR's diff. Both are machine-readable and cheap to emit alongside.
+    reporter: ['text-summary', 'json-summary', 'json'],
     reportsDirectory: './coverage',
     all: true,
     include: ['src/**/*.{ts,svelte}'],

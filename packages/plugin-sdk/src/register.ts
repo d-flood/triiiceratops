@@ -11,11 +11,13 @@
  * `capabilities`. Registration NEVER activates anything (CONTEXT.md
  * **Registration**) — activation stays explicit and per viewer.
  *
- * It imports only a type from the SDK, so it pulls no runtime and no Svelte into
- * the bundle. Tickets 15–17 copy this file verbatim for their own IIFE entries.
+ * Shipped as the `@triiiceratops/plugin-sdk/register` subpath and consumed by
+ * every plugin's IIFE entry. It imports only a type (erased at build) and
+ * nothing else from the SDK, so bundling it into a plugin IIFE pulls no runtime
+ * and no Svelte into the bundle — the copy stays cheap and self-contained.
  */
 
-import type { SdkPlugin } from '@triiiceratops/plugin-sdk';
+import type { SdkPlugin } from 'triiiceratops';
 
 interface PluginFactoryRegistry {
     register(factory: SdkPlugin): void;

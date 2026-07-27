@@ -7,6 +7,7 @@
 //   - dist/index.d.ts
 //   - dist/lit.d.ts
 //   - dist/react.d.ts
+//   - dist/register.d.ts
 //   - dist/svelte.d.ts
 //   - dist/testing/index.d.ts
 //   - dist/vue.d.ts
@@ -301,6 +302,49 @@ import type { PluginContext, ViewerState } from 'triiiceratops';
  * @returns The current selected value, updated on every gated change.
  */
 export declare function useViewerSelector<T>(context: PluginContext, selector: (state: ViewerState) => T, equals?: (a: T, b: T) => boolean): T;
+
+// ======================================================================
+// FILE: dist/register.d.ts
+// ======================================================================
+/**
+ * Self-contained browser registration into the `window.Triiiceratops` namespace
+ * (SPEC.md "Plugin SDK And Browser API").
+ *
+ * The namespace is an order-independent registry: every core OR plugin IIFE
+ * bootstraps it if absent (`window.Triiiceratops ??= …`), so a plugin script may
+ * load and register before core. This helper mirrors core's registry shape
+ * exactly (register / get / has / list, keyed by name with version as the
+ * first-wins tiebreaker); when core loads it reuses whichever runtime object
+ * already exists and fills in `coreVersion` / `pluginApiVersion` /
+ * `capabilities`. Registration NEVER activates anything (CONTEXT.md
+ * **Registration**) — activation stays explicit and per viewer.
+ *
+ * Shipped as the `@triiiceratops/plugin-sdk/register` subpath and consumed by
+ * every plugin's IIFE entry. It imports only a type (erased at build) and
+ * nothing else from the SDK, so bundling it into a plugin IIFE pulls no runtime
+ * and no Svelte into the bundle — the copy stays cheap and self-contained.
+ */
+import type { SdkPlugin } from 'triiiceratops';
+interface PluginFactoryRegistry {
+    register(factory: SdkPlugin): void;
+    get(name: string): SdkPlugin | undefined;
+    has(name: string): boolean;
+    list(): readonly SdkPlugin[];
+}
+interface BrowserRuntime {
+    coreVersion: string;
+    pluginApiVersion: string;
+    capabilities: readonly string[];
+    plugins: PluginFactoryRegistry;
+}
+declare global {
+    interface Window {
+        Triiiceratops?: BrowserRuntime;
+    }
+}
+/** Bootstrap `window.Triiiceratops` if absent and register the plugin factory. */
+export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
+export {};
 
 // ======================================================================
 // FILE: dist/selectors.d.ts

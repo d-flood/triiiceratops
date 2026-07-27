@@ -45,6 +45,10 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+              with:
+                  # Full history so the changed-lines coverage report (ticket 34)
+                  # can resolve the merge-base with the PR base branch.
+                  fetch-depth: 0
 
             - uses: pnpm/action-setup@v4
               with:
@@ -90,6 +94,17 @@ jobs:
 
             - name: Coverage floor (may not drop below coverage-baseline.json)
               run: pnpm coverage:check
+
+            # Ticket 34: changed-lines coverage REPORT (never gates). On a PR,
+            # intersect the diff against the merge-base with the target branch
+            # and publish the per-package + total covered/instrumentable figure
+            # to the job summary. Reporting only — the floor gate above is the
+            # enforcement mechanism.
+            - name: Changed-lines coverage report (PR only, job summary)
+              if: github.event_name == 'pull_request'
+              run: |
+                  pnpm --silent coverage:changed -- --base "origin/${{ github.base_ref }}" \
+                    | tee -a "$GITHUB_STEP_SUMMARY"
 
     # Ticket 24: browser E2E matrix. Sharded by Playwright project so the desktop
     # engines (chromium, firefox, webkit) and the mobile profiles (android-chrome,
