@@ -1,0 +1,2460 @@
+import { SvelteSet, SvelteMap } from 'svelte/reactivity';
+import { flushSync, untrack } from 'svelte';
+// Import the OpenSeadragon types as a MODULE (not the ambient UMD global) so the
+// emitted `.d.ts` references `import('openseadragon').Viewer` — module-resolvable
+// by a strict-TS consumer via the `openseadragon` runtime dep + the
+// `@types/openseadragon` dependency (ticket 21), instead of an ambient global the
+// consumer can't see.
+import type OpenSeadragon from 'openseadragon';
+import { manifestsState } from './manifests.svelte.js';
+import { STATE_INVENTORY } from './state-inventory.js';
+import { getLocale } from '../paraglide/runtime.js';
+import { logger, isDebugEnabled } from '../logging/logger';
+import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
+import type {
+    PluginUiConfig,
+    RequestConfig,
+    SearchProvider,
+    SearchResultGroup,
+    ViewerConfig,
+} from '../types/config';
+
+import type {
+    PluginMenuButton,
+    PluginPanel,
+    PluginFlyout,
+    PluginDef,
+    PluginMountThunk,
+    PluginUiTarget,
+    IconDescriptor,
+} from '../types/plugin';
+import { parseStructures, type StructureNode } from '../utils/structures';
+import {
+    isCollection,
+    parseCollection,
+    getCollectionLabel,
+    getCollectionThumbnail,
+    sortCollectionItems,
+    type CollectionItem,
+} from '../utils/collections';
+import type { CanvasRegion } from '../utils/contentState';
+import {
+    findCanvasIndexById,
+    getAnnotationId,
+    getCanvasId,
+} from '../utils/iiifIds';
+import { normalizeIiifTargets } from '../utils/iiifTargets';
+import { createPluginId } from '../utils/pluginId';
+import {
+    getPagedCanvasGroups,
+    getVisibleCanvasEntries,
+} from '../components/viewerControls';
+import { getThumbnailSrc } from '../utils/getThumbnailSrc';
+
+function normalizeIiifBehavior(value: unknown): string {
+    const normalized = String(value).trim().toLowerCase();
+    const segments = normalized.split(/[#/:]/);
+    return segments[segments.length - 1] || normalized;
+}
+
+/**
+ * Snapshot of viewer state for external consumers.
+ * Used by web component events to expose state without Svelte reactivity.
+ */
+export interface ViewerStateSnapshot {
+    manifestId: string | null;
+    canvasId: string | null;
+    currentCanvasIndex: number;
+    showAnnotations: boolean;
+    showInformationPanel: boolean;
+    showThumbnailGallery: boolean;
+    showSearchPanel: boolean;
+    showStructuresPanel: boolean;
+    toolbarOpen: boolean;
+    searchQuery: string;
+    isFullScreen: boolean;
+    dockSide: string;
+    viewingMode: 'individuals' | 'paged' | 'continuous';
+    viewingDirection:
+        | 'left-to-right'
+        | 'right-to-left'
+        | 'top-to-bottom'
+        | 'bottom-to-top';
+    preserveCanvasScale: boolean;
+    galleryPosition: { x: number; y: number };
+    gallerySize: { width: number; height: number };
+}
+
+export class ViewerState {
+    manifestId: string | null = $state(null);
+    canvasId: string | null = $state(null);
+    showAnnotations = $state(false);
+    showThumbnailGallery = $state(false);
+    toolbarOpen = $state(false);
+    isGalleryDockedBottom = $state(false);
+    isGalleryDockedRight = $state(false);
+    isFullScreen = $state(false);
+    showMetadataPanel = $state(false);
+    showCanvasInfo = $state(false);
+    showStructuresPanel = $state(false);
+    initialCanvasRegion = $state<CanvasRegion | null>(null);
+    dockSide = $state('bottom');
+    visibleAnnotationIds = new SvelteSet<string>();
+    annotationVisibilityTouched = $state(false);
+    hoveredAnnotationId = $state<string | null>(null);
+
+    /**
+     * Per-viewer plugin-written annotation display state, keyed by
+     * `manifestId::canvasId` (ADR 0007). Moved off the page-shared manifest cache
+     * so annotations displayed in one viewer never leak into another on the same
+     * page. Plugins write it only through {@link setUserAnnotations} /
+     * {@link clearUserAnnotations}; core merges it on top of manifest annotations
+     * in {@link getAnnotations}. Its changes notify subscribers (command state).
+     */
+    userAnnotations = new SvelteMap<string, any[]>();
+
+    /**
+     * Manifest ids this viewer has finished loading/registering. Observable: core
+     * adds to it when a manifest becomes ready, giving subscribers a
+     * manifest-readiness notification (queryable via {@link isManifestReady}).
+     */
+    loadedManifestIds = new SvelteSet<string>();
+
+    private userAnnotationKey(manifestId: string, canvasId: string): string {
+        return `${manifestId}::${canvasId}`;
+    }
+
+    /**
+     * Replace this viewer's displayed user annotations for one canvas. The
+     * supported write path for plugin display sync (ADR 0001, amended): the
+     * annotation-editor store calls this after each successful persistence op.
+     */
+    setUserAnnotations(
+        manifestId: string,
+        canvasId: string,
+        annotations: any[],
+    ): void {
+        this.userAnnotations.set(
+            this.userAnnotationKey(manifestId, canvasId),
+            annotations,
+        );
+    }
+
+    /** Drop this viewer's displayed user annotations for one canvas. */
+    clearUserAnnotations(manifestId: string, canvasId: string): void {
+        const key = this.userAnnotationKey(manifestId, canvasId);
+        if (this.userAnnotations.has(key)) {
+            this.userAnnotations.delete(key);
+        }
+    }
+
+    /** This viewer's displayed user annotations for one canvas (never null). */
+    getUserAnnotations(manifestId: string, canvasId: string): any[] {
+        return (
+            this.userAnnotations.get(
+                this.userAnnotationKey(manifestId, canvasId),
+            ) ?? []
+        );
+    }
+
+    /**
+     * Annotations for a canvas: manifest-defined annotations from the shared
+     * cache merged with this viewer's own user annotations (ADR 0007). Plugins
+     * reach annotation data through this query rather than importing the manifest
+     * cache. A `sourceId` restricts the result to one annotation list and skips
+     * the user-annotation merge, mirroring the manifest cache's behavior.
+     */
+    getAnnotations(
+        manifestId: string,
+        canvasId: string,
+        sourceId?: string,
+    ): any[] {
+        const manifestAnnos = manifestsState.getAnnotations(
+            manifestId,
+            canvasId,
+            sourceId,
+        );
+
+        if (sourceId) {
+            return manifestAnnos;
+        }
+
+        const userAnnos = this.getUserAnnotations(manifestId, canvasId).map(
+            (annotation) => {
+                if (!annotation || typeof annotation !== 'object') {
+                    return annotation;
+                }
+                return {
+                    ...annotation,
+                    __triiiceratopsAnnotationOrigin: 'user',
+                };
+            },
+        );
+
+        return [...manifestAnnos, ...userAnnos];
+    }
+
+    /**
+     * Canvases of a manifest (from the shared cache). Plugins reach canvas data
+     * through this query rather than importing the manifest cache.
+     */
+    getCanvases(manifestId: string, sequenceIndex: number = 0): any[] {
+        return manifestsState.getCanvases(manifestId, sequenceIndex);
+    }
+
+    /**
+     * Ensure a canvas's external annotation lists are fetched, then return the
+     * per-viewer merged annotations for it. Plugin-facing wrapper over the shared
+     * cache's fetch-and-return.
+     */
+    async ensureCanvasAnnotations(
+        manifestId: string,
+        canvasId: string,
+        sourceId?: string,
+    ): Promise<any[]> {
+        await manifestsState.ensureCanvasAnnotations(
+            manifestId,
+            canvasId,
+            sourceId,
+        );
+        return this.getAnnotations(manifestId, canvasId, sourceId);
+    }
+
+    /** Whether this viewer has finished loading the given manifest. */
+    isManifestReady(manifestId: string): boolean {
+        return this.loadedManifestIds.has(manifestId);
+    }
+
+    /** Record that a manifest is ready, notifying manifest-readiness subscribers. */
+    private markManifestReady(manifestId: string): void {
+        this.loadedManifestIds.add(manifestId);
+    }
+
+    showCurrentCanvasAnnotations() {
+        this.clearAnnotationVisibility();
+
+        if (!this.manifestId || !this.canvasId) {
+            return;
+        }
+
+        const annotations = this.getAnnotations(this.manifestId, this.canvasId);
+
+        annotations.forEach((annotation: any) => {
+            const id = getAnnotationId(annotation);
+            if (id) {
+                this.visibleAnnotationIds.add(id);
+            }
+        });
+    }
+
+    private clearAnnotationVisibility() {
+        this.annotationVisibilityTouched = false;
+        this.visibleAnnotationIds.clear();
+    }
+
+    private setAnnotationsPanelOpen(isOpen: boolean) {
+        this.showAnnotations = isOpen;
+        this.clearAnnotationVisibility();
+
+        if (isOpen) {
+            this.showCurrentCanvasAnnotations();
+        }
+    }
+
+    // Error state for tile source fetching and image load failures.
+    tileSourceError:
+        | { type: 'auth' }
+        | { type: 'load'; message?: string; details?: string }
+        | null = $state(null);
+
+    // Map of canvasId -> selected choiceId (Content State)
+    selectedChoices = new SvelteMap<string, string>();
+    selectedSequenceIndex = $state(0);
+
+    // Collection state
+    collectionId: string | null = $state(null);
+    collectionLabel: string = $state('');
+    collectionThumbnail: string = $state('');
+    collectionItems: CollectionItem[] = $state([]);
+    showCollectionPanel = $state(false);
+    private collectionThumbnailHydrationId = 0;
+
+    private _viewingDirection = $state<
+        'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top'
+    >('left-to-right');
+    get viewingDirection() {
+        return this._viewingDirection;
+    }
+    set viewingDirection(
+        value:
+            | 'left-to-right'
+            | 'right-to-left'
+            | 'top-to-bottom'
+            | 'bottom-to-top',
+    ) {
+        this._viewingDirection = value;
+        this.config.viewingDirection = value;
+    }
+
+    // UI Configuration
+    config: ViewerConfig = $state({});
+    searchProvider: SearchProvider | null = $state.raw(null);
+    manifestRequestConfig: RequestConfig | undefined = $state.raw(undefined);
+
+    /**
+     * This viewer's active locale (BCP-47) — its `config.locale` if set,
+     * otherwise the page default (CONTEXT.md **Active locale**, ticket 06).
+     * Observable state: readable and notifying, with no plugin-facing mutator.
+     * Locale is *set* through `config.locale`; core (the viewer root) mirrors the
+     * resolved value onto this field whenever the config or the page locale
+     * changes, exactly as it mirrors other external facts (e.g. `isFullScreen`),
+     * so the reactivity-driven watcher (ADR 0008) notifies subscribers. All of
+     * the viewer's chrome renders in this locale (via the i18n context) and
+     * ticket 08's `PluginLocaleService` will consume it. Defaults to the page
+     * locale at construction so a server render and a subscriber-less viewer
+     * both read a correct value before the first mirror runs.
+     */
+    activeLocale = $state<string>(getLocale());
+
+    // Derived configuration specific getters
+    get showToggle() {
+        return this.config.showToggle ?? true;
+    }
+    get showCanvasNav() {
+        return this.config.showCanvasNav ?? true;
+    }
+    get showZoomControls() {
+        return this.config.showZoomControls ?? true;
+    }
+    get preserveCanvasScale() {
+        return this.config.preserveCanvasScale ?? false;
+    }
+
+    get galleryFixedHeight() {
+        return this.config.gallery?.fixedHeight ?? 75;
+    }
+
+    // Dedicated reactive state for viewingMode to ensure proper reactivity
+    // when accessed in $derived expressions (tileSources computation)
+    private _viewingMode = $state<'individuals' | 'paged' | 'continuous'>(
+        'individuals',
+    );
+
+    // Track whether viewingMode was explicitly set via config (user preference)
+    // When true, manifest behavior detection is skipped to respect user configuration
+    private _viewingModeUserConfigured = $state(false);
+
+    get viewingMode() {
+        return this._viewingMode;
+    }
+    set viewingMode(value: 'individuals' | 'paged' | 'continuous') {
+        this._viewingMode = value;
+        // Also sync to config for consistency
+        this.config.viewingMode = value;
+    }
+
+    // Pairing offset for paged mode: 0 = default (pairs start at 1+2), 1 = shifted (page 1 alone, pairs start at 2+3)
+    pagedOffset = $state(1);
+
+    // Gallery State (Lifted for persistence during re-docking)
+    galleryPosition = $state({ x: 20, y: 100 });
+    gallerySize = $state({ width: 300, height: 400 });
+    isGalleryDragging = $state(false);
+    galleryDragOffset = $state({ x: 0, y: 0 });
+    dragOverSide = $state<'top' | 'bottom' | 'left' | 'right' | null>(null);
+    galleryCenterPanelRect = $state<DOMRect | null>(null);
+
+    // ==================== EVENT DISPATCH (Web Component Only) ====================
+
+    /**
+     * Event target for dispatching CustomEvents.
+     * Only set by TriiiceratopsViewerElement (web component build).
+     * Remains null for Svelte component usage → no events dispatched.
+     */
+    private eventTarget: EventTarget | null = null;
+
+    /**
+     * Set the event target for dispatching state change events.
+     * Called by TriiiceratopsViewerElement to enable event-driven API.
+     */
+    setEventTarget(target: EventTarget): void {
+        this.eventTarget = target;
+    }
+
+    /**
+     * Host reporter for the structured `viewererror` channel (ticket 18). Set by
+     * `TriiiceratopsViewer.svelte` so state-level actionable failures (search,
+     * viewport, content) surface as a typed {@link ViewerError} on the viewer
+     * root's `viewererror` event and the `onviewererror` callback instead of
+     * only reaching the console. Null in direct/test use → failures are logged
+     * through the (silent-by-default) logger only.
+     */
+    private errorReporter: ViewerErrorReporter | null = null;
+
+    /** Wire the `viewererror` reporter (see {@link errorReporter}). */
+    setErrorReporter(reporter: ViewerErrorReporter | null): void {
+        this.errorReporter = reporter;
+    }
+
+    /** Deliver a structured viewer failure to the host, if a reporter is wired. */
+    private reportError(error: ViewerError): void {
+        this.errorReporter?.(error);
+    }
+
+    /**
+     * Get current state as a plain object snapshot.
+     * Safe to use outside Svelte's reactive system.
+     * NOTE: We calculate currentCanvasIndex inline to avoid triggering the canvases getter
+     * which can cause infinite loops when it auto-sets canvasId.
+     */
+    getSnapshot(): ViewerStateSnapshot {
+        // Calculate canvas index without triggering reactive side effects
+        let canvasIndex = -1;
+        if (this.manifestId && this.canvasId) {
+            const canvases = manifestsState.getCanvases(this.manifestId);
+            canvasIndex = findCanvasIndexById(canvases, this.canvasId);
+        }
+
+        return {
+            manifestId: this.manifestId,
+            canvasId: this.canvasId,
+            currentCanvasIndex: canvasIndex,
+            showAnnotations: this.showAnnotations,
+            showInformationPanel: this.showMetadataPanel,
+            showThumbnailGallery: this.showThumbnailGallery,
+            showSearchPanel: this.showSearchPanel,
+            showStructuresPanel: this.showStructuresPanel,
+            toolbarOpen: this.toolbarOpen,
+            searchQuery: this.searchQuery,
+            isFullScreen: this.isFullScreen,
+            dockSide: this.dockSide,
+            viewingMode: this.viewingMode,
+            viewingDirection: this.viewingDirection,
+            preserveCanvasScale: this.preserveCanvasScale,
+            galleryPosition: this.galleryPosition,
+            gallerySize: this.gallerySize,
+        };
+    }
+
+    /**
+     * Dispatch a state change event to the web component.
+     * No-op if eventTarget is null (Svelte component usage).
+     *
+     * Uses queueMicrotask to dispatch asynchronously AFTER the current
+     * reactive cycle completes, preventing infinite update loops.
+     */
+    private dispatchStateChange(eventName: string = 'statechange'): void {
+        // Gate the snapshot build behind the debug check: this fires on every
+        // state change, so it must cost nothing when debug is off.
+        if (isDebugEnabled()) {
+            logger.debug(
+                `Dispatching ${eventName}`,
+                JSON.stringify(this.getSnapshot()),
+            );
+        }
+        if (!this.eventTarget) return;
+
+        // Dispatch asynchronously to break reactive loops
+        queueMicrotask(() => {
+            this.eventTarget?.dispatchEvent(
+                new CustomEvent(eventName, {
+                    detail: this.getSnapshot(),
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
+        });
+    }
+
+    constructor(
+        initialManifestId: string | null = null,
+        initialCanvasId: string | null = null,
+        initialPlugins: PluginDef[] = [],
+    ) {
+        this.manifestId = initialManifestId || null;
+        this.canvasId = initialCanvasId || null;
+        // Fetch manifest immediately
+        if (this.manifestId) {
+            manifestsState.fetchManifest(
+                this.manifestId,
+                this.manifestRequestConfig,
+            );
+        }
+
+        // Register initial plugins
+        for (const initialPlugin of initialPlugins) {
+            this.registerPlugin(initialPlugin);
+        }
+    }
+
+    get manifest() {
+        if (!this.manifestId) return null;
+        return manifestsState.getManifest(this.manifestId);
+    }
+
+    get manifestEntry() {
+        if (!this.manifestId) return null;
+        return manifestsState.getManifestEntry(this.manifestId);
+    }
+
+    get canvases() {
+        if (!this.manifestId) return [];
+        const canvases = manifestsState.getCanvases(
+            this.manifestId,
+            this.selectedSequenceIndex,
+        );
+
+        return canvases;
+    }
+
+    get sequenceCount() {
+        if (!this.manifestId) return 0;
+        return manifestsState.getSequenceCount(this.manifestId);
+    }
+
+    get currentCanvasIndex() {
+        if (!this.canvasId) {
+            return -1;
+        }
+
+        // Manifesto canvases have an id property, but let's be robust and check multiple possibilities
+        return findCanvasIndexById(this.canvases, this.canvasId);
+    }
+
+    private getCurrentPagedCanvasGroupIndex(): number {
+        if (this.viewingMode !== 'paged' || this.currentCanvasIndex < 0) {
+            return -1;
+        }
+
+        const groups = getPagedCanvasGroups(this.canvases, this.pagedOffset);
+        return groups.findIndex(
+            ({ startIndex, endIndex }) =>
+                this.currentCanvasIndex >= startIndex &&
+                this.currentCanvasIndex <= endIndex,
+        );
+    }
+
+    get hasNext() {
+        if (this.currentCanvasIndex < 0) {
+            return false;
+        }
+
+        if (this.viewingMode === 'paged') {
+            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+            const groups = getPagedCanvasGroups(
+                this.canvases,
+                this.pagedOffset,
+            );
+            return groupIndex >= 0 && groupIndex < groups.length - 1;
+        } else {
+            return this.currentCanvasIndex < this.canvases.length - 1;
+        }
+    }
+
+    get hasPrevious() {
+        if (this.currentCanvasIndex < 0) {
+            return false;
+        }
+
+        if (this.viewingMode === 'paged') {
+            return this.getCurrentPagedCanvasGroupIndex() > 0;
+        }
+
+        return this.currentCanvasIndex > 0;
+    }
+
+    nextCanvas() {
+        if (this.hasNext) {
+            if (this.viewingMode === 'paged') {
+                const groups = getPagedCanvasGroups(
+                    this.canvases,
+                    this.pagedOffset,
+                );
+                const canvasId =
+                    groups[this.getCurrentPagedCanvasGroupIndex() + 1]
+                        ?.entries[0]?.canvasId;
+                if (canvasId) this.setCanvas(canvasId);
+            } else {
+                const nextIndex = this.currentCanvasIndex + 1;
+                const canvas = this.canvases[nextIndex];
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
+            }
+        }
+    }
+
+    previousCanvas() {
+        if (this.hasPrevious) {
+            if (this.viewingMode === 'paged') {
+                const groups = getPagedCanvasGroups(
+                    this.canvases,
+                    this.pagedOffset,
+                );
+                const canvasId =
+                    groups[this.getCurrentPagedCanvasGroupIndex() - 1]
+                        ?.entries[0]?.canvasId;
+                if (canvasId) this.setCanvas(canvasId);
+            } else {
+                const prevIndex = this.currentCanvasIndex - 1;
+                const canvas = this.canvases[prevIndex];
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) this.setCanvas(canvasId);
+            }
+        }
+    }
+
+    zoomIn() {
+        if (this.osdViewer && this.osdViewer.viewport) {
+            this.osdViewer.viewport.zoomBy(1.2);
+            this.osdViewer.viewport.applyConstraints();
+        }
+    }
+
+    zoomOut() {
+        if (this.osdViewer && this.osdViewer.viewport) {
+            this.osdViewer.viewport.zoomBy(0.8);
+            this.osdViewer.viewport.applyConstraints();
+        }
+    }
+
+    setSearchProvider(searchProvider: SearchProvider | null): void {
+        this.searchProvider = searchProvider;
+    }
+
+    setManifestRequestConfig(requestConfig?: RequestConfig): void {
+        this.manifestRequestConfig = requestConfig;
+    }
+
+    async setManifestData(
+        manifestId: string,
+        manifestJson: any,
+        options?: { canvasId?: string },
+    ): Promise<void> {
+        this.startCanvasId = null;
+        this.selectedSequenceIndex = 0;
+        await manifestsState.registerManifest(manifestId, manifestJson);
+        this.manifestId = manifestId;
+        this.markManifestReady(manifestId);
+        if (options?.canvasId) {
+            this.setCanvas(options.canvasId);
+        }
+        this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
+    }
+
+    /**
+     * The canvas ID specified by the manifest's `start` property (IIIF Presentation 3.0).
+     * Used during auto-selection to navigate to the correct initial canvas.
+     * Only set once per manifest load; cleared when a new manifest is set.
+     */
+    startCanvasId: string | null = $state(null);
+
+    async setManifest(
+        manifestId: string,
+        options?: { requestConfig?: RequestConfig; canvasId?: string },
+    ) {
+        this.manifestRequestConfig = options?.requestConfig;
+
+        // Fetch the raw JSON first to detect if it's a Collection
+        let json: any;
+        try {
+            json = await manifestsState.fetchResource(
+                manifestId,
+                this.manifestRequestConfig,
+            );
+        } catch (_error: any) {
+            // If fetch fails, fall back to normal flow which will handle the error
+            this.startCanvasId = null;
+            this.selectedSequenceIndex = 0;
+            await manifestsState.fetchManifest(
+                manifestId,
+                this.manifestRequestConfig,
+            );
+            this.manifestId = manifestId;
+            this.markManifestReady(manifestId);
+            if (options?.canvasId) {
+                this.setCanvas(options.canvasId);
+            }
+            this._applyManifestSettings(manifestId);
+            this.ensureInitialCanvasSelection();
+            this.dispatchStateChange('manifestchange');
+            return;
+        }
+
+        // Check if the resource is a Collection
+        if (isCollection(json)) {
+            this.collectionId = manifestId;
+            this.collectionLabel = getCollectionLabel(json);
+            this.collectionThumbnail = getCollectionThumbnail(json) || '';
+            this.collectionItems = sortCollectionItems(parseCollection(json));
+
+            // Auto-load the first manifest in the collection
+            const firstManifest = this.collectionItems.find(
+                (item) => item.type === 'Manifest',
+            );
+            if (firstManifest) {
+                await this._loadManifest(firstManifest.id, options?.canvasId);
+            }
+            void this.hydrateCollectionItemThumbnails(manifestId);
+            this.dispatchStateChange('manifestchange');
+            return;
+        }
+
+        // Normal manifest flow: register the already-fetched JSON
+        this.collectionId = null;
+        this.collectionLabel = '';
+        this.collectionThumbnail = '';
+        this.collectionItems = [];
+        this.collectionThumbnailHydrationId += 1;
+        // Keep the current canvasId: a consumer may have requested a canvas
+        // before the manifest finished loading. ensureInitialCanvasSelection
+        // keeps it when the manifest contains it and falls back otherwise.
+        this.startCanvasId = null;
+        await manifestsState.registerManifest(manifestId, json);
+        this.manifestId = manifestId;
+        this.markManifestReady(manifestId);
+        if (options?.canvasId) {
+            this.setCanvas(options.canvasId);
+        }
+        this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
+        this.dispatchStateChange('manifestchange');
+    }
+
+    /**
+     * Load a manifest by ID within the current collection context,
+     * or directly if no collection is active.
+     */
+    async loadCollectionManifest(manifestId: string) {
+        await this._loadManifest(manifestId);
+        this.dispatchStateChange('manifestchange');
+    }
+
+    /**
+     * Internal: load a manifest by ID and apply its settings.
+     */
+    private async _loadManifest(manifestId: string, canvasId?: string) {
+        this.startCanvasId = null;
+        this.selectedSequenceIndex = 0;
+        await manifestsState.fetchManifest(
+            manifestId,
+            this.manifestRequestConfig,
+        );
+        this.manifestId = manifestId;
+        this.markManifestReady(manifestId);
+        if (canvasId) {
+            this.setCanvas(canvasId);
+        }
+        this._applyManifestSettings(manifestId);
+        this.ensureInitialCanvasSelection();
+    }
+
+    private ensureInitialCanvasSelection() {
+        const canvases = this.canvases;
+        if (!canvases.length) {
+            return;
+        }
+
+        if (
+            this.canvasId &&
+            findCanvasIndexById(canvases, this.canvasId) >= 0
+        ) {
+            return;
+        }
+
+        if (this.startCanvasId) {
+            this.setCanvas(this.startCanvasId);
+            return;
+        }
+
+        const firstCanvasId = getCanvasId(canvases[0]);
+        if (firstCanvasId) {
+            this.setCanvas(firstCanvasId);
+        }
+    }
+
+    private async hydrateCollectionItemThumbnails(collectionId: string) {
+        const hydrationId = ++this.collectionThumbnailHydrationId;
+        const manifestItems = this.collectionItems.filter(
+            (item) => item.type === 'Manifest' && !item.thumbnail,
+        );
+
+        await Promise.allSettled(
+            manifestItems.map(async (item) => {
+                await manifestsState.fetchManifest(
+                    item.id,
+                    this.manifestRequestConfig,
+                );
+
+                if (
+                    this.collectionId !== collectionId ||
+                    this.collectionThumbnailHydrationId !== hydrationId
+                ) {
+                    return;
+                }
+
+                const firstCanvas = manifestsState.getCanvases(item.id)[0];
+                const thumbnail = firstCanvas
+                    ? getThumbnailSrc(firstCanvas)
+                    : '';
+
+                if (thumbnail) {
+                    item.thumbnail = thumbnail;
+                }
+            }),
+        );
+    }
+
+    /**
+     * Apply manifest-level settings (start canvas, viewing direction, behavior).
+     */
+    private _applyManifestSettings(manifestId: string) {
+        const manifest = manifestsState.getManifest(manifestId);
+        if (!manifest) return;
+        const rawManifest = manifestsState.getManifestEntry(manifestId)?.json;
+
+        // 0. Start Canvas (IIIF Presentation 3.0 `start` property)
+        try {
+            let startId: string | null = null;
+
+            // Check raw JSON first (most reliable for IIIF v3)
+            if (manifest.__jsonld?.start) {
+                const startObj = manifest.__jsonld.start;
+                if (typeof startObj === 'string') {
+                    startId = startObj;
+                } else if (startObj.id) {
+                    startId = startObj.id;
+                } else if (startObj['@id']) {
+                    startId = startObj['@id'];
+                }
+            }
+
+            // Fallback: check manifesto accessor
+            if (!startId && manifest.getStartCanvas) {
+                const sc = manifest.getStartCanvas();
+                if (sc) {
+                    startId = sc.id || sc['@id'] || null;
+                }
+            }
+
+            if (startId) {
+                // The start property may reference a canvas directly or include
+                // a fragment selector (e.g. canvas#t=...). Extract the canvas ID.
+                const canvasIdFromStart = startId.split('#')[0];
+                // Verify this canvas exists in the manifest
+                const canvases = manifestsState.getCanvases(manifestId);
+                const exists = canvases.some(
+                    (c: any) => getCanvasId(c) === canvasIdFromStart,
+                );
+                if (exists) {
+                    this.startCanvasId = canvasIdFromStart;
+                }
+            }
+        } catch (e) {
+            logger.warn('Error parsing start canvas', e);
+        }
+
+        // 1. Viewing Direction
+        let direction: string | null = null;
+        try {
+            // Check raw JSON first (most reliable for IIIF v3)
+            if (rawManifest?.viewingDirection) {
+                direction = rawManifest.viewingDirection;
+            }
+            if (!direction && manifest.__jsonld) {
+                direction = manifest.__jsonld.viewingDirection;
+            }
+            // Fallback to manifesto accessor
+            if (!direction && manifest.getViewingDirection) {
+                const d = manifest.getViewingDirection();
+                if (d) direction = String(d);
+            }
+            // Check sequence if not found (IIIF v2)
+            if (!direction) {
+                const seq = manifest.getSequences()?.[0];
+                if (seq) {
+                    if (seq.__jsonld) {
+                        direction = seq.__jsonld.viewingDirection;
+                    }
+                    if (!direction && seq.getViewingDirection) {
+                        const d = seq.getViewingDirection();
+                        if (d) direction = String(d);
+                    }
+                }
+            }
+        } catch (e) {
+            logger.warn('Error parsing viewing direction', e);
+        }
+
+        if (
+            direction &&
+            [
+                'left-to-right',
+                'right-to-left',
+                'top-to-bottom',
+                'bottom-to-top',
+            ].includes(direction)
+        ) {
+            this.viewingDirection = direction as any;
+        } else {
+            this.viewingDirection = 'left-to-right'; // Default
+        }
+
+        // 2. Viewing Mode (Behavior)
+        // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
+        if (!this._viewingModeUserConfigured) {
+            let behaviors: string[] = [];
+            try {
+                // Check manifest root
+                if (manifest.__jsonld && manifest.__jsonld.behavior) {
+                    const b = manifest.__jsonld.behavior;
+                    behaviors = Array.isArray(b) ? b : [b];
+                }
+
+                // Manifesto accessor
+                if (behaviors.length === 0 && manifest.getBehavior) {
+                    const b = manifest.getBehavior();
+                    if (b) {
+                        behaviors = Array.isArray(b) ? b : [b];
+                    }
+                }
+
+                // Check sequence behavior
+                const seq = manifest.getSequences()?.[0];
+                if (seq) {
+                    if (seq.getBehavior) {
+                        const b = seq.getBehavior();
+                        if (b) {
+                            behaviors = behaviors.concat(
+                                Array.isArray(b) ? b : [b],
+                            );
+                        }
+                    }
+
+                    if (seq.__jsonld && seq.__jsonld.behavior) {
+                        const b = seq.__jsonld.behavior;
+                        behaviors = behaviors.concat(
+                            Array.isArray(b) ? b : [b],
+                        );
+                    }
+                }
+
+                behaviors = behaviors.map(normalizeIiifBehavior);
+            } catch (e) {
+                logger.warn('Error parsing behavior', e);
+            }
+
+            if (behaviors.includes('continuous')) {
+                this.viewingMode = 'continuous';
+            } else if (
+                behaviors.includes('individuals') ||
+                behaviors.includes('non-paged')
+            ) {
+                this.viewingMode = 'individuals';
+            } else if (
+                behaviors.includes('paged') ||
+                behaviors.includes('facing-pages')
+            ) {
+                this.viewingMode = 'paged';
+            } else {
+                // Default to 'individuals' when no behavior is specified in manifest
+                this.viewingMode = 'individuals';
+            }
+        }
+    }
+
+    setCanvas(canvasId: string) {
+        this.canvasId = canvasId;
+        this.tileSourceError = null;
+
+        if (this.showAnnotations) {
+            this.clearAnnotationVisibility();
+        }
+
+        this.dispatchStateChange('canvaschange');
+    }
+
+    selectChoice(canvasId: string, choiceId: string) {
+        this.selectedChoices.set(canvasId, choiceId);
+        // Force reactivity for $derived blocks that depend on the map
+        // Reassigning the map is one way, or using fine-grained signals.
+        // Svelte 5 map is reactive, but let's ensure dependent derivations see it.
+        // We might need to "bump" a version signal if derivations don't pick it up automatically
+        // but they should if they use get().
+
+        this.dispatchStateChange('choicechange');
+    }
+
+    getSelectedChoice(canvasId: string): string | undefined {
+        return this.selectedChoices.get(canvasId);
+    }
+
+    updateConfig(newConfig: ViewerConfig) {
+        const oldConfig = this.config;
+        this.config = newConfig;
+
+        // Sync state from config
+        if (newConfig.toolbarOpen !== undefined) {
+            this.toolbarOpen = newConfig.toolbarOpen;
+        }
+
+        if (newConfig.viewingMode) {
+            // direct assignment works because of the setter
+            this.viewingMode = newConfig.viewingMode;
+            // Mark as user-configured so manifest behavior detection is skipped
+            this._viewingModeUserConfigured = true;
+        }
+
+        if (newConfig.viewingDirection) {
+            this.viewingDirection = newConfig.viewingDirection;
+        }
+
+        if (newConfig.pagedViewOffset !== undefined) {
+            this.pagedOffset = newConfig.pagedViewOffset ? 1 : 0;
+        }
+
+        if (newConfig.gallery) {
+            if (newConfig.gallery.open !== undefined) {
+                this.showThumbnailGallery = newConfig.gallery.open;
+            }
+            if (newConfig.gallery.dockPosition !== undefined) {
+                this.dockSide = newConfig.gallery.dockPosition;
+            }
+            if (newConfig.gallery.width !== undefined) {
+                this.gallerySize.width = newConfig.gallery.width;
+            }
+            if (newConfig.gallery.height !== undefined) {
+                this.gallerySize.height = newConfig.gallery.height;
+            }
+            if (newConfig.gallery.x !== undefined) {
+                this.galleryPosition.x = newConfig.gallery.x;
+            }
+            if (newConfig.gallery.y !== undefined) {
+                this.galleryPosition.y = newConfig.gallery.y;
+            }
+        }
+
+        if (newConfig.search) {
+            if (newConfig.search.open !== undefined) {
+                this.showSearchPanel = newConfig.search.open;
+            }
+            // Only search if the CONFIG has changed its query requirement.
+            // This prevents stale config updates (e.g. from other property changes)
+            // from overwriting a newer internal search state.
+            const newQuery = newConfig.search.query;
+            const oldQuery = oldConfig.search?.query;
+
+            if (
+                newQuery !== undefined &&
+                newQuery !== oldQuery &&
+                newQuery !== this.searchQuery
+            ) {
+                this._performSearch(newQuery);
+            }
+        }
+
+        if (newConfig.annotations) {
+            if (newConfig.annotations.open !== undefined) {
+                if (newConfig.annotations.open !== this.showAnnotations) {
+                    this.setAnnotationsPanelOpen(newConfig.annotations.open);
+                } else {
+                    this.showAnnotations = newConfig.annotations.open;
+                }
+            }
+        }
+
+        if (newConfig.information) {
+            if (newConfig.information.open !== undefined) {
+                this.showMetadataPanel = newConfig.information.open;
+            }
+        }
+
+        if (newConfig.structures) {
+            if (newConfig.structures.open !== undefined) {
+                this.showStructuresPanel = newConfig.structures.open;
+            }
+        }
+
+        if (newConfig.collection) {
+            if (newConfig.collection.open !== undefined) {
+                this.showCollectionPanel = newConfig.collection.open;
+            }
+        }
+
+        this.applyPluginUiConfigToAll();
+        // NOTE: We intentionally do NOT dispatch events here.
+        // Config updates are external configuration, not user-initiated state changes.
+        // Dispatching here would cause infinite loops when the consumer re-renders.
+    }
+
+    toggleAnnotations() {
+        this.setAnnotationsPanelOpen(!this.showAnnotations);
+        this.dispatchStateChange();
+    }
+
+    toggleToolbar() {
+        this.toolbarOpen = !this.toolbarOpen;
+        this.dispatchStateChange();
+    }
+
+    toggleThumbnailGallery() {
+        this.showThumbnailGallery = !this.showThumbnailGallery;
+        this.dispatchStateChange();
+    }
+
+    /**
+     * Reference to the main viewer DOM element.
+     * Used for fullscreen toggling.
+     */
+    private viewerElement: HTMLElement | null = null;
+
+    setViewerElement(element: HTMLElement) {
+        this.viewerElement = element;
+    }
+
+    /**
+     * Resolve the viewer's style root — where a plugin's global CSS must be
+     * installed (ticket 08's `PluginStyleService`). For a light-DOM (Svelte)
+     * viewer this is the owning `Document`; for the Web Component it is the
+     * shadow root, so plugin styles reach the shadow-scoped tree. Derived from
+     * the mount element captured by {@link setViewerElement} via `getRootNode()`;
+     * `null` before the element is mounted.
+     */
+    getStyleRoot(): Document | ShadowRoot | null {
+        const root = this.viewerElement?.getRootNode();
+        // nodeType 9 = DOCUMENT_NODE, 11 = DOCUMENT_FRAGMENT_NODE (shadow root);
+        // nodeType is realm- and engine-safe where `instanceof` is not.
+        if (root && (root.nodeType === 9 || root.nodeType === 11)) {
+            return root as Document | ShadowRoot;
+        }
+        return null;
+    }
+
+    toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            // Use stored reference if available, fallback to ID lookup (legacy/Svelte-only)
+            const el =
+                this.viewerElement ||
+                document.getElementById('triiiceratops-viewer');
+            if (el) {
+                el.requestFullscreen().catch((e) => {
+                    logger.warn('Fullscreen request failed', e);
+                    this.reportError({
+                        severity: 'warning',
+                        scope: 'viewport',
+                        code: 'fullscreen-failed',
+                        message: 'Fullscreen request failed.',
+                        error: e,
+                    });
+                });
+            } else {
+                logger.warn(
+                    'Cannot toggle fullscreen: Viewer element not found',
+                );
+                this.reportError({
+                    severity: 'warning',
+                    scope: 'viewport',
+                    code: 'fullscreen-element-missing',
+                    message:
+                        'Cannot toggle fullscreen: viewer element not found.',
+                });
+            }
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    toggleMetadataPanel() {
+        this.showMetadataPanel = !this.showMetadataPanel;
+        this.dispatchStateChange();
+    }
+
+    toggleCanvasInfo() {
+        this.showCanvasInfo = !this.showCanvasInfo;
+    }
+
+    setSequenceIndex(index: number) {
+        const maxIndex = Math.max(0, this.sequenceCount - 1);
+        this.selectedSequenceIndex = Math.max(0, Math.min(index, maxIndex));
+
+        const nextCanvases = this.canvases;
+        const firstCanvas = nextCanvases[0];
+        this.canvasId = firstCanvas
+            ? firstCanvas.id ||
+              firstCanvas['@id'] ||
+              (firstCanvas.getCanvasId ? firstCanvas.getCanvasId() : null) ||
+              (firstCanvas.getId ? firstCanvas.getId() : null)
+            : null;
+        this.startCanvasId = null;
+        this.dispatchStateChange();
+    }
+
+    setInitialCanvasRegion(region: CanvasRegion | null) {
+        this.initialCanvasRegion = region;
+    }
+
+    toggleStructuresPanel() {
+        this.showStructuresPanel = !this.showStructuresPanel;
+        this.dispatchStateChange();
+    }
+
+    toggleCollectionPanel() {
+        this.showCollectionPanel = !this.showCollectionPanel;
+        this.dispatchStateChange();
+    }
+
+    /** Whether the viewer is currently showing a collection */
+    get hasCollection(): boolean {
+        return this.collectionId !== null && this.collectionItems.length > 0;
+    }
+
+    /**
+     * Parsed IIIF structures (ranges / table of contents) from the current manifest.
+     * Returns an empty array if no structures exist.
+     */
+    get structures(): StructureNode[] {
+        const manifest = this.manifest;
+        if (!manifest) return [];
+        return parseStructures(manifest);
+    }
+
+    setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {
+        this.viewingMode = mode;
+        if (mode === 'paged') {
+            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+            const canvasId =
+                groupIndex >= 0
+                    ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
+                          groupIndex
+                      ]?.entries[0]?.canvasId
+                    : null;
+
+            if (canvasId && this.canvasId !== canvasId) {
+                this.setCanvas(canvasId);
+            }
+        }
+        this.dispatchStateChange();
+    }
+
+    togglePagedOffset() {
+        this.pagedOffset = this.pagedOffset === 0 ? 1 : 0;
+        this.config.pagedViewOffset = this.pagedOffset === 1;
+        const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+        const canvasId =
+            groupIndex >= 0
+                ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
+                      groupIndex
+                  ]?.entries[0]?.canvasId
+                : null;
+
+        if (canvasId && this.canvasId !== canvasId) {
+            this.setCanvas(canvasId);
+        }
+        this.dispatchStateChange();
+    }
+
+    searchQuery = $state('');
+    pendingSearchQuery = $state<string | null>(null);
+    searchResults: SearchResultGroup[] = $state([]);
+    isSearching = $state(false);
+    showSearchPanel = $state(false);
+
+    toggleSearchPanel() {
+        this.showSearchPanel = !this.showSearchPanel;
+        if (!this.showSearchPanel) {
+            // Clear ephemeral annotations when closing search
+            this.searchAnnotations = [];
+        }
+        this.dispatchStateChange();
+    }
+
+    searchAnnotations: any[] = $state([]);
+
+    /**
+     * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
+     */
+    get currentCanvasSearchAnnotations() {
+        if (!this.canvasId) return [];
+        if (this.viewingMode === 'paged') {
+            const visibleEntries = getVisibleCanvasEntries({
+                canvases: this.canvases,
+                currentCanvasId: this.canvasId,
+                currentCanvasIndex: this.currentCanvasIndex,
+                viewingMode: this.viewingMode,
+                pagedOffset: this.pagedOffset,
+            });
+
+            if (!visibleEntries.length) {
+                return [];
+            }
+
+            const [firstEntry, secondEntry] = visibleEntries;
+            let annotations = this.searchAnnotations.filter(
+                (a) => a.canvasId === firstEntry.canvasId,
+            );
+
+            if (secondEntry) {
+                const xOffset = 1.025; // account for small gap between pages
+                const annoOffset = firstEntry.canvas.getWidth() * xOffset;
+                const nextAnnotations = this.searchAnnotations.filter(
+                    (a) => a.canvasId === secondEntry.canvasId,
+                );
+
+                const nextAnnotationsUpdated = nextAnnotations.map((a) => {
+                    const parts = a.on.split('#xywh=');
+                    const coords = parts[1].split(',').map(Number);
+                    const shiftedX = coords[0] + annoOffset;
+                    return {
+                        ...a,
+                        on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
+                    };
+                });
+                annotations = annotations.concat(nextAnnotationsUpdated);
+            }
+            return annotations;
+        } else {
+            return this.searchAnnotations.filter(
+                (a) => a.canvasId === this.canvasId,
+            );
+        }
+    }
+
+    async search(query: string) {
+        this.dispatchStateChange();
+        await this._performSearch(query);
+        this.dispatchStateChange();
+    }
+
+    private async _performSearch(query: string) {
+        if (!query.trim()) return;
+        this.isSearching = true;
+        this.searchQuery = query;
+        this.searchResults = [];
+
+        try {
+            const manifest = this.manifest;
+            if (!manifest) {
+                // Defer search until manifest is loaded
+                logger.debug('Manifest not loaded, deferring search:', query);
+                this.pendingSearchQuery = query;
+                return;
+            }
+
+            if (this.searchProvider && this.manifestId) {
+                this.searchResults = await this.searchProvider(query, {
+                    manifestId: this.manifestId,
+                    manifest,
+                    canvases: this.canvases,
+                    canvasId: this.canvasId,
+                });
+                this.searchAnnotations = this.buildSearchAnnotations(
+                    this.searchResults,
+                );
+                return;
+            }
+
+            const service = this.discoverSearchService(manifest);
+
+            if (!service) {
+                logger.warn('No IIIF search service found in manifest');
+                this.reportError({
+                    severity: 'warning',
+                    scope: 'search',
+                    code: 'search-service-missing',
+                    message: 'No IIIF search service found in manifest.',
+                    detail: { query },
+                });
+                this.isSearching = false;
+                return;
+            }
+
+            const searchUrl = `${service.serviceId}?q=${encodeURIComponent(query)}`;
+
+            const response = await fetch(searchUrl);
+            if (!response.ok) throw new Error('Search request failed');
+
+            const data = await response.json();
+
+            if (service.version === 2) {
+                this.searchResults = this.parseV2SearchResponse(data);
+            } else {
+                this.searchResults = this.parseLegacySearchResponse(data);
+            }
+
+            this.searchAnnotations = this.buildSearchAnnotations(
+                this.searchResults,
+            );
+        } catch (e) {
+            logger.error('Search error:', e);
+            this.reportError({
+                severity: 'error',
+                scope: 'search',
+                code: 'search-failed',
+                message: 'Search request failed.',
+                error: e,
+                detail: { query },
+            });
+            this.isSearching = false;
+        } finally {
+            // Only stop searching if we are NOT pending (i.e. we finished or failed, but didn't defer)
+            if (!this.pendingSearchQuery) {
+                this.isSearching = false;
+            }
+        }
+    }
+
+    /**
+     * Discover a IIIF Content Search service from the manifest.
+     * Supports v0, v1, and v2 services. Prefers v2 when multiple are present.
+     */
+    private discoverSearchService(
+        manifest: any,
+    ): { version: 0 | 1 | 2; serviceId: string } | null {
+        // First try manifesto's getService for v1/v0
+        const v1Service =
+            manifest.getService('http://iiif.io/api/search/1/search') ||
+            manifest.getService('http://iiif.io/api/search/0/search');
+
+        // Check raw JSON for v2 (and v1/v0 fallback)
+        let v2Service: any = null;
+        let rawV1Service: any = null;
+
+        if (manifest.__jsonld && manifest.__jsonld.service) {
+            const services = Array.isArray(manifest.__jsonld.service)
+                ? manifest.__jsonld.service
+                : [manifest.__jsonld.service];
+
+            for (const s of services) {
+                const sType = s.type || s['@type'];
+                if (sType === 'SearchService2') {
+                    v2Service = s;
+                } else if (
+                    !rawV1Service &&
+                    (s.profile === 'http://iiif.io/api/search/1/search' ||
+                        sType === 'SearchService1' ||
+                        s.profile === 'http://iiif.io/api/search/0/search')
+                ) {
+                    rawV1Service = s;
+                }
+            }
+        }
+
+        // Prefer v2 over v1/v0
+        if (v2Service) {
+            return {
+                version: 2,
+                serviceId: v2Service.id || v2Service['@id'],
+            };
+        }
+
+        if (v1Service) {
+            const serviceId = v1Service.id || v1Service['@id'];
+            const profile = v1Service.profile || '';
+            const version: 0 | 1 =
+                profile === 'http://iiif.io/api/search/0/search' ? 0 : 1;
+            return { version, serviceId };
+        }
+
+        if (rawV1Service) {
+            const serviceId = rawV1Service.id || rawV1Service['@id'];
+            const profile = rawV1Service.profile || '';
+            const version: 0 | 1 =
+                profile === 'http://iiif.io/api/search/0/search' ? 0 : 1;
+            return { version, serviceId };
+        }
+
+        return null;
+    }
+
+    /** Helper to unescape HTML-encoded mark tags */
+    private decodeMark(str: string): string {
+        if (!str) return '';
+        return str
+            .replace(/&lt;mark&gt;/g, '<mark>')
+            .replace(/&lt;\/mark&gt;/g, '</mark>');
+    }
+
+    /** Helper to resolve canvas label from a manifesto canvas object */
+    private resolveCanvasLabel(canvas: any, canvasIndex: number): string {
+        let label = 'Canvas ' + (canvasIndex + 1);
+        try {
+            if (canvas.getLabel) {
+                const l = canvas.getLabel();
+                if (Array.isArray(l) && l.length > 0) label = l[0].value;
+                else if (typeof l === 'string') label = l;
+            } else if (canvas.label) {
+                if (typeof canvas.label === 'string') label = canvas.label;
+                else if (Array.isArray(canvas.label))
+                    label = canvas.label[0]?.value;
+            }
+        } catch (_e) {
+            /* ignore */
+        }
+        return String(label);
+    }
+
+    /** Ensure a canvas group exists in the map and return it */
+    private getOrCreateCanvasGroup(
+        resultsByCanvas: SvelteMap<
+            number,
+            { canvasIndex: number; canvasLabel: string; hits: any[] }
+        >,
+        canvasIndex: number,
+    ): { canvasIndex: number; canvasLabel: string; hits: any[] } {
+        if (!resultsByCanvas.has(canvasIndex)) {
+            const canvas = this.canvases[canvasIndex];
+            resultsByCanvas.set(canvasIndex, {
+                canvasIndex,
+                canvasLabel: this.resolveCanvasLabel(canvas, canvasIndex),
+                hits: [],
+            });
+        }
+        return resultsByCanvas.get(canvasIndex)!;
+    }
+
+    /**
+     * Parse a IIIF Content Search API v0/v1 response.
+     * Handles both "hits" format (with before/match/after) and "resources"-only format.
+     */
+    private parseLegacySearchResponse(data: any): SearchResultGroup[] {
+        const resources = data.resources || [];
+        const resultsByCanvas = new SvelteMap<
+            number,
+            { canvasIndex: number; canvasLabel: string; hits: any[] }
+        >();
+
+        if (data.hits) {
+            for (const hit of data.hits) {
+                const annotations = hit.annotations || [];
+
+                let canvasIndex = -1;
+                let bounds: number[] | null = null;
+                const allBounds: number[][] = [];
+
+                for (const annoId of annotations) {
+                    const annotation = resources.find(
+                        (r: any) => r['@id'] === annoId || r.id === annoId,
+                    );
+                    if (!annotation?.on) {
+                        continue;
+                    }
+
+                    for (const target of normalizeIiifTargets(annotation.on)) {
+                        if (!target.canvasId) {
+                            continue;
+                        }
+
+                        const cIndex = this.canvases.findIndex(
+                            (canvas: any) => canvas.id === target.canvasId,
+                        );
+
+                        if (cIndex < 0) {
+                            continue;
+                        }
+
+                        if (canvasIndex === -1) {
+                            canvasIndex = cIndex;
+                        }
+
+                        if (target.xywh) {
+                            allBounds.push(target.xywh);
+                            if (!bounds) bounds = target.xywh;
+                        }
+                    }
+                }
+
+                if (canvasIndex >= 0) {
+                    const group = this.getOrCreateCanvasGroup(
+                        resultsByCanvas,
+                        canvasIndex,
+                    );
+                    group.hits.push({
+                        type: 'hit',
+                        before: this.decodeMark(hit.before),
+                        match: this.decodeMark(hit.match),
+                        after: this.decodeMark(hit.after),
+                        bounds,
+                        allBounds,
+                    });
+                }
+            }
+        } else if (resources.length > 0) {
+            for (const res of resources) {
+                const normalizedTargets = normalizeIiifTargets(res.on);
+                const firstTarget = normalizedTargets.find(
+                    (target) => target.canvasId,
+                );
+                if (!firstTarget?.canvasId) {
+                    continue;
+                }
+
+                const canvasIndex = this.canvases.findIndex(
+                    (canvas: any) => canvas.id === firstTarget.canvasId,
+                );
+                if (canvasIndex >= 0) {
+                    const boundsArray = normalizedTargets
+                        .map((target) => target.xywh)
+                        .filter(
+                            (
+                                bounds,
+                            ): bounds is [number, number, number, number] =>
+                                bounds !== null,
+                        );
+                    const group = this.getOrCreateCanvasGroup(
+                        resultsByCanvas,
+                        canvasIndex,
+                    );
+                    group.hits.push({
+                        type: 'resource',
+                        match: this.decodeMark(
+                            res.resource && res.resource.chars
+                                ? res.resource.chars
+                                : res.chars || '',
+                        ),
+                        bounds: boundsArray[0] || null,
+                        allBounds: boundsArray,
+                    });
+                }
+            }
+        }
+
+        return Array.from(resultsByCanvas.values()).sort(
+            (a, b) => a.canvasIndex - b.canvasIndex,
+        );
+    }
+
+    /**
+     * Parse a IIIF Content Search API v2 response.
+     * v2 returns an AnnotationPage with `items` (W3C Annotations) and optional
+     * `annotations` containing contextualizing/highlighting info via TextQuoteSelector.
+     */
+    private parseV2SearchResponse(data: any): SearchResultGroup[] {
+        const items: any[] = data.items || [];
+        const resultsByCanvas = new SvelteMap<
+            number,
+            { canvasIndex: number; canvasLabel: string; hits: any[] }
+        >();
+
+        // Build a context map from the annotations section (TextQuoteSelector info)
+        // Maps source annotation id -> { before, match, after }
+        const contextMap = new SvelteMap<
+            string,
+            { before: string; match: string; after: string }
+        >();
+
+        if (data.annotations) {
+            // annotations can be an array of AnnotationPages or a single AnnotationPage
+            const annoPages = Array.isArray(data.annotations)
+                ? data.annotations
+                : [data.annotations];
+
+            for (const page of annoPages) {
+                const pageItems = page.items || [];
+                for (const anno of pageItems) {
+                    // Each annotation targets a source annotation with a TextQuoteSelector
+                    const targets = Array.isArray(anno.target)
+                        ? anno.target
+                        : [anno.target];
+                    for (const target of targets) {
+                        if (!target || typeof target === 'string') continue;
+                        const sourceId = target.source;
+                        if (!sourceId) continue;
+
+                        const selectors = Array.isArray(target.selector)
+                            ? target.selector
+                            : target.selector
+                              ? [target.selector]
+                              : [];
+
+                        for (const sel of selectors) {
+                            if (sel.type === 'TextQuoteSelector') {
+                                // Don't overwrite if we already have context for this source
+                                // (prefer first contextualizing entry)
+                                if (!contextMap.has(sourceId)) {
+                                    contextMap.set(sourceId, {
+                                        before: sel.prefix || '',
+                                        match: sel.exact || '',
+                                        after: sel.suffix || '',
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Process each result annotation in items
+        for (const item of items) {
+            const annoId = item.id || item['@id'];
+
+            let canvasIndex = -1;
+            let bounds: number[] | null = null;
+            const allBounds: number[][] = [];
+
+            for (const target of normalizeIiifTargets(item.target)) {
+                if (!target.canvasId) continue;
+
+                const targetCanvasIndex = this.canvases.findIndex(
+                    (canvas: any) => canvas.id === target.canvasId,
+                );
+                if (targetCanvasIndex < 0) continue;
+
+                if (canvasIndex === -1) {
+                    canvasIndex = targetCanvasIndex;
+                }
+
+                if (target.xywh) {
+                    allBounds.push(target.xywh);
+                    if (!bounds) bounds = target.xywh;
+                }
+            }
+
+            if (canvasIndex < 0) continue;
+
+            // Extract text from body
+            let bodyText = '';
+            if (item.body) {
+                const body = Array.isArray(item.body)
+                    ? item.body[0]
+                    : item.body;
+                if (body && typeof body === 'object') {
+                    bodyText = body.value || '';
+                } else if (typeof body === 'string') {
+                    bodyText = body;
+                }
+            }
+
+            const group = this.getOrCreateCanvasGroup(
+                resultsByCanvas,
+                canvasIndex,
+            );
+
+            // Check if we have contextualizing/highlighting info for this annotation
+            const context = contextMap.get(annoId);
+            if (context) {
+                group.hits.push({
+                    type: 'hit',
+                    before: this.decodeMark(context.before),
+                    match: this.decodeMark(context.match),
+                    after: this.decodeMark(context.after),
+                    bounds,
+                    allBounds,
+                });
+            } else {
+                group.hits.push({
+                    type: 'resource',
+                    match: this.decodeMark(bodyText),
+                    bounds,
+                    allBounds,
+                });
+            }
+        }
+
+        return Array.from(resultsByCanvas.values()).sort(
+            (a, b) => a.canvasIndex - b.canvasIndex,
+        );
+    }
+
+    private buildSearchAnnotations(searchResults: SearchResultGroup[]): any[] {
+        let annotationIndex = 0;
+        return searchResults.flatMap((group) => {
+            const canvas = this.canvases[group.canvasIndex];
+            if (!canvas?.id) return [];
+            return group.hits.flatMap((hit) => {
+                const boundsArray =
+                    hit.allBounds && hit.allBounds.length > 0
+                        ? hit.allBounds
+                        : hit.bounds
+                          ? [hit.bounds]
+                          : [];
+
+                return boundsArray.map((bounds: number[]) => ({
+                    '@id': `urn:search-hit:${annotationIndex++}`,
+                    '@type': 'oa:Annotation',
+                    motivation: 'sc:painting',
+                    on: `${canvas.id}#xywh=${bounds.join(',')}`,
+                    canvasId: canvas.id,
+                    resource: {
+                        '@type': 'cnt:ContentAsText',
+                        chars: hit.match,
+                    },
+                    isSearchHit: true,
+                }));
+            });
+        });
+    }
+
+    // ==================== PARITY COMMANDS (ticket 03) ====================
+    // Supported mutation methods for viewer behaviors the chrome previously
+    // performed only through direct field assignment. Added for the parity rule
+    // (see state-inventory.ts). Core components keep their direct writes; those
+    // remain a legitimate internal escape hatch and notification completeness is
+    // ticket 04's reactivity-driven concern (ADR 0008). These commands therefore
+    // mirror the components' direct-assignment behavior and, like those chrome
+    // interactions, do not dispatch legacy web-component events.
+
+    /** Set (or clear, with null) the currently hovered annotation id. */
+    setHoveredAnnotationId(annotationId: string | null): void {
+        this.hoveredAnnotationId = annotationId;
+    }
+
+    /**
+     * Show or hide a single annotation in the read-only overlay, marking
+     * visibility as user-touched so the panel keeps the manual selection.
+     */
+    setAnnotationVisible(annotationId: string, visible: boolean): void {
+        this.annotationVisibilityTouched = true;
+        if (visible) {
+            this.visibleAnnotationIds.add(annotationId);
+        } else {
+            this.visibleAnnotationIds.delete(annotationId);
+        }
+    }
+
+    /**
+     * Show or hide every annotation on the active canvas at once, marking
+     * visibility as user-touched. Mirrors the annotation panel's "toggle all".
+     */
+    setAllAnnotationsVisible(visible: boolean): void {
+        this.annotationVisibilityTouched = true;
+        this.visibleAnnotationIds.clear();
+
+        if (!visible || !this.manifestId || !this.canvasId) {
+            return;
+        }
+
+        const annotations = this.getAnnotations(this.manifestId, this.canvasId);
+        annotations.forEach((annotation: any) => {
+            const id = getAnnotationId(annotation);
+            if (id) {
+                this.visibleAnnotationIds.add(id);
+            }
+        });
+    }
+
+    /** Move the floating (undocked) thumbnail gallery to an absolute position. */
+    setGalleryPosition(position: { x: number; y: number }): void {
+        this.galleryPosition = position;
+    }
+
+    /** Resize the floating (undocked) thumbnail gallery. */
+    setGallerySize(size: { width: number; height: number }): void {
+        this.gallerySize = size;
+    }
+
+    /**
+     * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
+     * 'right') or float it ('none'), keeping the derived docked flags in sync.
+     * Maintaining that invariant is why this is a command, not a field write.
+     */
+    setDockSide(side: string): void {
+        this.dockSide = side;
+        this.isGalleryDockedBottom = side === 'bottom';
+        this.isGalleryDockedRight = side === 'right';
+    }
+
+    // ==================== PLUGIN STATE ====================
+
+    /** Plugin-registered menu buttons */
+    pluginMenuButtons: PluginMenuButton[] = $state([]);
+
+    /** Plugin-registered panels */
+    pluginPanels: PluginPanel[] = $state([]);
+
+    /** Plugin-registered flyouts (compact popovers anchored to the toolbar button) */
+    pluginFlyouts: PluginFlyout[] = $state([]);
+
+    /**
+     * OpenSeadragon viewer instance (set by OSDViewer at OSD readiness).
+     * Observable pass-through state: its existence and ready-timing are core
+     * API, but the object's own surface is OpenSeadragon's (ADR 0009).
+     */
+    osdViewer: OpenSeadragon.Viewer | null = $state.raw(null);
+
+    /**
+     * Per-viewer annotation-edit channel shared by OSDViewer and the annotation
+     * editor plugin. Keeping this on ViewerState scopes edit requests and the
+     * active edit id to one viewer instance instead of using global listeners.
+     */
+    annotationEditBus: {
+        requestEdit: (annotationId: string) => void;
+        activeEditAnnotationId: string | null;
+    } = $state({
+        requestEdit: (_annotationId: string) => {},
+        activeEditAnnotationId: null,
+    });
+
+    /**
+     * Internal plugin UI state keyed by plugin ID.
+     * Keeps panel open state, toolbar visibility, the effective render
+     * target, and the effective panel position in one reactive place.
+     * `target` and `position` start at the plugin's authored values and can
+     * be overridden reactively after mount (via `config.plugins[id].target` /
+     * `.position`, or {@link setPluginTarget} / {@link setPluginPosition});
+     * the render sites read them through {@link getPluginTarget} and
+     * {@link getPluginPosition}, so a plugin moves between chrome and dock
+     * position without re-registering.
+     */
+    private pluginUiState = new SvelteMap<
+        string,
+        {
+            open: boolean;
+            visible: boolean;
+            target: PluginUiTarget;
+            position: 'left' | 'right' | 'bottom' | 'overlay';
+        }
+    >();
+
+    private getPluginUiConfig(pluginId: string): PluginUiConfig | undefined {
+        return this.config.plugins?.[pluginId];
+    }
+
+    private ensurePluginUiState(
+        pluginId: string,
+        defaultTarget: PluginUiTarget = 'panel',
+        defaultPosition: 'left' | 'right' | 'bottom' | 'overlay' = 'left',
+    ): void {
+        if (!this.pluginUiState.has(pluginId)) {
+            const config = this.getPluginUiConfig(pluginId);
+            this.pluginUiState.set(pluginId, {
+                open: config?.open ?? false,
+                visible: config?.visible ?? true,
+                target: config?.target ?? defaultTarget,
+                position: config?.position ?? defaultPosition,
+            });
+            return;
+        }
+
+        this.applyPluginUiConfig(pluginId);
+    }
+
+    private applyPluginUiConfig(pluginId: string): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current) return;
+
+        const config = this.getPluginUiConfig(pluginId);
+        this.pluginUiState.set(pluginId, {
+            open: config?.open ?? current.open,
+            visible: config?.visible ?? current.visible,
+            target: config?.target ?? current.target,
+            position: config?.position ?? current.position,
+        });
+    }
+
+    /**
+     * The effective render target for a plugin — the authored default unless a
+     * config override (`config.plugins[id].target`) or {@link setPluginTarget}
+     * changed it. Read reactively by the toolbar (flyout vs plain button) and by
+     * each plugin panel's `isVisible`. Defaults to `'panel'` for an unknown id.
+     */
+    getPluginTarget(pluginId: string): PluginUiTarget {
+        return this.pluginUiState.get(pluginId)?.target ?? 'panel';
+    }
+
+    /**
+     * Move a plugin between its panel and flyout chrome after mount — the
+     * imperative sibling of {@link setPluginOpen}, and the same effect as setting
+     * `config.plugins[id].target`. A no-op if the plugin is unknown or already on
+     * `target`. Switching remounts the plugin's UI in the new container (see
+     * {@link PluginUiConfig.target}).
+     */
+    setPluginTarget(pluginId: string, target: PluginUiTarget): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current || current.target === target) return;
+
+        this.pluginUiState.set(pluginId, { ...current, target });
+        this.dispatchStateChange();
+    }
+
+    /**
+     * The effective panel dock position for a plugin — the authored default
+     * unless a config override (`config.plugins[id].position`) or
+     * {@link setPluginPosition} changed it. Read reactively by each of the
+     * left/right/bottom/overlay panel render sites. Meaningful only while the
+     * plugin's effective {@link getPluginTarget} is `'panel'`; a flyout ignores
+     * it. Defaults to `'left'` for an unknown id.
+     */
+    getPluginPosition(
+        pluginId: string,
+    ): 'left' | 'right' | 'bottom' | 'overlay' {
+        return this.pluginUiState.get(pluginId)?.position ?? 'left';
+    }
+
+    /**
+     * Move a plugin's panel to a new dock position after mount — the
+     * imperative sibling of {@link setPluginTarget}, and the same effect as
+     * setting `config.plugins[id].position`. A no-op if the plugin is unknown
+     * or already at `position`. Has no visible effect while the plugin's
+     * effective target is `'flyout'` (see {@link PluginUiConfig.position}).
+     */
+    setPluginPosition(
+        pluginId: string,
+        position: 'left' | 'right' | 'bottom' | 'overlay',
+    ): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current || current.position === position) return;
+
+        this.pluginUiState.set(pluginId, { ...current, position });
+        this.dispatchStateChange();
+    }
+
+    private applyPluginUiConfigToAll(): void {
+        for (const pluginId of this.pluginUiState.keys()) {
+            this.applyPluginUiConfig(pluginId);
+        }
+    }
+
+    setPluginOpen(pluginId: string, open: boolean): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current) return;
+
+        this.pluginUiState.set(pluginId, {
+            ...current,
+            open,
+        });
+        this.dispatchStateChange();
+    }
+
+    private togglePluginOpen(pluginId: string): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current) return;
+
+        this.pluginUiState.set(pluginId, {
+            ...current,
+            open: !current.open,
+        });
+    }
+
+    /**
+     * Close every open plugin flyout. Used by the toolbar to light-dismiss
+     * flyouts on outside click / Escape. No-op (and no event) if none are open.
+     *
+     * Flyouts declaring `dismiss: 'explicit'` (SPEC.md — Dismiss) are skipped:
+     * they close only via their toolbar button, so a live-editing surface is not
+     * dismissed by an outside pointer-down. Built-in toolbar dropdowns are
+     * unaffected (they are core-owned and light-dismiss elsewhere).
+     */
+    closePluginFlyouts(): void {
+        let changed = false;
+        for (const flyout of this.pluginFlyouts) {
+            // Every plugin registers both a panel and a flyout entry; only the
+            // one matching the effective target is live. Skip flyouts whose
+            // plugin is currently rendering as a panel — a panel is not
+            // light-dismissed by an outside pointer-down.
+            if (this.getPluginTarget(flyout.pluginId) !== 'flyout') continue;
+            if (flyout.dismiss === 'explicit') continue;
+            const current = this.pluginUiState.get(flyout.pluginId);
+            if (current?.open) {
+                this.pluginUiState.set(flyout.pluginId, {
+                    ...current,
+                    open: false,
+                });
+                changed = true;
+            }
+        }
+        if (changed) this.dispatchStateChange();
+    }
+
+    // ==================== PLUGIN METHODS ====================
+
+    /**
+     * Register a plugin with this viewer instance.
+     * Accepts a simple PluginDef object.
+     */
+    registerPlugin(def: PluginDef): void {
+        const id = def.id || createPluginId();
+        const defaultTarget = def.target ?? 'panel';
+        // A plugin may supply a component under `panel`, `flyout`, or both.
+        // Resolve one for each container, falling back to the other so a single
+        // component can serve either target. Both a panel and a flyout entry are
+        // always registered; the effective target (getPluginTarget) decides
+        // which one renders, so the target can change reactively after mount
+        // without re-registering (like `open`/`visible`).
+        const panelContent = def.panel ?? def.flyout;
+        const flyoutContent = def.flyout ?? def.panel;
+
+        this.ensurePluginUiState(id, defaultTarget, def.position || 'left');
+
+        const domId = `tri-flyout-${id}`;
+        const close = () => {
+            this.setPluginOpen(id, false);
+        };
+
+        // Register Menu Button. It always carries `flyoutDomId` so the toolbar
+        // can anchor the flyout when the effective target is 'flyout'; when it
+        // is 'panel' the toolbar renders a plain toggle instead (it consults
+        // getPluginTarget).
+        const button: PluginMenuButton = {
+            id: `${id}:toggle`,
+            pluginId: id,
+            icon: def.icon,
+            tooltip: def.name,
+            flyoutDomId: domId,
+            onClick: () => {
+                this.togglePluginOpen(id);
+            },
+            isActive: () => this.pluginUiState.get(id)?.open ?? false,
+            isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
+            order: 200, // Default order for simple plugins
+        };
+
+        const flyout: PluginFlyout = {
+            id: `${id}:flyout`,
+            domId,
+            pluginId: id,
+            name: def.name,
+            icon: def.icon,
+            component: flyoutContent as PluginFlyout['component'],
+            props: {
+                ...def.props,
+                // Pass a closer to the component.
+                close,
+            },
+        };
+
+        const panel: PluginPanel = {
+            id: `${id}:panel`,
+            pluginId: id,
+            name: def.name,
+            icon: def.icon,
+            component: panelContent as PluginPanel['component'],
+            // Live only while the effective target is 'panel' AND open; the
+            // flyout entry covers the 'flyout' target.
+            isVisible: () =>
+                this.getPluginTarget(id) === 'panel' &&
+                (this.pluginUiState.get(id)?.open ?? false),
+            props: {
+                ...def.props,
+                // Pass closer to component
+                close,
+            },
+        };
+
+        this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+        this.pluginPanels = [...this.pluginPanels, panel];
+        this.pluginFlyouts = [...this.pluginFlyouts, flyout];
+
+        // Execute lifecycle hook if present
+        if (def.onInit) {
+            def.onInit(this);
+        }
+    }
+
+    /**
+     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path
+     * (epic restore-plugin-toolbar-chrome, ticket 02). Core renders the button
+     * from the plugin's {@link IconDescriptor} and {@link PluginUiTarget}, and the
+     * anchored flyout / docked panel container hosts the plugin content via the
+     * DOM-mount `mount` thunk. This reuses the SAME `pluginMenuButtons` +
+     * `pluginFlyouts`/`pluginPanels` rendering path as the legacy `PluginDef`
+     * plugins — the entries carry a mount thunk instead of a Svelte component.
+     *
+     * `id` is the caller-owned plugin id (used for open-state + unregister); it
+     * must be passed to {@link unregisterPlugin} on deactivation.
+     */
+    registerSdkChrome(config: {
+        id: string;
+        name: string;
+        icon: IconDescriptor;
+        target: PluginUiTarget;
+        dismiss: 'light' | 'explicit';
+        mount: PluginMountThunk;
+        position?: 'left' | 'right' | 'bottom' | 'overlay';
+    }): void {
+        const { id, name, icon, target, dismiss, mount } = config;
+
+        this.ensurePluginUiState(id, target, config.position ?? 'left');
+
+        const domId = `tri-flyout-${id}`;
+
+        // Always carries `flyoutDomId`; the toolbar anchors the flyout only when
+        // the effective target is 'flyout' (see registerPlugin).
+        const button: PluginMenuButton = {
+            id: `${id}:toggle`,
+            pluginId: id,
+            iconDescriptor: icon,
+            tooltip: name,
+            flyoutDomId: domId,
+            onClick: () => {
+                this.togglePluginOpen(id);
+            },
+            isActive: () => this.pluginUiState.get(id)?.open ?? false,
+            isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
+            order: 200,
+        };
+
+        // Both entries share the one core-owned `mount` thunk. Only the entry
+        // matching the effective target is ever live, so the thunk is called by
+        // at most one container at a time; a target switch re-parents the
+        // plugin's content element between the panel and flyout container.
+        const flyout: PluginFlyout = {
+            id: `${id}:flyout`,
+            domId,
+            pluginId: id,
+            name,
+            iconDescriptor: icon,
+            mount,
+            dismiss,
+        };
+
+        const panel: PluginPanel = {
+            id: `${id}:panel`,
+            pluginId: id,
+            name,
+            iconDescriptor: icon,
+            mount,
+            isVisible: () =>
+                this.getPluginTarget(id) === 'panel' &&
+                (this.pluginUiState.get(id)?.open ?? false),
+        };
+
+        this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+        this.pluginPanels = [...this.pluginPanels, panel];
+        this.pluginFlyouts = [...this.pluginFlyouts, flyout];
+    }
+
+    /**
+     * Unregister a plugin's UI components by ID prefix.
+     * Note: This cleans up the menu button and panel, but doesn't remove listeners attached by the plugin itself
+     * since we don't have a handle on the plugin instance or its cleanup function anymore.
+     * Plugins should manage their own cleanup via component lifecycle (onDestroy) if possible.
+     */
+    unregisterPlugin(pluginId: string): void {
+        this.pluginMenuButtons = this.pluginMenuButtons.filter(
+            (b) => !b.id.startsWith(`${pluginId}:`),
+        );
+        this.pluginPanels = this.pluginPanels.filter(
+            (p) => !p.id.startsWith(`${pluginId}:`),
+        );
+        this.pluginFlyouts = this.pluginFlyouts.filter(
+            (f) => !f.id.startsWith(`${pluginId}:`),
+        );
+        this.pluginUiState.delete(pluginId);
+    }
+
+    /**
+     * Notify that OSD viewer is ready.
+     * With the component-based system, we don't notify plugins individually.
+     * Instead, plugins should use the OSDViewer instance from context or listen for 'osd-ready' event (if we emitted one).
+     * But since we have direct access to osdViewer in this state, components can just react to it.
+     */
+    notifyOSDReady(viewer: OpenSeadragon.Viewer): void {
+        this.osdViewer = viewer;
+    }
+
+    /**
+     * Cleanup everything.
+     */
+    destroyAllPlugins(): void {
+        this.pluginMenuButtons = [];
+        this.pluginPanels = [];
+        this.pluginFlyouts = [];
+        this.pluginUiState.clear();
+    }
+
+    // ==================== FRAMEWORK-NEUTRAL SUBSCRIPTIONS (ADR 0008) ==========
+    //
+    // `subscribe` gives plugins a reactivity-driven, batched, payload-free
+    // notification independent of the Web Component event target above. A single
+    // `$effect.root`-based watcher reads every inventoried `command` and
+    // `observable` member; any write source — command, core-internal Svelte
+    // binding, or unsupported direct assignment — re-runs it on the next flush
+    // and wakes subscribers. Completeness is structural (nobody has to remember
+    // to call `notify()`); the price is timing: notifications are batched and
+    // delivered on the microtask flush, never synchronously inside a mutator.
+    // Selectors (ticket 07) and `pluginerror` attribution (ticket 09) build on
+    // top of this; `invokeSubscriptionListener` is the seam ticket 09 replaces.
+
+    /**
+     * Inventoried members whose changes wake subscribers, derived from the state
+     * inventory so the watcher and the inventory cannot drift: `command` and
+     * `observable` members notify; `internal` and `query-only` members never do.
+     */
+    private static readonly WATCHED_MEMBERS: readonly string[] =
+        STATE_INVENTORY.filter(
+            (entry) =>
+                entry.classification === 'command' ||
+                entry.classification === 'observable',
+        ).map((entry) => entry.member);
+
+    // These are ECMAScript #private fields (not TS `private`) on purpose: they
+    // carry no plugin contract and must stay invisible to the state inventory's
+    // enumerable-member reflection, so no `state-inventory.ts` entry is needed.
+
+    /**
+     * Registered subscription listeners, kept in registration order. Each entry
+     * pairs the listener with an optional per-subscription error handler
+     * (ticket 09): when the listener throws, the guard routes to `onError` if
+     * present so the SDK can attribute the failure to the owning plugin
+     * (`pluginerror` phase `subscription`); otherwise it falls back to a console
+     * error. Core's own subscriptions register no `onError` and keep the
+     * console-error behavior.
+     */
+    #subscriptionListeners: Array<{
+        listener: () => void;
+        onError?: (error: unknown) => void;
+    }> = [];
+
+    /** Disposes the reactive watcher's effect root; null until lazily started. */
+    #disposeSubscriptionWatcher: (() => void) | null = null;
+
+    /** True once the watcher's priming run has established its dependencies. */
+    #subscriptionWatcherPrimed = false;
+
+    /**
+     * Subscribe to viewer-state changes. The listener is called — with no
+     * arguments — on the flush after any inventoried `command`/`observable`
+     * member changes, regardless of write source. Notifications are batched
+     * (many changes in one tick collapse to one call) and payload-free: read the
+     * state you need, do not reconstruct transitions. Listeners fire in
+     * registration order. Returns an unsubscribe function.
+     *
+     * SSR-safe: calling this on the server registers the listener but starts no
+     * effect and delivers no notifications (state reads stay synchronously
+     * current everywhere).
+     *
+     * `onError` (ticket 09) is called with the thrown value if this listener
+     * throws during delivery; the throw never stops other listeners or core's
+     * own reactions. The SDK passes one per activation so a throwing listener is
+     * attributed to its owning plugin (`pluginerror` phase `subscription`).
+     */
+    subscribe(
+        listener: () => void,
+        onError?: (error: unknown) => void,
+    ): () => void {
+        const entry = { listener, onError };
+        this.#subscriptionListeners.push(entry);
+        this.startSubscriptionWatcher();
+
+        return () => {
+            const index = this.#subscriptionListeners.indexOf(entry);
+            if (index !== -1) {
+                this.#subscriptionListeners.splice(index, 1);
+            }
+        };
+    }
+
+    /**
+     * Lazily start the reactivity-driven watcher (browser only, once). Kept out
+     * of the constructor so server-side construction never creates an effect and
+     * viewers with no subscribers pay nothing.
+     */
+    private startSubscriptionWatcher(): void {
+        // SSR-safe: never create effects on the server.
+        if (this.#disposeSubscriptionWatcher || typeof window === 'undefined') {
+            return;
+        }
+
+        this.#subscriptionWatcherPrimed = false;
+        this.#disposeSubscriptionWatcher = $effect.root(() => {
+            $effect(() => {
+                // Establish a reactive dependency on every watched member.
+                this.trackWatchedMembers();
+
+                if (this.#subscriptionWatcherPrimed) {
+                    // Deliver outside the tracking context so a listener's own
+                    // state reads never become watcher dependencies.
+                    untrack(() => this.notifySubscribers());
+                } else {
+                    // First run only registers dependencies; it must not notify.
+                    this.#subscriptionWatcherPrimed = true;
+                }
+            });
+        });
+
+        // Prime synchronously so dependencies exist before the caller mutates;
+        // otherwise the effect's initial run would swallow the first change.
+        // `flushSync` throws when Svelte is already flushing (e.g. subscribing
+        // from inside an effect) — tolerate that: the scheduled effect still
+        // primes on the in-progress flush.
+        try {
+            flushSync();
+        } catch {
+            /* already flushing — priming happens on the current flush */
+        }
+    }
+
+    /**
+     * Read every watched member so the watcher effect depends on all of them.
+     * Reading a plain member registers an identity dependency; reactive
+     * collections additionally need their mutation version read (via `keys()`,
+     * which also covers `.size` changes) so adds, deletes, clears, and same-size
+     * content swaps all notify.
+     */
+    private trackWatchedMembers(): void {
+        const self = this as unknown as Record<string, unknown>;
+        for (const member of ViewerState.WATCHED_MEMBERS) {
+            const value = self[member];
+            if (value instanceof SvelteSet || value instanceof SvelteMap) {
+                value.keys();
+            }
+        }
+    }
+
+    private notifySubscribers(): void {
+        // Snapshot so a listener that (un)subscribes during delivery does not
+        // disturb this pass; a newly added listener sees the next notification.
+        for (const entry of [...this.#subscriptionListeners]) {
+            this.invokeSubscriptionListener(entry);
+        }
+    }
+
+    /**
+     * Single guarded call site for a subscription listener (ticket 09): a
+     * throwing listener is isolated so the remaining listeners and core's own
+     * reactions still run. The failure is routed to the listener's own
+     * `onError` when one was registered — the SDK uses this to attribute the
+     * throw to the owning plugin and raise `pluginerror` phase `subscription` —
+     * and otherwise falls back to a console error. `onError` itself is guarded
+     * so a faulty reporter cannot break delivery either.
+     */
+    private invokeSubscriptionListener(entry: {
+        listener: () => void;
+        onError?: (error: unknown) => void;
+    }): void {
+        try {
+            entry.listener();
+        } catch (error) {
+            if (entry.onError) {
+                try {
+                    entry.onError(error);
+                } catch (reportError) {
+                    // triiiceratops-console-allow: ticket 09 subscription
+                    // isolation last-resort fallback (tested in
+                    // viewer.subscribe.onError.test.ts). A throwing error
+                    // reporter has no other channel; delivery must continue.
+                    console.error(
+                        '[ViewerState] A subscription error reporter threw; delivery continues.',
+                        reportError,
+                    );
+                }
+            } else {
+                // triiiceratops-console-allow: ticket 09 subscription isolation
+                // last-resort fallback (tested in
+                // viewer.subscribe.onError.test.ts). An unguarded listener throw
+                // with no `onError` reporter has no structured channel.
+                console.error(
+                    '[ViewerState] A subscription listener threw; other listeners are unaffected.',
+                    error,
+                );
+            }
+        }
+    }
+
+    /**
+     * Tear down this viewer state: dispose the subscription watcher's effect
+     * root, drop all listeners, and release plugin registrations. After destroy
+     * no further notifications are delivered. Idempotent.
+     */
+    destroy(): void {
+        this.#disposeSubscriptionWatcher?.();
+        this.#disposeSubscriptionWatcher = null;
+        this.#subscriptionWatcherPrimed = false;
+        this.#subscriptionListeners = [];
+        this.destroyAllPlugins();
+    }
+}
+
+// Context key for providing/injecting ViewerState in components
+export const VIEWER_STATE_KEY = 'triiiceratops:viewerState';

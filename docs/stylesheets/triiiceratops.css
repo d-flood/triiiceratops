@@ -43,6 +43,15 @@ body[data-md-color-scheme] {
     --md-primary-fg-color: var(--tri-primary);
     --md-primary-bg-color: var(--tri-primary-content);
     --md-accent-fg-color: var(--tri-primary);
+    /* Zensical defines this as its own variable (not derived from
+       --md-accent-fg-color), and it's what active-nav-item backgrounds and
+       hover/focus rings actually use — overriding only the color above still
+       left those on the default indigo. */
+    --md-accent-fg-color--transparent: color-mix(
+        in oklab,
+        var(--tri-primary) 10%,
+        transparent
+    );
     --md-typeset-a-color: color-mix(
         in oklab,
         var(--tri-primary) 82%,

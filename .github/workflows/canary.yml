@@ -1,0 +1,105 @@
+# Framework-adapter canary (scheduled, NON-BLOCKING).
+#
+# Required CI pins exact latest-stable framework majors for determinism (ticket
+# 13). This canary is the counterpart: on a schedule it re-runs the SDK's Svelte /
+# React / Vue / Lit adapter suites against whatever each framework's registry
+# `latest` major currently resolves to, and files a report. It gives early warning
+# of a breaking framework release so a reviewed dependency bump can follow.
+#
+# It NEVER blocks a pull request: it has no `pull_request` trigger, and the
+# adapter run is `continue-on-error`, so the workflow itself always succeeds. A
+# regression surfaces as a GitHub issue, not a red check on anyone's PR.
+name: Adapter Canary
+
+on:
+    schedule:
+        # Every Monday 06:00 UTC.
+        - cron: '0 6 * * 1'
+    workflow_dispatch:
+
+concurrency: ${{ github.workflow }}
+
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+    canary:
+        name: SDK adapters vs registry latest framework majors
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies (pinned baseline)
+              run: pnpm install
+
+            # The seam ticket 13 left: swap the SDK's pinned framework devDeps for
+            # each framework's current registry `latest`, then re-resolve.
+            - name: Upgrade framework majors to registry latest
+              run: |
+                  pnpm --filter @triiiceratops/plugin-sdk add -D \
+                    react@latest react-dom@latest @types/react@latest @types/react-dom@latest \
+                    vue@latest svelte@latest lit@latest
+                  {
+                    echo "## Resolved framework versions"
+                    echo '```'
+                    for pkg in react react-dom vue svelte lit; do
+                      echo "$pkg: $(node -p "require('@triiiceratops/plugin-sdk/node_modules/$pkg/package.json').version" 2>/dev/null || node -p "require('$pkg/package.json').version" 2>/dev/null || echo unknown)"
+                    done
+                    echo '```'
+                  } >> canary-report.md
+
+            - name: Run adapter suites (non-blocking)
+              id: adapters
+              continue-on-error: true
+              run: |
+                  set -o pipefail
+                  echo "## Adapter test + type-check output" >> canary-report.md
+                  echo '```' >> canary-report.md
+                  STATUS=0
+                  pnpm --filter @triiiceratops/plugin-sdk test 2>&1 | tee -a canary-report.md || STATUS=1
+                  pnpm --filter @triiiceratops/plugin-sdk check 2>&1 | tee -a canary-report.md || STATUS=1
+                  echo '```' >> canary-report.md
+                  echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+                  exit $STATUS
+
+            # File (or update) a report issue only when the canary detected a
+            # regression. Never fails the job.
+            - name: File canary report issue on regression
+              if: steps.adapters.outcome == 'failure'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  TITLE="Adapter canary: framework latest regression"
+                  BODY_FILE=canary-report.md
+                  {
+                    echo ""
+                    echo "_Canary run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}_"
+                    echo "_This is a non-blocking scheduled check. It never fails PRs; it feeds a reviewed dependency bump._"
+                  } >> "$BODY_FILE"
+                  EXISTING=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number' || true)
+                  if [ -n "$EXISTING" ]; then
+                    gh issue comment "$EXISTING" --body-file "$BODY_FILE"
+                    echo "Commented on existing issue #$EXISTING."
+                  else
+                    gh issue create --title "$TITLE" --body-file "$BODY_FILE" --label canary || \
+                      gh issue create --title "$TITLE" --body-file "$BODY_FILE"
+                  fi
+
+            - name: Report status
+              run: |
+                  if [ "${{ steps.adapters.outcome }}" = "failure" ]; then
+                    echo "::warning::Adapter canary detected a regression against registry latest — see the filed issue."
+                  else
+                    echo "Adapter canary green against current framework latest majors."
+                  fi

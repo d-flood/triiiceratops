@@ -3,15 +3,57 @@ on:
     push:
         branches:
             - main
+    pull_request:
 permissions:
     contents: read
-    pages: write
-    id-token: write
 jobs:
+    # Required PR gate: the docs site builds with zero warnings and zero broken
+    # internal links (`zensical build --strict`), and every extracted doc example
+    # is in sync with the Markdown (`docs:examples:check`). Runs on pull requests;
+    # the deploy job below runs only on pushes to main.
+    build-check:
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: 3.x
+
+            - name: Install zensical
+              run: pip install zensical
+
+            # `pnpm docs:build` = doc-example sync check + `zensical build
+            # --clean --strict` (warnings-as-failures + internal link check).
+            - name: Build docs (strict) + verify examples in sync
+              run: pnpm docs:build
+
     deploy:
+        if: github.event_name == 'push'
         environment:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
+        permissions:
+            # `contents: write` lets the job persist the accumulated, versioned
+            # site to the durable `docs-site` storage branch (see below). This
+            # branch is NOT the Pages source — Pages still serves the uploaded
+            # artifact via `deploy-pages`.
+            contents: write
+            pages: write
+            id-token: write
         runs-on: ubuntu-latest
         steps:
             - uses: actions/configure-pages@v5
@@ -30,15 +72,55 @@ jobs:
               run: pnpm install
 
             - name: Build Docs Assets
-              run: pnpm build:lib && pnpm build:element && pnpm build:plugins-iife && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo
+              run: pnpm build:lib && pnpm build:element && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo
 
             - uses: actions/setup-python@v5
               with:
                   python-version: 3.x
-            - run: pip install zensical
-            - run: zensical build --clean
+            - name: Install zensical
+              run: pip install zensical
+
+            # Versioned documentation (ticket 39). Each release publishes into a
+            # `/<major.minor>/` subdirectory derived from the CORE package.json
+            # version; previously published version directories are IMMUTABLE and
+            # are preserved on every deploy. `docs-publish.mjs` also builds the
+            # versioned site (correct canonical/site_url) and maintains a
+            # `versions.json` version index plus root and `/latest/` redirects.
+            #
+            # The accumulated site is kept on the durable `docs-site` branch,
+            # which is used only as storage — Pages continues to serve the
+            # uploaded artifact, so the Pages source is unchanged.
+            - name: Resolve docs version
+              id: docsver
+              run: echo "version=$(node scripts/docs-version.mjs)" >> "$GITHUB_OUTPUT"
+
+            - name: Restore previously published versions
+              run: |
+                  rm -rf published && mkdir -p published
+                  if git ls-remote --exit-code --heads origin docs-site >/dev/null 2>&1; then
+                      git fetch --depth 1 origin docs-site
+                      git archive FETCH_HEAD | tar -x -C published
+                  fi
+
+            - name: Publish this version (preserving older versions)
+              run: node scripts/docs-publish.mjs --dest published --version "${{ steps.docsver.outputs.version }}"
+
+            - name: Persist accumulated versions to docs-site
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  cd published
+                  git init -q -b docs-site
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add -A
+                  git commit -q -m "docs: publish ${{ steps.docsver.outputs.version }} [skip ci]"
+                  git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" docs-site
+                  # Drop the storage .git so it is not shipped in the Pages artifact.
+                  rm -rf .git
+
             - uses: actions/upload-pages-artifact@v4
               with:
-                  path: site
+                  path: published
             - uses: actions/deploy-pages@v4
               id: deployment

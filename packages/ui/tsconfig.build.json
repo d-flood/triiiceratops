@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "isolatedModules": true,
+        "moduleDetection": "force",
+
+        // Match core's type-check strictness (see tsconfig.json).
+        "strict": true,
+        "noImplicitAny": true,
+
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "outDir": "./dist",
+        "rootDir": "./src",
+
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true
+    },
+    "include": ["src/index.ts", "src/svelte-shim.d.ts"],
+    "exclude": ["src/**/*.test.ts", "dist", "node_modules"]
+}

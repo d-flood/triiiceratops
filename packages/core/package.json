@@ -1,0 +1,129 @@
+{
+    "name": "triiiceratops",
+    "version": "1.0.0-rc.25",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git"
+    },
+    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "private": false,
+    "engines": {
+        "node": ">=22"
+    },
+    "license": "MIT",
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "sideEffects": [
+        "**/*.css",
+        "./dist/triiiceratops-element.iife.js",
+        "./dist/triiiceratops-element.js"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "svelte": "./dist/index.js",
+    "style": "./dist/triiiceratops.css",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "style": "./dist/triiiceratops.css",
+            "svelte": "./dist/index.js",
+            "import": "./dist/index.js"
+        },
+        "./testing": {
+            "types": "./dist/testing/index.d.ts",
+            "import": "./dist/testing/index.js"
+        },
+        "./image-export": {
+            "types": "./dist/image-export.d.ts",
+            "svelte": "./dist/image-export.js",
+            "import": "./dist/image-export.js"
+        },
+        "./element": "./dist/triiiceratops-element.iife.js",
+        "./element/register": "./dist/triiiceratops-element.js",
+        "./style.css": "./dist/triiiceratops.css"
+    },
+    "peerDependencies": {
+        "svelte": "^5.0.0"
+    },
+    "peerDependenciesMeta": {
+        "svelte": {
+            "optional": true
+        }
+    },
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "gen:icons": "node ./scripts/generate-icons.ts",
+        "predev": "pnpm gen:icons",
+        "pretest": "pnpm gen:icons",
+        "precheck": "pnpm gen:icons",
+        "build:lib": "pnpm gen:icons && paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && node ./src/packaging/pruneDist.ts && node ./src/packaging/inlineUi.ts && vite build --config vite.config.lib.ts && vite build --config vite.config.styles.ts && rm -f dist/triiiceratops-styles.js && pnpm check:runtime-deps",
+        "build:testing": "vite build --config vite.config.testing.ts",
+        "build:element": "vite build --config vite.config.element.ts && vite build --config vite.config.element-esm.ts",
+        "build:demo": "vite build --config vite.config.demo.ts && mkdir -p ../../docs/demo && cp -r ../../docs/viewer/. ../../docs/demo/.",
+        "build:svelte-demo": "vite build --config vite.config.svelte-demo.ts",
+        "build:consumer": "rm -rf ../../docs/demo-consumer && mkdir -p ../../docs/demo-consumer && cp src/demo-consumer/index.html ../../docs/demo-consumer/index.html && cp src/demo-consumer/app.css ../../docs/demo-consumer/app.css && rm -rf ../../docs/dist && cp -r dist ../../docs/dist",
+        "build:webcomponent-demo": "rm -rf ../../docs/demo/webcomponent && mkdir -p ../../docs/demo/webcomponent && cp src/demo-webcomponent/index.html ../../docs/demo/webcomponent/index.html && cp src/demo-webcomponent/app.css ../../docs/demo/webcomponent/app.css && rm -rf ../../docs/dist && cp -r dist ../../docs/dist",
+        "build:all": "pnpm build:lib && pnpm build:testing && pnpm build:element && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo && pnpm build:consumer",
+        "preview": "vite preview",
+        "dev:consumer": "vite --config vite.config.demo-consumer.ts",
+        "check": "svelte-check --tsconfig ./tsconfig.app.json --fail-on-warnings --compiler-warnings \"options_missing_custom_element:ignore\" && tsc -p tsconfig.node.json",
+        "check:runtime-deps": "node ./scripts/check-runtime-deps.mjs",
+        "test": "vitest",
+        "test:contrast": "node ./scripts/check-contrast.ts",
+        "test:e2e": "playwright test",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "test:coverage": "vitest run --coverage"
+    },
+    "devDependencies": {
+        "@axe-core/playwright": "^4.12.1",
+        "@eslint/js": "^9.39.2",
+        "@inlang/paraglide-js": "^2.7.0",
+        "@phosphor-icons/core": "^2.1.1",
+        "@playwright/test": "^1.57.0",
+        "@sveltejs/package": "^2.5.7",
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@triiiceratops/plugin-annotation-editor": "workspace:*",
+        "@triiiceratops/plugin-image-download": "workspace:*",
+        "@triiiceratops/plugin-image-manipulation": "workspace:*",
+        "@triiiceratops/plugin-pdf-export": "workspace:*",
+        "@triiiceratops/plugin-sdk": "workspace:*",
+        "@triiiceratops/ui": "workspace:*",
+        "@tsconfig/svelte": "^5.0.6",
+        "@types/node": "^24.10.1",
+        "@vitest/coverage-v8": "4.0.15",
+        "axe-core": "^4.12.1",
+        "eslint": "^9.39.2",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-svelte": "^3.14.0",
+        "globals": "^17.1.0",
+        "happy-dom": "^20.0.11",
+        "jsdom": "^27.3.0",
+        "prettier": "^3.7.4",
+        "prettier-plugin-svelte": "^3.4.0",
+        "svelte": "^5.43.8",
+        "svelte-check": "^4.3.4",
+        "typescript": "~5.9.3",
+        "typescript-eslint": "^8.53.1",
+        "vite": "^6.0.0",
+        "vite-plugin-dts": "^4.5.4",
+        "vitest": "^4.0.15"
+    },
+    "dependencies": {
+        "@types/openseadragon": "^5.0.1",
+        "dompurify": "^3.4.11",
+        "manifesto.js": "^4.3.0",
+        "openseadragon": "^5.0.1"
+    }
+}

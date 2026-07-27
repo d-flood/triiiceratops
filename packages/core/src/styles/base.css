@@ -1,0 +1,105 @@
+/*
+ * Global base styles: scrollbars and OpenSeadragon background.
+ * (Token + theme definitions live in themes.css; element reset in preflight.css.)
+ */
+
+/*
+ * Anchor text + document background to the theme tokens.
+ *
+ * The base text color must be set explicitly on the root. Without it the text
+ * `color` is left at the UA default (black) and, crucially, inherits ACROSS the
+ * shadow boundary into the custom element — so when the host page is light but
+ * the element resolves dark tokens (e.g. prefers-color-scheme: dark), the viewer
+ * renders dark text on a dark background. Anchoring `color` to --tri-content
+ * here makes text follow whichever theme is active in scope.
+ *
+ * Zero-specificity (:where) so consumers can still override. `background-color` is
+ * intentionally only on :root (the document) and NOT :host — the custom element
+ * must stay transparent for the `transparentBackground` config; the viewer paints
+ * its own opaque background via .viewer-root.opaque.
+ */
+:where(:root, :host, [data-theme]) {
+    color: var(--tri-content);
+}
+:where(:root) {
+    background-color: var(--tri-viewer-bg);
+}
+
+/* Thin, theme-aware scrollbars driven by the --tri-content token. */
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--tri-content) 20%, transparent)
+        transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--tri-content) 20%, transparent);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--tri-content) 40%, transparent);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+    border-radius: 9999px;
+}
+
+/* Transparent canvas background mode for OpenSeadragon. */
+.osd-background,
+.osd-background .openseadragon-container {
+    background-color: transparent;
+}
+
+/*
+ * Visible, theme-aware keyboard focus indicator (WCAG 2.2 — 2.4.7 Focus Visible,
+ * 2.4.11 Focus Not Obscured). A single baseline so every focusable control —
+ * including the div/role="button" rows in the panels and gallery that carry no
+ * ring of their own — shows a consistent, high-contrast outline on keyboard
+ * focus. `:focus-visible` keeps the ring off pointer interactions. Anchored to
+ * the theme primary so it re-tints per theme; the offset lifts it clear of the
+ * control edge. Component rules may override the color, but must not remove the
+ * ring. In the published stylesheet these rules are scoped to `.viewer-root`
+ * (see scopeViewerRoot); in the shadow DOM they apply within the host.
+ */
+:where(:root, :host) :focus-visible {
+    outline: 2px solid var(--tri-color-primary);
+    outline-offset: 2px;
+}
+
+/*
+ * Reduced-motion safety net (WCAG 2.2 — 2.3.3 Animation from Interactions).
+ * Individual components opt into animation via
+ * `@media (prefers-reduced-motion: no-preference)`, but this global guard zeroes
+ * any remaining CSS transition/animation and disables smooth scrolling when the
+ * user asks for reduced motion, so no viewer chrome animates regardless of which
+ * component authored it. JS-driven animations honor the preference separately
+ * (see PanelStack / TriiiceratopsViewer matchMedia checks).
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+        scroll-behavior: auto !important;
+    }
+}

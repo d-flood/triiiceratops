@@ -1,0 +1,305 @@
+/*
+ * Design tokens + built-in themes (vanilla CSS).
+ *
+ * Two layers:
+ *   1. Per-theme tokens — palette, surfaces, content, and the radius trio. Defined in
+ *      each theme block below (defaults / prefers-dark / [data-theme=…]).
+ *   2. Derived / inherited / per-panel tokens — gallery/input surfaces, the per-region
+ *      content slots, the per-panel override slots, and the per-region radius overrides.
+ *      Defined ONCE in the :where(:root, :host) defaults block. Custom properties
+ *      re-resolve in the scope where they're READ, so e.g. `--tri-panel-bg: green` flows
+ *      into `--tri-metadata-panel-bg: var(--tri-panel-bg)` automatically, and a derived token
+ *      picks up whichever theme is active without being repeated per block.
+ *
+ * Surfaces are region-named (--tri-toolbar-bg, --tri-panel-bg, --tri-viewer-bg, …); --color-* is
+ * reserved for the palette (--tri-color-primary, etc.).
+ *
+ * Cascade (lowest → highest precedence):
+ *   1. :where(:root, :host) defaults — ZERO specificity, so a consumer can override any
+ *      token from outside (e.g. `triiiceratops-viewer { --tri-panel-bg: … }`); custom
+ *      properties inherit through the shadow boundary. This is the CSS-variable theming
+ *      method.
+ *   2. prefers-color-scheme: dark default — applied when no explicit theme is set.
+ *   3. [data-theme="…"] block — set by the `theme` prop via applyTheme(); normal
+ *      specificity, so a selected theme wins over external CSS-var overrides.
+ *   4. Inline styles on the root — set by the `themeConfig` prop; win over everything.
+ *
+ * Per-panel inheritance: every panel root carries `data-panel-id`. The attribute rules
+ * at the bottom publish the resolved surface/foreground into the inherited
+ * `--panel-surface` / `--panel-fg` properties (general → per-panel override), which the
+ * panel components and their descendants consume.
+ */
+
+/* ---- Default tokens (light) — zero-specificity so host overrides win ---- */
+:where(:root, :host) {
+    color-scheme: light;
+
+    /* Palette */
+    --tri-color-primary: oklch(78% 0.15 80);
+    --tri-color-primary-content: oklch(28% 0.08 70);
+    --tri-color-neutral: oklch(14% 0.005 285.823);
+    --tri-color-neutral-content: oklch(92% 0.004 286.32);
+    --tri-color-success: oklch(76% 0.177 163.223);
+    --tri-color-success-content: oklch(37% 0.077 168.94);
+    --tri-color-warning: oklch(82% 0.189 84.429);
+    --tri-color-warning-content: oklch(41% 0.112 45.904);
+    --tri-color-error: oklch(71% 0.194 13.428);
+    --tri-color-error-content: oklch(27% 0.105 12.094);
+
+    /* Surfaces */
+    --tri-viewer-bg: oklch(100% 0 0);
+    --tri-toolbar-bg: oklch(98% 0 0);
+    --tri-panel-bg: oklch(98% 0 0);
+    --tri-surface-border: oklch(95% 0 0);
+    --tri-content: oklch(21% 0.006 285.885);
+
+    /* Radius (top-level trio) */
+    --tri-radius-selector: 0.5rem;
+    --tri-radius-buttons: 0.25rem;
+    --tri-radius-box: 0.5rem;
+
+    /* Sizing / border / depth */
+    --tri-size-selector: 0.25rem;
+    --tri-size-field: 0.25rem;
+    --tri-border: 1px;
+    --tri-depth: 1;
+}
+
+/*
+ * Derived / inherited tokens. These are `var()` references to the per-theme tokens, so
+ * they MUST be declared on the same element that carries `data-theme` (applyTheme() sets
+ * it on the inner viewer root, not :host) — otherwise a var() declared only on :host
+ * would resolve against :host's prefers-color-scheme values and ignore the selected
+ * theme. Including `[data-theme]` here (kept at zero specificity via :where) makes each
+ * derived token re-resolve in the themed scope.
+ */
+:where(:root, :host, [data-theme]) {
+    /* Primary used as TEXT/icon on a neutral panel surface. Anchored to --tri-content
+       so the lightness shift is theme-correct (darkens on light themes, lightens on
+       dark) while keeping primary's hue. Override per-theme by redeclaring in a
+       [data-theme=…] block. */
+    --tri-color-primary-text: color-mix(
+        in oklab,
+        var(--tri-color-primary),
+        var(--tri-content) 60%
+    );
+
+    /* Surfaces that follow the viewer surface by default */
+    --tri-gallery-bg: var(--tri-viewer-bg);
+    --tri-input-bg: var(--tri-viewer-bg);
+
+    /* Per-region content; each follows the global content color by default */
+    --tri-panel-content: var(--tri-content);
+    --tri-toolbar-content: var(--tri-content);
+    --tri-viewer-content: var(--tri-content);
+    --tri-gallery-content: var(--tri-content);
+
+    /* Per-panel overrides; each follows --tri-panel-bg / --tri-panel-content by default.
+       Set --tri-panel-bg to retint every panel, or one of these to retint just that panel. */
+    --tri-metadata-panel-bg: var(--tri-panel-bg);
+    --tri-metadata-panel-content: var(--tri-panel-content);
+    --tri-annotations-panel-bg: var(--tri-panel-bg);
+    --tri-annotations-panel-content: var(--tri-panel-content);
+    --tri-search-panel-bg: var(--tri-panel-bg);
+    --tri-search-panel-content: var(--tri-panel-content);
+    --tri-structures-panel-bg: var(--tri-panel-bg);
+    --tri-structures-panel-content: var(--tri-panel-content);
+    --tri-collection-panel-bg: var(--tri-panel-bg);
+    --tri-collection-panel-content: var(--tri-panel-content);
+
+    /* Per-region radius overrides; inherit the top-level trio by default */
+    --tri-radius-toolbar: var(--tri-radius-buttons);
+    --tri-radius-panels: var(--tri-radius-box);
+    --tri-radius-controls: var(--tri-radius-buttons);
+    --tri-radius-controls-buttons: var(--tri-radius-buttons);
+}
+
+/* ---- Default tokens (dark) when the user prefers dark and no theme is set ---- */
+@media (prefers-color-scheme: dark) {
+    :where(:root, :host) {
+        color-scheme: dark;
+
+        --tri-color-primary: oklch(58% 0.233 277.117);
+        --tri-color-primary-content: oklch(96% 0.018 272.314);
+        --tri-color-neutral: oklch(14% 0.005 285.823);
+        --tri-color-neutral-content: oklch(92% 0.004 286.32);
+        --tri-color-success: oklch(76% 0.177 163.223);
+        --tri-color-success-content: oklch(37% 0.077 168.94);
+        --tri-color-warning: oklch(82% 0.189 84.429);
+        --tri-color-warning-content: oklch(41% 0.112 45.904);
+        --tri-color-error: oklch(71% 0.194 13.428);
+        --tri-color-error-content: oklch(27% 0.105 12.094);
+
+        --tri-viewer-bg: oklch(25.33% 0.016 252.42);
+        --tri-toolbar-bg: oklch(20% 0.014 253.1);
+        --tri-panel-bg: oklch(20% 0.014 253.1);
+        --tri-surface-border: oklch(17.5% 0.012 254.09);
+        --tri-content: oklch(97.807% 0.029 256.847);
+
+        --tri-radius-selector: 0.5rem;
+        --tri-radius-buttons: 0.25rem;
+        --tri-radius-box: 0.5rem;
+        --tri-size-selector: 0.25rem;
+        --tri-size-field: 0.25rem;
+        --tri-border: 1px;
+        --tri-depth: 1;
+    }
+}
+
+/* ---- Explicit themes (set via the `theme` prop / data-theme attribute) ---- */
+[data-theme='light'] {
+    color-scheme: light;
+
+    --tri-color-primary: oklch(78% 0.15 80);
+    --tri-color-primary-content: oklch(28% 0.08 70);
+    --tri-color-neutral: oklch(14% 0.005 285.823);
+    --tri-color-neutral-content: oklch(92% 0.004 286.32);
+    --tri-color-success: oklch(76% 0.177 163.223);
+    --tri-color-success-content: oklch(37% 0.077 168.94);
+    --tri-color-warning: oklch(82% 0.189 84.429);
+    --tri-color-warning-content: oklch(41% 0.112 45.904);
+    --tri-color-error: oklch(71% 0.194 13.428);
+    --tri-color-error-content: oklch(27% 0.105 12.094);
+
+    --tri-viewer-bg: oklch(100% 0 0);
+    --tri-toolbar-bg: oklch(98% 0 0);
+    --tri-panel-bg: oklch(98% 0 0);
+    --tri-surface-border: oklch(95% 0 0);
+    --tri-content: oklch(21% 0.006 285.885);
+
+    --tri-radius-selector: 0.5rem;
+    --tri-radius-buttons: 1rem;
+    --tri-radius-box: 0.5rem;
+    --tri-size-selector: 0.25rem;
+    --tri-size-field: 0.25rem;
+    --tri-border: 1px;
+    --tri-depth: 1;
+}
+
+[data-theme='dark'] {
+    color-scheme: dark;
+
+    --tri-color-primary: oklch(78% 0.15 80);
+    --tri-color-primary-content: oklch(28% 0.08 70);
+    --tri-color-neutral: oklch(24.56% 0.01411 81.617);
+    --tri-color-neutral-content: oklch(92% 0.004 286.32);
+    --tri-color-success: oklch(76% 0.177 163.223);
+    --tri-color-success-content: oklch(37% 0.077 168.94);
+    --tri-color-warning: oklch(82% 0.189 84.429);
+    --tri-color-warning-content: oklch(41% 0.112 45.904);
+    --tri-color-error: oklch(71% 0.194 13.428);
+    --tri-color-error-content: oklch(27% 0.105 12.094);
+
+    --tri-viewer-bg: oklch(25.33% 0.016 252.42);
+    --tri-toolbar-bg: oklch(20% 0.014 253.1);
+    --tri-panel-bg: oklch(20% 0.014 253.1);
+    --tri-surface-border: oklch(17.5% 0.012 254.09);
+    --tri-content: oklch(97.807% 0.029 256.847);
+
+    --tri-radius-selector: 0.5rem;
+    --tri-radius-buttons: 1rem;
+    --tri-radius-box: 0.5rem;
+    --tri-size-selector: 0.25rem;
+    --tri-size-field: 0.25rem;
+    --tri-border: 1px;
+    --tri-depth: 1;
+}
+
+[data-theme='teal'] {
+    color-scheme: light;
+
+    --tri-color-primary: oklch(85% 0.138 181.071);
+    --tri-color-primary-content: oklch(43% 0.078 188.216);
+    --tri-color-neutral: oklch(27% 0.006 286.033);
+    --tri-color-neutral-content: oklch(92% 0.004 286.32);
+    --tri-color-success: oklch(69% 0.17 162.48);
+    --tri-color-success-content: oklch(26% 0.051 172.552);
+    --tri-color-warning: oklch(79% 0.184 86.047);
+    --tri-color-warning-content: oklch(28% 0.066 53.813);
+    --tri-color-error: oklch(64% 0.246 16.439);
+    /* Darkened from L27% to L22% so error text meets WCAG AA (4.5:1) on the
+       error fill — the RC teal value was 4.12:1 (ticket 23 contrast fix). */
+    --tri-color-error-content: oklch(22% 0.105 12.094);
+
+    --tri-viewer-bg: oklch(97.788% 0.004 56.375);
+    --tri-toolbar-bg: oklch(93.982% 0.007 61.449);
+    --tri-panel-bg: oklch(93.982% 0.007 61.449);
+    --tri-surface-border: oklch(91.586% 0.006 53.44);
+    --tri-content: oklch(23.574% 0.066 313.189);
+
+    --tri-radius-selector: 0;
+    --tri-radius-buttons: 0;
+    --tri-radius-box: 0;
+    --tri-size-selector: 0.25rem;
+    --tri-size-field: 0.25rem;
+    --tri-border: 1px;
+    --tri-depth: 1;
+}
+
+[data-theme='dracula'] {
+    color-scheme: dark;
+
+    --tri-color-primary: oklch(75.461% 0.183 346.812);
+    --tri-color-primary-content: oklch(15.092% 0.036 346.812);
+    --tri-color-neutral: oklch(39.445% 0.032 275.524);
+    --tri-color-neutral-content: oklch(87.889% 0.006 275.524);
+    --tri-color-success: oklch(87.099% 0.219 148.024);
+    --tri-color-success-content: oklch(17.419% 0.043 148.024);
+    --tri-color-warning: oklch(95.533% 0.134 112.757);
+    --tri-color-warning-content: oklch(19.106% 0.026 112.757);
+    --tri-color-error: oklch(68.22% 0.206 24.43);
+    --tri-color-error-content: oklch(13.644% 0.041 24.43);
+
+    --tri-viewer-bg: oklch(28.822% 0.022 277.508);
+    --tri-toolbar-bg: oklch(23% 0.02 277.508);
+    --tri-panel-bg: oklch(23% 0.02 277.508);
+    --tri-surface-border: oklch(20.5% 0.019 277.508);
+    --tri-content: oklch(97.747% 0.007 106.545);
+
+    --tri-radius-selector: 0;
+    --tri-radius-buttons: 0;
+    --tri-radius-box: 0;
+    --tri-size-selector: 0.25rem;
+    --tri-size-field: 0.25rem;
+    --tri-border: 1px;
+    --tri-depth: 0;
+}
+
+/*
+ * Per-panel surface resolution. Every panel root carries data-panel-id; these rules
+ * publish the resolved background/foreground into the inherited --panel-surface /
+ * --panel-fg properties so the panel components and their descendants (sticky headers,
+ * body text) follow the override without each needing to know its own id.
+ *
+ * The generic rule seeds the defaults and sets `color`; the per-id rules (same
+ * specificity, later in source order) override the resolved value with the panel's slot
+ * — which itself defaults to --tri-panel-bg / --tri-panel-content. An unknown plugin id falls
+ * through to the generic rule and honors --tri-panel-bg. Background is painted by the panel
+ * components themselves via var(--panel-surface), so embedded panels (which have no
+ * surface of their own and let the stack section show through) stay transparent.
+ */
+[data-panel-id] {
+    --panel-surface: var(--tri-panel-bg);
+    --panel-fg: var(--tri-panel-content);
+    color: var(--panel-fg);
+}
+[data-panel-id='metadata'] {
+    --panel-surface: var(--tri-metadata-panel-bg);
+    --panel-fg: var(--tri-metadata-panel-content);
+}
+[data-panel-id='annotations'] {
+    --panel-surface: var(--tri-annotations-panel-bg);
+    --panel-fg: var(--tri-annotations-panel-content);
+}
+[data-panel-id='search'] {
+    --panel-surface: var(--tri-search-panel-bg);
+    --panel-fg: var(--tri-search-panel-content);
+}
+[data-panel-id='structures'] {
+    --panel-surface: var(--tri-structures-panel-bg);
+    --panel-fg: var(--tri-structures-panel-content);
+}
+[data-panel-id='collection'] {
+    --panel-surface: var(--tri-collection-panel-bg);
+    --panel-fg: var(--tri-collection-panel-content);
+}

@@ -1,0 +1,19 @@
+{
+    "name": "consumer-plugin-vue",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build"
+    },
+    "dependencies": {
+        "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
+        "svelte": "5.56.6",
+        "triiiceratops": "file:./vendor/triiiceratops.tgz",
+        "vue": "3.5.40"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "vite": "^6.0.0"
+    }
+}

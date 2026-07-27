@@ -1,0 +1,91 @@
+{
+    "tag": "triiiceratops-viewer",
+    "shadow": "open",
+    "properties": [
+        {
+            "property": "canvasId",
+            "attribute": "canvas-id",
+            "type": "String",
+            "reflect": true
+        },
+        {
+            "property": "config",
+            "attribute": "config",
+            "type": "String",
+            "reflect": false
+        },
+        {
+            "property": "initialCanvasRegion",
+            "attribute": "initial-canvas-region",
+            "type": "String",
+            "reflect": false
+        },
+        {
+            "property": "manifestId",
+            "attribute": "manifest-id",
+            "type": "String",
+            "reflect": true
+        },
+        {
+            "property": "manifestJson",
+            "attribute": "manifest-json",
+            "type": "Object",
+            "reflect": false
+        },
+        {
+            "property": "theme",
+            "attribute": "theme",
+            "type": "String",
+            "reflect": true
+        },
+        {
+            "property": "themeConfig",
+            "attribute": "theme-config",
+            "type": "String",
+            "reflect": false
+        }
+    ],
+    "callbackProperties": [
+        "onpluginerror",
+        "onviewererror"
+    ],
+    "methods": [],
+    "events": [
+        {
+            "name": "canvaschange",
+            "detail": "ViewerStateSnapshot",
+            "bubbles": true,
+            "composed": true
+        },
+        {
+            "name": "choicechange",
+            "detail": "ViewerStateSnapshot",
+            "bubbles": true,
+            "composed": true
+        },
+        {
+            "name": "manifestchange",
+            "detail": "ViewerStateSnapshot",
+            "bubbles": true,
+            "composed": true
+        },
+        {
+            "name": "pluginerror",
+            "detail": "PluginError",
+            "bubbles": true,
+            "composed": true
+        },
+        {
+            "name": "statechange",
+            "detail": "ViewerStateSnapshot",
+            "bubbles": true,
+            "composed": true
+        },
+        {
+            "name": "viewererror",
+            "detail": "ViewerError",
+            "bubbles": true,
+            "composed": true
+        }
+    ]
+}

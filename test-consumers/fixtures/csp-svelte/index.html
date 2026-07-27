@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <!--
+            Strict CSP (ticket 24). Scripts are locked to same-origin with no
+            unsafe-eval and no unsafe-inline (the security-critical control).
+            Style ELEMENTS are same-origin or nonce-gated (`style-src`), which
+            drives the plugin style service down its nonce-aware fallback because
+            the host advertises its nonce via <meta property="csp-nonce">. Inline
+            style ATTRIBUTES (used by the viewer's dynamic layout) are allowed via
+            `style-src-attr 'unsafe-inline'` — they cannot execute script under
+            the strict `script-src`.
+        -->
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self'; style-src 'self' 'nonce-tri-csp-lightdom'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
+        />
+        <meta property="csp-nonce" content="tri-csp-lightdom" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>triiiceratops csp-svelte consumer</title>
+    </head>
+    <body style="margin: 0">
+        <div id="app"></div>
+        <script type="module" src="/src/main.js"></script>
+    </body>
+</html>

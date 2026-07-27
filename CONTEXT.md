@@ -19,9 +19,10 @@ _Avoid_: cache (for the whole layer), repository
 
 **Display sync**:
 Making persisted annotations visible in the read-only overlay by injecting them into
-the viewer's shared display state after each successful persistence operation. Owned by
-the plugin, never by adapters.
-_Avoid_: injection (alone, without saying what is injected where)
+the owning viewer instance's display state after each successful persistence operation.
+Owned by the plugin, never by adapters. Display state is per viewer instance — never
+shared across viewers on the same page.
+_Avoid_: injection (alone, without saying what is injected where), shared display state
 
 **Point annotation**:
 An annotation whose target selector is a IIIF `PointSelector` — a single exact point on
@@ -82,6 +83,101 @@ The host-provided hook object (`getContext`/`canCreate`/`prepareDraft`/`beforeSa
 `onSelectionChange`/`subscribe`) through which a host application customizes plugin
 behavior without forking it.
 _Avoid_: plugin (that means the whole annotation-editor plugin), hooks object
+
+## Viewer state domain
+
+**Viewer state**:
+The per-viewer live state object (`ViewerState`) — the sole plugin-facing state
+contract. Every piece of state a plugin may read, mutate, or observe is reached through
+it; there is no second plugin-facing state surface.
+_Avoid_: viewer store, global state
+
+**Manifest cache**:
+The page-shared cache of fetched and parsed manifests. Internal — plugins reach
+manifest data only through viewer state queries and subscriptions, never by importing
+the cache. Sharing it across viewers is a caching optimization, not a state contract.
+_Avoid_: manifests state (as a plugin-facing concept)
+
+**Command state**:
+Viewer state a plugin may change through a supported command (mutation method).
+Coverage is set by the parity rule. Readable and notifying.
+_Avoid_: setter, writable property (commands maintain invariants; they are not field writes)
+
+**Observable state**:
+Viewer state that mirrors an external fact (network errors, fetch progress) — readable
+and notifying, but with no supported mutator. Changed only by operations that change
+the underlying fact, never by writing the value.
+_Avoid_: read-only state (it changes; plugins just don't write it)
+
+**Parity rule**:
+Anything the viewer's own UI can do, a plugin can do through a supported command. The
+arbiter for what must be command state.
+
+**State inventory**:
+The checked-in, reviewed table classifying every mutable viewer-state member as command
+state, observable state, or internal. The capability-matrix test reads it; an
+unclassified member fails CI.
+
+**Notification**:
+The batched, no-payload wake-up a viewer-state subscriber receives by the next flush
+after any inventoried member changes. Means "state changed — read what you need"; it
+carries no change list and collapses intermediate states. Granularity is member-level:
+commands replace members or bump collections, never deep-mutate innards.
+_Avoid_: event (notifications are not a transition log)
+
+**Selector**:
+The SDK-owned memoized `{ get(), subscribe() }` view of viewer state. Recomputes only
+when state has changed, propagates only when its selected value fails the equality
+gate.
+
+**Query-only state**:
+High-frequency (per-frame) values readable on demand but deliberately non-notifying —
+e.g. continuous viewport position. Which members are query-only is an explicit state
+inventory decision.
+
+**OSD pass-through**:
+The raw OpenSeadragon viewer exposed as observable viewer state. Its existence and
+ready-timing are core API; the object's own methods are OpenSeadragon's, governed by
+OSD's versioning. The bundled OSD major is a declared capability and changes only with
+a core major.
+_Avoid_: wrapping/abstracting OSD (the point is that it is not wrapped)
+
+**Active locale**:
+The locale a given viewer instance renders in: its configured locale if set, otherwise
+the page default. Per viewer instance — plugin context reports the owning viewer's
+active locale, and all of that viewer's chrome and plugin UI render in it.
+_Avoid_: the locale, current language (ambiguous about whose)
+
+## Plugin lifecycle
+
+**Registration**:
+A plugin factory being added to the browser runtime namespace (or passed to the viewer
+in module builds). Order-independent, side-effect-free, no compatibility checking, and
+never activates anything. First version of a given plugin wins; duplicates of the same
+version are no-ops.
+_Avoid_: loading, installing (both conflate script delivery with registration)
+
+**Activation**:
+Explicitly attaching a registered plugin to one viewer instance. This is where
+compatibility (core range, plugin API range, capabilities) is negotiated and where
+isolated per-viewer plugin state is created. A plugin can register successfully and
+still fail activation.
+_Avoid_: enabling, mounting (mounting is the UI step inside a successful activation)
+
+**Test viewer context**:
+The SDK test kit's harness for plugin tests: a real compiled viewer state (real
+commands, real batched notifications) assembled with recording doubles for the style,
+UI, and locale services and an injectable OSD stub (default absent). The harness is
+fake; the state is never fake.
+_Avoid_: fake viewer context, mock viewer state (the state is real by design)
+
+**Retry** (plugin):
+Manual full re-activation of a failed plugin instance: run its cleanups, drop its
+subscriptions, then activate fresh. Exposed to the host through the `pluginerror`
+channel's `retry()`; never surfaced to the end-user and never automatic. A plugin whose
+activation fails degrades silently — logged for developers and left unsurfaced (no
+toolbar button) rather than shown as a user-facing error.
+_Avoid_: re-mount (retry re-runs the whole activation, not just the UI step)
 
 ## Plugin chrome
 

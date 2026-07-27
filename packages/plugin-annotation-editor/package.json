@@ -1,0 +1,78 @@
+{
+    "name": "@triiiceratops/plugin-annotation-editor",
+    "version": "1.0.0-rc.0",
+    "type": "module",
+    "description": "Annotation editor plugin for the triiiceratops IIIF viewer, authored on @triiiceratops/plugin-sdk.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "packages/plugin-annotation-editor"
+    },
+    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "private": false,
+    "engines": {
+        "node": ">=22"
+    },
+    "sideEffects": [
+        "./dist/iife.js"
+    ],
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./testing": {
+            "types": "./dist/testing/index.d.ts",
+            "import": "./dist/testing/index.js"
+        },
+        "./iife": "./dist/iife.js"
+    },
+    "scripts": {
+        "build": "pnpm build:esm && pnpm build:iife && pnpm build:types",
+        "build:esm": "BUILD_FORMAT=es vite build",
+        "build:iife": "BUILD_FORMAT=iife vite build",
+        "build:types": "tsc -p tsconfig.build.json",
+        "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.build.json --noEmit",
+        "test": "vitest run",
+        "clean": "rm -rf dist",
+        "test:coverage": "vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "peerDependencies": {
+        "triiiceratops": "workspace:^",
+        "@triiiceratops/plugin-sdk": "workspace:^"
+    },
+    "dependencies": {
+        "@annotorious/annotorious": "^3.7.19",
+        "@annotorious/openseadragon": "^3.7.19",
+        "openseadragon": "^5.0.1"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@triiiceratops/plugin-sdk": "workspace:*",
+        "@triiiceratops/ui": "workspace:*",
+        "@types/node": "^24.10.1",
+        "@types/openseadragon": "^5.0.1",
+        "@vitest/coverage-v8": "4.0.15",
+        "svelte": "5.45.5",
+        "svelte-check": "^4.3.4",
+        "triiiceratops": "workspace:*",
+        "typescript": "~5.9.3",
+        "vite": "^6.0.0",
+        "vitest": "^4.0.15"
+    }
+}

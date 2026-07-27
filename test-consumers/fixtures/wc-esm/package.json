@@ -1,0 +1,15 @@
+{
+    "name": "consumer-wc-esm",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build"
+    },
+    "dependencies": {
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    },
+    "devDependencies": {
+        "vite": "^6.0.0"
+    }
+}

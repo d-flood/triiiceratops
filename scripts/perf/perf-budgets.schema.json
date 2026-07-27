@@ -1,0 +1,49 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "triiiceratops perf-budgets",
+    "description": "Accepted post-cleanup absolute performance ceilings enforced by scripts/perf/compare.mjs (ticket 25). The comparison job enforces base-vs-head deltas; this file guards absolute drift and fails even when base == head.",
+    "type": "object",
+    "required": ["baselineRef", "thresholds", "size", "runtime"],
+    "properties": {
+        "$schema": { "type": "string" },
+        "baselineRef": {
+            "type": "string",
+            "description": "The measurement baseline reference (e.g. 1.0.0-rc.25)."
+        },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "note": { "type": "string" },
+        "thresholds": {
+            "type": "object",
+            "required": ["sizeRegressionPct", "runtimePct", "runtimeAbsMs"],
+            "properties": {
+                "sizeRegressionPct": { "type": "number" },
+                "runtimePct": { "type": "number" },
+                "runtimeAbsMs": { "type": "number" }
+            }
+        },
+        "size": {
+            "type": "object",
+            "description": "Per-artifact byte ceilings (captured bytes +5%).",
+            "additionalProperties": {
+                "type": "object",
+                "required": ["bytes", "ceilingBytes"],
+                "properties": {
+                    "bytes": { "type": "integer" },
+                    "ceilingBytes": { "type": "integer" }
+                }
+            }
+        },
+        "runtime": {
+            "type": "object",
+            "description": "Per-scenario median ceilings in milliseconds (captured median with noise headroom).",
+            "additionalProperties": {
+                "type": "object",
+                "required": ["medianMs", "ceilingMs"],
+                "properties": {
+                    "medianMs": { "type": "number" },
+                    "ceilingMs": { "type": "number" }
+                }
+            }
+        }
+    }
+}

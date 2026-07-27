@@ -1,0 +1,30 @@
+{
+    "@triiiceratops/plugin-annotation-editor": {
+        "lines": 62.66,
+        "branches": 41.86
+    },
+    "@triiiceratops/plugin-image-download": {
+        "lines": 51.54,
+        "branches": 32.06
+    },
+    "@triiiceratops/plugin-image-manipulation": {
+        "lines": 41.66,
+        "branches": 15.15
+    },
+    "@triiiceratops/plugin-pdf-export": {
+        "lines": 52.71,
+        "branches": 43.43
+    },
+    "@triiiceratops/plugin-sdk": {
+        "lines": 84.52,
+        "branches": 61.41
+    },
+    "@triiiceratops/ui": {
+        "lines": 0,
+        "branches": 0
+    },
+    "triiiceratops": {
+        "lines": 55.46,
+        "branches": 42.64
+    }
+}

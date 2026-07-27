@@ -1,0 +1,10 @@
+{
+    "name": "consumer-plugin-image-download-iife",
+    "version": "0.0.0",
+    "private": true,
+    "dependencies": {
+        "@triiiceratops/plugin-image-download": "file:./vendor/_triiiceratops_plugin-image-download.tgz",
+        "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    }
+}

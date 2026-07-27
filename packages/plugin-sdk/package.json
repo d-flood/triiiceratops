@@ -1,0 +1,108 @@
+{
+    "name": "@triiiceratops/plugin-sdk",
+    "version": "1.0.0-rc.0",
+    "type": "module",
+    "description": "Framework-neutral plugin authoring SDK for the triiiceratops IIIF viewer.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "packages/plugin-sdk"
+    },
+    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "private": false,
+    "engines": {
+        "node": ">=22"
+    },
+    "sideEffects": false,
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./register": {
+            "types": "./dist/register.d.ts",
+            "import": "./dist/register.js"
+        },
+        "./react": {
+            "types": "./dist/react.d.ts",
+            "import": "./dist/react.js"
+        },
+        "./vue": {
+            "types": "./dist/vue.d.ts",
+            "import": "./dist/vue.js"
+        },
+        "./svelte": {
+            "types": "./dist/svelte.d.ts",
+            "import": "./dist/svelte.js"
+        },
+        "./lit": {
+            "types": "./dist/lit.d.ts",
+            "import": "./dist/lit.js"
+        },
+        "./testing": {
+            "types": "./dist/testing/index.d.ts",
+            "import": "./dist/testing/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "check": "tsc -p tsconfig.build.json --noEmit",
+        "test": "vitest run",
+        "clean": "rm -rf dist",
+        "test:coverage": "vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "peerDependencies": {
+        "triiiceratops": "workspace:^",
+        "react": "^19.0.0",
+        "vue": "^3.5.0",
+        "svelte": "^5.0.0",
+        "lit": "^3.0.0",
+        "vitest": "^4.0.0"
+    },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
+        "vue": {
+            "optional": true
+        },
+        "svelte": {
+            "optional": true
+        },
+        "lit": {
+            "optional": true
+        },
+        "vitest": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@types/react": "19.2.17",
+        "@types/react-dom": "19.2.3",
+        "@vitest/coverage-v8": "4.0.15",
+        "jsdom": "^27.3.0",
+        "lit": "3.3.3",
+        "react": "19.2.7",
+        "react-dom": "19.2.7",
+        "svelte": "5.45.5",
+        "triiiceratops": "workspace:*",
+        "typescript": "~5.9.3",
+        "vitest": "^4.0.15",
+        "vue": "3.5.40"
+    }
+}
