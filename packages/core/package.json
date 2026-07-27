@@ -99,6 +99,7 @@
     },
     "devDependencies": {
         "@eslint/js": "^9.39.2",
+        "@triiiceratops/plugin-sdk": "workspace:*",
         "@inlang/paraglide-js": "^2.7.0",
         "@phosphor-icons/core": "^2.1.1",
         "@playwright/test": "^1.57.0",

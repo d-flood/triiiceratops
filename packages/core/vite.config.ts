@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -23,6 +25,14 @@ export default defineConfig({
     resolve: process.env.VITEST
         ? {
               conditions: ['browser'],
+              alias: {
+                  // Resolve the workspace SDK to its TypeScript source in tests
+                  // so core's integration tests need no pre-built dist. Vite
+                  // resolves the SDK's internal `.js` imports to their `.ts`.
+                  '@triiiceratops/plugin-sdk': fileURLToPath(
+                      new URL('../plugin-sdk/src/index.ts', import.meta.url),
+                  ),
+              },
           }
         : undefined,
     esbuild: {

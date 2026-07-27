@@ -33,6 +33,7 @@ export default ts.config(
             '.venv/',
             'site/',
             'node_modules/',
+            'src/paraglide/',
             'src/lib/paraglide/',
             'src/lib/generated/',
             'docs/',
