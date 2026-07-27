@@ -219,5 +219,11 @@
     "pdf_export_error_failed": "PDF konnte nicht exportiert werden. Details finden Sie in der Browser-Konsole.",
     "pdf_export_error_not_available": "Der PDF-Export ist für dieses Objekt nicht verfügbar, weil die Bildquelle keinen direkten Download im Browser erlaubt.",
     "pdf_export_error_no_canvases": "Keine Canvases zum Export verfügbar.",
-    "pdf_export_error_no_canvases_exported": "Es konnten keine Canvases als PDF exportiert werden."
+    "pdf_export_error_no_canvases_exported": "Es konnten keine Canvases als PDF exportiert werden.",
+    "plugin_error_button_label": "{plugin} ist fehlgeschlagen. Fehlerdetails anzeigen.",
+    "plugin_error_heading": "Plugin fehlgeschlagen",
+    "plugin_error_description": "{plugin} konnte nicht ausgeführt werden und wurde isoliert, damit der Rest des Viewers weiter funktioniert.",
+    "plugin_error_phase": "Fehlgeschlagen in der Phase {phase}.",
+    "plugin_error_retry": "Erneut versuchen",
+    "plugin_error_close": "Fehlerdetails schließen"
 }

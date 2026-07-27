@@ -57,5 +57,8 @@ export type {
     PluginActivation,
     SdkPlugin,
     SdkPluginMeta,
+    PluginErrorPhase,
+    PluginError,
+    PluginErrorReport,
     ViewerState,
 } from 'triiiceratops';

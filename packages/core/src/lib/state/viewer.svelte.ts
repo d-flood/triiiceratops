@@ -2067,8 +2067,19 @@ export class ViewerState {
     // carry no plugin contract and must stay invisible to the state inventory's
     // enumerable-member reflection, so no `state-inventory.ts` entry is needed.
 
-    /** Registered subscription listeners, kept in registration order. */
-    #subscriptionListeners: Array<() => void> = [];
+    /**
+     * Registered subscription listeners, kept in registration order. Each entry
+     * pairs the listener with an optional per-subscription error handler
+     * (ticket 09): when the listener throws, the guard routes to `onError` if
+     * present so the SDK can attribute the failure to the owning plugin
+     * (`pluginerror` phase `subscription`); otherwise it falls back to a console
+     * error. Core's own subscriptions register no `onError` and keep the
+     * console-error behavior.
+     */
+    #subscriptionListeners: Array<{
+        listener: () => void;
+        onError?: (error: unknown) => void;
+    }> = [];
 
     /** Disposes the reactive watcher's effect root; null until lazily started. */
     #disposeSubscriptionWatcher: (() => void) | null = null;
@@ -2087,13 +2098,22 @@ export class ViewerState {
      * SSR-safe: calling this on the server registers the listener but starts no
      * effect and delivers no notifications (state reads stay synchronously
      * current everywhere).
+     *
+     * `onError` (ticket 09) is called with the thrown value if this listener
+     * throws during delivery; the throw never stops other listeners or core's
+     * own reactions. The SDK passes one per activation so a throwing listener is
+     * attributed to its owning plugin (`pluginerror` phase `subscription`).
      */
-    subscribe(listener: () => void): () => void {
-        this.#subscriptionListeners.push(listener);
+    subscribe(
+        listener: () => void,
+        onError?: (error: unknown) => void,
+    ): () => void {
+        const entry = { listener, onError };
+        this.#subscriptionListeners.push(entry);
         this.startSubscriptionWatcher();
 
         return () => {
-            const index = this.#subscriptionListeners.indexOf(listener);
+            const index = this.#subscriptionListeners.indexOf(entry);
             if (index !== -1) {
                 this.#subscriptionListeners.splice(index, 1);
             }
@@ -2160,24 +2180,42 @@ export class ViewerState {
     private notifySubscribers(): void {
         // Snapshot so a listener that (un)subscribes during delivery does not
         // disturb this pass; a newly added listener sees the next notification.
-        for (const listener of [...this.#subscriptionListeners]) {
-            this.invokeSubscriptionListener(listener);
+        for (const entry of [...this.#subscriptionListeners]) {
+            this.invokeSubscriptionListener(entry);
         }
     }
 
     /**
-     * Single guarded call site for a subscription listener: a throwing listener
-     * is isolated and reported so the remaining listeners still run. This is the
-     * seam ticket 09 replaces with plugin attribution and `pluginerror` routing.
+     * Single guarded call site for a subscription listener (ticket 09): a
+     * throwing listener is isolated so the remaining listeners and core's own
+     * reactions still run. The failure is routed to the listener's own
+     * `onError` when one was registered — the SDK uses this to attribute the
+     * throw to the owning plugin and raise `pluginerror` phase `subscription` —
+     * and otherwise falls back to a console error. `onError` itself is guarded
+     * so a faulty reporter cannot break delivery either.
      */
-    private invokeSubscriptionListener(listener: () => void): void {
+    private invokeSubscriptionListener(entry: {
+        listener: () => void;
+        onError?: (error: unknown) => void;
+    }): void {
         try {
-            listener();
+            entry.listener();
         } catch (error) {
-            console.error(
-                '[ViewerState] A subscription listener threw; other listeners are unaffected.',
-                error,
-            );
+            if (entry.onError) {
+                try {
+                    entry.onError(error);
+                } catch (reportError) {
+                    console.error(
+                        '[ViewerState] A subscription error reporter threw; delivery continues.',
+                        reportError,
+                    );
+                }
+            } else {
+                console.error(
+                    '[ViewerState] A subscription listener threw; other listeners are unaffected.',
+                    error,
+                );
+            }
         }
     }
 

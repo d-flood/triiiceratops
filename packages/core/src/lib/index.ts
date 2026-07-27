@@ -46,8 +46,15 @@ export type {
     PluginActivation,
     SdkPluginMeta,
     SdkPlugin,
+    PluginErrorPhase,
+    PluginError,
+    PluginErrorReport,
 } from './types/plugin';
-export { SDK_PLUGIN_KIND, isSdkPlugin } from './types/plugin';
+export {
+    SDK_PLUGIN_KIND,
+    isSdkPlugin,
+    PLUGIN_ERROR_EVENT,
+} from './types/plugin';
 
 // Core's declared plugin-compatibility surface (ticket 07).
 export {
