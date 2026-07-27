@@ -50,12 +50,6 @@ importers:
 
   packages/core:
     dependencies:
-      '@annotorious/annotorious':
-        specifier: ^3.7.19
-        version: 3.7.19
-      '@annotorious/openseadragon':
-        specifier: ^3.7.19
-        version: 3.7.19(openseadragon@5.0.1)
       dompurify:
         specifier: ^3.4.11
         version: 3.4.12
@@ -65,9 +59,6 @@ importers:
       openseadragon:
         specifier: ^5.0.1
         version: 5.0.1
-      pdf-lib:
-        specifier: ^1.17.1
-        version: 1.17.1
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.2
@@ -141,6 +132,137 @@ importers:
       vite-plugin-dts:
         specifier: ^4.5.4
         version: 4.5.4(@types/node@24.10.1)(rollup@4.53.3)(typescript@5.9.3)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1))
+      vitest:
+        specifier: ^4.0.15
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19))
+
+  packages/plugin-annotation-editor:
+    dependencies:
+      '@annotorious/annotorious':
+        specifier: ^3.7.19
+        version: 3.7.19
+      '@annotorious/openseadragon':
+        specifier: ^3.7.19
+        version: 3.7.19(openseadragon@5.0.1)
+      openseadragon:
+        specifier: ^5.0.1
+        version: 5.0.1
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1))
+      '@triiiceratops/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.1
+      '@types/openseadragon':
+        specifier: ^5.0.1
+        version: 5.0.1
+      svelte:
+        specifier: 5.45.5
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../core
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)
+      vitest:
+        specifier: ^4.0.15
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19))
+
+  packages/plugin-image-download:
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1))
+      '@triiiceratops/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      svelte:
+        specifier: 5.45.5
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../core
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)
+      vitest:
+        specifier: ^4.0.15
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19))
+
+  packages/plugin-image-manipulation:
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1))
+      '@triiiceratops/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      svelte:
+        specifier: 5.45.5
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../core
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)
+      vitest:
+        specifier: ^4.0.15
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19))
+
+  packages/plugin-pdf-export:
+    dependencies:
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1))
+      '@triiiceratops/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      happy-dom:
+        specifier: ^20.0.11
+        version: 20.0.11
+      svelte:
+        specifier: 5.45.5
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../core
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)
       vitest:
         specifier: ^4.0.15
         version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19))

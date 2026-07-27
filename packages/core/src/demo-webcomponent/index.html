@@ -9,10 +9,8 @@
         <!-- The custom element injects all its styles into its own shadow root,
              so no separate element stylesheet is needed. -->
         <script src="../../dist/triiiceratops-element.iife.js"></script>
-        <script src="../../dist/triiiceratops-plugin-image-manipulation.iife.js"></script>
         <script src="../../dist/triiiceratops-plugin-annotation-editor.iife.js"></script>
         <script src="../../dist/triiiceratops-plugin-pdf-export.iife.js"></script>
-        <script src="../../dist/triiiceratops-plugin-image-download.iife.js"></script>
     </head>
     <body>
         <triiiceratops-viewer
@@ -30,12 +28,7 @@
                     return;
                 }
 
-                viewer.plugins = [
-                    plugins.ImageManipulation,
-                    plugins.AnnotationEditor,
-                    plugins.PdfExport,
-                    plugins.ImageDownload,
-                ];
+                viewer.plugins = [plugins.AnnotationEditor, plugins.PdfExport];
             });
         </script>
     </body>

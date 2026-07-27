@@ -1,0 +1,71 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig } from 'vite';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Build the plugin into a SELF-CONTAINED bundle for one output format.
+ *
+ * `BUILD_FORMAT=es`   → `dist/index.js`  (the ESM entry consumers import).
+ * `BUILD_FORMAT=iife` → `dist/iife.js`   (a `<script>`-loadable bundle that
+ *                       registers into `window.Triiiceratops.plugins`).
+ *
+ * The UI is Svelte, but Svelte is BUNDLED IN (not externalized to a global) in
+ * BOTH formats so the plugin shares neither a Svelte runtime nor `svelte/internal`
+ * with core (SPEC.md — "Core and browser plugins do not share a Svelte runtime
+ * or import private `svelte/internal` modules"). `emitCss: false` keeps any
+ * component CSS in the JS; this plugin installs its styles through the SDK style
+ * service, so the built output ships no stylesheet.
+ *
+ * The two formats differ only in how the peer packages are treated:
+ * - ESM (`index.js`): `@triiiceratops/plugin-sdk` and `triiiceratops` stay
+ *   external (declared peers a consumer's bundler resolves and dedupes) — the
+ *   SDK is framework-neutral and carries no `svelte/internal`, so this keeps the
+ *   grep clean while honoring the peer contract.
+ * - IIFE (`iife.js`): everything is bundled so the `<script>`-loadable file is
+ *   fully self-contained (SPEC.md — "self-contained no-bundler IIFE").
+ */
+const format = process.env.BUILD_FORMAT === 'iife' ? 'iife' : 'es';
+
+const lib =
+    format === 'iife'
+        ? {
+              entry: resolve(__dirname, 'src/iife.ts'),
+              formats: ['iife' as const],
+              name: 'TriiiceratopsPluginImageManipulation',
+              fileName: () => 'iife.js',
+          }
+        : {
+              entry: resolve(__dirname, 'src/index.ts'),
+              formats: ['es' as const],
+              fileName: () => 'index.js',
+          };
+
+// Externalize the declared peers for ESM only; bundle them for the IIFE.
+const external =
+    format === 'iife' ? [] : ['@triiiceratops/plugin-sdk', 'triiiceratops'];
+
+export default defineConfig({
+    plugins: [
+        svelte({
+            emitCss: false,
+            compilerOptions: { customElement: false },
+        }),
+    ],
+    build: {
+        // Production build so no dev-only `svelte/internal` strings or warnings
+        // leak into the bundle (the dist is grepped for `svelte/internal` and
+        // `__TriiiceratopsSvelteRuntime` — both must be absent).
+        minify: true,
+        lib,
+        rollupOptions: {
+            external,
+            output: { inlineDynamicImports: true },
+        },
+        outDir: 'dist',
+        emptyOutDir: false,
+    },
+});

@@ -6,34 +6,9 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Get plugin name from environment variable (set by build script)
-const pluginName = process.env.PLUGIN_NAME || 'image-manipulation';
+const pluginName = process.env.PLUGIN_NAME || 'pdf-export';
 
 const pluginConfigs: Record<string, { entry: string; name: string }> = {
-    'image-manipulation': {
-        entry: resolve(
-            __dirname,
-            'src/lib/plugins/image-manipulation/iife-entry.ts',
-        ),
-        name: 'TriiiceratopsPluginImageManipulation',
-    },
-    'annotation-editor': {
-        entry: resolve(
-            __dirname,
-            'src/lib/plugins/annotation-editor/iife-entry.ts',
-        ),
-        name: 'TriiiceratopsPluginAnnotationEditor',
-    },
-    'pdf-export': {
-        entry: resolve(__dirname, 'src/lib/plugins/pdf-export/iife-entry.ts'),
-        name: 'TriiiceratopsPluginPdfExport',
-    },
-    'image-download': {
-        entry: resolve(
-            __dirname,
-            'src/lib/plugins/image-download/iife-entry.ts',
-        ),
-        name: 'TriiiceratopsPluginImageDownload',
-    },
 };
 
 const config = pluginConfigs[pluginName];
@@ -49,10 +24,14 @@ if (!config) {
  * This ensures getContext/setContext work correctly across bundle boundaries.
  *
  * Usage:
- *   PLUGIN_NAME=image-manipulation vite build --config vite.config.plugins-iife.ts
- *   PLUGIN_NAME=annotation-editor vite build --config vite.config.plugins-iife.ts
- *   PLUGIN_NAME=pdf-export vite build --config vite.config.plugins-iife.ts
- *   PLUGIN_NAME=image-download vite build --config vite.config.plugins-iife.ts
+ *   (no in-core plugins remain — see NOTE below)
+ *
+ * NOTE: ALL first-party plugins (image-manipulation/12, image-download/15,
+ * pdf-export/16, annotation-editor/17) have migrated to their own packages and
+ * build their own self-contained IIFEs. No in-core plugin IIFEs remain, so this
+ * config is vestigial (`build:plugins-iife` is now a no-op). Ticket 20 should
+ * delete this file and the legacy `__TriiiceratopsSvelteRuntime`/`TriiiceratopsPlugins`
+ * globals once nothing references them.
  */
 export default defineConfig({
     plugins: [svelte()],

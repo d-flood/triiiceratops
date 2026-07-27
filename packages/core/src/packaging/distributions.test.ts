@@ -189,37 +189,9 @@ describe('published distributions ship styles + themes', () => {
         });
     });
 
-    describe('annotation-editor plugin owns the Annotorious CSS', () => {
-        it('the manager imports the Annotorious stylesheet as the single source (F23)', () => {
-            // The manager injects `?inline` CSS into the viewer's root node
-            // (shadow-root aware). svelte-package ships this .svelte.ts verbatim,
-            // so the consumer's bundler pulls the Annotorious CSS only when they
-            // use the plugin — one path, tracked against the installed version.
-            const manager = readFileSync(
-                resolve(
-                    REPO,
-                    'src/lib/plugins/annotation-editor/AnnotationManager.svelte.ts',
-                ),
-                'utf8',
-            );
-            expect(manager).toContain(
-                'annotorious-openseadragon.css?inline',
-            );
-        });
-
-        it('the plugin panel no longer side-effect-imports the stylesheet (single source)', () => {
-            // A light-DOM CSS import never reaches the element build's shadow
-            // root; the manager's injection is the only path (F23).
-            const panel = readFileSync(
-                resolve(
-                    REPO,
-                    'src/lib/plugins/annotation-editor/AnnotationEditorPanel.svelte',
-                ),
-                'utf8',
-            );
-            expect(panel).not.toContain(
-                "import '@annotorious/openseadragon/annotorious-openseadragon.css'",
-            );
-        });
-    });
+    // The Annotorious single-source CSS rule moved to
+    // `@triiiceratops/plugin-annotation-editor` with the plugin (ticket 17); its
+    // `styles.ts` now imports `annotorious-openseadragon.css?inline` and installs
+    // it through the SDK style service. Core's own "no Annotorious layer" rule
+    // (above) is what stays here.
 });

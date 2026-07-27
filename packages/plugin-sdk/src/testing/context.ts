@@ -30,7 +30,10 @@ import {
     type HeadlessViewerFixtures,
 } from 'triiiceratops/testing';
 
+import { whenOsdReady } from '../osd.js';
 import { createSelectorRuntime } from '../selectors.js';
+
+export { whenOsdReady };
 
 /** One recorded `styles.install` call and whether its reference was released. */
 export interface RecordedStyleInstall {
@@ -217,28 +220,4 @@ export function createTestViewerContext(
             selectorRuntime.dispose();
         },
     };
-}
-
-/**
- * Resolve once the viewer's OSD readiness path has fired — i.e. `osdViewer` is
- * non-null. Resolves synchronously if OSD is already ready; otherwise it waits
- * on the framework-neutral subscription, so a caller must {@link flush} after
- * `setOsdViewer` for it to settle (real batched timing). This is the SDK's
- * documented "await OSD readiness" helper (SPEC.md ViewerState contract),
- * exposed through the kit.
- */
-export function whenOsdReady(
-    state: ViewerState,
-): Promise<NonNullable<ViewerState['osdViewer']>> {
-    const ready = state.osdViewer;
-    if (ready) return Promise.resolve(ready);
-    return new Promise((resolve) => {
-        const unsubscribe = state.subscribe(() => {
-            const viewer = state.osdViewer;
-            if (viewer) {
-                unsubscribe();
-                resolve(viewer);
-            }
-        });
-    });
 }

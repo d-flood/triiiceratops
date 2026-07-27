@@ -1,0 +1,64 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["PDF export harness manifest"]
+    },
+    "items": [
+        {
+            "id": "canvas/p1",
+            "type": "Canvas",
+            "height": 100,
+            "width": 100,
+            "items": [
+                {
+                    "id": "page/p1/1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "annotation/p1-image",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGO4Y2QERwzEcQAS8hQBUltLrwAAAABJRU5ErkJggg==",
+                                "type": "Image",
+                                "format": "image/png",
+                                "height": 100,
+                                "width": 100
+                            },
+                            "target": "canvas/p1"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "canvas/p2",
+            "type": "Canvas",
+            "height": 100,
+            "width": 100,
+            "items": [
+                {
+                    "id": "page/p2/1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "annotation/p2-image",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGMwiroDRwzEcQA+shaBhwsgjAAAAABJRU5ErkJggg==",
+                                "type": "Image",
+                                "format": "image/png",
+                                "height": 100,
+                                "width": 100
+                            },
+                            "target": "canvas/p2"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
