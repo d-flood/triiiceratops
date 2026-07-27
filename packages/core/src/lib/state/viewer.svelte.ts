@@ -1560,6 +1560,78 @@ export class ViewerState {
         });
     }
 
+    // ==================== PARITY COMMANDS (ticket 03) ====================
+    // Supported mutation methods for viewer behaviors the chrome previously
+    // performed only through direct field assignment. Added for the parity rule
+    // (see state-inventory.ts). Core components keep their direct writes; those
+    // remain a legitimate internal escape hatch and notification completeness is
+    // ticket 04's reactivity-driven concern (ADR 0008). These commands therefore
+    // mirror the components' direct-assignment behavior and, like those chrome
+    // interactions, do not dispatch legacy web-component events.
+
+    /** Set (or clear, with null) the currently hovered annotation id. */
+    setHoveredAnnotationId(annotationId: string | null): void {
+        this.hoveredAnnotationId = annotationId;
+    }
+
+    /**
+     * Show or hide a single annotation in the read-only overlay, marking
+     * visibility as user-touched so the panel keeps the manual selection.
+     */
+    setAnnotationVisible(annotationId: string, visible: boolean): void {
+        this.annotationVisibilityTouched = true;
+        if (visible) {
+            this.visibleAnnotationIds.add(annotationId);
+        } else {
+            this.visibleAnnotationIds.delete(annotationId);
+        }
+    }
+
+    /**
+     * Show or hide every annotation on the active canvas at once, marking
+     * visibility as user-touched. Mirrors the annotation panel's "toggle all".
+     */
+    setAllAnnotationsVisible(visible: boolean): void {
+        this.annotationVisibilityTouched = true;
+        this.visibleAnnotationIds.clear();
+
+        if (!visible || !this.manifestId || !this.canvasId) {
+            return;
+        }
+
+        const annotations = manifestsState.getAnnotations(
+            this.manifestId,
+            this.canvasId,
+        );
+        annotations.forEach((annotation: any) => {
+            const id = getAnnotationId(annotation);
+            if (id) {
+                this.visibleAnnotationIds.add(id);
+            }
+        });
+    }
+
+    /** Move the floating (undocked) thumbnail gallery to an absolute position. */
+    setGalleryPosition(position: { x: number; y: number }): void {
+        this.galleryPosition = position;
+    }
+
+    /** Resize the floating (undocked) thumbnail gallery. */
+    setGallerySize(size: { width: number; height: number }): void {
+        this.gallerySize = size;
+    }
+
+    /**
+     * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
+     * 'right') or float it ('none'), keeping the derived docked flags in sync.
+     * Maintaining that invariant is why this is a command, not a field write.
+     */
+    setDockSide(side: string): void {
+        this.dockSide = side;
+        this.isGalleryDockedBottom = side === 'bottom';
+        this.isGalleryDockedRight = side === 'right';
+    }
+
     // ==================== PLUGIN STATE ====================
 
     /** Plugin-registered menu buttons */
@@ -1571,8 +1643,12 @@ export class ViewerState {
     /** Plugin-registered flyouts (compact popovers anchored to the toolbar button) */
     pluginFlyouts: PluginFlyout[] = $state([]);
 
-    /** OpenSeadragon viewer instance (set by OSDViewer) */
-    osdViewer: any | null = $state.raw(null);
+    /**
+     * OpenSeadragon viewer instance (set by OSDViewer at OSD readiness).
+     * Observable pass-through state: its existence and ready-timing are core
+     * API, but the object's own surface is OpenSeadragon's (ADR 0009).
+     */
+    osdViewer: OpenSeadragon.Viewer | null = $state.raw(null);
 
     /**
      * Per-viewer annotation-edit channel shared by OSDViewer and the annotation
