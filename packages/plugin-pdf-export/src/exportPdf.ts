@@ -884,83 +884,77 @@ async function addCoverSheetPage(
     coverSheet: PdfCoverSheetConfig,
     runtimeValues: CoverSheetRuntimeValues,
 ): Promise<void> {
-    try {
-        const page = pdfDoc.addPage(COVER_PAGE_SIZE);
-        const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-        const labelFont = titleFont;
-        const valueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        const { width: pageWidth, height: pageHeight } = page.getSize();
-        const contentWidth = pageWidth - COVER_MARGIN_X * 2;
-        const labelColumnWidth = 140;
-        const valueColumnWidth = contentWidth - labelColumnWidth - 24;
-        let y = pageHeight - COVER_MARGIN_Y;
+    const page = pdfDoc.addPage(COVER_PAGE_SIZE);
+    const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const labelFont = titleFont;
+    const valueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const { width: pageWidth, height: pageHeight } = page.getSize();
+    const contentWidth = pageWidth - COVER_MARGIN_X * 2;
+    const labelColumnWidth = 140;
+    const valueColumnWidth = contentWidth - labelColumnWidth - 24;
+    let y = pageHeight - COVER_MARGIN_Y;
 
-        page.drawText(coverSheet.title || 'Export Summary', {
-            x: COVER_MARGIN_X,
-            y,
-            size: COVER_TITLE_SIZE,
-            font: titleFont,
-        });
-        y -= 26;
+    page.drawText(coverSheet.title || 'Export Summary', {
+        x: COVER_MARGIN_X,
+        y,
+        size: COVER_TITLE_SIZE,
+        font: titleFont,
+    });
+    y -= 26;
 
-        page.drawLine({
-            start: { x: COVER_MARGIN_X, y },
-            end: { x: pageWidth - COVER_MARGIN_X, y },
-            thickness: 1,
-        });
-        y -= 28;
+    page.drawLine({
+        start: { x: COVER_MARGIN_X, y },
+        end: { x: pageWidth - COVER_MARGIN_X, y },
+        thickness: 1,
+    });
+    y -= 28;
 
-        // Ensure buildCoverSheetFields result is a plain array (might be Svelte proxy)
-        const fields: PdfCoverSheetField[] = Array.from(
-            buildCoverSheetFields(coverSheet, runtimeValues),
+    // Ensure buildCoverSheetFields result is a plain array (might be Svelte proxy)
+    const fields: PdfCoverSheetField[] = Array.from(
+        buildCoverSheetFields(coverSheet, runtimeValues),
+    );
+
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) {
+        const field = fields[fieldIndex];
+
+        const labelLines = wrapText(
+            field.label,
+            labelFont,
+            COVER_LABEL_SIZE,
+            labelColumnWidth,
         );
+        const valueLines = wrapText(
+            field.value,
+            valueFont,
+            COVER_VALUE_SIZE,
+            valueColumnWidth,
+        );
+        const rowLines = Math.max(labelLines.length, valueLines.length);
+        const rowHeight = rowLines * 16 + 12;
 
-        for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) {
-            const field = fields[fieldIndex];
-
-            const labelLines = wrapText(
-                field.label,
-                labelFont,
-                COVER_LABEL_SIZE,
-                labelColumnWidth,
-            );
-            const valueLines = wrapText(
-                field.value,
-                valueFont,
-                COVER_VALUE_SIZE,
-                valueColumnWidth,
-            );
-            const rowLines = Math.max(labelLines.length, valueLines.length);
-            const rowHeight = rowLines * 16 + 12;
-
-            if (y - rowHeight < COVER_MARGIN_Y) {
-                break;
-            }
-
-            labelLines.forEach((line, index) => {
-                page.drawText(line.text, {
-                    x: COVER_MARGIN_X,
-                    y: y - index * 16,
-                    size: COVER_LABEL_SIZE,
-                    font: labelFont,
-                });
-            });
-
-            valueLines.forEach((line, index) => {
-                page.drawText(line.text, {
-                    x: COVER_MARGIN_X + labelColumnWidth + 24,
-                    y: y - index * 16,
-                    size: COVER_VALUE_SIZE,
-                    font: valueFont,
-                });
-            });
-
-            y -= rowHeight;
+        if (y - rowHeight < COVER_MARGIN_Y) {
+            break;
         }
-    } catch (pageError) {
-        // Surface the failure to the caller (the panel reports it on the
-        // structured error channel); the raster export path is unaffected.
-        throw pageError;
+
+        labelLines.forEach((line, index) => {
+            page.drawText(line.text, {
+                x: COVER_MARGIN_X,
+                y: y - index * 16,
+                size: COVER_LABEL_SIZE,
+                font: labelFont,
+            });
+        });
+
+        valueLines.forEach((line, index) => {
+            page.drawText(line.text, {
+                x: COVER_MARGIN_X + labelColumnWidth + 24,
+                y: y - index * 16,
+                size: COVER_VALUE_SIZE,
+                font: valueFont,
+            });
+        });
+
+        y -= rowHeight;
     }
 }
 
@@ -1141,7 +1135,6 @@ async function resolveCanvasOcrOverlays({
     canvasId,
     canvasIndex,
     manifestId,
-    label,
     getCanvasOcrOverlays,
     getCanvasAnnotations,
 }: {
@@ -1220,228 +1213,216 @@ export async function exportCanvasRangeAsPdf({
     onProgress,
     messages = DEFAULT_PDF_EXPORT_MESSAGES,
 }: ExportCanvasRangeAsPdfParams): Promise<ExportCanvasRangeAsPdfResult> {
-    try {
-        const range = normalizeCanvasRange(
-            startIndex,
-            endIndex,
-            canvases.length,
+    const range = normalizeCanvasRange(startIndex, endIndex, canvases.length);
+    if (!range) {
+        throw new Error(messages.errorNoCanvases());
+    }
+
+    const { PDFDocument } = await import('pdf-lib');
+    const pdfDoc = await PDFDocument.create();
+    const failedCanvases: string[] = [];
+    let exportedCount = 0;
+    const ocrRenderOptions = normalizeOcrRenderOptions({
+        ocrPlacementMode,
+        ocrSizingMode,
+        ocrVisibilityMode,
+    });
+
+    const coverSheetFields = normalizeCoverSheetFields(coverSheet?.fields);
+
+    if (coverSheet && coverSheetFields.length > 0) {
+        onProgress?.(messages.progressCoverSheet());
+        await addCoverSheetPage(
+            pdfDoc,
+            coverSheet,
+            getRuntimeValues(createdAt, currentUrl),
         );
-        if (!range) {
-            throw new Error(messages.errorNoCanvases());
-        }
+    }
 
-        const { PDFDocument } = await import('pdf-lib');
-        const pdfDoc = await PDFDocument.create();
-        const failedCanvases: string[] = [];
-        let exportedCount = 0;
-        const ocrRenderOptions = normalizeOcrRenderOptions({
-            ocrPlacementMode,
-            ocrSizingMode,
-            ocrVisibilityMode,
-        });
+    // Ensure indices is a plain array (might be Svelte proxy or reactive wrapper)
+    const plainIndices = Array.isArray(range.indices)
+        ? Array.from(range.indices)
+        : [];
 
-        const coverSheetFields = normalizeCoverSheetFields(coverSheet?.fields);
+    for (const [offset, index] of plainIndices.entries()) {
+        const canvas = canvases[index];
+        const label = getCanvasLabel(canvas, index);
+        onProgress?.(
+            messages.progressCanvas({
+                current: offset + 1,
+                total: plainIndices.length,
+                label,
+            }),
+        );
 
-        if (coverSheet && coverSheetFields.length > 0) {
-            onProgress?.(messages.progressCoverSheet());
-            await addCoverSheetPage(
-                pdfDoc,
-                coverSheet,
-                getRuntimeValues(createdAt, currentUrl),
-            );
-        }
-
-        // Ensure indices is a plain array (might be Svelte proxy or reactive wrapper)
-        const plainIndices = Array.isArray(range.indices)
-            ? Array.from(range.indices)
-            : [];
-
-        for (const [offset, index] of plainIndices.entries()) {
-            const canvas = canvases[index];
-            const label = getCanvasLabel(canvas, index);
-            onProgress?.(
-                messages.progressCanvas({
-                    current: offset + 1,
-                    total: plainIndices.length,
-                    label,
-                }),
+        try {
+            const canvasId = getCanvasId(canvas);
+            const requestInit = buildImageRequestInit(imageRequest);
+            const composite = getCompositeCanvasImages(
+                canvas,
+                targetWidth,
+                getSelectedChoice,
             );
 
-            try {
-                const canvasId = getCanvasId(canvas);
-                const requestInit = buildImageRequestInit(imageRequest);
-                const composite = getCompositeCanvasImages(
+            let blob: Blob;
+            let resolvedImage: ResolvedCanvasImage | null;
+
+            if (composite) {
+                // Composite canvas (more than one painting image): fetch
+                // every image and rasterize them together onto one page
+                // image at their annotated positions.
+                const composeEntries = await Promise.all(
+                    composite.images.map(async (image) => ({
+                        blob: await loadCanvasImageBlob({
+                            canvas,
+                            canvasId,
+                            imageUrl: image.imageUrl,
+                            manifestId,
+                            targetWidth,
+                            imageRequest: requestInit,
+                            resolvedImage: image.resolvedImage,
+                            loadImageBlob,
+                        }),
+                        x: image.x,
+                        y: image.y,
+                        width: image.width,
+                        height: image.height,
+                    })),
+                );
+                blob = await composeImages(
+                    composeEntries,
+                    composite.pageWidth,
+                    composite.pageHeight,
+                );
+                // No single resolved image drives OCR image-space
+                // normalization for a composite page; overlays supplied
+                // in canvas coordinate space (the default) are unaffected.
+                resolvedImage = null;
+            } else {
+                const singleImage = getCanvasExportResource(
                     canvas,
                     targetWidth,
                     getSelectedChoice,
                 );
 
-                let blob: Blob;
-                let resolvedImage: ResolvedCanvasImage | null;
-
-                if (composite) {
-                    // Composite canvas (more than one painting image): fetch
-                    // every image and rasterize them together onto one page
-                    // image at their annotated positions.
-                    const composeEntries = await Promise.all(
-                        composite.images.map(async (image) => ({
-                            blob: await loadCanvasImageBlob({
-                                canvas,
-                                canvasId,
-                                imageUrl: image.imageUrl,
-                                manifestId,
-                                targetWidth,
-                                imageRequest: requestInit,
-                                resolvedImage: image.resolvedImage,
-                                loadImageBlob,
-                            }),
-                            x: image.x,
-                            y: image.y,
-                            width: image.width,
-                            height: image.height,
-                        })),
+                if (!singleImage.imageUrl) {
+                    throw new Error(
+                        'No exportable image found for this canvas.',
                     );
-                    blob = await composeImages(
-                        composeEntries,
-                        composite.pageWidth,
-                        composite.pageHeight,
-                    );
-                    // No single resolved image drives OCR image-space
-                    // normalization for a composite page; overlays supplied
-                    // in canvas coordinate space (the default) are unaffected.
-                    resolvedImage = null;
-                } else {
-                    const singleImage = getCanvasExportResource(
-                        canvas,
-                        targetWidth,
-                        getSelectedChoice,
-                    );
-
-                    if (!singleImage.imageUrl) {
-                        throw new Error(
-                            'No exportable image found for this canvas.',
-                        );
-                    }
-
-                    blob = await loadCanvasImageBlob({
-                        canvas,
-                        canvasId,
-                        imageUrl: singleImage.imageUrl,
-                        manifestId,
-                        targetWidth,
-                        imageRequest: requestInit,
-                        resolvedImage: singleImage.resolvedImage,
-                        loadImageBlob,
-                    });
-                    resolvedImage = singleImage.resolvedImage;
                 }
 
-                const embeddedImage = await embedImage(pdfDoc, blob);
-                const page = pdfDoc.addPage([
-                    embeddedImage.width,
-                    embeddedImage.height,
-                ]);
-                page.drawImage(embeddedImage, {
-                    x: 0,
-                    y: 0,
-                    width: embeddedImage.width,
-                    height: embeddedImage.height,
+                blob = await loadCanvasImageBlob({
+                    canvas,
+                    canvasId,
+                    imageUrl: singleImage.imageUrl,
+                    manifestId,
+                    targetWidth,
+                    imageRequest: requestInit,
+                    resolvedImage: singleImage.resolvedImage,
+                    loadImageBlob,
                 });
-
-                const canvasDimensions = getCanvasDimensions(canvas);
-                const overlays =
-                    canvasId && (getCanvasOcrOverlays || getCanvasAnnotations)
-                        ? await resolveCanvasOcrOverlays({
-                              canvas,
-                              canvasId,
-                              canvasIndex: index,
-                              manifestId,
-                              label,
-                              getCanvasOcrOverlays,
-                              getCanvasAnnotations,
-                          })
-                        : [];
-                if (canvasDimensions && overlays.length) {
-                    try {
-                        await addSelectableTextLayer(
-                            page,
-                            pdfDoc,
-                            overlays,
-                            canvasDimensions,
-                            ocrRenderOptions,
-                            {
-                                canvasId,
-                                label,
-                                resolvedImage,
-                            },
-                        );
-                    } catch {
-                        // Keep the raster page export even if OCR text
-                        // embedding fails (best effort, silent).
-                    }
-                }
-
-                exportedCount += 1;
-            } catch (error) {
-                // A CORS/auth failure is fatal for the whole export (every
-                // canvas would fail the same way): surface it to the caller,
-                // which reports it on the structured error channel.
-                if (isLikelyCorsOrAuthFailure(error)) {
-                    throw new Error(messages.errorNotAvailable());
-                }
-                // A single-canvas failure is non-fatal: record it so the
-                // caller can report a partial export via `failedCanvases`.
-                failedCanvases.push(label);
+                resolvedImage = singleImage.resolvedImage;
             }
+
+            const embeddedImage = await embedImage(pdfDoc, blob);
+            const page = pdfDoc.addPage([
+                embeddedImage.width,
+                embeddedImage.height,
+            ]);
+            page.drawImage(embeddedImage, {
+                x: 0,
+                y: 0,
+                width: embeddedImage.width,
+                height: embeddedImage.height,
+            });
+
+            const canvasDimensions = getCanvasDimensions(canvas);
+            const overlays =
+                canvasId && (getCanvasOcrOverlays || getCanvasAnnotations)
+                    ? await resolveCanvasOcrOverlays({
+                          canvas,
+                          canvasId,
+                          canvasIndex: index,
+                          manifestId,
+                          label,
+                          getCanvasOcrOverlays,
+                          getCanvasAnnotations,
+                      })
+                    : [];
+            if (canvasDimensions && overlays.length) {
+                try {
+                    await addSelectableTextLayer(
+                        page,
+                        pdfDoc,
+                        overlays,
+                        canvasDimensions,
+                        ocrRenderOptions,
+                        {
+                            canvasId,
+                            label,
+                            resolvedImage,
+                        },
+                    );
+                } catch {
+                    // Keep the raster page export even if OCR text
+                    // embedding fails (best effort, silent).
+                }
+            }
+
+            exportedCount += 1;
+        } catch (error) {
+            // A CORS/auth failure is fatal for the whole export (every
+            // canvas would fail the same way): surface it to the caller,
+            // which reports it on the structured error channel.
+            if (isLikelyCorsOrAuthFailure(error)) {
+                throw new Error(messages.errorNotAvailable());
+            }
+            // A single-canvas failure is non-fatal: record it so the
+            // caller can report a partial export via `failedCanvases`.
+            failedCanvases.push(label);
         }
-
-        if (!exportedCount) {
-            throw new Error(messages.errorNoCanvasesExported());
-        }
-
-        const defaultFilename = buildPdfFilename({
-            manifestId,
-            manifestLabel,
-            startIndex: range.startIndex,
-            endIndex: range.endIndex,
-        });
-        const dynamicFilename = filename
-            ? null
-            : await getFilename?.({
-                  manifestId,
-                  manifestLabel,
-                  startIndex: range.startIndex,
-                  endIndex: range.endIndex,
-                  indices: plainIndices,
-                  canvases: plainIndices.map((index) => canvases[index]),
-                  exportedCount,
-                  failedCanvases,
-                  defaultFilename,
-              });
-        const finalFilename =
-            filename ||
-            (typeof dynamicFilename === 'string' && dynamicFilename
-                ? dynamicFilename
-                : defaultFilename);
-
-        onProgress?.(
-            messages.progressDownload({ filename: finalFilename }),
-        );
-        const pdfBytes = await pdfDoc.save();
-        const pdfArray = Uint8Array.from(pdfBytes);
-        downloadBlob(
-            new Blob([pdfArray.buffer], { type: 'application/pdf' }),
-            finalFilename,
-        );
-
-        return {
-            exportedCount,
-            failedCanvases,
-            filename: finalFilename,
-        };
-    } catch (error) {
-        // Surface the failure to the caller (the panel reports it on the
-        // structured `pluginerror` channel and shows a panel-local message).
-        throw error;
     }
+
+    if (!exportedCount) {
+        throw new Error(messages.errorNoCanvasesExported());
+    }
+
+    const defaultFilename = buildPdfFilename({
+        manifestId,
+        manifestLabel,
+        startIndex: range.startIndex,
+        endIndex: range.endIndex,
+    });
+    const dynamicFilename = filename
+        ? null
+        : await getFilename?.({
+              manifestId,
+              manifestLabel,
+              startIndex: range.startIndex,
+              endIndex: range.endIndex,
+              indices: plainIndices,
+              canvases: plainIndices.map((index) => canvases[index]),
+              exportedCount,
+              failedCanvases,
+              defaultFilename,
+          });
+    const finalFilename =
+        filename ||
+        (typeof dynamicFilename === 'string' && dynamicFilename
+            ? dynamicFilename
+            : defaultFilename);
+
+    onProgress?.(messages.progressDownload({ filename: finalFilename }));
+    const pdfBytes = await pdfDoc.save();
+    const pdfArray = Uint8Array.from(pdfBytes);
+    downloadBlob(
+        new Blob([pdfArray.buffer], { type: 'application/pdf' }),
+        finalFilename,
+    );
+
+    return {
+        exportedCount,
+        failedCanvases,
+        filename: finalFilename,
+    };
 }

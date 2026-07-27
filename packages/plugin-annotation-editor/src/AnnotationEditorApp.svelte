@@ -48,9 +48,10 @@
         title={t('annotation_editor_title')}
         onclick={() => (open = !open)}
     >
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+        <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
         <svg viewBox={VIEW_BOX} aria-hidden="true" focusable="false"
             >{@html GLYPHS.PencilSimple}</svg
         >
+        <!-- eslint-enable svelte/no-at-html-tags -->
     </button>
 </div>

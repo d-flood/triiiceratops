@@ -62,7 +62,9 @@
         "check": "tsc -p tsconfig.build.json --noEmit",
         "test": "vitest run",
         "clean": "rm -rf dist",
-        "test:coverage": "vitest run --coverage"
+        "test:coverage": "vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
     },
     "peerDependencies": {
         "triiiceratops": "workspace:^",

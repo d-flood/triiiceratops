@@ -128,10 +128,11 @@
             <div class="tri-im-sliders">
                 {#each sliders as slider (slider.key)}
                     <div class="tri-im-row">
-                        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                        <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
                         <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
                             >{@html slider.glyph}</svg
                         >
+                        <!-- eslint-enable svelte/no-at-html-tags -->
                         <input
                             type="range"
                             min="0"
@@ -157,10 +158,11 @@
                     title={t('image_filters_invert')}
                     onclick={() => setFilter('invert', !filters.invert)}
                 >
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
                     <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
                         >{@html GLYPHS.invert}</svg
                     >
+                    <!-- eslint-enable svelte/no-at-html-tags -->
                 </button>
                 <button
                     type="button"
@@ -171,10 +173,11 @@
                     title={t('image_filters_grayscale')}
                     onclick={() => setFilter('grayscale', !filters.grayscale)}
                 >
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
                     <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
                         >{@html GLYPHS.grayscale}</svg
                     >
+                    <!-- eslint-enable svelte/no-at-html-tags -->
                 </button>
                 <button
                     type="button"
@@ -185,10 +188,11 @@
                     title={t('image_filters_reset')}
                     onclick={reset}
                 >
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
                     <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
                         >{@html GLYPHS.reset}</svg
                     >
+                    <!-- eslint-enable svelte/no-at-html-tags -->
                 </button>
             </div>
         </div>

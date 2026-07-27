@@ -88,7 +88,7 @@ describe('SelectorController (Lit)', () => {
     });
 
     it('stops requesting updates after host disconnect', () => {
-        const controller = makeController();
+        makeController();
         host.connect();
         host.disconnect();
         harness.state.toggleToolbar();
