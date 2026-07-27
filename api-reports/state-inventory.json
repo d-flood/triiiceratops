@@ -1,0 +1,385 @@
+{
+    "count": 59,
+    "byClassification": {
+        "command": 32,
+        "observable": 12,
+        "internal": 15,
+        "query-only": 0
+    },
+    "entries": [
+        {
+            "member": "_viewingDirection",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "_viewingMode",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "_viewingModeUserConfigured",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "activeLocale",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "annotationEditBus",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "annotationVisibilityTouched",
+            "classification": "command",
+            "commands": [
+                "setAnnotationVisible",
+                "setAllAnnotationsVisible"
+            ]
+        },
+        {
+            "member": "canvasId",
+            "classification": "command",
+            "commands": [
+                "setCanvas",
+                "nextCanvas",
+                "previousCanvas"
+            ]
+        },
+        {
+            "member": "collectionId",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "collectionItems",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "collectionLabel",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "collectionThumbnail",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "collectionThumbnailHydrationId",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "config",
+            "classification": "command",
+            "commands": [
+                "updateConfig"
+            ]
+        },
+        {
+            "member": "dockSide",
+            "classification": "command",
+            "commands": [
+                "setDockSide"
+            ]
+        },
+        {
+            "member": "dragOverSide",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "errorReporter",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "eventTarget",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "galleryCenterPanelRect",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "galleryDragOffset",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "galleryPosition",
+            "classification": "command",
+            "commands": [
+                "setGalleryPosition"
+            ]
+        },
+        {
+            "member": "gallerySize",
+            "classification": "command",
+            "commands": [
+                "setGallerySize"
+            ]
+        },
+        {
+            "member": "hoveredAnnotationId",
+            "classification": "command",
+            "commands": [
+                "setHoveredAnnotationId"
+            ]
+        },
+        {
+            "member": "initialCanvasRegion",
+            "classification": "command",
+            "commands": [
+                "setInitialCanvasRegion"
+            ]
+        },
+        {
+            "member": "isFullScreen",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "isGalleryDockedBottom",
+            "classification": "command",
+            "commands": [
+                "setDockSide"
+            ]
+        },
+        {
+            "member": "isGalleryDockedRight",
+            "classification": "command",
+            "commands": [
+                "setDockSide"
+            ]
+        },
+        {
+            "member": "isGalleryDragging",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "isSearching",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "loadedManifestIds",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "manifestId",
+            "classification": "command",
+            "commands": [
+                "setManifest",
+                "setManifestData",
+                "loadCollectionManifest"
+            ]
+        },
+        {
+            "member": "manifestRequestConfig",
+            "classification": "command",
+            "commands": [
+                "setManifestRequestConfig"
+            ]
+        },
+        {
+            "member": "osdViewer",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "pagedOffset",
+            "classification": "command",
+            "commands": [
+                "togglePagedOffset"
+            ]
+        },
+        {
+            "member": "pendingSearchQuery",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "pluginFlyouts",
+            "classification": "command",
+            "commands": [
+                "registerPlugin",
+                "unregisterPlugin",
+                "destroyAllPlugins"
+            ]
+        },
+        {
+            "member": "pluginMenuButtons",
+            "classification": "command",
+            "commands": [
+                "registerPlugin",
+                "unregisterPlugin",
+                "destroyAllPlugins"
+            ]
+        },
+        {
+            "member": "pluginPanels",
+            "classification": "command",
+            "commands": [
+                "registerPlugin",
+                "unregisterPlugin",
+                "destroyAllPlugins"
+            ]
+        },
+        {
+            "member": "pluginUiState",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "searchAnnotations",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "searchProvider",
+            "classification": "command",
+            "commands": [
+                "setSearchProvider"
+            ]
+        },
+        {
+            "member": "searchQuery",
+            "classification": "command",
+            "commands": [
+                "search"
+            ]
+        },
+        {
+            "member": "searchResults",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "selectedChoices",
+            "classification": "command",
+            "commands": [
+                "selectChoice"
+            ]
+        },
+        {
+            "member": "selectedSequenceIndex",
+            "classification": "command",
+            "commands": [
+                "setSequenceIndex"
+            ]
+        },
+        {
+            "member": "showAnnotations",
+            "classification": "command",
+            "commands": [
+                "toggleAnnotations"
+            ]
+        },
+        {
+            "member": "showCanvasInfo",
+            "classification": "command",
+            "commands": [
+                "toggleCanvasInfo"
+            ]
+        },
+        {
+            "member": "showCollectionPanel",
+            "classification": "command",
+            "commands": [
+                "toggleCollectionPanel"
+            ]
+        },
+        {
+            "member": "showMetadataPanel",
+            "classification": "command",
+            "commands": [
+                "toggleMetadataPanel"
+            ]
+        },
+        {
+            "member": "showSearchPanel",
+            "classification": "command",
+            "commands": [
+                "toggleSearchPanel"
+            ]
+        },
+        {
+            "member": "showStructuresPanel",
+            "classification": "command",
+            "commands": [
+                "toggleStructuresPanel"
+            ]
+        },
+        {
+            "member": "showThumbnailGallery",
+            "classification": "command",
+            "commands": [
+                "toggleThumbnailGallery"
+            ]
+        },
+        {
+            "member": "startCanvasId",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "tileSourceError",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "toolbarOpen",
+            "classification": "command",
+            "commands": [
+                "toggleToolbar"
+            ]
+        },
+        {
+            "member": "userAnnotations",
+            "classification": "command",
+            "commands": [
+                "setUserAnnotations",
+                "clearUserAnnotations"
+            ]
+        },
+        {
+            "member": "viewerElement",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "viewingDirection",
+            "classification": "command",
+            "commands": [
+                "updateConfig"
+            ]
+        },
+        {
+            "member": "viewingMode",
+            "classification": "command",
+            "commands": [
+                "setViewingMode",
+                "updateConfig"
+            ]
+        },
+        {
+            "member": "visibleAnnotationIds",
+            "classification": "command",
+            "commands": [
+                "showCurrentCanvasAnnotations",
+                "setAnnotationVisible",
+                "setAllAnnotationsVisible"
+            ]
+        }
+    ]
+}

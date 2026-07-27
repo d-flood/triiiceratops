@@ -93,7 +93,6 @@
         "@triiiceratops/plugin-sdk": "workspace:*",
         "@tsconfig/svelte": "^5.0.6",
         "@types/node": "^24.10.1",
-        "@types/openseadragon": "^5.0.1",
         "axe-core": "^4.12.1",
         "eslint": "^9.39.2",
         "eslint-config-prettier": "^10.1.8",
@@ -112,6 +111,7 @@
         "vitest": "^4.0.15"
     },
     "dependencies": {
+        "@types/openseadragon": "^5.0.1",
         "dompurify": "^3.4.11",
         "manifesto.js": "^4.3.0",
         "openseadragon": "^5.0.1"

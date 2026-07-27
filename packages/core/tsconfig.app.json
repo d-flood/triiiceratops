@@ -8,6 +8,12 @@
         "types": ["svelte", "vite/client", "node"],
         "noEmit": true,
 
+        // Strict public types (ticket 21). Inherited from @tsconfig/svelte, but
+        // pinned explicitly here so EVERY package tsconfig states it with no
+        // opt-outs and it can't silently regress if the base config changes.
+        "strict": true,
+        "noImplicitAny": true,
+
         "allowJs": true,
         "checkJs": true,
         "moduleDetection": "force",

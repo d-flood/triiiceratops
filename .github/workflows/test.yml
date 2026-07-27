@@ -147,3 +147,117 @@ jobs:
             # actually gets from npm.
             - name: Run packed-consumer harness
               run: pnpm test:packed
+
+    # Ticket 25: performance comparison. Builds the PR base SHA and head SHA on
+    # the SAME runner (same Node, same browser), measures per-artifact byte sizes
+    # and browser runtime medians against the PACKED artifacts, and fails on a
+    # deterministic size regression > 5% OR a runtime regression > 10% AND > 20ms
+    # per scenario. It also enforces perf-budgets.json (committed absolute
+    # ceilings), which fails even when base == head. Required; PR-only (needs a
+    # base vs head to compare). Raw JSON + Playwright traces are uploaded.
+    performance:
+        name: Performance Comparison
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        if: github.event_name == 'pull_request'
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # Full history so the base SHA is available for the worktree
+                  # build the comparison performs.
+                  fetch-depth: 0
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            # The perf harness drives Chromium (software WebGL) against the packed
+            # element + plugin IIFEs. Install the browser the measurement uses.
+            - name: Install Playwright Browser
+              run: pnpm --filter @triiiceratops/test-consumers exec playwright install --with-deps chromium
+
+            # Build base + head in isolated worktrees and compare medians +
+            # sizes; enforce the committed perf-budgets.json ceilings.
+            - name: Run performance comparison
+              run: pnpm perf:compare --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
+
+            # Raw measurement JSON + Playwright traces, downloadable from the run.
+            - name: Upload performance artifacts
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: perf-results
+                  path: perf-results/
+                  if-no-files-found: warn
+
+    # Ticket 21: machine-readable API snapshots + strict public types. Fails on
+    # uncommitted snapshot drift, on any NEW `any` in public `.d.ts`, and — on a
+    # PR — when a snapshot-touching change lacks a Changeset.
+    api-report:
+        name: API Snapshots + Strict Types
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # Full history so the Changeset guard can diff against the PR base.
+                  fetch-depth: 0
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            # Regenerate every API snapshot deterministically (builds the needed
+            # `.d.ts` as a side effect).
+            - name: Regenerate API snapshots
+              run: pnpm api:report
+
+            # Snapshot drift: a public-contract change that was not regenerated +
+            # committed fails here (standard snapshot flow).
+            - name: Fail on uncommitted snapshot drift
+              run: git diff --exit-code
+
+            # No `any` in public `.d.ts` output (allowlisted structural exceptions
+            # only). A planted `any` on a public type fails here.
+            - name: Assert no new `any` in public declarations
+              run: pnpm api:check
+
+            # A snapshot-touching PR must carry a Changeset (contract changes
+            # require explicit review + versioning).
+            - name: Require a Changeset for snapshot changes
+              if: github.event_name == 'pull_request'
+              run: |
+                  BASE="origin/${{ github.base_ref }}"
+                  SNAP_CHANGED=$(git diff --name-only "$BASE"...HEAD -- api-reports || true)
+                  if [ -z "$SNAP_CHANGED" ]; then
+                    echo "No API snapshot changes; Changeset not required."
+                    exit 0
+                  fi
+                  echo "API snapshots changed in this PR:"
+                  echo "$SNAP_CHANGED"
+                  NEW_CHANGESETS=$(git diff --name-only --diff-filter=A "$BASE"...HEAD -- '.changeset/*.md' \
+                    | grep -viE '\.changeset/(README|config)' || true)
+                  if [ -z "$NEW_CHANGESETS" ]; then
+                    echo "::error::API snapshot(s) changed but no Changeset was added. Run 'pnpm changeset' to record the contract change."
+                    exit 1
+                  fi
+                  echo "Changeset(s) present:"
+                  echo "$NEW_CHANGESETS"
