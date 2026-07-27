@@ -322,3 +322,85 @@ jobs:
                   fi
                   echo "Changeset(s) present:"
                   echo "$NEW_CHANGESETS"
+
+    # Ticket 27: release reproducibility (required CI). Two independent clean
+    # builds of THIS SHA must produce byte-identical tarballs for all six
+    # publishable packages. This is what lets publication PROMOTE verified
+    # artifacts instead of rebuilding — a rebuild would land on the same bytes.
+    # `npm pack` normalises mtimes + gzip headers, so there is no variable
+    # metadata to exclude (documented in scripts/release/verify-reproducible.mjs).
+    reproducibility:
+        name: Release Reproducibility (deterministic tarballs)
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - name: Two clean builds must produce identical checksums
+              run: pnpm release:reproducible
+
+    # Ticket 27: release artifacts (required CI, PRODUCER half of the promotion
+    # flow). Builds every package, packs the six `.tgz`, writes SHA256SUMS +
+    # release-manifest.json, and uploads them as a workflow artifact. The publish
+    # workflow downloads THIS artifact (matched by run id → commit SHA), verifies
+    # the checksums, and runs `npm publish <tgz>` with no build of its own.
+    release-artifacts:
+        name: Release Artifacts (pack + checksum)
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            # build:all + npm pack the six publishable packages. Output goes to
+            # RUNNER_TEMP so the tarballs never touch the tracked tree (keeps the
+            # clean-build check below honest).
+            - name: Build + pack all six packages
+              run: pnpm release:pack --out "$RUNNER_TEMP/release-artifacts"
+
+            # Prove the clean-build contract (ticket 22) still holds after packing:
+            # building must not dirty any tracked file.
+            - name: Clean-build check (git status must be empty)
+              run: |
+                  if [ -n "$(git status --porcelain)" ]; then
+                    echo "::error::build/pack dirtied tracked files:"
+                    git status --porcelain
+                    exit 1
+                  fi
+                  echo "Working tree clean after build + pack."
+
+            - name: Upload release tarballs
+              uses: actions/upload-artifact@v4
+              with:
+                  name: release-tarballs
+                  path: |
+                      ${{ runner.temp }}/release-artifacts/*.tgz
+                      ${{ runner.temp }}/release-artifacts/SHA256SUMS
+                      ${{ runner.temp }}/release-artifacts/release-manifest.json
+                  if-no-files-found: error
+                  retention-days: 14

@@ -1,89 +1,199 @@
+# Release promotion pipeline.
+#
+# Publishing PROMOTES the exact tarballs required CI already built and verified —
+# it never rebuilds. The required "Run Tests" workflow packs the six `.tgz` (with
+# a SHA256SUMS manifest) and uploads them as a workflow artifact; this workflow
+# downloads that SHA-matched artifact, re-verifies the checksums, and runs
+# `npm publish <tgz>` per package. There is deliberately NO build/compile step
+# here (see SPEC "Publishing promotes verified artifacts ... rather than
+# rebuilding" and docs/release-runbook.md).
+#
+# Graph:  promote  →  registry smoke  →  GitHub release
+# The GitHub release is created ONLY after the registry smoke test passes.
+#
+# Triggers:
+#   · workflow_run — fires when "Run Tests" completes successfully on `main`;
+#     promotes that run's artifacts (real publish, not a dry run).
+#   · workflow_dispatch — operator points at a completed "Run Tests" run id and,
+#     by default, does a `npm publish --dry-run` so the whole path can be proven
+#     end-to-end without publishing (still no rebuild).
 name: Release
 
 on:
-    push:
-        branches:
-            - main
+    workflow_run:
+        workflows: ['Run Tests']
+        types: [completed]
+        branches: [main]
+    workflow_dispatch:
+        inputs:
+            run_id:
+                description: 'Run id of the "Run Tests" workflow whose artifacts to promote'
+                required: true
+                type: string
+            dry_run:
+                description: 'npm publish --dry-run (no real publish)'
+                required: false
+                default: true
+                type: boolean
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
-jobs:
-    release:
-        name: Release
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-            pull-requests: write
-            id-token: write
+env:
+    # The source CI run whose SHA-matched artifacts we promote.
+    SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+    SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    # workflow_run promotions publish for real; workflow_dispatch defaults to a dry run.
+    DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
 
+jobs:
+    promote:
+        name: Promote verified artifacts to npm
+        runs-on: ubuntu-latest
+        # Only promote a SUCCESSFUL required-CI run on main (or a manual dispatch).
+        if: >-
+            github.event_name == 'workflow_dispatch' ||
+            (github.event.workflow_run.conclusion == 'success' &&
+             github.event.workflow_run.head_branch == 'main')
+        permissions:
+            contents: read
+            actions: read # download artifacts from the source CI run
+            id-token: write # npm provenance / trusted publishing (OIDC)
+        outputs:
+            core_version: ${{ steps.publish.outputs.core_version }}
+            published: ${{ steps.publish.outputs.published }}
         steps:
-            - uses: actions/checkout@v4
-            - uses: pnpm/action-setup@v4
-              with:
-                  version: 9
             - uses: actions/setup-node@v4
               with:
                   node-version: 24
-            - name: Update npm
+                  registry-url: 'https://registry.npmjs.org'
+
+            # npm >= 11.5.1 performs OIDC trusted publishing with `id-token: write`
+            # and generates provenance from each tarball's publishConfig.provenance.
+            - name: Update npm (OIDC + provenance capable)
               run: npm install -g npm@latest
-            - run: pnpm install --frozen-lockfile
 
-            - name: Git Configuration
-              run: |
-                  git config --global user.name "github-actions[bot]"
-                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            # Download the EXACT tarballs that required CI packed + verified for
+            # this SHA. No workspace checkout, no install, no build.
+            - name: Download release artifacts from the verified CI run
+              uses: actions/download-artifact@v4
+              with:
+                  name: release-tarballs
+                  path: release-artifacts
+                  run-id: ${{ env.SOURCE_RUN_ID }}
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Bump Version
-              id: version
+            - name: Verify tarball checksums (SHA match)
+              working-directory: release-artifacts
               run: |
-                  pnpm changeset version
-                  if git diff --name-only | grep -q 'package.json'; then
-                    echo "Detected version bump."
-                    pnpm install --lockfile-only
-                    git add .
-                    git commit -m "chore: release [skip ci]"
-                    
-                    VERSION=$(node -p "require('./packages/core/package.json').version")
-                    echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-                    echo "has_changes=true" >> $GITHUB_OUTPUT
+                  echo "Promoting artifacts from CI run ${SOURCE_RUN_ID} (SHA ${SOURCE_SHA})"
+                  sha256sum -c SHA256SUMS
+                  echo "All tarball checksums verified."
+
+            - name: Publish each package (npm publish <tgz>, no rebuild)
+              id: publish
+              working-directory: release-artifacts
+              run: |
+                  set -euo pipefail
+                  PUBLISHED=()
+                  CORE_VERSION=""
+                  # release-manifest.json (from pack-artifacts.mjs) lists the exact
+                  # name/version/dist-tag/tarball for each of the six packages.
+                  COUNT=$(node -p "require('./release-manifest.json').packages.length")
+                  for i in $(seq 0 $((COUNT - 1))); do
+                    NAME=$(node -p "require('./release-manifest.json').packages[$i].name")
+                    VERSION=$(node -p "require('./release-manifest.json').packages[$i].version")
+                    TAG=$(node -p "require('./release-manifest.json').packages[$i].distTag")
+                    TGZ=$(node -p "require('./release-manifest.json').packages[$i].tarball")
+                    if [ "$NAME" = "triiiceratops" ]; then CORE_VERSION="$VERSION"; fi
+
+                    if [ "${DRY_RUN}" = "true" ]; then
+                      echo "::group::[dry-run] npm publish $NAME@$VERSION (tag $TAG)"
+                      npm publish "$TGZ" --access public --tag "$TAG" --dry-run
+                      echo "::endgroup::"
+                      continue
+                    fi
+
+                    # Idempotent: skip anything already on the registry so a
+                    # re-run of a main CI success never errors on a duplicate.
+                    if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+                      echo "$NAME@$VERSION already published — skipping."
+                      continue
+                    fi
+                    echo "::group::npm publish $NAME@$VERSION (tag $TAG)"
+                    npm publish "$TGZ" --access public --tag "$TAG"
+                    echo "::endgroup::"
+                    PUBLISHED+=("$NAME@$VERSION")
+                  done
+                  echo "core_version=$CORE_VERSION" >> "$GITHUB_OUTPUT"
+                  if [ ${#PUBLISHED[@]} -gt 0 ]; then
+                    echo "published=true" >> "$GITHUB_OUTPUT"
+                    printf 'Published: %s\n' "${PUBLISHED[@]}"
                   else
-                    echo "No version bump detected."
-                    echo "has_changes=false" >> $GITHUB_OUTPUT
+                    echo "published=false" >> "$GITHUB_OUTPUT"
+                    echo "Nothing new published (dry run or all versions already on registry)."
                   fi
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-            - name: Build Lib
-              if: steps.version.outputs.has_changes == 'true'
-              run: pnpm run build:lib
-
-            - name: Build Element
-              if: steps.version.outputs.has_changes == 'true'
-              run: pnpm run build:element
-
-            - name: Build Plugin IIFEs
-              if: steps.version.outputs.has_changes == 'true'
-              run: pnpm run build:plugins-iife
-
-            - name: Publish to NPM
-              if: steps.version.outputs.has_changes == 'true'
-              working-directory: packages/core
-              run: |
-                  VERSION=$(node -p "require('./package.json').version")
-                  TAG=$(node -p "const version = require('./package.json').version; version.includes('-') ? version.split('-')[1].split('.')[0] : 'latest'")
-                  echo "Publishing triiiceratops@$VERSION with dist-tag $TAG"
-                  npm publish --access public --tag "$TAG"
-
-            - name: Push Changes
-              if: steps.version.outputs.has_changes == 'true'
-              run: git push
-
-            - name: Create GitHub Release
-              if: steps.version.outputs.has_changes == 'true'
-              uses: softprops/action-gh-release@v1
+            # Hand the exact versions to the smoke + release jobs.
+            - name: Re-upload release manifest for downstream jobs
+              uses: actions/upload-artifact@v4
               with:
-                  tag_name: v${{ steps.version.outputs.VERSION }}
-                  name: v${{ steps.version.outputs.VERSION }}
+                  name: release-manifest
+                  path: release-artifacts/release-manifest.json
+                  retention-days: 7
+
+    smoke:
+        name: Registry smoke test (gates release)
+        runs-on: ubuntu-latest
+        needs: promote
+        # Only smoke real publications (skip on dry run / nothing-published).
+        if: needs.promote.outputs.published == 'true'
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # Read-only checkout of the promoted commit for the smoke script.
+                  # (No build — the script installs from the registry.)
+                  ref: ${{ env.SOURCE_SHA }}
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+
+            - name: Download release manifest
+              uses: actions/download-artifact@v4
+              with:
+                  name: release-manifest
+                  path: .
+
+            # npm's registry is eventually consistent; give a freshly published
+            # version a moment to become installable before smoke-installing it.
+            - name: Wait for registry propagation
+              run: sleep 30
+
+            - name: Install exact published versions + smoke assertions
+              run: node scripts/release/smoke-registry.mjs --manifest release-manifest.json
+
+    release:
+        name: Create GitHub release
+        runs-on: ubuntu-latest
+        needs: [promote, smoke]
+        # Gated on a PASSING registry smoke test.
+        if: needs.promote.outputs.published == 'true'
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ env.SOURCE_SHA }}
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: v${{ needs.promote.outputs.core_version }}
+                  name: v${{ needs.promote.outputs.core_version }}
+                  target_commitish: ${{ env.SOURCE_SHA }}
                   generate_release_notes: true
+                  prerelease: ${{ contains(needs.promote.outputs.core_version, '-rc.') }}
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

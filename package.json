@@ -35,7 +35,10 @@
         "lint:fix": "pnpm --filter triiiceratops lint:fix",
         "format": "pnpm --filter triiiceratops format",
         "format:check": "pnpm --filter triiiceratops format:check",
-        "changeset": "changeset"
+        "changeset": "changeset",
+        "release:pack": "node scripts/release/pack-artifacts.mjs",
+        "release:reproducible": "node scripts/release/verify-reproducible.mjs",
+        "release:smoke": "node scripts/release/smoke-registry.mjs"
     },
     "devDependencies": {
         "@changesets/cli": "^2.29.8",
