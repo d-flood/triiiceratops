@@ -389,6 +389,11 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Private EventTarget for the web-component build; null under Svelte usage.',
     },
     {
+        member: 'errorReporter',
+        classification: 'internal',
+        notes: 'Private host reporter for the structured `viewererror` channel (ticket 18); wired by the viewer component, null in direct/test use.',
+    },
+    {
         member: 'viewerElement',
         classification: 'internal',
         notes: 'Private reference to the viewer DOM element, used for fullscreen.',

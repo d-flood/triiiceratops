@@ -45,6 +45,9 @@
         IconDescriptor,
     } from '../types/plugin';
     import { isSdkPlugin, PLUGIN_ERROR_EVENT } from '../types/plugin';
+    import type { ViewerError } from '../types/viewerError';
+    import { VIEWER_ERROR_EVENT } from '../types/viewerError';
+    import { logger, configureLogging } from '../logging/logger';
     import SdkPluginError from './SdkPluginError.svelte';
     import {
         CORE_VERSION,
@@ -118,6 +121,14 @@
          * a host can present or report the failure and call `retry()`.
          */
         onpluginerror?: (error: PluginError) => void;
+        /**
+         * Host callback for the structured viewer-failure channel (ticket 18).
+         * Called with the SAME {@link ViewerError} object dispatched as the
+         * bubbling, composed `viewererror` CustomEvent from the viewer root, so a
+         * host can present or report actionable configuration, content, and
+         * operation failures without scraping the console.
+         */
+        onviewererror?: (error: ViewerError) => void;
     }
 
     type ViewerTileSourceError =
@@ -137,6 +148,7 @@
         viewerState = $bindable(),
         initialCanvasRegion = null,
         onpluginerror,
+        onviewererror,
     }: Props = $props();
 
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
@@ -170,6 +182,42 @@
     const internalViewerState = new ViewerState(null, undefined, []);
     viewerState = internalViewerState; // Expose via bindable prop
     setContext(VIEWER_STATE_KEY, internalViewerState);
+
+    // Route state-level actionable failures (search, viewport, content) out
+    // through the structured `viewererror` channel (ticket 18). Mirrors the
+    // ticket 09 `pluginerror` wiring: ViewerState reports; the component owns the
+    // DOM event + host callback.
+    internalViewerState.setErrorReporter(emitViewerError);
+
+    /**
+     * Deliver one structured viewer failure (ticket 18) on BOTH channels with
+     * the SAME object: the bubbling, composed `viewererror` CustomEvent from the
+     * viewer root and the `onviewererror` host callback. Mirrors
+     * {@link emitPluginError}. Also mirrors the payload to the (silent-by-default)
+     * logger so it is visible in `debug` mode; production stays quiet unless a
+     * host wires a channel or enables debug.
+     */
+    function emitViewerError(error: ViewerError): void {
+        if (error.severity === 'error') {
+            logger.error(
+                `[${error.code}] ${error.message}`,
+                error.error ?? error.detail ?? '',
+            );
+        } else {
+            logger.warn(`[${error.code}] ${error.message}`, error.detail ?? '');
+        }
+
+        // Bubbling + composed so it escapes the shadow root to WC hosts.
+        rootElement?.dispatchEvent(
+            new CustomEvent(VIEWER_ERROR_EVENT, {
+                detail: error,
+                bubbles: true,
+                composed: true,
+            }),
+        );
+        // Host callback — the SAME object.
+        onviewererror?.(error);
+    }
 
     // Publish this viewer's active locale to its chrome subtree, and route all
     // core message rendering through it. `getMessages()` returns a drop-in `m`
@@ -330,6 +378,13 @@
                 internalViewerState.updateConfig(config);
             }
         }
+    });
+
+    // Opt-in developer diagnostics (ticket 18): production is quiet by default.
+    // `config.debug` gates the core logger; actionable failures still surface
+    // through the structured `viewererror`/`pluginerror` channels regardless.
+    $effect(() => {
+        configureLogging({ debug: config?.debug ?? false });
     });
 
     // Register plugins reactively with cleanup
@@ -541,8 +596,8 @@
             try {
                 record.deactivate();
             } catch (error) {
-                console.error(
-                    '[triiiceratops] SDK plugin deactivation threw during retry; teardown continues.',
+                logger.error(
+                    'SDK plugin deactivation threw during retry; teardown continues.',
                     error,
                 );
             }
@@ -561,8 +616,8 @@
             try {
                 activation.deactivate();
             } catch (error) {
-                console.error(
-                    '[triiiceratops] SDK plugin deactivation threw; teardown continues.',
+                logger.error(
+                    'SDK plugin deactivation threw; teardown continues.',
                     error,
                 );
             }
@@ -648,19 +703,38 @@
     );
     // The toolbar owns the top edge: a `top`-edge nav yields to the bottom when a
     // top-anchored rail is present. We refuse to fit both rather than overlap them.
-    let resolvedNavEdge = $derived.by<NavEdge>(() => {
+    let requestedNavEdge = $derived.by<NavEdge>(() => {
         const e = internalViewerState.config.nav?.edge;
-        const requested = e && NAV_EDGES.includes(e) ? e : DEFAULT_NAV_EDGE;
-        if (requested === 'top' && toolbarOwnsTop) {
-            if (import.meta.env.DEV) {
-                console.warn(
-                    '[triiiceratops] nav.edge "top" ignored: a top-anchored toolbar ' +
-                        '(toolbar.anchor "top") already owns the top edge; nav falls back to "bottom".',
-                );
-            }
-            return 'bottom';
+        return e && NAV_EDGES.includes(e) ? e : DEFAULT_NAV_EDGE;
+    });
+    // A conflicting configuration: `nav.edge: 'top'` while a top-anchored toolbar
+    // already owns the top. Surfaced as a structured `viewererror` warning below.
+    let navEdgeConflict = $derived(
+        requestedNavEdge === 'top' && toolbarOwnsTop,
+    );
+    let resolvedNavEdge = $derived<NavEdge>(
+        navEdgeConflict ? 'bottom' : requestedNavEdge,
+    );
+
+    // Report the nav.edge/toolbar-anchor conflict once, when it becomes active,
+    // through the structured `viewererror` channel (ticket 18) instead of a
+    // bundler-specific dev-only console warning.
+    $effect(() => {
+        if (navEdgeConflict) {
+            emitViewerError({
+                severity: 'warning',
+                scope: 'config',
+                code: 'nav-edge-conflict',
+                message:
+                    'nav.edge "top" ignored: a top-anchored toolbar ' +
+                    '(toolbar.anchor "top") already owns the top edge; nav ' +
+                    'falls back to "bottom".',
+                detail: {
+                    requestedNavEdge: 'top',
+                    resolvedNavEdge: 'bottom',
+                },
+            });
         }
-        return requested;
     });
 
     // ---- Same-side toolbar/panel resolution (the "edge-rail" fix) ----
@@ -985,7 +1059,7 @@
             !canvases[currentCanvasIndex]
         ) {
             if (!manifestData?.isFetching) {
-                console.log('TriiiceratopsViewer: No canvas found');
+                logger.debug('No canvas found');
             }
             return null;
         }
@@ -1002,15 +1076,12 @@
 
         if (!tileSourcesArray) {
             if (!manifestData?.isFetching) {
-                console.log('TriiiceratopsViewer: No images/content in canvas');
+                logger.debug('No images/content in canvas');
             }
             return null;
         }
 
-        console.log(
-            '[TriiiceratopsViewer] Derived tileSources:',
-            tileSourcesArray,
-        );
+        logger.debug('Derived tileSources:', tileSourcesArray);
         return tileSourcesArray;
     });
 

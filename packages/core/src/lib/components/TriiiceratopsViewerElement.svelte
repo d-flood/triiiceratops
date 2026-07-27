@@ -59,8 +59,10 @@
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
     import type { ViewerState } from '../state/viewer.svelte';
     import type { PluginError } from '../types/plugin';
+    import type { ViewerError } from '../types/viewerError';
     import type { CanvasRegion } from '../utils/contentState';
     import { parseJsonProp } from '../utils/jsonProp';
+    import { logger } from '../logging/logger';
 
     let {
         manifestId = '',
@@ -74,6 +76,9 @@
         onpluginerror = undefined as
             | ((error: PluginError) => void)
             | undefined,
+        onviewererror = undefined as
+            | ((error: ViewerError) => void)
+            | undefined,
     }: {
         manifestId?: string;
         manifestJson?: string | Record<string, any>;
@@ -85,6 +90,12 @@
          * `pluginerror` DOM event on the element.
          */
         onpluginerror?: (error: PluginError) => void;
+        /**
+         * Element-property host callback for the `viewererror` channel
+         * (ticket 18). WC hosts may also listen for the bubbling, composed
+         * `viewererror` DOM event on the element.
+         */
+        onviewererror?: (error: ViewerError) => void;
         /**
          * Built-in theme name (e.g., 'light', 'dark', 'teal').
          * When not specified, inherits the theme from the parent context.
@@ -125,7 +136,7 @@
     let validatedTheme = $derived.by((): BuiltInTheme | undefined => {
         if (!theme) return undefined;
         if (isBuiltInTheme(theme)) return theme;
-        console.warn(`Invalid theme "${theme}". Using inherited theme.`);
+        logger.warn(`Invalid theme "${theme}". Using inherited theme.`);
         return undefined;
     });
 
@@ -135,7 +146,7 @@
         if (typeof themeConfig === 'string') {
             const parsed = parseThemeConfig(themeConfig);
             if (!parsed) {
-                console.warn(
+                logger.warn(
                     `Invalid theme-config JSON: "${themeConfig}". Ignoring.`,
                 );
             }
@@ -150,7 +161,7 @@
             return parseJsonProp<ViewerConfig | undefined>(config, {
                 fallback: undefined,
                 label: 'config',
-                onError: console.warn,
+                onError: logger.warn,
             });
         }
         return config;
@@ -165,7 +176,7 @@
                     {
                         fallback: undefined,
                         label: 'manifest-json',
-                        onError: console.warn,
+                        onError: logger.warn,
                     },
                 );
 
@@ -184,7 +195,7 @@
                 return parseJsonProp<CanvasRegion | null>(initialCanvasRegion, {
                     fallback: null,
                     label: 'initial-canvas-region',
-                    onError: console.warn,
+                    onError: logger.warn,
                 });
             }
             return initialCanvasRegion;
@@ -206,6 +217,7 @@
         config={parsedConfig}
         initialCanvasRegion={parsedInitialCanvasRegion}
         {onpluginerror}
+        {onviewererror}
         bind:viewerState={internalViewerState}
     />
 </div>

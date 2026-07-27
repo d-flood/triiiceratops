@@ -4,6 +4,7 @@ import {
     normalizeIiifTargets,
     parseIiifXywh,
 } from './iiifTargets';
+import { logger } from '../logging/logger';
 
 /**
  * Parsed annotation interface for custom rendering
@@ -342,7 +343,7 @@ function convertSvgToPolygon(svgString: string): PolygonGeometry | null {
         const doc = parser.parseFromString(svgString, 'image/svg+xml');
 
         if (doc.documentElement.nodeName === 'parsererror') {
-            console.warn('Failed to parse SVG selector:', svgString);
+            logger.warn('Failed to parse SVG selector:', svgString);
             return null;
         }
 
@@ -397,7 +398,7 @@ function convertSvgToPolygon(svgString: string): PolygonGeometry | null {
             points,
         };
     } catch (e) {
-        console.warn('Failed to convert SVG to polygon:', e);
+        logger.warn('Failed to convert SVG to polygon:', e);
         return null;
     }
 }

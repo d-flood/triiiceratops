@@ -2,6 +2,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import type { RequestConfig } from '../types/config';
 import { fetchJson } from '../utils/fetchJson';
+import { logger } from '../logging/logger';
 import { loadManifestoModule } from './manifestoRuntime';
 
 export interface ManifestEntry {
@@ -90,10 +91,10 @@ export class ManifestsState {
                 const data = await response.json();
                 this.manifests[url] = { json: data };
             } else {
-                console.error(`Failed to fetch annotation list: ${url}`);
+                logger.error(`Failed to fetch annotation list: ${url}`);
             }
         } catch (e) {
-            console.error(`Error fetching annotation list: ${url}`, e);
+            logger.error(`Error fetching annotation list: ${url}`, e);
         }
     }
 

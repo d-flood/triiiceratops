@@ -245,19 +245,18 @@ describe('ViewerState - IIIF Search', () => {
             setupMockManifest(mockManifestJson);
             state.manifestId = 'http://example.org/manifest';
 
-            const consoleSpy = vi
-                .spyOn(console, 'warn')
-                .mockImplementation(() => {});
+            // Ticket 18: an unavailable search service is reported through the
+            // structured `viewererror` channel, not bare console output.
+            const reported: import('../types/viewerError').ViewerError[] = [];
+            state.setErrorReporter((e) => reported.push(e));
 
             await state.search('test');
 
             expect(mockFetch).not.toHaveBeenCalled();
-            expect(consoleSpy).toHaveBeenCalledWith(
-                'No IIIF search service found in manifest',
-            );
+            expect(reported).toHaveLength(1);
+            expect(reported[0].code).toBe('search-service-missing');
+            expect(reported[0].scope).toBe('search');
             expect(state.isSearching).toBe(false);
-
-            consoleSpy.mockRestore();
         });
     });
 
@@ -595,20 +594,12 @@ describe('ViewerState - IIIF Search', () => {
             state.manifestId = null;
             vi.mocked(manifestsState.getManifest).mockReturnValue(null);
 
-            const consoleSpy = vi
-                .spyOn(console, 'log')
-                .mockImplementation(() => {});
-
             await state.search('deferred query');
 
+            // Ticket 18: the deferral is a debug-only diagnostic (silent by
+            // default). Assert the observable behavior instead of console output.
             expect(mockFetch).not.toHaveBeenCalled();
             expect(state.pendingSearchQuery).toBe('deferred query');
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('deferring search'),
-                'deferred query',
-            );
-
-            consoleSpy.mockRestore();
         });
     });
 
@@ -629,19 +620,18 @@ describe('ViewerState - IIIF Search', () => {
         it('should handle network failures', async () => {
             mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-            const consoleSpy = vi
-                .spyOn(console, 'error')
-                .mockImplementation(() => {});
+            // Ticket 18: a failed search is reported through the structured
+            // `viewererror` channel, not bare console output.
+            const reported: import('../types/viewerError').ViewerError[] = [];
+            state.setErrorReporter((e) => reported.push(e));
 
             await state.search('test');
 
-            expect(consoleSpy).toHaveBeenCalledWith(
-                'Search error:',
-                expect.any(Error),
-            );
+            expect(reported).toHaveLength(1);
+            expect(reported[0].code).toBe('search-failed');
+            expect(reported[0].severity).toBe('error');
+            expect(reported[0].error).toBeInstanceOf(Error);
             expect(state.isSearching).toBe(false);
-
-            consoleSpy.mockRestore();
         });
 
         it('should handle non-OK responses', async () => {
@@ -650,25 +640,19 @@ describe('ViewerState - IIIF Search', () => {
                 status: 500,
             });
 
-            const consoleSpy = vi
-                .spyOn(console, 'error')
-                .mockImplementation(() => {});
+            const reported: import('../types/viewerError').ViewerError[] = [];
+            state.setErrorReporter((e) => reported.push(e));
 
             await state.search('test');
 
-            expect(consoleSpy).toHaveBeenCalledWith(
-                'Search error:',
-                expect.any(Error),
-            );
+            expect(reported).toHaveLength(1);
+            expect(reported[0].code).toBe('search-failed');
+            expect(reported[0].severity).toBe('error');
             expect(state.isSearching).toBe(false);
-
-            consoleSpy.mockRestore();
         });
 
         it('should reset isSearching flag on error', async () => {
             mockFetch.mockRejectedValueOnce(new Error('Test error'));
-
-            vi.spyOn(console, 'error').mockImplementation(() => {});
 
             await state.search('test');
 
