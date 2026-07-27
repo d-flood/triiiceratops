@@ -2,12 +2,20 @@
   "mode": "pre",
   "tag": "rc",
   "initialVersions": {
-    "triiiceratops": "0.20.3"
+    "triiiceratops": "0.20.3",
+    "@triiiceratops/plugin-annotation-editor": "1.0.0-rc.0",
+    "@triiiceratops/plugin-image-download": "1.0.0-rc.0",
+    "@triiiceratops/plugin-image-manipulation": "1.0.0-rc.0",
+    "@triiiceratops/plugin-pdf-export": "1.0.0-rc.0",
+    "@triiiceratops/plugin-sdk": "1.0.0-rc.0",
+    "@triiiceratops/ui": "0.0.0",
+    "@triiiceratops/test-consumers": "0.0.0"
   },
   "changesets": [
     "all-towns-notice",
     "annotation-editor-overhaul",
     "beige-hornets-feel",
+    "core-chrome-and-api-hardening",
     "cuddly-aliens-grin",
     "curvy-mice-wave",
     "dull-ants-sink",
@@ -23,6 +31,11 @@
     "odd-adults-work",
     "odd-wings-smash",
     "plenty-melons-clap",
+    "plugin-annotation-editor-chrome-restore",
+    "plugin-image-download-chrome-and-css",
+    "plugin-image-manipulation-flyout-restore",
+    "plugin-pdf-export-csp-safe-css",
+    "plugin-sdk-chrome-and-style-helpers",
     "quiet-baths-cough",
     "rare-lizards-beam",
     "ripe-sheep-marry",
