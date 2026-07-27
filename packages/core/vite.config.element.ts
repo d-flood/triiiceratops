@@ -33,6 +33,8 @@ export default defineConfig({
         drop: ['debugger'],
     },
     build: {
+        // Lowering private fields leaks helpers outside Vite's generated IIFE.
+        target: 'es2022',
         minify: true,
         lib: {
             entry: resolve(__dirname, 'src/lib/custom-element.ts'),
