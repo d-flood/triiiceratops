@@ -770,9 +770,17 @@
                 </li>
             {/if}
 
-            <!-- Separator if both groups exist -->
+            <!-- Separator if both groups exist. An <li role="separator"> (not a
+                 bare <div>) so the actions <ul> only ever directly contains <li>
+                 — a bare <div> child trips the axe "list" rule once a plugin adds
+                 a toolbar button (epic restore-plugin-toolbar-chrome). -->
             {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode || showStructures || showCollection) && sortedPluginButtons.length > 0}
-                <div class="divider" class:horizontal={isTop || inline}></div>
+                <li
+                    class="divider"
+                    class:horizontal={isTop || inline}
+                    role="separator"
+                    aria-hidden="true"
+                ></li>
             {/if}
 
             <!-- --- Plugin Actions --- -->

@@ -2049,17 +2049,6 @@ export interface SdkPluginMeta {
     readonly catalog?: LocaleCatalog;
     /** The framework-neutral view to mount. */
     readonly view: PluginView;
-    /**
-     * TRANSITIONAL routing marker (epic restore-plugin-toolbar-chrome,
-     * expand→contract). When `true`, core activates this plugin on the new
-     * **core-owned-chrome** path: core renders the toolbar button from
-     * {@link icon}/{@link target}, places the anchored flyout / docked panel
-     * container, and owns open/close + dismiss. When absent/false, core uses the
-     * legacy bare self-render host (`tri-sdk-plugin-host`). Set by plugins as they
-     * migrate in tickets 03–06; REMOVED in ticket 07 once core-chrome is the only
-     * path. Do not rely on it as a stable public field.
-     */
-    readonly __coreChrome?: boolean;
 }
 /**
  * The brand string every SDK plugin object carries under `kind`. Defined as a
