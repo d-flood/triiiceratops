@@ -14,7 +14,7 @@ export interface ManifestEntry {
 
 export class ManifestsState {
     manifests: Record<string, ManifestEntry> = $state({});
-    private pendingFetches = new Map<string, Promise<void>>();
+    private pendingFetches = new SvelteMap<string, Promise<void>>();
 
     async registerManifest(manifestId: string, json: any): Promise<void> {
         const manifestoModule = await loadManifestoModule();

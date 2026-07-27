@@ -145,7 +145,8 @@
     }
 
     function toggle() {
-        open ? close() : openList();
+        if (open) close();
+        else openList();
     }
 
     function moveActive(dir: 1 | -1) {
@@ -281,6 +282,16 @@
         tabindex="-1"
     >
         {#each items as item, i (item.value + ' ' + i)}
+            <!--
+                Options are not individually focusable and carry no per-option
+                keyboard handler by design: this is the ARIA combobox +
+                aria-activedescendant pattern. The combobox trigger (role=
+                "combobox", aria-activedescendant, onkeydown=onTriggerKeydown)
+                owns all keyboard interaction; the option's onclick is the mouse
+                affordance only. See lint-allowlist.md.
+            -->
+            <!-- svelte-ignore a11y_interactive_supports_focus -->
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
             <div
                 id="{listId}-opt-{i}"
                 role="option"

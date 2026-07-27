@@ -72,15 +72,16 @@
         "build:all": "pnpm build:lib && pnpm build:testing && pnpm build:element && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo && pnpm build:consumer",
         "preview": "vite preview",
         "dev:consumer": "vite --config vite.config.demo-consumer.ts",
-        "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+        "check": "svelte-check --tsconfig ./tsconfig.app.json --fail-on-warnings --compiler-warnings \"options_missing_custom_element:ignore\" && tsc -p tsconfig.node.json",
         "check:runtime-deps": "node ./scripts/check-runtime-deps.mjs",
         "test": "vitest",
         "test:contrast": "node ./scripts/check-contrast.ts",
         "test:e2e": "playwright test",
-        "lint": "eslint .",
-        "lint:fix": "eslint . --fix",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0",
         "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format:check": "prettier --check .",
+        "test:coverage": "vitest run --coverage"
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.12.1",
@@ -93,6 +94,7 @@
         "@triiiceratops/plugin-sdk": "workspace:*",
         "@tsconfig/svelte": "^5.0.6",
         "@types/node": "^24.10.1",
+        "@vitest/coverage-v8": "4.0.15",
         "axe-core": "^4.12.1",
         "eslint": "^9.39.2",
         "eslint-config-prettier": "^10.1.8",

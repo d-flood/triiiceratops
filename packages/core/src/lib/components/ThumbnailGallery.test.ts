@@ -1,5 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockCanvas } from '../test/utils/mockManifesto';
+import { describe, it, expect, vi } from 'vitest';
 
 /**
  * Tests for ThumbnailGallery thumbnail extraction logic
@@ -107,7 +106,7 @@ describe('ThumbnailGallery - Thumbnail extraction', () => {
                                     profile['@id'] ||
                                     JSON.stringify(profile);
                             }
-                        } catch (e) {
+                        } catch {
                             // ignore
                         }
 

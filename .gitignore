@@ -19,7 +19,13 @@ build/
 
 # Generated code (see SPEC "Dependency, Type, And Generated-Code Policy"):
 # emitted under ignored, clearly named generated dirs; type-checked via build.
+# icons.ts (ticket 02) + the paraglide message runtime (compiled from
+# ./messages into ./src/paraglide, then staged into ./src/lib/paraglide by
+# build:lib). Ignored here via config rather than relying on paraglide's own
+# self-generated .gitignore.
 packages/core/src/lib/generated/
+packages/core/src/lib/paraglide/
+packages/core/src/paraglide/
 
 # Editor directories and files
 .vscode/*

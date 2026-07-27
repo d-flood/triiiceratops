@@ -118,22 +118,20 @@
     // one of the four built-in themes for the viewer (via the config pane). Once
     // that happens (`viewerThemeUserSet`), the demo's light/dark toggle no longer
     // steers the viewer.
-    let demoTheme = $state<'light' | 'dark'>(
-        ((): 'light' | 'dark' => {
-            const stored = localStorage.getItem('theme');
-            if (stored === 'light' || stored === 'dark') {
-                return stored;
-            }
-            return window.matchMedia('(prefers-color-scheme: dark)').matches
-                ? 'dark'
-                : 'light';
-        })(),
-    );
+    const initialDemoTheme = ((): 'light' | 'dark' => {
+        const stored = localStorage.getItem('theme');
+        if (stored === 'light' || stored === 'dark') {
+            return stored;
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+    })();
+    let demoTheme = $state<'light' | 'dark'>(initialDemoTheme);
 
     let viewerThemeUserSet = $state(false);
-    let viewerThemeExplicit = $state<import('../lib/theme/types').BuiltInTheme>(
-        demoTheme,
-    );
+    let viewerThemeExplicit =
+        $state<import('../lib/theme/types').BuiltInTheme>(initialDemoTheme);
     let viewerTheme = $derived<import('../lib/theme/types').BuiltInTheme>(
         viewerThemeUserSet ? viewerThemeExplicit : demoTheme,
     );
