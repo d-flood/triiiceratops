@@ -1,22 +1,30 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const { getCanvases, setUserAnnotations, clearUserAnnotations } = vi.hoisted(
-    () => ({
-        getCanvases: vi.fn(() => []),
-        setUserAnnotations: vi.fn(),
-        clearUserAnnotations: vi.fn(),
-    }),
-);
+import { AnnotationManager as AnnotationManagerBase } from './AnnotationManager.svelte';
 
-vi.mock('../../state/manifests.svelte', () => ({
-    manifestsState: {
-        getCanvases,
-        setUserAnnotations,
-        clearUserAnnotations,
-    },
-}));
+// The manager now reads canvases and display-syncs through the owning viewer's
+// state (ADR 0007), not the page-shared manifest cache. This stub stands in for
+// it; `getCanvases` stays a controllable mock so the per-test
+// `getCanvases.mockReturnValue(...)` calls are unchanged. A wrapper subclass
+// injects the stub so the `new AnnotationManager(...)` call sites stay unchanged.
+const getCanvases = vi.fn((): any[] => []);
+const setUserAnnotations = vi.fn();
+const clearUserAnnotations = vi.fn();
+const viewerStateStub = {
+    getCanvases,
+    setUserAnnotations,
+    clearUserAnnotations,
+    getUserAnnotations: vi.fn((): any[] => []),
+} as any;
 
-import { AnnotationManager } from './AnnotationManager.svelte';
+class AnnotationManager extends AnnotationManagerBase {
+    constructor(
+        config: ConstructorParameters<typeof AnnotationManagerBase>[0],
+        store?: ConstructorParameters<typeof AnnotationManagerBase>[1],
+    ) {
+        super(config, store, viewerStateStub);
+    }
+}
 
 function createAdapter() {
     return {

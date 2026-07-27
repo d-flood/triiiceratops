@@ -3,7 +3,6 @@
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
-    import { manifestsState } from '../state/manifests.svelte';
 
     interface Props {
         /**
@@ -226,7 +225,7 @@
             return 0;
         }
 
-        return manifestsState.getAnnotations(
+        return viewerState.getAnnotations(
             viewerState.manifestId,
             viewerState.canvasId,
         ).length;

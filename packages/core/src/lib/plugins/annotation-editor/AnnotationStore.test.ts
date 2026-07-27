@@ -1,19 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const { setUserAnnotations, clearUserAnnotations } = vi.hoisted(() => ({
-    setUserAnnotations: vi.fn(),
-    clearUserAnnotations: vi.fn(),
-}));
-
-vi.mock('../../state/manifests.svelte', () => ({
-    manifestsState: {
-        setUserAnnotations,
-        clearUserAnnotations,
-    },
-}));
-
-import { AnnotationStore } from './AnnotationStore.svelte';
+import { AnnotationStore as AnnotationStoreBase } from './AnnotationStore.svelte';
 import type { W3CAnnotation } from './adapters/types';
+
+// Display sync targets the owning viewer's per-viewer display state (ADR 0007).
+// This stub stands in for it so the display-sync assertions read back exactly
+// what the store injected. A wrapper subclass attaches it to every store built
+// in this suite, so the `new AnnotationStore(...)` call sites stay unchanged.
+const setUserAnnotations = vi.fn();
+const clearUserAnnotations = vi.fn();
+const displayState = { setUserAnnotations, clearUserAnnotations };
+
+class AnnotationStore extends AnnotationStoreBase {
+    constructor(config: ConstructorParameters<typeof AnnotationStoreBase>[0]) {
+        super(config);
+        this.setDisplayState(displayState);
+    }
+}
 import type {
     AnnotationPersistenceError,
     AnnotationStorageAdapter,
@@ -28,8 +31,8 @@ function anno(id: string): W3CAnnotation {
 
 /**
  * A "docs example" adapter: only the five storage methods over an in-memory Map,
- * with zero knowledge of `manifestsState`. Display sync is entirely the store's
- * job (F10).
+ * with zero knowledge of the viewer's display state. Display sync is entirely
+ * the store's job (F10).
  */
 function inMemoryAdapter(): AnnotationStorageAdapter {
     const store = new Map<string, W3CAnnotation[]>();
@@ -62,7 +65,7 @@ function inMemoryAdapter(): AnnotationStorageAdapter {
 }
 
 describe('AnnotationStore display sync (F10)', () => {
-    it('injects loaded annotations into manifestsState on load', async () => {
+    it('injects loaded annotations into the viewer display state on load', async () => {
         setUserAnnotations.mockClear();
         const adapter = inMemoryAdapter();
         await adapter.create(MANIFEST, CANVAS, anno('a'));
@@ -150,7 +153,7 @@ describe('AnnotationStore display sync (F10)', () => {
                 }),
             },
         ]);
-        // manifestsState holds the canonical id.
+        // The display state holds the canonical id.
         expect(setUserAnnotations).toHaveBeenLastCalledWith(MANIFEST, CANVAS, [
             expect.objectContaining({ id: 'https://server/anno/42' }),
         ]);
@@ -289,7 +292,7 @@ describe('AnnotationStore attribution stamping (F18)', () => {
         await store.persist(anno('round-trip'));
 
         // A fresh store over the same adapter (simulating a reload) displays it,
-        // with no manifestsState knowledge in the adapter.
+        // with no display-state knowledge in the adapter.
         setUserAnnotations.mockClear();
         const reloaded = new AnnotationStore({ adapter });
         reloaded.setCanvas(MANIFEST, CANVAS);

@@ -5,12 +5,16 @@ import type { AnnotationStore } from './AnnotationStore.svelte';
  * Creates a reactive loader that syncs annotations from storage to the viewer's
  * read-only overlay. It runs independently of the Annotation Editor UI component
  * (the panel may never open), so it drives the shared store directly: point the
- * store at the current canvas and load — the store injects into `manifestsState`
- * (F10). When the editor panel is mounted, its manager shares this same store,
- * so both paths converge on one cache.
+ * store at the current canvas and load; the store injects into this viewer's
+ * per-viewer display state (F10, ADR 0007). When the editor panel is mounted,
+ * its manager shares this same store, so both paths converge on one cache.
  */
 export function createLoader(store: AnnotationStore) {
     return (viewerState: ViewerState) => {
+        // Display sync targets this owning viewer instance's display state, not
+        // the page-shared manifest cache (ADR 0001, amended).
+        store.setDisplayState(viewerState);
+
         // Track the last loaded combination to prevent duplicate loads.
         let lastLoadedId: string | null = null;
 

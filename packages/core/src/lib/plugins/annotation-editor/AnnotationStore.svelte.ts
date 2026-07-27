@@ -7,7 +7,21 @@ import type {
 } from './types';
 import type { W3CAnnotation, AdapterLoadResult } from './adapters/types';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
-import { manifestsState } from '../../state/manifests.svelte';
+
+/**
+ * The per-viewer display-sync surface the store writes to (ADR 0001, amended;
+ * ADR 0007). Structurally satisfied by `ViewerState`, injected via
+ * {@link AnnotationStore.setDisplayState} so the store never imports the
+ * page-shared manifest cache — annotations are scoped to the owning viewer.
+ */
+export interface AnnotationDisplayState {
+    setUserAnnotations(
+        manifestId: string,
+        canvasId: string,
+        annotations: W3CAnnotation[],
+    ): void;
+    clearUserAnnotations(manifestId: string, canvasId: string): void;
+}
 
 /**
  * A persisted operation captured for undo/redo (F6). Each entry is replayed
@@ -65,6 +79,12 @@ export class AnnotationStore {
     private manifestId: string | null = null;
     private canvasId: string | null = null;
 
+    // The owning viewer's display state — display sync targets this per-viewer
+    // surface, never the page-shared manifest cache (ADR 0001, amended). Set by
+    // the loader (and the manager) once the viewer is known; null until then, so
+    // sync is a safe no-op before wiring (e.g. store-only unit tests).
+    private displayState: AnnotationDisplayState | null = null;
+
     // Cache of persisted annotations for the current canvas.
     private persistedAnnotations = new SvelteMap<string, W3CAnnotation>();
     // Per-annotation hydration state, kept internal because the
@@ -82,10 +102,10 @@ export class AnnotationStore {
     private loadSequence = 0;
 
     // Canvas keys (`manifestId::canvasId`) whose overlay this store has pushed
-    // into `manifestsState`. The plugin — not the adapter — owns display sync
-    // (F10), so the store both injects on every successful read/write and clears
-    // what it injected on destroy (F11). Bookkeeping that used to live in
-    // `LocalStorageAdapter` moved here.
+    // into the owning viewer's display state. The plugin — not the adapter —
+    // owns display sync (F10), so the store both injects on every successful
+    // read/write and clears what it injected on destroy (F11). Bookkeeping that
+    // used to live in `LocalStorageAdapter` moved here.
     private injectedCanvases = new SvelteSet<string>();
 
     // Persistence-aware undo/redo (F6). Each stack holds inverse-able operation
@@ -119,6 +139,15 @@ export class AnnotationStore {
     constructor(config: AnnotationEditorConfig) {
         this.config = config;
         this.adapter = config.adapter ?? new LocalStorageAdapter();
+    }
+
+    /**
+     * Point display sync at the owning viewer's display state (ADR 0001,
+     * amended). Called by the loader (and the manager) when the viewer is known.
+     * Idempotent — re-attaching the same viewer is harmless.
+     */
+    setDisplayState(displayState: AnnotationDisplayState | null): void {
+        this.displayState = displayState;
     }
 
     // === Context ===
@@ -567,7 +596,7 @@ export class AnnotationStore {
         // showing annotations after the plugin is torn down (F11).
         for (const canvasKey of this.injectedCanvases) {
             const [manifestId, canvasId] = canvasKey.split('::');
-            manifestsState.clearUserAnnotations(manifestId, canvasId);
+            this.displayState?.clearUserAnnotations(manifestId, canvasId);
         }
         this.injectedCanvases.clear();
         this.persistedAnnotations.clear();
@@ -740,16 +769,17 @@ export class AnnotationStore {
     }
 
     /**
-     * Push the current canvas's cached annotations into `manifestsState` so the
-     * read-only overlay reflects storage. The plugin owns this — adapters are
-     * pure storage (F10). Records the canvas key so `destroy()` can clear it.
+     * Push the current canvas's cached annotations into the owning viewer's
+     * display state so the read-only overlay reflects storage. The plugin owns
+     * this — adapters are pure storage (F10). Records the canvas key so
+     * `destroy()` can clear it.
      */
     private syncDisplay(): void {
         if (!this.ready) return;
         const manifestId = this.manifestId as string;
         const canvasId = this.canvasId as string;
         this.injectedCanvases.add(`${manifestId}::${canvasId}`);
-        manifestsState.setUserAnnotations(manifestId, canvasId, [
+        this.displayState?.setUserAnnotations(manifestId, canvasId, [
             ...this.persistedAnnotations.values(),
         ]);
     }

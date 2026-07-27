@@ -14,7 +14,7 @@ import type {
 } from './types';
 import type { W3CAnnotation, W3CTarget } from './adapters/types';
 import { AnnotationStore } from './AnnotationStore.svelte';
-import { manifestsState } from '../../state/manifests.svelte';
+import type { ViewerState } from '../../state/viewer.svelte';
 import {
     canvasPointToImagePoint,
     imagePointToCanvasPoint,
@@ -81,6 +81,9 @@ export class AnnotationManager {
     // True only when the manager created its own store (no shared store passed).
     // A shared store's lifecycle belongs to the plugin/loader, not the panel.
     private readonly ownsStore: boolean;
+    // The owning viewer's state — the sole surface for manifest/canvas queries
+    // and display sync (ADR 0007). Null only in isolated unit construction.
+    private readonly viewerState: ViewerState | null;
     private annotorious: OpenSeadragonAnnotator<
         ImageAnnotation,
         W3CImageAnnotation
@@ -151,14 +154,25 @@ export class AnnotationManager {
     onAnnotationHydrationChange?: (isHydrating: boolean) => void;
     onActiveEditingAnnotationChange?: (annotationId: string | null) => void;
 
-    constructor(config: AnnotationEditorConfig, store?: AnnotationStore) {
+    constructor(
+        config: AnnotationEditorConfig,
+        store?: AnnotationStore,
+        viewerState?: ViewerState,
+    ) {
         this.config = config;
+        this.viewerState = viewerState ?? null;
         // The plugin constructs one store and shares it with the loader; when a
         // manager is created outside that wiring (e.g. tests) it falls back to
         // its own store built from config. A shared store outlives the panel, so
         // the manager only tears down a store it created itself.
         this.ownsStore = !store;
         this.store = store ?? new AnnotationStore(config);
+        // Manifest/canvas queries and display sync go through the owning viewer's
+        // state (ADR 0007). Attaching is idempotent: the shared store the loader
+        // built is already pointed at the same viewer.
+        if (this.viewerState) {
+            this.store.setDisplayState(this.viewerState);
+        }
         // When a create reconciles onto a server-assigned id (F5), re-open the
         // annotation in Annotorious under the canonical id so later edits/deletes
         // reference it and the active-edit-id signal carries the new id.
@@ -677,8 +691,7 @@ export class AnnotationManager {
             return null;
         }
 
-        const canvas = manifestsState
-            .getCanvases(this.currentManifestId)
+        const canvas = (this.viewerState?.getCanvases(this.currentManifestId) ?? [])
             .find((entry: any) => {
                 const id =
                     entry?.id ||

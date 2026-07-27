@@ -1,6 +1,5 @@
 <script lang="ts">
     import { getContext } from 'svelte';
-    import { manifestsState } from '../../state/manifests.svelte';
     import { m, language } from '../../state/i18n.svelte';
     import {
         VIEWER_STATE_KEY,
@@ -200,7 +199,7 @@
                     viewerState.getSelectedChoice(canvasId),
                 getCanvasAnnotations: async (canvasId) =>
                     viewerState.manifestId
-                        ? manifestsState.ensureCanvasAnnotations(
+                        ? viewerState.ensureCanvasAnnotations(
                               viewerState.manifestId,
                               canvasId,
                               config.ocrAnnotationSource,

@@ -91,6 +91,133 @@ export class ViewerState {
     annotationVisibilityTouched = $state(false);
     hoveredAnnotationId = $state<string | null>(null);
 
+    /**
+     * Per-viewer plugin-written annotation display state, keyed by
+     * `manifestId::canvasId` (ADR 0007). Moved off the page-shared manifest cache
+     * so annotations displayed in one viewer never leak into another on the same
+     * page. Plugins write it only through {@link setUserAnnotations} /
+     * {@link clearUserAnnotations}; core merges it on top of manifest annotations
+     * in {@link getAnnotations}. Its changes notify subscribers (command state).
+     */
+    userAnnotations = new SvelteMap<string, any[]>();
+
+    /**
+     * Manifest ids this viewer has finished loading/registering. Observable: core
+     * adds to it when a manifest becomes ready, giving subscribers a
+     * manifest-readiness notification (queryable via {@link isManifestReady}).
+     */
+    loadedManifestIds = new SvelteSet<string>();
+
+    private userAnnotationKey(manifestId: string, canvasId: string): string {
+        return `${manifestId}::${canvasId}`;
+    }
+
+    /**
+     * Replace this viewer's displayed user annotations for one canvas. The
+     * supported write path for plugin display sync (ADR 0001, amended): the
+     * annotation-editor store calls this after each successful persistence op.
+     */
+    setUserAnnotations(
+        manifestId: string,
+        canvasId: string,
+        annotations: any[],
+    ): void {
+        this.userAnnotations.set(
+            this.userAnnotationKey(manifestId, canvasId),
+            annotations,
+        );
+    }
+
+    /** Drop this viewer's displayed user annotations for one canvas. */
+    clearUserAnnotations(manifestId: string, canvasId: string): void {
+        const key = this.userAnnotationKey(manifestId, canvasId);
+        if (this.userAnnotations.has(key)) {
+            this.userAnnotations.delete(key);
+        }
+    }
+
+    /** This viewer's displayed user annotations for one canvas (never null). */
+    getUserAnnotations(manifestId: string, canvasId: string): any[] {
+        return (
+            this.userAnnotations.get(
+                this.userAnnotationKey(manifestId, canvasId),
+            ) ?? []
+        );
+    }
+
+    /**
+     * Annotations for a canvas: manifest-defined annotations from the shared
+     * cache merged with this viewer's own user annotations (ADR 0007). Plugins
+     * reach annotation data through this query rather than importing the manifest
+     * cache. A `sourceId` restricts the result to one annotation list and skips
+     * the user-annotation merge, mirroring the manifest cache's behavior.
+     */
+    getAnnotations(
+        manifestId: string,
+        canvasId: string,
+        sourceId?: string,
+    ): any[] {
+        const manifestAnnos = manifestsState.getAnnotations(
+            manifestId,
+            canvasId,
+            sourceId,
+        );
+
+        if (sourceId) {
+            return manifestAnnos;
+        }
+
+        const userAnnos = this.getUserAnnotations(manifestId, canvasId).map(
+            (annotation) => {
+                if (!annotation || typeof annotation !== 'object') {
+                    return annotation;
+                }
+                return {
+                    ...annotation,
+                    __triiiceratopsAnnotationOrigin: 'user',
+                };
+            },
+        );
+
+        return [...manifestAnnos, ...userAnnos];
+    }
+
+    /**
+     * Canvases of a manifest (from the shared cache). Plugins reach canvas data
+     * through this query rather than importing the manifest cache.
+     */
+    getCanvases(manifestId: string, sequenceIndex: number = 0): any[] {
+        return manifestsState.getCanvases(manifestId, sequenceIndex);
+    }
+
+    /**
+     * Ensure a canvas's external annotation lists are fetched, then return the
+     * per-viewer merged annotations for it. Plugin-facing wrapper over the shared
+     * cache's fetch-and-return.
+     */
+    async ensureCanvasAnnotations(
+        manifestId: string,
+        canvasId: string,
+        sourceId?: string,
+    ): Promise<any[]> {
+        await manifestsState.ensureCanvasAnnotations(
+            manifestId,
+            canvasId,
+            sourceId,
+        );
+        return this.getAnnotations(manifestId, canvasId, sourceId);
+    }
+
+    /** Whether this viewer has finished loading the given manifest. */
+    isManifestReady(manifestId: string): boolean {
+        return this.loadedManifestIds.has(manifestId);
+    }
+
+    /** Record that a manifest is ready, notifying manifest-readiness subscribers. */
+    private markManifestReady(manifestId: string): void {
+        this.loadedManifestIds.add(manifestId);
+    }
+
     showCurrentCanvasAnnotations() {
         this.clearAnnotationVisibility();
 
@@ -98,7 +225,7 @@ export class ViewerState {
             return;
         }
 
-        const annotations = manifestsState.getAnnotations(
+        const annotations = this.getAnnotations(
             this.manifestId,
             this.canvasId,
         );
@@ -459,6 +586,7 @@ export class ViewerState {
         this.selectedSequenceIndex = 0;
         await manifestsState.registerManifest(manifestId, manifestJson);
         this.manifestId = manifestId;
+        this.markManifestReady(manifestId);
         if (options?.canvasId) {
             this.setCanvas(options.canvasId);
         }
@@ -495,6 +623,7 @@ export class ViewerState {
                 this.manifestRequestConfig,
             );
             this.manifestId = manifestId;
+            this.markManifestReady(manifestId);
             if (options?.canvasId) {
                 this.setCanvas(options.canvasId);
             }
@@ -535,6 +664,7 @@ export class ViewerState {
         this.startCanvasId = null;
         await manifestsState.registerManifest(manifestId, json);
         this.manifestId = manifestId;
+        this.markManifestReady(manifestId);
         if (options?.canvasId) {
             this.setCanvas(options.canvasId);
         }
@@ -563,6 +693,7 @@ export class ViewerState {
             this.manifestRequestConfig,
         );
         this.manifestId = manifestId;
+        this.markManifestReady(manifestId);
         if (canvasId) {
             this.setCanvas(canvasId);
         }
@@ -1601,7 +1732,7 @@ export class ViewerState {
             return;
         }
 
-        const annotations = manifestsState.getAnnotations(
+        const annotations = this.getAnnotations(
             this.manifestId,
             this.canvasId,
         );

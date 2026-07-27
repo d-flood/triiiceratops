@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
  *   init → draw → edit body → canvas change → reload → delete → destroy
  *
  * At each step it asserts both the adapter call counts/payloads and the
- * read-only display contents (`manifestsState.setUserAnnotations`). This is the
+ * read-only display contents (the viewer's `setUserAnnotations`). This is the
  * harness that would have caught the review's data-loss bugs
  * (F1 wrong target.source, F2 unpersisted draft, F3 double-save, F4 load-per-save,
  * F7 hydration, F11/F12 teardown leaks); keep it adapter-agnostic and fast so
@@ -18,34 +18,28 @@ import { describe, expect, it, vi } from 'vitest';
 const KEY = (manifestId: string, canvasId: string) =>
     `${manifestId}::${canvasId}`;
 
-// A stateful stand-in for `manifestsState` so the test can read back exactly
-// what the plugin is displaying for any canvas at any point in the flow.
-const { manifestsState, displayed, clearUserAnnotations } = vi.hoisted(() => {
-    const displayed = new Map<string, unknown[]>();
-    const clearUserAnnotations = vi.fn((m: string, c: string) => {
-        displayed.delete(`${m}::${c}`);
-    });
-    return {
-        displayed,
-        clearUserAnnotations,
-        manifestsState: {
-            getCanvases: vi.fn(() => []),
-            setUserAnnotations: vi.fn(
-                (m: string, c: string, annos: unknown[]) => {
-                    displayed.set(`${m}::${c}`, annos);
-                },
-            ),
-            clearUserAnnotations,
-        },
-    };
-});
-
-vi.mock('../../state/manifests.svelte', () => ({ manifestsState }));
-
 import type { Mock } from 'vitest';
 import { AnnotationManager } from './AnnotationManager.svelte';
 import type { AnnotationStorageAdapter } from './types';
 import type { W3CAnnotation } from './adapters/types';
+
+// A stateful stand-in for the owning viewer's display state so the test can read
+// back exactly what the plugin is displaying for any canvas at any point in the
+// flow. The manager display-syncs and reads canvases through the viewer's state
+// (ADR 0007), not the page-shared manifest cache.
+const displayed = new Map<string, unknown[]>();
+const setUserAnnotations = vi.fn((m: string, c: string, annos: unknown[]) => {
+    displayed.set(`${m}::${c}`, annos);
+});
+const clearUserAnnotations = vi.fn((m: string, c: string) => {
+    displayed.delete(`${m}::${c}`);
+});
+const viewerStateStub = {
+    getCanvases: vi.fn((): unknown[] => []),
+    getUserAnnotations: vi.fn((): unknown[] => []),
+    setUserAnnotations,
+    clearUserAnnotations,
+} as unknown as ConstructorParameters<typeof AnnotationManager>[2];
 
 const MANIFEST = 'manifest-1';
 const CANVAS_1 = 'http://example.org/canvas/1';
@@ -58,7 +52,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 /**
  * A recording adapter: five pure-storage functions over an in-memory,
  * manifest+canvas-keyed map, wrapped in `vi.fn` spies so the test can assert
- * call counts and payloads. Deliberately knows nothing about `manifestsState`,
+ * call counts and payloads. Deliberately knows nothing about the display state,
  * ids, stamping, or caching — the plugin owns all of that (F10).
  */
 function recordingAdapter(): AnnotationStorageAdapter {
@@ -170,16 +164,20 @@ describe('AnnotationEditor full lifecycle integration (F28)', () => {
     it('drives init → draw → edit body → canvas change → reload → delete → destroy, keeping storage and display in agreement', async () => {
         displayed.clear();
         clearUserAnnotations.mockClear();
-        manifestsState.setUserAnnotations.mockClear();
+        setUserAnnotations.mockClear();
 
         const adapter = recordingAdapter();
         const anno = fakeAnnotorious();
         const viewer = fakeViewer();
 
-        const manager = new AnnotationManager({
-            adapter,
-            user: { id: 'u1', name: 'Tester' },
-        } as any);
+        const manager = new AnnotationManager(
+            {
+                adapter,
+                user: { id: 'u1', name: 'Tester' },
+            } as any,
+            undefined,
+            viewerStateStub,
+        );
 
         // --- init: registers viewer handlers, defers annotator creation ---
         manager.init(viewer, CANVAS_1);

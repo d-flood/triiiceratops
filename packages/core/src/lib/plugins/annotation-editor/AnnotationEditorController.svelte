@@ -81,7 +81,7 @@
             return;
         }
 
-        const mgr = new AnnotationManager(config, store);
+        const mgr = new AnnotationManager(config, store, viewerState);
 
         mgr.onSelectionChange = (annotation) => {
             selectedAnnotation = annotation;
