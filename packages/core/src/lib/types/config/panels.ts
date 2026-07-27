@@ -1,3 +1,5 @@
+import type { PluginUiTarget } from '../plugin';
+
 export interface ClosablePanelConfig {
     /**
      * Whether to show the close button.
@@ -78,4 +80,36 @@ export interface PluginUiConfig {
      * @default false
      */
     open?: boolean;
+
+    /**
+     * Where the plugin renders its UI — overriding the target the plugin was
+     * authored with (`PluginDef.target` / SDK `meta.target`). Set it here (or
+     * imperatively via {@link ViewerState.setPluginTarget}) and, like `open` and
+     * `visible`, it applies reactively after mount — e.g. a `matchMedia`
+     * listener can flip a plugin to `'flyout'` on narrow viewports and back to
+     * `'panel'` on wide ones without re-registering the plugin.
+     *
+     * Switching target remounts the plugin's UI in the new container (panels and
+     * flyouts live in different DOM parents), so a plugin that must survive a
+     * switch keeps its state in viewer state or its own store rather than in
+     * local component state.
+     *
+     * @default the plugin's authored target (or `'panel'`)
+     */
+    target?: PluginUiTarget;
+
+    /**
+     * Where the plugin's panel is docked — overriding the position the plugin
+     * was authored with (`PluginDef.position`). Like `target`, it applies
+     * reactively after mount (or imperatively via
+     * {@link ViewerState.setPluginPosition}) without re-registering the
+     * plugin.
+     *
+     * Ignored while the plugin's effective {@link target} is `'flyout'`: a
+     * flyout is anchored to its toolbar button, not docked to a side, so it
+     * has no position to set.
+     *
+     * @default the plugin's authored position (or `'left'`)
+     */
+    position?: 'left' | 'right' | 'bottom' | 'overlay';
 }

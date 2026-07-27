@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # The OpenSeadragon viewer is a documented pass-through, pinned to core majors
 
 `osdViewer: OpenSeadragon.Viewer | null` is documented observable state (set at OSD

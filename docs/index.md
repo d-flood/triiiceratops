@@ -4,7 +4,9 @@ icon: lucide/rocket
 
 # Triiiceratops IIIF Viewer
 
-A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is distributed as a web component that can be dropped into any HTML page or frontend framework.
+A modern, lightweight, **framework-agnostic** IIIF viewer. Drop it into React,
+Vue, plain HTML, or any other frontend as a standards-based web component — or
+use it as a native Svelte component if that's your stack.
 
 [**View Live Demo**](./viewer/){ .md-button .md-button--primary }
 
@@ -12,163 +14,154 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
     Core is published as `triiiceratops`; the plugin SDK and first-party plugins
     are published under the `@triiiceratops` npm scope and versioned
-    independently. Upgrading from a prerelease (RC) build? See the
-    [migration guide](migration-1.0.md) — package names, browser globals, CSS
-    tokens, the `teal` identifier, and the removed `bundle` export changed with
-    no runtime aliases.
+    independently.
 
-## Integration guides
+## Quick start
 
-| I'm building with…                | Guide                                                        |
-| :-------------------------------- | :---------------------------------------------------------- |
-| Svelte                            | [Svelte integration](integration-svelte.md)                |
-| SvelteKit (SSR)                   | [SvelteKit integration](integration-sveltekit.md)          |
-| A Web Component + bundler / no-bundler | [Web Component integration](integration-web-component.md) |
-| A plugin (SDK)                    | [Plugin authoring](plugin-authoring.md) · [Plugin testing](plugin-testing.md) |
-| Theming                           | [Theming](theming.md)                                      |
-| A strict CSP                      | [Content Security Policy](csp.md)                          |
-| Upgrading from the RC             | [Migration guide](migration-1.0.md)                        |
+Drop in the web component from a CDN — no build step, no styles to import:
 
-## Features
+```html
+<script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
 
-- **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
-- **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
-- **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
-- **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom support)
-- **Start Canvas**: Supports the IIIF `start` property to open the manifest at a specific canvas
-- **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical table of contents navigation
-- **Collections**: Browse IIIF Collections and navigate between manifests within a collection; collection items with `navDate` are sorted chronologically
-- **Multiple Sequences**: Manifests with more than one sequence (including alternative page sequences via `behavior: sequence` ranges) show a sequence picker in the toolbar
-- **Annotations**:
-    - Renders IIIF annotations from embedded or external annotation lists
-    - Supports rectangle (`xywh`), polygon (SVG selector), and point (`PointSelector`) geometries
-    - Tagging annotations displayed as badges; full-canvas annotations listed without an overlay
-    - Toggle per-annotation or all-annotations visibility
-- **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
-- **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
-- **IIIF Search**: Full Content Search API support with hit highlighting
-- **Content State API**: Accepts the `iiif-content` URL parameter (base64-encoded JSON or plain URL) to open a manifest at a specific canvas and region
-- **Direct Manifest Injection**: Svelte and web component integrations can pass manifest JSON directly to the viewer
-- **Custom Search Providers**: Svelte integrations can feed search results from local state, SQLite, or app services
-- **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
-- **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
-- **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
-- **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
-- **Plugin System**: Extensible component architecture
+<triiiceratops-viewer
+    manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+    style="display: block; width: 100%; height: 100vh;"
+></triiiceratops-viewer>
+```
 
-## Usage
+That is the whole integration. Styles and themes are bundled inside the element.
 
-=== "Web Component"
+## Use it in a framework
 
-    **Via CDN:**
+The viewer behaves the same everywhere. Install the package, then register the
+web component (any framework) or import the Svelte component directly if
+that's your stack. The full walkthrough for each — plugins, config, events,
+SSR — is in [use with any framework](integration.md).
+
+=== "HTML"
+
+    ```ts
+    import 'triiiceratops/element/register';
+    ```
 
     ```html
-    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
-
     <triiiceratops-viewer
-        manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+        manifest-id="https://example.org/manifest.json"
+        style="display: block; height: 600px;"
     ></triiiceratops-viewer>
-
-    <style>
-        triiiceratops-viewer {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
     ```
 
-    To use in-memory manifest data with the web component, assign `manifestJson` as a JavaScript property:
+=== "React"
 
-    ```html
-    <triiiceratops-viewer id="viewer"></triiiceratops-viewer>
+    ```jsx
+    import { useEffect, useRef } from 'react';
+    import 'triiiceratops/element/register';
 
-    <script>
-      const viewer = document.getElementById('viewer');
-      viewer.manifestId = 'urn:example:manifest';
-      viewer.manifestJson = {
-        id: 'urn:example:manifest',
-        type: 'Manifest',
-        label: { none: ['Local manifest'] },
-        items: []
-      };
+    function Viewer() {
+        const ref = useRef(null);
+        useEffect(() => {
+            if (ref.current) ref.current.manifestId = 'https://example.org/manifest.json';
+        }, []);
+        return <triiiceratops-viewer ref={ref} style={{ display: 'block', height: '600px' }} />;
+    }
+    ```
+
+=== "Vue"
+
+    ```vue
+    <script setup>
+    import { onMounted, ref } from 'vue';
+    import 'triiiceratops/element/register';
+
+    const viewer = ref(null);
+    onMounted(() => (viewer.value.manifestId = 'https://example.org/manifest.json'));
     </script>
+
+    <template>
+        <triiiceratops-viewer ref="viewer" style="display: block; height: 600px" />
+    </template>
     ```
 
-=== "Svelte Component"
-
-    **Installation:**
-
-    === "pnpm"
-
-        ```bash
-        pnpm add triiiceratops
-        ```
-
-    === "npm"
-
-        ```bash
-        npm install triiiceratops
-        ```
-
-    The packaged Svelte build now resolves to the package-built component modules,
-    so your app compiles Triiiceratops inside its own Svelte runtime. You do not
-    need to install `manifesto.js` or `openseadragon` separately for normal usage.
-
-    **Usage:**
+=== "Svelte"
 
     ```html
-    <script>
+    <script lang="ts">
         import { TriiiceratopsViewer } from 'triiiceratops';
-        // Import the default styles once in your app
-        import 'triiiceratops/style.css';
-
-        const manifestJson = {
-            id: 'urn:example:manifest',
-            type: 'Manifest',
-            label: { none: ['Local manifest'] },
-            items: []
-        };
+        import 'triiiceratops/style.css'; // once, anywhere in your app
     </script>
-
 
     <!-- Container must have height -->
     <div style="height: 600px;">
-        <TriiiceratopsViewer
-            manifestId="urn:example:manifest"
-            {manifestJson}
-        />
+        <TriiiceratopsViewer manifestId="https://example.org/manifest.json" />
     </div>
     ```
 
-    You can also pass a `searchProvider` prop when your app wants to supply search results directly instead of relying on an HTTP IIIF Search service.
+!!! tip "Plugins are framework-agnostic"
+
+    Author plugins once with the framework-neutral
+    [plugin SDK](plugin-authoring.md) and use them from React, Vue, Svelte, Lit, or
+    vanilla JS. See [using plugins](plugins.md#adding-a-plugin-to-your-viewer).
+
+## Guides
+
+| I want to…                              | Guide                                                       |
+| :--------------------------------------- | :---------------------------------------------------------- |
+| Mount the viewer in React, Vue, Svelte, or plain HTML | [Use with any framework](integration.md) |
+| Add plugins to the viewer               | [Plugins](plugins.md)                                       |
+| Write a plugin (SDK)                    | [Plugin authoring](plugin-authoring.md) · [Plugin testing](plugin-testing.md) |
+| Configure panels, layout, and state      | [Configuration](configuration.md)                           |
+| Theme it                                | [Theming](theming.md)                                      |
+| Deploy under a strict CSP               | [Content Security Policy](csp.md)                           |
 
 ## Configuration
 
-Triiiceratops is highly configurable, allowing you to customize the UI layout, enable/disable specialized panels (search, annotations, table of contents, collection navigation), and control the thumbnail gallery behavior.
+Triiiceratops is highly configurable: customize the UI layout, enable or disable
+panels (search, annotations, table of contents, collection navigation), and control
+the thumbnail gallery.
 
 [**Read the Configuration Guide**](./configuration.md){ .md-button }
 
 ## Theming
 
-Triiiceratops supports full theme customization through three mechanisms:
+Three layered mechanisms, easiest first:
 
-1. **Built-in themes**: Choose from `light`, `dark`, `teal`, or `dracula`
-2. **Custom theme configuration**: Override individual theme properties with typed `themeConfig` keys
-3. **CSS variables**: Set the underlying tokens directly when you need lower-level control
+1. **Built-in themes** — `light`, `dark`, `teal`, or `dracula`.
+2. **`themeConfig`** — override individual tokens with typed, friendly keys.
+3. **CSS variables** — set the underlying `--tri-*` tokens directly.
 
-[**Read the full Theming Guide**](./theming.md){ .md-button }
+[**Read the Theming Guide**](./theming.md){ .md-button }
+
+## Features
+
+- **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
+- **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
+- **Viewing Modes**: Single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
+- **Behaviors**: Detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom)
+- **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical navigation
+- **Collections**: Browse IIIF Collections and navigate between manifests; items with `navDate` are sorted chronologically
+- **Annotations**: Renders rectangle, polygon, and point geometries from embedded or external annotation lists
+- **IIIF Choice**: Switch between alternate image views (e.g. color vs. infrared)
+- **Multi-image Canvases**: Composites canvases painted with multiple images
+- **IIIF Search**: Full Content Search API support with hit highlighting
+- **Content State API**: Opens at a specific manifest, canvas, and region via the `iiif-content` URL parameter
+- **Direct Manifest Injection**: Pass manifest JSON directly instead of loading over HTTP
+- **Custom Search Providers**: Svelte hosts can feed search results from local state or app services
+- **Metadata Display**: Manifest metadata, rights, `homepage`, `rendering`, `seeAlso`, and `provider`
+- **Multi-language**: Language-aware metadata with fallback chain; English and German UI translations
+- **Image Services**: IIIF Image API v1/v2/v3 tiled deep-zoom
+- **Theming**: Four built-in themes plus typed `themeConfig` and raw CSS-variable overrides
+- **Plugin System**: Framework-agnostic plugins via an independently versioned SDK
 
 ## Development
 
-    ```bash
-    pnpm install
+```bash
+pnpm install
 
-    pnpm dev           # Start local demo server
-    pnpm build:all     # Build library, web component, and demo
-    pnpm test          # Run unit tests
-    pnpm test:e2e      # Run end-to-end tests
-    ```
+pnpm dev           # Start local demo server
+pnpm build:all     # Build library, web component, and demo
+pnpm test          # Run unit tests
+pnpm test:e2e      # Run end-to-end tests
+```
 
 ## License
 

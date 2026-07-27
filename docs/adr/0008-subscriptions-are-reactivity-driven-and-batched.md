@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # Viewer-state subscriptions are reactivity-driven and batched, not command-driven
 
 `ViewerState.subscribe` notifications are produced by core reactivity (an effect over

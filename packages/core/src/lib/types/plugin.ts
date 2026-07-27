@@ -102,9 +102,6 @@ export interface PluginPanel {
     /** Props passed to the component */
     props?: Record<string, unknown>;
 
-    /** Panel position in the viewer */
-    position: 'left' | 'right' | 'bottom' | 'overlay';
-
     /** Reactive getter for visibility */
     isVisible: () => boolean;
 }
@@ -181,7 +178,11 @@ export interface PluginDef {
     /** Flyout component (rendered when `target` is 'flyout') */
     flyout?: Component<any>;
 
-    /** Preferred panel position (default: 'left'; ignored for flyouts) */
+    /**
+     * Preferred panel position (default: 'left'; ignored for flyouts). A
+     * consumer can override this per-viewer via `config.plugins[id].position`
+     * (see `PluginUiConfig.position`) without the plugin being re-authored.
+     */
     position?: 'left' | 'right' | 'bottom' | 'overlay';
 
     /** Props to pass to the panel/flyout component */
@@ -482,6 +483,20 @@ export const PLUGIN_ERROR_EVENT = 'pluginerror';
 export interface SdkPluginMeta {
     /** Package-qualified plugin name (e.g. `@triiiceratops/plugin-x`). */
     readonly name: string;
+    /**
+     * Stable, DOM-safe UI id used as the key under `ViewerConfig.plugins` (for
+     * `visible` / `open` / `target` control) and as the prefix for the plugin's
+     * toolbar button, panel, and flyout. This is the SDK equivalent of the
+     * legacy `PluginDef.id`: a consumer sets `config.plugins[uiId] = {...}` to
+     * control the plugin. Keep it short and stable (e.g. `pdf-export`) — it must
+     * match `[A-Za-z0-9_-]+` because it seeds a DOM id and CSS `anchor-name`.
+     *
+     * Optional: when omitted, core derives a stable id from {@link name} by
+     * replacing every run of unsafe characters with `-` (so
+     * `@scope/plugin-foo` → `scope-plugin-foo`). Set it explicitly for a short,
+     * documented key.
+     */
+    readonly uiId?: string;
     /** Plugin package version. */
     readonly version: string;
     /** Semver range of core versions this plugin supports. */

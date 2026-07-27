@@ -1,15 +1,13 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
+import { mount as mountComponent, unmount } from 'svelte';
+import PluginUI from './PluginUI.svelte';
 import type { PluginContext } from 'triiiceratops';
 
-function example(context: PluginContext) {
-    const { viewerState } = context;
-
-    // Read directly.
-    const canvasId: string | null = viewerState.canvasId;
-    void canvasId;
-
-    // Mutate through commands.
-    viewerState.nextCanvas();
-    viewerState.toggleAnnotations();
+function mount(container: HTMLElement, context: PluginContext): () => void {
+    const app = mountComponent(PluginUI, {
+        target: container,
+        props: { context },
+    });
+    return () => unmount(app);
 }

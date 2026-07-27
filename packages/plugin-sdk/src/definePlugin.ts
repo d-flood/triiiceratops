@@ -31,6 +31,15 @@ const SDK_PLUGIN_KIND = 'triiiceratops-plugin';
 export interface DefinePluginConfig {
     /** Package-qualified plugin name (e.g. `@triiiceratops/plugin-x`). */
     name: string;
+    /**
+     * Stable, DOM-safe UI id — the key consumers use under
+     * `ViewerConfig.plugins` to control this plugin's toolbar-button `visible`,
+     * panel `open`, and render `target`. Keep it short and stable and matching
+     * `[A-Za-z0-9_-]+` (e.g. `pdf-export`). When omitted, core derives one from
+     * {@link name} (`@scope/plugin-foo` → `scope-plugin-foo`); set it for a
+     * short, documented key.
+     */
+    uiId?: string;
     /** Plugin package version. */
     version: string;
     /** Semver range of core versions this plugin supports. */
@@ -69,6 +78,7 @@ export interface DefinePluginConfig {
 export function definePlugin(config: DefinePluginConfig): SdkPlugin {
     const meta = {
         name: config.name,
+        uiId: config.uiId,
         version: config.version,
         coreRange: config.coreRange,
         pluginApiRange: config.pluginApiRange,

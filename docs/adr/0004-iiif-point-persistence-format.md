@@ -1,3 +1,8 @@
+---
+search:
+  exclude: true
+---
+
 # Points persist as IIIF `PointSelector` with integer canvas-pixel coordinates
 
 The point tool writes a true `{type: 'PointSelector', x, y}` target at the exact click

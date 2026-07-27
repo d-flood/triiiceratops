@@ -80,6 +80,7 @@ const view: PluginView = {
 /** The image-manipulation plugin factory. Activate it explicitly, per viewer. */
 export const ImageManipulationPlugin: SdkPlugin = definePlugin({
     name: '@triiiceratops/plugin-image-manipulation',
+    uiId: 'image-manipulation',
     version: '1.0.0-rc.0',
     coreRange: '>=1.0.0-rc.0',
     pluginApiRange: '^1.0.0',

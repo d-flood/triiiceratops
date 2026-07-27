@@ -255,18 +255,14 @@
     });
 
     let annotationEditorOpen = $derived.by(() => {
-        const editorPanel = viewerState.pluginPanels.find(
-            (panel) => panel.id === 'annotation-editor:panel',
-        );
-        const editorFlyoutButton = viewerState.pluginMenuButtons.find(
+        // Read the editor's open state from its toolbar button, which is
+        // target-independent (isActive reflects open for both panel and flyout).
+        // The plugin's stable id is its `uiId` (see the plugin's definePlugin).
+        const editorButton = viewerState.pluginMenuButtons.find(
             (button) => button.pluginId === 'annotation-editor',
         );
 
-        return (
-            editorPanel?.isVisible() ??
-            editorFlyoutButton?.isActive?.() ??
-            false
-        );
+        return editorButton?.isActive?.() ?? false;
     });
 
     let currentCanvasImageDimensions = $derived.by(() => {
@@ -578,11 +574,14 @@
         annotationId: string,
         event: MouseEvent | KeyboardEvent,
     ) {
-        const editorPanel = viewerState.pluginPanels.find(
-            (p) => p.id === 'annotation-editor:panel',
+        // The editor accepts edit requests whenever it is open, regardless of
+        // whether it is hosted as a panel or a flyout — read the open state from
+        // its toolbar button (target-independent).
+        const editorButton = viewerState.pluginMenuButtons.find(
+            (button) => button.pluginId === 'annotation-editor',
         );
 
-        if (!editorPanel?.isVisible()) {
+        if (!editorButton?.isActive?.()) {
             return;
         }
 
@@ -1108,6 +1107,43 @@
     .osd-surface {
         width: 100%;
         height: 100%;
+    }
+
+    /*
+     * @annotorious/openseadragon writes its OWN `data-theme="light"|"dark"`
+     * attribute straight onto this element (its container) to theme its
+     * selection-handle SVG — see setTheme.ts in that package. That attribute
+     * name collides with ours (themes.css `[data-theme='…']`), so once
+     * Annotorious mounts, our theme tokens re-resolve against ITS light/dark
+     * guess instead of the viewer's actual theme, "sticking" the viewer
+     * background (and every other token) to whatever it picked at mount and
+     * ignoring later theme changes. Re-anchor every token Annotorious's
+     * attribute could re-trigger back to the real (inherited) value.
+     */
+    .osd-background {
+        --tri-color-primary: inherit;
+        --tri-color-primary-content: inherit;
+        --tri-color-neutral: inherit;
+        --tri-color-neutral-content: inherit;
+        --tri-color-success: inherit;
+        --tri-color-success-content: inherit;
+        --tri-color-warning: inherit;
+        --tri-color-warning-content: inherit;
+        --tri-color-error: inherit;
+        --tri-color-error-content: inherit;
+        --tri-viewer-bg: inherit;
+        --tri-toolbar-bg: inherit;
+        --tri-panel-bg: inherit;
+        --tri-surface-border: inherit;
+        --tri-content: inherit;
+        --tri-radius-selector: inherit;
+        --tri-radius-buttons: inherit;
+        --tri-radius-box: inherit;
+        --tri-size-selector: inherit;
+        --tri-size-field: inherit;
+        --tri-border: inherit;
+        --tri-depth: inherit;
+        color-scheme: inherit;
     }
 
     .osd-surface.has-bg {

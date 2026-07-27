@@ -180,9 +180,6 @@ export interface AnnotationEditorConfig<
     /** Render target for the plugin chrome. Defaults to `'panel'`. */
     target?: PluginUiTarget;
 
-    /** Preferred panel position when `target` is `'panel'`. Defaults to `'left'`. */
-    position?: 'left' | 'right' | 'bottom' | 'overlay';
-
     /** Storage adapter for persistence */
     adapter?: AnnotationStorageAdapter<TBody>;
 

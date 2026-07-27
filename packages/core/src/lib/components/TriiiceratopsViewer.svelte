@@ -68,7 +68,7 @@
     import { createPluginLocaleService } from '../plugin/localeService';
     import { createPluginUiService } from '../plugin/uiService';
     import type { CanvasRegion } from '../utils/contentState';
-    import { createPluginId } from '../utils/pluginId';
+    import { createPluginId, sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
@@ -616,7 +616,12 @@
         // appears (open) and its cleanup when it goes away (close). The plugin's
         // Activation state lives above this mount, so open/close never tears it
         // down; a layout change that recreates the node simply re-parents `el`.
-        const chromeId = createPluginId();
+        // Stable, DOM-safe chrome id so consumers can target the plugin under
+        // `config.plugins[chromeId]` for visible/open/target control. Prefer the
+        // plugin's declared `uiId`; otherwise derive one from its package name
+        // (`@scope/plugin-foo` → `scope-plugin-foo`). NOT random — a random id
+        // was never surfaced to the consumer, so config.plugins keying was dead.
+        const chromeId = sdkPluginChromeId(plugin);
         record.chromeId = chromeId;
         const mountThunk: PluginMountThunk = (node) => {
             node.appendChild(el);
@@ -897,7 +902,11 @@
         }
 
         for (const panel of internalViewerState.pluginPanels) {
-            if (panel.isVisible() && panel.position === 'left') {
+            if (
+                panel.isVisible() &&
+                internalViewerState.getPluginPosition(panel.pluginId) ===
+                    'left'
+            ) {
                 panels.push(toPluginPanelItem(panel));
             }
         }
@@ -984,7 +993,11 @@
         }
 
         for (const panel of internalViewerState.pluginPanels) {
-            if (panel.isVisible() && panel.position === 'right') {
+            if (
+                panel.isVisible() &&
+                internalViewerState.getPluginPosition(panel.pluginId) ===
+                    'right'
+            ) {
                 panels.push(toPluginPanelItem(panel));
             }
         }
@@ -1351,7 +1364,7 @@
 
             <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
-                {#if panel.isVisible() && panel.position === 'overlay'}
+                {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'overlay'}
                     <div class="plugin-overlay">
                         {#if panel.mount}
                             <PluginMountHost mount={panel.mount} />
@@ -1394,7 +1407,7 @@
 
         <!-- Bottom Area (Plugin Panels) -->
         {#each internalViewerState.pluginPanels as panel (panel.id)}
-            {#if panel.isVisible() && panel.position === 'bottom'}
+            {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'bottom'}
                 <div class="plugin-bottom">
                     {#if panel.mount}
                         <PluginMountHost mount={panel.mount} />

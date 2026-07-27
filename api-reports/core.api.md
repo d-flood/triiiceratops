@@ -527,7 +527,7 @@ export declare class ViewerState {
         x: number;
         y: number;
     };
-    dragOverSide: "left" | "right" | "top" | "bottom" | null;
+    dragOverSide: "left" | "right" | "bottom" | "top" | null;
     galleryCenterPanelRect: DOMRect | null;
     /**
      * Event target for dispatching CustomEvents.
@@ -736,12 +736,51 @@ export declare class ViewerState {
     };
     /**
      * Internal plugin UI state keyed by plugin ID.
-     * Keeps panel open state and toolbar visibility in one reactive place.
+     * Keeps panel open state, toolbar visibility, the effective render
+     * target, and the effective panel position in one reactive place.
+     * `target` and `position` start at the plugin's authored values and can
+     * be overridden reactively after mount (via `config.plugins[id].target` /
+     * `.position`, or {@link setPluginTarget} / {@link setPluginPosition});
+     * the render sites read them through {@link getPluginTarget} and
+     * {@link getPluginPosition}, so a plugin moves between chrome and dock
+     * position without re-registering.
      */
     private pluginUiState;
     private getPluginUiConfig;
     private ensurePluginUiState;
     private applyPluginUiConfig;
+    /**
+     * The effective render target for a plugin — the authored default unless a
+     * config override (`config.plugins[id].target`) or {@link setPluginTarget}
+     * changed it. Read reactively by the toolbar (flyout vs plain button) and by
+     * each plugin panel's `isVisible`. Defaults to `'panel'` for an unknown id.
+     */
+    getPluginTarget(pluginId: string): PluginUiTarget;
+    /**
+     * Move a plugin between its panel and flyout chrome after mount — the
+     * imperative sibling of {@link setPluginOpen}, and the same effect as setting
+     * `config.plugins[id].target`. A no-op if the plugin is unknown or already on
+     * `target`. Switching remounts the plugin's UI in the new container (see
+     * {@link PluginUiConfig.target}).
+     */
+    setPluginTarget(pluginId: string, target: PluginUiTarget): void;
+    /**
+     * The effective panel dock position for a plugin — the authored default
+     * unless a config override (`config.plugins[id].position`) or
+     * {@link setPluginPosition} changed it. Read reactively by each of the
+     * left/right/bottom/overlay panel render sites. Meaningful only while the
+     * plugin's effective {@link getPluginTarget} is `'panel'`; a flyout ignores
+     * it. Defaults to `'left'` for an unknown id.
+     */
+    getPluginPosition(pluginId: string): 'left' | 'right' | 'bottom' | 'overlay';
+    /**
+     * Move a plugin's panel to a new dock position after mount — the
+     * imperative sibling of {@link setPluginTarget}, and the same effect as
+     * setting `config.plugins[id].position`. A no-op if the plugin is unknown
+     * or already at `position`. Has no visible effect while the plugin's
+     * effective target is `'flyout'` (see {@link PluginUiConfig.position}).
+     */
+    setPluginPosition(pluginId: string, position: 'left' | 'right' | 'bottom' | 'overlay'): void;
     private applyPluginUiConfigToAll;
     setPluginOpen(pluginId: string, open: boolean): void;
     private togglePluginOpen;
@@ -1222,6 +1261,7 @@ export interface GalleryConfig {
 // ======================================================================
 // FILE: dist/types/config/panels.d.ts
 // ======================================================================
+import type { PluginUiTarget } from '../plugin';
 export interface ClosablePanelConfig {
     /**
      * Whether to show the close button.
@@ -1292,6 +1332,36 @@ export interface PluginUiConfig {
      * @default false
      */
     open?: boolean;
+    /**
+     * Where the plugin renders its UI — overriding the target the plugin was
+     * authored with (`PluginDef.target` / SDK `meta.target`). Set it here (or
+     * imperatively via {@link ViewerState.setPluginTarget}) and, like `open` and
+     * `visible`, it applies reactively after mount — e.g. a `matchMedia`
+     * listener can flip a plugin to `'flyout'` on narrow viewports and back to
+     * `'panel'` on wide ones without re-registering the plugin.
+     *
+     * Switching target remounts the plugin's UI in the new container (panels and
+     * flyouts live in different DOM parents), so a plugin that must survive a
+     * switch keeps its state in viewer state or its own store rather than in
+     * local component state.
+     *
+     * @default the plugin's authored target (or `'panel'`)
+     */
+    target?: PluginUiTarget;
+    /**
+     * Where the plugin's panel is docked — overriding the position the plugin
+     * was authored with (`PluginDef.position`). Like `target`, it applies
+     * reactively after mount (or imperatively via
+     * {@link ViewerState.setPluginPosition}) without re-registering the
+     * plugin.
+     *
+     * Ignored while the plugin's effective {@link target} is `'flyout'`: a
+     * flyout is anchored to its toolbar button, not docked to a side, so it
+     * has no position to set.
+     *
+     * @default the plugin's authored position (or `'left'`)
+     */
+    position?: 'left' | 'right' | 'bottom' | 'overlay';
 }
 
 // ======================================================================
@@ -1723,8 +1793,6 @@ export interface PluginPanel {
     mount?: PluginMountThunk;
     /** Props passed to the component */
     props?: Record<string, unknown>;
-    /** Panel position in the viewer */
-    position: 'left' | 'right' | 'bottom' | 'overlay';
     /** Reactive getter for visibility */
     isVisible: () => boolean;
 }
@@ -1784,7 +1852,11 @@ export interface PluginDef {
     panel?: Component<any>;
     /** Flyout component (rendered when `target` is 'flyout') */
     flyout?: Component<any>;
-    /** Preferred panel position (default: 'left'; ignored for flyouts) */
+    /**
+     * Preferred panel position (default: 'left'; ignored for flyouts). A
+     * consumer can override this per-viewer via `config.plugins[id].position`
+     * (see `PluginUiConfig.position`) without the plugin being re-authored.
+     */
     position?: 'left' | 'right' | 'bottom' | 'overlay';
     /** Props to pass to the panel/flyout component */
     props?: Record<string, unknown>;
@@ -2020,6 +2092,20 @@ export declare const PLUGIN_ERROR_EVENT = "pluginerror";
 export interface SdkPluginMeta {
     /** Package-qualified plugin name (e.g. `@triiiceratops/plugin-x`). */
     readonly name: string;
+    /**
+     * Stable, DOM-safe UI id used as the key under `ViewerConfig.plugins` (for
+     * `visible` / `open` / `target` control) and as the prefix for the plugin's
+     * toolbar button, panel, and flyout. This is the SDK equivalent of the
+     * legacy `PluginDef.id`: a consumer sets `config.plugins[uiId] = {...}` to
+     * control the plugin. Keep it short and stable (e.g. `pdf-export`) — it must
+     * match `[A-Za-z0-9_-]+` because it seeds a DOM id and CSS `anchor-name`.
+     *
+     * Optional: when omitted, core derives a stable id from {@link name} by
+     * replacing every run of unsafe characters with `-` (so
+     * `@scope/plugin-foo` → `scope-plugin-foo`). Set it explicitly for a short,
+     * documented key.
+     */
+    readonly uiId?: string;
     /** Plugin package version. */
     readonly version: string;
     /** Semver range of core versions this plugin supports. */

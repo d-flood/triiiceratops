@@ -11,6 +11,12 @@ style the viewer, from easiest to most granular:
 2. Override tokens with the **`themeConfig` prop** (typed, friendly names).
 3. Set the underlying **CSS variables** directly on the host element.
 
+These aren't exclusive tiers you have to climb in order — you can override
+just one piece of a built-in theme (e.g. tweak `primary` via `themeConfig`
+while keeping `dark`'s other tokens as-is), or skip built-in themes entirely
+and build a fully custom theme from scratch by setting the CSS variables
+yourself.
+
 All three compose, but they do not have equal precedence. From lowest to highest:
 OS-aware default tokens, CSS variables inherited from the host/page, an explicit
 built-in `theme`, then `themeConfig` inline styles. If you set `theme`, that
@@ -32,7 +38,7 @@ variables from the host/page.
 
 === "Svelte Component"
 
-    ```svelte
+    ```html
     <script>
         import { TriiiceratopsViewer } from 'triiiceratops';
         // Import the library styles once in your app:
@@ -275,7 +281,7 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
 
 === "Svelte Component"
 
-    ```svelte
+    ```html
     <script lang="ts">
         import { TriiiceratopsViewer } from 'triiiceratops';
         import 'triiiceratops/style.css';
@@ -331,7 +337,7 @@ A selected built-in `theme` wins over CSS variables you set this way;
 can also switch among built-in themes by setting `data-theme` on an ancestor when
 you leave the viewer's `theme` prop unset:
 
-```svelte
+```html
 <div data-theme="dracula">
     <TriiiceratopsViewer manifestId="..." />
 </div>

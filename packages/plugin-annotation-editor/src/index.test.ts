@@ -20,7 +20,7 @@ describe('createAnnotationEditorPlugin', () => {
     });
 
     it('defaults to a panel target', () => {
-        const plugin = createAnnotationEditorPlugin({ position: 'right' });
+        const plugin = createAnnotationEditorPlugin();
 
         expect(plugin.target).toBe('panel');
         expect(plugin.requiredCapabilities).toContain('osd@5');

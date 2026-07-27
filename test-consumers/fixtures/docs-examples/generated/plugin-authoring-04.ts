@@ -1,22 +1,21 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import {
-    ViewerState,
-    CORE_VERSION,
-    pluginApiVersion,
-    capabilities,
-} from 'triiiceratops';
-import { activatePlugin } from '@triiiceratops/plugin-sdk';
-import { createExamplePlugin } from './my-plugin';
+import { createApp, defineComponent, h, type PropType } from 'vue';
+import { useViewerSelector } from '@triiiceratops/plugin-sdk/vue';
+import type { PluginContext } from 'triiiceratops';
 
-const state = new ViewerState();
-const activation = activatePlugin(createExamplePlugin(), {
-    container: document.getElementById('host')!,
-    viewerState: state,
-    coreVersion: CORE_VERSION,
-    pluginApiVersion,
-    capabilities,
+const PluginUI = defineComponent({
+    props: {
+        context: { type: Object as PropType<PluginContext>, required: true },
+    },
+    setup(props) {
+        const open = useViewerSelector(props.context, (s) => s.toolbarOpen);
+        return () => h('span', open.value ? 'open' : 'closed');
+    },
 });
 
-// Later:
-activation.deactivate();
+function mount(container: HTMLElement, context: PluginContext): () => void {
+    const app = createApp(PluginUI, { context });
+    app.mount(container);
+    return () => app.unmount();
+}

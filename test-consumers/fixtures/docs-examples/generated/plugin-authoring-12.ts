@@ -1,20 +1,15 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { SelectorController } from '@triiiceratops/plugin-sdk/lit';
-import { LitElement, html } from 'lit';
 import type { PluginContext } from 'triiiceratops';
 
-export class PluginEl extends LitElement {
-    toolbar?: SelectorController<boolean>;
+function example(context: PluginContext) {
+    const { viewerState } = context;
 
-    setContext(context: PluginContext) {
-        this.toolbar = new SelectorController(
-            this,
-            context.selectors.select((s) => s.toolbarOpen),
-        );
-    }
+    // Read directly.
+    const canvasId: string | null = viewerState.canvasId;
+    void canvasId;
 
-    render() {
-        return html`<span>${this.toolbar?.value ? 'open' : 'closed'}</span>`;
-    }
+    // Mutate through commands.
+    viewerState.nextCanvas();
+    viewerState.toggleAnnotations();
 }

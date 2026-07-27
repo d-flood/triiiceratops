@@ -83,6 +83,7 @@ function createView(config: PdfExportConfig): PluginView {
 export function createPdfExportPlugin(config: PdfExportConfig = {}): SdkPlugin {
     return definePlugin({
         name: NAME,
+        uiId: 'pdf-export',
         version: VERSION,
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',

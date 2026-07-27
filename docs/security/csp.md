@@ -1,10 +1,17 @@
+---
+search:
+  exclude: true
+---
+
 # Content Security Policy (CSP) recipe
 
-> **Stub.** This is the supported-CSP recipe reference introduced with the CSP
-> test matrix (ticket 24). The full security guide — including per-framework
-> host examples and a Trusted Types walkthrough — lands with the documentation
-> pass (ticket 26). What is below is verified end-to-end by the packed-consumer
-> CSP fixtures (`test-consumers/fixtures/csp-*`).
+> **Internal note.** This is the supported-CSP recipe reference introduced with
+> the CSP test matrix (ticket 24). Its per-distribution recipes and Trusted
+> Types walkthrough have since been folded into the public
+> [Content Security Policy](../csp.md) guide (ticket 26). Kept here, excluded
+> from the public nav and search, as the terse working reference this file was
+> checked against while writing that page. What is below is verified end-to-end
+> by the packed-consumer CSP fixtures (`test-consumers/fixtures/csp-*`).
 
 Triiiceratops runs under a strict Content Security Policy. The security-critical
 control is **`script-src`**: the viewer needs **no `unsafe-eval`** and **no

@@ -14,9 +14,23 @@ test reflects production semantics.
 The kit runs in a plain vitest project — no Svelte tooling required — because the
 headless state comes from core's compiled `triiiceratops/testing` entry.
 
-```bash
-pnpm add -D @triiiceratops/plugin-sdk vitest
-```
+=== "pnpm"
+
+    ```bash
+    pnpm add -D @triiiceratops/plugin-sdk vitest
+    ```
+
+=== "npm"
+
+    ```bash
+    npm install -D @triiiceratops/plugin-sdk vitest
+    ```
+
+=== "bun"
+
+    ```bash
+    bun add -d @triiiceratops/plugin-sdk vitest
+    ```
 
 ## The flush timing rule
 
