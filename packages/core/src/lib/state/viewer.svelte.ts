@@ -3,6 +3,11 @@ import { flushSync, untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
 import { STATE_INVENTORY } from './state-inventory.js';
 import { getLocale } from '../paraglide/runtime.js';
+import { logger, isDebugEnabled } from '../logging/logger';
+import type {
+    ViewerError,
+    ViewerErrorReporter,
+} from '../types/viewerError';
 import type {
     PluginUiConfig,
     RequestConfig,
@@ -374,6 +379,26 @@ export class ViewerState {
     }
 
     /**
+     * Host reporter for the structured `viewererror` channel (ticket 18). Set by
+     * `TriiiceratopsViewer.svelte` so state-level actionable failures (search,
+     * viewport, content) surface as a typed {@link ViewerError} on the viewer
+     * root's `viewererror` event and the `onviewererror` callback instead of
+     * only reaching the console. Null in direct/test use → failures are logged
+     * through the (silent-by-default) logger only.
+     */
+    private errorReporter: ViewerErrorReporter | null = null;
+
+    /** Wire the `viewererror` reporter (see {@link errorReporter}). */
+    setErrorReporter(reporter: ViewerErrorReporter | null): void {
+        this.errorReporter = reporter;
+    }
+
+    /** Deliver a structured viewer failure to the host, if a reporter is wired. */
+    private reportError(error: ViewerError): void {
+        this.errorReporter?.(error);
+    }
+
+    /**
      * Get current state as a plain object snapshot.
      * Safe to use outside Svelte's reactive system.
      * NOTE: We calculate currentCanvasIndex inline to avoid triggering the canvases getter
@@ -416,10 +441,14 @@ export class ViewerState {
      * reactive cycle completes, preventing infinite update loops.
      */
     private dispatchStateChange(eventName: string = 'statechange'): void {
-        console.log(
-            `[ViewerState] Dispatching ${eventName}`,
-            JSON.stringify(this.getSnapshot()),
-        );
+        // Gate the snapshot build behind the debug check: this fires on every
+        // state change, so it must cost nothing when debug is off.
+        if (isDebugEnabled()) {
+            logger.debug(
+                `Dispatching ${eventName}`,
+                JSON.stringify(this.getSnapshot()),
+            );
+        }
         if (!this.eventTarget) return;
 
         // Dispatch asynchronously to break reactive loops
@@ -819,7 +848,7 @@ export class ViewerState {
                 }
             }
         } catch (e) {
-            console.warn('Error parsing start canvas', e);
+            logger.warn('Error parsing start canvas', e);
         }
 
         // 1. Viewing Direction
@@ -851,7 +880,7 @@ export class ViewerState {
                 }
             }
         } catch (e) {
-            console.warn('Error parsing viewing direction', e);
+            logger.warn('Error parsing viewing direction', e);
         }
 
         if (
@@ -909,7 +938,7 @@ export class ViewerState {
 
                 behaviors = behaviors.map(normalizeIiifBehavior);
             } catch (e) {
-                console.warn('Error parsing behavior', e);
+                logger.warn('Error parsing behavior', e);
             }
 
             if (behaviors.includes('continuous')) {
@@ -1106,12 +1135,24 @@ export class ViewerState {
                 document.getElementById('triiiceratops-viewer');
             if (el) {
                 el.requestFullscreen().catch((e) => {
-                    console.warn('Fullscreen request failed', e);
+                    logger.warn('Fullscreen request failed', e);
+                    this.reportError({
+                        severity: 'warning',
+                        scope: 'viewport',
+                        code: 'fullscreen-failed',
+                        message: 'Fullscreen request failed.',
+                        error: e,
+                    });
                 });
             } else {
-                console.warn(
-                    'Cannot toggle fullscreen: Viewer element not found',
-                );
+                logger.warn('Cannot toggle fullscreen: Viewer element not found');
+                this.reportError({
+                    severity: 'warning',
+                    scope: 'viewport',
+                    code: 'fullscreen-element-missing',
+                    message:
+                        'Cannot toggle fullscreen: viewer element not found.',
+                });
             }
         } else {
             document.exitFullscreen();
@@ -1289,10 +1330,7 @@ export class ViewerState {
             const manifest = this.manifest;
             if (!manifest) {
                 // Defer search until manifest is loaded
-                console.log(
-                    '[ViewerState] Manifest not loaded, deferring search:',
-                    query,
-                );
+                logger.debug('Manifest not loaded, deferring search:', query);
                 this.pendingSearchQuery = query;
                 return;
             }
@@ -1313,7 +1351,14 @@ export class ViewerState {
             const service = this.discoverSearchService(manifest);
 
             if (!service) {
-                console.warn('No IIIF search service found in manifest');
+                logger.warn('No IIIF search service found in manifest');
+                this.reportError({
+                    severity: 'warning',
+                    scope: 'search',
+                    code: 'search-service-missing',
+                    message: 'No IIIF search service found in manifest.',
+                    detail: { query },
+                });
                 this.isSearching = false;
                 return;
             }
@@ -1335,7 +1380,15 @@ export class ViewerState {
                 this.searchResults,
             );
         } catch (e) {
-            console.error('Search error:', e);
+            logger.error('Search error:', e);
+            this.reportError({
+                severity: 'error',
+                scope: 'search',
+                code: 'search-failed',
+                message: 'Search request failed.',
+                error: e,
+                detail: { query },
+            });
             this.isSearching = false;
         } finally {
             // Only stop searching if we are NOT pending (i.e. we finished or failed, but didn't defer)
@@ -2205,12 +2258,20 @@ export class ViewerState {
                 try {
                     entry.onError(error);
                 } catch (reportError) {
+                    // triiiceratops-console-allow: ticket 09 subscription
+                    // isolation last-resort fallback (tested in
+                    // viewer.subscribe.onError.test.ts). A throwing error
+                    // reporter has no other channel; delivery must continue.
                     console.error(
                         '[ViewerState] A subscription error reporter threw; delivery continues.',
                         reportError,
                     );
                 }
             } else {
+                // triiiceratops-console-allow: ticket 09 subscription isolation
+                // last-resort fallback (tested in
+                // viewer.subscribe.onError.test.ts). An unguarded listener throw
+                // with no `onError` reporter has no structured channel.
                 console.error(
                     '[ViewerState] A subscription listener threw; other listeners are unaffected.',
                     error,

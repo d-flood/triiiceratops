@@ -56,6 +56,24 @@ export {
     PLUGIN_ERROR_EVENT,
 } from './types/plugin';
 
+// Structured viewer-failure channel (ticket 18) — mirrors the `pluginerror`
+// shape (ticket 09) for viewer-level configuration, content, and operation
+// failures. Delivered as a bubbling, composed `viewererror` CustomEvent from the
+// viewer root and the `onviewererror` host callback.
+export type {
+    ViewerError,
+    ViewerErrorScope,
+    ViewerErrorSeverity,
+    ViewerErrorReporter,
+} from './types/viewerError';
+export { VIEWER_ERROR_EVENT } from './types/viewerError';
+
+// Opt-in developer diagnostics (ticket 18). Production is quiet by default;
+// consumers enable logging through `ViewerConfig.debug`. `configureLogging`
+// additionally allows a host to inject a custom log sink.
+export type { Logger, LogLevel, LogSink } from './logging/logger';
+export { logger, configureLogging, isDebugEnabled } from './logging/logger';
+
 // Core's declared plugin-compatibility surface (ticket 07).
 export {
     CORE_VERSION,
