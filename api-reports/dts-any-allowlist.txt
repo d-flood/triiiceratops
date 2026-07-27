@@ -62,9 +62,10 @@ triiiceratops :: dist/state/viewer.svelte.d.ts :: setUserAnnotations(manifestId:
 triiiceratops :: dist/state/viewer.svelte.d.ts :: userAnnotations: SvelteMap<string, any[]>;
 triiiceratops :: dist/types/config/search.d.ts :: canvases: any[];
 triiiceratops :: dist/types/config/search.d.ts :: manifest: any;
-triiiceratops :: dist/types/plugin.d.ts :: component: Component<any>;
+triiiceratops :: dist/types/plugin.d.ts :: component?: Component<any>;
 triiiceratops :: dist/types/plugin.d.ts :: flyout?: Component<any>;
 triiiceratops :: dist/types/plugin.d.ts :: icon: Component<any>;
+triiiceratops :: dist/types/plugin.d.ts :: icon?: Component<any>;
 triiiceratops :: dist/types/plugin.d.ts :: panel?: Component<any>;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function extractBody(annotation: any): {
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function isFullCanvasAnnotation(annotation: any): boolean;

@@ -1,5 +1,7 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
+    import PluginIcon from './PluginIcon.svelte';
+    import PluginMountHost from './PluginMountHost.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
@@ -776,7 +778,7 @@
             <!-- --- Plugin Actions --- -->
             {#key language.current}
                 {#each sortedPluginButtons as button (button.id)}
-                    {@const PluginIcon = button.icon}
+                    {@const LegacyIcon = button.icon}
                     {@const tooltipText = resolvePluginTooltip(button.tooltip)}
                     {@const flyout = findFlyout(button.flyoutDomId)}
                     <li>
@@ -795,11 +797,21 @@
                                 onclick={() => button.onClick()}
                                 style="anchor-name:--anchor-{flyout.domId}"
                             >
-                                <PluginIcon size={24} />
+                                {#if button.iconDescriptor}
+                                    <PluginIcon
+                                        descriptor={button.iconDescriptor}
+                                        size={24}
+                                    />
+                                {:else if LegacyIcon}
+                                    <LegacyIcon size={24} />
+                                {/if}
                             </button>
                             <!-- A normal (non-top-layer) anchored element so
-                                 tooltips always paint above it. Kept mounted and
-                                 toggled via `.open` so plugin state persists. -->
+                                 tooltips always paint above it. Legacy flyouts
+                                 stay mounted and toggle via `.open` so their
+                                 plugin state persists; SDK (core-owned chrome)
+                                 flyouts mount their content-only container on open
+                                 and unmount on close. -->
                             <div
                                 id="tri-flyout-{flyout.domId}"
                                 class="menu-flyout {flyoutPlacement}"
@@ -809,16 +821,22 @@
                                 aria-label={tooltipText}
                                 style="position-anchor:--anchor-{flyout.domId}"
                             >
-                                <Flyout
-                                    {...flyout.props}
-                                    placement={flyoutPlacement}
-                                    close={() =>
-                                        button.pluginId &&
-                                        viewerState.setPluginOpen(
-                                            button.pluginId,
-                                            false,
-                                        )}
-                                />
+                                {#if flyout.mount}
+                                    {#if open}
+                                        <PluginMountHost mount={flyout.mount} />
+                                    {/if}
+                                {:else if Flyout}
+                                    <Flyout
+                                        {...flyout.props}
+                                        placement={flyoutPlacement}
+                                        close={() =>
+                                            button.pluginId &&
+                                            viewerState.setPluginOpen(
+                                                button.pluginId,
+                                                false,
+                                            )}
+                                    />
+                                {/if}
                             </div>
                         {:else}
                             <button
@@ -828,7 +846,14 @@
                                 aria-label={tooltipText}
                                 onclick={() => button.onClick()}
                             >
-                                <PluginIcon size={24} />
+                                {#if button.iconDescriptor}
+                                    <PluginIcon
+                                        descriptor={button.iconDescriptor}
+                                        size={24}
+                                    />
+                                {:else if LegacyIcon}
+                                    <LegacyIcon size={24} />
+                                {/if}
                             </button>
                         {/if}
                     </li>
