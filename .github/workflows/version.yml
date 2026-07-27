@@ -1,0 +1,55 @@
+# Version-preparation (the "prepare" half of the release; publishing is separate).
+#
+# On every push to main, Changesets maintains a "Version Packages" pull request
+# that applies `changeset version` (rc bumps while in pre mode). Merging that PR
+# lands a commit where all six package versions are ALREADY bumped — required CI
+# then packs correctly-versioned tarballs and publish.yml promotes those exact
+# bytes. This is what keeps a build step out of publication: the version is baked
+# in before CI ever packs.
+#
+# This workflow NEVER publishes. It only opens/updates the release PR. See
+# docs/release-runbook.md for the full RC → soak → stable flow, including exiting
+# pre mode for the stable release.
+name: Version
+
+on:
+    push:
+        branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    version:
+        name: Maintain the Version Packages PR
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # `version` (no `publish`) => Changesets only opens/updates the release
+            # PR. Publication is the separate, promotion-only publish.yml workflow.
+            - name: Create or update the Version Packages PR
+              uses: changesets/action@v1
+              with:
+                  version: pnpm changeset version
+                  commit: 'chore: version packages'
+                  title: 'chore: version packages'
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

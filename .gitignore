@@ -105,6 +105,10 @@ test-results/
 # Performance comparison output (raw JSON + traces, uploaded as CI artifacts)
 perf-results/
 
+# Release artifacts (ticket 27): local `pnpm release:pack --out release-artifacts`
+# output — six .tgz + SHA256SUMS + release-manifest.json, uploaded as CI artifacts.
+release-artifacts/
+
 # Storybook
 storybook-static/
 
