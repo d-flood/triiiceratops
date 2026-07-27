@@ -19,6 +19,10 @@
         "lines": 84.52,
         "branches": 61.41
     },
+    "@triiiceratops/ui": {
+        "lines": 0,
+        "branches": 0
+    },
     "triiiceratops": {
         "lines": 55.46,
         "branches": 42.64

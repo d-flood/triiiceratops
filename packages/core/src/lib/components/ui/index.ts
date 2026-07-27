@@ -1,9 +1,18 @@
-export { default as Button } from './Button.svelte';
-export { default as Toggle } from './Toggle.svelte';
-export { default as Checkbox } from './Checkbox.svelte';
-export { default as Select } from './Select.svelte';
-export { default as TextInput } from './TextInput.svelte';
-export { default as Range } from './Range.svelte';
-export { default as Badge } from './Badge.svelte';
-export { default as Spinner } from './Spinner.svelte';
-export { default as Tooltip } from './Tooltip.svelte';
+// Re-export shim: the UI primitive components were extracted into the internal,
+// unpublished `@triiiceratops/ui` package (restore-plugin-toolbar-chrome ticket
+// 01) so core and the first-party plugins render the same themed controls. Core
+// keeps importing them through this barrel path (`'../ui'` / `'./ui'`), so no
+// in-core call site changed. The package ships Svelte SOURCE and is bundled into
+// core at build time (never an externalized runtime dependency of the published
+// artifact) — exactly as Svelte itself is already bundled.
+export {
+    Button,
+    Toggle,
+    Checkbox,
+    Select,
+    TextInput,
+    Range,
+    Badge,
+    Spinner,
+    Tooltip,
+} from '@triiiceratops/ui';
