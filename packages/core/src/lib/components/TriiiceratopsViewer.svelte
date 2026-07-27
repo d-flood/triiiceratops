@@ -32,7 +32,13 @@
         DEFAULT_NAV_ALIGN,
         DEFAULT_TOOLBAR_ANCHOR,
     } from '../types/config';
-    import type { PluginDef } from '../types/plugin';
+    import type { PluginDef, SdkPlugin } from '../types/plugin';
+    import { isSdkPlugin } from '../types/plugin';
+    import {
+        CORE_VERSION,
+        pluginApiVersion,
+        capabilities as coreCapabilities,
+    } from '../plugin/api';
     import type { CanvasRegion } from '../utils/contentState';
     import { createPluginId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
@@ -79,7 +85,7 @@
         manifestId?: string;
         manifestJson?: any;
         canvasId?: string;
-        plugins?: PluginDef[] | null | boolean;
+        plugins?: Array<PluginDef | SdkPlugin> | null | boolean;
         /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
         theme?: BuiltInTheme;
         /** Custom theme configuration to override the base theme's values. */
@@ -110,7 +116,12 @@
         initialCanvasRegion = null,
     }: Props = $props();
 
-    let plugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
+    let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
+    // Legacy PluginDef path (unchanged) and the SDK path (ticket 07) coexist.
+    let plugins = $derived(
+        allPlugins.filter((p): p is PluginDef => !isSdkPlugin(p)),
+    );
+    let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
     let isDragOver = $state(false);
     let viewerLocale = $derived(
         (config as ViewerConfig & { locale?: string })?.locale ||
@@ -314,6 +325,74 @@
                 internalViewerState.unregisterPlugin(id);
             }
             registeredPluginIds = [];
+        };
+    });
+
+    // ---- SDK plugin activation (ticket 07) ---------------------------------
+    // SDK plugins carry their own framework-neutral `activate(host)`. Core owns
+    // a container per plugin, negotiates nothing itself (the plugin's activate
+    // does compatibility/context/selectors), and just supplies the host: the
+    // container, the live viewer state, and core's declared version/capabilities.
+    let sdkPluginHost: HTMLElement | undefined = $state();
+    let sdkActivations: Array<{ el: HTMLElement; deactivate: () => void }> = [];
+
+    function teardownSdkActivations() {
+        for (const activation of sdkActivations) {
+            try {
+                activation.deactivate();
+            } catch (error) {
+                console.error(
+                    '[triiiceratops] SDK plugin deactivation threw; teardown continues.',
+                    error,
+                );
+            }
+            activation.el.remove();
+        }
+        sdkActivations = [];
+    }
+
+    $effect(() => {
+        const host = sdkPluginHost;
+        const currentSdkPlugins = sdkPlugins;
+        if (!host) return;
+
+        untrack(() => {
+            teardownSdkActivations();
+
+            for (const plugin of currentSdkPlugins) {
+                const el = document.createElement('div');
+                el.className = 'tri-sdk-plugin';
+                el.dataset.pluginName = plugin.name;
+                el.dataset.pluginTarget = plugin.target;
+                host.appendChild(el);
+
+                try {
+                    const activation = plugin.activate({
+                        container: el,
+                        viewerState: internalViewerState,
+                        coreVersion: CORE_VERSION,
+                        pluginApiVersion,
+                        capabilities: coreCapabilities,
+                    });
+                    sdkActivations.push({
+                        el,
+                        deactivate: activation.deactivate,
+                    });
+                } catch (error) {
+                    // Ticket 09 routes this through the structured `pluginerror`
+                    // channel; for now, isolate the failure so one incompatible
+                    // plugin cannot take down the viewer or other plugins.
+                    el.remove();
+                    console.error(
+                        `[triiiceratops] SDK plugin "${plugin.name}" failed to activate.`,
+                        error,
+                    );
+                }
+            }
+        });
+
+        return () => {
+            teardownSdkActivations();
         };
     });
 
@@ -1028,6 +1107,11 @@
             <Toolbar docked />
         </div>
     {/if}
+
+    <!-- Core-owned host for SDK-style plugin panels/flyouts (ticket 07). Each
+         SDK plugin is mounted into its own child container appended here; the
+         plugin owns rendering and returns a cleanup function. -->
+    <div class="tri-sdk-plugin-host" bind:this={sdkPluginHost}></div>
 </div>
 
 <style>

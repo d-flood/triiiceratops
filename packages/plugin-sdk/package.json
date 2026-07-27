@@ -1,0 +1,44 @@
+{
+    "name": "@triiiceratops/plugin-sdk",
+    "version": "1.0.0-rc.0",
+    "type": "module",
+    "description": "Framework-neutral plugin authoring SDK for the triiiceratops IIIF viewer.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "packages/plugin-sdk"
+    },
+    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "private": false,
+    "sideEffects": false,
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "check": "tsc -p tsconfig.build.json --noEmit",
+        "clean": "rm -rf dist"
+    },
+    "peerDependencies": {
+        "triiiceratops": "workspace:*"
+    },
+    "devDependencies": {
+        "triiiceratops": "workspace:*",
+        "typescript": "~5.9.3"
+    }
+}

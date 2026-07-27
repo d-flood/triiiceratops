@@ -87,6 +87,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.1
         version: 6.2.1(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1))
+      '@triiiceratops/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
       '@tsconfig/svelte':
         specifier: ^5.0.6
         version: 5.0.6
@@ -141,6 +144,15 @@ importers:
       vitest:
         specifier: ^4.0.15
         version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6))
+
+  packages/plugin-sdk:
+    devDependencies:
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../core
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   test-consumers:
     devDependencies:

@@ -14,7 +14,7 @@ export type {
     SearchResultGroup,
 } from './types/config';
 
-// Plugin system exports
+// Plugin system exports (legacy PluginDef path)
 export type {
     PluginDef,
     PluginMenuButton,
@@ -27,6 +27,32 @@ export {
     createPanelPlugin,
     createFlyoutPlugin,
 } from './types/plugin';
+
+// SDK plugin seam (ticket 07) — the framework-neutral authoring contract that
+// `@triiiceratops/plugin-sdk` implements against. Core owns the types and can
+// mount SDK-style plugins beside the legacy path above.
+export type {
+    Selector,
+    ViewerSelectors,
+    PluginStyleService,
+    PluginLocaleService,
+    PluginIcon,
+    PluginUiService,
+    PluginContext,
+    PluginView,
+    PluginHost,
+    PluginActivation,
+    SdkPluginMeta,
+    SdkPlugin,
+} from './types/plugin';
+export { SDK_PLUGIN_KIND, isSdkPlugin } from './types/plugin';
+
+// Core's declared plugin-compatibility surface (ticket 07).
+export {
+    CORE_VERSION,
+    pluginApiVersion,
+    capabilities,
+} from './plugin/api';
 
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';
