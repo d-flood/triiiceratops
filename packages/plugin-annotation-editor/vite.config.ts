@@ -50,8 +50,8 @@ export default defineConfig({
     ],
     build: {
         // Production build so no dev-only `svelte/internal` strings leak into the
-        // bundle (the dist is grepped for `svelte/internal` and
-        // `__TriiiceratopsSvelteRuntime` — both must be absent).
+        // bundle (the dist is grepped for `svelte/internal` — it must be absent;
+        // plugins share no Svelte runtime with core).
         minify: true,
         lib:
             format === 'iife'

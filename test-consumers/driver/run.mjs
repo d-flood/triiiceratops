@@ -16,15 +16,27 @@
 //  · PACKAGES_TO_PACK: ticket 12/13/15–17 add the SDK + plugin packages here.
 //  · FIXTURES: ticket 12 (plugin fixtures), 13 (adapter), 15–17 (per-plugin),
 //    and the SDK-adapter fixtures append to this list.
-//  · assert-tarball-css / core-only dependency-absence (ticket 20) hooks in
-//    after the pack step, before fixtures.
+//  · Ticket 20 assertions run after the pack step, before fixtures:
+//    assert-tarball-css (stylesheet), assert-tarball-contents (allowlist contract
+//    for all six packages + planted-test self-check), and the core-only
+//    dependency-absence check.
 // ---------------------------------------------------------------------------
 
 import { chromium } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    readdirSync,
+    readFileSync,
+    writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assertTarballCss } from './assert-tarball-css.mjs';
+import {
+    assertTarballContents,
+    selfCheckPlantedTest,
+} from './assert-tarball-contents.mjs';
 import {
     FIXTURES_DIR,
     REPO_ROOT,
@@ -53,12 +65,7 @@ const PACKAGES_TO_PACK = [
         // Build steps required so the packed dist is complete. `build:testing`
         // (ticket 14) compiles the headless `triiiceratops/testing` entry AFTER
         // `build:lib` (it needs the generated paraglide runtime + dist types).
-        build: [
-            'build:lib',
-            'build:testing',
-            'build:element',
-            'build:plugins-iife',
-        ],
+        build: ['build:lib', 'build:testing', 'build:element'],
         tarballName: 'triiiceratops.tgz',
     },
     {
@@ -225,6 +232,99 @@ async function assertCssFromTarball(tarballPath, tarballDir) {
     return ok;
 }
 
+async function assertContentsFromTarballs(tarballs) {
+    heading('Tarball content contract (allowlist, all six packages)');
+    let ok = true;
+
+    // One-time guard that the allowlist actually rejects a planted test file.
+    const planted = selfCheckPlantedTest();
+    (planted.ok ? pass : fail)(
+        'contract: rejects a planted dist/foo.test.js',
+        planted.detail,
+    );
+    results.push({ label: 'tarball-contents-planted', ok: planted.ok });
+    ok = ok && planted.ok;
+
+    for (const pkg of PACKAGES_TO_PACK) {
+        const tarball = tarballs[pkg.filter];
+        const { ok: pkgOk, checks } = assertTarballContents(
+            tarball,
+            pkg.filter,
+        );
+        for (const chk of checks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({ label: `tarball-contents:${pkg.filter}`, ok: pkgOk });
+        ok = ok && pkgOk;
+    }
+    return ok;
+}
+
+// Recursively collect the names of any forbidden package directories resolved
+// under a `node_modules` tree. Detects both flat (`node_modules/pdf-lib`) and
+// nested (`.../node_modules/@annotorious/…`) placements.
+function findForbiddenDeps(nodeModulesDir, forbidden, found = new Set()) {
+    if (!existsSync(nodeModulesDir)) return found;
+    for (const name of readdirSync(nodeModulesDir)) {
+        if (name === '.bin') continue;
+        const full = join(nodeModulesDir, name);
+        if (name.startsWith('@')) {
+            // Scope dir: a forbidden scope (e.g. @annotorious) is a direct hit;
+            // otherwise descend into each scoped package.
+            if (forbidden.has(name)) {
+                found.add(name);
+                continue;
+            }
+            for (const scoped of readdirSync(full)) {
+                if (forbidden.has(`${name}/${scoped}`)) found.add(`${name}/${scoped}`);
+                findForbiddenDeps(join(full, scoped, 'node_modules'), forbidden, found);
+            }
+            continue;
+        }
+        if (forbidden.has(name)) found.add(name);
+        findForbiddenDeps(join(full, 'node_modules'), forbidden, found);
+    }
+    return found;
+}
+
+async function assertCoreOnlyDeps(coreTarball, workRoot) {
+    heading('Core-only dependency assertion (no plugin-only deps)');
+    const fixtureDir = join(workRoot, 'core-only-deps');
+    mkdirSync(fixtureDir, { recursive: true });
+    writeFileSync(
+        join(fixtureDir, 'package.json'),
+        JSON.stringify(
+            {
+                name: 'core-only-deps-fixture',
+                version: '0.0.0',
+                private: true,
+                dependencies: { triiiceratops: `file:${coreTarball}` },
+            },
+            null,
+            2,
+        ) + '\n',
+    );
+    step('core-only: npm install triiiceratops alone');
+    await run('npm', ['install', '--no-audit', '--no-fund', '--loglevel=error'], {
+        cwd: fixtureDir,
+        timeout: 300_000,
+    });
+
+    // Plugin-only runtime deps that MUST NOT resolve into a core-only install.
+    const forbidden = new Set(['@annotorious', 'pdf-lib', 'phosphor-svelte']);
+    const found = findForbiddenDeps(
+        join(fixtureDir, 'node_modules'),
+        forbidden,
+    );
+    const ok = found.size === 0;
+    (ok ? pass : fail)(
+        'core-only: annotorious / pdf-lib / phosphor-svelte absent',
+        ok ? '' : `resolved: ${[...found].join(', ')}`,
+    );
+    results.push({ label: 'core-only-deps', ok });
+    return ok;
+}
+
 async function installFixture(pm, fixtureDir) {
     if (pm === 'npm') {
         await run(
@@ -336,6 +436,15 @@ async function main() {
             packDir,
         );
         allOk = allOk && cssOk;
+
+        const contentsOk = await assertContentsFromTarballs(tarballs);
+        allOk = allOk && contentsOk;
+
+        const coreDepsOk = await assertCoreOnlyDeps(
+            tarballs.triiiceratops,
+            workRoot,
+        );
+        allOk = allOk && coreDepsOk;
 
         for (const fixtureName of FIXTURES) {
             heading(`Fixture: ${fixtureName}`);

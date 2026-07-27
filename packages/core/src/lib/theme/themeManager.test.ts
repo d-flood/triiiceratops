@@ -36,18 +36,16 @@ describe('themeConfig friendly-name overrides map to --tri-* vars', () => {
         expect(el.style.getPropertyValue('--tri-radius-box')).toBe('');
     });
 
-    it('supports the raw cssVars escape hatch for plugin panel tokens', () => {
+    it('supports the raw cssVars escape hatch for plugin-owned tokens', () => {
         const el = document.createElement('div');
         applyThemeConfig(el, {
-            cssVars: { 'tri-annotation-editor-panel-bg': '#eef' },
+            cssVars: { 'tri-my-plugin-panel-bg': '#eef' },
         });
-        expect(
-            el.style.getPropertyValue('--tri-annotation-editor-panel-bg'),
-        ).toBe('#eef');
+        expect(el.style.getPropertyValue('--tri-my-plugin-panel-bg')).toBe(
+            '#eef',
+        );
         clearThemeConfig(el);
-        expect(
-            el.style.getPropertyValue('--tri-annotation-editor-panel-bg'),
-        ).toBe('');
+        expect(el.style.getPropertyValue('--tri-my-plugin-panel-bg')).toBe('');
     });
 });
 

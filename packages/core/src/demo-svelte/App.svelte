@@ -3,8 +3,9 @@
      * /svelte/ demo — a real Svelte-package CONSUMER.
      *
      * Everything the viewer needs comes from the BUILT package (`triiiceratops`,
-     * `triiiceratops/plugins/*`, `triiiceratops/style.css`) exactly as an
-     * external app would import it — NOT from `src/lib`. This is the page that
+     * `triiiceratops/style.css`) exactly as an external app would import it — NOT
+     * from `src/lib`. First-party plugins install from their own scoped packages
+     * (`@triiiceratops/plugin-*`). This is the page that
      * would have caught the "styles missing from the Svelte dist" regression:
      * if `triiiceratops/style.css` lacked the tokens/themes, the viewer here
      * would render unstyled.

@@ -140,9 +140,9 @@ export interface ThemeConfig {
 
     /**
      * Raw CSS-variable overrides for anything not covered by a typed key — most
-     * usefully per-panel overrides on plugin panels. Keys are CSS variable names
-     * WITHOUT the leading `--`; values are used verbatim (NOT normalized to oklch).
-     * @example { 'tri-annotation-editor-panel-bg': '#eef', 'tri-pdf-export-panel-bg': '#fff' }
+     * usefully plugin-owned tokens. Keys are CSS variable names WITHOUT the
+     * leading `--`; values are used verbatim (NOT normalized to oklch).
+     * @example { 'tri-my-plugin-panel-bg': '#eef', 'tri-metadata-panel-bg': '#fff' }
      */
     cssVars?: Record<string, string>;
 }

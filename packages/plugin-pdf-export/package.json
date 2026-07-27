@@ -20,7 +20,8 @@
         "./dist/iife.js"
     ],
     "files": [
-        "dist"
+        "dist",
+        "LICENSE"
     ],
     "main": "./dist/index.js",
     "module": "./dist/index.js",

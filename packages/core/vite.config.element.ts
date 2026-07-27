@@ -7,6 +7,8 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+    // Never copy demo dev-server static assets into the published dist.
+    publicDir: false,
     plugins: [
         svelte({
             configFile: false,

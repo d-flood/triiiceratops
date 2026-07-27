@@ -164,17 +164,6 @@ describe('published distributions ship styles + themes', () => {
         });
     });
 
-    describe('bundle — dist/triiiceratops-bundle.js', () => {
-        it('inlines tokens + all four themes', () => {
-            const js = readFileSync(dist('triiiceratops-bundle.js'), 'utf8');
-            expect(js).toContain('--tri-color-primary');
-            expect(js).toContain('data-theme');
-            for (const theme of THEMES) {
-                expect(js, `theme "${theme}" missing`).toContain(theme);
-            }
-        });
-    });
-
     describe('web component — dist/triiiceratops-element.iife.js', () => {
         it('inlines tokens + all four themes (for the shadow root)', () => {
             const js = readFileSync(

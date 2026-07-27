@@ -12,8 +12,15 @@
         "provenance": true
     },
     "private": false,
+    "license": "MIT",
     "files": [
-        "dist"
+        "dist",
+        "LICENSE"
+    ],
+    "sideEffects": [
+        "**/*.css",
+        "./dist/triiiceratops-element.iife.js",
+        "./dist/triiiceratops-element.js"
     ],
     "main": "./dist/index.js",
     "module": "./dist/index.js",
@@ -35,10 +42,6 @@
             "types": "./dist/image-export.d.ts",
             "svelte": "./dist/image-export.js",
             "import": "./dist/image-export.js"
-        },
-        "./bundle": {
-            "types": "./dist/index-bundle.d.ts",
-            "import": "./dist/triiiceratops-bundle.js"
         },
         "./element": "./dist/triiiceratops-element.iife.js",
         "./element/register": "./dist/triiiceratops-element.js",
@@ -66,8 +69,7 @@
         "build:svelte-demo": "vite build --config vite.config.svelte-demo.ts",
         "build:consumer": "rm -rf ../../docs/demo-consumer && mkdir -p ../../docs/demo-consumer && cp src/demo-consumer/index.html ../../docs/demo-consumer/index.html && cp src/demo-consumer/app.css ../../docs/demo-consumer/app.css && rm -rf ../../docs/dist && cp -r dist ../../docs/dist",
         "build:webcomponent-demo": "rm -rf ../../docs/demo/webcomponent && mkdir -p ../../docs/demo/webcomponent && cp src/demo-webcomponent/index.html ../../docs/demo/webcomponent/index.html && cp src/demo-webcomponent/app.css ../../docs/demo/webcomponent/app.css && rm -rf ../../docs/dist && cp -r dist ../../docs/dist",
-        "build:plugins-iife": "echo 'no in-core plugins; all migrated to their own packages' && exit 0",
-        "build:all": "pnpm build:lib && pnpm build:testing && pnpm build:element && pnpm build:plugins-iife && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo && pnpm build:consumer",
+        "build:all": "pnpm build:lib && pnpm build:testing && pnpm build:element && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo && pnpm build:consumer",
         "preview": "vite preview",
         "dev:consumer": "vite --config vite.config.demo-consumer.ts",
         "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",

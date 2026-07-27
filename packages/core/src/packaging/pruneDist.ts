@@ -7,26 +7,30 @@
  *
  * Run directly: `node ./src/build/pruneDist.ts` (Node strips the types).
  */
-import {
-    readdirSync,
-    statSync,
-    rmSync,
-    existsSync,
-} from 'node:fs';
+import { readdirSync, statSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /*
- * Demo-only components. They live in src/lib/components (so the demo can import
- * them) but are never re-exported from the package and nothing shipped imports
- * them — verified: their only importers are src/demo/* and each other. Matched
- * by basename against `<name>.svelte` and its `.svelte.d.ts`.
+ * Demo-only and test-host components. They live in src/lib/components (so the
+ * demo and component tests can import them) but are never re-exported from the
+ * package and nothing shipped imports them — verified: their only importers are
+ * src/demo/* , *.test.* , and each other. Matched by basename against
+ * `<name>.svelte` and its `.svelte.d.ts`.
  */
 export const DEMO_ONLY_COMPONENTS = [
     'DemoHeader',
     'SettingsMenu',
     'LightDarkToggle',
+    'MetadataPanelTestHost',
 ] as const;
+
+/*
+ * Directories (relative to dist/) holding internal test fixtures and mock
+ * utilities. svelte-package copies src/lib/test/** verbatim, but nothing shipped
+ * imports it — those helpers back only *.test.* files, which are pruned above.
+ */
+export const EXCLUDED_DIRS = ['test'] as const;
 
 const DEMO_ONLY_RE = new RegExp(
     `^(${DEMO_ONLY_COMPONENTS.join('|')})\\.svelte(\\.d\\.ts)?$`,
@@ -36,7 +40,7 @@ const DEMO_ONLY_RE = new RegExp(
 export function isPackageExcluded(filename: string): boolean {
     // Test/spec files: *.test.js, *.test.d.ts, *.spec.ts, …
     if (/\.(test|spec)\./.test(filename)) return true;
-    // Demo-only chrome components.
+    // Demo-only chrome and test-host components.
     if (DEMO_ONLY_RE.test(filename)) return true;
     return false;
 }
@@ -45,6 +49,14 @@ export function isPackageExcluded(filename: string): boolean {
 export function pruneDist(distDir: string): string[] {
     const removed: string[] = [];
     if (!existsSync(distDir)) return removed;
+    // Drop whole excluded directories first (test fixtures / mock utilities).
+    for (const dir of EXCLUDED_DIRS) {
+        const full = join(distDir, dir);
+        if (existsSync(full)) {
+            rmSync(full, { recursive: true, force: true });
+            removed.push(full);
+        }
+    }
     const walk = (dir: string) => {
         for (const name of readdirSync(dir)) {
             const full = join(dir, name);

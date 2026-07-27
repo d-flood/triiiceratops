@@ -1,12 +1,6 @@
 import type { Component } from 'svelte';
 import type { ViewerState } from '../state/viewer.svelte';
 
-declare global {
-    interface Window {
-        TriiiceratopsPlugins?: Record<string, unknown>;
-    }
-}
-
 /**
  * Where a plugin renders its UI.
  * - `panel`: a docked side/bottom/overlay region (the default).
@@ -156,11 +150,6 @@ export function createPanelPlugin(plugin: PluginDef): PluginDef {
 
 export function createFlyoutPlugin(plugin: PluginDef): PluginDef {
     return definePlugin({ ...plugin, target: 'flyout' });
-}
-
-export function registerIifePlugin(name: string, plugin: PluginDef): void {
-    window.TriiiceratopsPlugins = window.TriiiceratopsPlugins || {};
-    window.TriiiceratopsPlugins[name] = plugin;
 }
 
 // ============================================================================
