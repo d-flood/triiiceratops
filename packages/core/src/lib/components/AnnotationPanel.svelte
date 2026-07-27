@@ -300,13 +300,13 @@
     .panel.border-left {
         border-left-width: 1px;
         border-left-style: solid;
-        border-left-color: var(--surface-border);
+        border-left-color: var(--tri-surface-border);
     }
 
     .panel.border-right {
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--surface-border);
+        border-right-color: var(--tri-surface-border);
     }
 
     .header {
@@ -316,7 +316,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--surface-border);
+        border-bottom-color: var(--tri-surface-border);
     }
 
     .header-title {
@@ -335,10 +335,10 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--surface-border);
+        border-bottom-color: var(--tri-surface-border);
         background-color: color-mix(
             in oklab,
-            var(--input-bg) 50%,
+            var(--tri-input-bg) 50%,
             transparent
         );
         display: flex;
@@ -368,7 +368,7 @@
     .list > :global(* + *) {
         border-top-width: 1px;
         border-top-style: solid;
-        border-top-color: var(--surface-border);
+        border-top-color: var(--tri-surface-border);
     }
 
     .list.scrollable {
@@ -395,7 +395,7 @@
         outline: none;
         background-color: color-mix(
             in oklab,
-            var(--color-primary) 10%,
+            var(--tri-color-primary) 10%,
             transparent
         );
     }
@@ -403,7 +403,7 @@
     .row:hover {
         background-color: color-mix(
             in oklab,
-            var(--color-primary) 5%,
+            var(--tri-color-primary) 5%,
             transparent
         );
     }
@@ -442,7 +442,7 @@
         font-weight: 700;
         font-size: 0.875rem;
         line-height: 1.25rem;
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
     }
 
     .label {
@@ -475,7 +475,7 @@
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
         padding: 0.25rem;
         border-radius: 0.25rem;
         margin-left: -0.25rem;
@@ -487,7 +487,7 @@
 
     .link:hover {
         text-decoration-line: underline;
-        /* text color stays --color-primary on hover */
+        /* text color stays --tri-color-primary on hover */
         background-color: var(--panel-surface);
     }
 

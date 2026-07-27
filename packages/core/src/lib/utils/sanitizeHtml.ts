@@ -33,7 +33,7 @@ function normalizeRichTextHtml(html: string): string {
     for (const anchor of container.querySelectorAll('a')) {
         appendInlineStyles(
             anchor,
-            'color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 0.2em;',
+            'color: var(--tri-color-primary-text); text-decoration: underline; text-underline-offset: 0.2em;',
         );
     }
 

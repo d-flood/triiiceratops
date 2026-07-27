@@ -132,7 +132,7 @@ Triiiceratops is highly configurable, allowing you to customize the UI layout, e
 
 Triiiceratops supports full theme customization through three mechanisms:
 
-1. **Built-in themes**: Choose from `light`, `dark`, `Teal`, or `dracula`
+1. **Built-in themes**: Choose from `light`, `dark`, `teal`, or `dracula`
 2. **Custom theme configuration**: Override individual theme properties with typed `themeConfig` keys
 3. **CSS variables**: Set the underlying tokens directly when you need lower-level control
 

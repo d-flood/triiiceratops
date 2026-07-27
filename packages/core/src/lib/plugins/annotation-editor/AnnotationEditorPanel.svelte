@@ -388,7 +388,7 @@
         background-color: var(--panel-surface);
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--surface-border);
+        border-right-color: var(--tri-surface-border);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -403,7 +403,7 @@
         padding: 1rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--surface-border);
+        border-bottom-color: var(--tri-surface-border);
     }
     .title {
         font-size: 1.125rem;
@@ -432,13 +432,13 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 0.75rem;
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         background-color: color-mix(
             in oklab,
-            var(--color-error) 15%,
+            var(--tri-color-error) 15%,
             var(--panel-surface)
         );
-        color: var(--color-error);
+        color: var(--tri-color-error);
         font-size: 0.75rem;
         line-height: 1rem;
     }
@@ -450,7 +450,7 @@
     }
     .error-line :global(.error-dismiss) {
         flex-shrink: 0;
-        color: var(--color-error);
+        color: var(--tri-color-error);
     }
 
     /* Drawing Mode Toggle */
@@ -502,10 +502,10 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
     }
     .editor-card {
-        background-color: var(--input-bg);
+        background-color: var(--tri-input-bg);
         padding: 1rem;
         display: flex;
         flex-direction: column;
@@ -527,7 +527,7 @@
         gap: 0.25rem;
     }
     .editor-actions :global(.delete-btn) {
-        color: var(--color-error);
+        color: var(--tri-color-error);
     }
 
     .custom-body-editor {
@@ -550,15 +550,15 @@
         --join-ee: 0;
     }
     .join > :global(.join-item:first-child) {
-        --join-ss: var(--radius-buttons);
-        --join-es: var(--radius-buttons);
+        --join-ss: var(--tri-radius-buttons);
+        --join-es: var(--tri-radius-buttons);
     }
     .join > :global(.join-item:last-child) {
-        --join-se: var(--radius-buttons);
-        --join-ee: var(--radius-buttons);
+        --join-se: var(--tri-radius-buttons);
+        --join-ee: var(--tri-radius-buttons);
     }
     .join > :global(.join-item:not(:first-child)) {
-        margin-inline-start: calc(var(--border, 1px) * -1);
+        margin-inline-start: calc(var(--tri-border, 1px) * -1);
     }
 
     /* Mode toggle: a 2-column grid join filling the row */
@@ -604,9 +604,9 @@
         max-height: 100vh;
         width: calc(11 / 12 * 100%);
         max-width: 32rem;
-        background-color: var(--input-bg);
+        background-color: var(--tri-input-bg);
         padding: 1.5rem;
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
         box-shadow: oklch(0% 0 0 / 0.25) 0px 25px 50px -12px;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -620,7 +620,7 @@
         gap: 0.5rem;
     }
     :global(.modal-warning-icon) {
-        color: var(--color-warning);
+        color: var(--tri-color-warning);
     }
     .modal-message {
         padding-block: 1rem;

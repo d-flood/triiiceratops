@@ -41,7 +41,7 @@
         { value: '', label: 'System default' },
         { value: 'light', label: 'Light' },
         { value: 'dark', label: 'Dark' },
-        { value: 'Teal', label: 'Teal' },
+        { value: 'teal', label: 'teal' },
         { value: 'dracula', label: 'Dracula' },
     ];
 
@@ -110,7 +110,9 @@
                 Theme
                 <select bind:value={theme}>
                     {#each THEMES as t (t.value)}
-                        <option value={t.value}>{t.label}</option>
+                        <option value={t.value}>
+                            {t.label.charAt(0).toUpperCase() + t.label.slice(1)}
+                        </option>
                     {/each}
                 </select>
             </label>

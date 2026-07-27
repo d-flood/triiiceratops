@@ -62,17 +62,17 @@
     }
 
     :global(.viewer-html a) {
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
         text-decoration: underline;
         text-underline-offset: 0.2em;
     }
 
     :global(.viewer-html a:hover) {
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
     }
 
     :global(.viewer-html a:focus-visible) {
-        outline: 2px solid var(--color-primary);
+        outline: 2px solid var(--tri-color-primary);
         outline-offset: 2px;
         border-radius: 0.125rem;
     }

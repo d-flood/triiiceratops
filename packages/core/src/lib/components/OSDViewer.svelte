@@ -1110,7 +1110,7 @@
     }
 
     .osd-surface.has-bg {
-        background-color: var(--viewer-bg);
+        background-color: var(--tri-viewer-bg);
     }
 
     /* Shared transition for annotation color changes (transition-colors) */
@@ -1317,8 +1317,8 @@
 
     /* Tooltip styling (matches src/lib/components/ui/Tooltip.svelte) */
     .tooltip {
-        --tt-bg: var(--color-neutral);
-        --tt-fg: var(--color-neutral-content);
+        --tt-bg: var(--tri-color-neutral);
+        --tt-fg: var(--tri-color-neutral-content);
         --tt-off: calc(100% + 0.5rem);
         --tt-tail: calc(100% + 1px + 0.25rem);
         display: inline-block;
@@ -1326,12 +1326,12 @@
     }
 
     .tooltip-primary {
-        --tt-bg: var(--color-primary);
-        --tt-fg: var(--color-primary-content);
+        --tt-bg: var(--tri-color-primary);
+        --tt-fg: var(--tri-color-primary-content);
     }
 
     .tooltip[data-tip]:not([data-tip=''])::before {
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         text-align: center;
         white-space: normal;
         max-width: 20rem;

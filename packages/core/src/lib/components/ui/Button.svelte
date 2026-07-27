@@ -49,21 +49,21 @@
     const VARIANT_VARS: Record<Variant, string> = {
         default: '',
         primary:
-            '--btn-color:var(--color-primary);--btn-color-text:var(--color-primary-text);--btn-fg:var(--color-primary-content);',
+            '--btn-color:var(--tri-color-primary);--btn-color-text:var(--tri-color-primary-text);--btn-fg:var(--tri-color-primary-content);',
         neutral:
-            '--btn-color:var(--color-neutral);--btn-fg:var(--color-neutral-content);',
+            '--btn-color:var(--tri-color-neutral);--btn-fg:var(--tri-color-neutral-content);',
         success:
-            '--btn-color:var(--color-success);--btn-fg:var(--color-success-content);',
+            '--btn-color:var(--tri-color-success);--btn-fg:var(--tri-color-success-content);',
         warning:
-            '--btn-color:var(--color-warning);--btn-fg:var(--color-warning-content);',
-        error: '--btn-color:var(--color-error);--btn-fg:var(--color-error-content);',
+            '--btn-color:var(--tri-color-warning);--btn-fg:var(--tri-color-warning-content);',
+        error: '--btn-color:var(--tri-color-error);--btn-fg:var(--tri-color-error-content);',
     };
-    // [--fontsize, --btn-p, size multiplier of --size-field]
+    // [--fontsize, --btn-p, size multiplier of --tri-size-field]
     const SIZE_VARS: Record<Size, string> = {
-        xs: '--fontsize:0.6875rem;--btn-p:0.5rem;--size:calc(var(--size-field,0.25rem)*6);',
-        sm: '--fontsize:0.75rem;--btn-p:0.75rem;--size:calc(var(--size-field,0.25rem)*8);',
-        md: '--fontsize:0.875rem;--btn-p:1rem;--size:calc(var(--size-field,0.25rem)*10);',
-        lg: '--fontsize:1.125rem;--btn-p:1.25rem;--size:calc(var(--size-field,0.25rem)*12);',
+        xs: '--fontsize:0.6875rem;--btn-p:0.5rem;--size:calc(var(--tri-size-field,0.25rem)*6);',
+        sm: '--fontsize:0.75rem;--btn-p:0.75rem;--size:calc(var(--tri-size-field,0.25rem)*8);',
+        md: '--fontsize:0.875rem;--btn-p:1rem;--size:calc(var(--tri-size-field,0.25rem)*10);',
+        lg: '--fontsize:1.125rem;--btn-p:1.25rem;--size:calc(var(--tri-size-field,0.25rem)*12);',
     };
 
     let computedStyle = $derived(
@@ -104,41 +104,41 @@
         font-size: var(--fontsize, 0.875rem);
         color: var(--btn-fg);
         background-color: var(--btn-bg);
-        border-width: var(--border);
+        border-width: var(--tri-border);
         border-style: solid;
         border-color: var(--btn-border);
-        border-start-start-radius: var(--join-ss, var(--radius-buttons));
-        border-start-end-radius: var(--join-se, var(--radius-buttons));
-        border-end-end-radius: var(--join-ee, var(--radius-buttons));
-        border-end-start-radius: var(--join-es, var(--radius-buttons));
+        border-start-start-radius: var(--join-ss, var(--tri-radius-buttons));
+        border-start-end-radius: var(--join-se, var(--tri-radius-buttons));
+        border-end-end-radius: var(--join-ee, var(--tri-radius-buttons));
+        border-end-start-radius: var(--join-es, var(--tri-radius-buttons));
         outline-offset: 2px;
-        outline-color: var(--btn-color, var(--content));
-        text-shadow: 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 0.15));
+        outline-color: var(--btn-color, var(--tri-content));
+        text-shadow: 0 0.5px oklch(100% 0 0 / calc(var(--tri-depth) * 0.15));
         box-shadow:
-            0 0.5px 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 6%)) inset,
+            0 0.5px 0 0.5px oklch(100% 0 0 / calc(var(--tri-depth) * 6%)) inset,
             var(--btn-shadow);
         transition-property: color, background-color, border-color, box-shadow;
         transition-duration: 0.2s;
         transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 
         /* defaults (overridable via inline size/variant vars) */
-        --size: calc(var(--size-field, 0.25rem) * 10);
-        --btn-bg: var(--btn-color, var(--toolbar-bg));
-        --btn-fg: var(--content);
+        --size: calc(var(--tri-size-field, 0.25rem) * 10);
+        --btn-bg: var(--btn-color, var(--tri-toolbar-bg));
+        --btn-fg: var(--tri-content);
         --btn-p: 1rem;
-        --btn-border: color-mix(in oklab, var(--btn-bg), #000 calc(var(--depth) * 5%));
+        --btn-border: color-mix(in oklab, var(--btn-bg), #000 calc(var(--tri-depth) * 5%));
         --btn-shadow:
             0 3px 2px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--depth) * 30%), #0000),
+                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000),
             0 4px 3px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--depth) * 30%), #0000);
+                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000);
     }
 
     @media (hover: hover) {
         .btn:hover {
             --btn-bg: color-mix(
                 in oklab,
-                var(--btn-color, var(--toolbar-bg)),
+                var(--btn-color, var(--tri-toolbar-bg)),
                 #000 7%
             );
         }
@@ -153,12 +153,12 @@
     .btn:active:not(.active) {
         --btn-bg: color-mix(
             in oklab,
-            var(--btn-color, var(--toolbar-bg)),
+            var(--btn-color, var(--tri-toolbar-bg)),
             #000 5%
         );
         --btn-border: color-mix(
             in oklab,
-            var(--btn-color, var(--toolbar-bg)),
+            var(--btn-color, var(--tri-toolbar-bg)),
             #000 7%
         );
         --btn-shadow:
@@ -170,7 +170,7 @@
     .btn.active {
         --btn-bg: color-mix(
             in oklab,
-            var(--btn-color, var(--toolbar-bg)),
+            var(--btn-color, var(--tri-toolbar-bg)),
             #000 7%
         );
     }
@@ -179,14 +179,14 @@
     .btn[disabled] {
         pointer-events: none;
         --btn-border: #0000;
-        --btn-fg: color-mix(in oklch, var(--content) 20%, #0000);
+        --btn-fg: color-mix(in oklch, var(--tri-content) 20%, #0000);
     }
 
     .btn:disabled:not(.ghost):not(.outline),
     .btn[disabled]:not(.ghost):not(.outline) {
         background-color: color-mix(
             in oklab,
-            var(--content) 10%,
+            var(--tri-content) 10%,
             transparent
         );
         box-shadow: none;
@@ -210,7 +210,7 @@
     .ghost {
         --btn-bg: transparent;
         --btn-border: transparent;
-        --btn-fg: var(--btn-color-text, var(--btn-color, var(--content)));
+        --btn-fg: var(--btn-color-text, var(--btn-color, var(--tri-content)));
         box-shadow: none;
         text-shadow: none;
     }
@@ -218,14 +218,14 @@
         .ghost:hover {
             --btn-bg: color-mix(
                 in oklab,
-                var(--content) 10%,
+                var(--tri-content) 10%,
                 transparent
             );
         }
     }
     .ghost:active:not(.active),
     .ghost.active {
-        --btn-bg: color-mix(in oklab, var(--content) 10%, transparent);
+        --btn-bg: color-mix(in oklab, var(--tri-content) 10%, transparent);
         --btn-border: transparent;
     }
 
@@ -234,8 +234,8 @@
             :disabled
         ):not([disabled]) {
         --btn-bg: transparent;
-        --btn-fg: var(--btn-color-text, var(--btn-color, var(--content)));
-        --btn-border: var(--btn-color, var(--content));
+        --btn-fg: var(--btn-color-text, var(--btn-color, var(--tri-content)));
+        --btn-border: var(--btn-color, var(--tri-content));
         box-shadow: none;
         text-shadow: none;
     }

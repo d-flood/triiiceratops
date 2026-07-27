@@ -5,10 +5,9 @@
 // CSS *inside the packed `.tgz`* — i.e. exactly the bytes a consumer installs as
 // `triiiceratops/style.css`.
 
-// NOTE: theme identifier casing. Pre-1.0 the built-in teal theme still ships as
-// `Teal`. Ticket 22 renames it to lowercase `teal`; when that lands, update the
-// expected identifier here (and this comment can go away).
-const THEMES = ['light', 'dark', 'Teal', 'dracula'];
+// The built-in themes ship with lowercase identifiers (ticket 19 renamed the
+// former `Teal` to `teal`, matching the other three).
+const THEMES = ['light', 'dark', 'teal', 'dracula'];
 
 function splitTopLevel(selector) {
     const out = [];
@@ -71,10 +70,10 @@ export function assertTarballCss(css) {
     const check = (name, ok, detail = '') => checks.push({ name, ok, detail });
 
     check(
-        'design tokens present (--color-primary, --viewer-bg, --content)',
-        css.includes('--color-primary') &&
-            css.includes('--viewer-bg') &&
-            css.includes('--content'),
+        'design tokens present (--tri-color-primary, --tri-viewer-bg, --tri-content)',
+        css.includes('--tri-color-primary') &&
+            css.includes('--tri-viewer-bg') &&
+            css.includes('--tri-content'),
     );
 
     const missingThemes = THEMES.filter((theme) => {

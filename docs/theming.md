@@ -19,7 +19,7 @@ for overrides that must win over an explicit built-in theme.
 
 ## 1. Built-in Themes
 
-Four themes ship with the viewer: two light (`light`, `Teal`) and two dark
+Four themes ship with the viewer: two light (`light`, `teal`) and two dark
 (`dark`, `dracula`). Theme names are case-sensitive. When no theme is set, the
 viewer follows the OS `prefers-color-scheme` defaults and can inherit CSS
 variables from the host/page.
@@ -54,16 +54,16 @@ Override individual tokens with `themeConfig` — no CSS required. Colors accept
 
 | Keyword          | Description                                  | CSS Variable              |
 | :--------------- | :------------------------------------------- | :------------------------ |
-| `primary`        | Primary brand color (buttons, active states) | `--color-primary`         |
-| `primaryContent` | Text color on a primary background           | `--color-primary-content` |
-| `neutral`        | Neutral color (tooltips, active menu items)  | `--color-neutral`         |
-| `neutralContent` | Text color on a neutral background           | `--color-neutral-content` |
-| `success`        | Success state                                | `--color-success`         |
-| `successContent` | Text color on a success background           | `--color-success-content` |
-| `warning`        | Warning state                                | `--color-warning`         |
-| `warningContent` | Text color on a warning background           | `--color-warning-content` |
-| `error`          | Error state                                  | `--color-error`           |
-| `errorContent`   | Text color on an error background            | `--color-error-content`   |
+| `primary`        | Primary brand color (buttons, active states) | `--tri-color-primary`         |
+| `primaryContent` | Text color on a primary background           | `--tri-color-primary-content` |
+| `neutral`        | Neutral color (tooltips, active menu items)  | `--tri-color-neutral`         |
+| `neutralContent` | Text color on a neutral background           | `--tri-color-neutral-content` |
+| `success`        | Success state                                | `--tri-color-success`         |
+| `successContent` | Text color on a success background           | `--tri-color-success-content` |
+| `warning`        | Warning state                                | `--tri-color-warning`         |
+| `warningContent` | Text color on a warning background           | `--tri-color-warning-content` |
+| `error`          | Error state                                  | `--tri-color-error`           |
+| `errorContent`   | Text color on an error background            | `--tri-color-error-content`   |
 
 ### Surfaces
 
@@ -73,12 +73,12 @@ default.
 
 | Keyword         | Description                              | CSS Variable       |
 | :-------------- | :--------------------------------------- | :----------------- |
-| `viewerBg`      | Main viewer/canvas background            | `--viewer-bg`      |
-| `toolbarBg`     | Toolbar + canvas-nav controls background | `--toolbar-bg`     |
-| `panelBg`       | Default background for all side panels   | `--panel-bg`       |
-| `galleryBg`     | Thumbnail gallery background             | `--gallery-bg`     |
-| `inputBg`       | Form input/control surface               | `--input-bg`       |
-| `surfaceBorder` | Borders and dividers                     | `--surface-border` |
+| `viewerBg`      | Main viewer/canvas background            | `--tri-viewer-bg`      |
+| `toolbarBg`     | Toolbar + canvas-nav controls background | `--tri-toolbar-bg`     |
+| `panelBg`       | Default background for all side panels   | `--tri-panel-bg`       |
+| `galleryBg`     | Thumbnail gallery background             | `--tri-gallery-bg`     |
+| `inputBg`       | Form input/control surface               | `--tri-input-bg`       |
+| `surfaceBorder` | Borders and dividers                     | `--tri-surface-border` |
 
 ### Content (foreground)
 
@@ -87,11 +87,11 @@ and let you retint text in one region without touching the rest.
 
 | Keyword          | Description                        | CSS Variable        |
 | :--------------- | :--------------------------------- | :------------------ |
-| `content`        | Global default text/icon color     | `--content`         |
-| `panelContent`   | Text color inside panels           | `--panel-content`   |
-| `toolbarContent` | Text color inside the toolbar      | `--toolbar-content` |
-| `viewerContent`  | Text color over the viewer surface | `--viewer-content`  |
-| `galleryContent` | Text color inside the gallery      | `--gallery-content` |
+| `content`        | Global default text/icon color     | `--tri-content`         |
+| `panelContent`   | Text color inside panels           | `--tri-panel-content`   |
+| `toolbarContent` | Text color inside the toolbar      | `--tri-toolbar-content` |
+| `viewerContent`  | Text color over the viewer surface | `--tri-viewer-content`  |
+| `galleryContent` | Text color inside the gallery      | `--tri-gallery-content` |
 
 ### Per-panel overrides
 
@@ -108,7 +108,7 @@ additionally setting `metadataPanelBg: 'white'` overrides just the metadata pane
 | `collectionPanel…`           | Collection panel             | `--collection-panel-…`              |
 
 Plugin panels follow `panelBg` too, and can be overridden via [`cssVars`](#raw-css-variables)
-or raw CSS variables: `--pdf-export-panel-bg` and `--annotation-editor-panel-bg` (and
+or raw CSS variables: `--tri-pdf-export-panel-bg` and `--tri-annotation-editor-panel-bg` (and
 their `-content` counterparts).
 
 ### Border radius
@@ -118,13 +118,13 @@ you can keep everything consistent or fine-tune one region.
 
 | Keyword                 | Description                                | Inherits        | CSS Variable                |
 | :---------------------- | :----------------------------------------- | :-------------- | :-------------------------- |
-| `radiusBox`             | Large containers (cards, panels, popovers) | —               | `--radius-box`              |
-| `radiusButtons`         | Buttons, inputs, and button groups         | —               | `--radius-buttons`          |
-| `radiusSelector`        | Small selectors (checkboxes, badges)       | —               | `--radius-selector`         |
-| `radiusToolbar`         | Toolbar corners                            | `radiusButtons` | `--radius-toolbar`          |
-| `radiusPanels`          | Panel corners                              | `radiusBox`     | `--radius-panels`           |
-| `radiusControls`        | Canvas-nav controls pill                   | `radiusButtons` | `--radius-controls`         |
-| `radiusControlsButtons` | The buttons inside the canvas-nav pill     | `radiusButtons` | `--radius-controls-buttons` |
+| `radiusBox`             | Large containers (cards, panels, popovers) | —               | `--tri-radius-box`              |
+| `radiusButtons`         | Buttons, inputs, and button groups         | —               | `--tri-radius-buttons`          |
+| `radiusSelector`        | Small selectors (checkboxes, badges)       | —               | `--tri-radius-selector`         |
+| `radiusToolbar`         | Toolbar corners                            | `radiusButtons` | `--tri-radius-toolbar`          |
+| `radiusPanels`          | Panel corners                              | `radiusBox`     | `--tri-radius-panels`           |
+| `radiusControls`        | Canvas-nav controls pill                   | `radiusButtons` | `--tri-radius-controls`         |
+| `radiusControlsButtons` | The buttons inside the canvas-nav pill     | `radiusButtons` | `--tri-radius-controls-buttons` |
 
 > **Want the classic pill?** The canvas-nav controls now inherit the button radius by
 > default. To restore the fully-rounded capsule and circular buttons, set
@@ -134,10 +134,10 @@ you can keep everything consistent or fine-tune one region.
 
 | Keyword        | Description                        | CSS Variable      | Example   |
 | :------------- | :--------------------------------- | :---------------- | :-------- |
-| `sizeField`    | Base padding/size for inputs       | `--size-field`    | `0.25rem` |
-| `sizeSelector` | Base padding/size for selectors    | `--size-selector` | `0.25rem` |
-| `border`       | Border width                       | `--border`        | `1px`     |
-| `depth`        | Drop shadows (`1` = on, `0` = off) | `--depth`         | `1`       |
+| `sizeField`    | Base padding/size for inputs       | `--tri-size-field`    | `0.25rem` |
+| `sizeSelector` | Base padding/size for selectors    | `--tri-size-selector` | `0.25rem` |
+| `border`       | Border width                       | `--tri-border`        | `1px`     |
+| `depth`        | Drop shadows (`1` = on, `0` = off) | `--tri-depth`         | `1`       |
 | `colorScheme`  | Browser UI hint (`light`/`dark`)   | `color-scheme`    | `light`   |
 
 ### Example Usage
@@ -203,8 +203,8 @@ applied verbatim (no color normalization):
 viewer.themeConfig = {
     panelBg: 'oklch(20% 0.02 277)',
     cssVars: {
-        'image-manipulation-panel-bg': '#11182f',
-        'pdf-export-panel-bg': '#0b1020',
+        'tri-image-manipulation-panel-bg': '#11182f',
+        'tri-pdf-export-panel-bg': '#0b1020',
     },
 };
 ```
@@ -220,11 +220,11 @@ built-in `theme` is selected, the theme's token values win over host CSS variabl
 
 ```css
 triiiceratops-viewer {
-    --color-primary: oklch(65% 0.25 260);
-    --panel-bg: #1e1e2e;
-    --metadata-panel-bg: #181825; /* override one panel */
-    --radius-box: 0;
-    --radius-controls: 9999px; /* keep the controls pill rounded */
+    --tri-color-primary: oklch(65% 0.25 260);
+    --tri-panel-bg: #1e1e2e;
+    --tri-metadata-panel-bg: #181825; /* override one panel */
+    --tri-radius-box: 0;
+    --tri-radius-controls: 9999px; /* keep the controls pill rounded */
 }
 ```
 

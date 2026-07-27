@@ -1,5 +1,7 @@
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
+import { flushSync, untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
+import { STATE_INVENTORY } from './state-inventory.js';
 import type {
     PluginUiConfig,
     RequestConfig,
@@ -1869,6 +1871,162 @@ export class ViewerState {
         this.pluginPanels = [];
         this.pluginFlyouts = [];
         this.pluginUiState.clear();
+    }
+
+    // ==================== FRAMEWORK-NEUTRAL SUBSCRIPTIONS (ADR 0008) ==========
+    //
+    // `subscribe` gives plugins a reactivity-driven, batched, payload-free
+    // notification independent of the Web Component event target above. A single
+    // `$effect.root`-based watcher reads every inventoried `command` and
+    // `observable` member; any write source — command, core-internal Svelte
+    // binding, or unsupported direct assignment — re-runs it on the next flush
+    // and wakes subscribers. Completeness is structural (nobody has to remember
+    // to call `notify()`); the price is timing: notifications are batched and
+    // delivered on the microtask flush, never synchronously inside a mutator.
+    // Selectors (ticket 07) and `pluginerror` attribution (ticket 09) build on
+    // top of this; `invokeSubscriptionListener` is the seam ticket 09 replaces.
+
+    /**
+     * Inventoried members whose changes wake subscribers, derived from the state
+     * inventory so the watcher and the inventory cannot drift: `command` and
+     * `observable` members notify; `internal` and `query-only` members never do.
+     */
+    private static readonly WATCHED_MEMBERS: readonly string[] =
+        STATE_INVENTORY.filter(
+            (entry) =>
+                entry.classification === 'command' ||
+                entry.classification === 'observable',
+        ).map((entry) => entry.member);
+
+    // These are ECMAScript #private fields (not TS `private`) on purpose: they
+    // carry no plugin contract and must stay invisible to the state inventory's
+    // enumerable-member reflection, so no `state-inventory.ts` entry is needed.
+
+    /** Registered subscription listeners, kept in registration order. */
+    #subscriptionListeners: Array<() => void> = [];
+
+    /** Disposes the reactive watcher's effect root; null until lazily started. */
+    #disposeSubscriptionWatcher: (() => void) | null = null;
+
+    /** True once the watcher's priming run has established its dependencies. */
+    #subscriptionWatcherPrimed = false;
+
+    /**
+     * Subscribe to viewer-state changes. The listener is called — with no
+     * arguments — on the flush after any inventoried `command`/`observable`
+     * member changes, regardless of write source. Notifications are batched
+     * (many changes in one tick collapse to one call) and payload-free: read the
+     * state you need, do not reconstruct transitions. Listeners fire in
+     * registration order. Returns an unsubscribe function.
+     *
+     * SSR-safe: calling this on the server registers the listener but starts no
+     * effect and delivers no notifications (state reads stay synchronously
+     * current everywhere).
+     */
+    subscribe(listener: () => void): () => void {
+        this.#subscriptionListeners.push(listener);
+        this.startSubscriptionWatcher();
+
+        return () => {
+            const index = this.#subscriptionListeners.indexOf(listener);
+            if (index !== -1) {
+                this.#subscriptionListeners.splice(index, 1);
+            }
+        };
+    }
+
+    /**
+     * Lazily start the reactivity-driven watcher (browser only, once). Kept out
+     * of the constructor so server-side construction never creates an effect and
+     * viewers with no subscribers pay nothing.
+     */
+    private startSubscriptionWatcher(): void {
+        // SSR-safe: never create effects on the server.
+        if (this.#disposeSubscriptionWatcher || typeof window === 'undefined') {
+            return;
+        }
+
+        this.#subscriptionWatcherPrimed = false;
+        this.#disposeSubscriptionWatcher = $effect.root(() => {
+            $effect(() => {
+                // Establish a reactive dependency on every watched member.
+                this.trackWatchedMembers();
+
+                if (this.#subscriptionWatcherPrimed) {
+                    // Deliver outside the tracking context so a listener's own
+                    // state reads never become watcher dependencies.
+                    untrack(() => this.notifySubscribers());
+                } else {
+                    // First run only registers dependencies; it must not notify.
+                    this.#subscriptionWatcherPrimed = true;
+                }
+            });
+        });
+
+        // Prime synchronously so dependencies exist before the caller mutates;
+        // otherwise the effect's initial run would swallow the first change.
+        // `flushSync` throws when Svelte is already flushing (e.g. subscribing
+        // from inside an effect) — tolerate that: the scheduled effect still
+        // primes on the in-progress flush.
+        try {
+            flushSync();
+        } catch {
+            /* already flushing — priming happens on the current flush */
+        }
+    }
+
+    /**
+     * Read every watched member so the watcher effect depends on all of them.
+     * Reading a plain member registers an identity dependency; reactive
+     * collections additionally need their mutation version read (via `keys()`,
+     * which also covers `.size` changes) so adds, deletes, clears, and same-size
+     * content swaps all notify.
+     */
+    private trackWatchedMembers(): void {
+        const self = this as unknown as Record<string, unknown>;
+        for (const member of ViewerState.WATCHED_MEMBERS) {
+            const value = self[member];
+            if (value instanceof SvelteSet || value instanceof SvelteMap) {
+                value.keys();
+            }
+        }
+    }
+
+    private notifySubscribers(): void {
+        // Snapshot so a listener that (un)subscribes during delivery does not
+        // disturb this pass; a newly added listener sees the next notification.
+        for (const listener of [...this.#subscriptionListeners]) {
+            this.invokeSubscriptionListener(listener);
+        }
+    }
+
+    /**
+     * Single guarded call site for a subscription listener: a throwing listener
+     * is isolated and reported so the remaining listeners still run. This is the
+     * seam ticket 09 replaces with plugin attribution and `pluginerror` routing.
+     */
+    private invokeSubscriptionListener(listener: () => void): void {
+        try {
+            listener();
+        } catch (error) {
+            console.error(
+                '[ViewerState] A subscription listener threw; other listeners are unaffected.',
+                error,
+            );
+        }
+    }
+
+    /**
+     * Tear down this viewer state: dispose the subscription watcher's effect
+     * root, drop all listeners, and release plugin registrations. After destroy
+     * no further notifications are delivered. Idempotent.
+     */
+    destroy(): void {
+        this.#disposeSubscriptionWatcher?.();
+        this.#disposeSubscriptionWatcher = null;
+        this.#subscriptionWatcherPrimed = false;
+        this.#subscriptionListeners = [];
+        this.destroyAllPlugins();
     }
 }
 

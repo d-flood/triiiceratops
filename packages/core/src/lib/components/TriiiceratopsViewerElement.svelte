@@ -68,7 +68,7 @@
         canvasId?: string;
         plugins?: PluginDef[];
         /**
-         * Built-in theme name (e.g., 'light', 'dark', 'Teal').
+         * Built-in theme name (e.g., 'light', 'dark', 'teal').
          * When not specified, inherits the theme from the parent context.
          */
         theme?: string;

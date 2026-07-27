@@ -3,8 +3,8 @@
  *
  * These `--ui-*` custom properties are LAYOUT-ONLY: spacing, sizing, positioning,
  * and shadow pattern. They are intentionally separate from the theme tokens in
- * themes.css — colors, border-radii (`--radius-*`), border width (`--border`),
- * size multipliers (`--size-*`), and the shadow `--depth` flag stay theme-controlled
+ * themes.css — colors, border-radii (`--tri-radius-*`), border width (`--tri-border`),
+ * size multipliers (`--tri-size-*`), and the shadow `--tri-depth` flag stay theme-controlled
  * and are never set here.
  *
  * The layout is configured by independent knobs, resolved onto `.viewer-root`

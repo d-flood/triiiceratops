@@ -451,10 +451,10 @@
         flex-shrink: 0;
         position: relative;
         z-index: 800;
-        background-color: var(--panel-bg);
+        background-color: var(--tri-panel-bg);
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--surface-border);
+        border-bottom-color: var(--tri-surface-border);
     }
 
     .top-row {
@@ -467,7 +467,7 @@
         border-bottom-style: solid;
         border-bottom-color: color-mix(
             in oklab,
-            var(--surface-border) 50%,
+            var(--tri-surface-border) 50%,
             transparent
         );
     }
@@ -480,7 +480,7 @@
         padding: 0.5rem 1rem;
         background-color: color-mix(
             in oklab,
-            var(--surface-border) 30%,
+            var(--tri-surface-border) 30%,
             transparent
         );
     }
@@ -506,7 +506,7 @@
         margin-inline: 0.5rem;
         background-color: color-mix(
             in oklab,
-            var(--content) 20%,
+            var(--tri-content) 20%,
             transparent
         );
     }
@@ -548,7 +548,7 @@
         justify-content: center;
         align-items: center;
         gap: 0.375rem;
-        height: calc(var(--size-field, 0.25rem) * 8);
+        height: calc(var(--tri-size-field, 0.25rem) * 8);
         padding-inline: 0.75rem;
         font-size: 0.75rem;
         font-weight: 600;
@@ -558,11 +558,11 @@
         -webkit-user-select: none;
         cursor: pointer;
         touch-action: manipulation;
-        border-width: var(--border);
+        border-width: var(--tri-border);
         border-style: solid;
         border-color: transparent;
-        border-radius: var(--radius-buttons);
-        color: var(--content);
+        border-radius: var(--tri-radius-buttons);
+        color: var(--tri-content);
         background-color: transparent;
         text-decoration: none;
         transition-property: color, background-color, border-color, box-shadow;
@@ -579,7 +579,7 @@
         .btn-link.ghost:hover {
             background-color: color-mix(
                 in oklab,
-                var(--content) 10%,
+                var(--tri-content) 10%,
                 transparent
             );
         }
@@ -588,14 +588,14 @@
     /* Outline + primary (docs link) */
     .btn-link.outline.primary {
         background-color: transparent;
-        color: var(--color-primary-text);
-        border-color: var(--color-primary);
+        color: var(--tri-color-primary-text);
+        border-color: var(--tri-color-primary);
     }
     @media (hover: hover) {
         .btn-link.outline.primary:hover {
-            background-color: var(--color-primary);
-            color: var(--color-primary-content);
-            border-color: var(--color-primary);
+            background-color: var(--tri-color-primary);
+            color: var(--tri-color-primary-content);
+            border-color: var(--tri-color-primary);
         }
     }
 
@@ -614,7 +614,7 @@
         justify-content: center;
         align-items: center;
         gap: 0.375rem;
-        height: calc(var(--size-field, 0.25rem) * 8);
+        height: calc(var(--tri-size-field, 0.25rem) * 8);
         padding-inline: 0.75rem;
         font-size: 0.75rem;
         font-weight: 600;
@@ -624,11 +624,11 @@
         -webkit-user-select: none;
         cursor: pointer;
         touch-action: manipulation;
-        border-width: var(--border);
+        border-width: var(--tri-border);
         border-style: solid;
         border-color: transparent;
-        border-radius: var(--radius-buttons);
-        color: var(--content);
+        border-radius: var(--tri-radius-buttons);
+        color: var(--tri-content);
         background-color: transparent;
         transition-property: color, background-color, border-color, box-shadow;
         transition-duration: 0.2s;
@@ -638,7 +638,7 @@
         .btn-trigger:hover {
             background-color: color-mix(
                 in oklab,
-                var(--content) 10%,
+                var(--tri-content) 10%,
                 transparent
             );
         }
@@ -665,7 +665,7 @@
         justify-content: center;
         align-items: center;
         gap: 0.375rem;
-        height: calc(var(--size-field, 0.25rem) * 8);
+        height: calc(var(--tri-size-field, 0.25rem) * 8);
         padding-inline: 0.75rem;
         font-size: 0.75rem;
         font-weight: 600;
@@ -675,26 +675,26 @@
         touch-action: manipulation;
         user-select: none;
         -webkit-user-select: none;
-        --btn-bg: var(--btn-color, var(--panel-bg));
-        --btn-fg: var(--content);
+        --btn-bg: var(--btn-color, var(--tri-panel-bg));
+        --btn-fg: var(--tri-content);
         --btn-border: color-mix(
             in oklab,
             var(--btn-bg),
-            #000 calc(var(--depth) * 5%)
+            #000 calc(var(--tri-depth) * 5%)
         );
         --btn-shadow:
             0 3px 2px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--depth) * 30%), #0000),
+                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000),
             0 4px 3px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--depth) * 30%), #0000);
+                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000);
         color: var(--btn-fg);
         background-color: var(--btn-bg);
-        border-width: var(--border);
+        border-width: var(--tri-border);
         border-style: solid;
         border-color: var(--btn-border);
-        text-shadow: 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 0.15));
+        text-shadow: 0 0.5px oklch(100% 0 0 / calc(var(--tri-depth) * 0.15));
         box-shadow:
-            0 0.5px 0 0.5px oklch(100% 0 0 / calc(var(--depth) * 6%)) inset,
+            0 0.5px 0 0.5px oklch(100% 0 0 / calc(var(--tri-depth) * 6%)) inset,
             var(--btn-shadow);
         transition-property: color, background-color, border-color, box-shadow;
         transition-duration: 0.2s;
@@ -709,7 +709,7 @@
         .btn-radio:hover {
             background-color: color-mix(
                 in oklab,
-                var(--btn-bg, var(--panel-bg)),
+                var(--btn-bg, var(--tri-panel-bg)),
                 #000 7%
             );
         }
@@ -722,8 +722,8 @@
         white-space: nowrap;
     }
     .btn-radio:checked {
-        --btn-color: var(--color-primary);
-        --btn-fg: var(--color-primary-content);
+        --btn-color: var(--tri-color-primary);
+        --btn-fg: var(--tri-color-primary-content);
         isolation: isolate;
     }
 
@@ -732,22 +732,22 @@
        span's position. Items keep their own borders with no negative margins, so
        adjacent borders do not collapse — we intentionally add none here. */
     .join > :global(:first-child:not(:last-child) .btn-radio) {
-        --join-ss: var(--radius-buttons);
+        --join-ss: var(--tri-radius-buttons);
         --join-se: 0;
-        --join-es: var(--radius-buttons);
+        --join-es: var(--tri-radius-buttons);
         --join-ee: 0;
     }
     .join > :global(:last-child:not(:first-child) .btn-radio) {
         --join-ss: 0;
-        --join-se: var(--radius-buttons);
+        --join-se: var(--tri-radius-buttons);
         --join-es: 0;
-        --join-ee: var(--radius-buttons);
+        --join-ee: var(--tri-radius-buttons);
     }
     .join > :global(:only-child .btn-radio) {
-        --join-ss: var(--radius-buttons);
-        --join-se: var(--radius-buttons);
-        --join-es: var(--radius-buttons);
-        --join-ee: var(--radius-buttons);
+        --join-ss: var(--tri-radius-buttons);
+        --join-se: var(--tri-radius-buttons);
+        --join-es: var(--tri-radius-buttons);
+        --join-ee: var(--tri-radius-buttons);
     }
 
     /* ===== Language Select width override (w-auto) ===== */
@@ -808,11 +808,11 @@
         width: min(20rem, calc(100vw - 1rem));
         max-height: calc(100dvh - 4rem);
         overflow: hidden;
-        background-color: var(--viewer-bg);
-        border-radius: var(--radius-box);
+        background-color: var(--tri-viewer-bg);
+        border-radius: var(--tri-radius-box);
         border-width: 1px;
         border-style: solid;
-        border-color: var(--surface-border);
+        border-color: var(--tri-surface-border);
         box-shadow:
             0 1px 3px 0 #0000001a,
             0 1px 2px -1px #0000001a;
@@ -829,8 +829,8 @@
 
     /* ===== Menu styling (SettingsMenu panel) ===== */
     .menu {
-        --menu-active-fg: var(--color-neutral-content);
-        --menu-active-bg: var(--color-neutral);
+        --menu-active-fg: var(--tri-color-neutral-content);
+        --menu-active-bg: var(--tri-color-neutral);
         display: flex;
         flex-flow: column wrap;
         width: fit-content;
@@ -854,7 +854,7 @@
         text-align: start;
         text-wrap: balance;
         user-select: none;
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         /* menu-xs sizing */
         padding-block: 0.25rem;
         padding-inline: 0.5rem;
@@ -871,7 +871,7 @@
         cursor: pointer;
         background-color: color-mix(
             in oklab,
-            var(--content) 10%,
+            var(--tri-content) 10%,
             transparent
         );
         box-shadow:
@@ -886,10 +886,10 @@
         cursor: pointer;
         background-color: color-mix(
             in oklab,
-            var(--content) 10%,
+            var(--tri-content) 10%,
             transparent
         );
-        color: var(--content);
+        color: var(--tri-content);
         outline: none;
     }
 

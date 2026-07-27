@@ -32,10 +32,10 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        height: calc(var(--size-field, 0.25rem) * 8);
-        width: calc(var(--size-field, 0.25rem) * 8);
-        border-radius: var(--radius-buttons);
-        border: var(--border) solid transparent;
+        height: calc(var(--tri-size-field, 0.25rem) * 8);
+        width: calc(var(--tri-size-field, 0.25rem) * 8);
+        border-radius: var(--tri-radius-buttons);
+        border: var(--tri-border) solid transparent;
         background-color: transparent;
         color: inherit;
         cursor: pointer;
@@ -50,13 +50,13 @@
         .trigger:hover {
             background-color: color-mix(
                 in oklab,
-                var(--content) 10%,
+                var(--tri-content) 10%,
                 transparent
             );
         }
     }
     .trigger:focus-visible {
-        outline: 2px solid var(--content);
+        outline: 2px solid var(--tri-content);
         outline-offset: 2px;
     }
 </style>

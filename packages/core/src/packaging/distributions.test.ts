@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { PUBLIC_CSS_TOKENS } from '../lib/theme/publicTokens';
 
 /*
  * Guards that EVERY published distribution actually ships the design system
@@ -17,7 +18,7 @@ import { resolve } from 'node:path';
 const REPO = resolve(__dirname, '..', '..');
 const dist = (f: string) => resolve(REPO, 'dist', f);
 
-const THEMES = ['light', 'dark', 'Teal', 'dracula'] as const;
+const THEMES = ['light', 'dark', 'teal', 'dracula'] as const;
 
 function build(config: string) {
     execSync(`pnpm exec vite build --config ${config}`, {
@@ -106,9 +107,30 @@ describe('published distributions ship styles + themes', () => {
         });
 
         it('includes the design tokens', () => {
-            expect(css).toContain('--color-primary');
-            expect(css).toContain('--viewer-bg');
-            expect(css).toContain('--content');
+            expect(css).toContain('--tri-color-primary');
+            expect(css).toContain('--tri-viewer-bg');
+            expect(css).toContain('--tri-content');
+        });
+
+        it('ships exactly the documented public --tri-* token set', () => {
+            // Every documented public token must be declared in the built sheet.
+            const missing = PUBLIC_CSS_TOKENS.filter(
+                (t) => !new RegExp(`${t}\\s*:`).test(css),
+            );
+            expect(missing, `documented tokens absent from CSS`).toEqual([]);
+
+            // Conversely, no --tri-* variable may appear in the sheet without
+            // being documented in the public token registry (source of truth).
+            const declared = new Set(
+                [...css.matchAll(/(--tri-[a-z0-9-]+)\s*:/g)].map((m) => m[1]),
+            );
+            const undocumented = [...declared].filter(
+                (t) => !PUBLIC_CSS_TOKENS.includes(t),
+            );
+            expect(
+                undocumented,
+                `--tri-* vars in CSS missing from publicTokens.ts`,
+            ).toEqual([]);
         });
 
         it('includes all four built-in themes, scoped to the viewer root', () => {
@@ -145,7 +167,7 @@ describe('published distributions ship styles + themes', () => {
     describe('bundle — dist/triiiceratops-bundle.js', () => {
         it('inlines tokens + all four themes', () => {
             const js = readFileSync(dist('triiiceratops-bundle.js'), 'utf8');
-            expect(js).toContain('--color-primary');
+            expect(js).toContain('--tri-color-primary');
             expect(js).toContain('data-theme');
             for (const theme of THEMES) {
                 expect(js, `theme "${theme}" missing`).toContain(theme);
@@ -159,7 +181,7 @@ describe('published distributions ship styles + themes', () => {
                 dist('triiiceratops-element.iife.js'),
                 'utf8',
             );
-            expect(js).toContain('--color-primary');
+            expect(js).toContain('--tri-color-primary');
             expect(js).toContain('data-theme');
             for (const theme of THEMES) {
                 expect(js, `theme "${theme}" missing`).toContain(theme);

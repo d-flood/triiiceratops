@@ -59,7 +59,7 @@
            instead of overflowing, so the stack's overflow-y:auto never scrolls. */
         flex-shrink: 0;
         background-color: var(--panel-surface);
-        border-radius: var(--radius-panels);
+        border-radius: var(--tri-radius-panels);
         overflow: hidden;
     }
 
@@ -88,7 +88,7 @@
         flex-shrink: 0;
         align-items: center;
         justify-content: center;
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
     }
 
     .title {

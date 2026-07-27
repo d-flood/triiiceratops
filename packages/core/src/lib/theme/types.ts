@@ -1,9 +1,9 @@
 /**
  * Built-in theme names shipped with the viewer (2 light, 2 dark).
  * Custom theming beyond these stays available via the `themeConfig` prop and by
- * setting CSS variables (e.g. --color-primary) on the host element.
+ * setting CSS variables (e.g. --tri-color-primary) on the host element.
  */
-export type BuiltInTheme = 'light' | 'dark' | 'Teal' | 'dracula';
+export type BuiltInTheme = 'light' | 'dark' | 'teal' | 'dracula';
 
 /**
  * List of all built-in themes for runtime validation.
@@ -11,7 +11,7 @@ export type BuiltInTheme = 'light' | 'dark' | 'Teal' | 'dracula';
 export const BUILTIN_THEMES: BuiltInTheme[] = [
     'light',
     'dark',
-    'Teal',
+    'teal',
     'dracula',
 ];
 
@@ -24,7 +24,7 @@ export const BUILTIN_THEMES: BuiltInTheme[] = [
  * listed, e.g. per-panel overrides for plugin panels).
  *
  * The inheritance model:
- *   - Surfaces: `--viewer-bg`, `--toolbar-bg`, `--panel-bg` are the top-level slots.
+ *   - Surfaces: `--tri-viewer-bg`, `--tri-toolbar-bg`, `--tri-panel-bg` are the top-level slots.
  *     `galleryBg`/`inputBg` default to the viewer surface; `*PanelBg` default to
  *     `panelBg`. Override the general slot to retint everything, or a specific one to
  *     retint just that region/panel.
@@ -142,7 +142,7 @@ export interface ThemeConfig {
      * Raw CSS-variable overrides for anything not covered by a typed key — most
      * usefully per-panel overrides on plugin panels. Keys are CSS variable names
      * WITHOUT the leading `--`; values are used verbatim (NOT normalized to oklch).
-     * @example { 'annotation-editor-panel-bg': '#eef', 'pdf-export-panel-bg': '#fff' }
+     * @example { 'tri-annotation-editor-panel-bg': '#eef', 'tri-pdf-export-panel-bg': '#fff' }
      */
     cssVars?: Record<string, string>;
 }

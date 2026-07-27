@@ -164,7 +164,7 @@
         box-shadow: 0 25px 50px -12px #00000040;
         z-index: 100;
         transition: width 200ms;
-        border-left: 1px solid var(--surface-border);
+        border-left: 1px solid var(--tri-surface-border);
     }
 
     .panel-header {
@@ -172,7 +172,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 1rem;
-        border-bottom: 1px solid var(--surface-border);
+        border-bottom: 1px solid var(--tri-surface-border);
     }
     .panel-header-title {
         display: flex;
@@ -190,8 +190,8 @@
 
     .panel-header-embedded {
         padding: 1rem;
-        border-bottom: 1px solid var(--surface-border);
-        background-color: color-mix(in oklab, var(--input-bg) 50%, transparent);
+        border-bottom: 1px solid var(--tri-surface-border);
+        background-color: color-mix(in oklab, var(--tri-input-bg) 50%, transparent);
     }
     .embedded-row {
         display: flex;
@@ -213,8 +213,8 @@
         object-fit: cover;
         border-radius: 0.375rem;
         flex-shrink: 0;
-        border: 1px solid var(--surface-border);
-        background-color: var(--input-bg);
+        border: 1px solid var(--tri-surface-border);
+        background-color: var(--tri-input-bg);
     }
     .thumb-lg {
         width: 2.5rem;
@@ -222,8 +222,8 @@
         object-fit: cover;
         border-radius: 0.375rem;
         flex-shrink: 0;
-        border: 1px solid var(--surface-border);
-        background-color: var(--input-bg);
+        border: 1px solid var(--tri-surface-border);
+        background-color: var(--tri-input-bg);
     }
 
     .panel-header :global(.icon-lead),
@@ -234,8 +234,8 @@
 
     .count-bar {
         padding: 1rem;
-        border-bottom: 1px solid var(--surface-border);
-        background-color: color-mix(in oklab, var(--input-bg) 50%, transparent);
+        border-bottom: 1px solid var(--tri-surface-border);
+        background-color: color-mix(in oklab, var(--tri-input-bg) 50%, transparent);
         display: flex;
         align-items: center;
     }
@@ -252,7 +252,7 @@
         flex-direction: column;
     }
     .items > * + * {
-        border-top: 1px solid var(--surface-border);
+        border-top: 1px solid var(--tri-surface-border);
     }
     .items.standalone {
         flex: 1 1 0%;
@@ -273,12 +273,12 @@
         align-items: flex-start;
     }
     .item.active {
-        background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
-        border-left: 2px solid var(--color-primary);
+        background-color: color-mix(in oklab, var(--tri-color-primary) 10%, transparent);
+        border-left: 2px solid var(--tri-color-primary);
     }
     /* hover comes after .active so it wins on hover */
     .item:hover {
-        background-color: var(--input-bg);
+        background-color: var(--tri-input-bg);
     }
 
     .item-thumb {
@@ -312,7 +312,7 @@
     }
     .item-title.active {
         font-weight: 600;
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
     }
 
     .item-meta-collection {

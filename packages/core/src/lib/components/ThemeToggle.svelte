@@ -93,9 +93,9 @@
         display: none;
         transform-origin: top;
         overflow: hidden;
-        background-color: var(--panel-bg);
-        color: var(--content);
-        border-radius: var(--radius-box);
+        background-color: var(--tri-panel-bg);
+        color: var(--tri-content);
+        border-radius: var(--tri-radius-box);
         border: 1px solid rgb(255 255 255 / 0.05);
         outline: 1px solid rgb(0 0 0 / 0.05);
         box-shadow: 0 25px 50px -12px #00000040;
@@ -123,12 +123,12 @@
         align-items: center;
         justify-content: center;
         gap: 0.375rem;
-        height: calc(var(--size-field, 0.25rem) * 8);
+        height: calc(var(--tri-size-field, 0.25rem) * 8);
         padding-inline: 0.375rem;
         font-size: 0.75rem;
         font-weight: 600;
-        border-radius: var(--radius-buttons);
-        border: var(--border) solid transparent;
+        border-radius: var(--tri-radius-buttons);
+        border: var(--tri-border) solid transparent;
         background-color: transparent;
         color: inherit;
         cursor: pointer;
@@ -143,13 +143,13 @@
         .trigger:hover {
             background-color: color-mix(
                 in oklab,
-                var(--content) 10%,
+                var(--tri-content) 10%,
                 transparent
             );
         }
     }
     .trigger:focus-visible {
-        outline: 2px solid var(--content);
+        outline: 2px solid var(--tri-content);
         outline-offset: 2px;
     }
 
@@ -160,14 +160,14 @@
         flex-shrink: 0;
         padding: 0.25rem;
         border-radius: 0.375rem;
-        background-color: var(--viewer-bg);
+        background-color: var(--tri-viewer-bg);
     }
     .swatch-trigger {
-        border: 1px solid color-mix(in oklab, var(--content) 10%, transparent);
+        border: 1px solid color-mix(in oklab, var(--tri-content) 10%, transparent);
         transition: border-color 0.2s;
     }
     .trigger:hover .swatch-trigger {
-        border-color: color-mix(in oklab, var(--content) 20%, transparent);
+        border-color: color-mix(in oklab, var(--tri-content) 20%, transparent);
     }
     .swatch-preview {
         box-shadow:
@@ -180,16 +180,16 @@
         border-radius: 9999px;
     }
     .dot-base {
-        background-color: var(--content);
+        background-color: var(--tri-content);
     }
     .dot-primary {
-        background-color: var(--color-primary);
+        background-color: var(--tri-color-primary);
     }
     .dot-success {
-        background-color: var(--color-success);
+        background-color: var(--tri-color-success);
     }
     .dot-error {
-        background-color: var(--color-error);
+        background-color: var(--tri-color-error);
     }
 
     /* menu */
@@ -207,7 +207,7 @@
         overflow-y: auto;
     }
     .menu-title {
-        color: color-mix(in oklab, var(--content) 40%, transparent);
+        color: color-mix(in oklab, var(--tri-content) 40%, transparent);
         padding-block: 0.5rem;
         padding-inline: 0.75rem;
         font-size: 0.75rem;
@@ -222,7 +222,7 @@
         gap: 0.75rem;
         width: 100%;
         text-align: start;
-        border-radius: var(--radius-buttons);
+        border-radius: var(--tri-radius-buttons);
         padding-block: 0.375rem;
         padding-inline: 0.5rem;
         cursor: pointer;
@@ -239,7 +239,7 @@
         .theme-item:hover {
             background-color: color-mix(
                 in oklab,
-                var(--content) 10%,
+                var(--tri-content) 10%,
                 transparent
             );
         }

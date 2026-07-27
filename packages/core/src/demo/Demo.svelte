@@ -561,7 +561,7 @@
         min-height: 100dvh;
         height: 100vh;
         height: 100dvh;
-        background-color: var(--surface-border);
+        background-color: var(--tri-surface-border);
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -570,7 +570,7 @@
     /* text-3xl text-center pt-8 */
     .demo-title {
         flex-shrink: 0;
-        color: var(--content);
+        color: var(--tri-content);
         font-size: clamp(1.25rem, 2.75vw, 1.875rem);
         line-height: 1.2;
         font-weight: 700;
@@ -612,11 +612,11 @@
         max-height: 100%;
         min-width: 0;
         min-height: 0;
-        border-radius: var(--radius-box);
+        border-radius: var(--tri-radius-box);
         overflow: hidden;
         border-width: 1px;
         border-style: solid;
-        border-color: color-mix(in oklab, var(--content) 10%, transparent);
+        border-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
         box-shadow: 0 25px 50px -12px #00000040;
     }
 
@@ -627,11 +627,11 @@
         flex-direction: column;
         width: 20rem;
         flex-shrink: 0;
-        background-color: var(--viewer-bg);
-        border-radius: var(--radius-box);
+        background-color: var(--tri-viewer-bg);
+        border-radius: var(--tri-radius-box);
         border-width: 1px;
         border-style: solid;
-        border-color: color-mix(in oklab, var(--content) 10%, transparent);
+        border-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
@@ -665,7 +665,7 @@
         }
 
         .viewer-pane {
-            border-radius: calc(var(--radius-box) * 0.75);
+            border-radius: calc(var(--tri-radius-box) * 0.75);
             box-shadow: 0 16px 34px -18px #00000066;
         }
     }
@@ -678,8 +678,8 @@
         line-height: 1.75rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: color-mix(in oklab, var(--content) 10%, transparent);
-        background-color: var(--viewer-bg);
+        border-bottom-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
+        background-color: var(--tri-viewer-bg);
     }
 
     /* flex-1 overflow-y-auto */

@@ -543,7 +543,7 @@
                             style="{isHorizontal
                                 ? `height: ${fixedHeight + (thumbGroup.labels.length > 1 ? 40 : 24)}px;`
                                 : ''}{isGroupSelected
-                                ? 'outline: 2px solid var(--color-primary); outline-offset: -2px;'
+                                ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
                                 : ''}"
                             onclick={() => selectCanvas(thumbGroup.id)}
                             data-id={thumbGroup.id}
@@ -683,7 +683,7 @@
                             style="{isHorizontal
                                 ? `height: ${fixedHeight + 24}px;`
                                 : ''}{viewerState.canvasId === thumb.id
-                                ? 'outline: 2px solid var(--color-primary); outline-offset: -2px;'
+                                ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
                                 : ''}"
                             onclick={() => selectCanvas(thumb.id)}
                             data-id={thumb.id}
@@ -809,8 +809,8 @@
     .gallery-root {
         display: flex;
         user-select: none;
-        background-color: var(--gallery-bg);
-        color: var(--gallery-content);
+        background-color: var(--tri-gallery-bg);
+        color: var(--tri-gallery-content);
     }
     .gallery-root.docked {
         position: relative;
@@ -820,7 +820,7 @@
         box-shadow:
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
-        border-color: var(--surface-border);
+        border-color: var(--tri-surface-border);
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.2s;
@@ -832,7 +832,7 @@
         overflow: hidden;
         border-width: 1px;
         border-style: solid;
-        border-color: var(--surface-border);
+        border-color: var(--tri-surface-border);
         box-shadow:
             0 25px 50px -12px #00000040;
     }
@@ -859,7 +859,7 @@
         flex-shrink: 0;
         position: relative;
         user-select: none;
-        background-color: var(--gallery-bg);
+        background-color: var(--tri-gallery-bg);
     }
     .gallery-header.header-horizontal {
         flex-direction: row;
@@ -867,14 +867,14 @@
         align-items: center;
         border-right-width: 1px;
         border-right-style: solid;
-        border-right-color: var(--surface-border);
+        border-right-color: var(--tri-surface-border);
     }
     .gallery-header.header-vertical {
         flex-direction: column;
         width: 100%;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: var(--surface-border);
+        border-bottom-color: var(--tri-surface-border);
     }
 
     .drag-handle {
@@ -890,12 +890,12 @@
     .drag-handle:hover {
         background-color: color-mix(
             in oklab,
-            var(--surface-border) 50%,
+            var(--tri-surface-border) 50%,
             transparent
         );
     }
     .drag-handle:active {
-        background-color: var(--surface-border);
+        background-color: var(--tri-surface-border);
     }
     .drag-handle.handle-horizontal {
         width: 2rem;
@@ -907,7 +907,7 @@
     }
 
     .drag-grip {
-        background-color: var(--surface-border);
+        background-color: var(--tri-surface-border);
         border-radius: calc(infinity * 1px);
     }
     .drag-grip.grip-horizontal {
@@ -923,7 +923,7 @@
     .gallery-content {
         flex: 1 1 0%;
         padding: var(--ui-gallery-pad, 0.25rem);
-        background-color: var(--gallery-bg);
+        background-color: var(--tri-gallery-bg);
     }
     .gallery-content.content-horizontal {
         overflow-x: auto;
@@ -966,7 +966,7 @@
         overflow: hidden;
     }
     .thumb-item:hover {
-        background-color: var(--surface-border);
+        background-color: var(--tri-surface-border);
     }
     .thumb-item.thumb-horizontal {
         width: auto;
@@ -977,14 +977,14 @@
     .thumb-item.selected {
         background-color: color-mix(
             in oklab,
-            var(--color-primary) 5%,
+            var(--tri-color-primary) 5%,
             transparent
         );
     }
 
     /* ===== Thumbnail frame (image container) ===== */
     .thumb-frame {
-        background-color: var(--surface-border);
+        background-color: var(--tri-surface-border);
         border-radius: 0.25rem;
         overflow: hidden;
         position: relative;
@@ -1117,14 +1117,14 @@
         height: 1.5rem;
         cursor: se-resize;
         z-index: 50;
-        background-color: var(--color-primary);
+        background-color: var(--tri-color-primary);
         transition-property: color, background-color, border-color,
             text-decoration-color, fill, stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
     .resize-handle:hover {
-        background-color: var(--color-primary);
+        background-color: var(--tri-color-primary);
     }
 
     /* ===== Drop zones ===== */
@@ -1136,7 +1136,7 @@
         border-style: dashed;
         border-color: color-mix(
             in oklab,
-            var(--color-primary) 40%,
+            var(--tri-color-primary) 40%,
             transparent
         );
         pointer-events: none;
@@ -1177,7 +1177,7 @@
     .drop-zone.drop-active {
         background-color: color-mix(
             in oklab,
-            var(--color-primary) 20%,
+            var(--tri-color-primary) 20%,
             transparent
         );
         transform: scale(1.05);
@@ -1185,14 +1185,14 @@
     .drop-zone.drop-idle {
         background-color: color-mix(
             in oklab,
-            var(--gallery-bg) 50%,
+            var(--tri-gallery-bg) 50%,
             transparent
         );
     }
 
     .drop-label {
         font-weight: 700;
-        color: var(--color-primary-text);
+        color: var(--tri-color-primary-text);
         opacity: 0.5;
     }
     .drop-label-vertical {
