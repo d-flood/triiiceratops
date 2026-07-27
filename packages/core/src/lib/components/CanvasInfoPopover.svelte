@@ -49,6 +49,37 @@
     let showButton = $derived(
         viewerState.config.information?.showButton !== false,
     );
+
+    // Focus management for the popover dialog (WCAG 2.1.2 / 2.4.3): remember the
+    // trigger that opened it, move focus into the dialog on open, close on
+    // Escape, and return focus to the trigger on close.
+    let popoverEl = $state<HTMLElement | undefined>();
+    let invoker: HTMLElement | null = null;
+
+    function openInfo(e: MouseEvent) {
+        invoker = e.currentTarget as HTMLElement;
+        viewerState.toggleCanvasInfo();
+    }
+
+    function closeInfo() {
+        if (viewerState.showCanvasInfo) viewerState.toggleCanvasInfo();
+        invoker?.focus();
+    }
+
+    function onPopoverKeydown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            e.stopPropagation();
+            closeInfo();
+        }
+    }
+
+    $effect(() => {
+        const el = popoverEl;
+        if (!el) return;
+        el.focus();
+        el.addEventListener('keydown', onPopoverKeydown);
+        return () => el.removeEventListener('keydown', onPopoverKeydown);
+    });
 </script>
 
 {#if hasAdditionalContent && showButton}
@@ -58,7 +89,7 @@
             size="xs"
             ghost
             class="trigger"
-            onclick={() => viewerState.toggleCanvasInfo()}
+            onclick={openInfo}
             aria-label={m.canvas_info_tooltip()}
             title={m.canvas_info_tooltip()}
         >
@@ -69,17 +100,19 @@
             <!-- Backdrop to close popover -->
             <button
                 class="backdrop"
-                onclick={() => viewerState.toggleCanvasInfo()}
+                onclick={closeInfo}
                 aria-label={m.close()}
                 tabindex="-1"
             ></button>
 
             <!-- Popover -->
             <div
+                bind:this={popoverEl}
                 class="popover"
                 style="left: 50%; transform: translateX(-50%); z-index: 1001;"
                 role="dialog"
                 aria-label={m.canvas_info()}
+                tabindex="-1"
             >
                 <div class="scroll">
                     <div class="head">
@@ -89,7 +122,7 @@
                             circle
                             ghost
                             class="close"
-                            onclick={() => viewerState.toggleCanvasInfo()}
+                            onclick={closeInfo}
                             aria-label={m.close()}
                         >
                             <Icon name="X" size={14} />

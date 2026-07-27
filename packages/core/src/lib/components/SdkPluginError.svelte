@@ -28,6 +28,31 @@
     const m = getMessages();
 
     let open = $state(false);
+    let buttonEl = $state<HTMLButtonElement | undefined>();
+    let panelEl = $state<HTMLElement | undefined>();
+    const panelId = `tri-plugin-error-${Math.random().toString(36).slice(2, 9)}`;
+
+    function closePanel() {
+        open = false;
+        buttonEl?.focus();
+    }
+
+    function onPanelKeydown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            e.stopPropagation();
+            closePanel();
+        }
+    }
+
+    // Move focus into the error dialog when it opens; return it to the trigger
+    // on close (WCAG 2.1.2 / 2.4.3).
+    $effect(() => {
+        const el = panelEl;
+        if (!el) return;
+        el.focus();
+        el.addEventListener('keydown', onPanelKeydown);
+        return () => el.removeEventListener('keydown', onPanelKeydown);
+    });
 
     function detailText(value: unknown): string {
         if (value instanceof Error) return value.message || value.name;
@@ -47,11 +72,13 @@
     data-phase={error.phase}
 >
     <button
+        bind:this={buttonEl}
         type="button"
         class="plugin-error-button"
         class:menu-active={open}
         data-plugin-error-button
         aria-haspopup="dialog"
+        aria-controls={panelId}
         aria-expanded={open}
         aria-label={m.plugin_error_button_label({ plugin: error.pluginName })}
         onclick={() => (open = !open)}
@@ -62,10 +89,13 @@
 
     {#if open}
         <div
+            bind:this={panelEl}
+            id={panelId}
             class="plugin-error-panel"
             role="alertdialog"
             aria-label={m.plugin_error_heading()}
             data-plugin-error-panel
+            tabindex="-1"
         >
             <h2 class="plugin-error-title">{m.plugin_error_heading()}</h2>
             <p class="plugin-error-desc">
@@ -87,12 +117,7 @@
                 >
                     {m.plugin_error_retry()}
                 </Button>
-                <Button
-                    variant="default"
-                    ghost
-                    size="sm"
-                    onclick={() => (open = false)}
-                >
+                <Button variant="default" ghost size="sm" onclick={closePanel}>
                     {m.plugin_error_close()}
                 </Button>
             </div>

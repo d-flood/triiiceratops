@@ -112,8 +112,10 @@
         // composedPath() pierces the shadow boundary; e.target alone retargets
         // to the host element, which would make a trigger click look "outside".
         const path = e.composedPath();
-        if ((triggerEl && path.includes(triggerEl)) ||
-            (listEl && path.includes(listEl)))
+        if (
+            (triggerEl && path.includes(triggerEl)) ||
+            (listEl && path.includes(listEl))
+        )
             return;
         close();
     }
@@ -180,7 +182,8 @@
         clearTimeout(typeTimer);
         typeTimer = setTimeout(() => (typeBuffer = ''), 600);
         const match = items.findIndex(
-            (it) => !it.disabled && it.label.toLowerCase().startsWith(typeBuffer),
+            (it) =>
+                !it.disabled && it.label.toLowerCase().startsWith(typeBuffer),
         );
         if (match >= 0) {
             activeIndex = match;
@@ -257,6 +260,9 @@
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        aria-activedescendant={open && activeIndex >= 0
+            ? `${listId}-opt-${activeIndex}`
+            : undefined}
         aria-label={rest['aria-label'] as string | undefined}
         onclick={toggle}
         onkeydown={onTriggerKeydown}
@@ -276,6 +282,7 @@
     >
         {#each items as item, i (item.value + ' ' + i)}
             <div
+                id="{listId}-opt-{i}"
                 role="option"
                 class="option"
                 class:active={i === activeIndex}
@@ -324,12 +331,17 @@
         white-space: nowrap;
         box-shadow:
             0 1px
-                color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000)
+                color-mix(
+                    in oklab,
+                    var(--input-color) calc(var(--tri-depth) * 10%),
+                    #0000
+                )
                 inset,
             0 -1px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
         --input-color: color-mix(in oklab, var(--tri-content) 20%, #0000);
         --size: calc(var(--tri-size-field, 0.25rem) * 10);
-        background-image: linear-gradient(45deg, #0000 50%, currentColor 50%),
+        background-image:
+            linear-gradient(45deg, #0000 50%, currentColor 50%),
             linear-gradient(135deg, currentColor 50%, #0000 50%);
         background-position:
             calc(100% - 20px) calc(1px + 50%),
@@ -371,7 +383,11 @@
     .select.open {
         --input-color: var(--tri-content);
         box-shadow: 0 1px
-            color-mix(in oklab, var(--input-color) calc(var(--tri-depth) * 10%), #0000);
+            color-mix(
+                in oklab,
+                var(--input-color) calc(var(--tri-depth) * 10%),
+                #0000
+            );
         outline: 2px solid var(--input-color);
         outline-offset: 2px;
         isolation: isolate;
@@ -392,7 +408,11 @@
         transition: background-color 0.2s;
     }
     .ghost:hover:not(:disabled) {
-        background-color: color-mix(in oklab, var(--tri-content) 8%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-content) 8%,
+            transparent
+        );
     }
     .ghost:focus-visible,
     .ghost.open {
@@ -413,7 +433,8 @@
         background-color: var(--tri-input-bg);
         color: var(--tri-content);
         border-radius: var(--tri-radius-buttons);
-        box-shadow: 0 8px 24px oklch(0 0 0 / calc(0.12 + var(--tri-depth) * 0.06));
+        box-shadow: 0 8px 24px
+            oklch(0 0 0 / calc(0.12 + var(--tri-depth) * 0.06));
         max-height: 16rem;
         overflow-y: auto;
         min-width: 8rem;
@@ -436,7 +457,11 @@
         background-color: color-mix(in oklab, var(--tri-content) 12%, #0000);
     }
     .option.selected {
-        background-color: color-mix(in oklab, var(--tri-color-primary) 90%, #0000);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-color-primary) 90%,
+            #0000
+        );
         color: var(--tri-color-primary-content);
     }
     .option.selected.active {

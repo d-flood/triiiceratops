@@ -311,9 +311,53 @@
     // non-top-layer flyout pattern as plugin flyouts, so tooltips paint above
     // them too. Only one is open at a time.
     let openMenu = $state<string | null>(null);
+    let toolbarRootEl: HTMLElement | undefined = $state();
 
     function toggleMenu(name: string) {
         openMenu = openMenu === name ? null : name;
+    }
+
+    // When a built-in flyout opens, move keyboard focus into it (menu behavior).
+    // Escape restores focus to the toggle (see handleWindowKeydown). Runs after
+    // the DOM updates so the `.open` panel and its items exist.
+    $effect(() => {
+        if (!openMenu) return;
+        const name = openMenu;
+        requestAnimationFrame(() => {
+            if (openMenu !== name) return;
+            const panel = toolbarRootEl?.querySelector(
+                '[data-flyout-panel].open',
+            );
+            const first = panel?.querySelector<HTMLElement>(
+                '[role="menuitemradio"], [role="menuitemcheckbox"], [role="menuitem"], button, [href], input, select',
+            );
+            first?.focus();
+        });
+    });
+
+    // Roving arrow-key navigation within a built-in flyout menu (ArrowUp/Down,
+    // Home/End). Enter/Space activate natively; Escape is handled globally.
+    function onFlyoutMenuKeydown(e: KeyboardEvent) {
+        const menu = e.currentTarget as HTMLElement;
+        const items = Array.from(
+            menu.querySelectorAll<HTMLElement>(
+                '[role="menuitemradio"], [role="menuitemcheckbox"]',
+            ),
+        );
+        if (items.length === 0) return;
+        const root = menu.getRootNode() as Document | ShadowRoot;
+        const active = root.activeElement as HTMLElement | null;
+        const current = items.findIndex((el) => el === active);
+        let next = -1;
+        if (e.key === 'ArrowDown') next = (current + 1) % items.length;
+        else if (e.key === 'ArrowUp')
+            next = (current - 1 + items.length) % items.length;
+        else if (e.key === 'Home') next = 0;
+        else if (e.key === 'End') next = items.length - 1;
+        if (next >= 0) {
+            e.preventDefault();
+            items[next].focus();
+        }
     }
 
     function closeAllOverlays() {
@@ -345,7 +389,13 @@
 
     function handleWindowKeydown(e: KeyboardEvent) {
         if (e.key === 'Escape') {
+            // Restore focus to the toggle of whichever flyout is open before
+            // dismissing it, so keyboard focus is never dropped to <body>.
+            const openToggle = toolbarRootEl?.querySelector<HTMLElement>(
+                '[data-flyout-toggle][aria-expanded="true"]',
+            );
             closeAllOverlays();
+            openToggle?.focus();
         }
     }
 
@@ -370,6 +420,7 @@
 />
 
 <div
+    bind:this={toolbarRootEl}
     class="toolbar-root"
     class:top-right={position === 'top-right'}
     class:top-left={position === 'top-left'}
@@ -412,9 +463,7 @@
             class:right={!inline && position === 'right'}
             class:docked
             class:inline
-            class:collapsed={inline &&
-                !settled &&
-                !(animating && !isOpen)}
+            class:collapsed={inline && !settled && !(animating && !isOpen)}
         >
             <!-- --- Close Button (hidden in inline mode; the buttons live in the
                  nav bar without a collapse affordance) --- -->
@@ -440,6 +489,7 @@
                         class:menu-active={viewerState.showCollectionPanel}
                         data-tip={m.collection_title()}
                         aria-label={m.toggle_collection()}
+                        aria-pressed={viewerState.showCollectionPanel}
                         onclick={() => viewerState.toggleCollectionPanel()}
                     >
                         <Icon name="Folder" size={24} />
@@ -454,6 +504,7 @@
                         class:menu-active={viewerState.showSearchPanel}
                         data-tip={m.search()}
                         aria-label={m.toggle_search()}
+                        aria-pressed={viewerState.showSearchPanel}
                         onclick={() => viewerState.toggleSearchPanel()}
                     >
                         <Icon name="MagnifyingGlass" size={24} />
@@ -472,6 +523,7 @@
                         aria-label={viewerState.showThumbnailGallery
                             ? m.hide_gallery()
                             : m.show_gallery()}
+                        aria-pressed={viewerState.showThumbnailGallery}
                         onclick={() => viewerState.toggleThumbnailGallery()}
                     >
                         <Icon name="Slideshow" size={24} />
@@ -486,6 +538,7 @@
                         class:menu-active={viewerState.showStructuresPanel}
                         data-tip={m.structures_title()}
                         aria-label={m.toggle_structures()}
+                        aria-pressed={viewerState.showStructuresPanel}
                         onclick={() => viewerState.toggleStructuresPanel()}
                     >
                         <Icon name="ListBullets" size={24} />
@@ -501,6 +554,8 @@
                         data-tip={m.viewing_mode_label()}
                         data-flyout-toggle
                         aria-label={m.viewing_mode_label()}
+                        aria-haspopup="menu"
+                        aria-controls="tri-flyout-viewing-mode"
                         aria-expanded={openMenu === 'viewing-mode'}
                         style="anchor-name:--anchor-viewing-mode"
                         onclick={() => toggleMenu('viewing-mode')}
@@ -514,14 +569,22 @@
                         {/if}
                     </button>
                     <ul
+                        id="tri-flyout-viewing-mode"
                         data-flyout-panel
+                        role="menu"
+                        tabindex="-1"
+                        aria-label={m.viewing_mode_label()}
                         class="menu popover-menu menu-flyout {flyoutPlacement}"
                         class:open={openMenu === 'viewing-mode'}
                         style="position-anchor: --anchor-viewing-mode;"
+                        onkeydown={onFlyoutMenuKeydown}
                     >
-                        <li>
+                        <li role="none">
                             <button
                                 class="menu-item"
+                                role="menuitemradio"
+                                aria-checked={viewerState.viewingMode ===
+                                    'individuals'}
                                 class:menu-active={viewerState.viewingMode ===
                                     'individuals'}
                                 onclick={() =>
@@ -534,9 +597,12 @@
                                 {/if}
                             </button>
                         </li>
-                        <li>
+                        <li role="none">
                             <button
                                 class="menu-item"
+                                role="menuitemradio"
+                                aria-checked={viewerState.viewingMode ===
+                                    'paged'}
                                 class:menu-active={viewerState.viewingMode ===
                                     'paged'}
                                 onclick={() =>
@@ -549,9 +615,12 @@
                                 {/if}
                             </button>
                         </li>
-                        <li>
+                        <li role="none">
                             <button
                                 class="menu-item"
+                                role="menuitemradio"
+                                aria-checked={viewerState.viewingMode ===
+                                    'continuous'}
                                 class:menu-active={viewerState.viewingMode ===
                                     'continuous'}
                                 onclick={() =>
@@ -565,9 +634,11 @@
                             </button>
                         </li>
                         {#if viewerState.viewingMode === 'paged'}
-                            <li>
+                            <li role="none">
                                 <button
                                     class="menu-item text-start"
+                                    role="menuitemcheckbox"
+                                    aria-checked={viewerState.pagedOffset === 1}
                                     class:menu-active={viewerState.pagedOffset ===
                                         1}
                                     onclick={() =>
@@ -594,6 +665,8 @@
                         data-tip={m.sequence_label()}
                         data-flyout-toggle
                         aria-label={m.sequence_label()}
+                        aria-haspopup="menu"
+                        aria-controls="tri-flyout-sequence-picker"
                         aria-expanded={openMenu === 'sequence-picker'}
                         style="anchor-name:--anchor-sequence-picker"
                         onclick={() => toggleMenu('sequence-picker')}
@@ -606,15 +679,23 @@
                         <Icon name="Stack" size={24} />
                     </button>
                     <ul
+                        id="tri-flyout-sequence-picker"
                         data-flyout-panel
+                        role="menu"
+                        tabindex="-1"
+                        aria-label={m.sequence_label()}
                         class="menu popover-menu wide menu-flyout {flyoutPlacement}"
                         class:open={openMenu === 'sequence-picker'}
                         style="position-anchor: --anchor-sequence-picker;"
+                        onkeydown={onFlyoutMenuKeydown}
                     >
                         {#each sequenceOptions as option (option.index)}
-                            <li>
+                            <li role="none">
                                 <button
                                     class="menu-item"
+                                    role="menuitemradio"
+                                    aria-checked={viewerState.selectedSequenceIndex ===
+                                        option.index}
                                     class:menu-active={viewerState.selectedSequenceIndex ===
                                         option.index}
                                     onclick={() =>
@@ -645,6 +726,7 @@
                         aria-label={viewerState.isFullScreen
                             ? m.exit_full_screen()
                             : m.enter_full_screen()}
+                        aria-pressed={viewerState.isFullScreen}
                         onclick={() => viewerState.toggleFullScreen()}
                     >
                         {#if viewerState.isFullScreen}
@@ -663,6 +745,7 @@
                         class:menu-active={viewerState.showAnnotations}
                         data-tip={annotationsTooltip}
                         aria-label={annotationsTooltip}
+                        aria-pressed={viewerState.showAnnotations}
                         onclick={() => viewerState.toggleAnnotations()}
                     >
                         <Icon name="ChatCenteredText" size={24} />
@@ -677,6 +760,7 @@
                         class:menu-active={viewerState.showMetadataPanel}
                         data-tip={m.metadata()}
                         aria-label={m.toggle_metadata()}
+                        aria-pressed={viewerState.showMetadataPanel}
                         onclick={() => viewerState.toggleMetadataPanel()}
                     >
                         <Icon name="Info" size={24} />
@@ -704,6 +788,8 @@
                                 class:menu-active={open}
                                 data-tip={tooltipText}
                                 aria-label={tooltipText}
+                                aria-haspopup="dialog"
+                                aria-controls="tri-flyout-{flyout.domId}"
                                 aria-expanded={open}
                                 data-flyout-toggle
                                 onclick={() => button.onClick()}
@@ -715,9 +801,12 @@
                                  tooltips always paint above it. Kept mounted and
                                  toggled via `.open` so plugin state persists. -->
                             <div
+                                id="tri-flyout-{flyout.domId}"
                                 class="menu-flyout {flyoutPlacement}"
                                 class:open
                                 data-flyout-panel
+                                role="dialog"
+                                aria-label={tooltipText}
                                 style="position-anchor:--anchor-{flyout.domId}"
                             >
                                 <Flyout
@@ -1558,7 +1647,8 @@
         .actions.inline
         > li:first-child
         .tooltip.bottom::after {
-        transform: translateX(0) translateY(var(--tt-pos, -0.25rem)) rotate(180deg);
+        transform: translateX(0) translateY(var(--tt-pos, -0.25rem))
+            rotate(180deg);
         inset: var(--tt-tail) auto auto 0.5rem;
     }
     .tooltip.left::before {
