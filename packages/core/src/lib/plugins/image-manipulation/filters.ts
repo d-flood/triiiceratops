@@ -1,9 +1,11 @@
 import type { ImageFilters } from './types';
 
-// Minimal local type to avoid reliance on missing OpenSeadragon typings.
+// Minimal local type. `drawer.canvas` widened to HTMLElement so it accepts a
+// real OpenSeadragon.Viewer (@types types the drawer canvas as
+// `HTMLCanvasElement | HTMLElement`, since the HTML drawer uses a <div>).
 type OSDViewer = {
     drawer?: {
-        canvas?: HTMLCanvasElement;
+        canvas?: HTMLCanvasElement | HTMLElement;
     };
 };
 

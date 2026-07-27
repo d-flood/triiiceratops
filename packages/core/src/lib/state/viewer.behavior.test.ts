@@ -511,6 +511,76 @@ describe('ViewerState manifest behavior', () => {
         expect(state.annotationVisibilityTouched).toBe(false);
     });
 
+    it('setHoveredAnnotationId sets and clears the hovered annotation id', () => {
+        state.setHoveredAnnotationId('anno-1');
+        expect(state.hoveredAnnotationId).toBe('anno-1');
+
+        state.setHoveredAnnotationId(null);
+        expect(state.hoveredAnnotationId).toBeNull();
+    });
+
+    it('setAnnotationVisible toggles a single id and marks visibility touched', () => {
+        expect(state.annotationVisibilityTouched).toBe(false);
+
+        state.setAnnotationVisible('anno-1', true);
+        expect([...state.visibleAnnotationIds]).toEqual(['anno-1']);
+        expect(state.annotationVisibilityTouched).toBe(true);
+
+        state.setAnnotationVisible('anno-1', false);
+        expect([...state.visibleAnnotationIds]).toEqual([]);
+        expect(state.annotationVisibilityTouched).toBe(true);
+    });
+
+    it('setAllAnnotationsVisible(true) shows every current-canvas annotation', () => {
+        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
+            { id: 'anno-1' },
+            { '@id': 'anno-2' },
+        ]);
+
+        state.manifestId = 'manifest-1';
+        state.canvasId = 'canvas-1';
+
+        state.setAllAnnotationsVisible(true);
+
+        expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
+        expect(state.annotationVisibilityTouched).toBe(true);
+    });
+
+    it('setAllAnnotationsVisible(false) hides all annotations', () => {
+        state.manifestId = 'manifest-1';
+        state.canvasId = 'canvas-1';
+        state.setAnnotationVisible('anno-1', true);
+
+        state.setAllAnnotationsVisible(false);
+
+        expect([...state.visibleAnnotationIds]).toEqual([]);
+        expect(state.annotationVisibilityTouched).toBe(true);
+    });
+
+    it('setGalleryPosition and setGallerySize replace their values', () => {
+        state.setGalleryPosition({ x: 42, y: 84 });
+        expect(state.galleryPosition).toEqual({ x: 42, y: 84 });
+
+        state.setGallerySize({ width: 500, height: 600 });
+        expect(state.gallerySize).toEqual({ width: 500, height: 600 });
+    });
+
+    it('setDockSide keeps the derived docked flags in sync', () => {
+        state.setDockSide('right');
+        expect(state.dockSide).toBe('right');
+        expect(state.isGalleryDockedRight).toBe(true);
+        expect(state.isGalleryDockedBottom).toBe(false);
+
+        state.setDockSide('bottom');
+        expect(state.dockSide).toBe('bottom');
+        expect(state.isGalleryDockedBottom).toBe(true);
+        expect(state.isGalleryDockedRight).toBe(false);
+
+        state.setDockSide('none');
+        expect(state.isGalleryDockedBottom).toBe(false);
+        expect(state.isGalleryDockedRight).toBe(false);
+    });
+
     it('defaults preserveCanvasScale to false in getter and snapshot', () => {
         expect(state.preserveCanvasScale).toBe(false);
         expect(state.getSnapshot().preserveCanvasScale).toBe(false);
