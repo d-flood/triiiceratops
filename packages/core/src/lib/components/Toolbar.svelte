@@ -811,6 +811,7 @@
                                 aria-controls="tri-flyout-{flyout.domId}"
                                 aria-expanded={open}
                                 data-flyout-toggle
+                                data-plugin-toggle={button.pluginId}
                                 onclick={() => button.onClick()}
                                 style="anchor-name:--anchor-{flyout.domId}"
                             >
@@ -861,6 +862,7 @@
                                 class:menu-active={button.isActive?.()}
                                 data-tip={tooltipText}
                                 aria-label={tooltipText}
+                                data-plugin-toggle={button.pluginId}
                                 onclick={() => button.onClick()}
                             >
                                 {#if button.iconDescriptor}

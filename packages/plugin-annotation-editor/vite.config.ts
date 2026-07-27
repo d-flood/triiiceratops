@@ -59,6 +59,8 @@ export default defineConfig({
         bundledCss(),
     ],
     build: {
+        // Lowering private fields leaks helpers outside Vite's generated IIFE.
+        target: 'es2022',
         // Production build so no dev-only `svelte/internal` strings leak into the
         // bundle (the dist is grepped for `svelte/internal` — it must be absent;
         // plugins share no Svelte runtime with core).

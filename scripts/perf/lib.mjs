@@ -39,30 +39,32 @@ export const DEFAULT_RUNS = 9;
 // `pkg` is the browser-runtime registry name; `toggle` is the stable toolbar
 // button marker each plugin renders once activated (used as the "activated"
 // signal — the same selectors the packed-consumer fixtures assert on).
+// The package-name aria-label fallback lets the head-owned harness measure base
+// artifacts built before Toolbar exposed the stable data-plugin-toggle marker.
 export const PLUGINS = [
     {
         key: 'image-manipulation',
         dir: 'packages/plugin-image-manipulation',
         pkg: '@triiiceratops/plugin-image-manipulation',
-        toggle: '[data-tri-im-toggle]',
+        toggle: '[data-plugin-toggle="image-manipulation"],[aria-label="@triiiceratops/plugin-image-manipulation"]',
     },
     {
         key: 'image-download',
         dir: 'packages/plugin-image-download',
         pkg: '@triiiceratops/plugin-image-download',
-        toggle: '[data-tri-id-toggle]',
+        toggle: '[data-plugin-toggle="image-download"],[aria-label="@triiiceratops/plugin-image-download"]',
     },
     {
         key: 'pdf-export',
         dir: 'packages/plugin-pdf-export',
         pkg: '@triiiceratops/plugin-pdf-export',
-        toggle: '[data-tri-pdf-toggle]',
+        toggle: '[data-plugin-toggle="pdf-export"],[aria-label="@triiiceratops/plugin-pdf-export"]',
     },
     {
         key: 'annotation-editor',
         dir: 'packages/plugin-annotation-editor',
         pkg: '@triiiceratops/plugin-annotation-editor',
-        toggle: '[data-tri-ae-toggle]',
+        toggle: '[data-plugin-toggle="annotation-editor"],[aria-label="@triiiceratops/plugin-annotation-editor"]',
     },
 ];
 
