@@ -33,6 +33,13 @@ export default defineConfig({
             // and core's integration tests run against live source with HMR —
             // no plugin rebuild needed. Vite resolves each package's internal
             // `.js` imports to their `.ts`.
+            // The internal, unpublished shared UI primitives (ticket 01):
+            // resolve to source so the dev server and core's tests/build
+            // compile them from `.svelte` with HMR. In the published `build:lib`
+            // path they are inlined into dist by src/packaging/inlineUi.ts.
+            '@triiiceratops/ui': fileURLToPath(
+                new URL('../ui/src/index.ts', import.meta.url),
+            ),
             '@triiiceratops/plugin-sdk': fileURLToPath(
                 new URL('../plugin-sdk/src/index.ts', import.meta.url),
             ),
