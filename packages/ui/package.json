@@ -20,7 +20,8 @@
             "svelte": "./src/index.ts",
             "default": "./src/index.ts"
         },
-        "./*.svelte": "./src/*.svelte"
+        "./*.svelte": "./src/*.svelte",
+        "./vite": "./vite.js"
     },
     "scripts": {
         "build": "tsc -p tsconfig.build.json",

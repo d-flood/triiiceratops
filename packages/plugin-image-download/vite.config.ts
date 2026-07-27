@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { bundledCss } from '@triiiceratops/ui/vite';
 import { defineConfig } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -56,16 +57,25 @@ const external =
 
 export default defineConfig({
     plugins: [
+        // `emitCss: true` + `bundledCss()` extract the (Svelte-scoped) component
+        // CSS into the `virtual:tri-bundled-css` module instead of Svelte's
+        // un-nonced `append_styles` injection, so the plugin installs it through
+        // the nonce-aware SDK style service and `@triiiceratops/ui` components
+        // (and this plugin's own) keep idiomatic `<style>` blocks under strict
+        // CSP. See `@triiiceratops/ui/vite`.
         svelte({
-            emitCss: false,
+            emitCss: true,
             compilerOptions: { customElement: false },
         }),
+        bundledCss(),
     ],
     build: {
         // Production build so no dev-only `svelte/internal` strings or warnings
         // leak into the bundle (the dist is grepped for `svelte/internal` — it
         // must be absent; plugins share no Svelte runtime with core).
         minify: true,
+        // One extracted CSS asset (bundledCss concatenates + strips it).
+        cssCodeSplit: false,
         lib,
         rollupOptions: {
             external,

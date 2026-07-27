@@ -8,6 +8,7 @@
     },
     "dependencies": {
         "@triiiceratops/plugin-image-manipulation": "file:./vendor/_triiiceratops_plugin-image-manipulation.tgz",
+        "@triiiceratops/plugin-pdf-export": "file:./vendor/_triiiceratops_plugin-pdf-export.tgz",
         "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
         "svelte": "^5.43.8",
         "triiiceratops": "file:./vendor/triiiceratops.tgz"

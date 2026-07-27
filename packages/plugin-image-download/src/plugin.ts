@@ -24,6 +24,11 @@ import {
     type SdkPlugin,
 } from '@triiiceratops/plugin-sdk';
 
+// Build-extracted, Svelte-scoped CSS of every bundled component (this plugin's +
+// the `@triiiceratops/ui` primitives), installed through the nonce-aware SDK
+// style service so idiomatic `<style>` blocks stay CSP-safe. See vite.config.ts.
+import BUNDLED_CSS from 'virtual:tri-bundled-css';
+
 import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
 import { DOWNLOAD_ICON } from './icons';
@@ -33,6 +38,7 @@ import { STYLE_ID, STYLES } from './styles';
 const view: PluginView = {
     mount(container, context) {
         const releaseStyles = context.styles.install(STYLES, STYLE_ID);
+        const releaseBundled = context.styles.install(BUNDLED_CSS, 'bundled');
         // Hand the (stable) activation context to the panel through Svelte's
         // component-context map. `getContext` returns it as a plain,
         // non-reactive value — correct, since a fresh mount gets a fresh context.
@@ -44,6 +50,7 @@ const view: PluginView = {
         });
         return () => {
             unmount(app);
+            releaseBundled();
             releaseStyles();
         };
     },

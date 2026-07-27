@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { bundledCss } from '@triiiceratops/ui/vite';
 import { defineConfig } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,9 +17,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * The UI is Svelte, but Svelte is BUNDLED IN (not externalized to a global) in
  * BOTH formats so the plugin shares neither a Svelte runtime nor `svelte/internal`
  * with core (SPEC.md — "Core and browser plugins do not share a Svelte runtime
- * or import private `svelte/internal` modules"). `emitCss: false` keeps any
- * component CSS in the JS; this plugin installs its styles through the SDK style
- * service, so the built output ships no stylesheet.
+ * or import private `svelte/internal` modules"). `emitCss: true` + `bundledCss()`
+ * EXTRACT each component's (Svelte-scoped) CSS through Vite's CSS pipeline instead
+ * of Svelte's runtime `append_styles` injection (which would append an un-nonced
+ * `<style>` to the document head, blocked under a strict `style-src` CSP).
+ * `bundledCss()` (from `@triiiceratops/ui/vite`) collects that extracted CSS into
+ * the `virtual:tri-bundled-css` module and strips the stray `.css` asset, so the
+ * plugin's entry installs it through the root-aware, nonce-aware SDK style service
+ * and keeps shipping a single self-contained JS with no stylesheet. This is what
+ * lets the Flyout and the `@triiiceratops/ui` Range/Tooltip primitives use
+ * idiomatic `<style>` blocks while staying CSP-safe.
  *
  * The two formats differ only in how the peer packages are treated:
  * - ESM (`index.js`): `@triiiceratops/plugin-sdk` and `triiiceratops` stay
@@ -51,15 +59,19 @@ const external =
 export default defineConfig({
     plugins: [
         svelte({
-            emitCss: false,
+            emitCss: true,
             compilerOptions: { customElement: false },
         }),
+        bundledCss(),
     ],
     build: {
         // Production build so no dev-only `svelte/internal` strings or warnings
         // leak into the bundle (the dist is grepped for `svelte/internal` — it
         // must be absent; plugins share no Svelte runtime with core).
         minify: true,
+        // One extracted CSS asset (bundledCss concatenates + strips it), so the
+        // whole bundle's component CSS is installed through the style service.
+        cssCodeSplit: false,
         lib,
         rollupOptions: {
             external,
