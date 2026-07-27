@@ -45,7 +45,8 @@
     // The Activation-scoped controller + locale service, handed in by
     // `view.mount`. Plain (non-reactive) values: the controller's own `$state`
     // carries the reactivity this component reads.
-    const { controller, locale } = getContext<FlyoutContext>(PLUGIN_CONTEXT_KEY);
+    const { controller, locale } =
+        getContext<FlyoutContext>(PLUGIN_CONTEXT_KEY);
 
     // Active-locale reactivity: bump a tick on change so `t()`-derived labels
     // recompute in the viewer's active locale.
@@ -81,7 +82,11 @@
     }>;
 </script>
 
-<div class="tri-im-cluster" role="group" aria-label={t('image_adjustments_title')}>
+<div
+    class="tri-im-cluster"
+    role="group"
+    aria-label={t('image_adjustments_title')}
+>
     <!-- Bare vertical sliders, floating on the canvas side. -->
     <div class="tri-im-sliders">
         {#each sliders as slider (slider.key)}
@@ -114,7 +119,9 @@
                         >{@html slider.glyph}</svg
                     >
                     <!-- eslint-enable svelte/no-at-html-tags -->
-                    <span class="tri-im-val">{controller.filters[slider.key]}%</span>
+                    <span class="tri-im-val"
+                        >{controller.filters[slider.key]}%</span
+                    >
                 </div>
             {/each}
         </div>
@@ -130,7 +137,10 @@
                         aria-pressed={controller.filters.invert}
                         aria-label={t('image_filters_invert')}
                         onclick={() =>
-                            controller.set('invert', !controller.filters.invert)}
+                            controller.set(
+                                'invert',
+                                !controller.filters.invert,
+                            )}
                     >
                         <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
                         <svg viewBox={GLYPHS.viewBox} aria-hidden="true"

@@ -104,7 +104,10 @@ export function createFilterController(
                 !filters.grayscale
             );
         },
-        set<K extends keyof ImageFilters>(key: K, value: ImageFilters[K]): void {
+        set<K extends keyof ImageFilters>(
+            key: K,
+            value: ImageFilters[K],
+        ): void {
             filters = { ...filters, [key]: value };
             apply();
         },

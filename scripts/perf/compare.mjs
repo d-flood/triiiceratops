@@ -83,7 +83,12 @@ async function buildRoot(root) {
     }
 }
 
-async function measureSha(ref, label, opts, { skipIfPreRestructure = false } = {}) {
+async function measureSha(
+    ref,
+    label,
+    opts,
+    { skipIfPreRestructure = false } = {},
+) {
     const sha = await resolveSha(ref);
     const dir = join(opts.outDir, `worktree-${label}-${sha.slice(0, 10)}`);
     heading(`Measuring ${label}: ${ref} (${sha})`);
@@ -270,7 +275,9 @@ async function main() {
     heading('Verdict');
     let failed = false;
     if (preRestructureBase) {
-        warn('base predates the workspace restructure — size/runtime diff skipped');
+        warn(
+            'base predates the workspace restructure — size/runtime diff skipped',
+        );
     } else {
         if (size.regressed) {
             bad('artifact size regression (> 5%)');

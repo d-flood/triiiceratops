@@ -904,8 +904,7 @@
         for (const panel of internalViewerState.pluginPanels) {
             if (
                 panel.isVisible() &&
-                internalViewerState.getPluginPosition(panel.pluginId) ===
-                    'left'
+                internalViewerState.getPluginPosition(panel.pluginId) === 'left'
             ) {
                 panels.push(toPluginPanelItem(panel));
             }

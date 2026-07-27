@@ -91,7 +91,10 @@ export function bundledCss() {
             // chose) with a valid double-quoted JS string of the extracted CSS.
             const pattern = new RegExp(`(['"\`])${PLACEHOLDER}\\1`, 'g');
             for (const chunk of Object.values(bundle)) {
-                if (chunk.type === 'chunk' && chunk.code.includes(PLACEHOLDER)) {
+                if (
+                    chunk.type === 'chunk' &&
+                    chunk.code.includes(PLACEHOLDER)
+                ) {
                     chunk.code = chunk.code.replace(pattern, () => literal);
                 }
             }

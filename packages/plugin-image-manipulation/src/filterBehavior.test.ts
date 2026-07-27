@@ -56,7 +56,10 @@ describe('image-manipulation filter behavior', () => {
         tc.setOsdViewer(osd);
         await flush();
 
-        const cleanup = ImageManipulationPlugin.view.mount(container, tc.context);
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
         await flush();
 
         const brightness = container.querySelector<HTMLInputElement>(
@@ -83,7 +86,10 @@ describe('image-manipulation filter behavior', () => {
         tc.setOsdViewer(osd);
         await flush();
 
-        const cleanup = ImageManipulationPlugin.view.mount(container, tc.context);
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
         await flush();
 
         const invert = container.querySelector<HTMLButtonElement>(
@@ -103,7 +109,10 @@ describe('image-manipulation filter behavior', () => {
         tc.setOsdViewer(osd);
         await flush();
 
-        const cleanup = ImageManipulationPlugin.view.mount(container, tc.context);
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
         await flush();
 
         const brightness = container.querySelector<HTMLInputElement>(
@@ -128,7 +137,10 @@ describe('image-manipulation filter behavior', () => {
         tc.setOsdViewer(osd);
         await flush();
 
-        const cleanup = ImageManipulationPlugin.view.mount(container, tc.context);
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
         await flush();
 
         const brightness = container.querySelector<HTMLInputElement>(
@@ -148,7 +160,10 @@ describe('image-manipulation filter behavior', () => {
         tc.setOsdViewer(makeOsdStub());
         await flush();
 
-        const cleanup = ImageManipulationPlugin.view.mount(container, tc.context);
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
         await flush();
 
         // Core renders the toolbar button; the plugin content carries none.

@@ -64,7 +64,9 @@ export function renderBarrel(svelteFiles: readonly string[]): string {
  */
 export function inlineUi(srcUi: string, distUi: string): string[] {
     if (!existsSync(srcUi)) {
-        throw new Error(`inline-ui: @triiiceratops/ui source not found at ${srcUi}`);
+        throw new Error(
+            `inline-ui: @triiiceratops/ui source not found at ${srcUi}`,
+        );
     }
     mkdirSync(distUi, { recursive: true });
 

@@ -211,7 +211,9 @@ describe('TriiiceratopsViewer × config.plugins[uiId] control + updatable target
         ).not.toBeNull();
 
         // Switch to flyout AFTER mount, via a new config object.
-        props.config = { plugins: { [UIID]: { open: true, target: 'flyout' } } };
+        props.config = {
+            plugins: { [UIID]: { open: true, target: 'flyout' } },
+        };
         await settle();
 
         button = buttonByLabel(target);

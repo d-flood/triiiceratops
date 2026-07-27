@@ -427,9 +427,7 @@
                 aria-hidden="true">{@html GLYPHS.download}</svg
             >
             <!-- eslint-enable svelte/no-at-html-tags -->
-            {isExporting
-                ? t('pdf_export_exporting')
-                : t('pdf_export_download')}
+            {isExporting ? t('pdf_export_exporting') : t('pdf_export_download')}
         </Button>
     </div>
 </div>
