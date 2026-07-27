@@ -4,7 +4,7 @@
     import { manifestsState } from '../state/manifests.svelte';
     import Icon from './Icon.svelte';
     import type { IconName } from '../generated/icons';
-    import { m, language } from '../state/i18n.svelte';
+    import { getMessages, language } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
     import {
         getCanvasNavLayout,
@@ -17,13 +17,12 @@
     import { Button, Select } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    const m = getMessages();
 
     // `unified` controls: the toolbar buttons are embedded at the start of this
     // control bar instead of floating separately.
     const isUnified = $derived(viewerState.config.controls === 'unified');
-    let viewerLocale = $derived(
-        (viewerState.config as { locale?: string }).locale || language.current,
-    );
+    let viewerLocale = $derived(viewerState.config.locale ?? language.current);
 
     // Canvas navigation state
     let showNav = $derived(

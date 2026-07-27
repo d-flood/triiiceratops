@@ -7,7 +7,11 @@
     import FolderIcon from './icons/FolderIcon.svelte';
     import { onDestroy, setContext, untrack } from 'svelte';
     import { cubicOut } from 'svelte/easing';
-    import { language, m } from '../state/i18n.svelte';
+    import {
+        language,
+        getMessages,
+        provideActiveLocale,
+    } from '../state/i18n.svelte';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
@@ -123,10 +127,11 @@
     );
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
     let isDragOver = $state(false);
-    let viewerLocale = $derived(
-        (config as ViewerConfig & { locale?: string })?.locale ||
-            language.current,
-    );
+    // Active locale (CONTEXT.md **Active locale**, ticket 06): the viewer's typed
+    // `config.locale` if set, otherwise the page default. Published to chrome via
+    // Svelte context (below) so every `m.*()` call renders in it; also mirrored
+    // onto ViewerState.activeLocale as observable state.
+    let viewerLocale = $derived(config.locale ?? language.current);
 
     // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
@@ -146,6 +151,24 @@
     const internalViewerState = new ViewerState(null, undefined, []);
     viewerState = internalViewerState; // Expose via bindable prop
     setContext(VIEWER_STATE_KEY, internalViewerState);
+
+    // Publish this viewer's active locale to its chrome subtree, and route all
+    // core message rendering through it. `getMessages()` returns a drop-in `m`
+    // whose calls render in `viewerLocale`; chrome uses `m.*()` unchanged.
+    provideActiveLocale({
+        get current() {
+            return viewerLocale;
+        },
+    });
+    const m = getMessages();
+
+    // Mirror the resolved active locale onto ViewerState as observable state so
+    // subscribers (and ticket 08's PluginLocaleService) are notified on change.
+    // `viewerLocale` already resolves `config.locale ?? page default` reactively,
+    // so this keeps the observable identical to the locale the chrome renders in.
+    $effect(() => {
+        internalViewerState.activeLocale = viewerLocale;
+    });
 
     $effect(() => {
         internalViewerState.setManifestRequestConfig(config?.requests);

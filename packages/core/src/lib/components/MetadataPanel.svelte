@@ -2,7 +2,7 @@
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
 	import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-	import { m, language } from '../state/i18n.svelte';
+	import { getMessages, language } from '../state/i18n.svelte';
 	import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
 	import {
 		normalizeIiifLinks,
@@ -15,10 +15,9 @@
 	import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    const m = getMessages();
     let { embedded = false }: { embedded?: boolean } = $props();
-    let viewerLocale = $derived(
-        (viewerState.config as { locale?: string }).locale || language.current,
-    );
+    let viewerLocale = $derived(viewerState.config.locale ?? language.current);
 
     let manifest = $derived(viewerState.manifest);
     let json = $derived(manifest?.__jsonld);

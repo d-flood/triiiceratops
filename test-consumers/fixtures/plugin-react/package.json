@@ -1,0 +1,20 @@
+{
+    "name": "consumer-plugin-react",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build"
+    },
+    "dependencies": {
+        "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
+        "react": "19.2.7",
+        "react-dom": "19.2.7",
+        "svelte": "5.56.6",
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "vite": "^6.0.0"
+    }
+}

@@ -2,6 +2,7 @@ import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
 import { STATE_INVENTORY } from './state-inventory.js';
+import { getLocale } from '../paraglide/runtime.js';
 import type {
     PluginUiConfig,
     RequestConfig,
@@ -291,6 +292,21 @@ export class ViewerState {
     config: ViewerConfig = $state({});
     searchProvider: SearchProvider | null = $state.raw(null);
     manifestRequestConfig: RequestConfig | undefined = $state.raw(undefined);
+
+    /**
+     * This viewer's active locale (BCP-47) — its `config.locale` if set,
+     * otherwise the page default (CONTEXT.md **Active locale**, ticket 06).
+     * Observable state: readable and notifying, with no plugin-facing mutator.
+     * Locale is *set* through `config.locale`; core (the viewer root) mirrors the
+     * resolved value onto this field whenever the config or the page locale
+     * changes, exactly as it mirrors other external facts (e.g. `isFullScreen`),
+     * so the reactivity-driven watcher (ADR 0008) notifies subscribers. All of
+     * the viewer's chrome renders in this locale (via the i18n context) and
+     * ticket 08's `PluginLocaleService` will consume it. Defaults to the page
+     * locale at construction so a server render and a subscriber-less viewer
+     * both read a correct value before the first mirror runs.
+     */
+    activeLocale = $state<string>(getLocale());
 
     // Derived configuration specific getters
     get showToggle() {

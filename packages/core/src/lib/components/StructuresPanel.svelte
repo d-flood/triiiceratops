@@ -3,12 +3,13 @@
     import { getContext } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import type { StructureNode } from '../utils/structures';
     import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     let { embedded = false }: { embedded?: boolean } = $props();
+    const m = getMessages();
 
     let structures = $derived(
         viewerState.structures.filter(

@@ -2,7 +2,7 @@
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m, language } from '../state/i18n.svelte';
+    import { getMessages, language } from '../state/i18n.svelte';
     import {
         normalizeIiifLinks,
         normalizeMetadataEntries,
@@ -12,9 +12,8 @@
     import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
-    let viewerLocale = $derived(
-        (viewerState.config as { locale?: string }).locale || language.current,
-    );
+    const m = getMessages();
+    let viewerLocale = $derived(viewerState.config.locale ?? language.current);
 
     let canvas = $derived.by(() => {
         const idx = viewerState.currentCanvasIndex;

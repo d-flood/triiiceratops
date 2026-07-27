@@ -1,6 +1,6 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import { Button, Toggle, Checkbox, Select, Range } from './ui';
     import { BUILTIN_THEMES, type BuiltInTheme } from '../theme/types';
 
@@ -23,6 +23,7 @@
         onReset?: () => void;
         onShare?: () => Promise<void>;
     } = $props();
+    const m = getMessages();
 
     // When the demo is loaded via an `iiif-content` state URL, the "Docked rail"
     // preset starts with the toolbar already open rather than collapsed.

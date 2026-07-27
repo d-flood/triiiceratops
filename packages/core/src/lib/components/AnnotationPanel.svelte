@@ -2,7 +2,7 @@
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
     import { Button, Badge } from './ui';
@@ -10,6 +10,7 @@
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
     let { embedded = false }: { embedded?: boolean } = $props();
+    const m = getMessages();
 
     let position = $derived(
         viewerState.config.annotations?.position ?? 'right',

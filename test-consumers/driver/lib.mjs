@@ -125,20 +125,27 @@ export function copyFixture(fixtureName, destRoot) {
     return dest;
 }
 
+/** Stable vendored tarball filename for a (possibly scoped) package name. */
+export function vendoredTarballName(depName) {
+    return `${depName.replace(/[@/]/g, '_')}.tgz`;
+}
+
 /**
- * Point the fixture's `triiiceratops` dependency at the freshly packed tarball,
- * vendored to a stable relative path so the committed lockfile stays valid
- * except for the tarball's own integrity hash.
+ * Point a fixture dependency at the freshly packed tarball, vendored to a stable
+ * relative path so the committed lockfile stays valid except for the tarball's
+ * own integrity hash. `depName` defaults to `triiiceratops`; pass the scoped
+ * name (e.g. `@triiiceratops/plugin-sdk`) to inject additional packed packages.
  */
-export function injectTarball(fixtureDir, tarballPath) {
+export function injectTarball(fixtureDir, tarballPath, depName = 'triiiceratops') {
     const vendorDir = join(fixtureDir, 'vendor');
     mkdirSync(vendorDir, { recursive: true });
-    const vendored = join(vendorDir, 'triiiceratops.tgz');
+    const fileName = vendoredTarballName(depName);
+    const vendored = join(vendorDir, fileName);
     cpSync(tarballPath, vendored);
     const pkgPath = join(fixtureDir, 'package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     pkg.dependencies = pkg.dependencies || {};
-    pkg.dependencies.triiiceratops = 'file:./vendor/triiiceratops.tgz';
+    pkg.dependencies[depName] = `file:./vendor/${fileName}`;
     writeFileSync(pkgPath, JSON.stringify(pkg, null, 4) + '\n');
 }
 
