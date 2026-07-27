@@ -1,6 +1,14 @@
+<!--
+    No `tag` here on purpose: with a string `tag`, the Svelte compiler emits an
+    unconditional `customElements.define` at module import, which (a) crashes on a
+    same-version double-load and (b) can't be made version-aware. Omitting `tag`
+    compiles the component to a custom-element class exposed as
+    `TriiiceratopsViewerElement.element` without registering it, so
+    `browser-runtime.ts` owns idempotent, first-wins, version-aware registration
+    for both the IIFE and ESM Web Component entries (ticket 10).
+-->
 <svelte:options
     customElement={{
-        tag: 'triiiceratops-viewer',
         shadow: 'open',
         props: {
             manifestId: {

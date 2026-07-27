@@ -57,6 +57,7 @@
             "import": "./dist/triiiceratops-bundle.js"
         },
         "./element": "./dist/triiiceratops-element.iife.js",
+        "./element/register": "./dist/triiiceratops-element.js",
         "./plugins/image-manipulation.iife": "./dist/triiiceratops-plugin-image-manipulation.iife.js",
         "./plugins/annotation-editor.iife": "./dist/triiiceratops-plugin-annotation-editor.iife.js",
         "./plugins/pdf-export.iife": "./dist/triiiceratops-plugin-pdf-export.iife.js",
@@ -79,7 +80,7 @@
         "pretest": "pnpm gen:icons",
         "precheck": "pnpm gen:icons",
         "build:lib": "pnpm gen:icons && paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && node ./src/packaging/pruneDist.ts && vite build --config vite.config.lib.ts && vite build --config vite.config.styles.ts && rm -f dist/triiiceratops-styles.js && pnpm check:runtime-deps",
-        "build:element": "vite build --config vite.config.element.ts",
+        "build:element": "vite build --config vite.config.element.ts && vite build --config vite.config.element-esm.ts",
         "build:demo": "vite build --config vite.config.demo.ts && mkdir -p ../../docs/demo && cp -r ../../docs/viewer/. ../../docs/demo/.",
         "build:svelte-demo": "vite build --config vite.config.svelte-demo.ts",
         "build:consumer": "rm -rf ../../docs/demo-consumer && mkdir -p ../../docs/demo-consumer && cp src/demo-consumer/index.html ../../docs/demo-consumer/index.html && cp src/demo-consumer/app.css ../../docs/demo-consumer/app.css && rm -rf ../../docs/dist && cp -r dist ../../docs/dist",
