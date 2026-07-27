@@ -157,8 +157,8 @@ Steps:
     pnpm changeset pre exit
     pnpm changeset version   # or merge the resulting Version Packages PR
     ```
-   This flips `1.0.0-rc.N` → `1.0.0` and moves the dist-tag from `rc` to `latest`.
-   The only diff from the final RC is version metadata + changelog.
+    This flips `1.0.0-rc.N` → `1.0.0` and moves the dist-tag from `rc` to `latest`.
+    The only diff from the final RC is version metadata + changelog.
 3. Let required CI run on the stable commit and go green (reproducibility proves
    the stable tarballs are deterministic).
 4. The **Release** workflow promotes those artifacts to the `latest` dist-tag,
@@ -181,6 +181,70 @@ Run it on demand:
 gh workflow run canary.yml
 ```
 
+## Documentation site (versioned)
+
+The docs site is **versioned** (ticket 39): each release publishes into a
+`/<major.minor>/` subdirectory of the Pages site, and previously published
+version directories are **immutable** — publishing `1.1` never touches `/1.0/`,
+so the guides for a released line stay reachable forever. The version path and
+the version shown in the site chrome both **derive from the core `package.json`
+version** — nothing is hand-maintained.
+
+### What publishes automatically
+
+On every push to `main`, the **Documentation** workflow (`.github/workflows/docs.yml`)
+deploy job:
+
+1. Resolves the docs version from `packages/core/package.json` via
+   `node scripts/docs-version.mjs` (e.g. `1.0.0-rc.25` → `1.0`).
+2. Restores all previously published version directories from the durable
+   `docs-site` storage branch.
+3. Builds the versioned site and overlays it under `/<version>/`, preserving the
+   other versions, via `node scripts/docs-publish.mjs` — which also regenerates
+   `versions.json`, the human-browsable `/versions/` index, and the root +
+   `/latest/` redirects that point at the newest version.
+4. Pushes the accumulated site back to `docs-site` and uploads it as the Pages
+   artifact. **`docs-site` is storage only — the Pages source stays "GitHub
+   Actions" (the uploaded artifact); it is not a branch-served Pages source.**
+
+The version banner in the header ("You are viewing the documentation for
+Triiiceratops vX.Y — View other versions") is rendered by `overrides/main.html`
+from `[project.extra]` keys injected at build time; the committed `zensical.toml`
+stays version-agnostic so a plain `pnpm docs:build` is an unversioned developer
+preview.
+
+### What a human checks after a release deploy
+
+- The new `/<version>/` is live and its banner shows the right version.
+- `/latest/` and the site root both redirect to the newest version.
+- `/versions/` lists every published version with the newest marked **latest**.
+- Older version directories still resolve unchanged (spot-check `/1.0/`).
+
+### Verifying the versioning logic locally (two-deploy proof)
+
+The publish layer is generator-agnostic and fully exercisable without CI. This
+simulates two successive releases into a scratch publish dir and confirms the
+first version survives the second deploy:
+
+```bash
+pip install zensical   # or: uv tool install zensical
+PAGES=$(mktemp -d)
+node scripts/docs-publish.mjs --dest "$PAGES" --version 1.0
+node scripts/docs-publish.mjs --dest "$PAGES" --version 1.1
+ls "$PAGES"                       # 1.0  1.1  latest  versions  index.html  versions.json
+cat "$PAGES/versions.json"        # 1.1 (latest), 1.0
+grep -o 'url=[^"]*' "$PAGES/latest/index.html"   # -> ../1.1/
+# /1.0/ is byte-identical to its first deploy (immutable).
+```
+
+### Native versioning follow-up
+
+Zensical has **no native versioning** yet: its docs describe the `mike` fork as
+"a bridge solution until we introduce native versioning support", and that fork
+is git-install-only (not on PyPI) and assumes a `gh-pages`-branch deploy model,
+which is why versioning lives in `scripts/docs-publish.mjs` instead. `versions.json`
+is written in mike's schema, so switching to native versioning later is low-cost.
+
 ## Secrets & one-time human actions
 
 - **npm trusted publishing (OIDC):** enroll all six packages (see above). This is
@@ -192,3 +256,8 @@ gh workflow run canary.yml
   `issues: write` for the canary, `pull-requests: write` for the Version PR).
 - **GitHub Pages / demo host:** the soak deploy of the demo + docs at exact RC
   versions is operated outside this repo's release workflows.
+- **GitHub Pages source:** must stay **"GitHub Actions"** (not "Deploy from a
+  branch"). The docs workflow keeps the accumulated versioned site on the
+  `docs-site` branch as storage and uploads it as the Pages artifact — pointing
+  Pages at a branch instead would break the versioned deploy. The `docs-site`
+  branch is created automatically on the first deploy; no manual setup needed.

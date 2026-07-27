@@ -25,6 +25,6 @@
  */
 
 import { PdfExportPlugin } from './plugin';
-import { registerBrowserPlugin } from './register';
+import { registerBrowserPlugin } from '@triiiceratops/plugin-sdk/register';
 
 registerBrowserPlugin(PdfExportPlugin);

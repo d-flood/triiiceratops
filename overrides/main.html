@@ -4,4 +4,15 @@
     src="https://stats.dflood.org/script.js"
     data-website-id="014602e8-8f96-4f61-8fd7-02f323a5dfe7"
 ></script>
-{{ super() }} {% endblock %}
+{{ super() }} {% endblock %} {# Version banner (ticket 39). Shows which
+documentation version is being viewed and links to the other published versions.
+`docs_version` / `docs_full_version` / `docs_versions_url` are injected into
+`[project.extra]` at build time from the core package.json version by
+scripts/docs-build.mjs — they are never hand-maintained. On an unversioned
+developer build the keys are absent and this banner renders nothing. #} {% block
+announce %} {% if config.extra.docs_version %} You are viewing the documentation
+for
+<strong>Triiiceratops&nbsp;v{{ config.extra.docs_version }}</strong>. {% if
+config.extra.docs_versions_url %}
+<a href="{{ config.extra.docs_versions_url }}">View other versions</a>. {% endif
+%} {% endif %} {% endblock %}

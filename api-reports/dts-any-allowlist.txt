@@ -64,6 +64,8 @@ triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function ex
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function isFullCanvasAnnotation(annotation: any): boolean;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean): ParsedAnnotation | null;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>): ParsedAnnotation[];
+triiiceratops :: dist/utils/canvasImageSpace.d.ts :: on?: any;
+triiiceratops :: dist/utils/canvasImageSpace.d.ts :: target?: any;
 triiiceratops :: dist/utils/canvasLabels.d.ts :: export declare function getCanvasLabel(canvas: any, fallbackIndex?: number): string;
 triiiceratops :: dist/utils/collections.d.ts :: export declare function getCollectionLabel(json: any): string;
 triiiceratops :: dist/utils/collections.d.ts :: export declare function getCollectionThumbnail(json: any): string | undefined;

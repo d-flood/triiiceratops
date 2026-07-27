@@ -117,6 +117,8 @@ storybook-static/
 .venv/
 __pycache__
 site/
+# Generated effective zensical config (docs-build.mjs); never committed.
+.zensical.effective.toml
 docs/demo*
 docs/viewer*
 docs/svelte*

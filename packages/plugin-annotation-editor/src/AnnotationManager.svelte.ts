@@ -18,11 +18,11 @@ import type { ViewerState } from 'triiiceratops';
 import {
     canvasPointToImagePoint,
     imagePointToCanvasPoint,
+    resolveCanvasImage,
     transformAnnotationToCanvasSpace,
     transformAnnotationToImageSpace,
     type CanvasImageSpaceDimensions,
-} from './utils/canvasImageSpace';
-import { resolveCanvasImage } from './utils/resolveCanvasImage';
+} from 'triiiceratops/image-export';
 import { resolvePointRadius } from './utils/pointMarker';
 
 /** Every tool the plugin knows how to draw, in default button order. */

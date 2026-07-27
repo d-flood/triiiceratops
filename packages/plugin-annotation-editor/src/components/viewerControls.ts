@@ -1,4 +1,4 @@
-import { getCanvasId } from '../utils/iiifIds';
+import { getCanvasId } from 'triiiceratops/image-export';
 
 export type ChoiceGroup = {
     canvasId: string;

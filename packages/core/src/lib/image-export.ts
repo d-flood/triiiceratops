@@ -41,6 +41,15 @@ export {
     type ExportSizeOption,
 } from './utils/imageExport';
 
+// Canvas ↔ image coordinate-space scaling and annotation geometry transforms.
+export {
+    canvasPointToImagePoint,
+    imagePointToCanvasPoint,
+    transformAnnotationToCanvasSpace,
+    transformAnnotationToImageSpace,
+    type CanvasImageSpaceDimensions,
+} from './utils/canvasImageSpace';
+
 // Multi-canvas layout math.
 export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP } from './components/osdLayout';
 
