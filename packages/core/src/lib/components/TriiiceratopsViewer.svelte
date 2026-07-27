@@ -36,8 +36,16 @@
         DEFAULT_NAV_ALIGN,
         DEFAULT_TOOLBAR_ANCHOR,
     } from '../types/config';
-    import type { PluginDef, SdkPlugin } from '../types/plugin';
-    import { isSdkPlugin } from '../types/plugin';
+    import type {
+        PluginDef,
+        SdkPlugin,
+        PluginError,
+        PluginErrorReport,
+        PluginErrorPhase,
+        IconDescriptor,
+    } from '../types/plugin';
+    import { isSdkPlugin, PLUGIN_ERROR_EVENT } from '../types/plugin';
+    import SdkPluginError from './SdkPluginError.svelte';
     import {
         CORE_VERSION,
         pluginApiVersion,
@@ -103,6 +111,13 @@
         /** Bindable viewer state instance for external access (Svelte consumers) */
         viewerState?: ViewerState;
         initialCanvasRegion?: CanvasRegion | null;
+        /**
+         * Host callback for the structured plugin-failure channel (ticket 09).
+         * Called with the SAME {@link PluginError} object dispatched as the
+         * bubbling, composed `pluginerror` CustomEvent from the viewer root, so
+         * a host can present or report the failure and call `retry()`.
+         */
+        onpluginerror?: (error: PluginError) => void;
     }
 
     type ViewerTileSourceError =
@@ -121,6 +136,7 @@
         searchProvider = null,
         viewerState = $bindable(),
         initialCanvasRegion = null,
+        onpluginerror,
     }: Props = $props();
 
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
@@ -363,7 +379,30 @@
     // service, a per-viewer locale service over the plugin's catalog, and the
     // icon-rendering UI service.
     let sdkPluginHost: HTMLElement | undefined = $state();
-    let sdkActivations: Array<{ el: HTMLElement; deactivate: () => void }> = [];
+
+    // One activation record per mounted SDK plugin. `deactivate` runs the failed
+    // OR healthy instance's teardown (cleanups + drop subscriptions + release
+    // styles); `primaryReported` de-dupes repeated command/subscription failures
+    // from the same still-live instance so the channel fires once per failure,
+    // not once per flush.
+    interface SdkActivationRecord {
+        plugin: SdkPlugin;
+        el: HTMLElement;
+        deactivate: () => void;
+        primaryReported: boolean;
+    }
+    let sdkActivations: SdkActivationRecord[] = [];
+
+    // Plugin-local error state (ticket 09), keyed by plugin name: the failed
+    // plugin's badged toolbar button + retry panel render from this. Reactive so
+    // the error UI appears on failure and clears on a successful retry.
+    let pluginErrors = $state<
+        Record<
+            string,
+            { payload: PluginError; icon: IconDescriptor }
+        >
+    >({});
+    let pluginErrorList = $derived(Object.values(pluginErrors));
 
     // The owning viewer's active-locale observable, shared by every SDK plugin's
     // locale service. Reads `ViewerState.activeLocale` (mirrored from
@@ -384,6 +423,138 @@
             });
         },
     };
+
+    /**
+     * Deliver one structured plugin failure (ticket 09) on BOTH channels with
+     * the SAME object: the bubbling, composed `pluginerror` CustomEvent from the
+     * viewer root and the `onpluginerror` host callback. Sets the plugin-local
+     * error UI state. Repeated command/subscription failures from the same
+     * still-live instance are de-duped (they keep throwing every flush until
+     * retry); `cleanup` failures always fire (they occur during teardown and
+     * must each be reported).
+     */
+    function emitPluginError(
+        record: SdkActivationRecord,
+        phase: PluginErrorPhase,
+        error: unknown,
+    ) {
+        if (phase !== 'cleanup') {
+            if (record.primaryReported) return;
+            record.primaryReported = true;
+        }
+
+        const payload: PluginError = {
+            pluginName: record.plugin.name,
+            pluginVersion: record.plugin.version,
+            phase,
+            error,
+            retry: () => retrySdkPlugin(record.plugin),
+        };
+
+        // Plugin-local error UI (a `cleanup` failure during retry teardown does
+        // not overwrite an existing primary error card).
+        if (phase !== 'cleanup' || !pluginErrors[record.plugin.name]) {
+            pluginErrors = {
+                ...pluginErrors,
+                [record.plugin.name]: { payload, icon: record.plugin.icon },
+            };
+        }
+
+        // Bubbling + composed so it escapes the shadow root to WC hosts.
+        rootElement?.dispatchEvent(
+            new CustomEvent(PLUGIN_ERROR_EVENT, {
+                detail: payload,
+                bubbles: true,
+                composed: true,
+            }),
+        );
+        // Host callback — the SAME object.
+        onpluginerror?.(payload);
+    }
+
+    /** Activate one SDK plugin, wiring the per-plugin error channel. */
+    function activateSdkPlugin(plugin: SdkPlugin) {
+        const host = sdkPluginHost;
+        if (!host) return;
+
+        const el = document.createElement('div');
+        el.className = 'tri-sdk-plugin';
+        el.dataset.pluginName = plugin.name;
+        el.dataset.pluginTarget = plugin.target;
+        host.appendChild(el);
+
+        const record: SdkActivationRecord = {
+            plugin,
+            el,
+            deactivate: () => {},
+            primaryReported: false,
+        };
+        sdkActivations.push(record);
+
+        const reportError = (report: PluginErrorReport) => {
+            // A failed mount leaves partial (possibly broken) DOM in the
+            // container; hide it so only the plugin-local error UI shows.
+            if (report.phase === 'setup' || report.phase === 'mount') {
+                el.style.display = 'none';
+            }
+            emitPluginError(record, report.phase, report.error);
+        };
+
+        try {
+            const activation = plugin.activate({
+                container: el,
+                viewerState: internalViewerState,
+                coreVersion: CORE_VERSION,
+                pluginApiVersion,
+                capabilities: coreCapabilities,
+                styles: createPluginStyleService(
+                    internalViewerState.getStyleRoot() ?? document,
+                    plugin.name,
+                ),
+                locale: createPluginLocaleService(
+                    sdkLocaleSource,
+                    plugin.catalog,
+                ),
+                ui: createPluginUiService(),
+                reportError,
+            });
+            record.deactivate = activation.deactivate;
+        } catch (error) {
+            // A plugin whose `activate` throws outright (no `reportError`
+            // routing) is still isolated — treat it as a setup failure so one
+            // plugin cannot take down the viewer or other plugins.
+            el.style.display = 'none';
+            emitPluginError(record, 'setup', error);
+        }
+    }
+
+    /**
+     * Manual retry = full re-activation (CONTEXT.md **Retry**): tear the failed
+     * instance down (run its cleanups, drop its subscriptions, release its
+     * styles), clear its error UI, then activate fresh. No auto-retry/backoff.
+     */
+    function retrySdkPlugin(plugin: SdkPlugin) {
+        const index = sdkActivations.findIndex((r) => r.plugin === plugin);
+        if (index !== -1) {
+            const record = sdkActivations[index];
+            sdkActivations.splice(index, 1);
+            try {
+                record.deactivate();
+            } catch (error) {
+                console.error(
+                    '[triiiceratops] SDK plugin deactivation threw during retry; teardown continues.',
+                    error,
+                );
+            }
+            record.el.remove();
+        }
+
+        // Clear this plugin's error card before re-activating.
+        const { [plugin.name]: _removed, ...rest } = pluginErrors;
+        pluginErrors = rest;
+
+        activateSdkPlugin(plugin);
+    }
 
     function teardownSdkActivations() {
         for (const activation of sdkActivations) {
@@ -407,50 +578,16 @@
 
         untrack(() => {
             teardownSdkActivations();
+            pluginErrors = {};
 
             for (const plugin of currentSdkPlugins) {
-                const el = document.createElement('div');
-                el.className = 'tri-sdk-plugin';
-                el.dataset.pluginName = plugin.name;
-                el.dataset.pluginTarget = plugin.target;
-                host.appendChild(el);
-
-                try {
-                    const activation = plugin.activate({
-                        container: el,
-                        viewerState: internalViewerState,
-                        coreVersion: CORE_VERSION,
-                        pluginApiVersion,
-                        capabilities: coreCapabilities,
-                        styles: createPluginStyleService(
-                            internalViewerState.getStyleRoot() ?? document,
-                            plugin.name,
-                        ),
-                        locale: createPluginLocaleService(
-                            sdkLocaleSource,
-                            plugin.catalog,
-                        ),
-                        ui: createPluginUiService(),
-                    });
-                    sdkActivations.push({
-                        el,
-                        deactivate: activation.deactivate,
-                    });
-                } catch (error) {
-                    // Ticket 09 routes this through the structured `pluginerror`
-                    // channel; for now, isolate the failure so one incompatible
-                    // plugin cannot take down the viewer or other plugins.
-                    el.remove();
-                    console.error(
-                        `[triiiceratops] SDK plugin "${plugin.name}" failed to activate.`,
-                        error,
-                    );
-                }
+                activateSdkPlugin(plugin);
             }
         });
 
         return () => {
             teardownSdkActivations();
+            pluginErrors = {};
         };
     });
 
@@ -1170,6 +1307,16 @@
          SDK plugin is mounted into its own child container appended here; the
          plugin owns rendering and returns a cleanup function. -->
     <div class="tri-sdk-plugin-host" bind:this={sdkPluginHost}></div>
+
+    <!-- Plugin-local error states (ticket 09): a badged toolbar button + retry
+         panel per failed SDK plugin. No global viewer error UI. -->
+    {#if pluginErrorList.length > 0}
+        <div class="tri-sdk-plugin-errors" data-plugin-error-rail>
+            {#each pluginErrorList as entry (entry.payload.pluginName)}
+                <SdkPluginError error={entry.payload} icon={entry.icon} />
+            {/each}
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -1187,6 +1334,19 @@
     }
     .viewer-root.opaque {
         background-color: var(--tri-viewer-bg);
+    }
+
+    /* Plugin-local error states (ticket 09): a compact rail of badged buttons,
+       one per failed SDK plugin, floating clear of the toolbar. */
+    .tri-sdk-plugin-errors {
+        position: absolute;
+        top: var(--ui-inset, 0.5rem);
+        right: var(--ui-inset, 0.5rem);
+        z-index: 55;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        pointer-events: none;
     }
 
     .side-col {

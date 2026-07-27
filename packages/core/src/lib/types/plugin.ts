@@ -344,6 +344,15 @@ export interface PluginHost {
     readonly styles?: PluginStyleService;
     readonly locale?: PluginLocaleService;
     readonly ui?: PluginUiService;
+    /**
+     * Report a plugin lifecycle failure to the host (ticket 09). When present,
+     * the SDK routes every guarded phase failure here instead of throwing, so
+     * the host can present a plugin-local error state and offer retry. When
+     * absent (direct SDK / test-kit use with no host), setup and mount failures
+     * throw as before and subscription/command/cleanup failures fall back to a
+     * console error.
+     */
+    readonly reportError?: (report: PluginErrorReport) => void;
 }
 
 /** Handle returned by a successful activation. */
@@ -354,6 +363,76 @@ export interface PluginActivation {
      */
     deactivate(): void;
 }
+
+// ============================================================================
+// Plugin failure isolation (ticket 09)
+// ----------------------------------------------------------------------------
+// One structured channel for every plugin lifecycle failure. A failure in any
+// phase for one plugin leaves the viewer and all other plugins operational
+// (SPEC.md "Plugin SDK And Browser API" — failure isolation). The payload is
+// delivered identically two ways: a bubbling, composed `pluginerror` DOM event
+// from the viewer root AND a host callback (Svelte prop / element property).
+//
+// The type is defined ONCE here (core owns the plugin seam types) so ticket 18
+// can reuse the shape for a `viewererror` channel and ticket 21 can snapshot it.
+// ============================================================================
+
+/**
+ * The plugin lifecycle phase a failure occurred in (CONTEXT.md **Retry** /
+ * SPEC.md failure isolation). Each value maps to a guarded call site:
+ * - `setup`: activation setup before mount — compatibility negotiation and
+ *   context/selector-runtime/service construction.
+ * - `mount`: the plugin's `PluginView.mount`.
+ * - `command`: a selector projection threw while recomputing the plugin's
+ *   selected state in reaction to a viewer command (a state-change flush).
+ * - `subscription`: a selector subscribe listener threw during notification
+ *   delivery (attributed via the `ViewerState.subscribe` listener guard).
+ * - `cleanup`: a teardown cleanup threw; the remaining cleanups still run.
+ */
+export type PluginErrorPhase =
+    | 'setup'
+    | 'mount'
+    | 'command'
+    | 'subscription'
+    | 'cleanup';
+
+/**
+ * The normative `pluginerror` payload. Delivered as the `detail` of the
+ * bubbling, composed `pluginerror` CustomEvent from the viewer root AND to the
+ * host callback — the SAME object both ways.
+ */
+export interface PluginError {
+    /** Package-qualified name of the failing plugin. */
+    readonly pluginName: string;
+    /** Version of the failing plugin. */
+    readonly pluginVersion: string;
+    /** The lifecycle phase the failure occurred in. */
+    readonly phase: PluginErrorPhase;
+    /** The thrown value (usually an `Error`), passed through unchanged. */
+    readonly error: unknown;
+    /**
+     * Manually re-activate the plugin (CONTEXT.md **Retry**): run the failed
+     * instance's cleanups, drop its subscriptions, release its styles, then
+     * activate fresh. No automatic retries or backoff. Safe to call from the
+     * user's error-state affordance or directly from the host.
+     */
+    retry(): void;
+}
+
+/**
+ * What the SDK reports to the host when a phase fails. Core enriches it with the
+ * plugin identity and `retry()` to build the {@link PluginError} delivered on
+ * both channels, so the SDK stays free of DOM-event and retry concerns.
+ */
+export interface PluginErrorReport {
+    /** The lifecycle phase the failure occurred in. */
+    readonly phase: PluginErrorPhase;
+    /** The thrown value, passed through unchanged. */
+    readonly error: unknown;
+}
+
+/** The DOM event name for the structured plugin-failure channel. */
+export const PLUGIN_ERROR_EVENT = 'pluginerror';
 
 /** Declarative metadata + view an SDK plugin is defined with. */
 export interface SdkPluginMeta {

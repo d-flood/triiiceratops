@@ -58,6 +58,7 @@
     import type { ViewerConfig } from '../types/config';
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
     import type { ViewerState } from '../state/viewer.svelte';
+    import type { PluginError } from '../types/plugin';
     import type { CanvasRegion } from '../utils/contentState';
     import { parseJsonProp } from '../utils/jsonProp';
 
@@ -70,11 +71,20 @@
         themeConfig = undefined as string | ThemeConfig | undefined,
         config = undefined as string | ViewerConfig | undefined,
         initialCanvasRegion = undefined as string | CanvasRegion | undefined,
+        onpluginerror = undefined as
+            | ((error: PluginError) => void)
+            | undefined,
     }: {
         manifestId?: string;
         manifestJson?: string | Record<string, any>;
         canvasId?: string;
         plugins?: PluginDef[];
+        /**
+         * Element-property host callback for the `pluginerror` channel
+         * (ticket 09). WC hosts may also listen for the bubbling, composed
+         * `pluginerror` DOM event on the element.
+         */
+        onpluginerror?: (error: PluginError) => void;
         /**
          * Built-in theme name (e.g., 'light', 'dark', 'teal').
          * When not specified, inherits the theme from the parent context.
@@ -195,6 +205,7 @@
         themeConfig={parsedThemeConfig}
         config={parsedConfig}
         initialCanvasRegion={parsedInitialCanvasRegion}
+        {onpluginerror}
         bind:viewerState={internalViewerState}
     />
 </div>

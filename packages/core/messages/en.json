@@ -216,5 +216,11 @@
     "pdf_export_error_failed": "Unable to export PDF. Check the browser console for details.",
     "pdf_export_error_not_available": "PDF export is not available for this item because the image source does not allow direct browser download access.",
     "pdf_export_error_no_canvases": "No canvases available to export.",
-    "pdf_export_error_no_canvases_exported": "Unable to export any canvases to PDF."
+    "pdf_export_error_no_canvases_exported": "Unable to export any canvases to PDF.",
+    "plugin_error_button_label": "{plugin} failed. Show error details.",
+    "plugin_error_heading": "Plugin failed",
+    "plugin_error_description": "{plugin} could not run and has been isolated so the rest of the viewer keeps working.",
+    "plugin_error_phase": "Failed during the {phase} phase.",
+    "plugin_error_retry": "Retry",
+    "plugin_error_close": "Close error details"
 }
