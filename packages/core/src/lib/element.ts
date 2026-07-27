@@ -4,10 +4,8 @@
 // <triiiceratops-viewer> custom element and bootstraps the window.Triiiceratops
 // browser runtime namespace — identical tag, properties, methods, events,
 // styles, and content-state behavior as the self-contained IIFE entry
-// (custom-element.ts). Unlike the IIFE, this entry does not publish the legacy
-// __TriiiceratopsSvelteRuntime / TriiiceratopsPlugins globals: bundler consumers
-// resolve dependencies through their own graph and register plugins through
-// window.Triiiceratops.plugins.
+// (custom-element.ts). Bundler consumers resolve dependencies through their own
+// graph and register plugins through window.Triiiceratops.plugins.
 //
 //   import 'triiiceratops/element/register';
 

@@ -102,13 +102,6 @@
     --tri-structures-panel-content: var(--tri-panel-content);
     --tri-collection-panel-bg: var(--tri-panel-bg);
     --tri-collection-panel-content: var(--tri-panel-content);
-    /* First-party plugin panels */
-    --tri-annotation-editor-panel-bg: var(--tri-panel-bg);
-    --tri-annotation-editor-panel-content: var(--tri-panel-content);
-    --tri-image-manipulation-panel-bg: var(--tri-panel-bg);
-    --tri-image-manipulation-panel-content: var(--tri-panel-content);
-    --tri-pdf-export-panel-bg: var(--tri-panel-bg);
-    --tri-pdf-export-panel-content: var(--tri-panel-content);
 
     /* Per-region radius overrides; inherit the top-level trio by default */
     --tri-radius-toolbar: var(--tri-radius-buttons);
@@ -303,16 +296,4 @@
 [data-panel-id='collection'] {
     --panel-surface: var(--tri-collection-panel-bg);
     --panel-fg: var(--tri-collection-panel-content);
-}
-[data-panel-id='annotation-editor'] {
-    --panel-surface: var(--tri-annotation-editor-panel-bg);
-    --panel-fg: var(--tri-annotation-editor-panel-content);
-}
-[data-panel-id='image-manipulation'] {
-    --panel-surface: var(--tri-image-manipulation-panel-bg);
-    --panel-fg: var(--tri-image-manipulation-panel-content);
-}
-[data-panel-id='pdf-export'] {
-    --panel-surface: var(--tri-pdf-export-panel-bg);
-    --panel-fg: var(--tri-pdf-export-panel-content);
 }

@@ -11,9 +11,9 @@ import type {
 
 /**
  * Consumer-facing configuration for the PDF export plugin. This is the same
- * public shape the core `triiiceratops/plugins/pdf-export` subpath exposed
- * (ticket 16 moved it here unchanged), so `createPdfExportPlugin(config)` keeps
- * its factory-with-config authoring contract.
+ * public shape the plugin exposed before it moved to its own package (ticket 16
+ * moved it here unchanged), so `createPdfExportPlugin(config)` keeps its
+ * factory-with-config authoring contract.
  */
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;

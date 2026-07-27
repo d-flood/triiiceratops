@@ -4,7 +4,6 @@ import path from 'node:path';
 const distDir = path.resolve('dist');
 const entryFiles = [
     path.join(distDir, 'state', 'manifestoRuntime.browser.js'),
-    path.join(distDir, 'triiiceratops-bundle.js'),
 ];
 
 const forbiddenSpecifiers = new Set(['manifesto.js', 'openseadragon']);

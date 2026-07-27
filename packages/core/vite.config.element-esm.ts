@@ -13,6 +13,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // shadow DOM, same single self-contained artifact — only the module format and
 // the entry (element.ts, without the legacy globals) differ.
 export default defineConfig({
+    // Never copy demo dev-server static assets into the published dist.
+    publicDir: false,
     plugins: [
         svelte({
             configFile: false,

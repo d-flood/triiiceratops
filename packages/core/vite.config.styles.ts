@@ -16,6 +16,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * writer of dist/triiiceratops.css.
  */
 export default defineConfig({
+    // Never copy demo dev-server static assets into the published dist.
+    publicDir: false,
     css: {
         postcss: {
             plugins: [scopeViewerRoot()],

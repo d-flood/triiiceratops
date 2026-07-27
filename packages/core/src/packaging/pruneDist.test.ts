@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { isPackageExcluded, DEMO_ONLY_COMPONENTS } from './pruneDist';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+    isPackageExcluded,
+    pruneDist,
+    DEMO_ONLY_COMPONENTS,
+    EXCLUDED_DIRS,
+} from './pruneDist';
 
 describe('isPackageExcluded', () => {
     it('excludes compiled test/spec files', () => {
@@ -34,6 +42,45 @@ describe('isPackageExcluded', () => {
             'contestants.js',
         ]) {
             expect(f, `${f} should be kept`).not.toSatisfy(isPackageExcluded);
+        }
+    });
+});
+
+describe('pruneDist', () => {
+    it('removes excluded dirs and test/demo files, keeps public modules', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'prune-'));
+        try {
+            // Internal test fixtures/mocks dir (must be dropped wholesale).
+            mkdirSync(join(dir, 'test', 'fixtures'), { recursive: true });
+            writeFileSync(join(dir, 'test', 'fixtures', 'manifests.js'), '');
+            writeFileSync(join(dir, 'test', 'utils.js'), '');
+            // A compiled test file and a demo-only component (basename matches).
+            writeFileSync(join(dir, 'colorUtils.test.js'), '');
+            writeFileSync(join(dir, 'MetadataPanelTestHost.svelte'), '');
+            // Public modules that must survive.
+            writeFileSync(join(dir, 'index.js'), '');
+            mkdirSync(join(dir, 'components'), { recursive: true });
+            writeFileSync(
+                join(dir, 'components', 'TriiiceratopsViewer.svelte'),
+                '',
+            );
+
+            const removed = pruneDist(dir);
+
+            for (const d of EXCLUDED_DIRS) {
+                expect(existsSync(join(dir, d)), `${d}/ removed`).toBe(false);
+            }
+            expect(existsSync(join(dir, 'colorUtils.test.js'))).toBe(false);
+            expect(existsSync(join(dir, 'MetadataPanelTestHost.svelte'))).toBe(
+                false,
+            );
+            expect(existsSync(join(dir, 'index.js'))).toBe(true);
+            expect(
+                existsSync(join(dir, 'components', 'TriiiceratopsViewer.svelte')),
+            ).toBe(true);
+            expect(removed.length).toBeGreaterThan(0);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
         }
     });
 });

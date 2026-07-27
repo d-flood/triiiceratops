@@ -85,14 +85,6 @@ export const PUBLIC_TOKENS: readonly PublicToken[] = [
     { name: '--tri-collection-panel-bg', category: 'panel' },
     { name: '--tri-collection-panel-content', category: 'panel' },
 
-    // ---- Per-panel overrides (first-party plugin panels) ----
-    { name: '--tri-annotation-editor-panel-bg', category: 'panel' },
-    { name: '--tri-annotation-editor-panel-content', category: 'panel' },
-    { name: '--tri-image-manipulation-panel-bg', category: 'panel' },
-    { name: '--tri-image-manipulation-panel-content', category: 'panel' },
-    { name: '--tri-pdf-export-panel-bg', category: 'panel' },
-    { name: '--tri-pdf-export-panel-content', category: 'panel' },
-
     // ---- Border radius ----
     { name: '--tri-radius-selector', category: 'radius' },
     { name: '--tri-radius-buttons', category: 'radius' },

@@ -11,7 +11,6 @@
     "scripts": {
         "build:lib": "pnpm --filter triiiceratops build:lib",
         "build:element": "pnpm --filter triiiceratops build:element",
-        "build:plugins-iife": "pnpm --filter triiiceratops build:plugins-iife",
         "build:demo": "pnpm --filter triiiceratops build:demo",
         "build:svelte-demo": "pnpm --filter triiiceratops build:svelte-demo",
         "build:consumer": "pnpm --filter triiiceratops build:consumer",

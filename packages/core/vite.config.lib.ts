@@ -8,6 +8,9 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+    // Never copy the demo dev-server's static assets (favicon, demo manifests,
+    // e2e host pages) into the published dist — those are not part of the package.
+    publicDir: false,
     plugins: [
         paraglideVitePlugin({
             project: './project.inlang',
@@ -28,10 +31,6 @@ export default defineConfig({
     build: {
         lib: {
             entry: {
-                'triiiceratops-bundle': resolve(
-                    __dirname,
-                    'src/lib/index-bundle.ts',
-                ),
                 'state/manifestoRuntime.browser': resolve(
                     __dirname,
                     'src/lib/state/manifestoRuntime.browser.ts',
