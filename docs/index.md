@@ -8,6 +8,27 @@ A modern, lightweight IIIF viewer built with Svelte and OpenSeadragon. It is dis
 
 [**View Live Demo**](./viewer/){ .md-button .md-button--primary }
 
+!!! info "This documentation describes the Triiiceratops 1.0 release line"
+
+    Core is published as `triiiceratops`; the plugin SDK and first-party plugins
+    are published under the `@triiiceratops` npm scope and versioned
+    independently. Upgrading from a prerelease (RC) build? See the
+    [migration guide](migration-1.0.md) — package names, browser globals, CSS
+    tokens, the `teal` identifier, and the removed `bundle` export changed with
+    no runtime aliases.
+
+## Integration guides
+
+| I'm building with…                | Guide                                                        |
+| :-------------------------------- | :---------------------------------------------------------- |
+| Svelte                            | [Svelte integration](integration-svelte.md)                |
+| SvelteKit (SSR)                   | [SvelteKit integration](integration-sveltekit.md)          |
+| A Web Component + bundler / no-bundler | [Web Component integration](integration-web-component.md) |
+| A plugin (SDK)                    | [Plugin authoring](plugin-authoring.md) · [Plugin testing](plugin-testing.md) |
+| Theming                           | [Theming](theming.md)                                      |
+| A strict CSP                      | [Content Security Policy](csp.md)                          |
+| Upgrading from the RC             | [Migration guide](migration-1.0.md)                        |
+
 ## Features
 
 - **IIIF Presentation API**: Compatible with versions 2.0 and 3.0

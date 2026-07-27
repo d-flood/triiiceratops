@@ -3,15 +3,53 @@ on:
     push:
         branches:
             - main
+    pull_request:
 permissions:
     contents: read
-    pages: write
-    id-token: write
 jobs:
+    # Required PR gate: the docs site builds with zero warnings and zero broken
+    # internal links (`zensical build --strict`), and every extracted doc example
+    # is in sync with the Markdown (`docs:examples:check`). Runs on pull requests;
+    # the deploy job below runs only on pushes to main.
+    build-check:
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: 3.x
+
+            - name: Install zensical
+              run: pip install zensical
+
+            # `pnpm docs:build` = doc-example sync check + `zensical build
+            # --clean --strict` (warnings-as-failures + internal link check).
+            - name: Build docs (strict) + verify examples in sync
+              run: pnpm docs:build
+
     deploy:
+        if: github.event_name == 'push'
         environment:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
+        permissions:
+            contents: read
+            pages: write
+            id-token: write
         runs-on: ubuntu-latest
         steps:
             - uses: actions/configure-pages@v5
