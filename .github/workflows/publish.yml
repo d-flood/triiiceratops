@@ -43,7 +43,7 @@ jobs:
                     git add .
                     git commit -m "chore: release [skip ci]"
                     
-                    VERSION=$(node -p "require('./package.json').version")
+                    VERSION=$(node -p "require('./packages/core/package.json').version")
                     echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
                     echo "has_changes=true" >> $GITHUB_OUTPUT
                   else
@@ -67,6 +67,7 @@ jobs:
 
             - name: Publish to NPM
               if: steps.version.outputs.has_changes == 'true'
+              working-directory: packages/core
               run: |
                   VERSION=$(node -p "require('./package.json').version")
                   TAG=$(node -p "const version = require('./package.json').version; version.includes('-') ? version.split('-')[1].split('.')[0] : 'latest'")

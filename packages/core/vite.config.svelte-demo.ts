@@ -43,7 +43,7 @@ export default defineConfig({
     root: 'src/demo-svelte',
     base: './', // Relative paths for GitHub Pages
     build: {
-        outDir: resolve(__dirname, 'docs/svelte'),
+        outDir: resolve(__dirname, '../../docs/svelte'),
         emptyOutDir: true,
     },
     publicDir: resolve(__dirname, 'public'),
