@@ -179,7 +179,7 @@
 </script>
 
 {#snippet glyph(name: GlyphName, size: number)}
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+    <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
     <svg
         class="tri-ae-glyph"
         viewBox={VIEW_BOX}
@@ -189,6 +189,7 @@
         aria-hidden="true"
         focusable="false">{@html GLYPHS[name]}</svg
     >
+    <!-- eslint-enable svelte/no-at-html-tags -->
 {/snippet}
 
 <div class="panel" data-panel-id="annotation-editor" class:floating={!embedded}>

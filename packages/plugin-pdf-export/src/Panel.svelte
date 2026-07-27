@@ -83,28 +83,6 @@
         return Math.min(Math.max(0, value), count - 1);
     }
 
-    function hasConfiguredCoverSheetFields(fields: unknown): boolean {
-        if (Array.isArray(fields)) {
-            return fields.some(
-                (field) =>
-                    (Array.isArray(field) && field.length >= 2) ||
-                    (!!field &&
-                        typeof field === 'object' &&
-                        'label' in field &&
-                        'value' in field),
-            );
-        }
-
-        if (!fields || typeof fields !== 'object') {
-            return false;
-        }
-
-        return (
-            ('label' in fields && 'value' in fields) ||
-            Object.keys(fields).length > 0
-        );
-    }
-
     let canvasOptions = $derived(
         canvases.map((canvas: any, index: number) => ({
             id: canvas.id || canvas['@id'] || `canvas-${index}`,
@@ -323,10 +301,11 @@
             aria-label={t('pdf_export_title')}
         >
             <h2 class="tri-pdf-title">
-                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
                 <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
                     >{@html GLYPHS.filePdf}</svg
                 >
+                <!-- eslint-enable svelte/no-at-html-tags -->
                 {t('pdf_export_title')}
             </h2>
 
@@ -432,10 +411,11 @@
                     disabled={!canExport}
                     onclick={handleExport}
                 >
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
                     <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
                         >{@html GLYPHS.download}</svg
                     >
+                    <!-- eslint-enable svelte/no-at-html-tags -->
                     {isExporting
                         ? t('pdf_export_exporting')
                         : t('pdf_export_download')}

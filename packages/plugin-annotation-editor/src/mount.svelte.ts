@@ -72,6 +72,8 @@ export function mountAnnotationEditor(
             store,
             embedded: config.target === 'flyout',
         },
+        // One-time context handoff to Svelte's mount(), not reactive state.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         context: new Map<symbol, unknown>([
             [VIEWER_STATE_KEY, mirror],
             [LOCALE_T_KEY, t as TFn],
