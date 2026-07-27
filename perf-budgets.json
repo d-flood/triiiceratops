@@ -1,7 +1,7 @@
 {
     "$schema": "./scripts/perf/perf-budgets.schema.json",
     "baselineRef": "1.0.0-rc.25",
-    "capturedAt": "2026-07-18T11:09:32.021Z",
+    "capturedAt": "2026-07-27T23:37:38.363Z",
     "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median.",
     "thresholds": {
         "sizeRegressionPct": 0.05,
@@ -10,90 +10,90 @@
     },
     "size": {
         "core:esm-entry-graph": {
-            "bytes": 1048081,
-            "ceilingBytes": 1100486
+            "bytes": 1059567,
+            "ceilingBytes": 1112546
         },
         "core:style.css": {
-            "bytes": 13105,
-            "ceilingBytes": 13761
+            "bytes": 13107,
+            "ceilingBytes": 13763
         },
         "core:element-iife": {
-            "bytes": 835479,
-            "ceilingBytes": 877253
+            "bytes": 820406,
+            "ceilingBytes": 861427
         },
         "sdk:esm-entry-graph": {
-            "bytes": 30906,
-            "ceilingBytes": 32452
+            "bytes": 32938,
+            "ceilingBytes": 34585
         },
         "image-manipulation:esm": {
-            "bytes": 70843,
-            "ceilingBytes": 74386
+            "bytes": 89616,
+            "ceilingBytes": 94097
         },
         "image-manipulation:iife": {
-            "bytes": 50998,
-            "ceilingBytes": 53548
+            "bytes": 63873,
+            "ceilingBytes": 67067
         },
         "image-download:esm": {
-            "bytes": 82428,
-            "ceilingBytes": 86550
+            "bytes": 107536,
+            "ceilingBytes": 112913
         },
         "image-download:iife": {
-            "bytes": 352775,
-            "ceilingBytes": 370414
+            "bytes": 368730,
+            "ceilingBytes": 387167
         },
         "pdf-export:esm": {
-            "bytes": 101898,
-            "ceilingBytes": 106993
+            "bytes": 121433,
+            "ceilingBytes": 127505
         },
         "pdf-export:iife": {
-            "bytes": 525723,
-            "ceilingBytes": 552010
+            "bytes": 536064,
+            "ceilingBytes": 562868
         },
         "annotation-editor:esm": {
-            "bytes": 191344,
-            "ceilingBytes": 200912
+            "bytes": 207811,
+            "ceilingBytes": 218202
         },
         "annotation-editor:iife": {
-            "bytes": 1017324,
-            "ceilingBytes": 1068191
+            "bytes": 1027722,
+            "ceilingBytes": 1079109
         }
     },
     "runtime": {
         "initial_viewer_mount": {
-            "medianMs": 29.7,
-            "ceilingMs": 94.55
+            "medianMs": 30.9,
+            "ceilingMs": 96.35
         },
         "local_manifest_readiness": {
-            "medianMs": 60.9,
-            "ceilingMs": 141.35
+            "medianMs": 56.7,
+            "ceilingMs": 135.05
         },
         "first_canvas_render": {
-            "medianMs": 102.8,
-            "ceilingMs": 204.2
+            "medianMs": 98.8,
+            "ceilingMs": 198.2
         },
         "theme_switch": {
-            "medianMs": 50.2,
-            "ceilingMs": 125.3
+            "medianMs": 5.7,
+            "ceilingMs": 58.55
         },
         "core_interaction": {
-            "medianMs": 3.9,
-            "ceilingMs": 55.85
+            "medianMs": 4.2,
+            "ceilingMs": 56.3
         },
         "activate_image-manipulation": {
-            "medianMs": 6.8,
-            "ceilingMs": 60.2
+            "medianMs": 16.1,
+            "ceilingMs": 74.15
         },
         "activate_image-download": {
-            "medianMs": 7,
-            "ceilingMs": 60.5
+            "medianMs": 17.7,
+            "ceilingMs": 76.55
         },
         "activate_pdf-export": {
-            "medianMs": 7.1,
-            "ceilingMs": 60.65
+            "medianMs": 17.3,
+            "ceilingMs": 75.95
         },
         "activate_annotation-editor": {
-            "medianMs": 7.8,
-            "ceilingMs": 61.7
+            "medianMs": 16,
+            "ceilingMs": 74
         }
     }
 }

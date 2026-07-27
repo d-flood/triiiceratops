@@ -194,7 +194,7 @@ async function main() {
             head,
             args['baseline-ref'] ? String(args['baseline-ref']) : undefined,
         );
-        writeFileSync(BUDGETS_PATH, JSON.stringify(budgets, null, 2) + '\n');
+        writeFileSync(BUDGETS_PATH, JSON.stringify(budgets, null, 4) + '\n');
         ok(`wrote ${BUDGETS_PATH}`);
     }
 

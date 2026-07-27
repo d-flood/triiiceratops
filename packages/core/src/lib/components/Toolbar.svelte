@@ -1412,32 +1412,33 @@
             transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         }
     }
+    /* Keep neighboring toolbar and flyout targets' 24px WCAG safe regions apart. */
     .menu-flyout.up {
         bottom: anchor(top);
         left: anchor(center);
         transform: translateX(-50%);
-        margin-bottom: 0.625rem;
+        margin-bottom: 1.5rem;
         transform-origin: bottom center;
     }
     .menu-flyout.down {
         top: anchor(bottom);
         left: anchor(center);
         transform: translateX(-50%);
-        margin-top: 0.625rem;
+        margin-top: 1.5rem;
         transform-origin: top center;
     }
     .menu-flyout.left {
         right: anchor(left);
         top: anchor(center);
         transform: translateY(-50%);
-        margin-right: 0.625rem;
+        margin-right: 1.5rem;
         transform-origin: center right;
     }
     .menu-flyout.right {
         left: anchor(right);
         top: anchor(center);
         transform: translateY(-50%);
-        margin-left: 0.625rem;
+        margin-left: 1.5rem;
         transform-origin: center left;
     }
 
