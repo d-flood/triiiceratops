@@ -207,56 +207,100 @@ export interface ViewerSelectors {
 }
 
 /**
- * Root-aware global stylesheet installer for plugin CSS.
+ * Root-aware global stylesheet installer for plugin CSS (SPEC.md "Plugin SDK And
+ * Browser API" — root-aware style installation).
  *
- * Minimal in ticket 07 (stubbed by the SDK when the host omits it); ticket 08
- * fills in dedup, reference counting, shadow-DOM/constructable-stylesheet, and
- * nonce-aware behavior. The shape is final enough that ticket 08's fill-in does
- * not break ticket 07 consumers.
+ * A fresh instance is created per activation, bound to the owning viewer's style
+ * root (the document for a light-DOM viewer, the shadow root for the Web
+ * Component) and the plugin's package name. Installs are keyed
+ * `<pluginName>:<id>`, deduplicated and reference-counted across every
+ * activation and viewer that shares a root, and removed when the last reference
+ * releases. Core prefers a constructable `adoptedStyleSheets` sheet and falls
+ * back to a nonce-carrying `<style>` element under a strict CSP (ticket 08).
  */
 export interface PluginStyleService {
     /**
-     * Install a package-qualified global stylesheet. Returns an uninstaller.
-     * Installing the same `id` again is deduplicated/reference-counted (ticket
-     * 08); in ticket 07 the stub returns a no-op uninstaller.
+     * Install a global stylesheet under this plugin's package-qualified key
+     * (`<pluginName>:<id>`). Deduplicated and reference-counted: installing the
+     * same `id` again (here or from another viewer sharing the root) reuses the
+     * one sheet and bumps its count. Returns an idempotent uninstaller that
+     * releases one reference; the sheet is removed when the count reaches zero.
+     * Activation cleanup releases every still-held reference automatically.
      */
-    inject(id: string, css: string): () => void;
+    install(css: string, id: string): () => void;
 }
 
 /**
- * The owning viewer's active-locale service (CONTEXT.md **Active locale**).
+ * A plugin's package-owned localization catalog (CONTEXT.md **Active locale**),
+ * passed to `definePlugin` and resolved by {@link PluginLocaleService.t}.
  *
- * Minimal in ticket 07; ticket 08 wires real per-viewer catalogs and locale
- * change propagation. Missing translations fall back to English.
+ * Shape: a plain, framework-neutral, serializable map of locale (BCP-47 tag) →
+ * (message key → template string). Templates may contain `{name}` placeholders
+ * filled from the `params` argument of `t`. The `en` catalog is the required
+ * fallback: a key missing from the active locale resolves against `en`, and a
+ * key missing there too resolves to the key itself. A plain-string map (rather
+ * than a message-function map) is deliberate — catalogs stay data, so they need
+ * no bundler or runtime from core and can evolve without a core release.
+ */
+export type LocaleCatalog = Record<string, Record<string, string>>;
+
+/**
+ * The owning viewer's active-locale service (CONTEXT.md **Active locale**). A
+ * fresh instance is created per activation, bound to the owning viewer's
+ * {@link ViewerState.activeLocale} and the plugin's own {@link LocaleCatalog}.
+ * `subscribe` registrations are released automatically on activation cleanup.
  */
 export interface PluginLocaleService {
     /** The owning viewer's active locale as a BCP-47 tag. */
     readonly current: string;
-    /** Translate a key within the plugin's catalog, English fallback. */
+    /**
+     * Translate a key against the plugin's catalog in the viewer's active
+     * locale, falling back to the plugin's `en` catalog and then to the key
+     * itself. `{name}` placeholders are filled from `params`.
+     */
     t(key: string, params?: Record<string, string | number>): string;
-    /** Observe active-locale changes for this viewer. Returns unsubscribe. */
+    /**
+     * Observe active-locale changes for this viewer; the callback receives the
+     * new BCP-47 tag. Returns an idempotent unsubscribe.
+     */
     subscribe(callback: (locale: string) => void): () => void;
 }
 
 /**
- * Framework-neutral toolbar icon descriptor. Placeholder in ticket 07: ticket
- * 08 introduces `svgIcon(fullSvgString)` which produces the sanitized, final
- * descriptor. Kept minimal and non-branded so callers keep compiling.
+ * Framework-neutral toolbar icon descriptor produced by the SDK's `svgIcon`
+ * (SPEC.md "Plugin SDK And Browser API"). It carries only sanitized inner SVG
+ * markup and the source `viewBox`; core owns the rendered `<svg>` wrapper —
+ * dimensions, `currentColor` fill, focusability, and accessibility attributes —
+ * so plugin icons stay visually and semantically consistent. `svgIcon` rejects
+ * `<script>`, `on*` handlers, external `href`/`xlink:href` URLs, and
+ * `<foreignObject>` synchronously, so a descriptor is always safe to render.
  */
-export interface PluginIcon {
+export interface IconDescriptor {
+    /** Discriminant for future icon kinds; always `'svg'` in 1.0. */
     readonly kind: 'svg';
-    /** Raw SVG string; sanitized and rendered by core (ticket 08). */
-    readonly svg: string;
+    /**
+     * Sanitized inner SVG markup — the children of the source `<svg>` root, with
+     * no wrapper element. Core injects it inside its own `<svg>`.
+     */
+    readonly inner: string;
+    /** The source `<svg>`'s `viewBox` (or a `0 0 W H` default), so core scales it. */
+    readonly viewBox: string;
 }
 
 /**
- * Core-owned rendering helpers a plugin may call. Minimal in ticket 07; ticket
- * 08 fills in icon rendering (dimensions, focusability, color, a11y) and any
- * further primitives.
+ * @deprecated Pre-1.0 alias retained for ticket 07 consumers; use
+ * {@link IconDescriptor}. Both name the same finalized descriptor shape.
+ */
+export type PluginIcon = IconDescriptor;
+
+/**
+ * Core-owned rendering helpers a plugin may call. `renderIcon` renders an
+ * {@link IconDescriptor} into a plugin-owned container using core's `<svg>`
+ * wrapper (dimensions, `currentColor`, focusability, `aria-hidden`).
  */
 export interface PluginUiService {
     /** Render a core-owned icon descriptor into a container. Returns cleanup. */
-    renderIcon(icon: PluginIcon, container: HTMLElement): () => void;
+    renderIcon(icon: IconDescriptor, container: HTMLElement): () => void;
 }
 
 /**
@@ -323,10 +367,17 @@ export interface SdkPluginMeta {
     readonly pluginApiRange: string;
     /** Capability identifiers this plugin requires (e.g. `osd@5`). */
     readonly requiredCapabilities: readonly string[];
-    /** Toolbar icon descriptor. */
-    readonly icon: PluginIcon;
+    /** Toolbar icon descriptor (from the SDK's `svgIcon`). */
+    readonly icon: IconDescriptor;
     /** Where the plugin renders (`panel` or `flyout`). */
     readonly target: PluginUiTarget;
+    /**
+     * The plugin's package-owned localization catalog. Core builds the
+     * per-viewer {@link PluginLocaleService} from it plus the viewer's active
+     * locale. Optional: a plugin with no UI strings omits it (and `t` then just
+     * returns the key with any `{param}` substitutions).
+     */
+    readonly catalog?: LocaleCatalog;
     /** The framework-neutral view to mount. */
     readonly view: PluginView;
 }

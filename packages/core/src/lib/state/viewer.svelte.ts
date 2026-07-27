@@ -1080,6 +1080,24 @@ export class ViewerState {
         this.viewerElement = element;
     }
 
+    /**
+     * Resolve the viewer's style root — where a plugin's global CSS must be
+     * installed (ticket 08's `PluginStyleService`). For a light-DOM (Svelte)
+     * viewer this is the owning `Document`; for the Web Component it is the
+     * shadow root, so plugin styles reach the shadow-scoped tree. Derived from
+     * the mount element captured by {@link setViewerElement} via `getRootNode()`;
+     * `null` before the element is mounted.
+     */
+    getStyleRoot(): Document | ShadowRoot | null {
+        const root = this.viewerElement?.getRootNode();
+        // nodeType 9 = DOCUMENT_NODE, 11 = DOCUMENT_FRAGMENT_NODE (shadow root);
+        // nodeType is realm- and engine-safe where `instanceof` is not.
+        if (root && (root.nodeType === 9 || root.nodeType === 11)) {
+            return root as Document | ShadowRoot;
+        }
+        return null;
+    }
+
     toggleFullScreen() {
         if (!document.fullscreenElement) {
             // Use stored reference if available, fallback to ID lookup (legacy/Svelte-only)

@@ -43,6 +43,9 @@
         pluginApiVersion,
         capabilities as coreCapabilities,
     } from '../plugin/api';
+    import { createPluginStyleService } from '../plugin/styleService';
+    import { createPluginLocaleService } from '../plugin/localeService';
+    import { createPluginUiService } from '../plugin/uiService';
     import type { CanvasRegion } from '../utils/contentState';
     import { createPluginId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
@@ -351,13 +354,36 @@
         };
     });
 
-    // ---- SDK plugin activation (ticket 07) ---------------------------------
+    // ---- SDK plugin activation (ticket 07 + services ticket 08) ------------
     // SDK plugins carry their own framework-neutral `activate(host)`. Core owns
     // a container per plugin, negotiates nothing itself (the plugin's activate
-    // does compatibility/context/selectors), and just supplies the host: the
-    // container, the live viewer state, and core's declared version/capabilities.
+    // does compatibility/context/selectors), and supplies the host: the
+    // container, the live viewer state, core's declared version/capabilities,
+    // and the three per-activation services (ticket 08) — a root-aware style
+    // service, a per-viewer locale service over the plugin's catalog, and the
+    // icon-rendering UI service.
     let sdkPluginHost: HTMLElement | undefined = $state();
     let sdkActivations: Array<{ el: HTMLElement; deactivate: () => void }> = [];
+
+    // The owning viewer's active-locale observable, shared by every SDK plugin's
+    // locale service. Reads `ViewerState.activeLocale` (mirrored from
+    // `config.locale ?? page default`, ticket 06) and wakes on change through the
+    // framework-neutral subscription — no Svelte reactivity crosses the seam.
+    const sdkLocaleSource = {
+        get current(): string {
+            return internalViewerState.activeLocale;
+        },
+        subscribe(callback: (locale: string) => void): () => void {
+            let last = internalViewerState.activeLocale;
+            return internalViewerState.subscribe(() => {
+                const next = internalViewerState.activeLocale;
+                if (next !== last) {
+                    last = next;
+                    callback(next);
+                }
+            });
+        },
+    };
 
     function teardownSdkActivations() {
         for (const activation of sdkActivations) {
@@ -396,6 +422,15 @@
                         coreVersion: CORE_VERSION,
                         pluginApiVersion,
                         capabilities: coreCapabilities,
+                        styles: createPluginStyleService(
+                            internalViewerState.getStyleRoot() ?? document,
+                            plugin.name,
+                        ),
+                        locale: createPluginLocaleService(
+                            sdkLocaleSource,
+                            plugin.catalog,
+                        ),
+                        ui: createPluginUiService(),
                     });
                     sdkActivations.push({
                         el,

@@ -10,9 +10,10 @@
  */
 
 import type {
+    IconDescriptor,
+    LocaleCatalog,
     PluginActivation,
     PluginHost,
-    PluginIcon,
     PluginUiTarget,
     PluginView,
     SdkPlugin,
@@ -38,10 +39,17 @@ export interface DefinePluginConfig {
     pluginApiRange: string;
     /** Capability identifiers this plugin requires. Defaults to `[]`. */
     requiredCapabilities?: readonly string[];
-    /** Toolbar icon descriptor (placeholder type until ticket 08's svgIcon). */
-    icon: PluginIcon;
+    /** Toolbar icon descriptor — produce it with {@link svgIcon}. */
+    icon: IconDescriptor;
     /** Where the plugin renders. Defaults to `panel`. */
     target?: PluginUiTarget;
+    /**
+     * The plugin's package-owned localization catalog: `locale → (key →
+     * template)`. Core builds the per-viewer `PluginLocaleService` from it and
+     * the viewer's active locale; `context.locale.t(key, params?)` resolves
+     * against it with English fallback. Optional for plugins with no UI strings.
+     */
+    catalog?: LocaleCatalog;
     /** The framework-neutral view to mount. */
     view: PluginView;
 }
@@ -60,6 +68,7 @@ export function definePlugin(config: DefinePluginConfig): SdkPlugin {
         requiredCapabilities: config.requiredCapabilities ?? [],
         icon: config.icon,
         target: config.target ?? 'panel',
+        catalog: config.catalog,
         view: config.view,
     } as const;
 

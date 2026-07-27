@@ -13,10 +13,10 @@ import {
     pluginApiVersion,
     capabilities,
 } from 'triiiceratops';
-import { definePlugin, activatePlugin } from '@triiiceratops/plugin-sdk';
+import { definePlugin, activatePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
 import PluginUI from './PluginUI.svelte';
 
-const ICON = { kind: 'svg', svg: '<svg viewBox="0 0 1 1"></svg>' };
+const ICON = svgIcon('<svg viewBox="0 0 1 1"></svg>');
 
 const plugin = definePlugin({
     name: '@triiiceratops/plugin-svelte-fixture',

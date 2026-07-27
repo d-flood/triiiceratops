@@ -54,7 +54,7 @@ vi.mock('openseadragon', () => ({
     ),
 }));
 
-const ICON = { kind: 'svg', svg: '<svg viewBox="0 0 1 1"></svg>' } as const;
+const ICON = { kind: 'svg', inner: '', viewBox: '0 0 1 1' } as const;
 
 async function settle() {
     await tick();

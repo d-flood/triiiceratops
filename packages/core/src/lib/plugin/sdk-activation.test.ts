@@ -34,7 +34,7 @@ vi.mock('../state/manifests.svelte', () => ({
     },
 }));
 
-const ICON = { kind: 'svg', svg: '<svg viewBox="0 0 1 1"></svg>' } as const;
+const ICON = { kind: 'svg', inner: '', viewBox: '0 0 1 1' } as const;
 
 interface Capture {
     container: HTMLElement | null;
