@@ -96,6 +96,9 @@ coverage/
 playwright-report/
 test-results/
 
+# Performance comparison output (raw JSON + traces, uploaded as CI artifacts)
+perf-results/
+
 # Storybook
 storybook-static/
 

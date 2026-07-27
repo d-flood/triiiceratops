@@ -50,6 +50,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@types/openseadragon':
+        specifier: ^5.0.1
+        version: 5.0.1
       dompurify:
         specifier: ^3.4.11
         version: 3.4.12
@@ -90,9 +93,6 @@ importers:
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
-      '@types/openseadragon':
-        specifier: ^5.0.1
-        version: 5.0.1
       axe-core:
         specifier: ^4.12.1
         version: 4.12.1

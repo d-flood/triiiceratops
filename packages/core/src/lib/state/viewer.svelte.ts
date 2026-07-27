@@ -1,5 +1,11 @@
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
+// Import the OpenSeadragon types as a MODULE (not the ambient UMD global) so the
+// emitted `.d.ts` references `import('openseadragon').Viewer` — module-resolvable
+// by a strict-TS consumer via the `openseadragon` runtime dep + the
+// `@types/openseadragon` dependency (ticket 21), instead of an ambient global the
+// consumer can't see.
+import type OpenSeadragon from 'openseadragon';
 import { manifestsState } from './manifests.svelte.js';
 import { STATE_INVENTORY } from './state-inventory.js';
 import { getLocale } from '../paraglide/runtime.js';

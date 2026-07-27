@@ -1,0 +1,140 @@
+{
+    "triiiceratops": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": "./dist/index.js",
+        "types": "./dist/index.d.ts",
+        "style": "./dist/triiiceratops.css",
+        "sideEffects": [
+            "**/*.css",
+            "./dist/triiiceratops-element.iife.js",
+            "./dist/triiiceratops-element.js"
+        ],
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "style": "./dist/triiiceratops.css",
+                "svelte": "./dist/index.js",
+                "import": "./dist/index.js"
+            },
+            "./testing": {
+                "types": "./dist/testing/index.d.ts",
+                "import": "./dist/testing/index.js"
+            },
+            "./image-export": {
+                "types": "./dist/image-export.d.ts",
+                "svelte": "./dist/image-export.js",
+                "import": "./dist/image-export.js"
+            },
+            "./element": "./dist/triiiceratops-element.iife.js",
+            "./element/register": "./dist/triiiceratops-element.js",
+            "./style.css": "./dist/triiiceratops.css"
+        }
+    },
+    "@triiiceratops/plugin-sdk": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": null,
+        "types": "./dist/index.d.ts",
+        "style": null,
+        "sideEffects": false,
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+            },
+            "./react": {
+                "types": "./dist/react.d.ts",
+                "import": "./dist/react.js"
+            },
+            "./vue": {
+                "types": "./dist/vue.d.ts",
+                "import": "./dist/vue.js"
+            },
+            "./svelte": {
+                "types": "./dist/svelte.d.ts",
+                "import": "./dist/svelte.js"
+            },
+            "./lit": {
+                "types": "./dist/lit.d.ts",
+                "import": "./dist/lit.js"
+            },
+            "./testing": {
+                "types": "./dist/testing/index.d.ts",
+                "import": "./dist/testing/index.js"
+            }
+        }
+    },
+    "@triiiceratops/plugin-image-manipulation": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": null,
+        "types": "./dist/index.d.ts",
+        "style": null,
+        "sideEffects": [
+            "./dist/iife.js"
+        ],
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+            },
+            "./iife": "./dist/iife.js"
+        }
+    },
+    "@triiiceratops/plugin-image-download": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": null,
+        "types": "./dist/index.d.ts",
+        "style": null,
+        "sideEffects": [
+            "./dist/iife.js"
+        ],
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+            },
+            "./iife": "./dist/iife.js"
+        }
+    },
+    "@triiiceratops/plugin-pdf-export": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": null,
+        "types": "./dist/index.d.ts",
+        "style": null,
+        "sideEffects": [
+            "./dist/iife.js"
+        ],
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+            },
+            "./iife": "./dist/iife.js"
+        }
+    },
+    "@triiiceratops/plugin-annotation-editor": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": null,
+        "types": "./dist/index.d.ts",
+        "style": null,
+        "sideEffects": [
+            "./dist/iife.js"
+        ],
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+            },
+            "./testing": {
+                "types": "./dist/testing/index.d.ts",
+                "import": "./dist/testing/index.js"
+            },
+            "./iife": "./dist/iife.js"
+        }
+    }
+}

@@ -1,3 +1,8 @@
+// Import OpenSeadragon types as a MODULE (not the ambient UMD global) so the
+// emitted `ViewerConfig` d.ts references `import('openseadragon').Options` —
+// resolvable by a strict-TS consumer via core's `@types/openseadragon`
+// dependency (ticket 21).
+import type OpenSeadragon from 'openseadragon';
 import type { GalleryConfig } from './gallery';
 import type {
     AnnotationsConfig,
