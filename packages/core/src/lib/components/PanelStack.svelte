@@ -1,10 +1,17 @@
 <script lang="ts" module>
     import type { Component } from 'svelte';
+    import type { IconDescriptor } from '../types/plugin';
 
     export interface PanelStackItem {
         id: string;
         title: string;
         icon?: Component<any>;
+        /**
+         * Framework-neutral header icon descriptor (SDK core-owned chrome path,
+         * ticket 02). Rendered by `PluginIcon` when set; takes precedence over
+         * {@link icon}.
+         */
+        iconDescriptor?: IconDescriptor;
         component: Component<any>;
         props?: Record<string, unknown>;
         close?: () => void;

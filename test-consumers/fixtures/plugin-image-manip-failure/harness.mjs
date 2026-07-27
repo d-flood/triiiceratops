@@ -1,9 +1,9 @@
 import { expect } from '@playwright/test';
 
-// plugin-image-manip-failure: failure-isolation smoke (ticket 09) for a real
-// SDK plugin. A plugin authored on the packed SDK throws in `mount`; core must
-// keep the viewer live, show the plugin-local error state (badged button), and
-// deliver the structured `pluginerror` to the host callback with phase `mount`.
+// plugin-image-manip-failure: failure-isolation smoke for a real SDK plugin. A
+// plugin authored on the packed SDK throws in `mount`; core must keep the viewer
+// live, degrade silently (ADR 0010 — NO user-facing error UI), and deliver the
+// structured `pluginerror` to the host callback with phase `mount`.
 export default {
     name: 'plugin-image-manip-failure',
     buildScript: 'build',
@@ -22,13 +22,11 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // The failed plugin presents its plugin-local error state: a badged
-        // toolbar button remains visible.
-        const errorButton = page.locator('[data-plugin-error-button]');
-        await expect(errorButton).toBeVisible({ timeout: 30_000 });
+        // Fail closed (ADR 0010): no user-facing error UI is rendered.
         await expect(
-            page.locator('[data-plugin-error][data-phase="mount"]'),
-        ).toHaveCount(1);
+            page.locator('[data-plugin-error-button]'),
+        ).toHaveCount(0);
+        await expect(page.locator('[data-plugin-error-rail]')).toHaveCount(0);
 
         // The structured pluginerror reached the host callback with the mount
         // phase, the failing plugin's name, and a retry() affordance.

@@ -1,5 +1,6 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
+    import PluginIcon from './PluginIcon.svelte';
     import { onMount } from 'svelte';
     import type { PanelStackItem } from './PanelStack.svelte';
     import { getMessages } from '../state/i18n.svelte';
@@ -70,7 +71,11 @@
 
 <section bind:this={sectionElement} data-panel-id={panel.id} class="section">
     <div class="header" class:close-start={closeAlign === 'start'}>
-        {#if panel.icon}
+        {#if panel.iconDescriptor}
+            <span class="icon">
+                <PluginIcon descriptor={panel.iconDescriptor} size={18} />
+            </span>
+        {:else if panel.icon}
             <span class="icon">
                 <panel.icon size={18} weight="bold" />
             </span>

@@ -139,6 +139,21 @@ export interface DefinePluginConfig {
     /** Where the plugin renders. Defaults to `panel`. */
     target?: PluginUiTarget;
     /**
+     * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (default) dismisses on
+     * outside pointer-down / Escape; `explicit` closes only via the plugin's
+     * toolbar button, so a live-editing surface is not dismissed by canvas
+     * clicks. Ignored for `panel` targets.
+     */
+    dismiss?: 'light' | 'explicit';
+    /**
+     * TRANSITIONAL routing marker (epic restore-plugin-toolbar-chrome). When
+     * `true`, core activates this plugin on the core-owned-chrome path (core
+     * renders the toolbar button and places the flyout/panel container). Set by
+     * first-party plugins as they migrate; removed once core-chrome is the only
+     * path. Not a stable public field.
+     */
+    __coreChrome?: boolean;
+    /**
      * The plugin's package-owned localization catalog: `locale → (key →
      * template)`. Core builds the per-viewer `PluginLocaleService` from it and
      * the viewer's active locale; `context.locale.t(key, params?)` resolves

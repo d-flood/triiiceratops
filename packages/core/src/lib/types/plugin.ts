@@ -9,6 +9,16 @@ import type { ViewerState } from '../state/viewer.svelte';
 export type PluginUiTarget = 'panel' | 'flyout';
 
 /**
+ * A DOM-mount thunk (SPEC.md — content-only container). Core hands the plugin a
+ * core-created, core-placed container; the thunk renders the plugin's content
+ * into it and returns a cleanup. Used to generalize the flyout/panel chrome
+ * entries so ONE rendering path carries either a Svelte `component` (legacy
+ * `PluginDef`) or this thunk (SDK core-owned chrome) — see {@link PluginFlyout}
+ * / {@link PluginPanel}.
+ */
+export type PluginMountThunk = (container: HTMLElement) => () => void;
+
+/**
  * Menu button configuration for plugin UI injection.
  */
 export interface PluginMenuButton {
@@ -18,8 +28,18 @@ export interface PluginMenuButton {
     /** Owning plugin identifier */
     pluginId?: string;
 
-    /** Phosphor icon component */
-    icon: Component<any>;
+    /**
+     * Phosphor icon component (legacy `PluginDef` path). SDK core-chrome buttons
+     * carry an {@link IconDescriptor} in {@link iconDescriptor} instead; exactly
+     * one of the two is set.
+     */
+    icon?: Component<any>;
+
+    /**
+     * Framework-neutral icon descriptor (SDK core-owned chrome path). Rendered by
+     * core's `PluginIcon` with the same wrapper as built-in buttons.
+     */
+    iconDescriptor?: IconDescriptor;
 
     /** Tooltip text */
     tooltip: string;
@@ -60,11 +80,24 @@ export interface PluginPanel {
     /** Plugin display name */
     name: string;
 
-    /** Plugin toolbar icon component */
-    icon: Component<any>;
+    /** Plugin toolbar/header icon component (legacy `PluginDef` path). */
+    icon?: Component<any>;
 
-    /** Svelte component to render */
-    component: Component<any>;
+    /** Framework-neutral header icon descriptor (SDK core-owned chrome path). */
+    iconDescriptor?: IconDescriptor;
+
+    /**
+     * Svelte component to render (legacy `PluginDef` path). Mutually exclusive
+     * with {@link mount}.
+     */
+    component?: Component<any>;
+
+    /**
+     * DOM-mount thunk (SDK core-owned chrome path): core places the docked panel
+     * container and this thunk renders the plugin content into it. Mutually
+     * exclusive with {@link component}.
+     */
+    mount?: PluginMountThunk;
 
     /** Props passed to the component */
     props?: Record<string, unknown>;
@@ -93,14 +126,36 @@ export interface PluginFlyout {
     /** Plugin display name */
     name: string;
 
-    /** Plugin toolbar icon component */
-    icon: Component<any>;
+    /** Plugin toolbar icon component (legacy `PluginDef` path). */
+    icon?: Component<any>;
 
-    /** Svelte component to render inside the flyout */
-    component: Component<any>;
+    /** Framework-neutral toolbar icon descriptor (SDK core-owned chrome path). */
+    iconDescriptor?: IconDescriptor;
+
+    /**
+     * Svelte component to render inside the flyout (legacy `PluginDef` path).
+     * Mutually exclusive with {@link mount}.
+     */
+    component?: Component<any>;
+
+    /**
+     * DOM-mount thunk (SDK core-owned chrome path): core places the anchored
+     * flyout container and this thunk renders the plugin content into it.
+     * Mutually exclusive with {@link component}.
+     */
+    mount?: PluginMountThunk;
 
     /** Props passed to the component */
     props?: Record<string, unknown>;
+
+    /**
+     * Flyout dismiss behavior (SDK core-owned chrome, ticket 02):
+     * - `light` (default): dismiss on outside pointer-down / Escape.
+     * - `explicit`: closes only via its toolbar button (a live-editing surface is
+     *   not dismissed by canvas clicks). Excluded from {@link
+     *   ViewerState.closePluginFlyouts} light-dismiss.
+     */
+    dismiss?: 'light' | 'explicit';
 }
 
 /**
@@ -440,6 +495,14 @@ export interface SdkPluginMeta {
     /** Where the plugin renders (`panel` or `flyout`). */
     readonly target: PluginUiTarget;
     /**
+     * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (the default)
+     * dismisses on outside pointer-down / Escape; `explicit` closes only via the
+     * plugin's toolbar button, so a live-editing surface is not dismissed by
+     * canvas clicks. Ignored for `panel` targets. No consumer-facing override is
+     * offered (adding one later is backward-compatible).
+     */
+    readonly dismiss?: 'light' | 'explicit';
+    /**
      * The plugin's package-owned localization catalog. Core builds the
      * per-viewer {@link PluginLocaleService} from it plus the viewer's active
      * locale. Optional: a plugin with no UI strings omits it (and `t` then just
@@ -448,6 +511,17 @@ export interface SdkPluginMeta {
     readonly catalog?: LocaleCatalog;
     /** The framework-neutral view to mount. */
     readonly view: PluginView;
+    /**
+     * TRANSITIONAL routing marker (epic restore-plugin-toolbar-chrome,
+     * expand→contract). When `true`, core activates this plugin on the new
+     * **core-owned-chrome** path: core renders the toolbar button from
+     * {@link icon}/{@link target}, places the anchored flyout / docked panel
+     * container, and owns open/close + dismiss. When absent/false, core uses the
+     * legacy bare self-render host (`tri-sdk-plugin-host`). Set by plugins as they
+     * migrate in tickets 03–06; REMOVED in ticket 07 once core-chrome is the only
+     * path. Do not rely on it as a stable public field.
+     */
+    readonly __coreChrome?: boolean;
 }
 
 /**

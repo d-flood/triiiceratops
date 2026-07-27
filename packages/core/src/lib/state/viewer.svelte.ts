@@ -24,6 +24,9 @@ import type {
     PluginPanel,
     PluginFlyout,
     PluginDef,
+    PluginMountThunk,
+    PluginUiTarget,
+    IconDescriptor,
 } from '../types/plugin';
 import { parseStructures, type StructureNode } from '../utils/structures';
 import {
@@ -1949,10 +1952,16 @@ export class ViewerState {
     /**
      * Close every open plugin flyout. Used by the toolbar to light-dismiss
      * flyouts on outside click / Escape. No-op (and no event) if none are open.
+     *
+     * Flyouts declaring `dismiss: 'explicit'` (SPEC.md — Dismiss) are skipped:
+     * they close only via their toolbar button, so a live-editing surface is not
+     * dismissed by an outside pointer-down. Built-in toolbar dropdowns are
+     * unaffected (they are core-owned and light-dismiss elsewhere).
      */
     closePluginFlyouts(): void {
         let changed = false;
         for (const flyout of this.pluginFlyouts) {
+            if (flyout.dismiss === 'explicit') continue;
             const current = this.pluginUiState.get(flyout.pluginId);
             if (current?.open) {
                 this.pluginUiState.set(flyout.pluginId, {
@@ -2048,6 +2057,76 @@ export class ViewerState {
         // Execute lifecycle hook if present
         if (def.onInit) {
             def.onInit(this);
+        }
+    }
+
+    /**
+     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path
+     * (epic restore-plugin-toolbar-chrome, ticket 02). Core renders the button
+     * from the plugin's {@link IconDescriptor} and {@link PluginUiTarget}, and the
+     * anchored flyout / docked panel container hosts the plugin content via the
+     * DOM-mount `mount` thunk. This reuses the SAME `pluginMenuButtons` +
+     * `pluginFlyouts`/`pluginPanels` rendering path as the legacy `PluginDef`
+     * plugins — the entries carry a mount thunk instead of a Svelte component.
+     *
+     * `id` is the caller-owned plugin id (used for open-state + unregister); it
+     * must be passed to {@link unregisterPlugin} on deactivation.
+     */
+    registerSdkChrome(config: {
+        id: string;
+        name: string;
+        icon: IconDescriptor;
+        target: PluginUiTarget;
+        dismiss: 'light' | 'explicit';
+        mount: PluginMountThunk;
+        position?: 'left' | 'right' | 'bottom' | 'overlay';
+    }): void {
+        const { id, name, icon, target, dismiss, mount } = config;
+
+        this.ensurePluginUiState(id);
+
+        const button: PluginMenuButton = {
+            id: `${id}:toggle`,
+            pluginId: id,
+            iconDescriptor: icon,
+            tooltip: name,
+            onClick: () => {
+                this.togglePluginOpen(id);
+            },
+            isActive: () => this.pluginUiState.get(id)?.open ?? false,
+            isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
+            order: 200,
+        };
+
+        if (target === 'flyout') {
+            const domId = `tri-flyout-${id}`;
+            button.flyoutDomId = domId;
+
+            const flyout: PluginFlyout = {
+                id: `${id}:flyout`,
+                domId,
+                pluginId: id,
+                name,
+                iconDescriptor: icon,
+                mount,
+                dismiss,
+            };
+
+            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+            this.pluginFlyouts = [...this.pluginFlyouts, flyout];
+        } else {
+            const panel: PluginPanel = {
+                id: `${id}:panel`,
+                pluginId: id,
+                name,
+                iconDescriptor: icon,
+                mount,
+                position: config.position ?? 'left',
+                isVisible: () => this.pluginUiState.get(id)?.open ?? false,
+            };
+
+            this.pluginMenuButtons = [...this.pluginMenuButtons, button];
+            this.pluginPanels = [...this.pluginPanels, panel];
         }
     }
 

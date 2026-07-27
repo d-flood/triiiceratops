@@ -53,13 +53,12 @@
         PluginError,
         PluginErrorReport,
         PluginErrorPhase,
-        IconDescriptor,
+        PluginMountThunk,
     } from '../types/plugin';
     import { isSdkPlugin, PLUGIN_ERROR_EVENT } from '../types/plugin';
     import type { ViewerError } from '../types/viewerError';
     import { VIEWER_ERROR_EVENT } from '../types/viewerError';
     import { logger, configureLogging } from '../logging/logger';
-    import SdkPluginError from './SdkPluginError.svelte';
     import {
         CORE_VERSION,
         pluginApiVersion,
@@ -80,6 +79,7 @@
     import MetadataPanel from './MetadataPanel.svelte';
     import OSDViewer from './OSDViewer.svelte';
     import PanelStack, { type PanelStackItem } from './PanelStack.svelte';
+    import PluginMountHost from './PluginMountHost.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import StructuresPanel from './StructuresPanel.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
@@ -446,26 +446,24 @@
     // icon-rendering UI service.
     let sdkPluginHost: HTMLElement | undefined = $state();
 
-    // One activation record per mounted SDK plugin. `deactivate` runs the failed
-    // OR healthy instance's teardown (cleanups + drop subscriptions + release
-    // styles); `primaryReported` de-dupes repeated command/subscription failures
-    // from the same still-live instance so the channel fires once per failure,
-    // not once per flush.
+    // One activation record per mounted SDK plugin. `deactivate` runs the
+    // instance's teardown (view cleanup + drop subscriptions + release styles) and
+    // — for core-owned-chrome plugins — unregisters its toolbar chrome.
+    // `primaryReported` de-dupes repeated command/subscription failures from the
+    // same still-live instance so the channel fires once per failure, not once per
+    // flush. `coreChrome`/`chromeId` mark the new expand-path activation (ticket
+    // 02); `failed` records that setup/mount failed so core renders NO button
+    // (fail closed, ADR 0010).
     interface SdkActivationRecord {
         plugin: SdkPlugin;
         el: HTMLElement;
+        coreChrome: boolean;
+        chromeId?: string;
         deactivate: () => void;
         primaryReported: boolean;
+        failed: boolean;
     }
     let sdkActivations: SdkActivationRecord[] = [];
-
-    // Plugin-local error state (ticket 09), keyed by plugin name: the failed
-    // plugin's badged toolbar button + retry panel render from this. Reactive so
-    // the error UI appears on failure and clears on a successful retry.
-    let pluginErrors = $state<
-        Record<string, { payload: PluginError; icon: IconDescriptor }>
-    >({});
-    let pluginErrorList = $derived(Object.values(pluginErrors));
 
     // The owning viewer's active-locale observable, shared by every SDK plugin's
     // locale service. Reads `ViewerState.activeLocale` (mirrored from
@@ -488,13 +486,15 @@
     };
 
     /**
-     * Deliver one structured plugin failure (ticket 09) on BOTH channels with
-     * the SAME object: the bubbling, composed `pluginerror` CustomEvent from the
-     * viewer root and the `onpluginerror` host callback. Sets the plugin-local
-     * error UI state. Repeated command/subscription failures from the same
-     * still-live instance are de-duped (they keep throwing every flush until
-     * retry); `cleanup` failures always fire (they occur during teardown and
-     * must each be reported).
+     * Deliver one structured plugin failure on BOTH channels with the SAME
+     * object: the bubbling, composed `pluginerror` CustomEvent from the viewer
+     * root and the `onpluginerror` host callback (ticket 09), and log it via the
+     * debug-gated developer logger. Fail-closed (ADR 0010): there is NO
+     * user-facing error UI — a failed activation renders no toolbar button; the
+     * payload's `retry()` is host-invoked only. Repeated command/subscription
+     * failures from the same still-live instance are de-duped (they keep throwing
+     * every flush until retry); `cleanup` failures always fire (they occur during
+     * teardown and must each be reported).
      */
     function emitPluginError(
         record: SdkActivationRecord,
@@ -514,14 +514,12 @@
             retry: () => retrySdkPlugin(record.plugin),
         };
 
-        // Plugin-local error UI (a `cleanup` failure during retry teardown does
-        // not overwrite an existing primary error card).
-        if (phase !== 'cleanup' || !pluginErrors[record.plugin.name]) {
-            pluginErrors = {
-                ...pluginErrors,
-                [record.plugin.name]: { payload, icon: record.plugin.icon },
-            };
-        }
+        // Debug-gated developer log; production stays quiet unless a host wires a
+        // channel or enables debug.
+        logger.error(
+            `[triiiceratops] Plugin "${record.plugin.name}" failed in phase "${phase}".`,
+            error,
+        );
 
         // Bubbling + composed so it escapes the shadow root to WC hosts.
         rootElement?.dispatchEvent(
@@ -535,8 +533,48 @@
         onpluginerror?.(payload);
     }
 
-    /** Activate one SDK plugin, wiring the per-plugin error channel. */
+    /** Assemble the `PluginHost` for one activation (shared by both paths). */
+    function buildSdkHost(
+        plugin: SdkPlugin,
+        container: HTMLElement,
+        reportError: (report: PluginErrorReport) => void,
+    ) {
+        return {
+            container,
+            viewerState: internalViewerState,
+            coreVersion: CORE_VERSION,
+            pluginApiVersion,
+            capabilities: coreCapabilities,
+            styles: createPluginStyleService(
+                internalViewerState.getStyleRoot() ?? document,
+                plugin.name,
+            ),
+            locale: createPluginLocaleService(sdkLocaleSource, plugin.catalog),
+            ui: createPluginUiService(),
+            reportError,
+        };
+    }
+
+    /**
+     * Activate one SDK plugin. Routing (transitional, expand→contract, ticket 02):
+     * `meta.__coreChrome` → the new core-owned-chrome path (core renders the
+     * toolbar button + places the flyout/panel container); otherwise the legacy
+     * bare self-render host. The flag and the legacy path are removed in ticket 07.
+     */
     function activateSdkPlugin(plugin: SdkPlugin) {
+        if (plugin.__coreChrome) {
+            activateSdkPluginCoreChrome(plugin);
+        } else {
+            activateSdkPluginLegacy(plugin);
+        }
+    }
+
+    /**
+     * Legacy path: the plugin self-renders (button + positioning) into a bare
+     * per-plugin container appended to the core host. A setup/mount failure hides
+     * the partial DOM and emits `pluginerror` (fail closed — no error UI).
+     */
+    function activateSdkPluginLegacy(plugin: SdkPlugin) {
         const host = sdkPluginHost;
         if (!host) return;
 
@@ -549,99 +587,172 @@
         const record: SdkActivationRecord = {
             plugin,
             el,
+            coreChrome: false,
             deactivate: () => {},
             primaryReported: false,
+            failed: false,
         };
         sdkActivations.push(record);
 
         const reportError = (report: PluginErrorReport) => {
-            // A failed mount leaves partial (possibly broken) DOM in the
-            // container; hide it so only the plugin-local error UI shows.
             if (report.phase === 'setup' || report.phase === 'mount') {
                 el.style.display = 'none';
+                record.failed = true;
             }
             emitPluginError(record, report.phase, report.error);
         };
 
         try {
-            const activation = plugin.activate({
-                container: el,
-                viewerState: internalViewerState,
-                coreVersion: CORE_VERSION,
-                pluginApiVersion,
-                capabilities: coreCapabilities,
-                styles: createPluginStyleService(
-                    internalViewerState.getStyleRoot() ?? document,
-                    plugin.name,
-                ),
-                locale: createPluginLocaleService(
-                    sdkLocaleSource,
-                    plugin.catalog,
-                ),
-                ui: createPluginUiService(),
-                reportError,
-            });
+            const activation = plugin.activate(
+                buildSdkHost(plugin, el, reportError),
+            );
             record.deactivate = activation.deactivate;
         } catch (error) {
             // A plugin whose `activate` throws outright (no `reportError`
             // routing) is still isolated — treat it as a setup failure so one
             // plugin cannot take down the viewer or other plugins.
             el.style.display = 'none';
+            record.failed = true;
             emitPluginError(record, 'setup', error);
         }
     }
 
     /**
-     * Manual retry = full re-activation (CONTEXT.md **Retry**): tear the failed
-     * instance down (run its cleanups, drop its subscriptions, release its
-     * styles), clear its error UI, then activate fresh. No auto-retry/backoff.
+     * Core-owned-chrome path (ticket 02). Core hands `view.mount` a content-only
+     * element it created; on success core registers the toolbar chrome (button +
+     * anchored flyout / docked panel) via {@link ViewerState.registerSdkChrome},
+     * reusing the SAME rendering path as legacy `PluginDef` plugins. The element
+     * is placed into the open surface (and removed on close) by the shared
+     * `PluginMountHost` attachment. Fail closed (ADR 0010): a setup/mount failure
+     * renders NO button.
+     */
+    function activateSdkPluginCoreChrome(plugin: SdkPlugin) {
+        // Content-only container: created and owned by core, detached until the
+        // plugin's surface opens.
+        const el = document.createElement('div');
+        el.className = 'tri-sdk-plugin';
+        el.dataset.pluginName = plugin.name;
+        el.dataset.pluginTarget = plugin.target;
+
+        const record: SdkActivationRecord = {
+            plugin,
+            el,
+            coreChrome: true,
+            deactivate: () => {},
+            primaryReported: false,
+            failed: false,
+        };
+        sdkActivations.push(record);
+
+        const reportError = (report: PluginErrorReport) => {
+            if (report.phase === 'setup' || report.phase === 'mount') {
+                record.failed = true;
+            }
+            emitPluginError(record, report.phase, report.error);
+        };
+
+        try {
+            const activation = plugin.activate(
+                buildSdkHost(plugin, el, reportError),
+            );
+            record.deactivate = activation.deactivate;
+        } catch (error) {
+            record.failed = true;
+            emitPluginError(record, 'setup', error);
+        }
+
+        // Fail closed: a failed setup/mount tears down the partial activation and
+        // renders no toolbar button.
+        if (record.failed) {
+            try {
+                record.deactivate();
+            } catch (error) {
+                logger.error(
+                    'SDK plugin teardown threw after failed activation; continuing.',
+                    error,
+                );
+            }
+            el.remove();
+            return;
+        }
+
+        // Reactive container provisioning: the shared PluginMountHost attachment
+        // calls this thunk when the anchored flyout / docked panel container node
+        // appears (open) and its cleanup when it goes away (close). The plugin's
+        // Activation state lives above this mount, so open/close never tears it
+        // down; a layout change that recreates the node simply re-parents `el`.
+        const chromeId = createPluginId();
+        record.chromeId = chromeId;
+        const mountThunk: PluginMountThunk = (node) => {
+            node.appendChild(el);
+            return () => {
+                if (el.parentNode === node) node.removeChild(el);
+            };
+        };
+
+        internalViewerState.registerSdkChrome({
+            id: chromeId,
+            name: plugin.name,
+            icon: plugin.icon,
+            target: plugin.target,
+            dismiss: plugin.dismiss ?? 'light',
+            mount: mountThunk,
+        });
+    }
+
+    /**
+     * Tear one activation down: unregister its core-owned chrome (if any), run
+     * its deactivation (view cleanup + drop subscriptions + release styles), and
+     * remove its content element. Isolated so a throwing teardown never blocks
+     * the rest.
+     */
+    function deactivateSdkRecord(record: SdkActivationRecord) {
+        if (record.coreChrome && record.chromeId) {
+            internalViewerState.unregisterPlugin(record.chromeId);
+        }
+        try {
+            record.deactivate();
+        } catch (error) {
+            logger.error(
+                'SDK plugin deactivation threw; teardown continues.',
+                error,
+            );
+        }
+        record.el.remove();
+    }
+
+    /**
+     * Manual retry = full re-activation (CONTEXT.md **Retry**): tear the instance
+     * down (run its cleanups, drop its subscriptions, release its styles,
+     * unregister its chrome), then activate fresh. Host-invoked only; no
+     * auto-retry/backoff.
      */
     function retrySdkPlugin(plugin: SdkPlugin) {
         const index = sdkActivations.findIndex((r) => r.plugin === plugin);
         if (index !== -1) {
             const record = sdkActivations[index];
             sdkActivations.splice(index, 1);
-            try {
-                record.deactivate();
-            } catch (error) {
-                logger.error(
-                    'SDK plugin deactivation threw during retry; teardown continues.',
-                    error,
-                );
-            }
-            record.el.remove();
+            deactivateSdkRecord(record);
         }
-
-        // Clear this plugin's error card before re-activating.
-        const { [plugin.name]: _removed, ...rest } = pluginErrors;
-        pluginErrors = rest;
 
         activateSdkPlugin(plugin);
     }
 
     function teardownSdkActivations() {
         for (const activation of sdkActivations) {
-            try {
-                activation.deactivate();
-            } catch (error) {
-                logger.error(
-                    'SDK plugin deactivation threw; teardown continues.',
-                    error,
-                );
-            }
-            activation.el.remove();
+            deactivateSdkRecord(activation);
         }
         sdkActivations = [];
     }
 
     $effect(() => {
-        const host = sdkPluginHost;
+        // Depend on the host node too so the legacy bare-host path re-runs once
+        // the container exists; core-chrome plugins do not need it.
+        void sdkPluginHost;
         const currentSdkPlugins = sdkPlugins;
-        if (!host) return;
 
         untrack(() => {
             teardownSdkActivations();
-            pluginErrors = {};
 
             for (const plugin of currentSdkPlugins) {
                 activateSdkPlugin(plugin);
@@ -650,7 +761,6 @@
 
         return () => {
             teardownSdkActivations();
-            pluginErrors = {};
         };
     });
 
@@ -770,6 +880,38 @@
         return showCloseButton ?? true;
     }
 
+    /**
+     * Build a `PanelStackItem` from a registered plugin panel. Legacy `PluginDef`
+     * panels render their Svelte `component`; SDK core-owned-chrome panels
+     * (ticket 02) carry a DOM-mount thunk instead, rendered through the shared
+     * `PluginMountHost` adapter — one panel rendering path for both.
+     */
+    function toPluginPanelItem(
+        panel: (typeof internalViewerState.pluginPanels)[number],
+    ): PanelStackItem {
+        const resolveTitle = (
+            m as unknown as Record<string, (() => string) | undefined>
+        )[panel.name];
+        const title = resolveTitle ? resolveTitle() : panel.name;
+        if (panel.mount) {
+            return {
+                id: panel.id,
+                title,
+                iconDescriptor: panel.iconDescriptor,
+                component: PluginMountHost,
+                props: { mount: panel.mount },
+            };
+        }
+        return {
+            id: panel.id,
+            title,
+            icon: panel.icon,
+            component: panel.component!,
+            props: { ...(panel.props ?? {}), locale: viewerLocale },
+            close: getPluginPanelClose(panel.props),
+        };
+    }
+
     let visiblePanelsLeft = $derived.by<PanelStackItem[]>(() => {
         const panels: PanelStackItem[] = [];
 
@@ -824,17 +966,7 @@
 
         for (const panel of internalViewerState.pluginPanels) {
             if (panel.isVisible() && panel.position === 'left') {
-                const resolveTitle = (
-                    m as unknown as Record<string, (() => string) | undefined>
-                )[panel.name];
-                panels.push({
-                    id: panel.id,
-                    title: resolveTitle ? resolveTitle() : panel.name,
-                    icon: panel.icon,
-                    component: panel.component,
-                    props: { ...(panel.props ?? {}), locale: viewerLocale },
-                    close: getPluginPanelClose(panel.props),
-                });
+                panels.push(toPluginPanelItem(panel));
             }
         }
 
@@ -921,17 +1053,7 @@
 
         for (const panel of internalViewerState.pluginPanels) {
             if (panel.isVisible() && panel.position === 'right') {
-                const resolveTitle = (
-                    m as unknown as Record<string, (() => string) | undefined>
-                )[panel.name];
-                panels.push({
-                    id: panel.id,
-                    title: resolveTitle ? resolveTitle() : panel.name,
-                    icon: panel.icon,
-                    component: panel.component,
-                    props: { ...(panel.props ?? {}), locale: viewerLocale },
-                    close: getPluginPanelClose(panel.props),
-                });
+                panels.push(toPluginPanelItem(panel));
             }
         }
 
@@ -1299,10 +1421,14 @@
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && panel.position === 'overlay'}
                     <div class="plugin-overlay">
-                        <panel.component
-                            {...panel.props ?? {}}
-                            locale={viewerLocale}
-                        />
+                        {#if panel.mount}
+                            <PluginMountHost mount={panel.mount} />
+                        {:else if panel.component}
+                            <panel.component
+                                {...panel.props ?? {}}
+                                locale={viewerLocale}
+                            />
+                        {/if}
                     </div>
                 {/if}
             {/each}
@@ -1338,10 +1464,14 @@
         {#each internalViewerState.pluginPanels as panel (panel.id)}
             {#if panel.isVisible() && panel.position === 'bottom'}
                 <div class="plugin-bottom">
-                    <panel.component
-                        {...panel.props ?? {}}
-                        locale={viewerLocale}
-                    />
+                    {#if panel.mount}
+                        <PluginMountHost mount={panel.mount} />
+                    {:else if panel.component}
+                        <panel.component
+                            {...panel.props ?? {}}
+                            locale={viewerLocale}
+                        />
+                    {/if}
                 </div>
             {/if}
         {/each}
@@ -1394,20 +1524,12 @@
         </div>
     {/if}
 
-    <!-- Core-owned host for SDK-style plugin panels/flyouts (ticket 07). Each
-         SDK plugin is mounted into its own child container appended here; the
-         plugin owns rendering and returns a cleanup function. -->
+    <!-- Legacy bare host for self-rendering SDK plugins (removed in ticket 07).
+         Core-owned-chrome plugins (ticket 02) do NOT use this: their content is
+         placed into the toolbar flyout / docked panel. A failed activation
+         degrades silently (ADR 0010): logged + emitted on `pluginerror`, no
+         user-facing error UI. -->
     <div class="tri-sdk-plugin-host" bind:this={sdkPluginHost}></div>
-
-    <!-- Plugin-local error states (ticket 09): a badged toolbar button + retry
-         panel per failed SDK plugin. No global viewer error UI. -->
-    {#if pluginErrorList.length > 0}
-        <div class="tri-sdk-plugin-errors" data-plugin-error-rail>
-            {#each pluginErrorList as entry (entry.payload.pluginName)}
-                <SdkPluginError error={entry.payload} icon={entry.icon} />
-            {/each}
-        </div>
-    {/if}
 </div>
 
 <style>
@@ -1425,19 +1547,6 @@
     }
     .viewer-root.opaque {
         background-color: var(--tri-viewer-bg);
-    }
-
-    /* Plugin-local error states (ticket 09): a compact rail of badged buttons,
-       one per failed SDK plugin, floating clear of the toolbar. */
-    .tri-sdk-plugin-errors {
-        position: absolute;
-        top: var(--ui-inset, 0.5rem);
-        right: var(--ui-inset, 0.5rem);
-        z-index: 55;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        pointer-events: none;
     }
 
     .side-col {
