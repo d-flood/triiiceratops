@@ -11,7 +11,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ViewerState } from './viewer.svelte';
-import { manifestsState } from './manifests.svelte';
 import type { PluginDef } from '../types/plugin';
 
 vi.mock('./manifests.svelte', () => ({
@@ -108,7 +107,9 @@ describe('ViewerState plugin panel position (updatable)', () => {
     });
 
     it('is independent of target: switching to flyout leaves the stored position untouched', () => {
-        state.registerPlugin(def({ id: 'p1', position: 'right', target: 'panel' }));
+        state.registerPlugin(
+            def({ id: 'p1', position: 'right', target: 'panel' }),
+        );
         expect(state.getPluginPosition('p1')).toBe('right');
 
         state.setPluginTarget('p1', 'flyout');

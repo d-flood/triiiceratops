@@ -9,7 +9,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ViewerState } from './viewer.svelte';
-import { manifestsState } from './manifests.svelte';
 import type { PluginDef } from '../types/plugin';
 
 vi.mock('./manifests.svelte', () => ({

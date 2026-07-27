@@ -85,7 +85,9 @@ const server = await serveDir(serveRoot);
 
 heading(`Serving "${fixtureName}" — open in your browser:`);
 log(`\n  ${server.baseURL}/\n`);
-log(`(fixture dir, if you want to poke at the installed package: ${fixtureDir})`);
+log(
+    `(fixture dir, if you want to poke at the installed package: ${fixtureDir})`,
+);
 log('Press Ctrl+C to stop.\n');
 
 process.on('SIGINT', async () => {

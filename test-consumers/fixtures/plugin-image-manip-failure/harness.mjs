@@ -23,9 +23,7 @@ export default {
         ).toBeVisible({ timeout: 30_000 });
 
         // Fail closed (ADR 0010): no user-facing error UI is rendered.
-        await expect(
-            page.locator('[data-plugin-error-button]'),
-        ).toHaveCount(0);
+        await expect(page.locator('[data-plugin-error-button]')).toHaveCount(0);
         await expect(page.locator('[data-plugin-error-rail]')).toHaveCount(0);
 
         // The structured pluginerror reached the host callback with the mount

@@ -794,7 +794,8 @@
                          (the panel renders in the viewer chrome). -->
                     {@const flyout =
                         button.pluginId &&
-                        viewerState.getPluginTarget(button.pluginId) === 'flyout'
+                        viewerState.getPluginTarget(button.pluginId) ===
+                            'flyout'
                             ? findFlyout(button.flyoutDomId)
                             : undefined}
                     <li>
