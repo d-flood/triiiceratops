@@ -37,7 +37,9 @@ export function findCanvasIndexById(
         return -1;
     }
 
-    return canvases.findIndex((canvas: any) => getCanvasId(canvas) === canvasId);
+    return canvases.findIndex(
+        (canvas: any) => getCanvasId(canvas) === canvasId,
+    );
 }
 
 export function findCanvasById(canvases: any[], canvasId: string | null): any {

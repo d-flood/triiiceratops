@@ -286,8 +286,14 @@ function resolvePresetSizeOptions(
             : [];
     }
 
-    return buildRelativeSizeOptions(nativeWidth, nativeHeight, ({ width, height, isOriginal }) =>
-        getResolvedImageExportUrl(resolved, isOriginal ? {} : { width, height }),
+    return buildRelativeSizeOptions(
+        nativeWidth,
+        nativeHeight,
+        ({ width, height, isOriginal }) =>
+            getResolvedImageExportUrl(
+                resolved,
+                isOriginal ? {} : { width, height },
+            ),
     );
 }
 

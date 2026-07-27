@@ -11,6 +11,11 @@
         parseContentState,
         type CanvasRegion,
     } from '../lib/utils/contentState';
+    import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
+    import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-download';
+    import { PdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
+    import { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';
+    import type { SdkPlugin } from '../lib/types/plugin';
 
     // Initialize state from URL if present
     const urlParams = new URLSearchParams(window.location.search);
@@ -209,7 +214,17 @@
     // ViewerState for Svelte component mode (via bindable prop)
     let svelteViewerState: ViewerState | undefined = $state();
 
-    const enabledPlugins: never[] = [];
+    // Each plugin is typed against `@triiiceratops/plugin-sdk`, whose type-only
+    // import of core's plugin types resolves to core's *published* `dist/types`.
+    // Those are structurally identical to core's own `src/lib/types` but
+    // nominally distinct (e.g. ViewerState's `#private` brand), so we cast at
+    // this in-repo boundary. Runtime is unaffected.
+    const enabledPlugins = [
+        ImageManipulationPlugin,
+        ImageDownloadPlugin,
+        PdfExportPlugin,
+        AnnotationEditorPlugin,
+    ] as unknown as SdkPlugin[];
 
     function isLanguageMapKey(key: string): boolean {
         return (
@@ -471,7 +486,7 @@
         bind:canvasId
         bind:config
         bind:demoTheme
-        viewerTheme={viewerTheme}
+        {viewerTheme}
         onThemeChange={setViewerTheme}
         baseConfig={defaultConfig}
         availableLocales={availableViewerLocales}
@@ -523,7 +538,7 @@
                 <div class="settings-scroll">
                     <SettingsMenu
                         bind:config
-                        viewerTheme={viewerTheme}
+                        {viewerTheme}
                         onThemeChange={setViewerTheme}
                         baseConfig={defaultConfig}
                         availableLocales={availableViewerLocales}
@@ -667,7 +682,11 @@
         line-height: 1.75rem;
         border-bottom-width: 1px;
         border-bottom-style: solid;
-        border-bottom-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
+        border-bottom-color: color-mix(
+            in oklab,
+            var(--tri-content) 10%,
+            transparent
+        );
         background-color: var(--tri-viewer-bg);
     }
 

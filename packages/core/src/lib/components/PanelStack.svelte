@@ -62,7 +62,11 @@
             transition:fly|global={flyParams}
             animate:flip={{ duration, easing: cubicOut }}
         >
-            <PanelStackSection {panel} {closeAlign} scrollOnMount={hasMounted} />
+            <PanelStackSection
+                {panel}
+                {closeAlign}
+                scrollOnMount={hasMounted}
+            />
         </div>
     {/each}
 </div>

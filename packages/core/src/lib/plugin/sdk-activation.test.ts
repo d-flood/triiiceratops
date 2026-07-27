@@ -84,9 +84,7 @@ function makeTestPlugin(
                 capture.container = container;
                 capture.mountedText = container.textContent;
 
-                const selector = context.selectors.select(
-                    (s) => s.toolbarOpen,
-                );
+                const selector = context.selectors.select((s) => s.toolbarOpen);
                 capture.initialToolbarOpen = selector.get();
 
                 const unsubscribe = selector.subscribe((value) => {
@@ -103,7 +101,10 @@ function makeTestPlugin(
     });
 }
 
-function makeHost(container: HTMLElement, viewerState: ViewerState): PluginHost {
+function makeHost(
+    container: HTMLElement,
+    viewerState: ViewerState,
+): PluginHost {
     return {
         container,
         // The SDK's `PluginHost.viewerState` type binds to `triiiceratops`'s

@@ -67,7 +67,9 @@ export default {
         });
 
         // A download-ready Blob (non-empty binary output) was produced.
-        const downloads = await page.evaluate(() => window.__triDownloads ?? []);
+        const downloads = await page.evaluate(
+            () => window.__triDownloads ?? [],
+        );
         expect(
             downloads.length,
             'export minted a Blob object URL',

@@ -116,7 +116,9 @@ describe('resolveCompositeCanvasSizeOptions', () => {
         const options = resolveCompositeCanvasSizeOptions(
             createCompositeCanvas(),
         );
-        expect(options.map((option) => ({ w: option.width, h: option.height }))).toEqual([
+        expect(
+            options.map((option) => ({ w: option.width, h: option.height })),
+        ).toEqual([
             { w: 800, h: 1000 },
             { w: 400, h: 500 },
             { w: 200, h: 250 },
@@ -308,7 +310,11 @@ describe('getVisibleCanvasesForDownload', () => {
 describe('buildImageDownloadFilename', () => {
     it('sanitizes the label and appends a mode suffix and extension', () => {
         expect(
-            buildImageDownloadFilename('My Canvas #1', 'composite', 'image/png'),
+            buildImageDownloadFilename(
+                'My Canvas #1',
+                'composite',
+                'image/png',
+            ),
         ).toBe('My-Canvas-1-composite.png');
     });
 

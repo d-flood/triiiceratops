@@ -81,7 +81,8 @@ function loadCoverage() {
     const files = new Map();
     let packagesWithData = 0;
 
-    if (!existsSync(packagesDir)) fail(`no packages/ directory at ${packagesDir}`);
+    if (!existsSync(packagesDir))
+        fail(`no packages/ directory at ${packagesDir}`);
 
     for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
@@ -224,7 +225,8 @@ function main() {
     let inScopeUninstrumented = 0; // changed lines in covered files, not instrumentable
 
     const bump = (pkg) => {
-        if (!perPkg.has(pkg)) perPkg.set(pkg, { covered: 0, instrumentable: 0 });
+        if (!perPkg.has(pkg))
+            perPkg.set(pkg, { covered: 0, instrumentable: 0 });
         return perPkg.get(pkg);
     };
 
@@ -252,7 +254,9 @@ function main() {
     const out = [];
     out.push('## Changed-lines coverage');
     out.push('');
-    out.push(`Base: \`${base}\`  ·  Head: \`${head}\`  (diff: \`${base}...${head}\`)`);
+    out.push(
+        `Base: \`${base}\`  ·  Head: \`${head}\`  (diff: \`${base}...${head}\`)`,
+    );
     out.push('');
     out.push('| Package | Covered | Instrumentable | % |');
     out.push('| --- | ---: | ---: | ---: |');

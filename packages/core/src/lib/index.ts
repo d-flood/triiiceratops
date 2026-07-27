@@ -75,11 +75,7 @@ export type { Logger, LogLevel, LogSink } from './logging/logger';
 export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 
 // Core's declared plugin-compatibility surface (ticket 07).
-export {
-    CORE_VERSION,
-    pluginApiVersion,
-    capabilities,
-} from './plugin/api';
+export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';

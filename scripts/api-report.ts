@@ -50,15 +50,26 @@ const noBuild = process.argv.includes('--no-build');
 const PACKAGES = [
     { name: 'triiiceratops', dir: 'core' },
     { name: '@triiiceratops/plugin-sdk', dir: 'plugin-sdk' },
-    { name: '@triiiceratops/plugin-image-manipulation', dir: 'plugin-image-manipulation' },
-    { name: '@triiiceratops/plugin-image-download', dir: 'plugin-image-download' },
+    {
+        name: '@triiiceratops/plugin-image-manipulation',
+        dir: 'plugin-image-manipulation',
+    },
+    {
+        name: '@triiiceratops/plugin-image-download',
+        dir: 'plugin-image-download',
+    },
     { name: '@triiiceratops/plugin-pdf-export', dir: 'plugin-pdf-export' },
-    { name: '@triiiceratops/plugin-annotation-editor', dir: 'plugin-annotation-editor' },
+    {
+        name: '@triiiceratops/plugin-annotation-editor',
+        dir: 'plugin-annotation-editor',
+    },
 ];
 
 /** Slug used for a package's declaration-report filename. */
 function slug(name: string): string {
-    return name.replace('@triiiceratops/', '').replace(/^triiiceratops$/, 'core');
+    return name
+        .replace('@triiiceratops/', '')
+        .replace(/^triiiceratops$/, 'core');
 }
 
 function pkgDir(dir: string): string {
@@ -123,10 +134,16 @@ function emitStateInventory(): void {
         stableJson({
             count: entries.length,
             byClassification: {
-                command: entries.filter((e) => e.classification === 'command').length,
-                observable: entries.filter((e) => e.classification === 'observable').length,
-                internal: entries.filter((e) => e.classification === 'internal').length,
-                'query-only': entries.filter((e) => e.classification === 'query-only').length,
+                command: entries.filter((e) => e.classification === 'command')
+                    .length,
+                observable: entries.filter(
+                    (e) => e.classification === 'observable',
+                ).length,
+                internal: entries.filter((e) => e.classification === 'internal')
+                    .length,
+                'query-only': entries.filter(
+                    (e) => e.classification === 'query-only',
+                ).length,
             },
             entries,
         }),
@@ -140,7 +157,10 @@ function emitCssTokens(): void {
         stableJson({
             prefix: '--tri-',
             count: PUBLIC_TOKENS.length,
-            tokens: PUBLIC_TOKENS.map((t) => ({ name: t.name, category: t.category })),
+            tokens: PUBLIC_TOKENS.map((t) => ({
+                name: t.name,
+                category: t.category,
+            })),
         }),
     );
 }
@@ -188,7 +208,10 @@ function interfaceMembers(fileText: string, name: string): string[] {
 
 // ── Browser runtime shape + capabilities ────────────────────────────────────
 function emitBrowserRuntime(): void {
-    const src = readFileSync(resolve(CORE_SRC, 'lib/browser-runtime.ts'), 'utf8');
+    const src = readFileSync(
+        resolve(CORE_SRC, 'lib/browser-runtime.ts'),
+        'utf8',
+    );
     writeFileSync(
         resolve(OUT, 'browser-runtime.json'),
         stableJson({

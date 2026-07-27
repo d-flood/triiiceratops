@@ -59,9 +59,7 @@ export interface FakeHarness {
  */
 export function makeFakeHarness(): FakeHarness {
     const state = new FakeViewerState();
-    const runtime = createSelectorRuntime(
-        state as unknown as ViewerState,
-    );
+    const runtime = createSelectorRuntime(state as unknown as ViewerState);
     const context = {
         selectors: runtime.selectors,
     } as unknown as PluginContext;

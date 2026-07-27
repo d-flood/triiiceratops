@@ -15,7 +15,9 @@ import { resolve, dirname, relative } from 'node:path';
 
 /** The `types` targets declared anywhere in a package.json (exports + top-level). */
 export function entryDtsFromPackage(pkgDir) {
-    const pkg = JSON.parse(readFileSync(resolve(pkgDir, 'package.json'), 'utf8'));
+    const pkg = JSON.parse(
+        readFileSync(resolve(pkgDir, 'package.json'), 'utf8'),
+    );
     const out = new Set();
     const walk = (v) => {
         if (v && typeof v === 'object') {

@@ -782,8 +782,8 @@ describe('exportCanvasRangeAsPdf', () => {
 
         // Composited side by side onto a single page-sized raster.
         expect(composeImages).toHaveBeenCalledTimes(1);
-        const [entries, pageWidth, pageHeight] = vi.mocked(composeImages).mock
-            .calls[0];
+        const [entries, pageWidth, pageHeight] =
+            vi.mocked(composeImages).mock.calls[0];
         expect(pageWidth).toBe(800);
         expect(pageHeight).toBe(1000);
         expect(entries).toEqual([

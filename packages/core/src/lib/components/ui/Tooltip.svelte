@@ -116,8 +116,12 @@
     @media (prefers-reduced-motion: no-preference) {
         .tooltip[data-tip]:not([data-tip='']):hover::before,
         .tooltip[data-tip]:not([data-tip='']):hover::after,
-        .tooltip[data-tip]:not([data-tip='']):has(:global(:focus-visible))::before,
-        .tooltip[data-tip]:not([data-tip='']):has(:global(:focus-visible))::after {
+        .tooltip[data-tip]:not([data-tip='']):has(
+                :global(:focus-visible)
+            )::before,
+        .tooltip[data-tip]:not([data-tip='']):has(
+                :global(:focus-visible)
+            )::after {
             transition:
                 opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);

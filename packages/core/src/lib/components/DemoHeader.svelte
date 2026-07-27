@@ -249,22 +249,19 @@
             onLoad();
         }
     }
-
 </script>
 
 <header class="header">
     <!-- Top Row: Branding & Global Settings -->
     <div class="top-row">
         <a href="/triiiceratops/" class="btn-link ghost brand">Triiiceratops</a>
-        <a href="/triiiceratops/" class="btn-link outline primary">{m.docs()}</a>
+        <a href="/triiiceratops/" class="btn-link outline primary">{m.docs()}</a
+        >
 
         <div class="spacer"></div>
 
         <div class="join viewer-mode">
-            <Tooltip
-                tip={m.viewer_variant_tooltip_core()}
-                placement="bottom"
-            >
+            <Tooltip tip={m.viewer_variant_tooltip_core()} placement="bottom">
                 <input
                     class="join-item btn-radio"
                     type="radio"
@@ -274,10 +271,7 @@
                     bind:group={viewerMode}
                 />
             </Tooltip>
-            <Tooltip
-                tip={m.viewer_variant_tooltip_full()}
-                placement="bottom"
-            >
+            <Tooltip tip={m.viewer_variant_tooltip_full()} placement="bottom">
                 <input
                     class="join-item btn-radio"
                     type="radio"
@@ -367,7 +361,8 @@
 
     <!-- Bottom Row: External Controls -->
     <div class="bottom-row">
-        <span class="controls-heading">{m.demo_header_external_controls()}</span>
+        <span class="controls-heading">{m.demo_header_external_controls()}</span
+        >
 
         <!-- Manifest Selector -->
         <div class="control-group manifest-group">
@@ -439,7 +434,6 @@
                 {/if}
             </Select>
         </div>
-
     </div>
 </header>
 
@@ -684,9 +678,17 @@
         );
         --btn-shadow:
             0 3px 2px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000),
+                color-mix(
+                    in oklab,
+                    var(--btn-bg) calc(var(--tri-depth) * 30%),
+                    #0000
+                ),
             0 4px 3px -2px
-                color-mix(in oklab, var(--btn-bg) calc(var(--tri-depth) * 30%), #0000);
+                color-mix(
+                    in oklab,
+                    var(--btn-bg) calc(var(--tri-depth) * 30%),
+                    #0000
+                );
         color: var(--btn-fg);
         background-color: var(--btn-bg);
         border-width: var(--tri-border);

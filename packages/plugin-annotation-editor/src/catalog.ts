@@ -55,8 +55,7 @@ export const catalog: LocaleCatalog = {
         annotation_editor_create_mode: 'Erstellen',
         annotation_editor_instruction_create:
             'Klicken zum Annotieren, erneut klicken zum Abschließen',
-        annotation_editor_instruction_edit:
-            'Anmerkung klicken zum Bearbeiten',
+        annotation_editor_instruction_edit: 'Anmerkung klicken zum Bearbeiten',
         annotation_editor_tool_label: 'Zeichenwerkzeug',
         annotation_editor_undo: 'Rückgängig',
         annotation_editor_redo: 'Wiederholen',

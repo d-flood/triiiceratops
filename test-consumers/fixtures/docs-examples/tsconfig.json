@@ -15,5 +15,10 @@
         "verbatimModuleSyntax": false,
         "types": []
     },
-    "include": ["globals.d.ts", "generated/**/*.ts", "generated/**/*.tsx", "generated/**/*.js"]
+    "include": [
+        "globals.d.ts",
+        "generated/**/*.ts",
+        "generated/**/*.tsx",
+        "generated/**/*.js"
+    ]
 }

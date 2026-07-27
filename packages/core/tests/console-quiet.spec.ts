@@ -9,7 +9,9 @@ import { test, expect, type ConsoleMessage } from '@playwright/test';
 const MANIFEST = '/demo-manifests/e2e/manifest.json';
 const VIEWER_PREFIX = '[triiiceratops]';
 
-function collectViewerMessages(page: import('@playwright/test').Page): string[] {
+function collectViewerMessages(
+    page: import('@playwright/test').Page,
+): string[] {
     const messages: string[] = [];
     page.on('console', (msg: ConsoleMessage) => {
         const text = msg.text();

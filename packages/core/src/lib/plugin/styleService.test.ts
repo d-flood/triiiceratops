@@ -70,8 +70,14 @@ describe('style service — constructable path (dedupe + refcount)', () => {
     it('two activations (viewers) sharing a root refcount to 2 for one sheet', () => {
         const root = makeShadowRoot();
         // Same plugin activated on two viewers that share the root.
-        const viewer1 = createPluginStyleService(root, '@triiiceratops/plugin-a');
-        const viewer2 = createPluginStyleService(root, '@triiiceratops/plugin-a');
+        const viewer1 = createPluginStyleService(
+            root,
+            '@triiiceratops/plugin-a',
+        );
+        const viewer2 = createPluginStyleService(
+            root,
+            '@triiiceratops/plugin-a',
+        );
 
         const un1 = viewer1.install(CSS, 'shared');
         const un2 = viewer2.install(CSS, 'shared');

@@ -84,6 +84,13 @@ jobs:
                   fi
                   echo "Working tree clean after build:all."
 
+            # Ticket 37: workspace-wide prettier gate. `format:check` runs
+            # `prettier --check .` from the root over every non-generated source
+            # file in all packages, scripts, and test-consumers (generated and
+            # vendored paths are excluded via .prettierignore).
+            - name: Format check (prettier)
+              run: pnpm format:check
+
             # eslint --max-warnings 0 (blanket eslint-disable is itself a lint
             # error via local/no-blanket-eslint-disable).
             - name: Lint (zero warnings)

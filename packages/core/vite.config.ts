@@ -24,19 +24,41 @@ export default defineConfig({
             compilerOptions: { customElement: true },
         }),
     ],
-    resolve: process.env.VITEST
-        ? {
-              conditions: ['browser'],
-              alias: {
-                  // Resolve the workspace SDK to its TypeScript source in tests
-                  // so core's integration tests need no pre-built dist. Vite
-                  // resolves the SDK's internal `.js` imports to their `.ts`.
-                  '@triiiceratops/plugin-sdk': fileURLToPath(
-                      new URL('../plugin-sdk/src/index.ts', import.meta.url),
-                  ),
-              },
-          }
-        : undefined,
+    resolve: {
+        // In tests, force the browser condition so Svelte resolves correctly.
+        ...(process.env.VITEST ? { conditions: ['browser'] } : {}),
+        alias: {
+            // Resolve the workspace SDK and every plugin to its TypeScript
+            // source (rather than its built `dist/`) so both the dev server
+            // and core's integration tests run against live source with HMR —
+            // no plugin rebuild needed. Vite resolves each package's internal
+            // `.js` imports to their `.ts`.
+            '@triiiceratops/plugin-sdk': fileURLToPath(
+                new URL('../plugin-sdk/src/index.ts', import.meta.url),
+            ),
+            '@triiiceratops/plugin-image-manipulation': fileURLToPath(
+                new URL(
+                    '../plugin-image-manipulation/src/index.ts',
+                    import.meta.url,
+                ),
+            ),
+            '@triiiceratops/plugin-image-download': fileURLToPath(
+                new URL(
+                    '../plugin-image-download/src/index.ts',
+                    import.meta.url,
+                ),
+            ),
+            '@triiiceratops/plugin-pdf-export': fileURLToPath(
+                new URL('../plugin-pdf-export/src/index.ts', import.meta.url),
+            ),
+            '@triiiceratops/plugin-annotation-editor': fileURLToPath(
+                new URL(
+                    '../plugin-annotation-editor/src/index.ts',
+                    import.meta.url,
+                ),
+            ),
+        },
+    },
     esbuild: {
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],

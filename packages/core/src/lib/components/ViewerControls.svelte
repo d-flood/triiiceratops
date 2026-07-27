@@ -263,113 +263,123 @@
         {/if}
 
         {#if hasChoices || hasCenterControls}
-        <!-- The canvas nav/zoom/choices are kept together as one no-wrap group:
+            <!-- The canvas nav/zoom/choices are kept together as one no-wrap group:
              the bar's first break separates this cluster from the toolbar
              buttons (see .control-bar / .nav-cluster), and this cluster itself
              never breaks internally. -->
-        <div class="nav-cluster" bind:this={navEl}>
-        {#if leftChoiceGroup}
-            {@render choiceControls(
-                leftChoiceGroup,
-                useAbbreviatedChoiceLabels,
-            )}
-        {/if}
-
-        {#if leftChoiceGroup && (hasCenterControls || rightChoiceGroup)}
-            <div class="divider-v"></div>
-        {/if}
-
-        {#if hasCenterControls}
-            <div class="center-controls">
-                {#if showZoom}
-                    <div class="btn-row">
-                        <Button
-                            square
-                            size="sm"
-                            ghost
-                            onclick={() => viewerState.zoomOut()}
-                            aria-label="Zoom Out"
-                        >
-                            <Icon name="MagnifyingGlassMinus" size={18} />
-                        </Button>
-
-                        <Button
-                            square
-                            size="sm"
-                            ghost
-                            onclick={() => viewerState.zoomIn()}
-                            aria-label="Zoom In"
-                        >
-                            <Icon name="MagnifyingGlassPlus" size={18} />
-                        </Button>
-                    </div>
+            <div class="nav-cluster" bind:this={navEl}>
+                {#if leftChoiceGroup}
+                    {@render choiceControls(
+                        leftChoiceGroup,
+                        useAbbreviatedChoiceLabels,
+                    )}
                 {/if}
 
-                {#if showZoom && showNav}
+                {#if leftChoiceGroup && (hasCenterControls || rightChoiceGroup)}
                     <div class="divider-v"></div>
                 {/if}
 
-                {#if showNav}
-                    <div class="btn-row">
-                        <Button
-                            square
-                            size="sm"
-                            ghost
-                            disabled={canvasNavLayout.leftButton === 'previous'
-                                ? !viewerState.hasPrevious
-                                : !viewerState.hasNext}
-                            onclick={() =>
-                                canvasNavLayout.leftButton === 'previous'
-                                    ? viewerState.previousCanvas()
-                                    : viewerState.nextCanvas()}
-                            aria-label={canvasNavLayout.leftButton ===
-                            'previous'
-                                ? m.previous_canvas()
-                                : m.next_canvas()}
-                        >
-                            <Icon name={leftNavIcon} size={18} />
-                        </Button>
+                {#if hasCenterControls}
+                    <div class="center-controls">
+                        {#if showZoom}
+                            <div class="btn-row">
+                                <Button
+                                    square
+                                    size="sm"
+                                    ghost
+                                    onclick={() => viewerState.zoomOut()}
+                                    aria-label="Zoom Out"
+                                >
+                                    <Icon
+                                        name="MagnifyingGlassMinus"
+                                        size={18}
+                                    />
+                                </Button>
 
-                        <span class="nav-index">
-                            {viewerState.currentCanvasIndex + 1} / {viewerState
-                                .canvases.length}
-                        </span>
+                                <Button
+                                    square
+                                    size="sm"
+                                    ghost
+                                    onclick={() => viewerState.zoomIn()}
+                                    aria-label="Zoom In"
+                                >
+                                    <Icon
+                                        name="MagnifyingGlassPlus"
+                                        size={18}
+                                    />
+                                </Button>
+                            </div>
+                        {/if}
 
-                        <CanvasInfoPopover />
+                        {#if showZoom && showNav}
+                            <div class="divider-v"></div>
+                        {/if}
 
-                        <Button
-                            square
-                            size="sm"
-                            ghost
-                            disabled={canvasNavLayout.rightButton === 'next'
-                                ? !viewerState.hasNext
-                                : !viewerState.hasPrevious}
-                            onclick={() =>
-                                canvasNavLayout.rightButton === 'next'
-                                    ? viewerState.nextCanvas()
-                                    : viewerState.previousCanvas()}
-                            aria-label={canvasNavLayout.rightButton === 'next'
-                                ? m.next_canvas()
-                                : m.previous_canvas()}
-                        >
-                            <Icon name={rightNavIcon} size={18} />
-                        </Button>
+                        {#if showNav}
+                            <div class="btn-row">
+                                <Button
+                                    square
+                                    size="sm"
+                                    ghost
+                                    disabled={canvasNavLayout.leftButton ===
+                                    'previous'
+                                        ? !viewerState.hasPrevious
+                                        : !viewerState.hasNext}
+                                    onclick={() =>
+                                        canvasNavLayout.leftButton ===
+                                        'previous'
+                                            ? viewerState.previousCanvas()
+                                            : viewerState.nextCanvas()}
+                                    aria-label={canvasNavLayout.leftButton ===
+                                    'previous'
+                                        ? m.previous_canvas()
+                                        : m.next_canvas()}
+                                >
+                                    <Icon name={leftNavIcon} size={18} />
+                                </Button>
+
+                                <span class="nav-index">
+                                    {viewerState.currentCanvasIndex + 1} / {viewerState
+                                        .canvases.length}
+                                </span>
+
+                                <CanvasInfoPopover />
+
+                                <Button
+                                    square
+                                    size="sm"
+                                    ghost
+                                    disabled={canvasNavLayout.rightButton ===
+                                    'next'
+                                        ? !viewerState.hasNext
+                                        : !viewerState.hasPrevious}
+                                    onclick={() =>
+                                        canvasNavLayout.rightButton === 'next'
+                                            ? viewerState.nextCanvas()
+                                            : viewerState.previousCanvas()}
+                                    aria-label={canvasNavLayout.rightButton ===
+                                    'next'
+                                        ? m.next_canvas()
+                                        : m.previous_canvas()}
+                                >
+                                    <Icon name={rightNavIcon} size={18} />
+                                </Button>
+                            </div>
+                        {/if}
                     </div>
                 {/if}
+
+                {#if rightChoiceGroup && (hasCenterControls || leftChoiceGroup)}
+                    <div class="divider-v"></div>
+                {/if}
+
+                {#if rightChoiceGroup}
+                    {@render choiceControls(
+                        rightChoiceGroup,
+                        useAbbreviatedChoiceLabels,
+                    )}
+                {/if}
             </div>
-        {/if}
-
-        {#if rightChoiceGroup && (hasCenterControls || leftChoiceGroup)}
-            <div class="divider-v"></div>
-        {/if}
-
-        {#if rightChoiceGroup}
-            {@render choiceControls(
-                rightChoiceGroup,
-                useAbbreviatedChoiceLabels,
-            )}
-        {/if}
-        </div>
         {/if}
     </div>
 {/if}
@@ -428,7 +438,9 @@
            radius must shrink by that same amount to stay concentric with the
            outer border — using the parent's radius as-is leaves a gap at the
            corners where the border's background peeks through. */
-        border-radius: calc(var(--tri-radius-controls) - var(--tri-border, 1px));
+        border-radius: calc(
+            var(--tri-radius-controls) - var(--tri-border, 1px)
+        );
         background-color: color-mix(
             in oklab,
             var(--tri-toolbar-bg) 70%,
@@ -464,7 +476,8 @@
         border-bottom: 0;
     }
     :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar,
-    :global([data-nav-style='docked'][data-nav-edge='top']) .control-bar::before {
+    :global([data-nav-style='docked'][data-nav-edge='top'])
+        .control-bar::before {
         border-top-left-radius: 0;
         border-top-right-radius: 0;
     }
@@ -503,7 +516,8 @@
         border-start-start-radius: 0;
         border-end-start-radius: 0;
     }
-    :global([data-nav-style='docked'][data-nav-align='end']) .control-bar::before {
+    :global([data-nav-style='docked'][data-nav-align='end'])
+        .control-bar::before {
         border-start-end-radius: 0;
         border-end-end-radius: 0;
     }

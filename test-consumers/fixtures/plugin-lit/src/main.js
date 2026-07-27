@@ -12,7 +12,11 @@ import {
     pluginApiVersion,
     capabilities,
 } from 'triiiceratops';
-import { definePlugin, activatePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
+import {
+    definePlugin,
+    activatePlugin,
+    svgIcon,
+} from '@triiiceratops/plugin-sdk';
 import { SelectorController } from '@triiiceratops/plugin-sdk/lit';
 import { LitElement, html } from 'lit';
 

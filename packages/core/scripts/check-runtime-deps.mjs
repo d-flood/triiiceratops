@@ -2,9 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const distDir = path.resolve('dist');
-const entryFiles = [
-    path.join(distDir, 'state', 'manifestoRuntime.browser.js'),
-];
+const entryFiles = [path.join(distDir, 'state', 'manifestoRuntime.browser.js')];
 
 const forbiddenSpecifiers = new Set(['manifesto.js', 'openseadragon']);
 const forbiddenRuntimeStrings = [
@@ -52,7 +50,10 @@ async function visitFile(filePath) {
             continue;
         }
 
-        const importedFilePath = path.resolve(path.dirname(normalizedPath), specifier);
+        const importedFilePath = path.resolve(
+            path.dirname(normalizedPath),
+            specifier,
+        );
         await visitFile(importedFilePath);
     }
 }
@@ -63,7 +64,10 @@ for (const entryFile of entryFiles) {
 
 if (bareImports.length > 0) {
     const details = bareImports
-        .map(({ filePath, specifier }) => `- ${path.relative(process.cwd(), filePath)} imports ${specifier}`)
+        .map(
+            ({ filePath, specifier }) =>
+                `- ${path.relative(process.cwd(), filePath)} imports ${specifier}`,
+        )
         .join('\n');
 
     throw new Error(

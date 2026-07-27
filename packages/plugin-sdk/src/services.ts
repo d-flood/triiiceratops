@@ -42,10 +42,7 @@ export function createStubLocaleService(): PluginLocaleService {
 /** No-op UI service: renders nothing, returns a no-op cleanup. */
 export function createStubUiService(): PluginUiService {
     return {
-        renderIcon(
-            _icon: IconDescriptor,
-            _container: HTMLElement,
-        ): () => void {
+        renderIcon(_icon: IconDescriptor, _container: HTMLElement): () => void {
             return noop;
         },
     };

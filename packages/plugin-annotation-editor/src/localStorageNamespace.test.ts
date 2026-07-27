@@ -80,7 +80,9 @@ describe('LocalStorageAdapter 1.0 namespace', () => {
         await adapter.create(MANIFEST, CANVAS, sample('new-1', CANVAS));
         await adapter.update(MANIFEST, CANVAS, {
             ...sample('new-1', CANVAS),
-            body: [{ type: 'TextualBody', purpose: 'commenting', value: 'edited' }],
+            body: [
+                { type: 'TextualBody', purpose: 'commenting', value: 'edited' },
+            ],
         });
         const loaded = await adapter.load(MANIFEST, CANVAS);
         expect(loaded.find((a) => a.id === 'new-1')).toBeDefined();
@@ -91,9 +93,9 @@ describe('LocalStorageAdapter 1.0 namespace', () => {
         expect(readKeys).not.toContain(rcHere);
         expect(readKeys).not.toContain(rcOther);
         // Every read the adapter performed was a v1 key.
-        expect(
-            readKeys.every((k) => String(k).startsWith(V1_PREFIX)),
-        ).toBe(true);
+        expect(readKeys.every((k) => String(k).startsWith(V1_PREFIX))).toBe(
+            true,
+        );
 
         // RC keys are still present and byte-identical (never migrated/overwritten).
         expect(localStorage.getItem(rcHere)).toBe(rcHereValue);

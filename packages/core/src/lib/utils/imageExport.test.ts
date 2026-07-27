@@ -165,9 +165,24 @@ describe('buildRelativeSizeOptions', () => {
     it('builds an Original/50%/25% ladder from native dimensions', () => {
         const options = buildRelativeSizeOptions(800, 1000);
         expect(options).toEqual([
-            { width: 800, height: 1000, label: 'Original (800 × 1000px)', url: undefined },
-            { width: 400, height: 500, label: '50% (400 × 500px)', url: undefined },
-            { width: 200, height: 250, label: '25% (200 × 250px)', url: undefined },
+            {
+                width: 800,
+                height: 1000,
+                label: 'Original (800 × 1000px)',
+                url: undefined,
+            },
+            {
+                width: 400,
+                height: 500,
+                label: '50% (400 × 500px)',
+                url: undefined,
+            },
+            {
+                width: 200,
+                height: 250,
+                label: '25% (200 × 250px)',
+                url: undefined,
+            },
         ]);
     });
 
@@ -192,7 +207,11 @@ describe('resolveExportSizeOptions', () => {
         const options = await resolveExportSizeOptions(resolved);
 
         expect(options).toHaveLength(3);
-        expect(options[0]).toMatchObject({ width: 800, height: 1000, label: 'Original (800 × 1000px)' });
+        expect(options[0]).toMatchObject({
+            width: 800,
+            height: 1000,
+            label: 'Original (800 × 1000px)',
+        });
         expect(options[0].url).toBe(
             'https://example.org/iiif/image1/full/max/0/default.jpg',
         );
@@ -224,12 +243,14 @@ describe('resolveExportSizeOptions', () => {
         expect(fetchSpy).toHaveBeenCalledWith(
             'https://example.org/iiif/level0-image/info.json',
         );
-        expect(options.map((option) => option.width).sort((a, b) => a - b)).toEqual([
-            500, 1000, 4000,
-        ]);
+        expect(
+            options.map((option) => option.width).sort((a, b) => a - b),
+        ).toEqual([500, 1000, 4000]);
         // Every option's URL is a size the level0 service actually declared.
         for (const option of options) {
-            expect(option.url).toMatch(/^https:\/\/example\.org\/iiif\/level0-image\/full\//);
+            expect(option.url).toMatch(
+                /^https:\/\/example\.org\/iiif\/level0-image\/full\//,
+            );
         }
     });
 

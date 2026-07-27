@@ -1481,7 +1481,11 @@
         height: 1rem;
         margin-block: 0.25rem;
         margin-inline: 0;
-        --divider-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
+        --divider-color: color-mix(
+            in oklab,
+            var(--tri-content) 10%,
+            transparent
+        );
     }
     .divider::before,
     .divider::after {
@@ -1544,7 +1548,11 @@
     }
     summary:hover {
         cursor: pointer;
-        background-color: color-mix(in oklab, var(--tri-content) 10%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-content) 10%,
+            transparent
+        );
     }
 
     details {

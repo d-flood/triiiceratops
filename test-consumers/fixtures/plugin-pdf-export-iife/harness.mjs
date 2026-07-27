@@ -55,7 +55,9 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
             ),
         ),
     );
-    expect(registered, `${pathname}: plugin registered in namespace`).toBe(true);
+    expect(registered, `${pathname}: plugin registered in namespace`).toBe(
+        true,
+    );
 
     // Open the plugin panel (its DOM lives in the viewer's shadow root; the
     // Playwright locator pierces it).

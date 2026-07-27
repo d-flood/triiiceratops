@@ -92,7 +92,10 @@ pre {
         monospace
     );
     font-feature-settings: var(--default-mono-font-feature-settings, normal);
-    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    font-variation-settings: var(
+        --default-mono-font-variation-settings,
+        normal
+    );
     font-size: 1em;
 }
 

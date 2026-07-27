@@ -1,18 +1,16 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
-	import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-	import { getMessages, language } from '../state/i18n.svelte';
-	import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
-	import {
-		normalizeIiifLinks,
-		normalizeMetadataEntries,
-		resolveHtmlValues,
-	} from '../utils/metadataNormalization';
-	import {
-		resolveLanguageValue,
-	} from '../utils/languageMap';
-	import SanitizedHtml from './SanitizedHtml.svelte';
+    import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+    import { getMessages, language } from '../state/i18n.svelte';
+    import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
+    import {
+        normalizeIiifLinks,
+        normalizeMetadataEntries,
+        resolveHtmlValues,
+    } from '../utils/metadataNormalization';
+    import { resolveLanguageValue } from '../utils/languageMap';
+    import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
@@ -34,8 +32,8 @@
         return resolveThumbnailResourceSrc(json?.thumbnail);
     });
 
-	// --- Summary (v3) or Description (v2) ---
-	let summary = $derived.by(() => {
+    // --- Summary (v3) or Description (v2) ---
+    let summary = $derived.by(() => {
         if (!manifest) return '';
         if (json?.summary) {
             return resolveLanguageValue(json.summary, viewerLocale);
@@ -44,10 +42,10 @@
     });
 
     // --- Metadata entries ---
-	let metadata = $derived.by(() => {
-		const rawMetadata = json?.metadata || manifest?.getMetadata?.();
-		return normalizeMetadataEntries(rawMetadata, viewerLocale);
-	});
+    let metadata = $derived.by(() => {
+        const rawMetadata = json?.metadata || manifest?.getMetadata?.();
+        return normalizeMetadataEntries(rawMetadata, viewerLocale);
+    });
 
     // --- Attribution (requiredStatement) ---
     let attributionLabel = $derived.by(() => {
@@ -75,18 +73,18 @@
         return json?.rights || manifest.getLicense?.() || '';
     });
 
-	// --- Provider (0234) ---
-	let providers = $derived.by(() => {
+    // --- Provider (0234) ---
+    let providers = $derived.by(() => {
         if (!json?.provider) return [];
         const raw = Array.isArray(json.provider)
             ? json.provider
             : [json.provider];
-		return raw.map((p: any) => {
-			const label = resolveLanguageValue(p.label, viewerLocale) || '';
-			const links = [
-				...normalizeIiifLinks(p.homepage, viewerLocale),
-				...normalizeIiifLinks(p.seeAlso, viewerLocale),
-			];
+        return raw.map((p: any) => {
+            const label = resolveLanguageValue(p.label, viewerLocale) || '';
+            const links = [
+                ...normalizeIiifLinks(p.homepage, viewerLocale),
+                ...normalizeIiifLinks(p.seeAlso, viewerLocale),
+            ];
             const logos = (
                 Array.isArray(p.logo) ? p.logo : p.logo ? [p.logo] : []
             )
@@ -96,16 +94,16 @@
                 .filter(Boolean);
             return { label, links, logos };
         });
-	});
+    });
 
-	// --- Homepage (0047) ---
-	let homepages = $derived(normalizeIiifLinks(json?.homepage, viewerLocale));
+    // --- Homepage (0047) ---
+    let homepages = $derived(normalizeIiifLinks(json?.homepage, viewerLocale));
 
-	// --- Rendering (0046) ---
-	let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
+    // --- Rendering (0046) ---
+    let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
 
-	// --- See Also (0053) ---
-	let seeAlso = $derived(normalizeIiifLinks(json?.seeAlso, viewerLocale));
+    // --- See Also (0053) ---
+    let seeAlso = $derived(normalizeIiifLinks(json?.seeAlso, viewerLocale));
 
     let position = $derived(
         viewerState.config.information?.position ?? 'right',
@@ -118,18 +116,27 @@
         class="panel"
         class:floating={!embedded}
         class:bordered={!embedded && !viewerState.config.transparentBackground}
-        class:border-left={!embedded && !viewerState.config.transparentBackground && position === 'left'}
-        class:border-right={!embedded && !viewerState.config.transparentBackground && position !== 'left'}
+        class:border-left={!embedded &&
+            !viewerState.config.transparentBackground &&
+            position === 'left'}
+        class:border-right={!embedded &&
+            !viewerState.config.transparentBackground &&
+            position !== 'left'}
         role="dialog"
         aria-label={m.metadata()}
     >
         {#if !embedded}
-        <div class="header">
-            <div class="header-title">
-                <Icon name="Info" size={20} weight="bold" class="header-icon" />
-                <h2 class="header-heading">{m.metadata()}</h2>
+            <div class="header">
+                <div class="header-title">
+                    <Icon
+                        name="Info"
+                        size={20}
+                        weight="bold"
+                        class="header-icon"
+                    />
+                    <h2 class="header-heading">{m.metadata()}</h2>
+                </div>
             </div>
-        </div>
         {/if}
 
         <div class="body" class:scrollable={!embedded}>
@@ -137,11 +144,7 @@
 
             {#if manifestThumbnail}
                 <div class="thumbnail-wrap">
-                    <img
-                        src={manifestThumbnail}
-                        alt=""
-                        class="thumbnail"
-                    />
+                    <img src={manifestThumbnail} alt="" class="thumbnail" />
                 </div>
             {/if}
 
@@ -245,8 +248,7 @@
                                 href={hp.id}
                                 target="_blank"
                                 rel="noreferrer"
-                                class="link break-all link-block"
-                                >{hp.label}</a
+                                class="link break-all link-block">{hp.label}</a
                             >
                         {/each}
                     </dd>

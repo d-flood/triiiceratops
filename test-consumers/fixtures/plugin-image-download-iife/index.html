@@ -20,20 +20,19 @@
         <script src="/node_modules/@triiiceratops/plugin-image-download/dist/iife.js"></script>
     </head>
     <body>
-        <triiiceratops-viewer manifest-id="/manifest.json"></triiiceratops-viewer>
+        <triiiceratops-viewer
+            manifest-id="/manifest.json"
+        ></triiiceratops-viewer>
         <script>
-            customElements
-                .whenDefined('triiiceratops-viewer')
-                .then(() => {
-                    const viewer =
-                        document.querySelector('triiiceratops-viewer');
-                    // The plugin IIFE registered its factory into the shared
-                    // order-independent namespace; activation is explicit.
-                    const plugin = window.Triiiceratops.plugins.get(
-                        '@triiiceratops/plugin-image-download',
-                    );
-                    viewer.plugins = [plugin];
-                });
+            customElements.whenDefined('triiiceratops-viewer').then(() => {
+                const viewer = document.querySelector('triiiceratops-viewer');
+                // The plugin IIFE registered its factory into the shared
+                // order-independent namespace; activation is explicit.
+                const plugin = window.Triiiceratops.plugins.get(
+                    '@triiiceratops/plugin-image-download',
+                );
+                viewer.plugins = [plugin];
+            });
         </script>
     </body>
 </html>

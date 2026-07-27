@@ -463,10 +463,7 @@
     // plugin's badged toolbar button + retry panel render from this. Reactive so
     // the error UI appears on failure and clears on a successful retry.
     let pluginErrors = $state<
-        Record<
-            string,
-            { payload: PluginError; icon: IconDescriptor }
-        >
+        Record<string, { payload: PluginError; icon: IconDescriptor }>
     >({});
     let pluginErrorList = $derived(Object.values(pluginErrors));
 
@@ -1195,7 +1192,10 @@
         >
             {#if manifestData?.isFetching}
                 <div class="centered">
-                    <Spinner size="lg" style="color:var(--tri-color-primary-text)" />
+                    <Spinner
+                        size="lg"
+                        style="color:var(--tri-color-primary-text)"
+                    />
                 </div>
             {:else if manifestData?.error}
                 <div class="centered error-text">
@@ -1239,7 +1239,8 @@
                                     {m.error_auth_required()}
                                 </p>
                             {:else}
-                                <Icon name="ImageBroken"
+                                <Icon
+                                    name="ImageBroken"
                                     size={48}
                                     color="var(--tri-color-warning)"
                                 />
@@ -1263,11 +1264,19 @@
             {:else if manifestData && !manifestData.isFetching && !tileSources}
                 <div class="overlay-cover" role="status">
                     {#if currentCanvasThumbnail}
-                        <img src={currentCanvasThumbnail} alt="" class="blur-bg" />
+                        <img
+                            src={currentCanvasThumbnail}
+                            alt=""
+                            class="blur-bg"
+                        />
                         <div class="dim-50"></div>
                     {/if}
                     <div class="error-card">
-                        <Icon name="ImageBroken" size={48} color="var(--tri-color-warning)" />
+                        <Icon
+                            name="ImageBroken"
+                            size={48}
+                            color="var(--tri-color-warning)"
+                        />
                         <p class="msg msg-strong">
                             {m.no_image_found()}
                         </p>
@@ -1446,7 +1455,6 @@
         border-right: 1px solid var(--tri-surface-border);
     }
 
-
     .toolbar-rail-host {
         height: 100%;
         min-height: 0;
@@ -1546,7 +1554,11 @@
     .dim-50 {
         position: absolute;
         inset: 0;
-        background-color: color-mix(in oklab, var(--tri-viewer-bg) 50%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-viewer-bg) 50%,
+            transparent
+        );
     }
     .error-card {
         position: relative;
@@ -1558,7 +1570,11 @@
         text-align: center;
         padding-inline: 1rem;
         padding-block: 1.5rem;
-        background-color: color-mix(in oklab, var(--tri-viewer-bg) 90%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-viewer-bg) 90%,
+            transparent
+        );
         border-radius: 0.75rem;
         box-shadow:
             0 10px 15px -3px #0000001a,
@@ -1606,13 +1622,21 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: color-mix(in oklab, var(--tri-viewer-bg) 70%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-viewer-bg) 70%,
+            transparent
+        );
         backdrop-filter: blur(4px);
     }
     .drag-hint {
         border-radius: var(--tri-radius-box);
         border: 2px dashed var(--tri-color-primary);
-        background-color: color-mix(in oklab, var(--tri-viewer-bg) 90%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-viewer-bg) 90%,
+            transparent
+        );
         padding-inline: 1.5rem;
         padding-block: 1rem;
         font-size: 0.875rem;
@@ -1627,7 +1651,11 @@
     /* Scoped scrollbar styles for the viewer */
     :global(#triiiceratops-viewer *) {
         scrollbar-width: thin;
-        scrollbar-color: color-mix(in oklab, var(--tri-content) 20%, transparent)
+        scrollbar-color: color-mix(
+                in oklab,
+                var(--tri-content) 20%,
+                transparent
+            )
             transparent;
     }
 
@@ -1642,14 +1670,22 @@
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
-        background-color: color-mix(in oklab, var(--tri-content) 20%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-content) 20%,
+            transparent
+        );
         border-radius: 9999px;
         border: 1px solid transparent;
         background-clip: padding-box;
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
-        background-color: color-mix(in oklab, var(--tri-content) 40%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-content) 40%,
+            transparent
+        );
     }
 
     :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {

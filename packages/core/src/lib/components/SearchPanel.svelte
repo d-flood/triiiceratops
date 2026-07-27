@@ -175,7 +175,9 @@
                     >
                         <div class="group-header">
                             <span>{group.canvasLabel}</span>
-                            <Badge size="sm" style="--badge-color:var(--panel-surface);"
+                            <Badge
+                                size="sm"
+                                style="--badge-color:var(--panel-surface);"
                                 >{group.hits.length}
                                 {group.hits.length === 1
                                     ? 'result'
@@ -187,9 +189,7 @@
                                         class="separator">|</span
                                     >{/if}{#if result.type === 'hit'}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
                                         >{@html result.before}</span
-                                    ><span
-                                        class="match"
-                                    >
+                                    ><span class="match">
                                         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                                         {@html result.match}
                                     </span><!-- eslint-disable-next-line svelte/no-at-html-tags --><span

@@ -45,13 +45,10 @@
             <div class="panel-header">
                 <div class="panel-header-title">
                     {#if collectionThumbnail}
-                        <img
-                            src={collectionThumbnail}
-                            alt=""
-                            class="thumb"
-                        />
+                        <img src={collectionThumbnail} alt="" class="thumb" />
                     {:else}
-                        <Icon name="Folder"
+                        <Icon
+                            name="Folder"
                             size={20}
                             weight="bold"
                             class="icon-lead"
@@ -72,7 +69,8 @@
                             class="thumb-lg"
                         />
                     {:else}
-                        <Icon name="Folder"
+                        <Icon
+                            name="Folder"
                             size={22}
                             weight="bold"
                             class="icon-lead"
@@ -121,15 +119,13 @@
                     <div class="item-content">
                         <div class="item-title-row">
                             {#if item.type === 'Collection'}
-                                <Icon name="Folder"
+                                <Icon
+                                    name="Folder"
                                     size={14}
                                     class="icon-collection"
                                 />
                             {/if}
-                            <span
-                                class="item-title"
-                                class:active={isActive}
-                            >
+                            <span class="item-title" class:active={isActive}>
                                 {item.label || `Item ${i + 1}`}
                             </span>
                         </div>
@@ -192,7 +188,11 @@
     .panel-header-embedded {
         padding: 1rem;
         border-bottom: 1px solid var(--tri-surface-border);
-        background-color: color-mix(in oklab, var(--tri-input-bg) 50%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-input-bg) 50%,
+            transparent
+        );
     }
     .embedded-row {
         display: flex;
@@ -236,7 +236,11 @@
     .count-bar {
         padding: 1rem;
         border-bottom: 1px solid var(--tri-surface-border);
-        background-color: color-mix(in oklab, var(--tri-input-bg) 50%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-input-bg) 50%,
+            transparent
+        );
         display: flex;
         align-items: center;
     }
@@ -264,8 +268,9 @@
         width: 100%;
         text-align: left;
         padding: 1rem;
-        transition-property: color, background-color, border-color,
-            text-decoration-color, fill, stroke;
+        transition-property:
+            color, background-color, border-color, text-decoration-color, fill,
+            stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 150ms;
         cursor: pointer;
@@ -274,7 +279,11 @@
         align-items: flex-start;
     }
     .item.active {
-        background-color: color-mix(in oklab, var(--tri-color-primary) 10%, transparent);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-color-primary) 10%,
+            transparent
+        );
         border-left: 2px solid var(--tri-color-primary);
     }
     /* hover comes after .active so it wins on hover */

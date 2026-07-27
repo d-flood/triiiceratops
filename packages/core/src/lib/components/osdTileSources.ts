@@ -261,7 +261,10 @@ function getFitMaxLevel(
     return fitMaxLevel;
 }
 
-export function getFullImageUrlForLevel(tileSource: any, level: number): string {
+export function getFullImageUrlForLevel(
+    tileSource: any,
+    level: number,
+): string {
     const scale = tileSource.getLevelScale(level);
     const levelWidth = Math.ceil(tileSource.width * scale);
     const levelHeight = Math.ceil(tileSource.height * scale);

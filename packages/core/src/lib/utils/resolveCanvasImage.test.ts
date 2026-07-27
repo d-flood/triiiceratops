@@ -298,8 +298,7 @@ describe('resolveAllCanvasImages', () => {
             height: 5412,
             getContent: () => [
                 {
-                    target:
-                        'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1',
+                    target: 'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1',
                     getBody: () => ({
                         id: 'https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/full/max/0/default.jpg',
                         type: 'Image',
@@ -315,8 +314,7 @@ describe('resolveAllCanvasImages', () => {
                     }),
                 },
                 {
-                    target:
-                        'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,1232',
+                    target: 'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1#xywh=3949,994,1091,1232',
                     getBody: () => ({
                         id: 'https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature/full/max/0/default.jpg',
                         type: 'Image',

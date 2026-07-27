@@ -78,7 +78,9 @@ export function svgIcon(svg: string): IconDescriptor {
 
     // --- Extraction ---------------------------------------------------------
     const openTag = open[0];
-    const viewBoxMatch = /\bviewBox\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(openTag);
+    const viewBoxMatch = /\bviewBox\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(
+        openTag,
+    );
     let viewBox = (viewBoxMatch?.[1] ?? viewBoxMatch?.[2])?.trim();
     if (!viewBox) {
         const width = /\bwidth\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(openTag);
@@ -98,8 +100,9 @@ export function svgIcon(svg: string): IconDescriptor {
         // tag is present).
         const start = open.index + openTag.length;
         const end = source.lastIndexOf('</svg>');
-        inner = (end >= start ? source.slice(start, end) : source.slice(start))
-            .trim();
+        inner = (
+            end >= start ? source.slice(start, end) : source.slice(start)
+        ).trim();
     }
 
     return { kind: 'svg', inner, viewBox };

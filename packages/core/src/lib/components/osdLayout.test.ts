@@ -61,7 +61,9 @@ describe('getCanvasDisplayLayouts', () => {
             },
         );
 
-        expect(result.layouts.map((layout) => layout.height)).toEqual([2.5, 2.5]);
+        expect(result.layouts.map((layout) => layout.height)).toEqual([
+            2.5, 2.5,
+        ]);
         expect(result.sources[0]).toMatchObject({ width: 2.5 });
         expect(result.sources[1]).toMatchObject({ width: 0.625 });
     });
@@ -108,7 +110,10 @@ describe('getCanvasDisplayLayouts', () => {
 
     it('falls back to current fixed offsets when dimensions are missing', () => {
         const result = getCanvasDisplayLayouts(
-            [source('a', 1000, 1000), { canvasId: 'b', tileSource: {}, x: 0, y: 0, width: 1 }],
+            [
+                source('a', 1000, 1000),
+                { canvasId: 'b', tileSource: {}, x: 0, y: 0, width: 1 },
+            ],
             {
                 mode: 'continuous',
                 direction: 'left-to-right',

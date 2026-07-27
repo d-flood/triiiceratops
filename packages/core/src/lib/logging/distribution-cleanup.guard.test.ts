@@ -48,7 +48,8 @@ const IMPORT_META_ENV_EXCLUDED = ['components/DemoHeader.svelte'];
 // must appear on the console line or in the preceding few comment lines.
 const ALLOW_MARKER = 'triiiceratops-console-allow';
 
-const CONSOLE_CALL = /console\.(log|warn|error|debug|info|trace|group|table|dir|count|assert)\s*\(/;
+const CONSOLE_CALL =
+    /console\.(log|warn|error|debug|info|trace|group|table|dir|count|assert)\s*\(/;
 const IMPORT_META_ENV = /import\.meta\.env/;
 
 function collectSourceFiles(dir: string): string[] {

@@ -12,7 +12,11 @@ import {
     pluginApiVersion,
     capabilities,
 } from 'triiiceratops';
-import { definePlugin, activatePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
+import {
+    definePlugin,
+    activatePlugin,
+    svgIcon,
+} from '@triiiceratops/plugin-sdk';
 import { useViewerSelector } from '@triiiceratops/plugin-sdk/react';
 import { StrictMode, createElement as h } from 'react';
 import { createRoot } from 'react-dom/client';

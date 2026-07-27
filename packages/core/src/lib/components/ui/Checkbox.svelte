@@ -83,10 +83,18 @@
     .checkbox::before {
         content: '';
         opacity: 0;
-        clip-path: polygon(20% 100%, 20% 80%, 50% 80%, 50% 80%, 70% 80%, 70% 100%);
+        clip-path: polygon(
+            20% 100%,
+            20% 80%,
+            50% 80%,
+            50% 80%,
+            70% 80%,
+            70% 100%
+        );
         width: 100%;
         height: 100%;
-        box-shadow: 0px 3px 0 0px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
+        box-shadow: 0px 3px 0 0px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1))
+            inset;
         background-color: currentColor;
         font-size: 1rem;
         line-height: 0.75;
@@ -114,7 +122,14 @@
     }
     .checkbox:checked::before,
     .checkbox[aria-checked='true']::before {
-        clip-path: polygon(20% 100%, 20% 80%, 50% 80%, 50% 0%, 70% 0%, 70% 100%);
+        clip-path: polygon(
+            20% 100%,
+            20% 80%,
+            50% 80%,
+            50% 0%,
+            70% 0%,
+            70% 100%
+        );
         opacity: 1;
     }
 
@@ -126,7 +141,14 @@
     }
     .checkbox:indeterminate::before {
         opacity: 1;
-        clip-path: polygon(20% 100%, 20% 80%, 50% 80%, 50% 80%, 80% 80%, 80% 100%);
+        clip-path: polygon(
+            20% 100%,
+            20% 80%,
+            50% 80%,
+            50% 80%,
+            80% 80%,
+            80% 100%
+        );
         translate: 0 -35%;
         rotate: none;
     }

@@ -13,10 +13,7 @@
  * (ticket 14) supplies a recording double of this service instead.
  */
 
-import type {
-    LocaleCatalog,
-    PluginLocaleService,
-} from '../types/plugin';
+import type { LocaleCatalog, PluginLocaleService } from '../types/plugin';
 
 /**
  * The owning viewer's active-locale observable, as the style/locale services see
@@ -60,11 +57,7 @@ export function createPluginLocaleService(
 ): PluginLocaleService {
     function resolve(key: string): string {
         const active = source.current;
-        return (
-            catalog[active]?.[key] ??
-            catalog[FALLBACK_LOCALE]?.[key] ??
-            key
-        );
+        return catalog[active]?.[key] ?? catalog[FALLBACK_LOCALE]?.[key] ?? key;
     }
 
     return {

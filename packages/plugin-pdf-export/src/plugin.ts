@@ -65,9 +65,7 @@ function createView(config: PdfExportConfig): PluginView {
  * Create a PDF-export plugin factory with consumer configuration. Activate the
  * returned factory explicitly, per viewer.
  */
-export function createPdfExportPlugin(
-    config: PdfExportConfig = {},
-): SdkPlugin {
+export function createPdfExportPlugin(config: PdfExportConfig = {}): SdkPlugin {
     return definePlugin({
         name: NAME,
         version: VERSION,

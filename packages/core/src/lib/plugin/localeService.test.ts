@@ -13,7 +13,11 @@ import {
 import type { LocaleCatalog } from '../types/plugin';
 
 const CATALOG: LocaleCatalog = {
-    en: { greeting: 'Hello', apples: 'You have {count} apples', onlyEn: 'English' },
+    en: {
+        greeting: 'Hello',
+        apples: 'You have {count} apples',
+        onlyEn: 'English',
+    },
     de: { greeting: 'Hallo', apples: 'Du hast {count} Äpfel' },
 };
 

@@ -183,12 +183,10 @@ describe('TriiiceratopsViewer plugin failure channel', () => {
         // Re-activated successfully: plugin mounted, error UI cleared.
         expect(mountAttempts).toBe(2);
         expect(liveMounts).toBe(1);
-        expect(
-            target.querySelector('[data-plugin-error-button]'),
-        ).toBeNull();
-        expect(
-            target.querySelector('.tri-sdk-plugin')?.textContent,
-        ).toBe('flaky-mounted');
+        expect(target.querySelector('[data-plugin-error-button]')).toBeNull();
+        expect(target.querySelector('.tri-sdk-plugin')?.textContent).toBe(
+            'flaky-mounted',
+        );
 
         await unmount(app);
     });
@@ -240,8 +238,9 @@ describe('TriiiceratopsViewer plugin failure channel', () => {
 
         expect(healthyMounted).toBe(true);
         expect(
-            target.querySelector('[data-plugin-name="@triiiceratops/plugin-good"]')
-                ?.textContent,
+            target.querySelector(
+                '[data-plugin-name="@triiiceratops/plugin-good"]',
+            )?.textContent,
         ).toBe('good-mounted');
         // Exactly one error button (for the failing plugin).
         expect(

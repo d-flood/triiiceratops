@@ -112,7 +112,12 @@ function expandComparator(token: string): Comparator[] | null {
             { op: '>=', ver: v },
             {
                 op: '<',
-                ver: { major: v.major, minor: v.minor + 1, patch: 0, prerelease: [] },
+                ver: {
+                    major: v.major,
+                    minor: v.minor + 1,
+                    patch: 0,
+                    prerelease: [],
+                },
             },
         ];
     }
@@ -276,6 +281,10 @@ export function negotiateCompatibility(
 ): void {
     const reasons = collectIncompatibilities(plugin, host);
     if (reasons.length > 0) {
-        throw new PluginCompatibilityError(plugin.name, plugin.version, reasons);
+        throw new PluginCompatibilityError(
+            plugin.name,
+            plugin.version,
+            reasons,
+        );
     }
 }

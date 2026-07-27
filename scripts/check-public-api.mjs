@@ -29,10 +29,19 @@ const ALLOWLIST = resolve(REPO, 'api-reports', 'dts-any-allowlist.txt');
 const PACKAGES = [
     { name: 'triiiceratops', dir: 'core' },
     { name: '@triiiceratops/plugin-sdk', dir: 'plugin-sdk' },
-    { name: '@triiiceratops/plugin-image-manipulation', dir: 'plugin-image-manipulation' },
-    { name: '@triiiceratops/plugin-image-download', dir: 'plugin-image-download' },
+    {
+        name: '@triiiceratops/plugin-image-manipulation',
+        dir: 'plugin-image-manipulation',
+    },
+    {
+        name: '@triiiceratops/plugin-image-download',
+        dir: 'plugin-image-download',
+    },
     { name: '@triiiceratops/plugin-pdf-export', dir: 'plugin-pdf-export' },
-    { name: '@triiiceratops/plugin-annotation-editor', dir: 'plugin-annotation-editor' },
+    {
+        name: '@triiiceratops/plugin-annotation-editor',
+        dir: 'plugin-annotation-editor',
+    },
 ];
 
 /** Normalized, stable key for one `any` occurrence. */
@@ -60,10 +69,16 @@ const HEADER = `# Public-declaration \`any\` allowlist (ticket 21)
 # what exists"). The SDK ABI itself is \`any\`-clean.
 #
 # The gate (\`scripts/check-public-api.mjs\`) FAILS on any NEW public \`any\` not
-# listed here, so a planted \`any\` on a public type is caught. Regenerate with
-# \`node scripts/check-public-api.mjs --write-allowlist\` ONLY after a reviewed,
-# intentional change. These entries should move into ticket 22's
-# \`lint-allowlist.md\` when that file exists.
+# listed here, so a planted \`any\` on a public type is caught. This boundary is
+# registered as a single sanctioned exception in \`lint-allowlist.md\` (section
+# "IIIF resources crossing the manifesto.js boundary are \`any\`"): that entry
+# carries the human-facing rationale / owner / review-date, and THIS file is the
+# machine-readable line list the gate actually reads.
+#
+# Update protocol: adding or removing an entry here requires regenerating this
+# file via \`node scripts/check-public-api.mjs --write-allowlist\` AND updating the
+# \`lint-allowlist.md\` entry's rationale and date in the SAME commit. Regenerate
+# ONLY after a reviewed, intentional change.
 #
 # Blank lines and \`#\` comments are ignored.
 `;

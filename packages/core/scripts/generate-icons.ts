@@ -66,13 +66,19 @@ const lines: string[] = [];
 lines.push('/* eslint-disable */');
 lines.push('/*');
 lines.push(' * GENERATED FILE — DO NOT EDIT.');
-lines.push(' * Produced by scripts/generate-icons.ts from scripts/icons.config.ts');
-lines.push(' * and @phosphor-icons/core. Gitignored; regenerated on every build.');
+lines.push(
+    ' * Produced by scripts/generate-icons.ts from scripts/icons.config.ts',
+);
+lines.push(
+    ' * and @phosphor-icons/core. Gitignored; regenerated on every build.',
+);
 lines.push(' */');
 lines.push(`export type IconName = ${nameUnion};`);
 lines.push(`export type IconWeight = ${weightUnion};`);
 lines.push('');
-lines.push('export const icons: Record<IconWeight, Record<IconName, string>> = {');
+lines.push(
+    'export const icons: Record<IconWeight, Record<IconName, string>> = {',
+);
 
 let generated = 0;
 for (const weight of ICON_WEIGHTS) {
@@ -85,7 +91,9 @@ for (const weight of ICON_WEIGHTS) {
             );
         }
         const inner = extractInner(readFileSync(file, 'utf8'), file);
-        lines.push(`        ${JSON.stringify(name)}: ${JSON.stringify(inner)},`);
+        lines.push(
+            `        ${JSON.stringify(name)}: ${JSON.stringify(inner)},`,
+        );
         generated += 1;
     }
     lines.push('    },');

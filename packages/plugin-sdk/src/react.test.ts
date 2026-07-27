@@ -18,8 +18,9 @@ import {
 } from './test/fakeViewerState.js';
 
 // React 19 in a test environment expects this global.
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-    true;
+(
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
 let root: Root;
@@ -56,7 +57,9 @@ function renderWithHook(
 }
 
 function text(): string | null {
-    return container.querySelector('[data-testid="value"]')?.textContent ?? null;
+    return (
+        container.querySelector('[data-testid="value"]')?.textContent ?? null
+    );
 }
 
 describe('useViewerSelector (React)', () => {

@@ -27,8 +27,7 @@ export const catalog: LocaleCatalog = {
         pdf_export_exporting: 'Exporting...',
         pdf_export_download: 'Download PDF',
         pdf_export_disabled_no_manifest: 'Load a manifest to export canvases.',
-        pdf_export_disabled_no_canvases:
-            'No canvases are available to export.',
+        pdf_export_disabled_no_canvases: 'No canvases are available to export.',
         pdf_export_disabled_invalid_range:
             'Select a valid start and end canvas to export.',
         pdf_export_progress_preparing: 'Preparing export...',
@@ -68,8 +67,7 @@ export const catalog: LocaleCatalog = {
         pdf_export_progress_preparing: 'Export wird vorbereitet...',
         pdf_export_progress_cover_sheet: 'Deckblatt wird vorbereitet...',
         pdf_export_progress_canvas: 'Exportiere {current} von {total}: {label}',
-        pdf_export_progress_download:
-            'Download wird vorbereitet: {filename}',
+        pdf_export_progress_download: 'Download wird vorbereitet: {filename}',
         pdf_export_result_downloaded:
             '{count} Canvas(es) als {filename} heruntergeladen.',
         pdf_export_result_partial:

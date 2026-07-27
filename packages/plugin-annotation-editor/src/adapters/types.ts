@@ -83,10 +83,11 @@ export interface W3CAnnotation<TBody = W3CAnnotationBody> {
  * `hydrate()`. These markers are NOT part of the stored annotation contract —
  * they never round-trip — so they live here rather than on {@link W3CAnnotation}.
  */
-export type AdapterLoadResult<TBody = W3CAnnotationBody> = W3CAnnotation<TBody> & {
-    __fullBodyLoaded?: boolean;
-    __bodyPreview?: string | null;
-};
+export type AdapterLoadResult<TBody = W3CAnnotationBody> =
+    W3CAnnotation<TBody> & {
+        __fullBodyLoaded?: boolean;
+        __bodyPreview?: string | null;
+    };
 
 // Re-export for convenience
 export type { AnnotationStorageAdapter };

@@ -70,7 +70,8 @@
         border-radius: var(--tri-radius-selector);
         vertical-align: middle;
         color: var(--badge-fg);
-        border: var(--tri-border) solid var(--badge-color, var(--tri-surface-border));
+        border: var(--tri-border) solid
+            var(--badge-color, var(--tri-surface-border));
         background-color: var(--badge-bg);
         --badge-bg: var(--badge-color, var(--tri-input-bg));
         --badge-fg: var(--tri-content);

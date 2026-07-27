@@ -10,10 +10,7 @@ import { manifestsState } from './manifests.svelte.js';
 import { STATE_INVENTORY } from './state-inventory.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { logger, isDebugEnabled } from '../logging/logger';
-import type {
-    ViewerError,
-    ViewerErrorReporter,
-} from '../types/viewerError';
+import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
 import type {
     PluginUiConfig,
     RequestConfig,
@@ -237,10 +234,7 @@ export class ViewerState {
             return;
         }
 
-        const annotations = this.getAnnotations(
-            this.manifestId,
-            this.canvasId,
-        );
+        const annotations = this.getAnnotations(this.manifestId, this.canvasId);
 
         annotations.forEach((annotation: any) => {
             const id = getAnnotationId(annotation);
@@ -1151,7 +1145,9 @@ export class ViewerState {
                     });
                 });
             } else {
-                logger.warn('Cannot toggle fullscreen: Viewer element not found');
+                logger.warn(
+                    'Cannot toggle fullscreen: Viewer element not found',
+                );
                 this.reportError({
                     severity: 'warning',
                     scope: 'viewport',
@@ -1825,10 +1821,7 @@ export class ViewerState {
             return;
         }
 
-        const annotations = this.getAnnotations(
-            this.manifestId,
-            this.canvasId,
-        );
+        const annotations = this.getAnnotations(this.manifestId, this.canvasId);
         annotations.forEach((annotation: any) => {
             const id = getAnnotationId(annotation);
             if (id) {

@@ -12,7 +12,11 @@ import {
     pluginApiVersion,
     capabilities,
 } from 'triiiceratops';
-import { definePlugin, activatePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
+import {
+    definePlugin,
+    activatePlugin,
+    svgIcon,
+} from '@triiiceratops/plugin-sdk';
 import { useViewerSelector } from '@triiiceratops/plugin-sdk/vue';
 import { createApp, defineComponent, h } from 'vue';
 

@@ -52,12 +52,18 @@
         );
         padding: var(--toggle-p);
         box-shadow: 0 1px
-            color-mix(in oklab, currentColor calc(var(--tri-depth) * 10%), #0000)
+            color-mix(
+                in oklab,
+                currentColor calc(var(--tri-depth) * 10%),
+                #0000
+            )
             inset;
         --input-color: color-mix(in oklab, var(--tri-content) 50%, #0000);
         --toggle-p: calc(var(--size) * 0.125);
         --size: calc(var(--tri-size-selector, 0.25rem) * 6);
-        width: calc((var(--size) * 2) - (var(--tri-border) + var(--toggle-p)) * 2);
+        width: calc(
+            (var(--size) * 2) - (var(--tri-border) + var(--toggle-p)) * 2
+        );
         height: var(--size);
         flex-shrink: 0;
         grid-template-columns: 0fr 1fr 1fr;
@@ -77,7 +83,12 @@
         box-shadow:
             0 -1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
             0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
-            0 1px color-mix(in oklab, currentColor calc(var(--tri-depth) * 10%), #0000);
+            0 1px
+                color-mix(
+                    in oklab,
+                    currentColor calc(var(--tri-depth) * 10%),
+                    #0000
+                );
         background-color: currentColor;
         grid-row-start: 1;
         grid-column-start: 2;

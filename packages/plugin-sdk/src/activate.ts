@@ -234,7 +234,9 @@ export function runActivation(
  * plugin's own `activate(host)`; exported for direct/test-kit use.
  */
 export function activatePlugin(
-    plugin: SdkPluginMeta & { activate?: (host: PluginHost) => PluginActivation },
+    plugin: SdkPluginMeta & {
+        activate?: (host: PluginHost) => PluginActivation;
+    },
     host: PluginHost,
 ): PluginActivation {
     if (typeof plugin.activate === 'function') {

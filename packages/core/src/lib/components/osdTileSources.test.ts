@@ -26,7 +26,11 @@ class FakeIIIFTileSource {
     configure(data: any, url: string) {
         return {
             ...data,
-            _id: data._id || data.id || data['@id'] || url.replace('/info.json', ''),
+            _id:
+                data._id ||
+                data.id ||
+                data['@id'] ||
+                url.replace('/info.json', ''),
             width: data.width ?? 4000,
             height: data.height ?? 3000,
             version: data.version ?? 3,
@@ -71,13 +75,11 @@ describe('resolveTileSources', () => {
     });
 
     it('fetches info.json once and returns parsed source for non-401 responses', async () => {
-        const fetchSpy = vi
-            .spyOn(globalThis, 'fetch')
-            .mockResolvedValue({
-                status: 200,
-                ok: true,
-                json: async () => ({ width: 1000, height: 800 }),
-            } as Response);
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+            status: 200,
+            ok: true,
+            json: async () => ({ width: 1000, height: 800 }),
+        } as Response);
 
         const source = 'https://example.org/iiif/image/info.json';
         const result = await resolveTileSources({ sources: [source] });

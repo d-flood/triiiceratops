@@ -13,7 +13,11 @@ import {
     pluginApiVersion,
     capabilities,
 } from 'triiiceratops';
-import { definePlugin, activatePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
+import {
+    definePlugin,
+    activatePlugin,
+    svgIcon,
+} from '@triiiceratops/plugin-sdk';
 import PluginUI from './PluginUI.svelte';
 
 const ICON = svgIcon('<svg viewBox="0 0 1 1"></svg>');
@@ -28,7 +32,10 @@ const plugin = definePlugin({
     target: 'panel',
     view: {
         mount(container, context) {
-            const app = mount(PluginUI, { target: container, props: { context } });
+            const app = mount(PluginUI, {
+                target: container,
+                props: { context },
+            });
             return () => {
                 unmount(app);
                 window.__tri.cleanupRan = true;

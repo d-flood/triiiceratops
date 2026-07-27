@@ -98,7 +98,7 @@ export function validateEntries(entries) {
             continue;
         }
         const rel = entry.slice('package/'.length);
-        if (rel === '' ) continue;
+        if (rel === '') continue;
         if (/^LICEN[SC]E(\.(md|txt))?$/.test(rel)) hasLicense = true;
         if (rel === 'package.json') hasPackageJson = true;
         const { ok, reason } = classifyEntry(rel);
@@ -221,13 +221,10 @@ export function selfCheckPeerRangeRejectsPin() {
     const workspacePin = classifyPeerRange('workspace:*');
     const caret = classifyPeerRange('^1.0.0-rc.25');
     const tilde = classifyPeerRange('~1.0.0');
-    const ok =
-        !exactPin.ok && !workspacePin.ok && caret.ok && tilde.ok;
+    const ok = !exactPin.ok && !workspacePin.ok && caret.ok && tilde.ok;
     return {
         ok,
-        detail: ok
-            ? ''
-            : 'peer-range classifier misclassified a sample value',
+        detail: ok ? '' : 'peer-range classifier misclassified a sample value',
     };
 }
 
