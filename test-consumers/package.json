@@ -1,0 +1,13 @@
+{
+    "name": "@triiiceratops/test-consumers",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Packed-consumer test harness: packs real .tgz artifacts, installs them into clean fixture consumers via npm AND pnpm, builds each, and asserts against what a user actually gets from npm.",
+    "scripts": {
+        "test:packed": "node driver/run.mjs"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.57.0"
+    }
+}

@@ -2,13 +2,8 @@
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { manifestsState } from '../state/manifests.svelte';
-    import Stack from 'phosphor-svelte/lib/Stack';
-    import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
-    import CaretRight from 'phosphor-svelte/lib/CaretRight';
-    import CaretUp from 'phosphor-svelte/lib/CaretUp';
-    import CaretDown from 'phosphor-svelte/lib/CaretDown';
-    import MagnifyingGlassPlus from 'phosphor-svelte/lib/MagnifyingGlassPlus';
-    import MagnifyingGlassMinus from 'phosphor-svelte/lib/MagnifyingGlassMinus';
+    import Icon from './Icon.svelte';
+    import type { IconName } from '../generated/icons';
     import { m, language } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
     import {
@@ -104,21 +99,21 @@
         return getChoiceLabel(choice, index);
     }
 
-    function getNavIcon(icon: 'left' | 'right' | 'up' | 'down') {
+    function getNavIcon(icon: 'left' | 'right' | 'up' | 'down'): IconName {
         switch (icon) {
             case 'up':
-                return CaretUp;
+                return 'CaretUp';
             case 'down':
-                return CaretDown;
+                return 'CaretDown';
             case 'right':
-                return CaretRight;
+                return 'CaretRight';
             default:
-                return CaretLeft;
+                return 'CaretLeft';
         }
     }
 
-    let LeftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
-    let RightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
+    let leftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
+    let rightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
 
     // Track whether the unified bar has broken into multiple rows so the
     // toolbar↔nav divider can be hidden — a vertical separator reads as noise
@@ -152,7 +147,7 @@
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
     <div class="choice-controls">
         <div class="choice-stack">
-            <Stack size={14} />
+            <Icon name="Stack" size={14} />
         </div>
 
         {#if group.choices.length <= 4}
@@ -296,7 +291,7 @@
                             onclick={() => viewerState.zoomOut()}
                             aria-label="Zoom Out"
                         >
-                            <MagnifyingGlassMinus size={18} />
+                            <Icon name="MagnifyingGlassMinus" size={18} />
                         </Button>
 
                         <Button
@@ -306,7 +301,7 @@
                             onclick={() => viewerState.zoomIn()}
                             aria-label="Zoom In"
                         >
-                            <MagnifyingGlassPlus size={18} />
+                            <Icon name="MagnifyingGlassPlus" size={18} />
                         </Button>
                     </div>
                 {/if}
@@ -333,7 +328,7 @@
                                 ? m.previous_canvas()
                                 : m.next_canvas()}
                         >
-                            <LeftNavIcon size={18} />
+                            <Icon name={leftNavIcon} size={18} />
                         </Button>
 
                         <span class="nav-index">
@@ -358,7 +353,7 @@
                                 ? m.next_canvas()
                                 : m.previous_canvas()}
                         >
-                            <RightNavIcon size={18} />
+                            <Icon name={rightNavIcon} size={18} />
                         </Button>
                     </div>
                 {/if}

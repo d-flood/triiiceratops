@@ -1,5 +1,5 @@
 import { createPanelPlugin, type PluginDef } from '../../types/plugin';
-import FilePdf from 'phosphor-svelte/lib/FilePdf';
+import FilePdf from './FilePdfIcon.svelte';
 import PdfExportController from './PdfExportController.svelte';
 import type {
     PdfCanvasOcrOverlayProvider,

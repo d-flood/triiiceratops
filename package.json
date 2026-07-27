@@ -20,6 +20,7 @@
         "check": "pnpm --filter triiiceratops check",
         "test": "pnpm --filter triiiceratops test",
         "test:e2e": "pnpm --filter triiiceratops test:e2e",
+        "test:packed": "node test-consumers/driver/run.mjs",
         "lint": "pnpm --filter triiiceratops lint",
         "lint:fix": "pnpm --filter triiiceratops lint:fix",
         "format": "pnpm --filter triiiceratops format",
@@ -38,5 +39,13 @@
         "svelte": "^5.43.8",
         "typescript": "~5.9.3",
         "typescript-eslint": "^8.53.1"
+    },
+    "pnpm": {
+        "overrides": {
+            "lodash@>=4.0.0 <4.18.0": ">=4.18.0",
+            "qs@<6.15.2": ">=6.15.2",
+            "uuid@>=13.0.0 <13.0.1": "^13.0.1",
+            "devalue@<5.6.4": ">=5.6.4"
+        }
     }
 }

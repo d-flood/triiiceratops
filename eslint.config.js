@@ -34,6 +34,7 @@ export default ts.config(
             'site/',
             'node_modules/',
             'src/lib/paraglide/',
+            'src/lib/generated/',
             'docs/',
         ],
     },

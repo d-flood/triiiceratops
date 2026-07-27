@@ -1,8 +1,7 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
-    import ListBullets from 'phosphor-svelte/lib/ListBullets';
-    import CaretRight from 'phosphor-svelte/lib/CaretRight';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
     import type { StructureNode } from '../utils/structures';
@@ -72,7 +71,7 @@
                                 ? '90deg'
                                 : '0deg'})"
                         >
-                            <CaretRight size={14} />
+                            <Icon name="CaretRight" size={14} />
                         </span>
                     </Button>
                 {:else}
@@ -107,7 +106,7 @@
         {#if !embedded}
             <div class="panel-header">
                 <div class="panel-header-title">
-                    <ListBullets size={20} weight="bold" />
+                    <Icon name="ListBullets" size={20} weight="bold" />
                     <h2 class="panel-h2">
                         {m.structures_title()}
                     </h2>

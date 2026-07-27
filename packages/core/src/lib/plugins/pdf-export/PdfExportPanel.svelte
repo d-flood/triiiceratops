@@ -1,6 +1,5 @@
 <script lang="ts">
-    import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
-    import FilePdf from 'phosphor-svelte/lib/FilePdf';
+    import Icon from '../../components/Icon.svelte';
     import { Button, Select } from '../../components/ui';
     import { m, language } from '../../state/i18n.svelte';
 
@@ -59,7 +58,7 @@
         {#if !embedded}
             <div class="header">
                 <h2 class="header-title">
-                    <FilePdf size={20} />
+                    <Icon name="FilePdf" size={20} />
                     {m.pdf_export_title()}
                 </h2>
             </div>
@@ -180,7 +179,7 @@
                 disabled={!canExport}
                 onclick={onExport}
             >
-                <DownloadSimple size={18} />
+                <Icon name="DownloadSimple" size={18} />
                 {isExporting
                     ? m.pdf_export_exporting()
                     : m.pdf_export_download()}

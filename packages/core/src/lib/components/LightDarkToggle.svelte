@@ -1,6 +1,5 @@
 <script lang="ts">
-    import Sun from 'phosphor-svelte/lib/Sun';
-    import Moon from 'phosphor-svelte/lib/Moon';
+    import Icon from './Icon.svelte';
     import { m } from '../state/i18n.svelte';
 
     // Bindable so the demo can react to the page (demo) theme. Only ever
@@ -22,9 +21,9 @@
     onclick={toggle}
 >
     {#if theme === 'dark'}
-        <Moon size={18} weight="fill" />
+        <Icon name="Moon" size={18} weight="fill" />
     {:else}
-        <Sun size={18} weight="fill" />
+        <Icon name="Sun" size={18} weight="fill" />
     {/if}
 </button>
 

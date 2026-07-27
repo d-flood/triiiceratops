@@ -1,6 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { onMount } from 'svelte';
-    import X from 'phosphor-svelte/lib/X';
     import type { PanelStackItem } from './PanelStack.svelte';
     import { m } from '../state/i18n.svelte';
     import { Button } from './ui';
@@ -42,7 +42,7 @@
                 onclick={panel.close}
                 aria-label={m.close()}
             >
-                <X size={16} />
+                <Icon name="X" size={16} />
             </Button>
         {/if}
     </div>

@@ -1,21 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
-    import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
-    import Slideshow from 'phosphor-svelte/lib/Slideshow';
-    import CornersIn from 'phosphor-svelte/lib/CornersIn';
-    import CornersOut from 'phosphor-svelte/lib/CornersOut';
-    import ChatCenteredText from 'phosphor-svelte/lib/ChatCenteredText';
-    import Info from 'phosphor-svelte/lib/Info';
-    import List from 'phosphor-svelte/lib/List';
-    import ListBullets from 'phosphor-svelte/lib/ListBullets';
-    import Folder from 'phosphor-svelte/lib/Folder';
-    import BookOpen from 'phosphor-svelte/lib/BookOpen';
-    import Scroll from 'phosphor-svelte/lib/Scroll';
-    import File from 'phosphor-svelte/lib/File';
-    import Stack from 'phosphor-svelte/lib/Stack';
-    import Check from 'phosphor-svelte/lib/Check';
-    import X from 'phosphor-svelte/lib/X';
-    import ArrowsLeftRight from 'phosphor-svelte/lib/ArrowsLeftRight';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
     import { manifestsState } from '../state/manifests.svelte';
@@ -441,7 +426,7 @@
                         onclick={toggleOpen}
                         aria-label={m.close_menu()}
                     >
-                        <X size={24} />
+                        <Icon name="X" size={24} />
                     </button>
                 </li>
             {/if}
@@ -457,7 +442,7 @@
                         aria-label={m.toggle_collection()}
                         onclick={() => viewerState.toggleCollectionPanel()}
                     >
-                        <Folder size={24} />
+                        <Icon name="Folder" size={24} />
                     </button>
                 </li>
             {/if}
@@ -471,7 +456,7 @@
                         aria-label={m.toggle_search()}
                         onclick={() => viewerState.toggleSearchPanel()}
                     >
-                        <MagnifyingGlass size={24} />
+                        <Icon name="MagnifyingGlass" size={24} />
                     </button>
                 </li>
             {/if}
@@ -489,7 +474,7 @@
                             : m.show_gallery()}
                         onclick={() => viewerState.toggleThumbnailGallery()}
                     >
-                        <Slideshow size={24} />
+                        <Icon name="Slideshow" size={24} />
                     </button>
                 </li>
             {/if}
@@ -503,7 +488,7 @@
                         aria-label={m.toggle_structures()}
                         onclick={() => viewerState.toggleStructuresPanel()}
                     >
-                        <ListBullets size={24} />
+                        <Icon name="ListBullets" size={24} />
                     </button>
                 </li>
             {/if}
@@ -521,11 +506,11 @@
                         onclick={() => toggleMenu('viewing-mode')}
                     >
                         {#if viewerState.viewingMode === 'paged'}
-                            <BookOpen size={24} />
+                            <Icon name="BookOpen" size={24} />
                         {:else if viewerState.viewingMode === 'continuous'}
-                            <Scroll size={24} />
+                            <Icon name="Scroll" size={24} />
                         {:else}
-                            <File size={24} />
+                            <Icon name="File" size={24} />
                         {/if}
                     </button>
                     <ul
@@ -542,10 +527,10 @@
                                 onclick={() =>
                                     viewerState.setViewingMode('individuals')}
                             >
-                                <File size={16} />
+                                <Icon name="File" size={16} />
                                 <span>{m.viewing_mode_individuals()}</span>
                                 {#if viewerState.viewingMode === 'individuals'}
-                                    <Check size={16} />
+                                    <Icon name="Check" size={16} />
                                 {/if}
                             </button>
                         </li>
@@ -557,10 +542,10 @@
                                 onclick={() =>
                                     viewerState.setViewingMode('paged')}
                             >
-                                <BookOpen size={16} />
+                                <Icon name="BookOpen" size={16} />
                                 <span>{m.viewing_mode_paged()}</span>
                                 {#if viewerState.viewingMode === 'paged'}
-                                    <Check size={16} />
+                                    <Icon name="Check" size={16} />
                                 {/if}
                             </button>
                         </li>
@@ -572,10 +557,10 @@
                                 onclick={() =>
                                     viewerState.setViewingMode('continuous')}
                             >
-                                <Scroll size={16} />
+                                <Icon name="Scroll" size={16} />
                                 <span>{m.viewing_mode_continuous()}</span>
                                 {#if viewerState.viewingMode === 'continuous'}
-                                    <Check size={16} />
+                                    <Icon name="Check" size={16} />
                                 {/if}
                             </button>
                         </li>
@@ -588,11 +573,11 @@
                                     onclick={() =>
                                         viewerState.togglePagedOffset()}
                                 >
-                                    <ArrowsLeftRight size={16} />
+                                    <Icon name="ArrowsLeftRight" size={16} />
                                     <span>{m.viewing_mode_shift_pairing()}</span
                                     >
                                     {#if viewerState.pagedOffset === 1}
-                                        <Check size={16} />
+                                        <Icon name="Check" size={16} />
                                     {/if}
                                 </button>
                             </li>
@@ -618,7 +603,7 @@
                                 ? '99+'
                                 : viewerState.sequenceCount}
                         </span>
-                        <Stack size={24} />
+                        <Icon name="Stack" size={24} />
                     </button>
                     <ul
                         data-flyout-panel
@@ -637,10 +622,10 @@
                                             option.index,
                                         )}
                                 >
-                                    <Stack size={16} />
+                                    <Icon name="Stack" size={16} />
                                     <span>{option.label}</span>
                                     {#if viewerState.selectedSequenceIndex === option.index}
-                                        <Check size={16} />
+                                        <Icon name="Check" size={16} />
                                     {/if}
                                 </button>
                             </li>
@@ -663,9 +648,9 @@
                         onclick={() => viewerState.toggleFullScreen()}
                     >
                         {#if viewerState.isFullScreen}
-                            <CornersIn size={24} />
+                            <Icon name="CornersIn" size={24} />
                         {:else}
-                            <CornersOut size={24} />
+                            <Icon name="CornersOut" size={24} />
                         {/if}
                     </button>
                 </li>
@@ -680,7 +665,7 @@
                         aria-label={annotationsTooltip}
                         onclick={() => viewerState.toggleAnnotations()}
                     >
-                        <ChatCenteredText size={24} />
+                        <Icon name="ChatCenteredText" size={24} />
                     </button>
                 </li>
             {/if}
@@ -694,7 +679,7 @@
                         aria-label={m.toggle_metadata()}
                         onclick={() => viewerState.toggleMetadataPanel()}
                     >
-                        <Info size={24} />
+                        <Icon name="Info" size={24} />
                     </button>
                 </li>
             {/if}
@@ -707,7 +692,7 @@
             <!-- --- Plugin Actions --- -->
             {#key language.current}
                 {#each sortedPluginButtons as button (button.id)}
-                    {@const Icon = button.icon}
+                    {@const PluginIcon = button.icon}
                     {@const tooltipText = resolvePluginTooltip(button.tooltip)}
                     {@const flyout = findFlyout(button.flyoutDomId)}
                     <li>
@@ -724,7 +709,7 @@
                                 onclick={() => button.onClick()}
                                 style="anchor-name:--anchor-{flyout.domId}"
                             >
-                                <Icon size={24} />
+                                <PluginIcon size={24} />
                             </button>
                             <!-- A normal (non-top-layer) anchored element so
                                  tooltips always paint above it. Kept mounted and
@@ -754,7 +739,7 @@
                                 aria-label={tooltipText}
                                 onclick={() => button.onClick()}
                             >
-                                <Icon size={24} />
+                                <PluginIcon size={24} />
                             </button>
                         {/if}
                     </li>
@@ -776,9 +761,9 @@
             onclick={toggleOpen}
         >
             {#if isOpen}
-                <X size={24} />
+                <Icon name="X" size={24} />
             {:else}
-                <List size={24} />
+                <Icon name="List" size={24} />
             {/if}
         </button>
     {/if}
@@ -796,7 +781,7 @@
             data-tip={m.open_menu()}
             onclick={toggleOpen}
         >
-            <List size={20} />
+            <Icon name="List" size={20} />
         </button>
     {/if}
 </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
+    import Icon from '../../components/Icon.svelte';
     import { getContext } from 'svelte';
-    import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
     import { Button, Select } from '../../components/ui';
     import { m, language } from '../../state/i18n.svelte';
     import {
@@ -230,7 +230,7 @@
         {#if !embedded}
             <div class="header">
                 <h2 class="header-title">
-                    <DownloadSimple size={20} />
+                    <Icon name="DownloadSimple" size={20} />
                     {m.image_download_title()}
                 </h2>
             </div>
@@ -388,7 +388,7 @@
                 disabled={!canDownload}
                 onclick={handleDownload}
             >
-                <DownloadSimple size={18} />
+                <Icon name="DownloadSimple" size={18} />
                 {isDownloading
                     ? m.image_download_downloading()
                     : m.image_download_download()}

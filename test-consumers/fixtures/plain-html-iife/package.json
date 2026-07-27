@@ -1,0 +1,9 @@
+{
+    "name": "consumer-plain-html-iife",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    }
+}

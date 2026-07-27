@@ -1,6 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
-    import Stack from 'phosphor-svelte/lib/Stack';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
@@ -648,7 +648,7 @@
                                         .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
                                             class="choice-badge"
                                             title="Has choices/layers"
-                                            ><Stack
+                                            ><Icon name="Stack"
                                                 size={12}
                                                 class="choice-icon"
                                             /></span
@@ -662,7 +662,7 @@
                                             .labels[1]}{#if thumbGroup.hasChoice}<span
                                                 class="choice-badge"
                                                 title="Has choices/layers"
-                                                ><Stack
+                                                ><Icon name="Stack"
                                                     size={12}
                                                     class="choice-icon"
                                                 /></span
@@ -723,7 +723,7 @@
                                         class="choice-badge choice-badge-simple"
                                         title="Has choices/layers"
                                     >
-                                        <Stack size={12} class="choice-icon" />
+                                        <Icon name="Stack" size={12} class="choice-icon" />
                                     </span>
                                 {/if}
                             </div>

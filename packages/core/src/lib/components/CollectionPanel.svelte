@@ -1,6 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
-    import Folder from 'phosphor-svelte/lib/Folder';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
     import { sortCollectionItems } from '../utils/collections';
@@ -50,7 +50,7 @@
                             class="thumb"
                         />
                     {:else}
-                        <Folder
+                        <Icon name="Folder"
                             size={20}
                             weight="bold"
                             class="icon-lead"
@@ -71,7 +71,7 @@
                             class="thumb-lg"
                         />
                     {:else}
-                        <Folder
+                        <Icon name="Folder"
                             size={22}
                             weight="bold"
                             class="icon-lead"
@@ -120,7 +120,7 @@
                     <div class="item-content">
                         <div class="item-title-row">
                             {#if item.type === 'Collection'}
-                                <Folder
+                                <Icon name="Folder"
                                     size={14}
                                     class="icon-collection"
                                 />

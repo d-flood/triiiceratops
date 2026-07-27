@@ -1,6 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
-    import Info from 'phosphor-svelte/lib/Info';
 	import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
 	import { m, language } from '../state/i18n.svelte';
 	import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
@@ -127,7 +127,7 @@
         {#if !embedded}
         <div class="header">
             <div class="header-title">
-                <Info size={20} weight="bold" class="header-icon" />
+                <Icon name="Info" size={20} weight="bold" class="header-icon" />
                 <h2 class="header-heading">{m.metadata()}</h2>
             </div>
         </div>

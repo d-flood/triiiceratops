@@ -1,6 +1,5 @@
 <script lang="ts">
-    import GithubLogo from 'phosphor-svelte/lib/GithubLogo';
-    import Gear from 'phosphor-svelte/lib/Gear';
+    import Icon from './Icon.svelte';
     import LightDarkToggle from './LightDarkToggle.svelte';
     import SettingsMenu from './SettingsMenu.svelte';
     import { Button, Select, TextInput, Tooltip } from './ui';
@@ -340,7 +339,7 @@
                 class="btn-trigger"
                 aria-label={m.settings_label()}
             >
-                <Gear size={20} />
+                <Icon name="Gear" size={20} />
             </div>
             <div class="dropdown-content settings-panel">
                 <SettingsMenu
@@ -361,7 +360,7 @@
                 href="https://github.com/d-flood/triiiceratops"
                 class="btn-link ghost icon-link"
             >
-                <GithubLogo size={20} />
+                <Icon name="GithubLogo" size={20} />
             </a>
         </Tooltip>
     </div>

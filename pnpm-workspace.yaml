@@ -1,2 +1,8 @@
 packages:
     - 'packages/*'
+    # The packed-consumer harness driver is a workspace tool (so `pnpm install`
+    # provisions its devDeps, e.g. Playwright). Only the driver directory itself
+    # is a workspace member — the fixtures under `test-consumers/fixtures/*` are
+    # deliberately NOT workspace members: each consumes the packed `.tgz`
+    # tarball, never workspace source.
+    - 'test-consumers'
