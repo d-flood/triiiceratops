@@ -2,7 +2,7 @@
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m, language } from '../state/i18n.svelte';
+    import { getMessages, language } from '../state/i18n.svelte';
 
     interface Props {
         /**
@@ -22,6 +22,7 @@
     }
 
     let { docked = false, inline = false }: Props = $props();
+    const m = getMessages();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 

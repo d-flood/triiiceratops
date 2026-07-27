@@ -369,6 +369,15 @@ const observableScenarios: CapabilityScenario[] = [
             state.loadedManifestIds.add('manifest-1');
         },
     },
+    {
+        member: 'activeLocale',
+        // Core mirrors the resolved active locale onto this field (as it does for
+        // other external facts like isFullScreen); a direct write drives the
+        // observable notification. Default is the page locale ('en' in tests).
+        act: (state) => {
+            state.activeLocale = 'de';
+        },
+    },
 ];
 
 describe('ViewerState subscription capability matrix', () => {

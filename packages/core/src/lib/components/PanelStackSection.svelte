@@ -2,7 +2,7 @@
     import Icon from './Icon.svelte';
     import { onMount } from 'svelte';
     import type { PanelStackItem } from './PanelStack.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import { Button } from './ui';
 
     interface Props {
@@ -13,6 +13,7 @@
     }
 
     let { panel, scrollOnMount = false, closeAlign = 'end' }: Props = $props();
+    const m = getMessages();
     let sectionElement: HTMLElement | undefined = $state();
 
     onMount(() => {

@@ -172,6 +172,13 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Manifest ids this viewer has finished loading (SvelteSet). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady(). Added ticket 05.',
     },
 
+    // ---- Active locale (per-viewer i18n contract) ----------------------------
+    {
+        member: 'activeLocale',
+        classification: 'observable',
+        notes: "This viewer's active locale (BCP-47): config.locale if set, else the page default (CONTEXT.md Active locale). Observable — readable and notifying, no plugin-facing mutator; locale is controlled through config.locale. Core (the viewer root) mirrors the resolved value onto it when the config or page locale changes (like isFullScreen); all chrome renders in it and ticket 08's PluginLocaleService consumes it. Added ticket 06.",
+    },
+
     // ---- Viewing mode / direction / paging -----------------------------------
     {
         member: 'viewingMode',

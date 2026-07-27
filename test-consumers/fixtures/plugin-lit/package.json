@@ -1,0 +1,19 @@
+{
+    "name": "consumer-plugin-lit",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build"
+    },
+    "dependencies": {
+        "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
+        "lit": "3.3.3",
+        "svelte": "5.56.6",
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "vite": "^6.0.0"
+    }
+}

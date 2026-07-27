@@ -44,8 +44,9 @@ import {
     step,
 } from './lib.mjs';
 
-// Publishable packages packed into tarballs. Core only for now (ticket 11);
-// the SDK and plugin packages join here in later tickets.
+// Publishable packages packed into tarballs. Core first (its dist must exist
+// before the SDK type-checks against it); the SDK (ticket 13) follows. Plugin
+// packages join here in later tickets.
 const PACKAGES_TO_PACK = [
     {
         filter: 'triiiceratops',
@@ -53,10 +54,28 @@ const PACKAGES_TO_PACK = [
         build: ['build:lib', 'build:element', 'build:plugins-iife'],
         tarballName: 'triiiceratops.tgz',
     },
+    {
+        filter: '@triiiceratops/plugin-sdk',
+        // `build` = tsc; resolves `triiiceratops` types from the core dist built
+        // above, so this entry must stay AFTER core.
+        build: ['build'],
+        tarballName: '_triiiceratops_plugin-sdk.tgz',
+    },
 ];
 
-// Initial fixtures. Later tickets append plugin/adapter/framework fixtures.
-const FIXTURES = ['svelte-vite', 'sveltekit-ssr', 'wc-esm', 'plain-html-iife'];
+// Fixtures. Ticket 11 seeded the core-only consumers; ticket 13 appends the SDK
+// framework-adapter fixtures (each consumes the packed SDK subpath + a live
+// packed `ViewerState`). Later tickets append per-plugin fixtures.
+const FIXTURES = [
+    'svelte-vite',
+    'sveltekit-ssr',
+    'wc-esm',
+    'plain-html-iife',
+    'plugin-react',
+    'plugin-vue',
+    'plugin-lit',
+    'plugin-svelte',
+];
 
 const PACKAGE_MANAGERS = ['npm', 'pnpm'];
 
@@ -198,8 +217,15 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
     const destRoot = join(workRoot, `${fixtureName}-${pm}`);
     const fixtureDir = copyFixture(fixtureName, destRoot);
 
-    injectTarball(fixtureDir, tarballs.triiiceratops);
-    refreshLocalDepInLockfiles(fixtureDir, 'triiiceratops');
+    // Inject each packed tarball this fixture consumes (default: core only).
+    const tarballDeps = cfg.tarballs ?? ['triiiceratops'];
+    for (const dep of tarballDeps) {
+        if (!tarballs[dep]) {
+            throw new Error(`fixture "${fixtureName}" needs unpacked "${dep}"`);
+        }
+        injectTarball(fixtureDir, tarballs[dep], dep);
+        refreshLocalDepInLockfiles(fixtureDir, dep);
+    }
     distributeManifest(fixtureDir, cfg.manifestTarget);
 
     step(`${fixtureName} [${pm}]: install`);

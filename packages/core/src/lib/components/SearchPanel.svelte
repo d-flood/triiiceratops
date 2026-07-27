@@ -2,7 +2,7 @@
     import Icon from './Icon.svelte';
     import { getContext, untrack } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import { SvelteSet } from 'svelte/reactivity';
     import { getCanvasId } from './viewerControls';
     import { Button, TextInput, Badge, Spinner } from './ui';
@@ -10,6 +10,7 @@
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
     let { embedded = false }: { embedded?: boolean } = $props();
+    const m = getMessages();
 
     // We'll initialize from viewerState to preserve context.
     let searchQuery = $state('');

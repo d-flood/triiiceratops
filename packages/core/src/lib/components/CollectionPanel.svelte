@@ -2,13 +2,14 @@
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { m } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import { sortCollectionItems } from '../utils/collections';
 
     const viewerState = getContext<
         ViewerState & { collectionThumbnail: string }
     >(VIEWER_STATE_KEY);
     let { embedded = false }: { embedded?: boolean } = $props();
+    const m = getMessages();
 
     let items = $derived(sortCollectionItems(viewerState.collectionItems));
     let collectionLabel = $derived(viewerState.collectionLabel);
