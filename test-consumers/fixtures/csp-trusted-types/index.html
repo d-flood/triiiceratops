@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <!--
+            Trusted Types fixture (ticket 24, Chromium only — only Chromium
+            enforces `require-trusted-types-for` today). Every DOM HTML sink must
+            produce a TrustedHTML. Svelte renders every component via
+            `<template>.innerHTML` and the viewer/plugins render trusted markup
+            through `{@html}`, so core installs a pass-through **default** Trusted
+            Types policy (utils/trustedTypes) at module load. The policy name
+            `default` is permitted by the `trusted-types` directive below.
+        -->
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="require-trusted-types-for 'script'; trusted-types default; default-src 'self'; script-src 'self' 'nonce-tri-csp-tt'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
+        />
+        <meta property="csp-nonce" content="tri-csp-tt" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>triiiceratops csp-trusted-types consumer</title>
+        <script
+            src="/node_modules/triiiceratops/dist/triiiceratops-element.iife.js"
+        ></script>
+        <script
+            src="/node_modules/@triiiceratops/plugin-image-manipulation/dist/iife.js"
+        ></script>
+    </head>
+    <body style="margin: 0">
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/manifest.json"
+            theme="dark"
+            style="display: block; width: 100vw; height: 100vh"
+        ></triiiceratops-viewer>
+        <script nonce="tri-csp-tt">
+            customElements.whenDefined('triiiceratops-viewer').then(() => {
+                const viewer = document.getElementById('v');
+                const plugin = window.Triiiceratops.plugins.get(
+                    '@triiiceratops/plugin-image-manipulation',
+                );
+                viewer.plugins = [plugin];
+            });
+        </script>
+    </body>
+</html>

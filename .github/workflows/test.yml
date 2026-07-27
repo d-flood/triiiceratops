@@ -8,7 +8,7 @@ on:
 
 jobs:
     test:
-        name: Run Tests
+        name: Run Unit Tests
         runs-on: ubuntu-latest
         timeout-minutes: 60
 
@@ -27,14 +27,61 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            - name: Install Playwright Browsers
-              run: pnpm --filter triiiceratops exec playwright install --with-deps chromium
-
             - name: Run Unit Tests
               run: pnpm --filter triiiceratops test run
 
+    # Ticket 24: browser E2E matrix. Sharded by Playwright project so the desktop
+    # engines (chromium, firefox, webkit) and the mobile profiles (android-chrome,
+    # mobile-webkit) run in parallel; each shard installs only the engine it needs.
+    # Required (every shard must pass; fail-fast disabled so one engine's failure
+    # does not mask the others).
+    e2e:
+        name: E2E (${{ matrix.project }})
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - project: chromium
+                      browser: chromium
+                    - project: firefox
+                      browser: firefox
+                    - project: webkit
+                      browser: webkit
+                    - project: android-chrome
+                      browser: chromium
+                    - project: mobile-webkit
+                      browser: webkit
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - name: Install Playwright Browser
+              run: pnpm --filter triiiceratops exec playwright install --with-deps ${{ matrix.browser }}
+
+            # The Web Component parity spec loads the built element entries from
+            # dist/ (served by the dev server), so build the library + element
+            # before running the matrix.
+            - name: Build library + Web Component
+              run: |
+                  pnpm --filter triiiceratops build:lib
+                  pnpm --filter triiiceratops build:element
+
             - name: Run E2E Tests
-              run: pnpm --filter triiiceratops test:e2e
+              run: pnpm --filter triiiceratops exec playwright test --project=${{ matrix.project }}
 
     accessibility:
         name: Accessibility (WCAG 2.2 AA)
@@ -89,9 +136,11 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            # The harness drives Chromium via the workspace's Playwright.
+            # The harness drives Chromium for most fixtures; the CSP fixtures
+            # (ticket 24) also run on Firefox and WebKit, so all three engines are
+            # installed here.
             - name: Install Playwright Browsers
-              run: pnpm --filter triiiceratops exec playwright install --with-deps chromium
+              run: pnpm --filter triiiceratops exec playwright install --with-deps chromium firefox webkit
 
             # Packs real .tgz artifacts, installs them into clean fixtures via
             # BOTH npm and pnpm, builds each, and asserts against what a user

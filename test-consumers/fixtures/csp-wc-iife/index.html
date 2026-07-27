@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <!--
+            Strict CSP for the self-contained Web Component (ticket 24). Scripts
+            are same-origin only, with a nonce for the one inline activation
+            script — no unsafe-eval, no unsafe-inline for scripts. Styles use
+            `style-src 'self' 'unsafe-inline'`: Svelte injects each component's
+            scoped CSS as a `<style>` element into the shadow root at runtime
+            (`emitCss:false` custom-element build) with no nonce hook, so inline
+            styles must be permitted for the shadow root to be styled. The plugin
+            style service still takes its nonce-aware `<style>` fallback (the page
+            advertises a nonce via <meta property="csp-nonce">), and its element
+            carries the nonce — asserted by the harness.
+        -->
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self' 'nonce-tri-csp-wc'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
+        />
+        <meta property="csp-nonce" content="tri-csp-wc" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>triiiceratops csp-wc-iife consumer</title>
+        <!-- Same-origin script tags, allowed by `script-src 'self'`. -->
+        <script
+            src="/node_modules/triiiceratops/dist/triiiceratops-element.iife.js"
+        ></script>
+        <script
+            src="/node_modules/@triiiceratops/plugin-image-manipulation/dist/iife.js"
+        ></script>
+    </head>
+    <body style="margin: 0">
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/manifest.json"
+            theme="dark"
+            style="display: block; width: 100vw; height: 100vh"
+        ></triiiceratops-viewer>
+        <script nonce="tri-csp-wc">
+            customElements.whenDefined('triiiceratops-viewer').then(() => {
+                const viewer = document.getElementById('v');
+                const plugin = window.Triiiceratops.plugins.get(
+                    '@triiiceratops/plugin-image-manipulation',
+                );
+                viewer.plugins = [plugin];
+            });
+        </script>
+    </body>
+</html>
