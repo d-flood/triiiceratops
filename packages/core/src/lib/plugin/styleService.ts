@@ -45,6 +45,20 @@ function discoverNonce(doc: Document): string | undefined {
 }
 
 /**
+ * Whether the host has explicitly opted into nonce-governed styles by publishing
+ * a `<meta property="csp-nonce">` element (ticket 24). This is the "style nonce
+ * where required" signal from the SPEC: a host running a nonce-based
+ * `style-src 'self' 'nonce-…'` (without `unsafe-inline`) advertises its nonce so
+ * the service takes the nonce-aware `<style>` fallback — a nonce cannot be
+ * carried by a constructable/adopted stylesheet, so under such a policy the
+ * fallback is the CSP-correct path. Absent the meta, the constructable path
+ * remains the default (it is not governed by `style-src` at all).
+ */
+function hasCspNonceMeta(doc: Document): boolean {
+    return doc.querySelector('meta[property="csp-nonce"]') !== null;
+}
+
+/**
  * Narrow a style root to `Document`. Uses `nodeType` (9 = `DOCUMENT_NODE`, 11 =
  * `DOCUMENT_FRAGMENT_NODE` for a shadow root) rather than `instanceof`, which is
  * unreliable across realms and in some test DOM engines.
@@ -120,7 +134,11 @@ export function createPluginStyleService(
     options: StyleServiceOptions = {},
 ): PluginStyleService {
     const doc = ownerDocumentOf(root);
-    const useConstructable = !options.forceFallback && supportsConstructable(root);
+    // Prefer the nonce-aware `<style>` fallback when the host forces it or has
+    // advertised a CSP style nonce (see hasCspNonceMeta); otherwise use the
+    // constructable path where supported.
+    const preferFallback = options.forceFallback || hasCspNonceMeta(doc);
+    const useConstructable = !preferFallback && supportsConstructable(root);
     const sheets = sheetsFor(root);
 
     function acquire(key: string, css: string): void {

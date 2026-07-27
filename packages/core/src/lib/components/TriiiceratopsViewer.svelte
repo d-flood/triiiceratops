@@ -1,3 +1,14 @@
+<script module lang="ts">
+    import { installTrustedTypesPolicy } from '../utils/trustedTypes';
+
+    // Install the pass-through Trusted Types default policy at module load, before
+    // any component template is instantiated (Svelte renders via
+    // `<template>.innerHTML`, a Trusted Types sink). No-op unless the page runs a
+    // `require-trusted-types-for 'script'` policy (ticket 24). Importing this
+    // module — directly (light DOM) or via the Web Component wrapper — installs it.
+    installTrustedTypesPolicy();
+</script>
+
 <script lang="ts">
     import Icon from './Icon.svelte';
     import MagnifyingGlassIcon from './icons/MagnifyingGlassIcon.svelte';

@@ -174,6 +174,38 @@ describe('style service — nonce-aware <style> fallback', () => {
         meta.remove();
     });
 
+    it('prefers the nonce <style> fallback (over constructable) when the host advertises a csp-nonce meta', () => {
+        // Ticket 24: a host running a nonce-based `style-src` publishes its nonce
+        // via <meta property="csp-nonce">; the service must then take the
+        // nonce-aware fallback even without an explicit forceFallback, because a
+        // constructable/adopted sheet cannot carry the nonce.
+        const meta = document.createElement('meta');
+        meta.setAttribute('property', 'csp-nonce');
+        meta.setAttribute('content', 'meta-drives-fallback');
+        document.head.appendChild(meta);
+
+        const root = makeShadowRoot();
+        const svc = createPluginStyleService(
+            root,
+            '@triiiceratops/plugin-meta',
+        );
+        const un = svc.install(CSS, 'main');
+
+        // No constructable sheet was adopted...
+        expect(root.adoptedStyleSheets).toHaveLength(0);
+        // ...a nonce-carrying <style> element was appended instead.
+        const el = root.querySelector<HTMLStyleElement>(
+            'style[data-triiiceratops-plugin-style]',
+        );
+        expect(el).not.toBeNull();
+        expect(el?.nonce || el?.getAttribute('nonce')).toBe(
+            'meta-drives-fallback',
+        );
+
+        un();
+        meta.remove();
+    });
+
     it('fallback dedupes and refcounts like the constructable path', () => {
         const root = makeShadowRoot();
         const svc = createPluginStyleService(

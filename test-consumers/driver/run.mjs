@@ -22,7 +22,7 @@
 //    dependency-absence check.
 // ---------------------------------------------------------------------------
 
-import { chromium } from '@playwright/test';
+import { chromium, firefox, webkit } from '@playwright/test';
 import {
     existsSync,
     mkdirSync,
@@ -165,6 +165,17 @@ const FIXTURES = [
     // `scripts/docs-examples.mjs`) against the packed tarballs of all six
     // packages, so published documentation matches what users can install.
     'docs-examples',
+    // Ticket 24: CSP + Trusted Types fixtures. Each is a packed-consumer page
+    // served under a strict Content-Security-Policy (delivered via a
+    // `<meta http-equiv>` in its HTML) and asserts zero `securitypolicyviolation`
+    // events. `csp-svelte` (light DOM) and `csp-wc-iife` (Web Component) run on
+    // all three desktop engines (chromium, firefox, webkit) via their `browsers`
+    // list; `csp-trusted-types` runs on chromium only (the only engine enforcing
+    // Trusted Types). They exercise the style service's nonce-aware fallback and
+    // core's Trusted Types default policy.
+    'csp-svelte',
+    'csp-wc-iife',
+    'csp-trusted-types',
 ];
 
 const PACKAGE_MANAGERS = ['npm', 'pnpm'];
@@ -355,17 +366,31 @@ async function installFixture(pm, fixtureDir) {
     }
 }
 
-async function withBrowser(rootDir, fn) {
-    const server = await serveDir(rootDir);
-    // Software WebGL (SwiftShader) so OpenSeadragon's WebGL drawer works in
-    // headless CI without a GPU.
-    const browser = await chromium.launch({
+// Playwright browser types, keyed by the name a fixture declares in its
+// `browsers` list. Desktop-CSP fixtures (ticket 24) run on all three engines;
+// every other fixture defaults to chromium only (see runFixture).
+const BROWSER_TYPES = { chromium, firefox, webkit };
+
+// Launch options per engine. Chromium needs software WebGL (SwiftShader) so
+// OpenSeadragon's WebGL drawer works in headless CI without a GPU; firefox and
+// webkit reject those Chromium flags, so they launch with defaults.
+const LAUNCH_OPTIONS = {
+    chromium: {
         args: [
             '--use-gl=angle',
             '--use-angle=swiftshader',
             '--enable-unsafe-swiftshader',
         ],
-    });
+    },
+    firefox: {},
+    webkit: {},
+};
+
+async function withBrowser(rootDir, fn, browserName = 'chromium') {
+    const server = await serveDir(rootDir);
+    const browserType = BROWSER_TYPES[browserName];
+    if (!browserType) throw new Error(`unknown browser "${browserName}"`);
+    const browser = await browserType.launch(LAUNCH_OPTIONS[browserName] ?? {});
     const context = await browser.newContext();
     const page = await context.newPage();
     const consoleMessages = [];
@@ -383,6 +408,7 @@ async function withBrowser(rootDir, fn) {
             baseURL: server.baseURL,
             consoleMessages,
             pageErrors,
+            browserName,
         });
     } finally {
         await browser.close();
@@ -423,10 +449,16 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
     }
 
     const serveRoot = join(fixtureDir, cfg.serveDir);
-    step(`${fixtureName} [${pm}]: serve + assert`);
     if (cfg.browser) {
-        await withBrowser(serveRoot, (ctx) => cfg.assert(ctx));
+        // Most fixtures run on chromium only; CSP fixtures (ticket 24) declare a
+        // wider `browsers` list and run their assertion once per engine.
+        const browsers = cfg.browsers ?? ['chromium'];
+        for (const browserName of browsers) {
+            step(`${fixtureName} [${pm}] (${browserName}): serve + assert`);
+            await withBrowser(serveRoot, (ctx) => cfg.assert(ctx), browserName);
+        }
     } else {
+        step(`${fixtureName} [${pm}]: serve + assert`);
         await cfg.assert({ fixtureDir });
     }
 }
@@ -452,7 +484,16 @@ async function main() {
         );
         allOk = allOk && coreDepsOk;
 
-        for (const fixtureName of FIXTURES) {
+        // Optional local dev filter: `PACKED_ONLY=csp-svelte,csp-wc-iife` runs a
+        // subset. Unset in CI, so the full suite always runs there.
+        const only = process.env.PACKED_ONLY
+            ? new Set(process.env.PACKED_ONLY.split(','))
+            : null;
+        const fixtures = only
+            ? FIXTURES.filter((f) => only.has(f))
+            : FIXTURES;
+
+        for (const fixtureName of fixtures) {
             heading(`Fixture: ${fixtureName}`);
             for (const pm of PACKAGE_MANAGERS) {
                 try {

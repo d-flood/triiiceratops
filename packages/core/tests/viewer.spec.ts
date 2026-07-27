@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Triiiceratops Viewer', () => {
-    test('smoke test: loads viewer and canvas', async ({ page }) => {
+    // The `@mobile` tag marks this rendering/first-canvas/annotations journey as
+    // the mobile journey set that the mobile projects (android-chrome,
+    // mobile-webkit) filter to via `grep: /@mobile/`; desktop projects run it too
+    // (it is a core journey). See playwright.config.ts.
+    test('smoke test: loads viewer and canvas @mobile', async ({ page }) => {
         // Navigate to the app
         await page.goto('/?manifest=/demo-manifests/e2e/manifest.json', {
             waitUntil: 'domcontentloaded',
