@@ -50,8 +50,15 @@ import {
 const PACKAGES_TO_PACK = [
     {
         filter: 'triiiceratops',
-        // Build steps required so the packed dist is complete.
-        build: ['build:lib', 'build:element', 'build:plugins-iife'],
+        // Build steps required so the packed dist is complete. `build:testing`
+        // (ticket 14) compiles the headless `triiiceratops/testing` entry AFTER
+        // `build:lib` (it needs the generated paraglide runtime + dist types).
+        build: [
+            'build:lib',
+            'build:testing',
+            'build:element',
+            'build:plugins-iife',
+        ],
         tarballName: 'triiiceratops.tgz',
     },
     {
@@ -75,6 +82,9 @@ const FIXTURES = [
     'plugin-vue',
     'plugin-lit',
     'plugin-svelte',
+    // Ticket 14: plain vitest project (no Svelte tooling) exercising the SDK
+    // test kit + compiled `triiiceratops/testing` entry against real state.
+    'vitest-kit',
 ];
 
 const PACKAGE_MANAGERS = ['npm', 'pnpm'];

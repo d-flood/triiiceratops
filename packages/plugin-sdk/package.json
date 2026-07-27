@@ -43,6 +43,10 @@
         "./lit": {
             "types": "./dist/lit.d.ts",
             "import": "./dist/lit.js"
+        },
+        "./testing": {
+            "types": "./dist/testing/index.d.ts",
+            "import": "./dist/testing/index.js"
         }
     },
     "scripts": {
@@ -56,7 +60,8 @@
         "react": "^19.0.0",
         "vue": "^3.5.0",
         "svelte": "^5.0.0",
-        "lit": "^3.0.0"
+        "lit": "^3.0.0",
+        "vitest": "^4.0.0"
     },
     "peerDependenciesMeta": {
         "react": {
@@ -69,6 +74,9 @@
             "optional": true
         },
         "lit": {
+            "optional": true
+        },
+        "vitest": {
             "optional": true
         }
     },
