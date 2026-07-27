@@ -1,13 +1,6 @@
 <script lang="ts">
-    import X from 'phosphor-svelte/lib/X';
-    import PencilSimple from 'phosphor-svelte/lib/PencilSimple';
-    import Rectangle from 'phosphor-svelte/lib/Rectangle';
-    import Polygon from 'phosphor-svelte/lib/Polygon';
-    import Trash from 'phosphor-svelte/lib/Trash';
-    import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
-    import ArrowClockwise from 'phosphor-svelte/lib/ArrowClockwise';
-    import Warning from 'phosphor-svelte/lib/Warning';
-    import Target from 'phosphor-svelte/lib/Target';
+    import Icon from '../../components/Icon.svelte';
+    import type { IconName } from '../../generated/icons';
     import type {
         AnnotationBodyEditor,
         AnnotationBodyEditorApi,
@@ -106,10 +99,10 @@
     }
 
     // Tool icons
-    const toolIcons: Record<string, any> = {
-        rectangle: Rectangle,
-        polygon: Polygon,
-        point: Target,
+    const toolIcons: Record<string, IconName> = {
+        rectangle: 'Rectangle',
+        polygon: 'Polygon',
+        point: 'Target',
     };
 
     let bodyEditorApi = $state<AnnotationBodyEditorApi | null>(null);
@@ -185,7 +178,7 @@
     {#if !embedded}
         <div class="header">
             <h2 class="title">
-                <PencilSimple size={20} />
+                <Icon name="PencilSimple" size={20} />
                 {m.annotation_editor_title()}
             </h2>
         </div>
@@ -195,7 +188,7 @@
         <!-- Persistence error line (only shown without a host error handler) -->
         {#if persistenceError}
             <div class="error-line" role="alert">
-                <Warning size={16} class="error-icon" />
+                <Icon name="Warning" size={16} class="error-icon" />
                 <span class="error-text">
                     {persistenceErrorMessage(persistenceError.op)}
                 </span>
@@ -207,7 +200,7 @@
                     onclick={onDismissError}
                     aria-label={m.annotation_editor_error_dismiss()}
                 >
-                    <X size={14} />
+                    <Icon name="X" size={14} />
                 </Button>
             </div>
         {/if}
@@ -257,7 +250,7 @@
                     disabled={!canUndo}
                     onclick={onUndo}
                 >
-                    <ArrowCounterClockwise size={16} />
+                    <Icon name="ArrowCounterClockwise" size={16} />
                     {m.annotation_editor_undo()}
                 </Button>
                 <Button
@@ -267,7 +260,7 @@
                     disabled={!canRedo}
                     onclick={onRedo}
                 >
-                    <ArrowClockwise size={16} />
+                    <Icon name="ArrowClockwise" size={16} />
                     {m.annotation_editor_redo()}
                 </Button>
             </div>
@@ -281,7 +274,7 @@
                 </p>
                 <div class="join">
                     {#each availableTools as tool (tool)}
-                        {@const Icon = toolIcons[tool] ?? Rectangle}
+                        {@const toolIconName = toolIcons[tool] ?? 'Rectangle'}
                         {@const toolName =
                             {
                                 rectangle: m.annotation_tool_rectangle(),
@@ -301,7 +294,7 @@
                                 onclick={() => onSetTool(tool)}
                                 aria-label={toolName}
                             >
-                                <Icon size={18} />
+                                <Icon name={toolIconName} size={18} />
                             </Button>
                         </Tooltip>
                     {/each}
@@ -325,7 +318,7 @@
                             onclick={onRequestDelete}
                             aria-label={m.annotation_editor_delete_tooltip()}
                         >
-                            <Trash size={16} />
+                            <Icon name="Trash" size={16} />
                         </Button>
                     </div>
                 </div>
@@ -362,7 +355,7 @@
     <dialog class="modal modal-open">
         <div class="modal-box">
             <h3 class="modal-title">
-                <Warning size={24} class="modal-warning-icon" />
+                <Icon name="Warning" size={24} class="modal-warning-icon" />
                 {m.annotation_editor_delete_title()}
             </h3>
             <p class="modal-message">

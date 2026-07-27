@@ -1,6 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext, untrack } from 'svelte';
-    import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m } from '../state/i18n.svelte';
     import { SvelteSet } from 'svelte/reactivity';
@@ -118,7 +118,7 @@
                     {#if viewerState.isSearching}
                         <Spinner size="xs" />
                     {:else}
-                        <MagnifyingGlass size={20} weight="bold" />
+                        <Icon name="MagnifyingGlass" size={20} weight="bold" />
                     {/if}
                 </Button>
             </div>

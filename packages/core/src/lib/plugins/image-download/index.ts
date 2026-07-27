@@ -1,5 +1,5 @@
 import { createPanelPlugin, type PluginDef } from '../../types/plugin';
-import DownloadSimple from 'phosphor-svelte/lib/DownloadSimple';
+import DownloadSimple from './DownloadSimpleIcon.svelte';
 import ImageDownloadPanel from './ImageDownloadPanel.svelte';
 
 export const ImageDownloadPlugin: PluginDef = createPanelPlugin({

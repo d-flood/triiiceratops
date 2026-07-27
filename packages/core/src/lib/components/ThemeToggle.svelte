@@ -1,5 +1,5 @@
 <script lang="ts">
-    import CaretDown from 'phosphor-svelte/lib/CaretDown';
+    import Icon from './Icon.svelte';
     import { onMount } from 'svelte';
     import { m } from '../state/i18n.svelte';
     import { BUILTIN_THEMES, type BuiltInTheme } from '../theme/types';
@@ -38,7 +38,7 @@
             <div class="dot dot-success"></div>
             <div class="dot dot-error"></div>
         </div>
-        <CaretDown size={16} />
+        <Icon name="CaretDown" size={16} />
     </div>
     <div tabindex="-1" class="dropdown-content">
         <ul class="menu theme-menu">

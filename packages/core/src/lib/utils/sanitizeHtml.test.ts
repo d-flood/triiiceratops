@@ -69,12 +69,16 @@ describe('sanitizeHtml utilities', () => {
         delete elementPrototype.setHTML;
         delete browserWindow.Sanitizer;
 
+        // DOMPurify >=3.4.11 (bumped from 3.3.3 for the security audit) drops the
+        // event-handler-bearing <img src=x onerror=alert(1)> entirely rather than
+        // keeping the element with the handler stripped — a strictly safer result.
+        // The key contract (no `onerror`, no script execution) still holds.
         await expect(
             sanitizeHtml(
                 '<img src=x onerror=alert(1)><p><a href="/x">ok</a></p>',
             ),
         ).resolves.toBe(
-            '<img src="x" style="display: inline-block; max-width: 100%; height: auto; vertical-align: middle; border-radius: 0.25rem;"><p style="margin: 0 0 0.75rem; margin-bottom: 0;"><a href="/x" style="color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 0.2em;">ok</a></p>',
+            '<p style="margin: 0 0 0.75rem; margin-bottom: 0;"><a href="/x" style="color: var(--color-primary-text); text-decoration: underline; text-underline-offset: 0.2em;">ok</a></p>',
         );
 
         if (originalSetHTML) {

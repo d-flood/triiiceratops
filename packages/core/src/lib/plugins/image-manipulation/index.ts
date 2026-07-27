@@ -1,6 +1,6 @@
 import { createFlyoutPlugin, type PluginDef } from '../../types/plugin';
 import ImageManipulationFlyout from './ImageManipulationFlyout.svelte';
-import SlidersIcon from 'phosphor-svelte/lib/Sliders';
+import SlidersIcon from './SlidersIcon.svelte';
 
 /**
  * Pre-configured Image Manipulation plugin.

@@ -17,6 +17,10 @@ dist-ssr/
 build/
 *.local
 
+# Generated code (see SPEC "Dependency, Type, And Generated-Code Policy"):
+# emitted under ignored, clearly named generated dirs; type-checked via build.
+packages/core/src/lib/generated/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

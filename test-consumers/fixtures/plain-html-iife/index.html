@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>triiiceratops plain-html-iife consumer</title>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            triiiceratops-viewer {
+                display: block;
+                width: 100vw;
+                height: 100vh;
+            }
+        </style>
+        <!-- No bundler: load the self-contained element IIFE straight from the
+             installed package path. -->
+        <script src="/node_modules/triiiceratops/dist/triiiceratops-element.iife.js"></script>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            manifest-id="/manifest.json"
+        ></triiiceratops-viewer>
+    </body>
+</html>

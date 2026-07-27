@@ -1,10 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { m } from '../state/i18n.svelte';
-    import Check from 'phosphor-svelte/lib/Check';
-    import Copy from 'phosphor-svelte/lib/Copy';
-    import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
-    import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
-    import Palette from 'phosphor-svelte/lib/Palette';
     import { Button, Toggle, Checkbox, Select, Range } from './ui';
     import { BUILTIN_THEMES, type BuiltInTheme } from '../theme/types';
 
@@ -245,7 +241,7 @@
                     onclick={() => onThemeChange?.(t)}
                 >
                     <span class="chip-icon"
-                        ><Palette size={16} weight="fill" /></span
+                        ><Icon name="Palette" size={16} weight="fill" /></span
                     >
                     <span class="chip-name">{t}</span>
                 </button>
@@ -1255,7 +1251,7 @@
                             style="width:100%;justify-content:flex-start;gap:0.5rem;"
                             onclick={onReset}
                         >
-                            <ArrowCounterClockwise size={16} />
+                            <Icon name="ArrowCounterClockwise" size={16} />
                             {m.reset_config()}
                         </Button>
                     </li>
@@ -1270,10 +1266,10 @@
                         onclick={copyConfig}
                     >
                         {#if copied}
-                            <Check size={16} />
+                            <Icon name="Check" size={16} />
                             {m.copied()}
                         {:else}
-                            <Copy size={16} />
+                            <Icon name="Copy" size={16} />
                             {m.copy_config()}
                         {/if}
                     </Button>
@@ -1289,10 +1285,10 @@
                             onclick={shareState}
                         >
                             {#if shared}
-                                <Check size={16} />
+                                <Icon name="Check" size={16} />
                                 {m.link_copied()}
                             {:else}
-                                <ShareNetwork size={16} />
+                                <Icon name="ShareNetwork" size={16} />
                                 {m.share_current_state()}
                             {/if}
                         </Button>

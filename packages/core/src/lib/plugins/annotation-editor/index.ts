@@ -4,7 +4,7 @@ import {
     type PluginDef,
 } from '../../types/plugin';
 import AnnotationEditorController from './AnnotationEditorController.svelte';
-import PencilSimple from 'phosphor-svelte/lib/PencilSimple';
+import PencilSimple from './AnnotationEditorIcon.svelte';
 import type { AnnotationEditorConfig } from './types';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 import { AnnotationStore } from './AnnotationStore.svelte';
@@ -86,7 +86,7 @@ export const AnnotationEditorPlugin: PluginDef = createAnnotationEditorPlugin({
 // Individual exports for customization
 export { AnnotationEditorController };
 export { default as DefaultBodyEditor } from './DefaultBodyEditor.svelte';
-export { default as AnnotationEditorIcon } from 'phosphor-svelte/lib/PencilSimple';
+export { default as AnnotationEditorIcon } from './AnnotationEditorIcon.svelte';
 
 // Type exports
 export type {

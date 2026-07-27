@@ -8,12 +8,7 @@
     import { applyFilters } from './filters';
     import * as m from '../../paraglide/messages';
     import { Range, Tooltip } from '../../components/ui';
-    import Sun from 'phosphor-svelte/lib/Sun';
-    import CircleHalf from 'phosphor-svelte/lib/CircleHalf';
-    import Drop from 'phosphor-svelte/lib/Drop';
-    import SelectionInverse from 'phosphor-svelte/lib/SelectionInverse';
-    import Palette from 'phosphor-svelte/lib/Palette';
-    import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise';
+    import Icon from '../../components/Icon.svelte';
 
     // `placement` is the flyout growth direction supplied by the toolbar; the
     // sliders sit on the canvas side (above for an upward flyout).
@@ -68,19 +63,19 @@
     const sliders = [
         {
             key: 'brightness',
-            icon: Sun,
+            icon: 'Sun',
             label: m.image_filters_brightness,
             color: 'neutral',
         },
         {
             key: 'contrast',
-            icon: CircleHalf,
+            icon: 'CircleHalf',
             label: m.image_filters_contrast,
             color: 'neutral',
         },
         {
             key: 'saturation',
-            icon: Drop,
+            icon: 'Drop',
             label: m.image_filters_saturation,
             color: 'neutral',
         },
@@ -119,9 +114,9 @@
     <div class="base">
         <div class="labels">
             {#each sliders as s (s.key)}
-                {@const Icon = s.icon}
+                {@const iconName = s.icon}
                 <div class="cell cap">
-                    <Icon size={18} />
+                    <Icon name={iconName} size={18} />
                     <span class="val">{filters[s.key]}%</span>
                 </div>
             {/each}
@@ -138,7 +133,7 @@
                         aria-label={m.image_filters_invert()}
                         onclick={() => setFilter('invert', !filters.invert)}
                     >
-                        <SelectionInverse size={18} />
+                        <Icon name="SelectionInverse" size={18} />
                     </button>
                 </Tooltip>
             </div>
@@ -155,7 +150,7 @@
                         aria-label={m.image_filters_grayscale()}
                         onclick={() => setFilter('grayscale', !filters.grayscale)}
                     >
-                        <Palette size={18} />
+                        <Icon name="Palette" size={18} />
                     </button>
                 </Tooltip>
             </div>
@@ -168,7 +163,7 @@
                         aria-label={m.image_filters_reset()}
                         onclick={reset}
                     >
-                        <ArrowCounterClockwise size={18} />
+                        <Icon name="ArrowCounterClockwise" size={18} />
                     </button>
                 </Tooltip>
             </div>

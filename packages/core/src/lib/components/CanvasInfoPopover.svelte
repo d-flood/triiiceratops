@@ -1,7 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
-    import Info from 'phosphor-svelte/lib/Info';
-    import X from 'phosphor-svelte/lib/X';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { m, language } from '../state/i18n.svelte';
     import {
@@ -64,7 +63,7 @@
             aria-label={m.canvas_info_tooltip()}
             title={m.canvas_info_tooltip()}
         >
-            <Info size={14} weight="bold" />
+            <Icon name="Info" size={14} weight="bold" />
         </Button>
 
         {#if viewerState.showCanvasInfo}
@@ -94,7 +93,7 @@
                             onclick={() => viewerState.toggleCanvasInfo()}
                             aria-label={m.close()}
                         >
-                            <X size={14} />
+                            <Icon name="X" size={14} />
                         </Button>
                     </div>
 

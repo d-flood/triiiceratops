@@ -1,8 +1,6 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
-    import Eye from 'phosphor-svelte/lib/Eye';
-    import EyeSlash from 'phosphor-svelte/lib/EyeSlash';
-    import ListDashes from 'phosphor-svelte/lib/ListDashes';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { manifestsState } from '../state/manifests.svelte';
     import { m } from '../state/i18n.svelte';
@@ -130,7 +128,7 @@
         {#if !embedded}
             <div class="header">
                 <div class="header-title">
-                    <ListDashes size={20} weight="bold" />
+                    <Icon name="ListDashes" size={20} weight="bold" />
                     <h2>
                         {m.settings_submenu_annotations()}
                     </h2>
@@ -151,10 +149,10 @@
                 disabled={toggleableAnnotations.length === 0}
             >
                 {#if isAllVisible}
-                    <Eye size={16} />
+                    <Icon name="Eye" size={16} />
                     {m.hide_all_annotations()}
                 {:else}
-                    <EyeSlash size={16} />
+                    <Icon name="EyeSlash" size={16} />
                     {m.show_all_annotations()}
                 {/if}
             </Button>
@@ -209,9 +207,9 @@
                         }}
                     >
                         {#if isVisible}
-                            <Eye size={16} />
+                            <Icon name="Eye" size={16} />
                         {:else}
-                            <EyeSlash size={16} />
+                            <Icon name="EyeSlash" size={16} />
                         {/if}
                     </Button>
 

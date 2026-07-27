@@ -1,7 +1,5 @@
 <script lang="ts">
-    import X from 'phosphor-svelte/lib/X';
-    import Plus from 'phosphor-svelte/lib/Plus';
-    import Check from 'phosphor-svelte/lib/Check';
+    import Icon from '../../components/Icon.svelte';
     import type { AnnotationBodyEditorApi, W3CAnnotationBody } from './types';
     import { W3C_PURPOSES } from './types';
     import { m } from '../../paraglide/messages';
@@ -129,7 +127,7 @@
                         circle
                         onclick={() => removeBody(i)}
                     >
-                        <X size={14} />
+                        <Icon name="X" size={14} />
                     </Button>
                 </div>
 
@@ -172,7 +170,7 @@
         onclick={addBody}
         disabled={api.isHydrating}
     >
-        <Plus size={14} />
+        <Icon name="Plus" size={14} />
         {m.annotation_editor_add_content()}
     </Button>
 {/if}
@@ -185,7 +183,7 @@
         onclick={handleSaveBodies}
         disabled={api.isHydrating}
     >
-        <Check size={16} />
+        <Icon name="Check" size={16} />
         {m.annotation_editor_save()}
     </Button>
 </div>

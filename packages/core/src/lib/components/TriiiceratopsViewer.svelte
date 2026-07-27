@@ -1,4 +1,10 @@
 <script lang="ts">
+    import Icon from './Icon.svelte';
+    import MagnifyingGlassIcon from './icons/MagnifyingGlassIcon.svelte';
+    import ChatCenteredTextIcon from './icons/ChatCenteredTextIcon.svelte';
+    import InfoIcon from './icons/InfoIcon.svelte';
+    import ListBulletsIcon from './icons/ListBulletsIcon.svelte';
+    import FolderIcon from './icons/FolderIcon.svelte';
     import { onDestroy, setContext, untrack } from 'svelte';
     import { cubicOut } from 'svelte/easing';
     import { language, m } from '../state/i18n.svelte';
@@ -43,12 +49,6 @@
     import StructuresPanel from './StructuresPanel.svelte';
     import ThumbnailGallery from './ThumbnailGallery.svelte';
     import Toolbar from './Toolbar.svelte';
-    import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
-    import ChatCenteredText from 'phosphor-svelte/lib/ChatCenteredText';
-    import Info from 'phosphor-svelte/lib/Info';
-    import ListBullets from 'phosphor-svelte/lib/ListBullets';
-    import Folder from 'phosphor-svelte/lib/Folder';
-    import ImageBroken from 'phosphor-svelte/lib/ImageBroken';
     import ViewerControls from './ViewerControls.svelte';
     import { Spinner } from './ui';
 
@@ -424,7 +424,7 @@
             panels.push({
                 id: 'search',
                 title: m.search(),
-                icon: MagnifyingGlass,
+                icon: MagnifyingGlassIcon,
                 component: SearchPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.search?.showCloseButton,
@@ -440,7 +440,7 @@
             panels.push({
                 id: 'annotations',
                 title: m.settings_submenu_annotations(),
-                icon: ChatCenteredText,
+                icon: ChatCenteredTextIcon,
                 component: AnnotationPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.annotations?.showCloseButton,
@@ -456,7 +456,7 @@
             panels.push({
                 id: 'metadata',
                 title: m.metadata(),
-                icon: Info,
+                icon: InfoIcon,
                 component: MetadataPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.information?.showCloseButton,
@@ -495,7 +495,7 @@
             panels.push({
                 id: 'search',
                 title: m.search(),
-                icon: MagnifyingGlass,
+                icon: MagnifyingGlassIcon,
                 component: SearchPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.search?.showCloseButton,
@@ -511,7 +511,7 @@
             panels.push({
                 id: 'annotations',
                 title: m.settings_submenu_annotations(),
-                icon: ChatCenteredText,
+                icon: ChatCenteredTextIcon,
                 component: AnnotationPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.annotations?.showCloseButton,
@@ -527,7 +527,7 @@
             panels.push({
                 id: 'metadata',
                 title: m.metadata(),
-                icon: Info,
+                icon: InfoIcon,
                 component: MetadataPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.information?.showCloseButton,
@@ -540,7 +540,7 @@
             panels.push({
                 id: 'structures',
                 title: m.structures_title(),
-                icon: ListBullets,
+                icon: ListBulletsIcon,
                 component: StructuresPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.structures?.showCloseButton,
@@ -553,7 +553,7 @@
             panels.push({
                 id: 'collection',
                 title: m.collection_title(),
-                icon: Folder,
+                icon: FolderIcon,
                 component: CollectionPanel,
                 close: showPanelCloseButton(
                     internalViewerState.config.collection?.showCloseButton,
@@ -883,7 +883,7 @@
                                     {m.error_auth_required()}
                                 </p>
                             {:else}
-                                <ImageBroken
+                                <Icon name="ImageBroken"
                                     size={48}
                                     color="var(--color-warning)"
                                 />
@@ -911,7 +911,7 @@
                         <div class="dim-50"></div>
                     {/if}
                     <div class="error-card">
-                        <ImageBroken size={48} color="var(--color-warning)" />
+                        <Icon name="ImageBroken" size={48} color="var(--color-warning)" />
                         <p class="msg msg-strong">
                             {m.no_image_found()}
                         </p>

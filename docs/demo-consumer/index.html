@@ -11,6 +11,7 @@
 
         <!-- Load plugins (uses Svelte runtime from the viewer bundle) -->
         <script src="../dist/triiiceratops-plugin-image-manipulation.iife.js"></script>
+        <script src="../dist/triiiceratops-plugin-annotation-editor.iife.js"></script>
     </head>
     <body>
         <!-- The Viewer Component -->
@@ -26,9 +27,102 @@
                 const viewer = document.querySelector('triiiceratops-viewer');
 
                 if (viewer) {
+                    const {
+                        createAnnotationEditorPlugin,
+                        LocalStorageAdapter,
+                    } = window.TriiiceratopsPluginAnnotationEditor;
+
+                    const structuredBodyEditor = {
+                        render(container, api) {
+                            const current = api.bodies[0] || {
+                                type: 'TriiiceratopsDemoBody',
+                                label: '',
+                                confidence: 'medium',
+                            };
+                            const label = current.label || '';
+                            const confidence = current.confidence || 'medium';
+
+                            container.innerHTML = `
+                                <style>
+                                    .structured-body-editor {
+                                        display: grid;
+                                        gap: 0.75rem;
+                                    }
+                                    .structured-body-editor label {
+                                        display: grid;
+                                        gap: 0.25rem;
+                                        font-size: 0.8rem;
+                                    }
+                                    .structured-body-editor input,
+                                    .structured-body-editor select,
+                                    .structured-body-editor button {
+                                        border: 1px solid #ffffff33;
+                                        border-radius: 0.5rem;
+                                        padding: 0.5rem 0.625rem;
+                                        background: #111827;
+                                        color: white;
+                                    }
+                                    .structured-body-editor button {
+                                        cursor: pointer;
+                                        background: #e5484d;
+                                        border-color: #e5484d;
+                                        font-weight: 700;
+                                    }
+                                </style>
+                                <form class="structured-body-editor">
+                                    <label>
+                                        Label
+                                        <input name="label" />
+                                    </label>
+                                    <label>
+                                        Confidence
+                                        <select name="confidence">
+                                            <option value="low">low</option>
+                                            <option value="medium">medium</option>
+                                            <option value="high">high</option>
+                                        </select>
+                                    </label>
+                                    <button type="submit">Save structured body</button>
+                                </form>
+                            `;
+
+                            const form = container.querySelector('form');
+                            form.elements.label.value = label;
+                            form.elements.confidence.value = confidence;
+                            const submit = (event) => {
+                                event.preventDefault();
+                                const data = new FormData(form);
+                                api.save({
+                                    type: 'TriiiceratopsDemoBody',
+                                    label: data.get('label'),
+                                    confidence: data.get('confidence'),
+                                });
+                            };
+                            form.addEventListener('submit', submit);
+
+                            return () =>
+                                form.removeEventListener('submit', submit);
+                        },
+                    };
+
+                    const annotationPlugin = createAnnotationEditorPlugin({
+                        adapter: new LocalStorageAdapter(),
+                        target: 'flyout',
+                        tools: ['point'],
+                        defaultTool: 'point',
+                        ui: {
+                            showModeToggle: false,
+                            startInCreateMode: true,
+                            showUndoRedo: false,
+                            allowMultipleBodies: false,
+                        },
+                        bodyEditor: { render: structuredBodyEditor.render },
+                    });
+
                     // Plugins are exposed on window.TriiiceratopsPlugins by the IIFE bundles
                     viewer.plugins = [
                         window.TriiiceratopsPlugins.ImageManipulation,
+                        annotationPlugin,
                     ];
                     console.log('Plugins assigned to viewer:', viewer.plugins);
                 }

@@ -35,3 +35,33 @@ jobs:
 
             - name: Run E2E Tests
               run: pnpm --filter triiiceratops test:e2e
+
+    packed-consumers:
+        name: Packed Consumers
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            # The harness drives Chromium via the workspace's Playwright.
+            - name: Install Playwright Browsers
+              run: pnpm --filter triiiceratops exec playwright install --with-deps chromium
+
+            # Packs real .tgz artifacts, installs them into clean fixtures via
+            # BOTH npm and pnpm, builds each, and asserts against what a user
+            # actually gets from npm.
+            - name: Run packed-consumer harness
+              run: pnpm test:packed
