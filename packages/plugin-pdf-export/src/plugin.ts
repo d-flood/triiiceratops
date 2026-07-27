@@ -89,13 +89,6 @@ export function createPdfExportPlugin(config: PdfExportConfig = {}): SdkPlugin {
         requiredCapabilities: ['osd@5'],
         icon: FILE_PDF_ICON,
         target: 'panel',
-        // TRANSITIONAL routing marker (epic restore-plugin-toolbar-chrome,
-        // ticket 05). Opts this plugin onto the core-owned-chrome path added in
-        // ticket 02: core renders the toolbar button from `icon`/`target`, docks
-        // the panel container in the viewer chrome, and owns open/close. The
-        // plugin renders only content into the core-provided container. This flag
-        // is removed in ticket 07 once core-chrome is the only path.
-        __coreChrome: true,
         catalog,
         view: createView(config),
     });

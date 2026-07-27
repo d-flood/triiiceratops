@@ -40,8 +40,7 @@ export type { ImageFilters } from './types';
  * flyout content into it — it draws no button and positions nothing.
  *
  * `dismiss: 'explicit'` keeps the Flyout open while adjusting (a canvas click
- * pans/zooms without dismissing the editing session). The plugin ships the
- * transitional `__coreChrome` flag until core-chrome is the only path (ticket 07).
+ * pans/zooms without dismissing the editing session).
  *
  * Filter state lives in the Activation-scoped {@link FilterController} created
  * here (per viewer, above the mounted component), so slider positions survive

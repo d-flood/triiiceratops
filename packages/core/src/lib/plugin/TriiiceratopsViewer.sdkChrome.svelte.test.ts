@@ -1,8 +1,8 @@
 // Core viewer × SDK-plugin CONTRACT test — the primary seam for the
 // core-owned-chrome path (epic restore-plugin-toolbar-chrome, ticket 02).
 //
-// Mounts the REAL viewer chrome with a TEST-DOUBLE SDK plugin (`definePlugin`
-// with the transitional `__coreChrome` flag) and asserts external behavior only:
+// Mounts the REAL viewer chrome with a TEST-DOUBLE SDK plugin (`definePlugin`)
+// and asserts external behavior only:
 //   - the button renders among the toolbar plugin buttons, from `meta.icon`;
 //   - opening mounts the double's content into an anchored (flyout) / docked
 //     (panel) container, and closing unmounts it;
@@ -100,7 +100,6 @@ function makeDouble(config: {
         icon: ICON,
         target: config.target,
         dismiss: config.dismiss,
-        __coreChrome: true,
         view: {
             mount(container: HTMLElement, _context: PluginContext) {
                 if (config.throwOnMount) throw new Error('mount boom');

@@ -45,10 +45,9 @@ describe('image-manipulation filter behavior', () => {
         container.remove();
     });
 
-    it('declares the flyout target, explicit dismiss, and the core-chrome flag', () => {
+    it('declares the flyout target and explicit dismiss', () => {
         expect(ImageManipulationPlugin.target).toBe('flyout');
         expect(ImageManipulationPlugin.dismiss).toBe('explicit');
-        expect(ImageManipulationPlugin.__coreChrome).toBe(true);
     });
 
     it('writes the CSS filter to the OSD canvas when a slider changes, and it lingers', async () => {

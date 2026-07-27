@@ -444,20 +444,18 @@
     // and the three per-activation services (ticket 08) — a root-aware style
     // service, a per-viewer locale service over the plugin's catalog, and the
     // icon-rendering UI service.
-    let sdkPluginHost: HTMLElement | undefined = $state();
 
     // One activation record per mounted SDK plugin. `deactivate` runs the
     // instance's teardown (view cleanup + drop subscriptions + release styles) and
     // — for core-owned-chrome plugins — unregisters its toolbar chrome.
     // `primaryReported` de-dupes repeated command/subscription failures from the
     // same still-live instance so the channel fires once per failure, not once per
-    // flush. `coreChrome`/`chromeId` mark the new expand-path activation (ticket
-    // 02); `failed` records that setup/mount failed so core renders NO button
-    // (fail closed, ADR 0010).
+    // flush. `chromeId` is the id of the plugin's core-owned toolbar chrome;
+    // `failed` records that setup/mount failed so core renders NO button (fail
+    // closed, ADR 0010).
     interface SdkActivationRecord {
         plugin: SdkPlugin;
         el: HTMLElement;
-        coreChrome: boolean;
         chromeId?: string;
         deactivate: () => void;
         primaryReported: boolean;
@@ -556,77 +554,15 @@
     }
 
     /**
-     * Activate one SDK plugin. Routing (transitional, expand→contract, ticket 02):
-     * `meta.__coreChrome` → the new core-owned-chrome path (core renders the
-     * toolbar button + places the flyout/panel container); otherwise the legacy
-     * bare self-render host. The flag and the legacy path are removed in ticket 07.
+     * Activate one SDK plugin. Core owns the chrome: core hands `view.mount` a
+     * content-only element it created; on success core registers the toolbar
+     * chrome (button + anchored flyout / docked panel) via
+     * {@link ViewerState.registerSdkChrome}, reusing the SAME rendering path as
+     * legacy `PluginDef` plugins. The element is placed into the open surface (and
+     * removed on close) by the shared `PluginMountHost` attachment. Fail closed
+     * (ADR 0010): a setup/mount failure renders NO button.
      */
     function activateSdkPlugin(plugin: SdkPlugin) {
-        if (plugin.__coreChrome) {
-            activateSdkPluginCoreChrome(plugin);
-        } else {
-            activateSdkPluginLegacy(plugin);
-        }
-    }
-
-    /**
-     * Legacy path: the plugin self-renders (button + positioning) into a bare
-     * per-plugin container appended to the core host. A setup/mount failure hides
-     * the partial DOM and emits `pluginerror` (fail closed — no error UI).
-     */
-    function activateSdkPluginLegacy(plugin: SdkPlugin) {
-        const host = sdkPluginHost;
-        if (!host) return;
-
-        const el = document.createElement('div');
-        el.className = 'tri-sdk-plugin';
-        el.dataset.pluginName = plugin.name;
-        el.dataset.pluginTarget = plugin.target;
-        host.appendChild(el);
-
-        const record: SdkActivationRecord = {
-            plugin,
-            el,
-            coreChrome: false,
-            deactivate: () => {},
-            primaryReported: false,
-            failed: false,
-        };
-        sdkActivations.push(record);
-
-        const reportError = (report: PluginErrorReport) => {
-            if (report.phase === 'setup' || report.phase === 'mount') {
-                el.style.display = 'none';
-                record.failed = true;
-            }
-            emitPluginError(record, report.phase, report.error);
-        };
-
-        try {
-            const activation = plugin.activate(
-                buildSdkHost(plugin, el, reportError),
-            );
-            record.deactivate = activation.deactivate;
-        } catch (error) {
-            // A plugin whose `activate` throws outright (no `reportError`
-            // routing) is still isolated — treat it as a setup failure so one
-            // plugin cannot take down the viewer or other plugins.
-            el.style.display = 'none';
-            record.failed = true;
-            emitPluginError(record, 'setup', error);
-        }
-    }
-
-    /**
-     * Core-owned-chrome path (ticket 02). Core hands `view.mount` a content-only
-     * element it created; on success core registers the toolbar chrome (button +
-     * anchored flyout / docked panel) via {@link ViewerState.registerSdkChrome},
-     * reusing the SAME rendering path as legacy `PluginDef` plugins. The element
-     * is placed into the open surface (and removed on close) by the shared
-     * `PluginMountHost` attachment. Fail closed (ADR 0010): a setup/mount failure
-     * renders NO button.
-     */
-    function activateSdkPluginCoreChrome(plugin: SdkPlugin) {
         // Content-only container: created and owned by core, detached until the
         // plugin's surface opens.
         const el = document.createElement('div');
@@ -637,7 +573,6 @@
         const record: SdkActivationRecord = {
             plugin,
             el,
-            coreChrome: true,
             deactivate: () => {},
             primaryReported: false,
             failed: false,
@@ -707,7 +642,7 @@
      * the rest.
      */
     function deactivateSdkRecord(record: SdkActivationRecord) {
-        if (record.coreChrome && record.chromeId) {
+        if (record.chromeId) {
             internalViewerState.unregisterPlugin(record.chromeId);
         }
         try {
@@ -746,9 +681,6 @@
     }
 
     $effect(() => {
-        // Depend on the host node too so the legacy bare-host path re-runs once
-        // the container exists; core-chrome plugins do not need it.
-        void sdkPluginHost;
         const currentSdkPlugins = sdkPlugins;
 
         untrack(() => {
@@ -1523,13 +1455,6 @@
             <Toolbar docked />
         </div>
     {/if}
-
-    <!-- Legacy bare host for self-rendering SDK plugins (removed in ticket 07).
-         Core-owned-chrome plugins (ticket 02) do NOT use this: their content is
-         placed into the toolbar flyout / docked panel. A failed activation
-         degrades silently (ADR 0010): logged + emitted on `pluginerror`, no
-         user-facing error UI. -->
-    <div class="tri-sdk-plugin-host" bind:this={sdkPluginHost}></div>
 </div>
 
 <style>
