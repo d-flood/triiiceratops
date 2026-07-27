@@ -1,6 +1,6 @@
 # Content state is an explicit component input; URL reading is opt-in
 
-The viewer accepts a [content state](../../CONTEXT.md) as an explicit `content-state`
+The viewer accepts a content state as an explicit `content-state`
 attribute/prop on the shipped Svelte and web components. Reading the IIIF-mandated
 `iiif-content` parameter from `window.location` is **opt-in** via a
 `read-content-state-from-url` flag that defaults **off**, rather than being read

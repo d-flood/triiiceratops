@@ -101,11 +101,11 @@ additionally setting `metadataPanelBg: 'white'` overrides just the metadata pane
 
 | Keyword (`…Bg` / `…Content`) | Panel                        | CSS Variable (`…-bg` / `…-content`) |
 | :--------------------------- | :--------------------------- | :---------------------------------- |
-| `metadataPanel…`             | Information / metadata panel | `--metadata-panel-…`                |
-| `annotationsPanel…`          | Annotations panel            | `--annotations-panel-…`             |
-| `searchPanel…`               | Search panel                 | `--search-panel-…`                  |
-| `structuresPanel…`           | Table-of-contents panel      | `--structures-panel-…`              |
-| `collectionPanel…`           | Collection panel             | `--collection-panel-…`              |
+| `metadataPanel…`             | Information / metadata panel | `--tri-metadata-panel-…`            |
+| `annotationsPanel…`          | Annotations panel            | `--tri-annotations-panel-…`         |
+| `searchPanel…`               | Search panel                 | `--tri-search-panel-…`              |
+| `structuresPanel…`           | Table-of-contents panel      | `--tri-structures-panel-…`          |
+| `collectionPanel…`           | Collection panel             | `--tri-collection-panel-…`          |
 
 Plugin panels follow `panelBg` too, and can be overridden via [`cssVars`](#raw-css-variables)
 or raw CSS variables: `--tri-pdf-export-panel-bg` and `--tri-annotation-editor-panel-bg` (and
@@ -139,6 +139,104 @@ you can keep everything consistent or fine-tune one region.
 | `border`       | Border width                       | `--tri-border`        | `1px`     |
 | `depth`        | Drop shadows (`1` = on, `0` = off) | `--tri-depth`         | `1`       |
 | `colorScheme`  | Browser UI hint (`light`/`dark`)   | `color-scheme`    | `light`   |
+
+### Complete public token reference
+
+Every token below is part of the **semver-governed public customization surface**.
+Variables outside the `--tri-*` namespace (for example `--ui-*` layout plumbing or
+component-local `--btn-*` / `--range-*` variables) are internal implementation
+details with no stability guarantee. Set a token either by its `themeConfig` key
+or by writing the raw CSS variable; tokens marked `— (raw only)` have no typed key
+and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
+
+!!! note "This table is generated"
+
+    The table below is generated from `packages/core/src/lib/theme/publicTokens.ts`
+    — the single source of truth also consumed by the public-token API snapshot.
+    A test (`themingDocsTable.test.ts`) fails if it drifts, so it is never
+    hand-edited.
+
+<!-- BEGIN GENERATED PUBLIC TOKEN TABLE (source: packages/core/src/lib/theme/publicTokens.ts) -->
+
+#### Palette
+
+| CSS variable | `themeConfig` key |
+| :----------- | :---------------- |
+| `--tri-color-primary` | `primary` |
+| `--tri-color-primary-content` | `primaryContent` |
+| `--tri-color-primary-text` | — (raw only) |
+| `--tri-color-neutral` | `neutral` |
+| `--tri-color-neutral-content` | `neutralContent` |
+| `--tri-color-success` | `success` |
+| `--tri-color-success-content` | `successContent` |
+| `--tri-color-warning` | `warning` |
+| `--tri-color-warning-content` | `warningContent` |
+| `--tri-color-error` | `error` |
+| `--tri-color-error-content` | `errorContent` |
+
+#### Surfaces
+
+| CSS variable | `themeConfig` key |
+| :----------- | :---------------- |
+| `--tri-viewer-bg` | `viewerBg` |
+| `--tri-toolbar-bg` | `toolbarBg` |
+| `--tri-panel-bg` | `panelBg` |
+| `--tri-gallery-bg` | `galleryBg` |
+| `--tri-input-bg` | `inputBg` |
+| `--tri-surface-border` | `surfaceBorder` |
+
+#### Content / foreground
+
+| CSS variable | `themeConfig` key |
+| :----------- | :---------------- |
+| `--tri-content` | `content` |
+| `--tri-panel-content` | `panelContent` |
+| `--tri-toolbar-content` | `toolbarContent` |
+| `--tri-viewer-content` | `viewerContent` |
+| `--tri-gallery-content` | `galleryContent` |
+
+#### Per-panel overrides
+
+| CSS variable | `themeConfig` key |
+| :----------- | :---------------- |
+| `--tri-metadata-panel-bg` | `metadataPanelBg` |
+| `--tri-metadata-panel-content` | `metadataPanelContent` |
+| `--tri-annotations-panel-bg` | `annotationsPanelBg` |
+| `--tri-annotations-panel-content` | `annotationsPanelContent` |
+| `--tri-search-panel-bg` | `searchPanelBg` |
+| `--tri-search-panel-content` | `searchPanelContent` |
+| `--tri-structures-panel-bg` | `structuresPanelBg` |
+| `--tri-structures-panel-content` | `structuresPanelContent` |
+| `--tri-collection-panel-bg` | `collectionPanelBg` |
+| `--tri-collection-panel-content` | `collectionPanelContent` |
+
+#### Border radius
+
+| CSS variable | `themeConfig` key |
+| :----------- | :---------------- |
+| `--tri-radius-selector` | `radiusSelector` |
+| `--tri-radius-buttons` | `radiusButtons` |
+| `--tri-radius-box` | `radiusBox` |
+| `--tri-radius-toolbar` | `radiusToolbar` |
+| `--tri-radius-panels` | `radiusPanels` |
+| `--tri-radius-controls` | `radiusControls` |
+| `--tri-radius-controls-buttons` | `radiusControlsButtons` |
+
+#### Sizing
+
+| CSS variable | `themeConfig` key |
+| :----------- | :---------------- |
+| `--tri-size-selector` | `sizeSelector` |
+| `--tri-size-field` | `sizeField` |
+
+#### Border / effects
+
+| CSS variable | `themeConfig` key |
+| :----------- | :---------------- |
+| `--tri-border` | `border` |
+| `--tri-depth` | `depth` |
+
+<!-- END GENERATED PUBLIC TOKEN TABLE -->
 
 ### Example Usage
 

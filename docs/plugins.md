@@ -22,7 +22,7 @@ For Svelte integrations, plugins can now be combined with direct `manifestJson` 
       <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
 
       <!-- Load plugins -->
-      <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-image-manipulation.iife.js"></script>
+      <script src="https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js"></script>
     </head>
     <body>
       <triiiceratops-viewer manifest-id="https://example.com/manifest.json"></triiiceratops-viewer>
@@ -30,7 +30,7 @@ For Svelte integrations, plugins can now be combined with direct `manifestJson` 
       <script>
         customElements.whenDefined('triiiceratops-viewer').then(() => {
           const viewer = document.querySelector('triiiceratops-viewer');
-          viewer.plugins = [window.TriiiceratopsPlugins.ImageManipulation];
+          viewer.plugins = [window.Triiiceratops.plugins.get('@triiiceratops/plugin-image-manipulation')];
         });
       </script>
     </body>
@@ -45,7 +45,7 @@ For Svelte integrations, plugins can now be combined with direct `manifestJson` 
     <script>
       import { TriiiceratopsViewer } from 'triiiceratops';
       import 'triiiceratops/style.css';
-      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
+      import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
     </script>
 
     <div style="height: 600px;">
@@ -60,56 +60,71 @@ For Svelte integrations, plugins can now be combined with direct `manifestJson` 
 
 ## How the Plugin System Works
 
-### Build System Overview
+Each first-party plugin is its own independently versioned npm package under the
+`@triiiceratops` scope, and ships in two delivery formats.
 
-Triiiceratops provides two distribution formats to support different use cases:
+| Format          | Use case                            | Plugins delivered via                              |
+| --------------- | ----------------------------------- | -------------------------------------------------- |
+| **IIFE**        | Static HTML pages, no build step    | Script tags + the `window.Triiiceratops` registry  |
+| **ES Modules**  | Vite/Svelte projects with bundlers  | `import` statements                                |
 
-| Format           | Use Case                           | Plugins Loaded Via                          |
-| ---------------- | ---------------------------------- | ------------------------------------------- |
-| **IIFE Bundles** | Static HTML pages, no build step   | Script tags + `window.TriiiceratopsPlugins` |
-| **ES Modules**   | Vite/Svelte projects with bundlers | `import` statements                         |
+### ES Modules (with a bundler)
 
-### IIFE Bundles (Script Tags)
+For projects using Vite, SvelteKit, or other bundlers, import the plugin's
+factory from its scoped package and pass it to the viewer's `plugins` prop (or
+property). Plugins run in the page's realm and receive the live `ViewerState`
+directly — they do **not** share core's Svelte runtime.
 
-The IIFE (Immediately Invoked Function Expression) bundles are self-contained JavaScript files that work in any browser without a build system.
+```ts
+import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
-**How it works:**
-
-1. **`triiiceratops-element.iife.js`** (~700KB) bundles:
-    - The `<triiiceratops-viewer>` custom element
-    - Svelte runtime
-    - OpenSeadragon image viewer
-    - All core dependencies
-    - Exposes a shared Svelte runtime for plugins
-
-2. **Plugin IIFE bundles** (e.g., `triiiceratops-plugin-image-manipulation.iife.js`):
-    - Bundle the plugin's Svelte components and icons
-    - Use the shared Svelte runtime from the main element bundle
-    - Register themselves on `window.TriiiceratopsPlugins`
-
-!!! info "Svelte Runtime Sharing"
-The viewer exposes its Svelte runtime on `window.__TriiiceratopsSvelteRuntime`, which plugins use to ensure `getContext()` and other Svelte features work correctly across bundle boundaries.
-
-### ES Module Exports
-
-For projects using Vite, SvelteKit, or other bundlers, Triiiceratops exports package-built ES modules that are compiled by the consuming app's Svelte pipeline. This avoids runtime clashes while still enabling tree-shaking and normal bundler integration:
-
-```javascript
-// Main Svelte component
-import { TriiiceratopsViewer } from 'triiiceratops';
-
-// Plugin components for manual assembly
-import {
-    ImageManipulationFlyout,
-    SlidersIcon,
-} from 'triiiceratops/plugins/image-manipulation';
+// Svelte:        <TriiiceratopsViewer plugins={[ImageManipulationPlugin]} />
+// Web Component: viewer.plugins = [ImageManipulationPlugin];
+viewer.plugins = [ImageManipulationPlugin];
 ```
+
+### IIFE (script tags)
+
+Each plugin's IIFE (`@triiiceratops/plugin-*/dist/iife.js`) registers a factory
+into the shared, order-independent `window.Triiiceratops.plugins` registry.
+Loading a script does **not** activate the plugin; activation is an explicit,
+per-viewer step. Scripts may load in any order — every core or plugin IIFE
+bootstraps the namespace if it is absent.
+
+```html
+<script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
+<script src="https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js"></script>
+
+<triiiceratops-viewer manifest-id="https://example.org/manifest.json"></triiiceratops-viewer>
+
+<script>
+    customElements.whenDefined('triiiceratops-viewer').then(() => {
+        const viewer = document.querySelector('triiiceratops-viewer');
+        const plugin = window.Triiiceratops.plugins.get(
+            '@triiiceratops/plugin-image-manipulation',
+        );
+        viewer.plugins = [plugin];
+    });
+</script>
+```
+
+The RC's `window.TriiiceratopsPlugins` globals and the
+`window.__TriiiceratopsSvelteRuntime` runtime-sharing bridge have been removed;
+see the [migration guide](migration-1.0.md) if you are upgrading.
 
 ---
 
 ## Plugin Definition
 
-A plugin is defined by a `PluginDef` object:
+!!! tip "Writing a new plugin? Use the SDK"
+
+    For new plugins, author with `@triiiceratops/plugin-sdk` and `definePlugin` —
+    a framework-neutral mount contract that works with vanilla DOM, Svelte,
+    React, Vue, Lit, or a custom element, and comes with a conformance test kit.
+    See the [plugin authoring guide](plugin-authoring.md). The Svelte-component
+    `PluginDef` path below remains supported for Svelte hosts.
+
+A Svelte-host plugin is defined by a `PluginDef` object:
 
 ```typescript
 import type { Component } from 'svelte';
@@ -117,7 +132,7 @@ import type { Component } from 'svelte';
 interface PluginDef {
     id?: string; // Unique identifier (auto-generated if not provided)
     name: string; // Title shown in tooltips/headers
-    icon: Component; // Icon component (e.g., from phosphor-svelte)
+    icon: Component; // Svelte icon component
     target?: 'panel' | 'flyout'; // Where the UI renders (default: 'panel')
     panel?: Component; // Component rendered when target is 'panel'
     flyout?: Component; // Component rendered when target is 'flyout'
@@ -135,6 +150,7 @@ Plugin panels render in the same left and right sidebar stacks as built-in panel
 Two helpers wrap `PluginDef` with the right `target`:
 
 ```typescript
+// example-ignore
 import { createPanelPlugin, createFlyoutPlugin } from 'triiiceratops';
 
 // A docked side/bottom/overlay panel (the default target).
@@ -192,7 +208,7 @@ Update `config.plugins` reactively to change plugin UI at runtime.
 ```svelte
 <script lang="ts">
     import { TriiiceratopsViewer } from 'triiiceratops';
-    import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+    import { PdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
 
     let config = $state({
         plugins: {
@@ -260,7 +276,7 @@ Notes:
     <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
 
     <!-- Load plugins -->
-    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-image-manipulation.iife.js"></script>
+    <script src="https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js"></script>
 
     <triiiceratops-viewer
       manifest-id="https://iiif.wellcomecollection.org/presentation/v3/b18035723"
@@ -270,9 +286,10 @@ Notes:
       customElements.whenDefined('triiiceratops-viewer').then(() => {
         const viewer = document.querySelector('triiiceratops-viewer');
 
-        // Plugins are pre-configured objects on window.TriiiceratopsPlugins
+        // Plugin IIFEs register a factory into the shared, order-independent
+        // window.Triiiceratops.plugins registry; activation is explicit.
         viewer.plugins = [
-          window.TriiiceratopsPlugins.ImageManipulation
+          window.Triiiceratops.plugins.get('@triiiceratops/plugin-image-manipulation')
         ];
       });
     </script>
@@ -283,7 +300,7 @@ Notes:
     If you're using the web component in a project with a bundler (Vite, Webpack, etc.):
 
     ```javascript
-    import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
+    import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
     customElements.whenDefined('triiiceratops-viewer').then(() => {
       const viewer = document.querySelector('triiiceratops-viewer');
@@ -299,7 +316,7 @@ Notes:
     <script>
       import { TriiiceratopsViewer } from 'triiiceratops';
       import 'triiiceratops/style.css';
-      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
+      import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
     </script>
 
     <div style="height: 600px;">
@@ -316,7 +333,7 @@ Notes:
     <script>
       import { TriiiceratopsViewer } from 'triiiceratops';
       import 'triiiceratops/style.css';
-      import { ImageManipulationPlugin } from 'triiiceratops/plugins/image-manipulation';
+      import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
       import MyCustomPlugin from './MyCustomPlugin.svelte';
       import CustomIcon from './CustomIcon.svelte';
 
@@ -338,28 +355,11 @@ Notes:
 
     **Customizing Built-in Plugins:**
 
-    If you need to customize the name or other properties of a built-in plugin, you can import the individual components. Image Manipulation ships as a flyout:
-
-    ```svelte
-    <script>
-      import { TriiiceratopsViewer, createFlyoutPlugin } from 'triiiceratops';
-      import 'triiiceratops/style.css';
-      import { ImageManipulationFlyout, SlidersIcon } from 'triiiceratops/plugins/image-manipulation';
-
-      const plugins = [
-        createFlyoutPlugin({
-          id: 'image-manipulation',
-          name: 'Custom Name',
-          icon: SlidersIcon,
-          flyout: ImageManipulationFlyout,
-        })
-      ];
-    </script>
-
-    <div style="height: 600px;">
-      <TriiiceratopsViewer manifestId="..." {plugins} />
-    </div>
-    ```
+    First-party plugins are consumed as their exported factory (or, where a
+    plugin exposes a `create*` factory, configured through it — see PDF Export
+    below). They no longer expose their internal Svelte components for manual
+    reassembly. To build a bespoke tool, author your own plugin with the
+    [SDK](plugin-authoring.md).
 
 ---
 
@@ -385,10 +385,10 @@ Each mode offers a resolution picker. IIIF `level0` image services can only be r
 
     ```html
     <script src="triiiceratops-element.iife.js"></script>
-    <script src="triiiceratops-plugin-image-download.iife.js"></script>
+    <script src="@triiiceratops/plugin-image-download/dist/iife.js"></script>
     <script>
         const viewer = document.querySelector('triiiceratops-viewer');
-        viewer.plugins = [window.TriiiceratopsPlugins.ImageDownload];
+        viewer.plugins = [window.Triiiceratops.plugins.get('@triiiceratops/plugin-image-download')];
     </script>
     ```
 
@@ -397,7 +397,7 @@ Each mode offers a resolution picker. IIIF `level0` image services can only be r
     ```svelte
     <script>
         import { TriiiceratopsViewer } from 'triiiceratops';
-        import { ImageDownloadPlugin } from 'triiiceratops/plugins/image-download';
+        import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-download';
     </script>
 
     <TriiiceratopsViewer plugins={[ImageDownloadPlugin]} />
@@ -431,10 +431,10 @@ By default, `PdfExportPlugin` uses:
     Script-tag usage exposes the default preconfigured plugin and a factory for configured instances:
 
     ```html
-    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-pdf-export.iife.js"></script>
+    <script src="https://unpkg.com/@triiiceratops/plugin-pdf-export/dist/iife.js"></script>
 
     <script>
-      viewer.plugins = [window.TriiiceratopsPlugins.PdfExport];
+      viewer.plugins = [window.Triiiceratops.plugins.get('@triiiceratops/plugin-pdf-export')];
     </script>
     ```
 
@@ -442,7 +442,7 @@ By default, `PdfExportPlugin` uses:
 
     ```svelte
     <script>
-      import { PdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+      import { PdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
     </script>
 
     <TriiiceratopsViewer manifestId="..." plugins={[PdfExportPlugin]} />
@@ -453,7 +453,7 @@ By default, `PdfExportPlugin` uses:
 Use `createPdfExportPlugin(...)` when you want a custom filename, a cover sheet, a specific OCR annotation source, export-only OCR overlays, or custom image request behavior.
 
 ```ts
-import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
 
 const pdfExportPlugin = createPdfExportPlugin({
     getFilename: ({ manifestLabel, startIndex, endIndex, defaultFilename }) =>
@@ -478,7 +478,7 @@ const pdfExportPlugin = createPdfExportPlugin({
 
         const overlays = await response.json();
 
-        return overlays.map((overlay) => ({
+        return overlays.map((overlay: Record<string, unknown>) => ({
             ...overlay,
             // Use 'image' when your OCR API returns coordinates in the
             // selected source image's pixel space instead of canvas pixels.
@@ -504,7 +504,7 @@ For script-tag/web component hosts, use the factory exposed on the IIFE plugin g
 ```html
 <script>
     viewer.plugins = [
-        window.TriiiceratopsPlugins.PdfExport.createPdfExportPlugin({
+        window.Triiiceratops.plugins.get('@triiiceratops/plugin-pdf-export').createPdfExportPlugin({
             onSelectionChange({
                 startCanvas,
                 endCanvas,
@@ -526,7 +526,7 @@ For script-tag/web component hosts, use the factory exposed on the IIFE plugin g
 For image services that cannot be fetched directly by the browser, you can also provide a custom image loader:
 
 ```ts
-import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
 
 const pdfExportPlugin = createPdfExportPlugin({
     loadImageBlob: async ({ imageUrl }) => {
@@ -545,7 +545,7 @@ const pdfExportPlugin = createPdfExportPlugin({
 You can use that configured plugin in either a Svelte app or a bundler-based host app that assigns plugins to the web component:
 
 ```ts
-import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
 
 const pdfExportPlugin = createPdfExportPlugin({
     coverSheet: {
@@ -797,7 +797,7 @@ In those cases, a purely client-side export is not possible from a different ori
 If your image service requires cookies or another authenticated browser session, configure the plugin explicitly:
 
 ```ts
-import { createPdfExportPlugin } from 'triiiceratops/plugins/pdf-export';
+import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
 
 const plugin = createPdfExportPlugin({
     imageRequest: {
@@ -832,10 +832,10 @@ Out of the box, `AnnotationEditorPlugin` uses a `LocalStorageAdapter`. Use `crea
 === "Web Component"
 
     ```html
-    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-plugin-annotation-editor.iife.js"></script>
+    <script src="https://unpkg.com/@triiiceratops/plugin-annotation-editor/dist/iife.js"></script>
 
     <script>
-      viewer.plugins = [window.TriiiceratopsPlugins.AnnotationEditor];
+      viewer.plugins = [window.Triiiceratops.plugins.get('@triiiceratops/plugin-annotation-editor')];
     </script>
     ```
 
@@ -843,7 +843,7 @@ Out of the box, `AnnotationEditorPlugin` uses a `LocalStorageAdapter`. Use `crea
 
     ```svelte
     <script>
-      import { AnnotationEditorPlugin } from 'triiiceratops/plugins/annotation-editor';
+      import { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';
     </script>
 
     <TriiiceratopsViewer plugins={[AnnotationEditorPlugin]} />
@@ -917,7 +917,7 @@ import {
     createAnnotationEditorPlugin,
     type AnnotationStorageAdapter,
     type W3CAnnotation,
-} from 'triiiceratops/plugins/annotation-editor';
+} from '@triiiceratops/plugin-annotation-editor';
 
 class AnnotationServerAdapter implements AnnotationStorageAdapter {
     readonly id = 'annotation-server';
@@ -1002,7 +1002,7 @@ Verify any adapter against the contract above with the conformance suite. It run
 
 ```ts
 // MyAdapter.contract.test.ts
-import { runAdapterContractTests } from 'triiiceratops/plugins/annotation-editor/testing';
+import { runAdapterContractTests } from '@triiiceratops/plugin-annotation-editor/testing';
 import { MyAdapter } from './MyAdapter';
 
 runAdapterContractTests(() => new MyAdapter(), {
@@ -1018,10 +1018,11 @@ runAdapterContractTests(() => new MyAdapter(), {
 For app-specific behavior, prefer the `extension` API over forking the plugin. This keeps the annotation editor reusable in both the Svelte package and the web component build.
 
 ```ts
+// example-ignore
 import {
     createAnnotationEditorPlugin,
     type AnnotationEditorExtension,
-} from 'triiiceratops/plugins/annotation-editor';
+} from '@triiiceratops/plugin-annotation-editor';
 
 const extension: AnnotationEditorExtension<{ selectedText: string | null }> = {
     getContext: () => ({ selectedText: window.appSelection ?? null }),
@@ -1118,7 +1119,7 @@ type AnnotationBodyEditor =
     ```svelte
     <!-- MyBodyEditor.svelte -->
     <script lang="ts">
-      import type { AnnotationBodyEditorApi } from 'triiiceratops/plugins/annotation-editor';
+      import type { AnnotationBodyEditorApi } from '@triiiceratops/plugin-annotation-editor';
       let { api }: { api: AnnotationBodyEditorApi } = $props();
       let label = $state((api.bodies[0] as any)?.label ?? '');
     </script>
@@ -1128,7 +1129,9 @@ type AnnotationBodyEditor =
     ```
 
     ```ts
+    // example-ignore
     import MyBodyEditor from './MyBodyEditor.svelte';
+    import { createAnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';
     const plugin = createAnnotationEditorPlugin({
         bodyEditor: { component: MyBodyEditor },
     });
@@ -1265,150 +1268,39 @@ If you wrote an adapter against an earlier release:
 
 #### Export Paths
 
-- `triiiceratops/plugins/annotation-editor`
-- `triiiceratops/plugins/annotation-editor.iife`
+- `@triiiceratops/plugin-annotation-editor`
+- `@triiiceratops/plugin-annotation-editor/iife`
 
 ---
 
 ## Creating Custom Plugins
 
-Custom plugins are Svelte components that receive props from the plugin system and can access the viewer's state via Svelte context.
+Author custom plugins with the framework-neutral SDK
+(`@triiiceratops/plugin-sdk`). `definePlugin` gives you a mount contract that
+works with vanilla DOM, Svelte, React, Vue, Lit, or a custom element; the live
+`ViewerState` for reads and supported commands; root-aware style, locale, and UI
+services; failure isolation; and a conformance test kit.
 
-### Plugin Component Props
-
-Your plugin component receives these props:
-
-| Prop     | Type         | Description                                |
-| -------- | ------------ | ------------------------------------------ |
-| `isOpen` | `boolean`    | Whether the plugin panel is currently open |
-| `close`  | `() => void` | Function to close the plugin panel         |
-
-### Accessing Viewer State
-
-Use Svelte's `getContext` to access the viewer's reactive state:
-
-```svelte
-<script>
-    import { getContext } from 'svelte';
-
-    // Props from the plugin system
-    let { isOpen, close } = $props();
-
-    // Access the viewer's reactive state
-    const viewerState = getContext('triiiceratops:viewerState');
-
-    function handleZoomIn() {
-        viewerState.osdViewer?.viewport.zoomBy(1.5);
-    }
-
-    function handleNextCanvas() {
-        viewerState.nextCanvas();
-    }
-</script>
-
-<div class="p-4">
-    <h3>My Custom Plugin</h3>
-
-    <p>Current canvas: {viewerState.canvasId}</p>
-
-    <div class="flex gap-2">
-        <button onclick={handleZoomIn}>Zoom In</button>
-        <button onclick={handleNextCanvas}>Next Canvas</button>
-        <button onclick={close}>Close</button>
-    </div>
-</div>
-```
-
-### ViewerState Properties
-
-The `viewerState` context provides access to:
-
-| Property               | Type                                                                       | Description                              |
-| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
-| `manifestId`           | `string \| null`                                                           | Current manifest URL                     |
-| `canvasId`             | `string \| null`                                                           | Current canvas ID                        |
-| `currentCanvasIndex`   | `number`                                                                   | Index of current canvas (-1 if none)     |
-| `canvases`             | `any[]`                                                                    | Array of canvas objects from manifest    |
-| `viewingMode`          | `'individuals' \| 'paged' \| 'continuous'`                                 | Current canvas viewing mode              |
-| `viewingDirection`     | `'left-to-right' \| 'right-to-left' \| 'top-to-bottom' \| 'bottom-to-top'` | Current page/canvas order                |
-| `pagedOffset`          | `number`                                                                   | Grouping offset used in `paged` mode     |
-| `osdViewer`            | `OpenSeadragon.Viewer \| null`                                             | OpenSeadragon instance                   |
-| `showAnnotations`      | `boolean`                                                                  | Whether annotations are visible          |
-| `showThumbnailGallery` | `boolean`                                                                  | Whether the thumbnail gallery is open    |
-| `showSearchPanel`      | `boolean`                                                                  | Whether the search panel is open         |
-| `searchQuery`          | `string`                                                                   | Current search query                     |
-| `searchResults`        | `any[]`                                                                    | Array of search results                  |
-| `isSearching`          | `boolean`                                                                  | Whether a search is in progress          |
-| `isFullScreen`         | `boolean`                                                                  | Whether the viewer is in fullscreen mode |
-| `dockSide`             | `string`                                                                   | Current dock side for gallery            |
-| `hasNext`              | `boolean`                                                                  | Whether there is a next canvas           |
-| `hasPrevious`          | `boolean`                                                                  | Whether there is a previous canvas       |
-
-And methods:
-
-| Method                     | Description                         |
-| -------------------------- | ----------------------------------- |
-| `nextCanvas()`             | Navigate to the next canvas         |
-| `previousCanvas()`         | Navigate to the previous canvas     |
-| `setCanvas(id)`            | Navigate to a specific canvas by ID |
-| `setManifest(id)`          | Load a new manifest                 |
-| `toggleFullScreen()`       | Toggle fullscreen mode              |
-| `toggleAnnotations()`      | Toggle annotation visibility        |
-| `toggleThumbnailGallery()` | Toggle thumbnail gallery            |
-| `toggleSearchPanel()`      | Toggle search panel                 |
-| `search(query)`            | Perform a search (async)            |
-
-### Registering Your Custom Plugin
-
-=== "Web Component"
-
-    Custom plugins for script-tag usage require building your own IIFE bundle that:
-
-    1. Uses Svelte from `window.__TriiiceratopsSvelteRuntime`
-    2. Registers on `window.TriiiceratopsPlugins`
-
-    See `vite.config.plugins-iife.ts` in the Triiiceratops source for an example build configuration.
-
-=== "Svelte Component"
-
-    Simply import your custom component and add it to the plugins array:
-
-    ```svelte
-    <script>
-      import { TriiiceratopsViewer } from 'triiiceratops';
-      import 'triiiceratops/style.css';
-      import MyCustomPanel from './MyCustomPanel.svelte';
-      import MyIcon from 'phosphor-svelte/lib/Star'; // or your own icon
-
-      const plugins = [
-        {
-          name: 'My Custom Plugin',
-          icon: MyIcon,
-          panel: MyCustomPanel,
-          position: 'right'
-        }
-      ];
-    </script>
-
-    <div style="height: 600px;">
-      <TriiiceratopsViewer manifestId="..." {plugins} />
-    </div>
-    ```
-
----
+See the [plugin authoring guide](plugin-authoring.md) and the
+[plugin testing guide](plugin-testing.md) for the full API and examples.
 
 ## Package Exports Reference
 
-| Export Path                                     | Description                             |
-| ----------------------------------------------- | --------------------------------------- |
-| `triiiceratops`                                 | Main Svelte component and utilities     |
-| `triiiceratops/element`                         | Web component IIFE bundle               |
-| `triiiceratops/plugins/annotation-editor`       | Annotation editor plugin (ES module)    |
-| `triiiceratops/plugins/annotation-editor.iife`  | Annotation editor plugin (IIFE bundle)  |
-| `triiiceratops/plugins/image-download`          | Image download plugin (ES module)       |
-| `triiiceratops/plugins/image-download.iife`     | Image download plugin (IIFE bundle)     |
-| `triiiceratops/plugins/image-manipulation`      | Image manipulation plugin (ES module)   |
-| `triiiceratops/plugins/image-manipulation.iife` | Image manipulation plugin (IIFE bundle) |
-| `triiiceratops/plugins/pdf-export`              | PDF export plugin (ES module)           |
-| `triiiceratops/plugins/pdf-export.iife`         | PDF export plugin (IIFE bundle)         |
-| `triiiceratops/style.css`                       | Stylesheet (for Svelte component usage) |
+| Export path                                          | Description                              |
+| ---------------------------------------------------- | ---------------------------------------- |
+| `triiiceratops`                                      | Core Svelte component and utilities      |
+| `triiiceratops/style.css`                            | Core stylesheet (Svelte usage)           |
+| `triiiceratops/element`                              | Web Component self-contained IIFE        |
+| `triiiceratops/element/register`                     | Web Component ESM registration           |
+| `@triiiceratops/plugin-sdk`                          | Plugin SDK (base)                        |
+| `@triiiceratops/plugin-sdk/{svelte,react,vue,lit}`   | SDK framework adapters                   |
+| `@triiiceratops/plugin-sdk/testing`                  | SDK plugin test kit                      |
+| `@triiiceratops/plugin-image-manipulation`           | Image manipulation plugin (ES module)    |
+| `@triiiceratops/plugin-image-manipulation/iife`      | Image manipulation plugin (IIFE)         |
+| `@triiiceratops/plugin-image-download`               | Image download plugin (ES module)        |
+| `@triiiceratops/plugin-image-download/iife`          | Image download plugin (IIFE)             |
+| `@triiiceratops/plugin-pdf-export`                   | PDF export plugin (ES module)            |
+| `@triiiceratops/plugin-pdf-export/iife`              | PDF export plugin (IIFE)                 |
+| `@triiiceratops/plugin-annotation-editor`            | Annotation editor plugin (ES module)     |
+| `@triiiceratops/plugin-annotation-editor/iife`       | Annotation editor plugin (IIFE)          |
+| `@triiiceratops/plugin-annotation-editor/testing`    | Adapter conformance suite                |

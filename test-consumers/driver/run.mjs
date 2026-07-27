@@ -159,6 +159,12 @@ const FIXTURES = [
     // project (no Svelte tooling).
     'plugin-annotation-svelte',
     'plugin-annotation-conformance',
+    // Ticket 26: doc-example compilation. A non-browser fixture that type-checks
+    // (`tsc --noEmit`) every `ts`/`tsx`/`js` code sample importing package code
+    // (extracted from `docs/**/*.md` into its `generated/` dir by
+    // `scripts/docs-examples.mjs`) against the packed tarballs of all six
+    // packages, so published documentation matches what users can install.
+    'docs-examples',
 ];
 
 const PACKAGE_MANAGERS = ['npm', 'pnpm'];

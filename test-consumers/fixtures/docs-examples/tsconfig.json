@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "jsx": "react-jsx",
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "allowJs": true,
+        "checkJs": false,
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+        "verbatimModuleSyntax": false,
+        "types": []
+    },
+    "include": ["globals.d.ts", "generated/**/*.ts", "generated/**/*.tsx", "generated/**/*.js"]
+}
