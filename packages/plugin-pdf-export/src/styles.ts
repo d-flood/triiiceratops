@@ -4,120 +4,71 @@ import { definePluginStyles } from '@triiiceratops/plugin-sdk';
  * The plugin's package-owned global CSS + its style-service install id, shaped
  * by {@link definePluginStyles} into the `STYLES` / `STYLE_ID` exports the
  * activation installs. Class names are namespaced `tri-pdf-*` since these rules
- * are not Svelte-scoped. The panel markup and look are carried over from core's
- * former `PdfExportPanel.svelte`, rendered here as a self-positioned
- * toggle-plus-panel (the SDK mount seam owns no docked-panel chrome).
+ * are not Svelte-scoped.
+ *
+ * Chrome ownership (epic restore-plugin-toolbar-chrome, ticket 05): core owns
+ * the toolbar button and the docked panel chrome (surface, sticky header, radius,
+ * open/close). These rules therefore style ONLY the panel's content body — no
+ * self-positioned toggle, no `position: absolute`, no panel surface/border. The
+ * body layout mirrors core's former `PdfExportPanel` embedded look; the range
+ * `Select`s and export `Button` are themed by the shared `@triiiceratops/ui`
+ * primitives, so no bespoke control styling lives here. Tokens are the current
+ * `--tri-` theme variables.
  */
 export const { STYLES, STYLE_ID } = definePluginStyles(
     `
 .tri-pdf {
-    position: absolute;
-    left: var(--ui-inset, 0.5rem);
-    bottom: var(--ui-inset, 0.5rem);
-    z-index: 40;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-    pointer-events: none;
-    color: var(--tri-toolbar-content, currentColor);
-}
-.tri-pdf > * {
-    pointer-events: auto;
-}
-
-.tri-pdf-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--ui-hit, 2.25rem);
-    height: var(--ui-hit, 2.25rem);
-    padding: 0;
-    border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.15));
-    border-radius: var(--tri-radius-buttons, 0.5rem);
-    background-color: var(--tri-toolbar-bg, rgb(255 255 255 / 0.9));
-    color: inherit;
-    cursor: pointer;
-    box-shadow: var(--ui-chrome-shadow, 0 4px 6px -4px rgb(0 0 0 / 0.2));
-}
-.tri-pdf-toggle:hover {
-    background-color: color-mix(in oklab, var(--tri-toolbar-bg, #fff) 80%, transparent);
-}
-.tri-pdf-toggle[aria-expanded='true'] {
-    background-color: var(--tri-color-primary, #2563eb);
-    color: var(--tri-color-primary-content, #fff);
-    border-color: transparent;
-}
-.tri-pdf-toggle svg {
-    width: 1.25rem;
-    height: 1.25rem;
-    fill: currentColor;
-}
-
-.tri-pdf-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 20rem;
-    max-width: min(20rem, 80vw);
-    max-height: 70vh;
-    overflow-y: auto;
-    padding: 1rem;
-    border-radius: var(--tri-radius-panels, 0.75rem);
-    border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.15));
-    background-color: var(--tri-panel-surface, var(--panel-surface, rgb(255 255 255 / 0.98)));
+    min-height: 0;
     color: var(--panel-fg, inherit);
-    box-shadow: var(
-        --ui-chrome-shadow,
-        0 20px 25px -5px rgb(0 0 0 / 0.15),
-        0 8px 10px -6px rgb(0 0 0 / 0.15)
-    );
 }
 
-.tri-pdf-title {
+.tri-pdf-body {
+    width: 100%;
+    padding: 1rem;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-}
-.tri-pdf-title svg {
-    width: 1.25rem;
-    height: 1.25rem;
-    fill: currentColor;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .tri-pdf-description {
     margin: 0;
     font-size: 0.875rem;
+    line-height: 1.25rem;
     color: color-mix(in oklab, var(--panel-fg, currentColor) 70%, transparent);
 }
 
+.tri-pdf-fields {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.75rem;
+}
 .tri-pdf-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
+    width: 100%;
 }
 .tri-pdf-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.375rem;
+    white-space: nowrap;
     font-size: 0.8125rem;
     color: color-mix(in oklab, currentColor 60%, transparent);
 }
 .tri-pdf-select {
     width: 100%;
-    padding: 0.375rem 0.5rem;
-    border-radius: var(--tri-radius-buttons, 0.5rem);
-    border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.2));
-    background-color: var(--tri-input-bg, #fff);
-    color: inherit;
-    font: inherit;
 }
 
 .tri-pdf-card {
     border-radius: var(--tri-radius-panels, 0.5rem);
     background-color: var(--tri-input-bg, rgb(0 0 0 / 0.03));
     border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.12));
-    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+}
+.tri-pdf-card-body {
+    padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -127,17 +78,25 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
     display: flex;
     align-items: center;
     justify-content: space-between;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+.tri-pdf-summary-label {
+    color: color-mix(in oklab, var(--panel-fg, currentColor) 70%, transparent);
 }
 .tri-pdf-summary-count {
     font-weight: 600;
 }
 
 .tri-pdf-alert {
+    --alert-color: var(--panel-fg, currentColor);
     border-radius: var(--tri-radius-panels, 0.5rem);
-    border: 1px solid color-mix(in oklab, var(--alert-color, currentColor) 20%, transparent);
-    background: color-mix(in oklab, var(--alert-color, currentColor) 8%, var(--tri-input-bg, transparent));
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
+    border: 1px solid color-mix(in oklab, var(--alert-color) 10%, var(--tri-input-bg, transparent));
+    background: color-mix(in oklab, var(--alert-color) 8%, var(--tri-input-bg, transparent));
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    text-align: start;
 }
 .tri-pdf-alert-info {
     --alert-color: var(--tri-color-primary, #2563eb);
@@ -149,32 +108,18 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
     --alert-color: var(--tri-color-error, #dc2626);
 }
 
-.tri-pdf-actions {
-    display: flex;
+.tri-pdf-footer {
+    width: 100%;
+    padding: 1rem;
+    border-top: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.12));
 }
 .tri-pdf-export {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    border-radius: var(--tri-radius-buttons, 0.5rem);
-    background-color: var(--tri-color-primary, #2563eb);
-    color: var(--tri-color-primary-content, #fff);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
 }
-.tri-pdf-export svg {
+.tri-pdf-export-icon {
     width: 1.125rem;
     height: 1.125rem;
     fill: currentColor;
-}
-.tri-pdf-export:disabled {
-    opacity: 0.5;
-    cursor: default;
 }
 `,
     'panel',

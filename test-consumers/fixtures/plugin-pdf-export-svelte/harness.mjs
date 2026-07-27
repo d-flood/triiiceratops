@@ -65,15 +65,24 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // The plugin renders its own toolbar button. Open its panel.
-        const toggle = page.locator('[data-tri-pdf-toggle]');
-        await expect(toggle).toBeVisible({ timeout: 30_000 });
-        await toggle.click();
+        // Core owns the plugin chrome (epic restore-plugin-toolbar-chrome): the
+        // toolbar button is core-rendered from the plugin's icon, and the panel
+        // docks in the viewer chrome. Open the (default-closed) toolbar, then
+        // click the plugin's toolbar button to dock its panel.
+        await page.getByRole('button', { name: 'Open Menu' }).click();
+        const pluginButton = page.locator(
+            '[aria-label="@triiiceratops/plugin-pdf-export"]',
+        );
+        await expect(pluginButton).toBeVisible({ timeout: 30_000 });
+        await pluginButton.click();
 
-        // Select a two-canvas range so the export is genuinely multi-page.
+        // Select a two-canvas range so the export is genuinely multi-page. The
+        // range controls are themed `@triiiceratops/ui` `Select`s; the data-attr
+        // rides on each one's underlying native <select>, which stays the value
+        // source of truth.
         const start = page.locator('[data-tri-pdf-start]');
         const end = page.locator('[data-tri-pdf-end]');
-        await expect(start).toBeVisible({ timeout: 10_000 });
+        await expect(start).toBeAttached({ timeout: 10_000 });
         await start.selectOption('0');
         await end.selectOption('1');
 

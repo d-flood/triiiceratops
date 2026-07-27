@@ -32,12 +32,22 @@ export type { ImageFilters } from './types';
  *
  * `definePlugin` returns the framework-neutral factory core activates through the
  * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. The UI is Svelte, mounted through the neutral
- * `view.mount(container, context)` contract and torn down by the returned
- * cleanup. Styles install through the SDK style service (root-aware), strings
- * resolve through the per-viewer locale service over this package's catalog, and
- * the toolbar glyph is a `svgIcon` descriptor. Filters touch the raw OSD viewer,
- * so the plugin declares `requiredCapabilities: ['osd@5']`.
+ * package or its Svelte runtime. Chrome is core-owned (epic
+ * restore-plugin-toolbar-chrome, ticket 02): core renders the toolbar button
+ * from `meta.icon`, owns the button's open/close state, and anchors + auto-places
+ * the flyout toward the canvas. `view.mount(container, context)` receives a
+ * content-only element core has already placed, and this plugin renders ONLY the
+ * flyout content into it — it draws no button and positions nothing.
+ *
+ * `dismiss: 'explicit'` keeps the Flyout open while adjusting (a canvas click
+ * pans/zooms without dismissing the editing session). The plugin ships the
+ * transitional `__coreChrome` flag until core-chrome is the only path (ticket 07).
+ *
+ * Filter state lives in the Activation-scoped {@link FilterController} created
+ * here (per viewer, above the mounted component), so slider positions survive
+ * close→reopen and the canvas-change / deactivation resets fire whether the
+ * Flyout is open or closed. Filters touch the raw OSD viewer, so the plugin
+ * declares `requiredCapabilities: ['osd@5']` and gates on OSD readiness.
  */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 /** The image-manipulation plugin factory. Activate it explicitly, per viewer. */

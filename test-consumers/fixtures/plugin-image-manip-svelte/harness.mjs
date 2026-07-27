@@ -28,8 +28,16 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // The plugin renders its own toolbar button. Open its flyout.
-        const toggle = page.locator('[data-tri-im-toggle]');
+        // Core owns the chrome now: the plugin button lives in the toolbar,
+        // which starts collapsed. Open the toolbar, then open the plugin flyout
+        // from its core-rendered button.
+        const openToolbar = page.locator('button.handle');
+        await expect(openToolbar).toBeVisible({ timeout: 30_000 });
+        await openToolbar.click();
+
+        const toggle = page.locator(
+            '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+        );
         await expect(toggle).toBeVisible({ timeout: 30_000 });
         await toggle.click();
 

@@ -64,6 +64,7 @@
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^6.2.1",
         "@triiiceratops/plugin-sdk": "workspace:*",
+        "@triiiceratops/ui": "workspace:*",
         "@types/node": "^24.10.1",
         "@types/openseadragon": "^5.0.1",
         "@vitest/coverage-v8": "4.0.15",

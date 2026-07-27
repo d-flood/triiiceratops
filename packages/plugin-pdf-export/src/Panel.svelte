@@ -4,15 +4,25 @@
      * component is compiled INTO the plugin package (its own bundled Svelte
      * runtime) and mounted through `view.mount` — it never imports core's Svelte
      * runtime or `svelte/internal`, and reaches viewer state only through the
-     * SDK-owned `PluginContext` (selectors, locale, ui), never Svelte context.
+     * SDK-owned `PluginContext` (selectors, locale), never Svelte context.
      *
-     * It merges core's former `PdfExportController` + `PdfExportPanel`: it owns
-     * the selection state, derives the exportable range, and drives
+     * Chrome ownership (epic restore-plugin-toolbar-chrome, ticket 05): core owns
+     * the toolbar button (rendered from the plugin's `icon`) and the docked panel
+     * chrome (surface, sticky header with the plugin icon + title, and open/close).
+     * This component renders ONLY the panel's content body into the content-only
+     * container core hands `view.mount` — no self-toggle, no `open` state, no
+     * self-positioning. The controls are restored to `main`'s themed look with the
+     * shared `@triiiceratops/ui` primitives (`Select`, `Button`).
+     *
+     * It merges core's former `PdfExportController` + `PdfExportPanel`: it owns the
+     * selection state, derives the exportable range, and drives
      * `exportCanvasRangeAsPdf` (its own bundled `pdf-lib`). Progress reporting is
      * component-local state (SPEC: async progress flows through supported paths —
      * no writes to core internals).
      */
     import { getContext } from 'svelte';
+
+    import { Button, Select } from '@triiiceratops/ui';
 
     import { getCanvasLabel } from 'triiiceratops/image-export';
     import {
@@ -22,7 +32,7 @@
     } from './exportPdf';
     import { reportPdfExportError } from './reportError';
     import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
-    import { FILE_PDF_ICON, GLYPHS } from './icons';
+    import { GLYPHS } from './icons';
     import type { PdfExportSelection } from './types';
 
     // The activation context + consumer config, handed in through Svelte's
@@ -30,7 +40,7 @@
     // non-reactive value; both are stable for this mount's lifetime (a fresh
     // mount gets a fresh context).
     const { context, config } = getContext<PanelContext>(PLUGIN_CONTEXT_KEY);
-    const { viewerState, selectors, locale, ui } = context;
+    const { viewerState, selectors, locale } = context;
 
     // Cross-runtime reactivity: mirror the bits of live `ViewerState` this panel
     // renders from through memoized selectors into local `$state`. The SDK drops
@@ -80,7 +90,6 @@
     // reported to the host on the structured `pluginerror` channel.
     let rootEl = $state<HTMLElement | null>(null);
 
-    let open = $state(false);
     let startSelection = $state<number | null>(initialSelection);
     let endSelection = $state<number | null>(initialSelection);
     let isExporting = $state(false);
@@ -290,38 +299,18 @@
             isExporting = false;
         }
     }
-
-    // Render the toolbar glyph through the SDK UI service so core owns the
-    // `<svg>` wrapper, sizing, color, and accessibility.
-    function renderGlyph(node: HTMLElement): { destroy: () => void } {
-        const cleanup = ui.renderIcon(FILE_PDF_ICON, node);
-        return { destroy: cleanup };
-    }
 </script>
 
 <div class="tri-pdf" data-tri-pdf bind:this={rootEl}>
-    {#if open}
-        <div
-            class="tri-pdf-panel"
-            role="group"
-            aria-label={t('pdf_export_title')}
-        >
-            <h2 class="tri-pdf-title">
-                <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
-                <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
-                    >{@html GLYPHS.filePdf}</svg
-                >
-                <!-- eslint-enable svelte/no-at-html-tags -->
-                {t('pdf_export_title')}
-            </h2>
+    <div class="tri-pdf-body">
+        <p class="tri-pdf-description">{t('pdf_export_description')}</p>
 
-            <p class="tri-pdf-description">{t('pdf_export_description')}</p>
-
+        <div class="tri-pdf-fields">
             <div class="tri-pdf-field">
                 <label class="tri-pdf-label" for="tri-pdf-start">
-                    {t('pdf_export_start_canvas')}
+                    <span>{t('pdf_export_start_canvas')}</span>
                 </label>
-                <select
+                <Select
                     id="tri-pdf-start"
                     class="tri-pdf-select"
                     data-tri-pdf-start
@@ -329,7 +318,10 @@
                     value={selectedStartIndex ?? ''}
                     onchange={(event) =>
                         updateStartIndex(
-                            parseCanvasIndex(event.currentTarget.value),
+                            parseCanvasIndex(
+                                (event.currentTarget as HTMLSelectElement)
+                                    .value,
+                            ),
                         )}
                 >
                     <option value="" disabled
@@ -344,14 +336,14 @@
                             {option.index + 1}. {option.label}
                         </option>
                     {/each}
-                </select>
+                </Select>
             </div>
 
             <div class="tri-pdf-field">
                 <label class="tri-pdf-label" for="tri-pdf-end">
-                    {t('pdf_export_end_canvas')}
+                    <span>{t('pdf_export_end_canvas')}</span>
                 </label>
-                <select
+                <Select
                     id="tri-pdf-end"
                     class="tri-pdf-select"
                     data-tri-pdf-end
@@ -359,7 +351,10 @@
                     value={selectedEndIndex ?? ''}
                     onchange={(event) =>
                         updateEndIndex(
-                            parseCanvasIndex(event.currentTarget.value),
+                            parseCanvasIndex(
+                                (event.currentTarget as HTMLSelectElement)
+                                    .value,
+                            ),
                         )}
                 >
                     <option value="" disabled
@@ -374,12 +369,16 @@
                             {option.index + 1}. {option.label}
                         </option>
                     {/each}
-                </select>
+                </Select>
             </div>
+        </div>
 
-            <div class="tri-pdf-card">
+        <div class="tri-pdf-card">
+            <div class="tri-pdf-card-body">
                 <div class="tri-pdf-summary">
-                    <span>{t('pdf_export_selected_canvases')}</span>
+                    <span class="tri-pdf-summary-label"
+                        >{t('pdf_export_selected_canvases')}</span
+                    >
                     <span class="tri-pdf-summary-count" data-tri-pdf-count
                         >{selectedCount}</span
                     >
@@ -387,7 +386,7 @@
 
                 {#if progressMessage}
                     <div class="tri-pdf-alert tri-pdf-alert-info" role="status">
-                        {progressMessage}
+                        <span>{progressMessage}</span>
                     </div>
                 {/if}
                 {#if resultMessage}
@@ -396,48 +395,41 @@
                         role="status"
                         data-tri-pdf-result
                     >
-                        {resultMessage}
+                        <span>{resultMessage}</span>
                     </div>
                 {/if}
                 {#if errorMessage}
                     <div class="tri-pdf-alert tri-pdf-alert-error" role="alert">
-                        {errorMessage}
+                        <span>{errorMessage}</span>
                     </div>
                 {/if}
                 {#if disabledReason}
-                    <div class="tri-pdf-alert">{disabledReason}</div>
+                    <div class="tri-pdf-alert">
+                        <span>{disabledReason}</span>
+                    </div>
                 {/if}
             </div>
-
-            <div class="tri-pdf-actions">
-                <button
-                    type="button"
-                    class="tri-pdf-export"
-                    data-tri-pdf-export
-                    disabled={!canExport}
-                    onclick={handleExport}
-                >
-                    <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
-                    <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
-                        >{@html GLYPHS.download}</svg
-                    >
-                    <!-- eslint-enable svelte/no-at-html-tags -->
-                    {isExporting
-                        ? t('pdf_export_exporting')
-                        : t('pdf_export_download')}
-                </button>
-            </div>
         </div>
-    {/if}
+    </div>
 
-    <button
-        type="button"
-        class="tri-pdf-toggle"
-        data-tri-pdf-toggle
-        aria-expanded={open}
-        aria-label={t('pdf_export_title')}
-        title={t('pdf_export_title')}
-        onclick={() => (open = !open)}
-        use:renderGlyph
-    ></button>
+    <div class="tri-pdf-footer">
+        <Button
+            variant="primary"
+            class="tri-pdf-export"
+            data-tri-pdf-export
+            disabled={!canExport}
+            onclick={handleExport}
+        >
+            <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
+            <svg
+                class="tri-pdf-export-icon"
+                viewBox={GLYPHS.viewBox}
+                aria-hidden="true">{@html GLYPHS.download}</svg
+            >
+            <!-- eslint-enable svelte/no-at-html-tags -->
+            {isExporting
+                ? t('pdf_export_exporting')
+                : t('pdf_export_download')}
+        </Button>
+    </div>
 </div>

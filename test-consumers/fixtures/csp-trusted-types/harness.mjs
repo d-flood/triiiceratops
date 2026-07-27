@@ -33,8 +33,13 @@ export default {
         ).toBeVisible({ timeout: 30_000 });
 
         // A plugin also operates under Trusted Types (its `{@html}` icons go
-        // through the same policy).
-        await expect(page.locator('[data-tri-im-toggle]')).toBeVisible({
+        // through the same policy). Core renders its toolbar button
+        // (core-owned chrome).
+        await expect(
+            page.locator(
+                '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+            ),
+        ).toBeAttached({
             timeout: 30_000,
         });
 

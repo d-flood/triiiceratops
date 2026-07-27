@@ -14,7 +14,13 @@
  *     mirror;
  *  4. runs the loader in an `$effect.root` so the read-only overlay tracks canvas
  *     changes even while the panel is closed;
- *  5. mounts the Svelte chrome, handing the mirror + `t` down through context.
+ *  5. mounts the panel content into the core-provided container, handing the
+ *     mirror + `t` down through context.
+ *
+ * Core owns the chrome (epic restore-plugin-toolbar-chrome): it renders the
+ * toolbar button and the docked-panel / anchored-flyout surface, and hands
+ * `mount` a content-only `container`, so the content always renders `embedded`
+ * (no self-rendered button, header, or positioning).
  *
  * The returned cleanup tears every piece down in reverse.
  */
@@ -70,7 +76,10 @@ export function mountAnnotationEditor(
         props: {
             config: fullConfig,
             store,
-            embedded: config.target === 'flyout',
+            // Content-only: core provides the button + surface chrome for both
+            // panel and flyout targets, so the panel content never renders its
+            // own header or floating box.
+            embedded: true,
         },
         // One-time context handoff to Svelte's mount(), not reactive state.
         // eslint-disable-next-line svelte/prefer-svelte-reactivity

@@ -29,9 +29,17 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
         true,
     );
 
-    // Open the plugin flyout (its DOM lives in the viewer's shadow root; the
-    // Playwright locator pierces it).
-    const toggle = page.locator('[data-tri-im-toggle]');
+    // Core owns the chrome now: the plugin button lives in the toolbar (in the
+    // viewer's shadow root; the Playwright locator pierces it), which starts
+    // collapsed. Open the toolbar, then open the plugin flyout from its
+    // core-rendered button.
+    const openToolbar = page.locator('button.handle');
+    await expect(openToolbar).toBeVisible({ timeout: 30_000 });
+    await openToolbar.click();
+
+    const toggle = page.locator(
+        '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+    );
     await expect(toggle).toBeVisible({ timeout: 30_000 });
     await toggle.click();
 
