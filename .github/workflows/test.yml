@@ -172,11 +172,20 @@ jobs:
 
             # The Web Component parity spec loads the built element entries from
             # dist/ (served by the dev server), so build the library + element
-            # before running the matrix.
-            - name: Build library + Web Component
+            # before running the matrix. The dev server also serves Demo.svelte,
+            # which imports the first-party plugin packages by name, so those
+            # (and their plugin-sdk/ui peers) must be built too or Vite's dep
+            # scan fails to resolve them.
+            - name: Build library + Web Component + plugins
               run: |
+                  pnpm --filter @triiiceratops/ui build
                   pnpm --filter triiiceratops build:lib
                   pnpm --filter triiiceratops build:element
+                  pnpm --filter @triiiceratops/plugin-sdk build
+                  pnpm --filter @triiiceratops/plugin-image-manipulation build
+                  pnpm --filter @triiiceratops/plugin-image-download build
+                  pnpm --filter @triiiceratops/plugin-pdf-export build
+                  pnpm --filter @triiiceratops/plugin-annotation-editor build
 
             - name: Run E2E Tests
               run: pnpm --filter triiiceratops exec playwright test --project=${{ matrix.project }}
@@ -208,6 +217,20 @@ jobs:
 
             - name: Install Playwright Browsers
               run: pnpm --filter triiiceratops exec playwright install --with-deps chromium
+
+            # The a11y spec drives the dev server's Demo.svelte, which imports
+            # the first-party plugin packages by name, so they (and their
+            # plugin-sdk/ui peers) must be built or Vite's dep scan fails to
+            # resolve them.
+            - name: Build library + plugins
+              run: |
+                  pnpm --filter @triiiceratops/ui build
+                  pnpm --filter triiiceratops build:lib
+                  pnpm --filter @triiiceratops/plugin-sdk build
+                  pnpm --filter @triiiceratops/plugin-image-manipulation build
+                  pnpm --filter @triiiceratops/plugin-image-download build
+                  pnpm --filter @triiiceratops/plugin-pdf-export build
+                  pnpm --filter @triiiceratops/plugin-annotation-editor build
 
             # Axe scans (states × themes), keyboard journeys, and reduced-motion,
             # scoped to the desktop chromium project.

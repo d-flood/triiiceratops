@@ -19,7 +19,7 @@
 // Raw measurement JSON + Playwright traces are written under --out-dir
 // (default: perf-results/) for upload as CI artifacts.
 
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -59,6 +59,15 @@ const BUILD_STEPS = [
     ['@triiiceratops/plugin-annotation-editor', 'build'],
 ];
 
+// The 1.0 workspace restructure (ticket 21) moved the measured packages under
+// packages/. A `--base` SHA from before that restructure has no packages/core
+// to build or size — the BUILD_STEPS paths don't exist there at all, so a
+// base-vs-head diff against it is meaningless, not just unbuildable. Detect
+// that up front and skip the base measurement rather than failing the build.
+function hasMonorepoLayout(dir) {
+    return existsSync(join(dir, 'packages', 'core', 'package.json'));
+}
+
 async function buildRoot(root) {
     step(`install (${root})`);
     await run('pnpm', ['install', '--no-frozen-lockfile'], {
@@ -74,12 +83,18 @@ async function buildRoot(root) {
     }
 }
 
-async function measureSha(ref, label, opts) {
+async function measureSha(ref, label, opts, { skipIfPreRestructure = false } = {}) {
     const sha = await resolveSha(ref);
     const dir = join(opts.outDir, `worktree-${label}-${sha.slice(0, 10)}`);
     heading(`Measuring ${label}: ${ref} (${sha})`);
     await addWorktree(dir, sha);
     try {
+        if (skipIfPreRestructure && !hasMonorepoLayout(dir)) {
+            warn(
+                `${label} ${sha.slice(0, 10)} predates the pnpm-workspace restructure (no packages/core) — skipping measurement.`,
+            );
+            return null;
+        }
         if (!opts.noBuild) await buildRoot(dir);
         const m = await measure(dir, {
             warmups: opts.warmups,
@@ -129,6 +144,7 @@ async function main() {
 
     // Resolve the two measurements (git SHAs or pre-built roots).
     let base, head;
+    let preRestructureBase = false;
     if (args['head-root']) {
         head = await measureRoot(String(args['head-root']), 'head', opts);
         base = args['base-root']
@@ -142,8 +158,14 @@ async function main() {
             head = await measureSha(String(args.head), 'head', opts);
             base = { ...head };
         } else {
-            base = await measureSha(String(args.base), 'base', opts);
+            base = await measureSha(String(args.base), 'base', opts, {
+                skipIfPreRestructure: true,
+            });
             head = await measureSha(String(args.head), 'head', opts);
+            if (base === null) {
+                preRestructureBase = true;
+                base = { ...head, ref: args.base, sha: baseSha };
+            }
         }
     } else {
         bad(
@@ -191,6 +213,12 @@ async function main() {
         `Warm-ups: ${head.warmups} · Measured runs: ${head.runs} · Median-vs-median.`,
     );
     out.push('');
+    if (preRestructureBase) {
+        out.push(
+            `> Base \`${String(base.sha).slice(0, 10)}\` predates the pnpm-workspace restructure (no \`packages/core\`) — a size/runtime diff against it would be meaningless. Skipping the base-vs-head comparison; only the absolute budget ceilings below are enforced.`,
+        );
+        out.push('');
+    }
     out.push('### Artifact sizes (fail on deterministic > 5% increase)');
     out.push(formatSizeTable(size.rows));
     out.push('');
@@ -225,6 +253,7 @@ async function main() {
     const report = {
         base: { ref: base.ref, sha: base.sha, root: base.root },
         head: { ref: head.ref, sha: head.sha, root: head.root },
+        preRestructureBase,
         size,
         runtime,
         budgetFailures,
@@ -240,15 +269,19 @@ async function main() {
     // ── Verdict ──────────────────────────────────────────────────────────--
     heading('Verdict');
     let failed = false;
-    if (size.regressed) {
-        bad('artifact size regression (> 5%)');
-        failed = true;
-    } else ok('artifact sizes within +5%');
-    if (!opts.sizeOnly) {
-        if (runtime.regressed) {
-            bad('runtime regression (> 10% AND > 20 ms)');
+    if (preRestructureBase) {
+        warn('base predates the workspace restructure — size/runtime diff skipped');
+    } else {
+        if (size.regressed) {
+            bad('artifact size regression (> 5%)');
             failed = true;
-        } else ok('runtime medians within threshold');
+        } else ok('artifact sizes within +5%');
+        if (!opts.sizeOnly) {
+            if (runtime.regressed) {
+                bad('runtime regression (> 10% AND > 20 ms)');
+                failed = true;
+            } else ok('runtime medians within threshold');
+        }
     }
     if (budgets) {
         if (budgetFailures.length) {
