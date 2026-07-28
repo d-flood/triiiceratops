@@ -25,6 +25,20 @@ export interface GalleryConfig {
      */
     fixedHeight?: number;
     /**
+     * Whether the gallery starts expanded — filling the viewer's center column
+     * as a full grid of thumbnails instead of a docked strip or floating window.
+     * Implies `open`, since an expanded gallery is necessarily visible.
+     * @default false
+     */
+    expanded?: boolean;
+    /**
+     * Minimum thumbnail cell width for the expanded grid (in pixels). Cells
+     * flex wider to fill the row; this sets how many fit across. Only affects
+     * the expanded view — the docked strip uses `fixedHeight`.
+     * @default 160
+     */
+    thumbnailSize?: number;
+    /**
      * Width of the gallery window when floating (in pixels).
      */
     width?: number;

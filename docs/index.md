@@ -138,7 +138,7 @@ Three layered mechanisms, easiest first:
 ## Features
 
 - **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
-- **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
+- **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side, expandable to a full-column grid) or prev/next controls
 - **Viewing Modes**: Single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
 - **Behaviors**: Detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom)
 - **Structures / Table of Contents**: Parses IIIF `structures` (Ranges) for hierarchical navigation

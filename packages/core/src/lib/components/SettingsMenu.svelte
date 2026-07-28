@@ -821,6 +821,22 @@
                             </li>
                             <li>
                                 <label class="settings-label">
+                                    <span>{m.settings_toggle_expanded()}</span>
+                                    <Checkbox
+                                        size="xs"
+                                        checked={config.gallery?.expanded ??
+                                            false}
+                                        onchange={(e) => {
+                                            if (!config.gallery)
+                                                config.gallery = {};
+                                            config.gallery.expanded =
+                                                e.currentTarget.checked;
+                                        }}
+                                    />
+                                </label>
+                            </li>
+                            <li>
+                                <label class="settings-label">
                                     <span>{m.settings_toggle_draggable()}</span>
                                     <Checkbox
                                         size="xs"
