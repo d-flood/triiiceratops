@@ -21,12 +21,15 @@ import type {
     PluginContext,
     PluginLocaleService,
     PluginStyleService,
+    PluginSurface,
     PluginUiService,
+    PluginUiTarget,
     ViewerState,
 } from 'triiiceratops';
 import {
     createHeadlessLocaleService,
     createHeadlessViewerState,
+    createPluginSurface,
     type HeadlessViewerFixtures,
 } from 'triiiceratops/testing';
 
@@ -146,6 +149,24 @@ export interface TestViewerContextOptions {
     fixtures?: HeadlessViewerFixtures;
     /** Catalog the recording locale service's `t` resolves against. */
     catalog?: LocaleCatalog;
+    /**
+     * Chrome id the plugin's surface is bound to — the `config.plugins` key. Use
+     * the plugin's own `uiId` when a fixture configures it through
+     * `fixtures.config.plugins`; defaults to `'test-plugin'`.
+     */
+    uiId?: string;
+    /**
+     * The surface's authored target, mirroring the plugin's
+     * `SdkPluginMeta.target`. Defaults to `'panel'`.
+     */
+    target?: PluginUiTarget;
+    /**
+     * Whether the plugin's surface starts open. Defaults to `true` so a plugin
+     * that gates work on `surface.isOpen` is exercised in its active state
+     * without every test having to open it first. Set `false` to test the
+     * closed-on-mount path. `fixtures.config.plugins[uiId].open`, if given, wins.
+     */
+    open?: boolean;
 }
 
 /**
@@ -166,6 +187,13 @@ export interface TestViewerContext {
     readonly locale: TestLocaleService;
     /** Recording UI service — see {@link RecordingUiService.requests}. */
     readonly ui: RecordingUiService;
+    /**
+     * The REAL plugin surface over the real state (no double): `isOpen` reflects
+     * the live viewer, and `open()`/`close()`/`toggle()` drive the actual commands,
+     * so a plugin's reaction lands on the real batched flush — `await flush()`
+     * before asserting a subscriber ran.
+     */
+    readonly surface: PluginSurface;
     /**
      * Inject a caller-supplied OSD stub and fire the readiness path
      * (`ViewerState.notifyOSDReady`). `osdViewer` is `null` until called. The kit
@@ -195,11 +223,30 @@ export function createTestViewerContext(
     const styles = createRecordingStyleService();
     const locale = createTestLocaleService(viewerState, options.catalog);
     const ui = createRecordingUiService();
+
+    // Real surface over the real state — core's own factory, not a re-implementation.
+    // Built before the selector runtime so its UI-state seeding is not counted as
+    // a notification a test has to flush past.
+    const uiId = options.uiId ?? 'test-plugin';
+    const surface = createPluginSurface(
+        viewerState,
+        uiId,
+        options.target ?? 'panel',
+    );
+    // Default the surface open (see TestViewerContextOptions.open). A fixture
+    // config that set `plugins[uiId].open` has already been applied by
+    // createPluginSurface's seeding and must win, so only write when the fixture
+    // is silent.
+    if (options.fixtures?.config?.plugins?.[uiId]?.open === undefined) {
+        viewerState.setPluginOpen(uiId, options.open ?? true);
+    }
+
     const selectorRuntime = createSelectorRuntime(viewerState);
 
     const context: PluginContext = {
         viewerState,
         selectors: selectorRuntime.selectors,
+        surface,
         styles,
         locale,
         ui,
@@ -211,6 +258,7 @@ export function createTestViewerContext(
         styles,
         locale,
         ui,
+        surface,
         setOsdViewer(stub: unknown): void {
             viewerState.notifyOSDReady(
                 stub as Parameters<ViewerState['notifyOSDReady']>[0],

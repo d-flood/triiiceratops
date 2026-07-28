@@ -104,6 +104,12 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         commands: ['toggleThumbnailGallery'],
     },
     {
+        member: 'galleryExpanded',
+        classification: 'command',
+        commands: ['setGalleryExpanded', 'toggleGalleryExpanded'],
+        notes: 'Gallery expanded to fill the center column as a grid. Orthogonal to dockSide; expanding implies showThumbnailGallery, which is why it is a command and not a field write.',
+    },
+    {
         member: 'toolbarOpen',
         classification: 'command',
         commands: ['toggleToolbar'],
@@ -371,6 +377,24 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         classification: 'command',
         commands: ['registerPlugin', 'unregisterPlugin', 'destroyAllPlugins'],
     },
+    {
+        member: 'pluginUiState',
+        classification: 'command',
+        commands: [
+            'ensurePluginUiState',
+            'setPluginOpen',
+            'togglePluginOpen',
+            'closePluginFlyouts',
+            'setPluginTarget',
+            'setPluginPosition',
+            'updateConfig',
+            'registerPlugin',
+            'registerSdkChrome',
+            'unregisterPlugin',
+            'destroyAllPlugins',
+        ],
+        notes: "SvelteMap of per-plugin { open, visible, target, position } UI state, read back through isPluginOpen/getPluginTarget/getPluginPosition. `command`, not `internal`: the viewer's own toolbar button opens and closes a plugin's panel/flyout, so by the parity rule the plugin must be able to observe it (this is what an SDK plugin's PluginContext.surface projects). A TS `private` field, but its contract is public through those accessors.",
+    },
 
     // ---- Internal / transitional --------------------------------------------
     {
@@ -397,10 +421,5 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'viewerElement',
         classification: 'internal',
         notes: 'Private reference to the viewer DOM element, used for fullscreen.',
-    },
-    {
-        member: 'pluginUiState',
-        classification: 'internal',
-        notes: 'Private SvelteMap of per-plugin { open, visible, target, position } UI state; mutated reactively via config.plugins, setPluginOpen, setPluginTarget, and setPluginPosition.',
     },
 ];

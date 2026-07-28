@@ -82,7 +82,8 @@ interface ViewerConfig {
         draggable?: boolean; // Default: true
         showCloseButton?: boolean; // Default: true
         dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none'; // Default: 'bottom'
-        fixedHeight?: number; // Default: 75
+        expanded?: boolean; // Default: false (fills the center column as a grid; implies open)
+        fixedHeight?: number; // Default: 75 (strip row height / grid cell width)
         width?: number; // Floating window width
         height?: number; // Floating window height
         x?: number; // Floating window X position
@@ -355,6 +356,7 @@ interface ViewerStateSnapshot {
     viewingDirection: 'left-to-right' | 'right-to-left'
         | 'top-to-bottom' | 'bottom-to-top';
     preserveCanvasScale: boolean;
+    galleryExpanded: boolean;
     galleryPosition: { x: number; y: number };
     gallerySize: { width: number; height: number };
 }

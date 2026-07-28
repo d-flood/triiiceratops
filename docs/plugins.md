@@ -179,6 +179,11 @@ on click (click-outside / `Esc` to dismiss) and grows toward the canvas so it ne
 opens off-screen. It stays mounted while closed, so background work keeps running.
 Use a flyout for a few compact controls; use a panel when the UI needs more room.
 
+Panels behave the same way: a plugin is mounted once per viewer and stays mounted
+while its surface is closed. A plugin that *wants* to pause while it is not
+visible reads `context.surface.isOpen` — see [knowing whether your panel or
+flyout is open](plugin-authoring.md#knowing-whether-your-panel-or-flyout-is-open).
+
 The authored `target` is only a **default**. Every plugin registers both a panel and
 a flyout entry, so the effective target is switchable at runtime — like
 `visible`/`open` — via `config.plugins[id].target` or

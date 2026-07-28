@@ -14,8 +14,14 @@
         "noImplicitOverride": true,
         "noFallthroughCasesInSwitch": true,
 
-        "declaration": true,
-        "declarationMap": true,
+        // JS-only emit. `removeComments` applies to declaration output too, so
+        // the types are emitted by a second pass (tsconfig.types.json) that
+        // keeps the JSDoc — plugin authors read it through `.d.ts` in their
+        // editor, while the shipped runtime files stop carrying ~15 KB of prose
+        // no consumer ever reads.
+        "declaration": false,
+        "declarationMap": false,
+        "removeComments": true,
         "sourceMap": true,
         "outDir": "./dist",
         "rootDir": "./src",

@@ -38,6 +38,15 @@ export default ts.config(
             'src/lib/paraglide/',
             'src/lib/generated/',
             'docs/',
+            // Doc snippets extracted verbatim from docs/*.md by
+            // scripts/docs-examples.mjs — generated, never hand-edited, and
+            // gated by `tsc` in the packed docs-examples consumer instead. A
+            // teaching snippet legitimately declares a function it never calls,
+            // which is a lint warning here but correct in the docs. Linting them
+            // also made the pre-commit gate order-dependent: adding one example
+            // renumbers every later file, re-staging them and surfacing warnings
+            // that had nothing to do with the change.
+            'test-consumers/fixtures/docs-examples/generated/',
         ],
     },
     {
