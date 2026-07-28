@@ -9,7 +9,7 @@
 //   · verify-reproducible.mjs — two clean builds must yield identical checksums
 //   · smoke-registry.mjs      — installs the exact published versions post-publish
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,8 +67,28 @@ export function readVersion(pkg) {
     return manifest.version;
 }
 
-/** The dist-tag a version publishes under: `rc` for `1.0.0-rc.N`, else `latest`. */
+/**
+ * The dist-tag a version publishes under.
+ *
+ * While the repo is in changesets "pre" mode there is NO stable release yet, so
+ * the newest prerelease is exactly what a bare `npm install` (i.e. `@latest`)
+ * should resolve to — publish it to `latest`. This is the ONLY lever we have:
+ * the project publishes via npm OIDC trusted publishing, which sets a package's
+ * dist-tag at publish time and cannot run `npm dist-tag` afterwards (that needs a
+ * classic token we deliberately don't have). So the tag a version lands on is
+ * decided here and baked into the release manifest.
+ *
+ * Once pre mode is exited, normal npm convention resumes: a prerelease
+ * (`1.0.0-rc.N`) publishes under its prerelease tag (`rc`), and a stable version
+ * publishes under `latest`.
+ *
+ * Trade-off during pre mode: because a publish sets exactly one tag, the separate
+ * `rc` tag is not advanced while we point `latest` at the newest rc. That's
+ * acceptable pre-1.0 (`@latest` and the newest rc are the same thing), and the
+ * `rc` tag resumes tracking prereleases the moment a stable release exists.
+ */
 export function distTagFor(version) {
+    if (existsSync(join(REPO_ROOT, '.changeset', 'pre.json'))) return 'latest';
     if (version.includes('-')) return version.split('-')[1].split('.')[0];
     return 'latest';
 }
