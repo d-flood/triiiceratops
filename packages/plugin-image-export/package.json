@@ -1,5 +1,5 @@
 {
-    "name": "@triiiceratops/plugin-image-download",
+    "name": "@triiiceratops/plugin-image-export",
     "version": "1.0.0-rc.0",
     "type": "module",
     "description": "Image download (single/composite/current-view export) plugin for the triiiceratops IIIF viewer, authored on @triiiceratops/plugin-sdk.",
@@ -8,7 +8,7 @@
     "repository": {
         "type": "git",
         "url": "git+https://github.com/d-flood/triiiceratops.git",
-        "directory": "packages/plugin-image-download"
+        "directory": "packages/plugin-image-export"
     },
     "homepage": "https://d-flood.github.io/triiiceratops/",
     "publishConfig": {

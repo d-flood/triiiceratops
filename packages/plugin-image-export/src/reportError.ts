@@ -7,7 +7,7 @@ export function reportImageDownloadError(
 ): void {
     dispatchPluginCommandError(
         node,
-        '@triiiceratops/plugin-image-download',
+        '@triiiceratops/plugin-image-export',
         '1.0.0-rc.0',
         error,
         retry,

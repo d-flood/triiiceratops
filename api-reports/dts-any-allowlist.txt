@@ -22,10 +22,10 @@
 #
 # Blank lines and `#` comments are ignored.
 
-@triiiceratops/plugin-image-download :: dist/exportImage.d.ts :: export declare function exportCompositeCanvas(canvas: any, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
-@triiiceratops/plugin-image-download :: dist/exportImage.d.ts :: export declare function getCanvasImageChoices(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ResolvedCanvasImage[];
-@triiiceratops/plugin-image-download :: dist/exportImage.d.ts :: export declare function getVisibleCanvasesForDownload(viewerState: ViewerState): any[];
-@triiiceratops/plugin-image-download :: dist/exportImage.d.ts :: export declare function resolveCompositeCanvasSizeOptions(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ExportSizeOption[];
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function exportCompositeCanvas(canvas: any, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function getCanvasImageChoices(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ResolvedCanvasImage[];
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function getVisibleCanvasesForDownload(viewerState: ViewerState): any[];
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function resolveCompositeCanvasSizeOptions(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ExportSizeOption[];
 @triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: canvas: any;
 @triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: canvases: any[];
 @triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: export declare function extractOcrTextOverlays(annotations: any[]): PdfTextOverlay[];

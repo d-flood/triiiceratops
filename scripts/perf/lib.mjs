@@ -50,9 +50,9 @@ export const PLUGINS = [
     },
     {
         key: 'image-download',
-        dir: 'packages/plugin-image-download',
-        pkg: '@triiiceratops/plugin-image-download',
-        toggle: '[data-plugin-toggle="image-download"],[aria-label="@triiiceratops/plugin-image-download"]',
+        dir: 'packages/plugin-image-export',
+        pkg: '@triiiceratops/plugin-image-export',
+        toggle: '[data-plugin-toggle="image-download"],[aria-label="@triiiceratops/plugin-image-export"]',
     },
     {
         key: 'pdf-export',

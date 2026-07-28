@@ -34,8 +34,8 @@ const PACKAGES = [
         dir: 'plugin-image-manipulation',
     },
     {
-        name: '@triiiceratops/plugin-image-download',
-        dir: 'plugin-image-download',
+        name: '@triiiceratops/plugin-image-export',
+        dir: 'plugin-image-export',
     },
     { name: '@triiiceratops/plugin-pdf-export', dir: 'plugin-pdf-export' },
     {

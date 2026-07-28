@@ -9,11 +9,11 @@
  *
  * ```html
  * <script src="triiiceratops-element.iife.js"></script>
- * <script src="triiiceratops-plugin-image-download.iife.js"></script>
+ * <script src="triiiceratops-plugin-image-export.iife.js"></script>
  * <script>
  *   const viewer = document.querySelector('triiiceratops-viewer');
  *   viewer.plugins = [
- *     window.Triiiceratops.plugins.get('@triiiceratops/plugin-image-download'),
+ *     window.Triiiceratops.plugins.get('@triiiceratops/plugin-image-export'),
  *   ];
  * </script>
  * ```

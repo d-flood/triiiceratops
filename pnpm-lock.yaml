@@ -96,9 +96,9 @@ importers:
       '@triiiceratops/plugin-annotation-editor':
         specifier: workspace:*
         version: link:../plugin-annotation-editor
-      '@triiiceratops/plugin-image-download':
+      '@triiiceratops/plugin-image-export':
         specifier: workspace:*
-        version: link:../plugin-image-download
+        version: link:../plugin-image-export
       '@triiiceratops/plugin-image-manipulation':
         specifier: workspace:*
         version: link:../plugin-image-manipulation
@@ -218,7 +218,7 @@ importers:
         specifier: ^4.0.15
         version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19))
 
-  packages/plugin-image-download:
+  packages/plugin-image-export:
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.1
