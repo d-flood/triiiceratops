@@ -15,13 +15,13 @@ jobs:
         if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -29,7 +29,7 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            - uses: actions/setup-python@v5
+            - uses: actions/setup-python@v7
               with:
                   python-version: 3.x
 
@@ -56,14 +56,14 @@ jobs:
             id-token: write
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/configure-pages@v5
-            - uses: actions/checkout@v5
+            - uses: actions/configure-pages@v6
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -80,7 +80,7 @@ jobs:
             - name: Build Docs Assets
               run: pnpm build:all
 
-            - uses: actions/setup-python@v5
+            - uses: actions/setup-python@v7
               with:
                   python-version: 3.x
             - name: Install zensical
@@ -125,8 +125,8 @@ jobs:
                   # Drop the storage .git so it is not shipped in the Pages artifact.
                   rm -rf .git
 
-            - uses: actions/upload-pages-artifact@v4
+            - uses: actions/upload-pages-artifact@v5
               with:
                   path: published
-            - uses: actions/deploy-pages@v4
+            - uses: actions/deploy-pages@v5
               id: deployment
