@@ -40,6 +40,7 @@
     "plugin-pdf-export-fix-workspace-peer-protocol",
     "plugin-sdk-chrome-and-style-helpers",
     "plugin-sdk-fix-workspace-peer-protocol",
+    "plugin-sdk-move-latest-to-clean-rc",
     "quiet-baths-cough",
     "rare-lizards-beam",
     "rename-plugin-image-export",
