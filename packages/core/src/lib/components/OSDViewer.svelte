@@ -226,33 +226,34 @@
     // Track last opened tile source to prevent unnecessary resets
     let lastTileSourceStr = '';
 
-    // Get all annotations for current canvas (manifest + search)
-    let allAnnotations = $derived.by(() => {
+    // Get annotations and search IDs together so paged search geometry is only
+    // filtered and transformed once per state change.
+    let annotationData = $derived.by(() => {
+        const searchHitIds = new SvelteSet<string>();
         if (!viewerState.manifestId || !viewerState.canvasId) {
-            return [];
+            return { annotations: [], searchHitIds };
         }
         const manifestAnnotations = viewerState.getAnnotations(
             viewerState.manifestId,
             viewerState.canvasId,
         );
         const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
-        return [...manifestAnnotations, ...searchAnnotations];
-    });
-
-    // Get search hit IDs for styling
-    let searchHitIds = $derived.by(() => {
-        const ids = new SvelteSet<string>();
-        viewerState.currentCanvasSearchAnnotations.forEach((anno: any) => {
+        searchAnnotations.forEach((anno: any) => {
             const id = anno.id || anno['@id'];
-            if (id) ids.add(id);
+            if (id) searchHitIds.add(id);
         });
-        return ids;
+        return {
+            annotations: [...manifestAnnotations, ...searchAnnotations],
+            searchHitIds,
+        };
     });
 
-    // Parse annotations
-    let parsedAnnotations = $derived.by(() => {
-        return parseAnnotations(allAnnotations, searchHitIds);
-    });
+    let parsedAnnotations = $derived(
+        parseAnnotations(
+            annotationData.annotations,
+            annotationData.searchHitIds,
+        ),
+    );
 
     let annotationEditorOpen = $derived.by(() => {
         // Read the editor's open state from its toolbar button, which is

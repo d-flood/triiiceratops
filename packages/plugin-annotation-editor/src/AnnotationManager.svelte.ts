@@ -18,12 +18,12 @@ import type { ViewerState } from 'triiiceratops';
 import {
     canvasPointToImagePoint,
     imagePointToCanvasPoint,
+    resolvePointRadius,
     resolveCanvasImage,
     transformAnnotationToCanvasSpace,
     transformAnnotationToImageSpace,
     type CanvasImageSpaceDimensions,
 } from 'triiiceratops/image-export';
-import { resolvePointRadius } from './utils/pointMarker';
 
 /** Every tool the plugin knows how to draw, in default button order. */
 export const ALL_TOOLS: DrawingTool[] = ['rectangle', 'polygon', 'point'];

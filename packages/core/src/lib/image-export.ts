@@ -35,6 +35,7 @@ export {
     composeImages,
     downloadBlob,
     fetchImageBlob,
+    getCompositeImagePlacement,
     getResolvedImageExportUrl,
     resolveExportSizeOptions,
     type ComposeImageEntry,
@@ -49,6 +50,13 @@ export {
     transformAnnotationToImageSpace,
     type CanvasImageSpaceDimensions,
 } from './utils/canvasImageSpace';
+
+// Point annotation appearance shared by core's overlay and editor plugin.
+export {
+    DEFAULT_POINT_RADIUS,
+    resolvePointRadius,
+    type PointStyle,
+} from './utils/pointMarker';
 
 // Multi-canvas layout math.
 export {
