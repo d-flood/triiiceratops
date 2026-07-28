@@ -1,10 +1,10 @@
 /**
- * `@triiiceratops/plugin-image-download` — ESM entry.
+ * `@triiiceratops/plugin-image-export` — ESM entry.
  *
  * Import the plugin factory and activate it explicitly on a viewer:
  *
  * ```ts
- * import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-download';
+ * import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
  * // Svelte:  <TriiiceratopsViewer plugins={[ImageDownloadPlugin]} />
  * // WC:      viewer.plugins = [ImageDownloadPlugin];
  * ```

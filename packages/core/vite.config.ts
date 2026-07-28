@@ -55,9 +55,9 @@ export default defineConfig({
                     import.meta.url,
                 ),
             ),
-            '@triiiceratops/plugin-image-download': fileURLToPath(
+            '@triiiceratops/plugin-image-export': fileURLToPath(
                 new URL(
-                    '../plugin-image-download/dist/index.js',
+                    '../plugin-image-export/dist/index.js',
                     import.meta.url,
                 ),
             ),

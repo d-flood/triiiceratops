@@ -1,5 +1,5 @@
 {
-    "name": "consumer-plugin-image-download-svelte",
+    "name": "consumer-plugin-image-export-svelte",
     "version": "0.0.0",
     "private": true,
     "type": "module",
@@ -7,7 +7,7 @@
         "build": "vite build"
     },
     "dependencies": {
-        "@triiiceratops/plugin-image-download": "file:./vendor/_triiiceratops_plugin-image-download.tgz",
+        "@triiiceratops/plugin-image-export": "file:./vendor/_triiiceratops_plugin-image-export.tgz",
         "@triiiceratops/plugin-sdk": "file:./vendor/_triiiceratops_plugin-sdk.tgz",
         "svelte": "^5.43.8",
         "triiiceratops": "file:./vendor/triiiceratops.tgz"

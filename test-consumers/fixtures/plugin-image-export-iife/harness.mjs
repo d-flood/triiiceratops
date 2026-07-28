@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-// plugin-image-download-iife: no bundler. A static page loads the self-contained
+// plugin-image-export-iife: no bundler. A static page loads the self-contained
 // core element IIFE and the self-contained plugin IIFE from installed package
 // paths, then activates the plugin explicitly through the shared
 // `window.Triiiceratops.plugins` registry. Tested in BOTH script orders
@@ -23,7 +23,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     const registered = await page.evaluate(() =>
         Boolean(
             window.Triiiceratops?.plugins?.get(
-                '@triiiceratops/plugin-image-download',
+                '@triiiceratops/plugin-image-export',
             ),
         ),
     );
@@ -41,7 +41,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     // shadow root; the Playwright locator pierces it. The page opens the toolbar
     // via the element's `config` (`toolbarOpen`) so the button is visible.
     const toggle = page.locator(
-        '[aria-label="@triiiceratops/plugin-image-download"]',
+        '[aria-label="@triiiceratops/plugin-image-export"]',
     );
     await expect(toggle).toBeVisible({ timeout: 30_000 });
     await toggle.click();
@@ -73,7 +73,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
 }
 
 export default {
-    name: 'plugin-image-download-iife',
+    name: 'plugin-image-export-iife',
     buildScript: null,
     serveDir: '.',
     manifestTarget: 'manifest.json',
@@ -81,7 +81,7 @@ export default {
     tarballs: [
         'triiiceratops',
         '@triiiceratops/plugin-sdk',
-        '@triiiceratops/plugin-image-download',
+        '@triiiceratops/plugin-image-export',
     ],
     async assert({ page, baseURL, pageErrors }) {
         // Blob interception: record every object URL minted for a Blob.

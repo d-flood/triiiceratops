@@ -30,7 +30,7 @@ describe('reportImageDownloadError', () => {
         expect(received).toHaveLength(1);
         const detail = received[0];
         if (!detail) throw new Error('expected a pluginerror payload');
-        expect(detail.pluginName).toBe('@triiiceratops/plugin-image-download');
+        expect(detail.pluginName).toBe('@triiiceratops/plugin-image-export');
         expect(detail.phase).toBe('command');
         expect(detail.error).toBe(cause);
         expect(bubbled).toBe(true);

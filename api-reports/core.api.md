@@ -149,7 +149,7 @@ export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, curr
  * These helpers (IIIF canvas image resolution, size-option ladders, canvas
  * compositing, blob fetching/downloading, multi-canvas layout math, OCR/
  * annotation geometry, and thumbnail fallbacks) are pure functions used by
- * core's own rendering AND by the migrated `@triiiceratops/plugin-image-download`
+ * core's own rendering AND by the migrated `@triiiceratops/plugin-image-export`
  * (ticket 15) and `@triiiceratops/plugin-pdf-export` (ticket 16) packages, which
  * run in the same realm as core. Because the code is genuinely shared and remains
  * with its owning package (core), it is exposed here as a single real public seam
@@ -162,8 +162,9 @@ export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, curr
  * a wildcard would make ambiguous.
  */
 export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
-export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
+export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
+export { DEFAULT_POINT_RADIUS, resolvePointRadius, type PointStyle, } from './utils/pointMarker';
 export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP, } from './components/osdLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
@@ -673,6 +674,8 @@ export declare class ViewerState {
     private resolveCanvasLabel;
     /** Ensure a canvas group exists in the map and return it */
     private getOrCreateCanvasGroup;
+    private getSearchCanvasIndexes;
+    private resolveSearchTargets;
     /**
      * Parse a IIIF Content Search API v0/v1 response.
      * Handles both "hits" format (with before/match/after) and "resources"-only format.
@@ -2408,6 +2411,12 @@ export type ExportSizeOption = {
 };
 export type ComposeImageEntry = {
     blob: Blob;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+export declare function getCompositeImagePlacement(image: ResolvedCanvasImage, canvasWidth: number, canvasHeight: number, scale: number): {
     x: number;
     y: number;
     width: number;
