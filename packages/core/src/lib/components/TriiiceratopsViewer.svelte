@@ -67,6 +67,7 @@
     import { createPluginStyleService } from '../plugin/styleService';
     import { createPluginLocaleService } from '../plugin/localeService';
     import { createPluginUiService } from '../plugin/uiService';
+    import { createPluginSurface } from '../plugin/surface';
     import type { CanvasRegion } from '../utils/contentState';
     import { createPluginId, sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
@@ -93,6 +94,15 @@
     const prefersReducedMotion =
         browser &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /**
+     * Room the docked gallery band/rail gives its expand caret, which rides the
+     * centre of the edge facing the canvas. Kept here because this component
+     * already owns every docked gallery dimension; the gallery's matching
+     * `.gallery-root.caret-*` padding must stay in step with it, so the caret's
+     * gutter costs the strip no thumbnail height.
+     */
+    const GALLERY_CARET_SPACE = 22;
 
     /**
      * Animate a side panel column's width (0 → full) so the center viewer
@@ -535,6 +545,7 @@
     function buildSdkHost(
         plugin: SdkPlugin,
         container: HTMLElement,
+        chromeId: string,
         reportError: (report: PluginErrorReport) => void,
     ) {
         return {
@@ -549,6 +560,15 @@
             ),
             locale: createPluginLocaleService(sdkLocaleSource, plugin.catalog),
             ui: createPluginUiService(),
+            // The plugin's own chrome: how it learns whether its panel/flyout is
+            // open (core mounts it once, so open/close is no longer a mount
+            // lifecycle event) and how it closes itself. Seeds the plugin's UI
+            // state, so `surface` must be built before the plugin mounts.
+            surface: createPluginSurface(
+                internalViewerState,
+                chromeId,
+                plugin.target,
+            ),
             reportError,
         };
     }
@@ -563,6 +583,15 @@
      * (ADR 0010): a setup/mount failure renders NO button.
      */
     function activateSdkPlugin(plugin: SdkPlugin) {
+        // Stable, DOM-safe chrome id so consumers can target the plugin under
+        // `config.plugins[chromeId]` for visible/open/target control. Prefer the
+        // plugin's declared `uiId`; otherwise derive one from its package name
+        // (`@scope/plugin-foo` → `scope-plugin-foo`). NOT random — a random id
+        // was never surfaced to the consumer, so config.plugins keying was dead.
+        // Computed up front (it is pure) because the plugin's `PluginSurface`
+        // closes over it and is handed to `view.mount`, which runs below.
+        const chromeId = sdkPluginChromeId(plugin);
+
         // Content-only container: created and owned by core, detached until the
         // plugin's surface opens.
         const el = document.createElement('div');
@@ -588,7 +617,7 @@
 
         try {
             const activation = plugin.activate(
-                buildSdkHost(plugin, el, reportError),
+                buildSdkHost(plugin, el, chromeId, reportError),
             );
             record.deactivate = activation.deactivate;
         } catch (error) {
@@ -616,12 +645,8 @@
         // appears (open) and its cleanup when it goes away (close). The plugin's
         // Activation state lives above this mount, so open/close never tears it
         // down; a layout change that recreates the node simply re-parents `el`.
-        // Stable, DOM-safe chrome id so consumers can target the plugin under
-        // `config.plugins[chromeId]` for visible/open/target control. Prefer the
-        // plugin's declared `uiId`; otherwise derive one from its package name
-        // (`@scope/plugin-foo` → `scope-plugin-foo`). NOT random — a random id
-        // was never surfaced to the consumer, so config.plugins keying was dead.
-        const chromeId = sdkPluginChromeId(plugin);
+        // The plugin observes open/close through `PluginContext.surface` instead
+        // of through a mount lifecycle event (see `plugin/surface.ts`).
         record.chromeId = chromeId;
         const mountThunk: PluginMountThunk = (node) => {
             node.appendChild(el);
@@ -1004,15 +1029,30 @@
         return panels;
     });
 
+    /**
+     * The gallery, expanded to fill the center column as a thumbnail grid. It
+     * renders in exactly one place — the `.gallery-expanded` overlay — so the
+     * docked/floating render sites below all stand down while it is up. Two
+     * mounted `ThumbnailGallery` instances would both run the dockSide sync
+     * effects and fight over them.
+     */
+    let galleryExpanded = $derived(
+        internalViewerState.showThumbnailGallery &&
+            internalViewerState.galleryExpanded,
+    );
+
+    /** The gallery occupying its docked strip/rail (i.e. open but not expanded). */
+    let galleryDocked = $derived(
+        internalViewerState.showThumbnailGallery && !galleryExpanded,
+    );
+
     let isLeftSidebarVisible = $derived(
-        (internalViewerState.showThumbnailGallery &&
-            internalViewerState.dockSide === 'left') ||
+        (galleryDocked && internalViewerState.dockSide === 'left') ||
             visiblePanelsLeft.length > 0,
     );
 
     let isRightSidebarVisible = $derived(
-        (internalViewerState.showThumbnailGallery &&
-            internalViewerState.dockSide === 'right') ||
+        (galleryDocked && internalViewerState.dockSide === 'right') ||
             visiblePanelsRight.length > 0,
     );
 
@@ -1075,6 +1115,24 @@
             (isRightSidebarVisible || rightSidebarPresent),
     );
     let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
+
+    /**
+     * Which edge of the center column a floating toolbar occupies, or null when
+     * the toolbar is elsewhere (docked as a side rail, or embedded in the nav by
+     * `unified` controls).
+     *
+     * The floating toolbar out-stacks the expanded gallery on purpose — it is
+     * chrome, and losing every panel/search/info button on entering the gallery
+     * would be worse than the alternative. So the expanded grid insets itself
+     * away from that edge instead of sliding thumbnails underneath. A floating
+     * toolbar is always an edge strip on `toolbar.side` (top-anchored or
+     * centered), so one side's worth of inset covers every preset.
+     */
+    let floatingToolbarSide = $derived(
+        !toolbarDockedAsRail && resolvedControls !== 'unified'
+            ? (internalViewerState.config.toolbar?.side ?? 'left')
+            : null,
+    );
 
     let manifestData = $derived(internalViewerState.manifestEntry);
     let canvases = $derived(internalViewerState.canvases);
@@ -1220,11 +1278,12 @@
             {/if}
 
             <!-- Gallery (when docked left) -->
-            {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'left'}
+            {#if galleryDocked && internalViewerState.dockSide === 'left'}
                 <div
                     class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
-                        40}px"
+                        40 +
+                        GALLERY_CARET_SPACE}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
@@ -1236,10 +1295,12 @@
     <!-- Center Column -->
     <div id="triiiceratops-center-panel" class="center-col">
         <!-- Top Area (Gallery) -->
-        {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'top'}
+        {#if galleryDocked && internalViewerState.dockSide === 'top'}
             <div
                 class="gallery-band"
-                style="height: {internalViewerState.galleryFixedHeight + 55}px"
+                style="height: {internalViewerState.galleryFixedHeight +
+                    55 +
+                    GALLERY_CARET_SPACE}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -1389,16 +1450,18 @@
             {/if}
 
             <!-- Float-mode Gallery -->
-            {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'none'}
+            {#if galleryDocked && internalViewerState.dockSide === 'none'}
                 <ThumbnailGallery {canvases} />
             {/if}
         </div>
 
         <!-- Bottom Area (Gallery) -->
-        {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'bottom'}
+        {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
             <div
                 class="gallery-band"
-                style="height: {internalViewerState.galleryFixedHeight + 55}px"
+                style="height: {internalViewerState.galleryFixedHeight +
+                    55 +
+                    GALLERY_CARET_SPACE}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -1419,6 +1482,21 @@
                 </div>
             {/if}
         {/each}
+
+        <!-- Expanded Gallery. An overlay layer covering the center column, so
+             OSD keeps its size underneath (no re-layout or re-fit when it
+             collapses) and the side panels stay visible and usable. Last child
+             of the column and z-index above the bands so it covers the docked
+             strip site and the bottom plugin panels. -->
+        {#if galleryExpanded}
+            <div
+                class="gallery-expanded"
+                class:inset-left={floatingToolbarSide === 'left'}
+                class:inset-right={floatingToolbarSide === 'right'}
+            >
+                <ThumbnailGallery {canvases} />
+            </div>
+        {/if}
     </div>
 
     <!-- Right Column -->
@@ -1442,11 +1520,12 @@
             {/if}
 
             <!-- Gallery (when docked right) -->
-            {#if internalViewerState.showThumbnailGallery && internalViewerState.dockSide === 'right'}
+            {#if galleryDocked && internalViewerState.dockSide === 'right'}
                 <div
                     class="gallery-host"
                     style="width: {internalViewerState.galleryFixedHeight +
-                        40}px"
+                        40 +
+                        GALLERY_CARET_SPACE}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
@@ -1551,6 +1630,27 @@
         position: relative;
         pointer-events: auto;
         z-index: 20;
+    }
+
+    .gallery-expanded {
+        position: absolute;
+        inset: 0;
+        /* Above .gallery-band (20) and the bottom plugin panels so the expanded
+           grid covers the whole center column. Deliberately scoped to this
+           column: the side panels and the docked toolbar rail (z-index 21 in
+           their own columns) stay reachable. */
+        z-index: 30;
+        pointer-events: auto;
+        isolation: isolate;
+    }
+    /* Clear the floating toolbar's edge strip (see floatingToolbarSide). Padding
+       on this host shrinks the gallery inside it, so no thumbnail ever lands
+       under the toolbar's icons. */
+    .gallery-expanded.inset-left {
+        padding-left: 3rem;
+    }
+    .gallery-expanded.inset-right {
+        padding-right: 3rem;
     }
 
     .viewer-area {

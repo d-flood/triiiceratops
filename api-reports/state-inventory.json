@@ -1,9 +1,9 @@
 {
-    "count": 59,
+    "count": 60,
     "byClassification": {
-        "command": 32,
+        "command": 34,
         "observable": 12,
-        "internal": 15,
+        "internal": 14,
         "query-only": 0
     },
     "entries": [
@@ -112,6 +112,14 @@
             "member": "galleryDragOffset",
             "classification": "internal",
             "commands": null
+        },
+        {
+            "member": "galleryExpanded",
+            "classification": "command",
+            "commands": [
+                "setGalleryExpanded",
+                "toggleGalleryExpanded"
+            ]
         },
         {
             "member": "galleryPosition",
@@ -237,8 +245,20 @@
         },
         {
             "member": "pluginUiState",
-            "classification": "internal",
-            "commands": null
+            "classification": "command",
+            "commands": [
+                "ensurePluginUiState",
+                "setPluginOpen",
+                "togglePluginOpen",
+                "closePluginFlyouts",
+                "setPluginTarget",
+                "setPluginPosition",
+                "updateConfig",
+                "registerPlugin",
+                "registerSdkChrome",
+                "unregisterPlugin",
+                "destroyAllPlugins"
+            ]
         },
         {
             "member": "searchAnnotations",

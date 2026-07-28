@@ -213,6 +213,10 @@ const commandScenarios: CapabilityScenario[] = [
         member: 'showThumbnailGallery',
         act: (state) => state.toggleThumbnailGallery(),
     },
+    {
+        member: 'galleryExpanded',
+        act: (state) => state.toggleGalleryExpanded(),
+    },
     { member: 'toolbarOpen', act: (state) => state.toggleToolbar() },
     {
         member: 'showMetadataPanel',
@@ -301,6 +305,15 @@ const commandScenarios: CapabilityScenario[] = [
                 icon: noopIcon,
                 target: 'flyout',
             }),
+    },
+    {
+        member: 'pluginUiState',
+        // Registration adds the plugin's UI-state entry — a size change, which
+        // is what `readValue` compares for a reactive collection. Open/close is a
+        // same-key value swap, so it is invisible to this matrix's size
+        // comparison; `plugin/surface.test.ts` asserts that those swaps notify
+        // (the channel a plugin's `PluginSurface.isOpen` depends on).
+        act: (state) => state.registerPlugin({ name: 'P', icon: noopIcon }),
     },
 ];
 

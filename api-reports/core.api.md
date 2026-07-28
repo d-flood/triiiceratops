@@ -181,13 +181,14 @@ export { manifestsState } from './state/manifests.svelte';
 export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, } from './types/config';
 export type { PluginDef, PluginMenuButton, PluginPanel, PluginFlyout, PluginUiTarget, } from './types/plugin';
 export { definePlugin, createPanelPlugin, createFlyoutPlugin, } from './types/plugin';
-export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService, LocaleCatalog, IconDescriptor, PluginIcon, PluginUiService, PluginContext, PluginView, PluginHost, PluginActivation, SdkPluginMeta, SdkPlugin, PluginErrorPhase, PluginError, PluginErrorReport, } from './types/plugin';
+export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService, LocaleCatalog, IconDescriptor, PluginIcon, PluginUiService, PluginSurface, PluginContext, PluginView, PluginHost, PluginActivation, SdkPluginMeta, SdkPlugin, PluginErrorPhase, PluginError, PluginErrorReport, } from './types/plugin';
 export { SDK_PLUGIN_KIND, isSdkPlugin, PLUGIN_ERROR_EVENT, } from './types/plugin';
 export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorReporter, } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
 export type { Logger, LogLevel, LogSink } from './logging/logger';
 export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
+export { createPluginSurface } from './plugin/surface';
 export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 export type { ThemeConfig, BuiltInTheme } from './theme/types';
@@ -324,6 +325,47 @@ export interface ActiveLocaleSource {
 export declare function createPluginLocaleService(source: ActiveLocaleSource, catalog?: LocaleCatalog): PluginLocaleService;
 
 // ======================================================================
+// FILE: dist/plugin/surface.d.ts
+// ======================================================================
+/**
+ * Core-owned plugin surface service.
+ *
+ * A plugin's own panel/flyout chrome, handed to it as `PluginContext.surface`.
+ * This restores the open/close awareness a legacy `PluginDef` got for free from
+ * its Svelte component's mount/destroy lifecycle: core mounts an SDK plugin ONCE
+ * into a content element it re-parents in and out of the open surface, so
+ * `view.mount` is not re-run on open/close and the plugin needs an observable
+ * instead of a lifecycle hook.
+ *
+ * Every member is a thin, live projection over the owning `ViewerState` — no
+ * cached copy, no second source of truth (ADR 0007: `ViewerState` is the sole
+ * plugin-facing state surface). Reads are getters, so they are always current;
+ * writes go through the same commands the toolbar uses, so a plugin closing its
+ * own flyout notifies exactly like a button press. Because the underlying
+ * `pluginUiState` is an inventoried `command` member, `surface.isOpen` composes
+ * with `context.selectors` like any other viewer state.
+ *
+ * The surface closes over the chrome id core registered for this plugin, so the
+ * plugin never has to know or re-derive it. Nothing here is per-activation
+ * mutable state, so there is nothing to release on deactivation.
+ */
+import type { ViewerState } from '../state/viewer.svelte';
+import type { PluginSurface, PluginUiTarget } from '../types/plugin';
+/**
+ * Create a plugin's surface, bound to one viewer and one chrome id.
+ *
+ * Seeds the viewer's UI state for `chromeId` from `authoredTarget` plus any
+ * `config.plugins[chromeId]` override. That seeding is why the surface is built
+ * BEFORE the plugin mounts: core registers the plugin's chrome only after a
+ * successful mount (to fail closed), and without a seeded entry `isOpen` would
+ * read `false` and `target` would read `'panel'` inside `mount` even for a
+ * plugin the consumer configured open, or authored as a flyout.
+ * `ensurePluginUiState` is idempotent, so the later `registerSdkChrome` call is
+ * a no-op re-apply.
+ */
+export declare function createPluginSurface(state: ViewerState, chromeId: string, authoredTarget: PluginUiTarget): PluginSurface;
+
+// ======================================================================
 // FILE: dist/state/manifests.svelte.d.ts
 // ======================================================================
 import type { RequestConfig } from '../types/config';
@@ -391,6 +433,7 @@ export interface ViewerStateSnapshot {
     viewingMode: 'individuals' | 'paged' | 'continuous';
     viewingDirection: 'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top';
     preserveCanvasScale: boolean;
+    galleryExpanded: boolean;
     galleryPosition: {
         x: number;
         y: number;
@@ -510,11 +553,25 @@ export declare class ViewerState {
     get showZoomControls(): boolean;
     get preserveCanvasScale(): boolean;
     get galleryFixedHeight(): number;
+    /**
+     * Minimum cell width for the expanded gallery grid. Distinct from
+     * {@link galleryFixedHeight}, which sizes the docked strip: a 75px-tall
+     * strip thumbnail is the right size for a rail and far too small for a
+     * full-column grid, so the two views get independent knobs.
+     */
+    get galleryThumbnailSize(): number;
     private _viewingMode;
     private _viewingModeUserConfigured;
     get viewingMode(): "individuals" | "paged" | "continuous";
     set viewingMode(value: 'individuals' | 'paged' | 'continuous');
     pagedOffset: number;
+    /**
+     * Whether the gallery is expanded to fill the viewer's center column as a
+     * thumbnail grid. Orthogonal to {@link dockSide}: expanding renders the
+     * gallery as an overlay layer and leaves the dock side untouched, so
+     * collapsing restores the strip/rail/window exactly where it was.
+     */
+    galleryExpanded: boolean;
     galleryPosition: {
         x: number;
         y: number;
@@ -700,6 +757,17 @@ export declare class ViewerState {
      * visibility as user-touched. Mirrors the annotation panel's "toggle all".
      */
     setAllAnnotationsVisible(visible: boolean): void;
+    /**
+     * Expand the gallery to fill the viewer's center column as a thumbnail
+     * grid, or collapse it back to its docked strip / floating window.
+     *
+     * Expanding implies opening: an expanded-but-hidden gallery is not a state
+     * the UI can reach, so maintaining that invariant is why this is a command
+     * rather than a field write. Collapsing leaves the gallery open.
+     */
+    setGalleryExpanded(expanded: boolean): void;
+    /** Flip the gallery between expanded and collapsed (see {@link setGalleryExpanded}). */
+    toggleGalleryExpanded(): void;
     /** Move the floating (undocked) thumbnail gallery to an absolute position. */
     setGalleryPosition(position: {
         x: number;
@@ -750,7 +818,19 @@ export declare class ViewerState {
      */
     private pluginUiState;
     private getPluginUiConfig;
-    private ensurePluginUiState;
+    /**
+     * Seed a plugin's UI state from its authored defaults plus any
+     * `config.plugins[pluginId]` override, or re-apply the config to an existing
+     * entry. Idempotent.
+     *
+     * Public because the SDK activation path needs the entry to EXIST before the
+     * plugin mounts: core runs `view.mount` before {@link registerSdkChrome} (to
+     * fail closed — a failed mount renders no button), and the plugin's
+     * `PluginSurface` reads open/target during mount. Host-facing, not
+     * plugin-facing: plugins go through {@link isPluginOpen} /
+     * {@link setPluginOpen} and friends.
+     */
+    ensurePluginUiState(pluginId: string, defaultTarget?: PluginUiTarget, defaultPosition?: 'left' | 'right' | 'bottom' | 'overlay'): void;
     private applyPluginUiConfig;
     /**
      * The effective render target for a plugin — the authored default unless a
@@ -785,8 +865,23 @@ export declare class ViewerState {
      */
     setPluginPosition(pluginId: string, position: 'left' | 'right' | 'bottom' | 'overlay'): void;
     private applyPluginUiConfigToAll;
+    /**
+     * Is a plugin's panel/flyout currently open? The read half of
+     * {@link setPluginOpen}, and the state a plugin's `PluginSurface.isOpen`
+     * projects. Reflects every open-state write source alike: the toolbar button
+     * ({@link togglePluginOpen}), flyout light-dismiss
+     * ({@link closePluginFlyouts}), and `config.plugins[id].open`. Returns
+     * `false` for an unknown id.
+     */
+    isPluginOpen(pluginId: string): boolean;
     setPluginOpen(pluginId: string, open: boolean): void;
-    private togglePluginOpen;
+    /**
+     * Flip a plugin's open state. This is what the plugin's toolbar button does,
+     * so it must notify exactly like {@link setPluginOpen} — a plugin observing
+     * its own `PluginSurface.isOpen` reacts to a button press and to a
+     * programmatic open identically.
+     */
+    togglePluginOpen(pluginId: string): void;
     /**
      * Close every open plugin flyout. Used by the toolbar to light-dismiss
      * flyouts on outside click / Escape. No-op (and no event) if none are open.
@@ -940,6 +1035,7 @@ export type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
 export { CORE_VERSION, pluginApiVersion, capabilities } from '../plugin/api.js';
 export { createPluginLocaleService } from '../plugin/localeService.js';
 export type { ActiveLocaleSource } from '../plugin/localeService.js';
+export { createPluginSurface } from '../plugin/surface.js';
 /**
  * Fixture data used to pre-load a headless {@link ViewerState}. All fields are
  * optional; the common case is `createHeadlessViewerState()` with none.
@@ -1243,6 +1339,20 @@ export interface GalleryConfig {
      * @default 75
      */
     fixedHeight?: number;
+    /**
+     * Whether the gallery starts expanded — filling the viewer's center column
+     * as a full grid of thumbnails instead of a docked strip or floating window.
+     * Implies `open`, since an expanded gallery is necessarily visible.
+     * @default false
+     */
+    expanded?: boolean;
+    /**
+     * Minimum thumbnail cell width for the expanded grid (in pixels). Cells
+     * flex wider to fill the row; this sets how many fit across. Only affects
+     * the expanded view — the docked strip uses `fixedHeight`.
+     * @default 160
+     */
+    thumbnailSize?: number;
     /**
      * Width of the gallery window when floating (in pixels).
      */
@@ -1987,12 +2097,73 @@ export interface PluginUiService {
     renderIcon(icon: IconDescriptor, container: HTMLElement): () => void;
 }
 /**
+ * The plugin's OWN chrome — the panel or flyout core renders it into.
+ *
+ * Core mounts an SDK plugin exactly once, into a content element it re-parents
+ * into and out of the open surface, so `view.mount` is NOT re-run on open/close
+ * (deliberate: Activation state survives close→reopen). This is the replacement
+ * for the open/close signal a legacy `PluginDef` got from its Svelte component's
+ * mount/destroy lifecycle: a plugin observes {@link isOpen} to start and pause
+ * work that only matters while the user can see it.
+ *
+ * Every member reads through the live `ViewerState`, so `isOpen`/`target` are
+ * plain getters that are always current — and because they project inventoried
+ * `command` state, they compose with selectors like any other viewer state:
+ *
+ * ```ts
+ * mount(container, context) {
+ *     const open = context.selectors.select(() => context.surface.isOpen);
+ *     if (open.get()) start();
+ *     return open.subscribe((isOpen) => (isOpen ? start() : pause()));
+ * }
+ * ```
+ *
+ * The surface closes over the plugin's chrome id, so a plugin never has to know
+ * or re-derive it (core derives the id from `uiId ?? name` — see
+ * {@link SdkPluginMeta.uiId}). {@link id} is exposed for diagnostics and for
+ * pointing a consumer at the right `config.plugins` key.
+ */
+export interface PluginSurface {
+    /**
+     * This plugin's chrome id — the key a consumer uses under
+     * `ViewerConfig.plugins` to control `visible` / `open` / `target` /
+     * `position`. Equals {@link SdkPluginMeta.uiId} when the plugin declared
+     * one, otherwise core's derivation from {@link SdkPluginMeta.name}.
+     */
+    readonly id: string;
+    /**
+     * Is this plugin's panel/flyout currently open? Reflects the toolbar button,
+     * flyout light-dismiss, `config.plugins[id].open`, and
+     * {@link ViewerState.setPluginOpen} alike.
+     */
+    readonly isOpen: boolean;
+    /**
+     * The chrome this plugin is currently rendering in. Starts at the plugin's
+     * authored {@link SdkPluginMeta.target} and follows
+     * `config.plugins[id].target` / {@link ViewerState.setPluginTarget}, so a
+     * plugin can lay its content out differently in a compact flyout than in a
+     * docked panel.
+     */
+    readonly target: PluginUiTarget;
+    /** Open this plugin's surface. No-op if already open. */
+    open(): void;
+    /**
+     * Close this plugin's surface. No-op if already closed. This is the SDK
+     * equivalent of the `close` prop a legacy `PluginDef` component received —
+     * for a "done"/"apply" affordance inside the plugin's own UI.
+     */
+    close(): void;
+    /** Toggle this plugin's surface open state. */
+    toggle(): void;
+}
+/**
  * The isolated, per-activation context handed to a plugin's `mount`
  * (SPEC.md "Plugin SDK And Browser API" — normative shape).
  */
 export interface PluginContext {
     readonly viewerState: ViewerState;
     readonly selectors: ViewerSelectors;
+    readonly surface: PluginSurface;
     readonly styles: PluginStyleService;
     readonly locale: PluginLocaleService;
     readonly ui: PluginUiService;
@@ -2025,6 +2196,13 @@ export interface PluginHost {
     readonly styles?: PluginStyleService;
     readonly locale?: PluginLocaleService;
     readonly ui?: PluginUiService;
+    /**
+     * The plugin's own panel/flyout chrome. Supplied by core (which owns the
+     * chrome id it registered); when a host omits it — direct `runActivation` or
+     * test-kit use with no chrome — the SDK fills a stub whose `isOpen` is always
+     * `true`, so a plugin under test behaves as if its surface were visible.
+     */
+    readonly surface?: PluginSurface;
     /**
      * Report a plugin lifecycle failure to the host (ticket 09). When present,
      * the SDK routes every guarded phase failure here instead of throwing, so
