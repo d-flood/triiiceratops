@@ -8,7 +8,11 @@ A modern, lightweight, **framework-agnostic** IIIF viewer. Drop it into React,
 Vue, plain HTML, or any other frontend as a standards-based web component — or
 use it as a native Svelte component if that's your stack.
 
-[**View Live Demo**](./viewer/){ .md-button .md-button--primary }
+<!-- Absolute URL, not a relative `./viewer/` link: the demo is published at a
+stable, unversioned path (see docs-publish.mjs) because IIIF cookbook recipes
+link to it directly. A relative link would resolve inside the current
+docs version directory, where the demo no longer lives. -->
+[**View Live Demo**](https://d-flood.github.io/triiiceratops/viewer/){ .md-button .md-button--primary }
 
 !!! info "This documentation describes the Triiiceratops 1.0 release line"
 

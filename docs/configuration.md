@@ -13,9 +13,12 @@ Svelte-only integration prop (a nice bonus of the native integration).
 
 ## Configuration Object
 
+<!-- Absolute URL, not a relative `./viewer/` link: the demo is published at a
+stable, unversioned path (see docs-publish.mjs) because IIIF cookbook recipes
+link to it directly. -->
 !!! tip "Interactive Configuration"
 
-    You can experiment with these settings in the [Live Demo](./viewer/){target=_blank}.
+    You can experiment with these settings in the [Live Demo](https://d-flood.github.io/triiiceratops/viewer/){target=_blank}.
     Open the settings menu (gear icon), tweak the configuration, then click
     **"Copy Config"** to get the JSON for your project.
 
