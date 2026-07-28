@@ -36,6 +36,7 @@
     "plugin-image-manipulation-flyout-restore",
     "plugin-pdf-export-csp-safe-css",
     "plugin-sdk-chrome-and-style-helpers",
+    "plugin-sdk-fix-workspace-peer-protocol",
     "quiet-baths-cough",
     "rare-lizards-beam",
     "rename-plugin-image-export",
