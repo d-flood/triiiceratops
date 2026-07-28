@@ -58,7 +58,7 @@
         }
     },
     "scripts": {
-        "build": "tsc -p tsconfig.build.json",
+        "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.types.json",
         "check": "tsc -p tsconfig.build.json --noEmit",
         "test": "vitest run",
         "clean": "rm -rf dist",
