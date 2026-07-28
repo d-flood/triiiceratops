@@ -8,6 +8,17 @@
 // re-verifies the checksums, and runs `npm publish <tgz>` per package with NO
 // build of its own — it promotes the bytes CI already verified.
 //
+// Before packing, `workspace:*`/`^`/`~` protocol ranges (e.g. the peerDependency
+// `triiiceratops: workspace:^`) are rewritten in-place to real semver ranges
+// resolved from the other workspace packages' committed versions, then restored
+// after `npm pack` runs. `npm pack` itself never does this rewrite — it packs
+// `workspace:` strings verbatim, which aren't installable outside this monorepo
+// and make the published tarball fail to resolve for consumers (npm auto-installs
+// peer deps and errors with EUNSUPPORTEDPROTOCOL). `pnpm pack` does rewrite them,
+// but its rewrite reorders dependency object keys nondeterministically between
+// runs, which breaks the reproducibility gate below — so the rewrite is done here
+// instead, preserving key order, and packing stays on `npm pack`.
+//
 // Determinism: `npm pack` normalises file mtimes to a fixed epoch, sorts entries,
 // and zeroes the gzip header mtime/OS bytes, so a byte-identical `dist/` yields a
 // byte-identical `.tgz`. There is therefore no variable metadata to exclude from
@@ -54,20 +65,79 @@ function run(cmd, cmdArgs, cwd) {
     }
 }
 
-/** `npm pack` into `outDir`; returns the produced tarball's absolute path. */
-function packInto(pkgDir, outDir) {
-    const res = spawnSync(
-        'npm',
-        ['pack', '--pack-destination', outDir, '--json'],
-        { cwd: pkgDir, encoding: 'utf8' },
-    );
-    if (res.status !== 0) {
-        process.stderr.write(res.stderr ?? '');
-        throw new Error(`npm pack failed in ${pkgDir}`);
+/** name -> version for every workspace package (not just the publishable six). */
+function readWorkspaceVersions() {
+    const versions = new Map();
+    for (const dir of readdirSync(join(REPO_ROOT, 'packages'))) {
+        const pkgPath = join(REPO_ROOT, 'packages', dir, 'package.json');
+        if (!existsSync(pkgPath)) continue;
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+        versions.set(pkg.name, pkg.version);
     }
-    const parsed = JSON.parse(res.stdout);
-    const filename = parsed[0].filename.replace(/^@/, '').replace(/\//, '-');
-    return join(outDir, filename);
+    return versions;
+}
+
+/** `workspace:*` -> exact version, `workspace:^`/`~` -> `^`/`~` + version. */
+function resolveWorkspaceRange(range, version) {
+    const protocol = range.slice('workspace:'.length);
+    if (protocol === '*') return version;
+    if (protocol === '^' || protocol === '~') return `${protocol}${version}`;
+    return protocol; // an explicit workspace:<semver> range, used as-is
+}
+
+const DEPENDENCY_FIELDS = [
+    'dependencies',
+    'devDependencies',
+    'peerDependencies',
+    'optionalDependencies',
+];
+
+/** Rewrites `workspace:` ranges to real semver, resolved against `versions`. */
+function rewriteWorkspaceRanges(pkgJson, versions) {
+    for (const field of DEPENDENCY_FIELDS) {
+        const deps = pkgJson[field];
+        if (!deps) continue;
+        for (const [name, range] of Object.entries(deps)) {
+            if (typeof range !== 'string' || !range.startsWith('workspace:'))
+                continue;
+            const version = versions.get(name);
+            if (!version)
+                throw new Error(`workspace range for unknown package: ${name}`);
+            deps[name] = resolveWorkspaceRange(range, version);
+        }
+    }
+    return pkgJson;
+}
+
+/**
+ * `npm pack` into `outDir`; returns the produced tarball's absolute path.
+ *
+ * Temporarily rewrites `pkgDir`'s package.json so `workspace:` ranges resolve
+ * to real semver before packing, then restores the original file untouched.
+ */
+function packInto(pkgDir, outDir, versions) {
+    const pkgJsonPath = join(pkgDir, 'package.json');
+    const original = readFileSync(pkgJsonPath, 'utf8');
+    const rewritten = rewriteWorkspaceRanges(JSON.parse(original), versions);
+    writeFileSync(pkgJsonPath, JSON.stringify(rewritten, null, 4) + '\n');
+    try {
+        const res = spawnSync(
+            'npm',
+            ['pack', '--pack-destination', outDir, '--json'],
+            { cwd: pkgDir, encoding: 'utf8' },
+        );
+        if (res.status !== 0) {
+            process.stderr.write(res.stderr ?? '');
+            throw new Error(`npm pack failed in ${pkgDir}`);
+        }
+        const parsed = JSON.parse(res.stdout);
+        const filename = parsed[0].filename
+            .replace(/^@/, '')
+            .replace(/\//, '-');
+        return join(outDir, filename);
+    } finally {
+        writeFileSync(pkgJsonPath, original);
+    }
 }
 
 function sha256(file) {
@@ -79,6 +149,7 @@ function main() {
     const outDir = resolve(args.out);
     mkdirSync(outDir, { recursive: true });
 
+    const versions = readWorkspaceVersions();
     const summary = [];
     for (const pkg of PUBLISHABLE_PACKAGES) {
         const pkgDir = join(REPO_ROOT, 'packages', pkg.dir);
@@ -91,7 +162,7 @@ function main() {
             }
         }
         console.log(`[pack] ${pkg.name}: npm pack`);
-        const tarball = packInto(pkgDir, outDir);
+        const tarball = packInto(pkgDir, outDir, versions);
         if (!existsSync(tarball)) {
             throw new Error(`expected tarball not found: ${tarball}`);
         }

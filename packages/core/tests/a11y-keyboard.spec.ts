@@ -128,9 +128,10 @@ test('flyout menu opens, moves focus, arrow-navigates, and Escape returns focus'
     // Open with keyboard; focus moves into the menu (a menuitemradio).
     await page.keyboard.press('Enter');
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await page.waitForTimeout(150);
+    await expect
+        .poll(async () => (await activeElementInfo(page)).role)
+        .toBe('menuitemradio');
     let active = await activeElementInfo(page);
-    expect(active.role).toBe('menuitemradio');
 
     // Arrow keys rove focus within the menu.
     await page.keyboard.press('ArrowDown');
