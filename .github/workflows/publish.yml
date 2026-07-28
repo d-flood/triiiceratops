@@ -62,7 +62,7 @@ jobs:
             core_version: ${{ steps.publish.outputs.core_version }}
             published: ${{ steps.publish.outputs.published }}
         steps:
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: 24
                   registry-url: 'https://registry.npmjs.org'
@@ -75,7 +75,7 @@ jobs:
             # Download the EXACT tarballs that required CI packed + verified for
             # this SHA. No workspace checkout, no install, no build.
             - name: Download release artifacts from the verified CI run
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v8
               with:
                   name: release-tarballs
                   path: release-artifacts
@@ -137,7 +137,7 @@ jobs:
 
             # Hand the exact versions to the smoke + release jobs.
             - name: Re-upload release manifest for downstream jobs
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: release-manifest
                   path: release-artifacts/release-manifest.json
@@ -152,17 +152,17 @@ jobs:
         permissions:
             contents: read
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   # Read-only checkout of the promoted commit for the smoke script.
                   # (No build — the script installs from the registry.)
                   ref: ${{ env.SOURCE_SHA }}
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: 24
 
             - name: Download release manifest
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v8
               with:
                   name: release-manifest
                   path: .
@@ -184,11 +184,11 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   ref: ${{ env.SOURCE_SHA }}
             - name: Create GitHub Release
-              uses: softprops/action-gh-release@v2
+              uses: softprops/action-gh-release@v3
               with:
                   tag_name: v${{ needs.promote.outputs.core_version }}
                   name: v${{ needs.promote.outputs.core_version }}

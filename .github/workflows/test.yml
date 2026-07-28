@@ -13,13 +13,13 @@ jobs:
         timeout-minutes: 60
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -51,17 +51,17 @@ jobs:
                 node-version: [22, 24]
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   # Full history so the changed-lines coverage report (ticket 34)
                   # can resolve the merge-base with the PR base branch.
                   fetch-depth: 0
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: ${{ matrix.node-version }}
                   cache: 'pnpm'
@@ -153,13 +153,13 @@ jobs:
                       browser: webkit
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -196,13 +196,13 @@ jobs:
         timeout-minutes: 30
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -251,13 +251,13 @@ jobs:
                 node-version: [22, 24]
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: ${{ matrix.node-version }}
                   cache: 'pnpm'
@@ -291,17 +291,17 @@ jobs:
         if: github.event_name == 'pull_request'
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   # Full history so the base SHA is available for the worktree
                   # build the comparison performs.
                   fetch-depth: 0
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -322,7 +322,7 @@ jobs:
             # Raw measurement JSON + Playwright traces, downloadable from the run.
             - name: Upload performance artifacts
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: perf-results
                   path: perf-results/
@@ -337,16 +337,16 @@ jobs:
         timeout-minutes: 30
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   # Full history so the Changeset guard can diff against the PR base.
                   fetch-depth: 0
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -403,13 +403,13 @@ jobs:
         timeout-minutes: 45
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -431,13 +431,13 @@ jobs:
         timeout-minutes: 45
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
               with:
                   version: 9
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '24'
                   cache: 'pnpm'
@@ -463,7 +463,7 @@ jobs:
                   echo "Working tree clean after build + pack."
 
             - name: Upload release tarballs
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: release-tarballs
                   path: |
