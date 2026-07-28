@@ -1,5 +1,14 @@
 # @triiiceratops/plugin-image-manipulation
 
+## 1.0.0-rc.3
+
+### Patch Changes
+
+- Updated dependencies [809d6a6]
+- Updated dependencies [63fe1bb]
+    - triiiceratops@1.0.0-rc.28
+    - @triiiceratops/plugin-sdk@1.0.0-rc.4
+
 ## 1.0.0-rc.2
 
 ### Patch Changes
