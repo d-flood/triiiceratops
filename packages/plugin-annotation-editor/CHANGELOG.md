@@ -1,5 +1,14 @@
 # @triiiceratops/plugin-annotation-editor
 
+## 1.0.0-rc.3
+
+### Patch Changes
+
+- dfd84ab: Bundle the framework-neutral `triiiceratops/image-export` entry so Node ESM consumers can load it without extensionless relative imports, and inline the annotation editor's Annotorious stylesheet instead of emitting a Vite-only `?inline` package import.
+- Updated dependencies [dfd84ab]
+    - triiiceratops@1.0.0-rc.27
+    - @triiiceratops/plugin-sdk@1.0.0-rc.3
+
 ## 1.0.0-rc.2
 
 ### Patch Changes
