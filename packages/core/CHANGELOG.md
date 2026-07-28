@@ -1,5 +1,17 @@
 # triiiceratops
 
+## 1.0.0-rc.26
+
+### Minor Changes
+
+- 064bf1f: Add a core-owned-chrome activation path for SDK plugins, then complete the migration onto it as the only path. Core now renders a plugin's toolbar button from `meta.icon`/`target`, places the anchored flyout / docked panel container, and hands `view.mount` a content-only element; core owns open/close, anchoring, and dismiss (`SdkPluginMeta.dismiss`: `'light' | 'explicit'`, default `'light'`). A failed activation degrades silently (ADR 0010): logged, emitted on `pluginerror`, no toolbar button. The legacy SDK self-render path (the `tri-sdk-plugin-host` bare host) and the transitional `__coreChrome` routing marker are removed — every SDK plugin is chrome-managed unconditionally, one rendering path. Also fixes a latent a11y defect: the toolbar group separator is now an `<li role="separator">` rather than a bare `<div>` inside the actions `<ul>`.
+
+    Let a consuming app decide where a plugin's docked panel opens, at runtime, for any plugin (SDK or legacy `PluginDef`): `config.plugins[id].position` (`'left' | 'right' | 'bottom' | 'overlay'`) reactively overrides the panel's dock side, mirroring the existing `target` override. New `ViewerState.getPluginPosition`/`setPluginPosition` mirror `getPluginTarget`/`setPluginTarget`. `PluginPanel.position` (the old static field baked on at registration) is removed — the effective position now lives only in reactive per-plugin UI state.
+
+    Extend the `triiiceratops/image-export` seam with canvas ↔ image coordinate-space helpers (`canvasPointToImagePoint`, `imagePointToCanvasPoint`, `transformAnnotationToCanvasSpace`, `transformAnnotationToImageSpace`, `CanvasImageSpaceDimensions`) plus `resolveCanvasImage`/`getCanvasId`, so plugins can consume shared coordinate-space logic instead of carrying copies of core modules.
+
+    Make the published TypeScript declarations resolve `OpenSeadragon` types for consumers without a manual `@types/openseadragon` install: `@types/openseadragon` is now a runtime dependency, and the public declarations naming OSD types (`viewerState.osdViewer`, `ViewerConfig.openSeadragonConfig`) reference the `openseadragon` module rather than an ambient global, so a strict-TypeScript consumer compiles under `skipLibCheck: false`. Also adds checked-in, machine-reviewable API snapshots (per-package declaration reports and `exports` maps, the custom-element property/event surface, the browser runtime shape and capabilities, the plugin API version and capability vocabulary, the public CSS token list, and the state inventory) and enables strict TypeScript with no `any` in public declarations across every package.
+
 ## 1.0.0-rc.25
 
 ### Minor Changes
