@@ -40,6 +40,7 @@ export type {
     IconDescriptor,
     PluginIcon,
     PluginUiService,
+    PluginSurface,
     PluginContext,
     PluginView,
     PluginHost,
@@ -76,6 +77,11 @@ export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 
 // Core's declared plugin-compatibility surface (ticket 07).
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
+
+// The plugin's own panel/flyout chrome, handed to it as `PluginContext.surface`.
+// Exported so the SDK test kit can build the REAL surface over a headless state
+// rather than re-implement it.
+export { createPluginSurface } from './plugin/surface';
 
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';

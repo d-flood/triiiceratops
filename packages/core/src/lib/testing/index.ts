@@ -49,6 +49,11 @@ export { CORE_VERSION, pluginApiVersion, capabilities } from '../plugin/api.js';
 export { createPluginLocaleService } from '../plugin/localeService.js';
 export type { ActiveLocaleSource } from '../plugin/localeService.js';
 
+// The real plugin surface factory (open/close awareness over a live state),
+// re-exported so the kit's test context hands plugins the REAL surface — the
+// state is never fake, and neither is its open/close channel.
+export { createPluginSurface } from '../plugin/surface.js';
+
 /**
  * Fixture data used to pre-load a headless {@link ViewerState}. All fields are
  * optional; the common case is `createHeadlessViewerState()` with none.

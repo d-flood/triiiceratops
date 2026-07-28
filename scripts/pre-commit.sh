@@ -26,5 +26,9 @@ for file in "${staged[@]}"; do
 done
 
 if [ "${#lintable[@]}" -gt 0 ]; then
-    pnpm exec eslint --max-warnings 0 -- "${lintable[@]}"
+    # `--no-warn-ignored`: staged paths are passed explicitly, and eslint warns
+    # when an explicit path matches an `ignores` pattern. Under
+    # `--max-warnings 0` that fails the commit for files eslint was configured
+    # not to lint (generated code, `site/`, ...), so suppress that one warning.
+    pnpm exec eslint --max-warnings 0 --no-warn-ignored -- "${lintable[@]}"
 fi

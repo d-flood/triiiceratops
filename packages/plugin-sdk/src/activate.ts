@@ -22,6 +22,7 @@ import { createSelectorRuntime } from './selectors.js';
 import {
     createStubLocaleService,
     createStubStyleService,
+    createStubSurfaceService,
     createStubUiService,
 } from './services.js';
 
@@ -154,6 +155,12 @@ export function runActivation(
         context = {
             viewerState: host.viewerState,
             selectors: selectorRuntime.selectors,
+            // The plugin's own panel/flyout: how it observes whether the user can
+            // currently see it. Core supplies the real surface (it owns the chrome
+            // id); a chrome-less host gets the always-open stub.
+            surface:
+                host.surface ??
+                createStubSurfaceService(meta.uiId ?? meta.name),
             styles: styles.service,
             locale: locale.service,
             ui: host.ui ?? createStubUiService(),

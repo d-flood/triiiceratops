@@ -61,6 +61,7 @@ interface Harness {
     /** The recording services (also referenced through `host`). */
     readonly styles: ReturnType<typeof createTestViewerContext>['styles'];
     readonly locale: ReturnType<typeof createTestViewerContext>['locale'];
+    readonly surface: ReturnType<typeof createTestViewerContext>['surface'];
     setOsdViewer(stub: unknown): void;
 }
 
@@ -99,6 +100,7 @@ function makeHarness(): Harness {
         styles: tc.styles,
         locale: tc.locale,
         ui: tc.ui,
+        surface: tc.surface,
         reportError: (report) => errors.push(report),
     };
 
@@ -109,6 +111,7 @@ function makeHarness(): Harness {
         activeSubscriptions: () => active,
         styles: tc.styles,
         locale: tc.locale,
+        surface: tc.surface,
         setOsdViewer: tc.setOsdViewer,
     };
 }
