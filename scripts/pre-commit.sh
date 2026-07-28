@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
 # Pre-commit gate (installed by simple-git-hooks, see package.json).
 #
-# Runs the SAME format + lint scripts CI's Quality Gates job runs, so
-# formatting/lint violations are caught before push instead of at CI —
-# exactly the class of failure that slipped through pre-1.0 (build:all was
-# crashing before format:check/lint ever ran, so violations piled up
-# unnoticed across several commits).
+# Runs the same formatters and lint rules as CI, limited to staged files so the
+# cost of committing does not grow with the workspace.
 set -euo pipefail
 
-staged=$(git diff --name-only --cached --diff-filter=ACMR)
-if [ -z "$staged" ]; then
+mapfile -d '' staged < <(git diff --name-only --cached --diff-filter=ACMR -z)
+if [ "${#staged[@]}" -eq 0 ]; then
     exit 0
 fi
 
-pnpm format
+pnpm exec prettier --write --ignore-unknown -- "${staged[@]}"
 # Re-stage exactly the files that were already staged, picking up any fix
 # `format` made to them. Leaves untouched any unrelated working-tree edits
 # the developer hasn't staged yet.
-echo "$staged" | xargs -r git add --
+git add -- "${staged[@]}"
 
-pnpm lint
+lintable=()
+for file in "${staged[@]}"; do
+    case "$file" in
+        *.js | *.jsx | *.mjs | *.cjs | *.ts | *.tsx | *.mts | *.cts | *.svelte)
+            lintable+=("$file")
+            ;;
+    esac
+done
+
+if [ "${#lintable[@]}" -gt 0 ]; then
+    pnpm exec eslint --max-warnings 0 -- "${lintable[@]}"
+fi

@@ -35,7 +35,6 @@ const esExternal = [
     'triiiceratops',
     '@annotorious/annotorious',
     '@annotorious/openseadragon',
-    '@annotorious/openseadragon/annotorious-openseadragon.css?inline',
     'openseadragon',
     // The `/testing` entry imports vitest; leave it for the consumer's test
     // runner rather than bundling it into the shipped kit.
