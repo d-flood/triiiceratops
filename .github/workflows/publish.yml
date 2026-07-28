@@ -113,30 +113,21 @@ jobs:
                       continue
                     fi
 
-                    # Idempotent: publish only if this version isn't already on
-                    # the registry, so a re-run of a main CI success never errors
-                    # on a duplicate. Unlike the dist-tag step below, this does
-                    # NOT `continue` on a skip — a re-run must still reconcile the
-                    # tags for an already-published version.
+                    # Idempotent: skip anything already on the registry so a
+                    # re-run of a main CI success never errors on a duplicate.
                     if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
-                      echo "$NAME@$VERSION already published — skipping publish."
-                    else
-                      echo "::group::npm publish $NAME@$VERSION (tag $TAG)"
-                      npm publish "$TGZ" --access public --tag "$TAG"
-                      echo "::endgroup::"
-                      PUBLISHED+=("$NAME@$VERSION")
+                      echo "$NAME@$VERSION already published — skipping."
+                      continue
                     fi
-
-                    # Policy: `latest` tracks the newest published version — incl.
-                    # rc during the pre cycle (see the manifest's distTag, which
-                    # keeps `rc` current too). npm forces the very first publish of
-                    # a package to `latest` regardless of --tag, which is how a
-                    # prerelease can get stuck there; re-applying this every run
-                    # makes the tag self-healing: a re-run reconciles `latest` to
-                    # this SHA's manifest version even for an already-published
-                    # version. `dist-tag add` to the same version is a no-op.
-                    echo "Setting dist-tag: $NAME@$VERSION -> latest"
-                    npm dist-tag add "$NAME@$VERSION" latest
+                    # `--tag` comes from the manifest's distTag (see distTagFor):
+                    # in pre mode that's `latest`, so bare installs track the newest
+                    # rc. Trusted publishing sets the tag at publish time — there is
+                    # deliberately no post-publish `npm dist-tag` (it needs a classic
+                    # token OIDC trusted publishing doesn't grant).
+                    echo "::group::npm publish $NAME@$VERSION (tag $TAG)"
+                    npm publish "$TGZ" --access public --tag "$TAG"
+                    echo "::endgroup::"
+                    PUBLISHED+=("$NAME@$VERSION")
                   done
                   echo "core_version=$CORE_VERSION" >> "$GITHUB_OUTPUT"
                   if [ ${#PUBLISHED[@]} -gt 0 ]; then
