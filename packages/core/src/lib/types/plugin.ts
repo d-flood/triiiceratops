@@ -349,12 +349,74 @@ export interface PluginUiService {
 }
 
 /**
+ * The plugin's OWN chrome — the panel or flyout core renders it into.
+ *
+ * Core mounts an SDK plugin exactly once, into a content element it re-parents
+ * into and out of the open surface, so `view.mount` is NOT re-run on open/close
+ * (deliberate: Activation state survives close→reopen). This is the replacement
+ * for the open/close signal a legacy `PluginDef` got from its Svelte component's
+ * mount/destroy lifecycle: a plugin observes {@link isOpen} to start and pause
+ * work that only matters while the user can see it.
+ *
+ * Every member reads through the live `ViewerState`, so `isOpen`/`target` are
+ * plain getters that are always current — and because they project inventoried
+ * `command` state, they compose with selectors like any other viewer state:
+ *
+ * ```ts
+ * mount(container, context) {
+ *     const open = context.selectors.select(() => context.surface.isOpen);
+ *     if (open.get()) start();
+ *     return open.subscribe((isOpen) => (isOpen ? start() : pause()));
+ * }
+ * ```
+ *
+ * The surface closes over the plugin's chrome id, so a plugin never has to know
+ * or re-derive it (core derives the id from `uiId ?? name` — see
+ * {@link SdkPluginMeta.uiId}). {@link id} is exposed for diagnostics and for
+ * pointing a consumer at the right `config.plugins` key.
+ */
+export interface PluginSurface {
+    /**
+     * This plugin's chrome id — the key a consumer uses under
+     * `ViewerConfig.plugins` to control `visible` / `open` / `target` /
+     * `position`. Equals {@link SdkPluginMeta.uiId} when the plugin declared
+     * one, otherwise core's derivation from {@link SdkPluginMeta.name}.
+     */
+    readonly id: string;
+    /**
+     * Is this plugin's panel/flyout currently open? Reflects the toolbar button,
+     * flyout light-dismiss, `config.plugins[id].open`, and
+     * {@link ViewerState.setPluginOpen} alike.
+     */
+    readonly isOpen: boolean;
+    /**
+     * The chrome this plugin is currently rendering in. Starts at the plugin's
+     * authored {@link SdkPluginMeta.target} and follows
+     * `config.plugins[id].target` / {@link ViewerState.setPluginTarget}, so a
+     * plugin can lay its content out differently in a compact flyout than in a
+     * docked panel.
+     */
+    readonly target: PluginUiTarget;
+    /** Open this plugin's surface. No-op if already open. */
+    open(): void;
+    /**
+     * Close this plugin's surface. No-op if already closed. This is the SDK
+     * equivalent of the `close` prop a legacy `PluginDef` component received —
+     * for a "done"/"apply" affordance inside the plugin's own UI.
+     */
+    close(): void;
+    /** Toggle this plugin's surface open state. */
+    toggle(): void;
+}
+
+/**
  * The isolated, per-activation context handed to a plugin's `mount`
  * (SPEC.md "Plugin SDK And Browser API" — normative shape).
  */
 export interface PluginContext {
     readonly viewerState: ViewerState;
     readonly selectors: ViewerSelectors;
+    readonly surface: PluginSurface;
     readonly styles: PluginStyleService;
     readonly locale: PluginLocaleService;
     readonly ui: PluginUiService;
@@ -389,6 +451,13 @@ export interface PluginHost {
     readonly styles?: PluginStyleService;
     readonly locale?: PluginLocaleService;
     readonly ui?: PluginUiService;
+    /**
+     * The plugin's own panel/flyout chrome. Supplied by core (which owns the
+     * chrome id it registered); when a host omits it — direct `runActivation` or
+     * test-kit use with no chrome — the SDK fills a stub whose `isOpen` is always
+     * `true`, so a plugin under test behaves as if its surface were visible.
+     */
+    readonly surface?: PluginSurface;
     /**
      * Report a plugin lifecycle failure to the host (ticket 09). When present,
      * the SDK routes every guarded phase failure here instead of throwing, so

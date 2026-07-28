@@ -214,6 +214,80 @@ describe('injectable OSD stub', () => {
     });
 });
 
+describe('plugin surface: real, not a double', () => {
+    it('starts open by default so a surface-gated plugin is exercised active', () => {
+        const tc = createTestViewerContext();
+
+        expect(tc.surface.id).toBe('test-plugin');
+        expect(tc.surface.isOpen).toBe(true);
+        expect(tc.surface.target).toBe('panel');
+        expect(tc.context.surface).toBe(tc.surface);
+    });
+
+    it('honors uiId, target, and a closed-on-mount start', () => {
+        const tc = createTestViewerContext({
+            uiId: 'my-plugin',
+            target: 'flyout',
+            open: false,
+        });
+
+        expect(tc.surface.id).toBe('my-plugin');
+        expect(tc.surface.target).toBe('flyout');
+        expect(tc.surface.isOpen).toBe(false);
+    });
+
+    it('lets a fixture config override the default open state', () => {
+        const tc = createTestViewerContext({
+            uiId: 'my-plugin',
+            fixtures: { config: { plugins: { 'my-plugin': { open: false } } } },
+        });
+
+        expect(tc.surface.isOpen).toBe(false);
+    });
+
+    it('drives a plugin selector through the real batched flush', async () => {
+        // The surface is the real projection over the real state, so a plugin
+        // observing `surface.isOpen` reacts on production timing — the same
+        // batched flush every other viewer change lands on.
+        const tc = createTestViewerContext({ open: false });
+        const open = tc.context.selectors.select(
+            () => tc.context.surface.isOpen,
+        );
+
+        const seen: boolean[] = [open.get()];
+        const stop = open.subscribe((value) => seen.push(value));
+
+        tc.surface.open();
+        expect(seen, 'no synchronous delivery').toEqual([false]);
+        await flush();
+        expect(seen).toEqual([false, true]);
+
+        tc.surface.toggle();
+        await flush();
+        expect(seen).toEqual([false, true, false]);
+
+        // Driving the viewer directly reaches the plugin identically — the
+        // surface is not a separate channel.
+        tc.viewerState.togglePluginOpen('test-plugin');
+        await flush();
+        expect(seen).toEqual([false, true, false, true]);
+
+        stop();
+        tc.dispose();
+    });
+
+    it('reflects a target change made after mount', async () => {
+        const tc = createTestViewerContext({ uiId: 'movable' });
+        expect(tc.surface.target).toBe('panel');
+
+        tc.viewerState.setPluginTarget('movable', 'flyout');
+        await flush();
+
+        expect(tc.surface.target).toBe('flyout');
+        tc.dispose();
+    });
+});
+
 describe('conformance: a well-behaved plugin passes every case', () => {
     for (const conformanceCase of conformanceCases) {
         it(conformanceCase.name, async () => {

@@ -437,6 +437,72 @@ Notifications are **batched** and carry no payload — a notification means "sta
 changed, read what you need," not a transition log. Subscribers read the current
 value rather than reconstructing intermediate states.
 
+### Knowing whether your panel or flyout is open
+
+Core mounts your plugin **once per viewer**, into a content element it moves in
+and out of the open panel/flyout. `mount` is *not* re-run when the user opens or
+closes your surface, and your cleanup is *not* run on close — that's deliberate,
+so state survives a close→reopen round trip. It also means you can't use mount
+and cleanup as open/close hooks.
+
+`context.surface` is your plugin's own chrome. Use it to pause work that only
+matters while the user can actually see your UI:
+
+```ts
+import type { PluginContext } from 'triiiceratops';
+
+function surfaceAware(context: PluginContext) {
+    const { surface } = context;
+
+    // `isOpen` and `target` are live getters — never snapshot them.
+    const open = context.selectors.select(() => surface.isOpen);
+
+    const render = (isOpen: boolean) => {
+        if (isOpen) {
+            // Start polling, attach an expensive OSD handler, resume an
+            // animation — whatever is wasted while nobody can see it.
+        } else {
+            // Pause it. Keep your state: the plugin is still activated.
+        }
+    };
+
+    render(open.get()); // may already be open (config.plugins[uiId].open)
+    return open.subscribe(render);
+}
+```
+
+`isOpen` reflects **every** way a surface opens or closes: the plugin's toolbar
+button, a flyout light-dismiss (outside click or Escape), the consumer's
+`config.plugins[uiId].open`, and `ViewerState.setPluginOpen`. Read it as a plain
+getter for a one-off check, or project it through a selector (as above) to react.
+Like all viewer notifications, changes land on the batched flush, not
+synchronously inside the click.
+
+The surface also lets your content close itself — a "Done" or "Apply" button
+inside a flyout — and tells you which chrome you're rendering in, so a compact
+flyout can lay out differently from a docked panel:
+
+```ts
+import type { PluginContext } from 'triiiceratops';
+
+function surfaceControls(context: PluginContext) {
+    const { surface } = context;
+
+    void surface.id; // your chrome id — the `config.plugins` key
+    void surface.target; // 'panel' | 'flyout', follows a runtime override
+
+    const done = document.createElement('button');
+    done.textContent = 'Done';
+    done.onclick = () => surface.close(); // also: open(), toggle()
+    return done;
+}
+```
+
+When a plugin is activated with no chrome at all — a bare `runActivation` into a
+container you placed yourself — `surface.isOpen` is `true` and the movers are
+no-ops: there is nothing that could be hiding your UI, so surface-gated work
+runs.
+
 ### The raw OpenSeadragon viewer
 
 The raw OSD viewer is a documented pass-through: `viewerState.osdViewer` is

@@ -196,8 +196,8 @@ export { createSelectorRuntime } from './selectors.js';
 export type { SelectorRuntime } from './selectors.js';
 export { satisfies, collectIncompatibilities, negotiateCompatibility, PluginCompatibilityError, } from './compatibility.js';
 export type { PluginCompatibilityReason } from './compatibility.js';
-export { createStubStyleService, createStubLocaleService, createStubUiService, } from './services.js';
-export type { PluginView, PluginContext, ViewerSelectors, Selector, PluginStyleService, PluginLocaleService, LocaleCatalog, PluginUiService, IconDescriptor, PluginIcon, PluginUiTarget, PluginHost, PluginActivation, SdkPlugin, SdkPluginMeta, PluginErrorPhase, PluginError, PluginErrorReport, ViewerState, } from 'triiiceratops';
+export { createStubStyleService, createStubLocaleService, createStubUiService, createStubSurfaceService, } from './services.js';
+export type { PluginView, PluginContext, ViewerSelectors, Selector, PluginStyleService, PluginLocaleService, LocaleCatalog, PluginUiService, PluginSurface, IconDescriptor, PluginIcon, PluginUiTarget, PluginHost, PluginActivation, SdkPlugin, SdkPluginMeta, PluginErrorPhase, PluginError, PluginErrorReport, ViewerState, } from 'triiiceratops';
 
 // ======================================================================
 // FILE: dist/lit.d.ts
@@ -462,13 +462,26 @@ export declare function createSelectorRuntime(viewerState: ViewerState, options?
  * production core supplies the real, per-viewer, root-aware services (ticket 08)
  * on the {@link PluginHost}; the SDK only reaches for a stub as a fallback.
  */
-import type { PluginLocaleService, PluginStyleService, PluginUiService } from 'triiiceratops';
+import type { PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService } from 'triiiceratops';
 /** No-op style service: records nothing, returns a no-op uninstaller. */
 export declare function createStubStyleService(): PluginStyleService;
 /** English-only locale stub: returns the key, never changes locale. */
 export declare function createStubLocaleService(): PluginLocaleService;
 /** No-op UI service: renders nothing, returns a no-op cleanup. */
 export declare function createStubUiService(): PluginUiService;
+/**
+ * Chrome-less surface stub, used when a host supplies no `surface` — a bare
+ * `runActivation` against a container the caller placed itself, with no toolbar
+ * button, panel, or flyout in play.
+ *
+ * `isOpen` is `true`, not `false`: the caller mounted the plugin into a container
+ * of their own and there is no chrome that could hide it, so the honest answer is
+ * "visible". A `false` stub would silently park every plugin that gates work on
+ * `surface.isOpen` in its paused state and look like a broken plugin. `open`,
+ * `close`, and `toggle` are no-ops — there is no chrome to move — and `isOpen`
+ * therefore never changes, so a subscriber correctly never wakes.
+ */
+export declare function createStubSurfaceService(uiId?: string): PluginSurface;
 
 // ======================================================================
 // FILE: dist/svelte.d.ts
@@ -610,7 +623,7 @@ export declare function runPluginConformance(factory: PluginFactory): void;
  * activation performs and releases them on deactivation, so a recording double is
  * free to be a pure log.
  */
-import type { IconDescriptor, LocaleCatalog, PluginContext, PluginLocaleService, PluginStyleService, PluginUiService, ViewerState } from 'triiiceratops';
+import type { IconDescriptor, LocaleCatalog, PluginContext, PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService, PluginUiTarget, ViewerState } from 'triiiceratops';
 import { type HeadlessViewerFixtures } from 'triiiceratops/testing';
 import { whenOsdReady } from '../osd.js';
 export { whenOsdReady };
@@ -669,6 +682,24 @@ export interface TestViewerContextOptions {
     fixtures?: HeadlessViewerFixtures;
     /** Catalog the recording locale service's `t` resolves against. */
     catalog?: LocaleCatalog;
+    /**
+     * Chrome id the plugin's surface is bound to — the `config.plugins` key. Use
+     * the plugin's own `uiId` when a fixture configures it through
+     * `fixtures.config.plugins`; defaults to `'test-plugin'`.
+     */
+    uiId?: string;
+    /**
+     * The surface's authored target, mirroring the plugin's
+     * `SdkPluginMeta.target`. Defaults to `'panel'`.
+     */
+    target?: PluginUiTarget;
+    /**
+     * Whether the plugin's surface starts open. Defaults to `true` so a plugin
+     * that gates work on `surface.isOpen` is exercised in its active state
+     * without every test having to open it first. Set `false` to test the
+     * closed-on-mount path. `fixtures.config.plugins[uiId].open`, if given, wins.
+     */
+    open?: boolean;
 }
 /**
  * The assembled test viewer context: a real state, recording-double services, a
@@ -688,6 +719,13 @@ export interface TestViewerContext {
     readonly locale: TestLocaleService;
     /** Recording UI service — see {@link RecordingUiService.requests}. */
     readonly ui: RecordingUiService;
+    /**
+     * The REAL plugin surface over the real state (no double): `isOpen` reflects
+     * the live viewer, and `open()`/`close()`/`toggle()` drive the actual commands,
+     * so a plugin's reaction lands on the real batched flush — `await flush()`
+     * before asserting a subscriber ran.
+     */
+    readonly surface: PluginSurface;
     /**
      * Inject a caller-supplied OSD stub and fire the readiness path
      * (`ViewerState.notifyOSDReady`). `osdViewer` is `null` until called. The kit
