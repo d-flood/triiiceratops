@@ -1,5 +1,23 @@
 # triiiceratops
 
+## 1.0.0-rc.28
+
+### Minor Changes
+
+- 809d6a6: Add an expandable thumbnail gallery — a full-column grid of every canvas, in the spirit of Mirador's gallery view. A small caret centered on the gallery's canvas-facing edge expands the docked strip/rail to fill the viewer's center column (a floating gallery gets a maximize button instead), animating open as a drawer sliding out of its dock edge — a bottom-docked strip grows upward. The caret keeps its edge across the transition, so it never jumps out from under the cursor; only its glyph flips to point the way the gallery will travel next. Side panels and the docked toolbar rail stay visible and usable, and OpenSeadragon keeps its size underneath, so collapsing never re-fits the image. Clicking a thumbnail selects that canvas and collapses back to it; `Escape` collapses without closing the gallery.
+
+    The expanded view is the floating window's grid at viewer size — the same `gallery.fixedHeight` cell floor, padding, and gap — rather than a third layout with its own density, so the two cannot drift apart.
+
+    New state on `ViewerState`: `galleryExpanded` (command state, via `setGalleryExpanded()` / `toggleGalleryExpanded()`, and reported in `ViewerStateSnapshot`); expanding implies opening the gallery, and closing the gallery clears it. Expanding leaves `dockSide` untouched, so collapsing restores the strip, rail, or floating window exactly where it was. New config: `gallery.expanded` to boot straight into the grid.
+
+- 63fe1bb: Fix a plugin SDK regression: an SDK plugin could not tell whether its own panel or flyout was open. A legacy `PluginDef` learned this from its Svelte component's mount/destroy lifecycle, but core mounts an SDK plugin once and re-parents its content element in and out of the open surface (so Activation state survives close→reopen), and nothing replaced the lost signal. Three things blocked it: `ViewerState` had no public reader for plugin open state, the `pluginUiState` member was classified `internal` in the state inventory and therefore excluded from the framework-neutral subscription watcher, and `togglePluginOpen` — the toolbar-button path, i.e. how users actually open and close a plugin — notified nobody.
+
+    New `PluginContext.surface` (`PluginSurface`) is the plugin's own chrome: `isOpen` and `target` are live getters over viewer state, so they compose with `context.selectors` like any other viewer state, and `open()`/`close()`/`toggle()` drive the same commands the toolbar does. It closes over the plugin's chrome id (also exposed as `surface.id`, the `config.plugins` key), so a plugin never re-derives it. `surface.close()` also restores the self-close affordance the legacy `close` prop provided. Open-state changes now notify from every write source alike: the toolbar button, flyout light-dismiss, `config.plugins[uiId].open`, and `ViewerState.setPluginOpen`.
+
+    Supporting public API: `ViewerState.isPluginOpen(id)` (the read half of `setPluginOpen`), `ViewerState.togglePluginOpen(id)`, `ViewerState.ensurePluginUiState(id, target?, position?)` (host-facing chrome seeding), and `createPluginSurface`, exported from both `triiiceratops` and `triiiceratops/testing`. `setPluginOpen` now no-ops without notifying when the plugin is already in the requested state, matching `setPluginTarget`/`setPluginPosition`.
+
+    The SDK test kit's `createTestViewerContext` exposes the REAL surface over the real state (new `uiId`, `target`, and `open` options; `surface.isOpen` defaults to `true` so a surface-gated plugin is exercised in its active state). A chrome-less host — a bare `runActivation` into a container the caller placed — gets an always-open stub with no-op movers, since nothing could be hiding the plugin's UI.
+
 ## 1.0.0-rc.27
 
 ### Patch Changes
