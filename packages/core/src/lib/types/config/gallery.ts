@@ -20,7 +20,9 @@ export interface GalleryConfig {
      */
     showCloseButton?: boolean;
     /**
-     * Fixed height for thumbnails in the horizontal strip view (in pixels).
+     * Thumbnail size in pixels: the row height in the horizontal strip view, and
+     * the minimum cell width of the grid used by the floating and expanded views
+     * (cells flex wider to fill the row, so this sets how many fit across).
      * @default 75
      */
     fixedHeight?: number;
@@ -31,13 +33,6 @@ export interface GalleryConfig {
      * @default false
      */
     expanded?: boolean;
-    /**
-     * Minimum thumbnail cell width for the expanded grid (in pixels). Cells
-     * flex wider to fill the row; this sets how many fit across. Only affects
-     * the expanded view — the docked strip uses `fixedHeight`.
-     * @default 160
-     */
-    thumbnailSize?: number;
     /**
      * Width of the gallery window when floating (in pixels).
      */

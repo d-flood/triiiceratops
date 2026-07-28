@@ -96,13 +96,52 @@
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     /**
-     * Room the docked gallery band/rail gives its expand caret, which rides the
-     * centre of the edge facing the canvas. Kept here because this component
-     * already owns every docked gallery dimension; the gallery's matching
-     * `.gallery-root.caret-*` padding must stay in step with it, so the caret's
-     * gutter costs the strip no thumbnail height.
+     * Open the expanded gallery as a drawer sliding out of its dock edge — a
+     * bottom-docked strip grows upward to fill the column, and shrinks back the
+     * same way. `from` is the docked footprint the drawer starts at, so the
+     * animation begins exactly where the strip/rail was instead of from nothing.
+     *
+     * Animates `clip-path`, not `height`: clip-path is composited, so the grid
+     * lays out once and is uncovered, where an animated height would reflow every
+     * thumbnail on every frame. A floating gallery has no edge to slide from, so
+     * it just fades up.
      */
-    const GALLERY_CARET_SPACE = 22;
+    function expandGallery(
+        node: HTMLElement,
+        {
+            edge,
+            from,
+        }: { edge: 'top' | 'bottom' | 'left' | 'right' | 'none'; from: number },
+    ) {
+        const duration = prefersReducedMotion ? 0 : 260;
+        if (edge === 'none') {
+            return {
+                duration,
+                easing: cubicOut,
+                css: (t: number) =>
+                    `opacity: ${t}; transform: scale(${0.98 + 0.02 * t});`,
+            };
+        }
+        // `u` is the un-revealed fraction: at u=1 only the docked footprint shows.
+        const closed = (u: number) => `calc(${u} * (100% - ${from}px))`;
+        const inset = (u: number) => {
+            switch (edge) {
+                case 'bottom':
+                    return `${closed(u)} 0 0 0`;
+                case 'top':
+                    return `0 0 ${closed(u)} 0`;
+                case 'left':
+                    return `0 ${closed(u)} 0 0`;
+                default:
+                    return `0 0 0 ${closed(u)}`;
+            }
+        };
+        return {
+            duration,
+            easing: cubicOut,
+            css: (t: number) => `clip-path: inset(${inset(1 - t)});`,
+        };
+    }
 
     /**
      * Animate a side panel column's width (0 → full) so the center viewer
@@ -1046,6 +1085,37 @@
         internalViewerState.showThumbnailGallery && !galleryExpanded,
     );
 
+    /**
+     * Docked gallery band height (top/bottom) and rail width (left/right).
+     * Unchanged by the expand control: that rides the gallery's edge as an
+     * overlay and reserves no space of its own, so opening the gallery costs
+     * exactly what it did before the feature existed.
+     */
+    let galleryBandHeight = $derived(
+        internalViewerState.galleryFixedHeight + 55,
+    );
+    let galleryRailWidth = $derived(
+        internalViewerState.galleryFixedHeight + 40,
+    );
+
+    /**
+     * The docked footprint the expand animation starts from, and the edge it
+     * slides out of — the dock side, so a bottom-docked gallery grows upward.
+     */
+    let galleryExpandFrom = $derived({
+        edge: internalViewerState.dockSide as
+            | 'top'
+            | 'bottom'
+            | 'left'
+            | 'right'
+            | 'none',
+        from:
+            internalViewerState.dockSide === 'left' ||
+            internalViewerState.dockSide === 'right'
+                ? galleryRailWidth
+                : galleryBandHeight,
+    });
+
     let isLeftSidebarVisible = $derived(
         (galleryDocked && internalViewerState.dockSide === 'left') ||
             visiblePanelsLeft.length > 0,
@@ -1281,9 +1351,7 @@
             {#if galleryDocked && internalViewerState.dockSide === 'left'}
                 <div
                     class="gallery-host"
-                    style="width: {internalViewerState.galleryFixedHeight +
-                        40 +
-                        GALLERY_CARET_SPACE}px"
+                    style="width: {galleryRailWidth}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
@@ -1296,12 +1364,7 @@
     <div id="triiiceratops-center-panel" class="center-col">
         <!-- Top Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
-            <div
-                class="gallery-band"
-                style="height: {internalViewerState.galleryFixedHeight +
-                    55 +
-                    GALLERY_CARET_SPACE}px"
-            >
+            <div class="gallery-band" style="height: {galleryBandHeight}px">
                 <ThumbnailGallery {canvases} />
             </div>
         {/if}
@@ -1457,12 +1520,7 @@
 
         <!-- Bottom Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
-            <div
-                class="gallery-band"
-                style="height: {internalViewerState.galleryFixedHeight +
-                    55 +
-                    GALLERY_CARET_SPACE}px"
-            >
+            <div class="gallery-band" style="height: {galleryBandHeight}px">
                 <ThumbnailGallery {canvases} />
             </div>
         {/if}
@@ -1493,6 +1551,7 @@
                 class="gallery-expanded"
                 class:inset-left={floatingToolbarSide === 'left'}
                 class:inset-right={floatingToolbarSide === 'right'}
+                transition:expandGallery|global={galleryExpandFrom}
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -1523,9 +1582,7 @@
             {#if galleryDocked && internalViewerState.dockSide === 'right'}
                 <div
                     class="gallery-host"
-                    style="width: {internalViewerState.galleryFixedHeight +
-                        40 +
-                        GALLERY_CARET_SPACE}px"
+                    style="width: {galleryRailWidth}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />

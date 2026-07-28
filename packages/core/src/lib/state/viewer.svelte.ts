@@ -335,16 +335,6 @@ export class ViewerState {
         return this.config.gallery?.fixedHeight ?? 75;
     }
 
-    /**
-     * Minimum cell width for the expanded gallery grid. Distinct from
-     * {@link galleryFixedHeight}, which sizes the docked strip: a 75px-tall
-     * strip thumbnail is the right size for a rail and far too small for a
-     * full-column grid, so the two views get independent knobs.
-     */
-    get galleryThumbnailSize() {
-        return this.config.gallery?.thumbnailSize ?? 160;
-    }
-
     // Dedicated reactive state for viewingMode to ensure proper reactivity
     // when accessed in $derived expressions (tileSources computation)
     private _viewingMode = $state<'individuals' | 'paged' | 'continuous'>(
