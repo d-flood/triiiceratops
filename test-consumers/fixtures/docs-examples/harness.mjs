@@ -11,7 +11,7 @@ export default {
         'triiiceratops',
         '@triiiceratops/plugin-sdk',
         '@triiiceratops/plugin-image-manipulation',
-        '@triiiceratops/plugin-image-download',
+        '@triiiceratops/plugin-image-export',
         '@triiiceratops/plugin-pdf-export',
         '@triiiceratops/plugin-annotation-editor',
     ],

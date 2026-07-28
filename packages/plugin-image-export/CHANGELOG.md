@@ -1,4 +1,4 @@
-# @triiiceratops/plugin-image-download
+# @triiiceratops/plugin-image-export
 
 ## 1.0.0-rc.1
 

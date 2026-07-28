@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>plugin-image-download-iife (core first)</title>
+        <title>plugin-image-export-iife (plugin first)</title>
         <style>
             html,
             body {
@@ -15,9 +15,10 @@
                 height: 100vh;
             }
         </style>
-        <!-- Script order A: core element IIFE FIRST, then the plugin IIFE. -->
+        <!-- Script order B: the plugin IIFE FIRST (bootstraps the namespace and
+             registers before core), then the core element IIFE. -->
+        <script src="/node_modules/@triiiceratops/plugin-image-export/dist/iife.js"></script>
         <script src="/node_modules/triiiceratops/dist/triiiceratops-element.iife.js"></script>
-        <script src="/node_modules/@triiiceratops/plugin-image-download/dist/iife.js"></script>
     </head>
     <body>
         <!-- config toolbarOpen expands the toolbar so the plugin's
@@ -30,10 +31,8 @@
         <script>
             customElements.whenDefined('triiiceratops-viewer').then(() => {
                 const viewer = document.querySelector('triiiceratops-viewer');
-                // The plugin IIFE registered its factory into the shared
-                // order-independent namespace; activation is explicit.
                 const plugin = window.Triiiceratops.plugins.get(
-                    '@triiiceratops/plugin-image-download',
+                    '@triiiceratops/plugin-image-export',
                 );
                 viewer.plugins = [plugin];
             });

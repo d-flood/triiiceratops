@@ -59,7 +59,7 @@ nav = [
         { "Plugin System" = "plugins.md" },
         { "First-party Plugins" = [
             { "Image Manipulation" = "plugin-image-manipulation.md" },
-            { "Image Download" = "plugin-image-download.md" },
+            { "Image Download" = "plugin-image-export.md" },
             { "PDF Export" = "plugin-pdf-export.md" },
             { "Annotation Editor" = "plugin-annotation-editor.md" },
         ] },

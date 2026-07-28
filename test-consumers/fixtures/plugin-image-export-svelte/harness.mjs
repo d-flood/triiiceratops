@@ -1,15 +1,15 @@
 import { expect } from '@playwright/test';
 
-// plugin-image-download-svelte: a Vite + Svelte app that renders the real viewer
+// plugin-image-export-svelte: a Vite + Svelte app that renders the real viewer
 // from the packed `triiiceratops` tarball and activates the migrated
-// `@triiiceratops/plugin-image-download` plugin (packed ESM entry) through the
+// `@triiiceratops/plugin-image-export` plugin (packed ESM entry) through the
 // viewer's `plugins` prop. This journey proves the plugin's validation duty
 // (SPEC Plugin Migration): ASYNCHRONOUS operations and BINARY output through the
 // SDK seam. It opens the panel, triggers an export, and asserts a download-ready
 // Blob is produced — captured by intercepting `URL.createObjectURL` (the object
 // URL the download is built from).
 export default {
-    name: 'plugin-image-download-svelte',
+    name: 'plugin-image-export-svelte',
     buildScript: 'build',
     serveDir: 'dist',
     manifestTarget: 'public/manifest.json',
@@ -17,7 +17,7 @@ export default {
     tarballs: [
         'triiiceratops',
         '@triiiceratops/plugin-sdk',
-        '@triiiceratops/plugin-image-download',
+        '@triiiceratops/plugin-image-export',
     ],
     async assert({ page, baseURL, pageErrors }) {
         // Blob interception: record every object URL minted for a Blob so we can
@@ -55,7 +55,7 @@ export default {
         // panel. The app opens the toolbar via config (`toolbarOpen`), so the
         // button sits visible among the toolbar buttons.
         const toggle = page.locator(
-            '[aria-label="@triiiceratops/plugin-image-download"]',
+            '[aria-label="@triiiceratops/plugin-image-export"]',
         );
         await expect(toggle).toBeVisible({ timeout: 30_000 });
         await toggle.click();

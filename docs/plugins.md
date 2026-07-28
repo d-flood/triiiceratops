@@ -162,7 +162,7 @@ factory (PDF export, annotation editor) are configured by calling the factory;
 see the [available plugins reference](#available-plugins).
 
 ```ts
-import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-download';
+import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
 import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
 
 viewer.plugins = [ImageDownloadPlugin, createPdfExportPlugin()];
@@ -352,7 +352,7 @@ framework](plugin-authoring.md#rendering-ui-in-your-framework).
 | Plugin | What it does | Renders as |
 | :----- | :------------ | :--------- |
 | [Image Manipulation](plugin-image-manipulation.md) | Brightness, contrast, saturation, invert, and grayscale controls for the displayed image | Flyout |
-| [Image Download](plugin-image-download.md) | Downloads the current canvas (composite, single image, or current view) as a raster image | Panel |
+| [Image Download](plugin-image-export.md) | Downloads the current canvas (composite, single image, or current view) as a raster image | Panel |
 | [PDF Export](plugin-pdf-export.md) | Exports a range of canvases as a browser-generated PDF, with optional OCR text and a cover sheet | Panel |
 | [Annotation Editor](plugin-annotation-editor.md) | Rectangle/polygon/point annotation authoring with pluggable persistence and host extension hooks | Panel or flyout |
 
@@ -375,8 +375,8 @@ reference.
 | `@triiiceratops/plugin-sdk/testing`                  | SDK plugin test kit                      |
 | `@triiiceratops/plugin-image-manipulation`           | Image manipulation plugin (ES module)    |
 | `@triiiceratops/plugin-image-manipulation/iife`      | Image manipulation plugin (IIFE)         |
-| `@triiiceratops/plugin-image-download`               | Image download plugin (ES module)        |
-| `@triiiceratops/plugin-image-download/iife`          | Image download plugin (IIFE)             |
+| `@triiiceratops/plugin-image-export`               | Image download plugin (ES module)        |
+| `@triiiceratops/plugin-image-export/iife`          | Image download plugin (IIFE)             |
 | `@triiiceratops/plugin-pdf-export`                   | PDF export plugin (ES module)            |
 | `@triiiceratops/plugin-pdf-export/iife`              | PDF export plugin (IIFE)                 |
 | `@triiiceratops/plugin-annotation-editor`            | Annotation editor plugin (ES module)     |

@@ -190,6 +190,7 @@ export { svgIcon, SvgIconError } from './svgIcon.js';
 export { definePluginStyles } from './pluginStyles.js';
 export { whenOsdReady } from './osd.js';
 export type { WhenOsdReadyOptions } from './osd.js';
+export { dispatchPluginCommandError } from './reportError.js';
 export { activatePlugin, runActivation } from './activate.js';
 export { createSelectorRuntime } from './selectors.js';
 export type { SelectorRuntime } from './selectors.js';
@@ -393,6 +394,12 @@ declare global {
 /** Bootstrap `window.Triiiceratops` if absent and register the plugin factory. */
 export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
 export {};
+
+// ======================================================================
+// FILE: dist/reportError.d.ts
+// ======================================================================
+/** Dispatch an actionable plugin command failure on the host error channel. */
+export declare function dispatchPluginCommandError(node: EventTarget, pluginName: string, pluginVersion: string, error: unknown, retry: () => void): void;
 
 // ======================================================================
 // FILE: dist/selectors.d.ts

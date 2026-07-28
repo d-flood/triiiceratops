@@ -17,6 +17,7 @@ import {
     downloadBlob,
     getCanvasId,
     getCanvasLabel,
+    getCompositeImagePlacement,
     getResolvedImageExportUrl,
     getThumbnailSrc,
     parseAnnotation,
@@ -552,16 +553,15 @@ function getCompositeCanvasImages(
 
     const images: CompositeCanvasImage[] = [];
     for (const resolvedImage of resolvedImages) {
-        const width = Math.max(
-            1,
-            Math.round(resolvedImage.width * canvasWidth * scale),
+        const placement = getCompositeImagePlacement(
+            resolvedImage,
+            canvasWidth,
+            canvasHeight,
+            scale,
         );
-        const aspect =
-            resolvedImage.resourceWidth && resolvedImage.resourceHeight
-                ? resolvedImage.resourceHeight / resolvedImage.resourceWidth
-                : canvasHeight / canvasWidth;
-        const height = Math.max(1, Math.round(width * aspect));
-        const imageUrl = getResolvedImageExportUrl(resolvedImage, { width });
+        const imageUrl = getResolvedImageExportUrl(resolvedImage, {
+            width: placement.width,
+        });
 
         if (!imageUrl) {
             return null;
@@ -570,10 +570,7 @@ function getCompositeCanvasImages(
         images.push({
             resolvedImage,
             imageUrl,
-            x: Math.round(resolvedImage.x * canvasWidth * scale),
-            y: Math.round(resolvedImage.y * canvasHeight * scale),
-            width,
-            height,
+            ...placement,
         });
     }
 

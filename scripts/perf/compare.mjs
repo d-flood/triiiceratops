@@ -54,7 +54,7 @@ const BUILD_STEPS = [
     ['triiiceratops', 'build:element'],
     ['@triiiceratops/plugin-sdk', 'build'],
     ['@triiiceratops/plugin-image-manipulation', 'build'],
-    ['@triiiceratops/plugin-image-download', 'build'],
+    ['@triiiceratops/plugin-image-export', 'build'],
     ['@triiiceratops/plugin-pdf-export', 'build'],
     ['@triiiceratops/plugin-annotation-editor', 'build'],
 ];

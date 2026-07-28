@@ -91,9 +91,9 @@ const PACKAGES_TO_PACK = [
         // ESM + IIFE (vite) + types (tsc). Its export helpers consume core's
         // `triiiceratops/image-export` seam, so it must stay AFTER core and the
         // SDK.
-        filter: '@triiiceratops/plugin-image-download',
+        filter: '@triiiceratops/plugin-image-export',
         build: ['build'],
-        tarballName: '_triiiceratops_plugin-image-download.tgz',
+        tarballName: '_triiiceratops_plugin-image-export.tgz',
     },
     {
         // Ticket 16 pdf-export plugin. `build` = ESM + IIFE (vite) + types (tsc);
@@ -142,8 +142,8 @@ export const FIXTURES = [
     // export, and asserts a download-ready binary Blob is produced (async +
     // binary output validation duty); `-iife` loads core + plugin IIFEs in BOTH
     // script orders and asserts the same.
-    'plugin-image-download-svelte',
-    'plugin-image-download-iife',
+    'plugin-image-export-svelte',
+    'plugin-image-export-iife',
     // Ticket 16: the migrated pdf-export plugin, consumed from its packed
     // tarball. `-svelte` activates the ESM entry on a real viewer and asserts a
     // real multi-page PDF export completes (download intercepted; bytes start

@@ -40,8 +40,8 @@ export const PUBLISHABLE_PACKAGES = [
         build: ['build'],
     },
     {
-        name: '@triiiceratops/plugin-image-download',
-        dir: 'plugin-image-download',
+        name: '@triiiceratops/plugin-image-export',
+        dir: 'plugin-image-export',
         build: ['build'],
     },
     {

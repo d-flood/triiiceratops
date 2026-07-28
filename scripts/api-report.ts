@@ -55,8 +55,8 @@ const PACKAGES = [
         dir: 'plugin-image-manipulation',
     },
     {
-        name: '@triiiceratops/plugin-image-download',
-        dir: 'plugin-image-download',
+        name: '@triiiceratops/plugin-image-export',
+        dir: 'plugin-image-export',
     },
     { name: '@triiiceratops/plugin-pdf-export', dir: 'plugin-pdf-export' },
     {
@@ -89,7 +89,7 @@ function buildDeclarations(): void {
     run('--filter triiiceratops build:testing');
     run('--filter @triiiceratops/plugin-sdk build');
     run('--filter @triiiceratops/plugin-image-manipulation build:types');
-    run('--filter @triiiceratops/plugin-image-download build:types');
+    run('--filter @triiiceratops/plugin-image-export build:types');
     run('--filter @triiiceratops/plugin-pdf-export build:types');
     run('--filter @triiiceratops/plugin-annotation-editor build:types');
 }

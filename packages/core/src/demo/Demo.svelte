@@ -12,7 +12,7 @@
         type CanvasRegion,
     } from '../lib/utils/contentState';
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-    import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-download';
+    import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
     import { PdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
     import { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';
     import type { SdkPlugin } from '../lib/types/plugin';

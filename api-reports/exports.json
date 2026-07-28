@@ -86,7 +86,7 @@
             "./iife": "./dist/iife.js"
         }
     },
-    "@triiiceratops/plugin-image-download": {
+    "@triiiceratops/plugin-image-export": {
         "main": "./dist/index.js",
         "module": "./dist/index.js",
         "svelte": null,

@@ -349,67 +349,41 @@ export class ManifestsState {
             };
         };
 
-        // Helper to parse list using Manifesto
-        const parseList = (listJson: any) => {
-            // manifesto.create is not available in 4.3.0 or not exported nicely?
-            // Just return raw resources.
-            const raw = listJson.resources || listJson.items || [];
-            const items = Array.isArray(raw) ? raw : [raw];
-            return items.map(attachCanvasContext);
+        const appendItems = (value: any) => {
+            const items = Array.isArray(value) ? value : value ? [value] : [];
+            for (const item of items) {
+                annotations.push(attachCanvasContext(item));
+            }
         };
 
-        const ensureArray = (val: any): any[] =>
-            (Array.isArray(val) ? val : val ? [val] : []).map(
-                attachCanvasContext,
-            );
-
-        // IIIF v2 otherContent
-        if (canvasJson.otherContent) {
-            canvasJson.otherContent.forEach((content: any) => {
+        const collectPages = (
+            pages: any[] | undefined,
+            inlineField: 'resources' | 'items',
+        ) => {
+            pages?.forEach((content: any) => {
                 if (!this.matchesAnnotationSource(content, sourceId)) {
                     return;
                 }
 
                 const id = content['@id'] || content.id;
-                if (id && !content.resources) {
-                    const externalList = this.manifests[id];
-                    if (externalList) {
-                        if (externalList.json) {
-                            const parsed = parseList(externalList.json);
-                            annotations.push(...parsed);
-                        }
-                    } else {
+                const inlineItems = content[inlineField];
+                if (id && !inlineItems) {
+                    const externalJson = this.manifests[id]?.json;
+                    if (externalJson) {
+                        appendItems(
+                            externalJson.resources || externalJson.items,
+                        );
+                    } else if (!this.manifests[id]) {
                         this.fetchAnnotationList(id);
                     }
-                } else if (content.resources) {
-                    annotations.push(...ensureArray(content.resources));
+                } else if (inlineItems) {
+                    appendItems(inlineItems);
                 }
             });
-        }
+        };
 
-        // IIIF v3 annotations
-        if (canvasJson.annotations) {
-            canvasJson.annotations.forEach((content: any) => {
-                if (!this.matchesAnnotationSource(content, sourceId)) {
-                    return;
-                }
-
-                const id = content.id || content['@id'];
-                if (id && !content.items) {
-                    const externalList = this.manifests[id];
-                    if (externalList) {
-                        if (externalList.json) {
-                            const parsed = parseList(externalList.json);
-                            annotations.push(...parsed);
-                        }
-                    } else {
-                        this.fetchAnnotationList(id);
-                    }
-                } else if (content.items) {
-                    annotations.push(...ensureArray(content.items));
-                }
-            });
-        }
+        collectPages(canvasJson.otherContent, 'resources');
+        collectPages(canvasJson.annotations, 'items');
 
         return annotations;
     }

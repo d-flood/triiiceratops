@@ -4,7 +4,7 @@
   "initialVersions": {
     "triiiceratops": "0.20.3",
     "@triiiceratops/plugin-annotation-editor": "1.0.0-rc.0",
-    "@triiiceratops/plugin-image-download": "1.0.0-rc.0",
+    "@triiiceratops/plugin-image-export": "1.0.0-rc.0",
     "@triiiceratops/plugin-image-manipulation": "1.0.0-rc.0",
     "@triiiceratops/plugin-pdf-export": "1.0.0-rc.0",
     "@triiiceratops/plugin-sdk": "1.0.0-rc.0",
@@ -32,7 +32,7 @@
     "odd-wings-smash",
     "plenty-melons-clap",
     "plugin-annotation-editor-chrome-restore",
-    "plugin-image-download-chrome-and-css",
+    "plugin-image-export-chrome-and-css",
     "plugin-image-manipulation-flyout-restore",
     "plugin-pdf-export-csp-safe-css",
     "plugin-sdk-chrome-and-style-helpers",

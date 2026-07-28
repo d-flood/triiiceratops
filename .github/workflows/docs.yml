@@ -71,8 +71,14 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
+            # `build:all` builds the plugin packages (in dependency order)
+            # BEFORE the demos that import them — `build:demo` compiles
+            # Demo.svelte, which imports @triiiceratops/plugin-* whose dist/
+            # must already exist. The old hand-rolled list (build:lib →
+            # build:demo) never built the plugins, so the demo failed to
+            # resolve them on a clean CI checkout.
             - name: Build Docs Assets
-              run: pnpm build:lib && pnpm build:element && pnpm build:webcomponent-demo && pnpm build:demo && pnpm build:svelte-demo
+              run: pnpm build:all
 
             - uses: actions/setup-python@v5
               with:
