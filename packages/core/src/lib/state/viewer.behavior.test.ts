@@ -642,16 +642,6 @@ describe('ViewerState manifest behavior', () => {
         expect(state.showThumbnailGallery).toBe(true);
     });
 
-    it('defaults galleryThumbnailSize and reflects config overrides', () => {
-        expect(state.galleryThumbnailSize).toBe(160);
-
-        state.updateConfig({ gallery: { thumbnailSize: 240 } });
-
-        expect(state.galleryThumbnailSize).toBe(240);
-        // The strip keeps its own independent knob.
-        expect(state.galleryFixedHeight).toBe(75);
-    });
-
     it('defaults preserveCanvasScale to false in getter and snapshot', () => {
         expect(state.preserveCanvasScale).toBe(false);
         expect(state.getSnapshot().preserveCanvasScale).toBe(false);

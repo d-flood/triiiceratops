@@ -553,13 +553,6 @@ export declare class ViewerState {
     get showZoomControls(): boolean;
     get preserveCanvasScale(): boolean;
     get galleryFixedHeight(): number;
-    /**
-     * Minimum cell width for the expanded gallery grid. Distinct from
-     * {@link galleryFixedHeight}, which sizes the docked strip: a 75px-tall
-     * strip thumbnail is the right size for a rail and far too small for a
-     * full-column grid, so the two views get independent knobs.
-     */
-    get galleryThumbnailSize(): number;
     private _viewingMode;
     private _viewingModeUserConfigured;
     get viewingMode(): "individuals" | "paged" | "continuous";
@@ -874,6 +867,12 @@ export declare class ViewerState {
      * `false` for an unknown id.
      */
     isPluginOpen(pluginId: string): boolean;
+    /**
+     * Open or close a plugin's panel/flyout. A no-op (and no notification) if the
+     * plugin is unknown or already in that state, matching
+     * {@link setPluginTarget} / {@link setPluginPosition} — a redundant call must
+     * not wake every plugin's subscription for a change that did not happen.
+     */
     setPluginOpen(pluginId: string, open: boolean): void;
     /**
      * Flip a plugin's open state. This is what the plugin's toolbar button does,
@@ -1335,7 +1334,9 @@ export interface GalleryConfig {
      */
     showCloseButton?: boolean;
     /**
-     * Fixed height for thumbnails in the horizontal strip view (in pixels).
+     * Thumbnail size in pixels: the row height in the horizontal strip view, and
+     * the minimum cell width of the grid used by the floating and expanded views
+     * (cells flex wider to fill the row, so this sets how many fit across).
      * @default 75
      */
     fixedHeight?: number;
@@ -1346,13 +1347,6 @@ export interface GalleryConfig {
      * @default false
      */
     expanded?: boolean;
-    /**
-     * Minimum thumbnail cell width for the expanded grid (in pixels). Cells
-     * flex wider to fill the row; this sets how many fit across. Only affects
-     * the expanded view — the docked strip uses `fixedHeight`.
-     * @default 160
-     */
-    thumbnailSize?: number;
     /**
      * Width of the gallery window when floating (in pixels).
      */

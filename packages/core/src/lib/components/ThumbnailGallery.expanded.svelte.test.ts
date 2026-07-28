@@ -21,8 +21,12 @@ import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
  *   instances would both run the dockSide sync effects and fight over them.
  * - Expanding leaves `dockSide` alone, so collapsing puts the gallery back
  *   exactly where it was without any saved-state bookkeeping.
- * - The caret points the way the gallery will travel (up out of a bottom dock,
- *   back down to collapse), which is what makes it readable as an affordance.
+ * - The caret keeps its edge across the transition — a bottom dock's caret is on
+ *   its top edge and stays there as that edge travels to the top of the column —
+ *   so the control never jumps out from under the cursor. Only the glyph flips,
+ *   to keep pointing the way the gallery will travel next.
+ * - The expanded view is the floating window's grid at viewer size, not a third
+ *   layout with its own density.
  * - The overlay covers the center column only: side panels stay usable.
  */
 
@@ -127,15 +131,23 @@ async function settle(ms = 300) {
 }
 
 // happy-dom ships an incomplete Web Animations API and Svelte's panel/gallery
-// transitions call `element.animate()`; a no-op keeps them inert so the effects
-// scheduled after them are observed deterministically.
+// transitions call `element.animate()`. This stub completes immediately by firing
+// `onfinish` on the next tick — it must actually finish, not merely no-op: the
+// expanded gallery's drawer transition has an OUTRO, and Svelte only unmounts the
+// node once the animation reports completion. A permanently-pending animation
+// would leave the collapsed overlay in the DOM forever and every `toBeNull()`
+// below would fail for the wrong reason.
 beforeAll(() => {
     Element.prototype.animate = function () {
-        return {
-            onfinish: null,
-            oncancel: null,
-            cancel() {},
-            finish() {},
+        const anim = {
+            onfinish: null as null | (() => void),
+            oncancel: null as null | (() => void),
+            cancel() {
+                anim.oncancel?.();
+            },
+            finish() {
+                anim.onfinish?.();
+            },
             play() {},
             pause() {},
             addEventListener() {},
@@ -143,7 +155,9 @@ beforeAll(() => {
             finished: Promise.resolve(),
             currentTime: 0,
             playState: 'finished',
-        } as unknown as Animation;
+        };
+        setTimeout(() => anim.onfinish?.(), 0);
+        return anim as unknown as Animation;
     };
     // `scrollIntoView` is unimplemented in happy-dom; the auto-scroll effect
     // calls it on every canvas change.
@@ -278,34 +292,77 @@ describe('expanded thumbnail gallery', () => {
         const track = target.querySelector('.gallery-track');
         expect(track?.classList.contains('track-vertical')).toBe(true);
         expect(track?.classList.contains('track-horizontal')).toBe(false);
-        // Expanded cells use the gallery's own size knob (default 160), not the
-        // 75px strip height.
-        expect(track?.getAttribute('style')).toContain('minmax(160px');
     });
 
-    it('honors the thumbnailSize config in the expanded grid', async () => {
+    /**
+     * The expanded view is the floating window's grid at viewer size, not a third
+     * layout: same `fixedHeight` cell floor, same track classes. Asserted by
+     * comparing the two directly, so a future density tweak to one that skips the
+     * other fails here.
+     */
+    it('uses the same grid geometry as the floating window', async () => {
+        const trackStyle = (root: HTMLElement) =>
+            root.querySelector('.gallery-track')?.getAttribute('style')?.trim();
+        const trackClass = (root: HTMLElement) =>
+            root.querySelector('.gallery-track')?.className;
+
+        await mountViewer({ dockPosition: 'bottom', expanded: true });
+        const expandedStyle = trackStyle(target);
+        const expandedClass = trackClass(target);
+
+        // A floating window tall enough to take the grid branch.
+        for (const app of apps.splice(0)) await unmount(app);
+        target.remove();
+        target = document.createElement('div');
+        document.body.appendChild(target);
+        await mountViewer({ dockPosition: 'none', height: 500, width: 400 });
+
+        expect(expandedStyle).toBe(trackStyle(target));
+        expect(expandedClass).toBe(trackClass(target));
+        // And that shared geometry is driven by fixedHeight (default 75).
+        expect(expandedStyle).toContain('minmax(75px');
+    });
+
+    it('honors gallery.fixedHeight as the expanded grid cell floor', async () => {
         await mountViewer({
             dockPosition: 'bottom',
             expanded: true,
-            thumbnailSize: 240,
+            fixedHeight: 120,
         });
 
         const track = target.querySelector('.gallery-track');
-        expect(track?.getAttribute('style')).toContain('minmax(240px');
+        expect(track?.getAttribute('style')).toContain('minmax(120px');
     });
 
-    it('points the caret along the direction of travel', async () => {
+    it('keeps the caret on the same edge across expand, flipping only the glyph', async () => {
         const props = await mountViewer({ dockPosition: 'bottom' });
 
-        // Collapsed at the bottom: the gallery grows upward, and the caret rides
-        // the edge facing the canvas.
+        // Collapsed at the bottom: the caret rides the edge facing the canvas.
         expect(roots()[0].classList.contains('caret-top')).toBe(true);
+        const collapsedGlyph = caret()?.innerHTML;
 
         props.viewerState?.setGalleryExpanded(true);
         await settle();
 
-        // Expanded: it shrinks back down, so the caret moves to the dock edge.
-        expect(roots()[0].classList.contains('caret-bottom')).toBe(true);
+        // Expanded: the SAME edge travels to the top of the column and takes the
+        // caret with it — it must not jump to the opposite side under the cursor.
+        expect(roots()[0].classList.contains('caret-top')).toBe(true);
+        expect(roots()[0].classList.contains('caret-bottom')).toBe(false);
+
+        // Only the glyph changes, to keep pointing the way it will travel next.
+        expect(caret()?.innerHTML).not.toBe(collapsedGlyph);
+    });
+
+    it('keeps the caret on the inboard edge of a side dock across expand', async () => {
+        const props = await mountViewer({ dockPosition: 'left' });
+
+        expect(roots()[0].classList.contains('caret-right')).toBe(true);
+
+        props.viewerState?.setGalleryExpanded(true);
+        await settle();
+
+        expect(roots()[0].classList.contains('caret-right')).toBe(true);
+        expect(roots()[0].classList.contains('caret-left')).toBe(false);
     });
 
     it('collapses on Escape', async () => {

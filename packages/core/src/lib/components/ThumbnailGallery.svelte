@@ -339,8 +339,12 @@
     let expanded = $derived(viewerState.galleryExpanded);
 
     // Switch to horizontal layout if height is small or docked to top/bottom.
-    // Expanded always wins: a strip stretched to the full center column would be
-    // one absurdly tall row, so expanding is always a grid.
+    //
+    // Expanded always wins: an expanded gallery IS the floating window's grid at
+    // viewer size — same `fixedHeight` cell floor, same padding and gap — so it
+    // takes the grid branch for the same reason a tall floating window does.
+    // Deliberately not a third layout with its own density: the float grid is
+    // already the right one, and one fewer knob is one fewer thing to diverge.
     let isHorizontal = $derived(
         !expanded &&
             (dockSide === 'top' ||
@@ -351,15 +355,9 @@
     let fixedHeight = $derived(viewerState.galleryFixedHeight);
     let isRTL = $derived(viewerState.viewingDirection === 'right-to-left');
 
-    // Grid cell floor: the expanded view gets its own knob because the strip's
-    // 75px default is far too small to read as a gallery at full-column size.
-    let gridMinCell = $derived(
-        expanded ? viewerState.galleryThumbnailSize : fixedHeight,
-    );
-
-    // The expand/collapse control always points the way the gallery will travel:
-    // away from its dock edge to expand, back toward it to collapse. A floating
-    // gallery has no edge to travel from, so it gets maximize/restore instead.
+    // The glyph points the way the gallery will travel: away from its dock edge
+    // to expand, back toward it to collapse. A floating gallery has no edge to
+    // travel from, so it gets maximize/restore instead.
     const EXPAND_CARET = {
         top: 'CaretDown',
         bottom: 'CaretUp',
@@ -385,18 +383,19 @@
     );
 
     /**
-     * Which of the gallery's own edges carries the caret. Collapsed, it rides
-     * the edge facing the canvas (the direction it will grow); expanded, it
-     * rides the dock edge (the direction it will shrink back to). The control
-     * stays inside the gallery's bounds either way — protruding into the canvas
-     * would collide with the bottom-centered canvas nav.
+     * Which of the gallery's own edges carries the caret: always the one facing
+     * the canvas, in both states. A bottom-docked gallery's caret sits on its top
+     * edge, and expanding carries that same edge (and the caret with it) up to the
+     * top of the viewer — the control never jumps to the opposite side under the
+     * user's cursor. Only the glyph flips, to keep pointing the way the gallery
+     * will travel next.
+     *
+     * It stays inside the gallery's bounds rather than protruding as a tab,
+     * because the canvas side of a bottom-docked strip is where the canvas nav
+     * lives.
      */
     let caretEdge = $derived(
-        dockEdge === null
-            ? null
-            : expanded
-              ? dockEdge
-              : OPPOSITE_EDGE[dockEdge],
+        dockEdge === null ? null : OPPOSITE_EDGE[dockEdge],
     );
 
     let toggleIcon = $derived<IconName>(
@@ -623,7 +622,7 @@
             </div>
         {/if}
 
-        <!-- Expand/collapse caret, centered on the travel edge (docked only) -->
+        <!-- Expand/collapse caret, centered on the canvas-facing edge (docked only) -->
         {#if caretEdge}
             <button
                 class="expand-toggle toggle-edge"
@@ -632,7 +631,7 @@
                 aria-expanded={expanded}
                 title={toggleLabel}
             >
-                <Icon name={toggleIcon} size={14} />
+                <Icon name={toggleIcon} size={12} />
             </button>
         {/if}
 
@@ -652,7 +651,7 @@
                 ]}
                 style={isHorizontal
                     ? ''
-                    : `grid-template-columns: repeat(auto-fill, minmax(${gridMinCell}px, 1fr));`}
+                    : `grid-template-columns: repeat(auto-fill, minmax(${fixedHeight}px, 1fr));`}
             >
                 {#if viewerState.viewingMode === 'paged'}
                     <!-- grouped thumbnail display -->
@@ -999,16 +998,19 @@
     }
     /* Expanded: the parent host (.gallery-expanded in TriiiceratopsViewer) owns
        the inset-0 positioning, exactly as the docked bands own the strip's size —
-       the gallery just fills what it is given. Roomier padding/gap than the strip
-       because a full-column grid reads as cramped at strip density. */
+       the gallery just fills what it is given.
+
+       Structurally identical to `.floating` apart from the positioning the host
+       owns — same column flow, same clipped overflow — so the expanded gallery is
+       literally the floating window's grid at viewer size. It sets no padding,
+       gap, or cell size of its own: those stay on the shared `.gallery-content` /
+       `.gallery-track` rules, which is what keeps the two views from drifting. */
     .gallery-root.expanded {
         position: relative;
         flex-direction: column;
         width: 100%;
         height: 100%;
         overflow: hidden;
-        --ui-gallery-pad: 0.75rem;
-        --ui-gallery-gap: 0.75rem;
     }
 
     /* ===== Header / drag handle ===== */
@@ -1079,12 +1081,21 @@
     }
 
     /* ===== Expand / collapse control =====
-       `toggle-edge` rides the centre of whichever gallery edge faces the
-       direction of travel (see `caretEdge`). It stays inside the gallery's own
-       bounds rather than protruding as a tab, because the canvas side of a
-       bottom-docked strip is where the canvas nav lives. The docked hosts add
-       CARET_SPACE (22px) to the band/rail size and the matching
-       `.caret-* .gallery-content` padding below keeps thumbnails clear of it. */
+       `toggle-edge` is a low-profile tab centred on whichever gallery edge faces
+       the canvas (see `caretEdge`).
+
+       It reserves NO layout space: it is absolutely positioned over the gallery's
+       own edge, so the docked band/rail measures exactly what it did before this
+       control existed and opening the gallery costs no extra height. The price is
+       that it overlays content rather than sitting in a gutter — hence the
+       semi-opaque backdrop, which keeps the glyph legible over a busy thumbnail
+       and over rows scrolling beneath it. In the horizontal strip it happens to
+       land in the slack the centred track already leaves above the thumbnails, so
+       there it overlaps nothing at all.
+
+       It stays inside the gallery's bounds rather than protruding into the canvas,
+       because the canvas side of a bottom-docked strip is where the canvas nav
+       lives. */
     .expand-toggle {
         display: flex;
         align-items: center;
@@ -1092,75 +1103,89 @@
         color: var(--tri-gallery-content);
         background-color: color-mix(
             in oklab,
-            var(--tri-gallery-bg) 85%,
-            var(--tri-surface-border)
+            var(--tri-gallery-bg) 82%,
+            transparent
         );
-        border: 1px solid var(--tri-surface-border);
+        border: 0;
         cursor: pointer;
         z-index: 60;
-        transition-property: color, background-color, border-color;
+        opacity: 0.5;
+        transition-property: opacity, background-color;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
-    .expand-toggle:hover {
-        background-color: var(--tri-surface-border);
+    .expand-toggle:hover,
+    .expand-toggle:focus-visible {
+        opacity: 1;
+        background-color: color-mix(
+            in oklab,
+            var(--tri-surface-border) 70%,
+            var(--tri-gallery-bg)
+        );
     }
     .expand-toggle.toggle-edge {
         position: absolute;
-        width: 2.75rem;
-        height: 1.125rem;
-        border-radius: calc(infinity * 1px);
+        width: 2.25rem;
+        height: 0.75rem;
+        padding: 0;
     }
-    /* The caret's gutter is padding on the ROOT, not on `.gallery-content`.
-       Padding on the scroll container only adds space after the last row, so
-       mid-scroll thumbnails would slide under the caret; reserving it outside
-       the scroll box keeps the gutter fixed. The absolutely positioned caret
-       still lands in it, since its offsets resolve against the padding box.
-       `GALLERY_CARET_SPACE` in TriiiceratopsViewer grows the docked band/rail by
-       the matching 22px, so this costs the strip no thumbnail height. */
-    .gallery-root.caret-top,
-    .gallery-root.caret-bottom,
-    .gallery-root.caret-left,
-    .gallery-root.caret-right {
+    /* Expanded only: reserve the tab's 12px as root padding. The overlay fills the
+       center column either way, so this costs no gallery size — it just insets the
+       grid so no cell is clipped and no scrolled row passes beneath the tab. It
+       must be padding on the ROOT, not on `.gallery-content`: padding on a scroll
+       box scrolls away with its content. The docked strip deliberately gets none
+       of this — there the tab lands in the centred track's existing slack, so the
+       strip measures exactly what it did before this control existed. */
+    .gallery-root.expanded.caret-top,
+    .gallery-root.expanded.caret-bottom,
+    .gallery-root.expanded.caret-left,
+    .gallery-root.expanded.caret-right {
         box-sizing: border-box;
     }
-    .gallery-root.caret-top {
-        padding-top: 1.375rem;
+    .gallery-root.expanded.caret-top {
+        padding-top: 0.75rem;
     }
-    .gallery-root.caret-bottom {
-        padding-bottom: 1.375rem;
+    .gallery-root.expanded.caret-bottom {
+        padding-bottom: 0.75rem;
     }
-    .gallery-root.caret-left {
-        padding-left: 1.375rem;
+    .gallery-root.expanded.caret-left {
+        padding-left: 0.75rem;
     }
-    .gallery-root.caret-right {
-        padding-right: 1.375rem;
+    .gallery-root.expanded.caret-right {
+        padding-right: 0.75rem;
     }
-    /* Vertical edges get the pill rotated onto its short axis. */
+
+    /* Vertical edges get the tab rotated onto its short axis. */
     .caret-left > .toggle-edge,
     .caret-right > .toggle-edge {
-        width: 1.125rem;
-        height: 2.75rem;
+        width: 0.75rem;
+        height: 2.25rem;
     }
+    /* Flush with the canvas-facing edge, rounded on that side only, so it reads
+       as a small handle rising out of the gallery. */
     .caret-top > .toggle-edge {
-        top: 0.25rem;
+        top: 0;
         left: 50%;
         transform: translateX(-50%);
+        border-radius: 0.25rem 0.25rem 0 0;
     }
     .caret-bottom > .toggle-edge {
-        bottom: 0.25rem;
+        bottom: 0;
         left: 50%;
         transform: translateX(-50%);
+        border-radius: 0 0 0.25rem 0.25rem;
     }
     .caret-left > .toggle-edge {
-        left: 0.25rem;
+        left: 0;
         top: 50%;
         transform: translateY(-50%);
+        border-radius: 0.25rem 0 0 0.25rem;
     }
     .caret-right > .toggle-edge {
-        right: 0.25rem;
+        right: 0;
         top: 50%;
         transform: translateY(-50%);
+        border-radius: 0 0.25rem 0.25rem 0;
     }
     .expand-toggle.toggle-inline {
         position: absolute;
