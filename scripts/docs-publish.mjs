@@ -14,6 +14,11 @@
 // `versions.json` plus root and `/latest/` redirects that point at the newest
 // published version.
 //
+// The `/viewer/` live demo is the one exception to versioning: IIIF cookbook
+// recipes link to it directly, so it is pulled out of the version directory
+// and published at a stable, unversioned top-level path instead — always
+// reflecting the latest build, not preserved per-version.
+//
 // Usage:
 //   node scripts/docs-publish.mjs --dest <publishRoot> [--version X.Y] [--site <dir>] [--no-build]
 //
@@ -167,10 +172,27 @@ function main() {
     }
 
     // 2. Place it under /<version>/, replacing ONLY that version directory.
+    //    `viewer/` is excluded here — see step 2b — because it can't live
+    //    inside a version directory.
     mkdirSync(args.dest, { recursive: true });
     const versionDest = join(args.dest, version);
+    const viewerSrc = join(args.site, 'viewer');
     rmSync(versionDest, { recursive: true, force: true });
-    cpSync(args.site, versionDest, { recursive: true });
+    cpSync(args.site, versionDest, {
+        recursive: true,
+        filter: (src) => src !== viewerSrc,
+    });
+
+    // 2b. The `/viewer/` demo is linked to directly by external IIIF cookbook
+    // recipes, so its URL must stay stable across releases instead of moving
+    // to /<version>/viewer/. Publish it at the top level, outside any version
+    // directory. Unlike the version directories, it is NOT preserved
+    // historically — each deploy overwrites it with the latest build.
+    if (existsSync(viewerSrc)) {
+        const viewerDest = join(args.dest, 'viewer');
+        rmSync(viewerDest, { recursive: true, force: true });
+        cpSync(viewerSrc, viewerDest, { recursive: true });
+    }
 
     // 3. Recompute the version set and the newest version.
     const versions = publishedVersions(args.dest); // newest first
