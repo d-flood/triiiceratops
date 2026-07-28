@@ -173,3 +173,98 @@ describe('activation service auto-cleanup', () => {
         activation.deactivate();
     });
 });
+
+describe('activation surface wiring', () => {
+    /** Capture the `context.surface` a plugin is handed at mount. */
+    function captureSurface(host: PluginHost) {
+        let surface: PluginContext['surface'] | undefined;
+        const activation = runActivation(
+            makeMeta({
+                mount(_container, context: PluginContext) {
+                    surface = context.surface;
+                    return () => {};
+                },
+            }),
+            host,
+        );
+        return { surface, activation };
+    }
+
+    it('passes the host-supplied surface straight through to the plugin', () => {
+        const styles = recordingStyles();
+        const locale = recordingLocale();
+        const closed = vi.fn();
+        const hostSurface = {
+            id: 'host-chrome-id',
+            isOpen: false,
+            target: 'flyout' as const,
+            open: vi.fn(),
+            close: closed,
+            toggle: vi.fn(),
+        };
+
+        const { surface, activation } = captureSurface({
+            ...makeHost(styles.service, locale.service),
+            surface: hostSurface,
+        });
+
+        // Identity, not a copy — the surface is a live projection of viewer state
+        // and must not be snapshotted on the way through.
+        expect(surface).toBe(hostSurface);
+        surface!.close();
+        expect(closed).toHaveBeenCalledTimes(1);
+
+        activation.deactivate();
+    });
+
+    it('stubs a chrome-less host as ALWAYS OPEN, keyed by the plugin id', () => {
+        // A bare `runActivation` has no toolbar button, panel, or flyout: the
+        // caller placed the container themselves, so nothing can hide the plugin.
+        // A `false` stub would silently park every plugin that gates work on
+        // `surface.isOpen`, which reads as a broken plugin.
+        const styles = recordingStyles();
+        const locale = recordingLocale();
+
+        const { surface, activation } = captureSurface(
+            makeHost(styles.service, locale.service),
+        );
+
+        expect(surface).toBeDefined();
+        expect(surface!.isOpen).toBe(true);
+        expect(surface!.id).toBe('@triiiceratops/plugin-services-test');
+        expect(surface!.target).toBe('panel');
+
+        // The no-op movers never change `isOpen`, so a subscriber correctly never
+        // wakes for a surface that cannot move.
+        expect(() => {
+            surface!.open();
+            surface!.close();
+            surface!.toggle();
+        }).not.toThrow();
+        expect(surface!.isOpen).toBe(true);
+
+        activation.deactivate();
+    });
+
+    it('prefers the plugin uiId over its package name for the stub id', () => {
+        const styles = recordingStyles();
+        const locale = recordingLocale();
+        let surface: PluginContext['surface'] | undefined;
+
+        const activation = runActivation(
+            {
+                ...makeMeta({
+                    mount(_container, context: PluginContext) {
+                        surface = context.surface;
+                        return () => {};
+                    },
+                }),
+                uiId: 'services-test',
+            },
+            makeHost(styles.service, locale.service),
+        );
+
+        expect(surface!.id).toBe('services-test');
+        activation.deactivate();
+    });
+});

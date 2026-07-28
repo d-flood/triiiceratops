@@ -368,4 +368,199 @@ describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
 
         await unmount(app);
     });
+
+    // ── PluginContext.surface — open/close awareness ─────────────────────────
+    //
+    // Core mounts the plugin ONCE (asserted above: `capture.mounts` stays 1
+    // across close→reopen), so a plugin cannot learn open/close from its mount
+    // lifecycle the way a legacy `PluginDef` component did. It learns it from
+    // `context.surface`. These are the end-to-end guards: a real toolbar button
+    // press in the real viewer chrome must reach the plugin's subscription.
+
+    /** A double that records every `surface.isOpen` value it observes. */
+    function makeSurfaceDouble(config: {
+        name: string;
+        target: 'flyout' | 'panel';
+        seen: boolean[];
+        surfaceRef?: { current: PluginContext['surface'] | null };
+    }): SdkPlugin {
+        const plugin = definePlugin({
+            name: config.name,
+            version: '1.0.0',
+            coreRange: '>=1.0.0-rc.0',
+            pluginApiRange: '^1.0.0',
+            requiredCapabilities: ['osd@5'],
+            icon: ICON,
+            target: config.target,
+            dismiss: 'explicit',
+            view: {
+                mount(container: HTMLElement, context: PluginContext) {
+                    if (config.surfaceRef) {
+                        config.surfaceRef.current = context.surface;
+                    }
+                    // Exactly how a plugin is meant to consume it: project the
+                    // surface through the memoized selector runtime, so the
+                    // equality gate collapses unrelated viewer changes.
+                    const open = context.selectors.select(
+                        () => context.surface.isOpen,
+                    );
+                    config.seen.push(open.get());
+                    container.textContent = 'surface-content';
+                    return open.subscribe((isOpen) => {
+                        config.seen.push(isOpen);
+                    });
+                },
+            },
+        });
+        return plugin as unknown as SdkPlugin;
+    }
+
+    it('tells a plugin when its flyout opens and closes from the toolbar button', async () => {
+        const seen: boolean[] = [];
+        const surfaceRef: { current: PluginContext['surface'] | null } = {
+            current: null,
+        };
+        const plugin = makeSurfaceDouble({
+            name: '@triiiceratops/plugin-surface-flyout',
+            target: 'flyout',
+            seen,
+            surfaceRef,
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        // Mounted closed: the plugin's first read reflects a closed surface, and
+        // its surface knows its own chrome id and authored target.
+        expect(seen).toEqual([false]);
+        expect(surfaceRef.current?.id).toBe(
+            'triiiceratops-plugin-surface-flyout',
+        );
+        expect(surfaceRef.current?.target).toBe('flyout');
+
+        const button = target.querySelector<HTMLElement>(
+            '[data-flyout-toggle][aria-label="@triiiceratops/plugin-surface-flyout"]',
+        );
+        expect(button).not.toBeNull();
+
+        // Open via the real toolbar button — the path that used to notify nobody.
+        button!.click();
+        await settle();
+        expect(seen).toEqual([false, true]);
+        expect(surfaceRef.current?.isOpen).toBe(true);
+
+        // Close via the same button.
+        button!.click();
+        await settle();
+        expect(seen).toEqual([false, true, false]);
+        expect(surfaceRef.current?.isOpen).toBe(false);
+
+        await unmount(app);
+    });
+
+    it('tells a plugin when its docked panel opens and closes', async () => {
+        const seen: boolean[] = [];
+        const plugin = makeSurfaceDouble({
+            name: '@triiiceratops/plugin-surface-panel',
+            target: 'panel',
+            seen,
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        const button = target.querySelector<HTMLElement>(
+            'button[aria-label="@triiiceratops/plugin-surface-panel"]',
+        );
+        expect(button).not.toBeNull();
+        expect(seen).toEqual([false]);
+
+        button!.click();
+        await settle();
+        expect(seen).toEqual([false, true]);
+
+        button!.click();
+        await settle();
+        expect(seen).toEqual([false, true, false]);
+
+        await unmount(app);
+    });
+
+    it('reports the surface already open when the consumer configured it open', async () => {
+        // `config.plugins[uiId].open` is applied before the plugin mounts, so the
+        // plugin's FIRST read is already `true` — it never sees a spurious
+        // closed→open transition on startup.
+        const seen: boolean[] = [];
+        const plugin = makeSurfaceDouble({
+            name: '@triiiceratops/plugin-surface-preopened',
+            target: 'panel',
+            seen,
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            config: {
+                plugins: {
+                    'triiiceratops-plugin-surface-preopened': { open: true },
+                },
+            },
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        expect(seen).toEqual([true]);
+
+        await unmount(app);
+    });
+
+    it('lets a plugin close its own surface from inside its content', async () => {
+        // The SDK equivalent of the `close` prop a legacy `PluginDef` component
+        // received — a "done"/"apply" affordance inside the plugin's own UI.
+        const seen: boolean[] = [];
+        const surfaceRef: { current: PluginContext['surface'] | null } = {
+            current: null,
+        };
+        const plugin = makeSurfaceDouble({
+            name: '@triiiceratops/plugin-surface-selfclose',
+            target: 'flyout',
+            seen,
+            surfaceRef,
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        const button = target.querySelector<HTMLElement>(
+            '[data-flyout-toggle][aria-label="@triiiceratops/plugin-surface-selfclose"]',
+        );
+        button!.click();
+        await settle();
+        expect(button!.getAttribute('aria-expanded')).toBe('true');
+
+        // The plugin closes itself; the toolbar button follows.
+        surfaceRef.current!.close();
+        await settle();
+        expect(button!.getAttribute('aria-expanded')).toBe('false');
+        expect(seen).toEqual([false, true, false]);
+        expect(
+            target.querySelector(
+                '[data-plugin-name="@triiiceratops/plugin-surface-selfclose"]',
+            ),
+        ).toBeNull();
+
+        await unmount(app);
+    });
 });

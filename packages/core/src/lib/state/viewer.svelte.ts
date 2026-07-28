@@ -81,6 +81,7 @@ export interface ViewerStateSnapshot {
         | 'top-to-bottom'
         | 'bottom-to-top';
     preserveCanvasScale: boolean;
+    galleryExpanded: boolean;
     galleryPosition: { x: number; y: number };
     gallerySize: { width: number; height: number };
 }
@@ -356,6 +357,14 @@ export class ViewerState {
     // Pairing offset for paged mode: 0 = default (pairs start at 1+2), 1 = shifted (page 1 alone, pairs start at 2+3)
     pagedOffset = $state(1);
 
+    /**
+     * Whether the gallery is expanded to fill the viewer's center column as a
+     * thumbnail grid. Orthogonal to {@link dockSide}: expanding renders the
+     * gallery as an overlay layer and leaves the dock side untouched, so
+     * collapsing restores the strip/rail/window exactly where it was.
+     */
+    galleryExpanded = $state(false);
+
     // Gallery State (Lifted for persistence during re-docking)
     galleryPosition = $state({ x: 20, y: 100 });
     gallerySize = $state({ width: 300, height: 400 });
@@ -431,6 +440,7 @@ export class ViewerState {
             viewingMode: this.viewingMode,
             viewingDirection: this.viewingDirection,
             preserveCanvasScale: this.preserveCanvasScale,
+            galleryExpanded: this.galleryExpanded,
             galleryPosition: this.galleryPosition,
             gallerySize: this.gallerySize,
         };
@@ -1032,6 +1042,14 @@ export class ViewerState {
             if (newConfig.gallery.y !== undefined) {
                 this.galleryPosition.y = newConfig.gallery.y;
             }
+            // Applied after `open` so `expanded: true` wins the implication
+            // regardless of key order in the host's config object.
+            if (newConfig.gallery.expanded !== undefined) {
+                this.galleryExpanded = newConfig.gallery.expanded;
+                if (newConfig.gallery.expanded) {
+                    this.showThumbnailGallery = true;
+                }
+            }
         }
 
         if (newConfig.search) {
@@ -1099,6 +1117,12 @@ export class ViewerState {
 
     toggleThumbnailGallery() {
         this.showThumbnailGallery = !this.showThumbnailGallery;
+        // Closing the gallery drops the expanded state: leaving it set would
+        // make the next open blow straight to full-column, which is never what
+        // the toggle button appears to promise.
+        if (!this.showThumbnailGallery) {
+            this.galleryExpanded = false;
+        }
         this.dispatchStateChange();
     }
 
@@ -1826,6 +1850,27 @@ export class ViewerState {
         });
     }
 
+    /**
+     * Expand the gallery to fill the viewer's center column as a thumbnail
+     * grid, or collapse it back to its docked strip / floating window.
+     *
+     * Expanding implies opening: an expanded-but-hidden gallery is not a state
+     * the UI can reach, so maintaining that invariant is why this is a command
+     * rather than a field write. Collapsing leaves the gallery open.
+     */
+    setGalleryExpanded(expanded: boolean): void {
+        this.galleryExpanded = expanded;
+        if (expanded) {
+            this.showThumbnailGallery = true;
+        }
+        this.dispatchStateChange();
+    }
+
+    /** Flip the gallery between expanded and collapsed (see {@link setGalleryExpanded}). */
+    toggleGalleryExpanded(): void {
+        this.setGalleryExpanded(!this.galleryExpanded);
+    }
+
     /** Move the floating (undocked) thumbnail gallery to an absolute position. */
     setGalleryPosition(position: { x: number; y: number }): void {
         this.galleryPosition = position;
@@ -1903,7 +1948,19 @@ export class ViewerState {
         return this.config.plugins?.[pluginId];
     }
 
-    private ensurePluginUiState(
+    /**
+     * Seed a plugin's UI state from its authored defaults plus any
+     * `config.plugins[pluginId]` override, or re-apply the config to an existing
+     * entry. Idempotent.
+     *
+     * Public because the SDK activation path needs the entry to EXIST before the
+     * plugin mounts: core runs `view.mount` before {@link registerSdkChrome} (to
+     * fail closed — a failed mount renders no button), and the plugin's
+     * `PluginSurface` reads open/target during mount. Host-facing, not
+     * plugin-facing: plugins go through {@link isPluginOpen} /
+     * {@link setPluginOpen} and friends.
+     */
+    ensurePluginUiState(
         pluginId: string,
         defaultTarget: PluginUiTarget = 'panel',
         defaultPosition: 'left' | 'right' | 'bottom' | 'overlay' = 'left',
@@ -1998,9 +2055,27 @@ export class ViewerState {
         }
     }
 
+    /**
+     * Is a plugin's panel/flyout currently open? The read half of
+     * {@link setPluginOpen}, and the state a plugin's `PluginSurface.isOpen`
+     * projects. Reflects every open-state write source alike: the toolbar button
+     * ({@link togglePluginOpen}), flyout light-dismiss
+     * ({@link closePluginFlyouts}), and `config.plugins[id].open`. Returns
+     * `false` for an unknown id.
+     */
+    isPluginOpen(pluginId: string): boolean {
+        return this.pluginUiState.get(pluginId)?.open ?? false;
+    }
+
+    /**
+     * Open or close a plugin's panel/flyout. A no-op (and no notification) if the
+     * plugin is unknown or already in that state, matching
+     * {@link setPluginTarget} / {@link setPluginPosition} — a redundant call must
+     * not wake every plugin's subscription for a change that did not happen.
+     */
     setPluginOpen(pluginId: string, open: boolean): void {
         const current = this.pluginUiState.get(pluginId);
-        if (!current) return;
+        if (!current || current.open === open) return;
 
         this.pluginUiState.set(pluginId, {
             ...current,
@@ -2009,7 +2084,13 @@ export class ViewerState {
         this.dispatchStateChange();
     }
 
-    private togglePluginOpen(pluginId: string): void {
+    /**
+     * Flip a plugin's open state. This is what the plugin's toolbar button does,
+     * so it must notify exactly like {@link setPluginOpen} — a plugin observing
+     * its own `PluginSurface.isOpen` reacts to a button press and to a
+     * programmatic open identically.
+     */
+    togglePluginOpen(pluginId: string): void {
         const current = this.pluginUiState.get(pluginId);
         if (!current) return;
 
@@ -2017,6 +2098,7 @@ export class ViewerState {
             ...current,
             open: !current.open,
         });
+        this.dispatchStateChange();
     }
 
     /**
@@ -2087,7 +2169,7 @@ export class ViewerState {
             onClick: () => {
                 this.togglePluginOpen(id);
             },
-            isActive: () => this.pluginUiState.get(id)?.open ?? false,
+            isActive: () => this.isPluginOpen(id),
             isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
             order: 200, // Default order for simple plugins
         };
@@ -2115,8 +2197,7 @@ export class ViewerState {
             // Live only while the effective target is 'panel' AND open; the
             // flyout entry covers the 'flyout' target.
             isVisible: () =>
-                this.getPluginTarget(id) === 'panel' &&
-                (this.pluginUiState.get(id)?.open ?? false),
+                this.getPluginTarget(id) === 'panel' && this.isPluginOpen(id),
             props: {
                 ...def.props,
                 // Pass closer to component
@@ -2172,7 +2253,7 @@ export class ViewerState {
             onClick: () => {
                 this.togglePluginOpen(id);
             },
-            isActive: () => this.pluginUiState.get(id)?.open ?? false,
+            isActive: () => this.isPluginOpen(id),
             isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
             order: 200,
         };
@@ -2198,8 +2279,7 @@ export class ViewerState {
             iconDescriptor: icon,
             mount,
             isVisible: () =>
-                this.getPluginTarget(id) === 'panel' &&
-                (this.pluginUiState.get(id)?.open ?? false),
+                this.getPluginTarget(id) === 'panel' && this.isPluginOpen(id),
         };
 
         this.pluginMenuButtons = [...this.pluginMenuButtons, button];

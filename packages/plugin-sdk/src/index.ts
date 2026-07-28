@@ -47,6 +47,7 @@ export {
     createStubStyleService,
     createStubLocaleService,
     createStubUiService,
+    createStubSurfaceService,
 } from './services.js';
 
 // Re-export the core-owned seam types so plugin authors import them from one
@@ -60,6 +61,7 @@ export type {
     PluginLocaleService,
     LocaleCatalog,
     PluginUiService,
+    PluginSurface,
     IconDescriptor,
     PluginIcon,
     PluginUiTarget,

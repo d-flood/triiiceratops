@@ -12,6 +12,7 @@ import type {
     IconDescriptor,
     PluginLocaleService,
     PluginStyleService,
+    PluginSurface,
     PluginUiService,
 } from 'triiiceratops';
 
@@ -45,5 +46,28 @@ export function createStubUiService(): PluginUiService {
         renderIcon(_icon: IconDescriptor, _container: HTMLElement): () => void {
             return noop;
         },
+    };
+}
+
+/**
+ * Chrome-less surface stub, used when a host supplies no `surface` — a bare
+ * `runActivation` against a container the caller placed itself, with no toolbar
+ * button, panel, or flyout in play.
+ *
+ * `isOpen` is `true`, not `false`: the caller mounted the plugin into a container
+ * of their own and there is no chrome that could hide it, so the honest answer is
+ * "visible". A `false` stub would silently park every plugin that gates work on
+ * `surface.isOpen` in its paused state and look like a broken plugin. `open`,
+ * `close`, and `toggle` are no-ops — there is no chrome to move — and `isOpen`
+ * therefore never changes, so a subscriber correctly never wakes.
+ */
+export function createStubSurfaceService(uiId?: string): PluginSurface {
+    return {
+        id: uiId ?? '',
+        isOpen: true,
+        target: 'panel',
+        open: noop,
+        close: noop,
+        toggle: noop,
     };
 }

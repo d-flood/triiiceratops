@@ -581,6 +581,67 @@ describe('ViewerState manifest behavior', () => {
         expect(state.isGalleryDockedRight).toBe(false);
     });
 
+    it('setGalleryExpanded opens the gallery, since expanded-but-hidden is unreachable', () => {
+        expect(state.galleryExpanded).toBe(false);
+        expect(state.showThumbnailGallery).toBe(false);
+
+        state.setGalleryExpanded(true);
+
+        expect(state.galleryExpanded).toBe(true);
+        expect(state.showThumbnailGallery).toBe(true);
+    });
+
+    it('setGalleryExpanded(false) collapses without closing the gallery', () => {
+        state.setGalleryExpanded(true);
+
+        state.setGalleryExpanded(false);
+
+        expect(state.galleryExpanded).toBe(false);
+        expect(state.showThumbnailGallery).toBe(true);
+    });
+
+    it('toggleGalleryExpanded flips the expanded state', () => {
+        state.toggleGalleryExpanded();
+        expect(state.galleryExpanded).toBe(true);
+
+        state.toggleGalleryExpanded();
+        expect(state.galleryExpanded).toBe(false);
+    });
+
+    it('setGalleryExpanded leaves dockSide untouched so collapsing restores the strip', () => {
+        state.setDockSide('left');
+
+        state.setGalleryExpanded(true);
+        expect(state.dockSide).toBe('left');
+
+        state.setGalleryExpanded(false);
+        expect(state.dockSide).toBe('left');
+    });
+
+    it('closing the gallery clears the expanded state', () => {
+        state.setGalleryExpanded(true);
+
+        state.toggleThumbnailGallery();
+
+        expect(state.showThumbnailGallery).toBe(false);
+        expect(state.galleryExpanded).toBe(false);
+    });
+
+    it('reports galleryExpanded in the snapshot', () => {
+        expect(state.getSnapshot().galleryExpanded).toBe(false);
+
+        state.setGalleryExpanded(true);
+
+        expect(state.getSnapshot().galleryExpanded).toBe(true);
+    });
+
+    it('applies gallery.expanded config and implies open regardless of key order', () => {
+        state.updateConfig({ gallery: { expanded: true, open: false } });
+
+        expect(state.galleryExpanded).toBe(true);
+        expect(state.showThumbnailGallery).toBe(true);
+    });
+
     it('defaults preserveCanvasScale to false in getter and snapshot', () => {
         expect(state.preserveCanvasScale).toBe(false);
         expect(state.getSnapshot().preserveCanvasScale).toBe(false);

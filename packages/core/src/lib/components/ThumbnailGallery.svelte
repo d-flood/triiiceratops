@@ -1,8 +1,9 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
+    import type { IconName } from '../generated/icons';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { language } from '../state/i18n.svelte';
+    import { getMessages, language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { resolveLanguageValue } from '../utils/languageMap';
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
@@ -47,6 +48,7 @@
         | any;
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    const m = getMessages();
     let viewerLocale = $derived(
         (viewerState.config as { locale?: string }).locale || language.current,
     );
@@ -254,6 +256,12 @@
         } else {
             viewerState.setCanvas(canvasId);
         }
+
+        // The expanded gallery acts as a page picker: choosing a canvas returns
+        // you to the image you just chose.
+        if (viewerState.galleryExpanded) {
+            viewerState.setGalleryExpanded(false);
+        }
     }
 
     // State for docking
@@ -319,21 +327,113 @@
         if (activeEl) {
             activeEl.scrollIntoView({
                 behavior: 'smooth',
-                block: 'nearest',
+                // `nearest` is right for a strip (minimal shuffling) but leaves
+                // the active canvas pinned to an edge of a tall grid, so the
+                // expanded view centers it instead.
+                block: viewerState.galleryExpanded ? 'center' : 'nearest',
                 inline: 'center',
             });
         }
     });
 
-    // Switch to horizontal layout if height is small or docked to top/bottom
+    let expanded = $derived(viewerState.galleryExpanded);
+
+    // Switch to horizontal layout if height is small or docked to top/bottom.
+    //
+    // Expanded always wins: an expanded gallery IS the floating window's grid at
+    // viewer size — same `fixedHeight` cell floor, same padding and gap — so it
+    // takes the grid branch for the same reason a tall floating window does.
+    // Deliberately not a third layout with its own density: the float grid is
+    // already the right one, and one fewer knob is one fewer thing to diverge.
     let isHorizontal = $derived(
-        dockSide === 'top' ||
-            dockSide === 'bottom' ||
-            (dockSide === 'none' && viewerState.gallerySize.height < 320),
+        !expanded &&
+            (dockSide === 'top' ||
+                dockSide === 'bottom' ||
+                (dockSide === 'none' && viewerState.gallerySize.height < 320)),
     );
 
     let fixedHeight = $derived(viewerState.galleryFixedHeight);
     let isRTL = $derived(viewerState.viewingDirection === 'right-to-left');
+
+    // The glyph points the way the gallery will travel: away from its dock edge
+    // to expand, back toward it to collapse. A floating gallery has no edge to
+    // travel from, so it gets maximize/restore instead.
+    const EXPAND_CARET = {
+        top: 'CaretDown',
+        bottom: 'CaretUp',
+        left: 'CaretRight',
+        right: 'CaretLeft',
+    } as const;
+    const COLLAPSE_CARET = {
+        top: 'CaretUp',
+        bottom: 'CaretDown',
+        left: 'CaretLeft',
+        right: 'CaretRight',
+    } as const;
+    const OPPOSITE_EDGE = {
+        top: 'bottom',
+        bottom: 'top',
+        left: 'right',
+        right: 'left',
+    } as const;
+
+    type DockEdge = 'top' | 'bottom' | 'left' | 'right';
+    let dockEdge = $derived(
+        dockSide === 'none' ? null : (dockSide as DockEdge),
+    );
+
+    /**
+     * Which of the gallery's own edges carries the caret: always the one facing
+     * the canvas, in both states. A bottom-docked gallery's caret sits on its top
+     * edge, and expanding carries that same edge (and the caret with it) up to the
+     * top of the viewer — the control never jumps to the opposite side under the
+     * user's cursor. Only the glyph flips, to keep pointing the way the gallery
+     * will travel next.
+     *
+     * It stays inside the gallery's bounds rather than protruding as a tab,
+     * because the canvas side of a bottom-docked strip is where the canvas nav
+     * lives.
+     */
+    let caretEdge = $derived(
+        dockEdge === null ? null : OPPOSITE_EDGE[dockEdge],
+    );
+
+    let toggleIcon = $derived<IconName>(
+        dockEdge === null
+            ? expanded
+                ? 'CornersIn'
+                : 'CornersOut'
+            : expanded
+              ? COLLAPSE_CARET[dockEdge]
+              : EXPAND_CARET[dockEdge],
+    );
+
+    let toggleLabel = $derived(
+        expanded ? m.collapse_gallery() : m.expand_gallery(),
+    );
+
+    // The header hosts the drag grip, which is meaningless for an expanded
+    // overlay — so it survives expansion only for a floating gallery, where it
+    // is the sole home for the maximize/restore button.
+    let showHeader = $derived(dockSide === 'none' || (!expanded && draggable));
+
+    function toggleExpanded() {
+        viewerState.toggleGalleryExpanded();
+    }
+
+    // Escape collapses the expanded gallery — the standard exit for anything
+    // that takes over the viewer.
+    $effect(() => {
+        if (!expanded) return;
+        const onKeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                viewerState.setGalleryExpanded(false);
+            }
+        };
+        window.addEventListener('keydown', onKeydown);
+        return () => window.removeEventListener('keydown', onKeydown);
+    });
 
     function startDrag(e: MouseEvent) {
         if (!draggable) return; // Dragging disabled in config
@@ -444,55 +544,95 @@
         bind:this={galleryElement}
         class={[
             'gallery-root',
-            dockSide !== 'none' && 'docked',
-            dockSide === 'none' && 'floating',
-            (dockSide === 'bottom' || dockSide === 'top') && 'dock-horizontal',
-            (dockSide === 'left' || dockSide === 'right') && 'dock-vertical',
+            expanded && 'expanded',
+            !expanded && dockSide !== 'none' && 'docked',
+            !expanded && dockSide === 'none' && 'floating',
+            !expanded &&
+                (dockSide === 'bottom' || dockSide === 'top') &&
+                'dock-horizontal',
+            !expanded &&
+                (dockSide === 'left' || dockSide === 'right') &&
+                'dock-vertical',
+            // Spelled out rather than interpolated: Svelte prunes CSS it cannot
+            // statically match, and `caret-${caretEdge}` is invisible to it.
+            caretEdge === 'top' && 'caret-top',
+            caretEdge === 'bottom' && 'caret-bottom',
+            caretEdge === 'left' && 'caret-left',
+            caretEdge === 'right' && 'caret-right',
             viewerState.isGalleryDragging && 'dragging',
         ]}
-        style={dockSide !== 'none'
+        style={expanded || dockSide !== 'none'
             ? ''
             : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}
     >
-        <!-- Header Area (only show drag handle when draggable OR when floating) -->
-        {#if draggable || dockSide === 'none'}
+        <!-- Header Area (drag grip when draggable/floating; also the floating
+             gallery's home for the maximize/restore button) -->
+        {#if showHeader}
             <div
                 class={[
                     'gallery-header',
-                    (dockSide === 'bottom' || dockSide === 'top') &&
+                    !expanded &&
+                        (dockSide === 'bottom' || dockSide === 'top') &&
                         'header-horizontal',
-                    dockSide !== 'bottom' &&
-                        dockSide !== 'top' &&
+                    (expanded ||
+                        (dockSide !== 'bottom' && dockSide !== 'top')) &&
                         'header-vertical',
                 ]}
             >
-                <!-- Drag Handle -->
-                <div
-                    class={[
-                        'drag-handle',
-                        (dockSide === 'bottom' || dockSide === 'top') &&
-                            'handle-horizontal',
-                        dockSide !== 'bottom' &&
-                            dockSide !== 'top' &&
-                            'handle-vertical',
-                    ]}
-                    onmousedown={startDrag}
-                    role="button"
-                    tabindex="0"
-                    aria-label="Drag Gallery"
-                >
+                <!-- Drag Handle (an expanded overlay has nowhere to be dragged to) -->
+                {#if !expanded}
                     <div
                         class={[
-                            'drag-grip',
+                            'drag-handle',
                             (dockSide === 'bottom' || dockSide === 'top') &&
-                                'grip-horizontal',
+                                'handle-horizontal',
                             dockSide !== 'bottom' &&
                                 dockSide !== 'top' &&
-                                'grip-vertical',
+                                'handle-vertical',
                         ]}
-                    ></div>
-                </div>
+                        onmousedown={startDrag}
+                        role="button"
+                        tabindex="0"
+                        aria-label="Drag Gallery"
+                    >
+                        <div
+                            class={[
+                                'drag-grip',
+                                (dockSide === 'bottom' || dockSide === 'top') &&
+                                    'grip-horizontal',
+                                dockSide !== 'bottom' &&
+                                    dockSide !== 'top' &&
+                                    'grip-vertical',
+                            ]}
+                        ></div>
+                    </div>
+                {/if}
+
+                {#if dockSide === 'none'}
+                    <button
+                        class="expand-toggle toggle-inline"
+                        onclick={toggleExpanded}
+                        aria-label={toggleLabel}
+                        aria-expanded={expanded}
+                        title={toggleLabel}
+                    >
+                        <Icon name={toggleIcon} size={14} />
+                    </button>
+                {/if}
             </div>
+        {/if}
+
+        <!-- Expand/collapse caret, centered on the canvas-facing edge (docked only) -->
+        {#if caretEdge}
+            <button
+                class="expand-toggle toggle-edge"
+                onclick={toggleExpanded}
+                aria-label={toggleLabel}
+                aria-expanded={expanded}
+                title={toggleLabel}
+            >
+                <Icon name={toggleIcon} size={12} />
+            </button>
         {/if}
 
         <!-- Content (Grid or Horizontal Scroll) -->
@@ -739,7 +879,7 @@
         </div>
 
         <!-- Resize Handle -->
-        {#if dockSide === 'none'}
+        {#if dockSide === 'none' && !expanded}
             <div
                 class="resize-handle"
                 style="clip-path: polygon(100% 0, 0 100%, 100% 100%);"
@@ -856,6 +996,22 @@
         pointer-events: none;
         opacity: 0.8;
     }
+    /* Expanded: the parent host (.gallery-expanded in TriiiceratopsViewer) owns
+       the inset-0 positioning, exactly as the docked bands own the strip's size —
+       the gallery just fills what it is given.
+
+       Structurally identical to `.floating` apart from the positioning the host
+       owns — same column flow, same clipped overflow — so the expanded gallery is
+       literally the floating window's grid at viewer size. It sets no padding,
+       gap, or cell size of its own: those stay on the shared `.gallery-content` /
+       `.gallery-track` rules, which is what keeps the two views from drifting. */
+    .gallery-root.expanded {
+        position: relative;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
 
     /* ===== Header / drag handle ===== */
     .gallery-header {
@@ -922,6 +1078,122 @@
     .drag-grip.grip-vertical {
         width: 3rem;
         height: 0.375rem;
+    }
+
+    /* ===== Expand / collapse control =====
+       `toggle-edge` is a low-profile tab centred on whichever gallery edge faces
+       the canvas (see `caretEdge`).
+
+       It reserves NO layout space: it is absolutely positioned over the gallery's
+       own edge, so the docked band/rail measures exactly what it did before this
+       control existed and opening the gallery costs no extra height. The price is
+       that it overlays content rather than sitting in a gutter — hence the
+       semi-opaque backdrop, which keeps the glyph legible over a busy thumbnail
+       and over rows scrolling beneath it. In the horizontal strip it happens to
+       land in the slack the centred track already leaves above the thumbnails, so
+       there it overlaps nothing at all.
+
+       It stays inside the gallery's bounds rather than protruding into the canvas,
+       because the canvas side of a bottom-docked strip is where the canvas nav
+       lives. */
+    .expand-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--tri-gallery-content);
+        background-color: color-mix(
+            in oklab,
+            var(--tri-gallery-bg) 82%,
+            transparent
+        );
+        border: 0;
+        cursor: pointer;
+        z-index: 60;
+        opacity: 0.5;
+        transition-property: opacity, background-color;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+    }
+    .expand-toggle:hover,
+    .expand-toggle:focus-visible {
+        opacity: 1;
+        background-color: color-mix(
+            in oklab,
+            var(--tri-surface-border) 70%,
+            var(--tri-gallery-bg)
+        );
+    }
+    .expand-toggle.toggle-edge {
+        position: absolute;
+        width: 2.25rem;
+        height: 0.75rem;
+        padding: 0;
+    }
+    /* Expanded only: reserve the tab's 12px as root padding. The overlay fills the
+       center column either way, so this costs no gallery size — it just insets the
+       grid so no cell is clipped and no scrolled row passes beneath the tab. It
+       must be padding on the ROOT, not on `.gallery-content`: padding on a scroll
+       box scrolls away with its content. The docked strip deliberately gets none
+       of this — there the tab lands in the centred track's existing slack, so the
+       strip measures exactly what it did before this control existed. */
+    .gallery-root.expanded.caret-top,
+    .gallery-root.expanded.caret-bottom,
+    .gallery-root.expanded.caret-left,
+    .gallery-root.expanded.caret-right {
+        box-sizing: border-box;
+    }
+    .gallery-root.expanded.caret-top {
+        padding-top: 0.75rem;
+    }
+    .gallery-root.expanded.caret-bottom {
+        padding-bottom: 0.75rem;
+    }
+    .gallery-root.expanded.caret-left {
+        padding-left: 0.75rem;
+    }
+    .gallery-root.expanded.caret-right {
+        padding-right: 0.75rem;
+    }
+
+    /* Vertical edges get the tab rotated onto its short axis. */
+    .caret-left > .toggle-edge,
+    .caret-right > .toggle-edge {
+        width: 0.75rem;
+        height: 2.25rem;
+    }
+    /* Flush with the canvas-facing edge, rounded on that side only, so it reads
+       as a small handle rising out of the gallery. */
+    .caret-top > .toggle-edge {
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 0.25rem 0.25rem 0 0;
+    }
+    .caret-bottom > .toggle-edge {
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 0 0 0.25rem 0.25rem;
+    }
+    .caret-left > .toggle-edge {
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        border-radius: 0.25rem 0 0 0.25rem;
+    }
+    .caret-right > .toggle-edge {
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+    .expand-toggle.toggle-inline {
+        position: absolute;
+        top: 0.125rem;
+        right: 0.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 0.25rem;
     }
 
     /* ===== Content scroll area ===== */
