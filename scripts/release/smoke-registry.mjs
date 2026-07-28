@@ -12,7 +12,7 @@
 //
 // Coverage (SPEC "Release tests install exact registry versions ... and validate
 // core, CSS, Web Component, SDK, plugins, and no-bundler assets"):
-//   · core ESM entry            (import 'triiiceratops')
+//   · core Svelte entry         (resolve 'triiiceratops')
 //   · core CSS                  (resolve 'triiiceratops/style.css')
 //   · Web Component entries      (resolve 'triiiceratops/element' + '/element/register')
 //   · SDK + every framework subpath (import '@triiiceratops/plugin-sdk' + /react …)
@@ -106,9 +106,10 @@ async function check(label, fn) {
     try { await fn(); results.push([label, true, '']); }
     catch (err) { results.push([label, false, err.message]); }
 }
-await check('core: import triiiceratops', async () => {
-    const mod = await import('triiiceratops');
-    assert.ok(mod, 'core module empty');
+await check('core: resolve triiiceratops', () => {
+    // The root entry is a Svelte library entry: consumer bundlers compile its
+    // .svelte modules, while plain Node can only validate the export target.
+    import.meta.resolve('triiiceratops');
 });
 await check('core: resolve style.css', () => {
     require.resolve('triiiceratops/style.css');
@@ -122,7 +123,7 @@ await check('sdk: import @triiiceratops/plugin-sdk', async () => {
 });
 for (const sub of ['react', 'vue', 'svelte', 'lit']) {
     await check(\`sdk: resolve /\${sub} adapter\`, () => {
-        require.resolve(\`@triiiceratops/plugin-sdk/\${sub}\`);
+        import.meta.resolve(\`@triiiceratops/plugin-sdk/\${sub}\`);
     });
 }
 for (const p of ${JSON.stringify(
