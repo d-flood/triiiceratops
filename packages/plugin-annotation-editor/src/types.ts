@@ -1,7 +1,7 @@
 import type { User, DrawingStyle } from '@annotorious/openseadragon';
 import type { Component } from 'svelte';
 import type { PluginUiTarget } from '@triiiceratops/plugin-sdk';
-import type { PointStyle } from './utils/pointMarker';
+import type { PointStyle } from 'triiiceratops/image-export';
 import type { W3CAnnotation, AdapterLoadResult } from './adapters/types';
 
 export type { PointStyle };

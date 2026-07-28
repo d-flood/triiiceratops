@@ -23,6 +23,9 @@ export { definePluginStyles } from './pluginStyles.js';
 export { whenOsdReady } from './osd.js';
 export type { WhenOsdReadyOptions } from './osd.js';
 
+// Report user-driven command failures through the structured host channel.
+export { dispatchPluginCommandError } from './reportError.js';
+
 // Activation (per viewer, isolated context).
 export { activatePlugin, runActivation } from './activate.js';
 

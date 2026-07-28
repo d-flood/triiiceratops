@@ -5,7 +5,7 @@
  * These helpers (IIIF canvas image resolution, size-option ladders, canvas
  * compositing, blob fetching/downloading, multi-canvas layout math, OCR/
  * annotation geometry, and thumbnail fallbacks) are pure functions used by
- * core's own rendering AND by the migrated `@triiiceratops/plugin-image-download`
+ * core's own rendering AND by the migrated `@triiiceratops/plugin-image-export`
  * (ticket 15) and `@triiiceratops/plugin-pdf-export` (ticket 16) packages, which
  * run in the same realm as core. Because the code is genuinely shared and remains
  * with its owning package (core), it is exposed here as a single real public seam
@@ -35,6 +35,7 @@ export {
     composeImages,
     downloadBlob,
     fetchImageBlob,
+    getCompositeImagePlacement,
     getResolvedImageExportUrl,
     resolveExportSizeOptions,
     type ComposeImageEntry,
@@ -49,6 +50,13 @@ export {
     transformAnnotationToImageSpace,
     type CanvasImageSpaceDimensions,
 } from './utils/canvasImageSpace';
+
+// Point annotation appearance shared by core's overlay and editor plugin.
+export {
+    DEFAULT_POINT_RADIUS,
+    resolvePointRadius,
+    type PointStyle,
+} from './utils/pointMarker';
 
 // Multi-canvas layout math.
 export {

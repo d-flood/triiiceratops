@@ -17,19 +17,19 @@ Each mode offers a resolution picker. IIIF `level0` image services can only be r
 === "pnpm"
 
     ```bash
-    pnpm add @triiiceratops/plugin-image-download
+    pnpm add @triiiceratops/plugin-image-export
     ```
 
 === "npm"
 
     ```bash
-    npm install @triiiceratops/plugin-image-download
+    npm install @triiiceratops/plugin-image-export
     ```
 
 === "bun"
 
     ```bash
-    bun add @triiiceratops/plugin-image-download
+    bun add @triiiceratops/plugin-image-export
     ```
 
 `ImageDownloadPlugin` is exported ready to use with no configuration required.

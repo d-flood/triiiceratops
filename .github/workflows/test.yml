@@ -183,7 +183,7 @@ jobs:
                   pnpm --filter triiiceratops build:element
                   pnpm --filter @triiiceratops/plugin-sdk build
                   pnpm --filter @triiiceratops/plugin-image-manipulation build
-                  pnpm --filter @triiiceratops/plugin-image-download build
+                  pnpm --filter @triiiceratops/plugin-image-export build
                   pnpm --filter @triiiceratops/plugin-pdf-export build
                   pnpm --filter @triiiceratops/plugin-annotation-editor build
 
@@ -228,7 +228,7 @@ jobs:
                   pnpm --filter triiiceratops build:lib
                   pnpm --filter @triiiceratops/plugin-sdk build
                   pnpm --filter @triiiceratops/plugin-image-manipulation build
-                  pnpm --filter @triiiceratops/plugin-image-download build
+                  pnpm --filter @triiiceratops/plugin-image-export build
                   pnpm --filter @triiiceratops/plugin-pdf-export build
                   pnpm --filter @triiiceratops/plugin-annotation-editor build
 

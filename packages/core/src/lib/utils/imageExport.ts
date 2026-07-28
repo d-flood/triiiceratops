@@ -33,6 +33,25 @@ export type ComposeImageEntry = {
     height: number;
 };
 
+export function getCompositeImagePlacement(
+    image: ResolvedCanvasImage,
+    canvasWidth: number,
+    canvasHeight: number,
+    scale: number,
+) {
+    const width = Math.max(1, Math.round(image.width * canvasWidth * scale));
+    const aspect =
+        image.resourceWidth && image.resourceHeight
+            ? image.resourceHeight / image.resourceWidth
+            : canvasHeight / canvasWidth;
+    return {
+        x: Math.round(image.x * canvasWidth * scale),
+        y: Math.round(image.y * canvasHeight * scale),
+        width,
+        height: Math.max(1, Math.round(width * aspect)),
+    };
+}
+
 export function downloadBlob(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');

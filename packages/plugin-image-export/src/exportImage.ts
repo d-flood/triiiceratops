@@ -6,6 +6,7 @@ import {
     fetchImageBlob,
     getCanvasDisplayLayouts,
     getCanvasId,
+    getCompositeImagePlacement,
     getResolvedImageExportUrl,
     getVisibleCanvasEntries,
     MULTI_CANVAS_GAP,
@@ -144,18 +145,18 @@ async function buildComposeEntry(
     canvasHeight: number,
     scale: number,
 ): Promise<ComposeImageEntry> {
-    const width = Math.max(1, Math.round(resolved.width * canvasWidth * scale));
-    const aspect =
-        resolved.resourceWidth && resolved.resourceHeight
-            ? resolved.resourceHeight / resolved.resourceWidth
-            : canvasHeight / canvasWidth;
-    const height = Math.max(1, Math.round(width * aspect));
+    const placement = getCompositeImagePlacement(
+        resolved,
+        canvasWidth,
+        canvasHeight,
+        scale,
+    );
 
     // Level0 services can only be requested at their native/declared sizes
     // (see resolveExportSizeOptions), so a composited member image from one
     // may be fetched at a different resolution than the rest of the page and
     // scaled to fit here via drawImage rather than via a resized request.
-    const url = getResolvedImageExportUrl(resolved, { width });
+    const url = getResolvedImageExportUrl(resolved, { width: placement.width });
     if (!url) {
         throw new Error('No exportable image found for this canvas.');
     }
@@ -164,10 +165,7 @@ async function buildComposeEntry(
 
     return {
         blob,
-        x: Math.round(resolved.x * canvasWidth * scale),
-        y: Math.round(resolved.y * canvasHeight * scale),
-        width,
-        height,
+        ...placement,
     };
 }
 

@@ -1512,12 +1512,56 @@ export class ViewerState {
         return resultsByCanvas.get(canvasIndex)!;
     }
 
+    private getSearchCanvasIndexes(): SvelteMap<string, number> {
+        const indexes = new SvelteMap<string, number>();
+        this.canvases.forEach((canvas: any, index: number) => {
+            if (!indexes.has(canvas.id)) indexes.set(canvas.id, index);
+        });
+        return indexes;
+    }
+
+    private resolveSearchTargets(
+        target: unknown,
+        canvasIndexes: SvelteMap<string, number>,
+    ): {
+        canvasIndex: number;
+        bounds: number[] | null;
+        allBounds: number[][];
+    } {
+        let canvasIndex = -1;
+        let bounds: number[] | null = null;
+        const allBounds: number[][] = [];
+
+        for (const normalized of normalizeIiifTargets(target)) {
+            const index = normalized.canvasId
+                ? canvasIndexes.get(normalized.canvasId)
+                : undefined;
+            if (index === undefined) continue;
+            if (canvasIndex === -1) canvasIndex = index;
+            if (normalized.xywh) {
+                allBounds.push(normalized.xywh);
+                if (!bounds) bounds = normalized.xywh;
+            }
+        }
+
+        return { canvasIndex, bounds, allBounds };
+    }
+
     /**
      * Parse a IIIF Content Search API v0/v1 response.
      * Handles both "hits" format (with before/match/after) and "resources"-only format.
      */
     private parseLegacySearchResponse(data: any): SearchResultGroup[] {
         const resources = data.resources || [];
+        const canvasIndexes = this.getSearchCanvasIndexes();
+        const resourcesById = new SvelteMap<string, any>();
+        for (const resource of resources) {
+            for (const id of [resource['@id'], resource.id]) {
+                if (id && !resourcesById.has(id)) {
+                    resourcesById.set(id, resource);
+                }
+            }
+        }
         const resultsByCanvas = new SvelteMap<
             number,
             { canvasIndex: number; canvasLabel: string; hits: any[] }
@@ -1526,42 +1570,11 @@ export class ViewerState {
         if (data.hits) {
             for (const hit of data.hits) {
                 const annotations = hit.annotations || [];
-
-                let canvasIndex = -1;
-                let bounds: number[] | null = null;
-                const allBounds: number[][] = [];
-
-                for (const annoId of annotations) {
-                    const annotation = resources.find(
-                        (r: any) => r['@id'] === annoId || r.id === annoId,
-                    );
-                    if (!annotation?.on) {
-                        continue;
-                    }
-
-                    for (const target of normalizeIiifTargets(annotation.on)) {
-                        if (!target.canvasId) {
-                            continue;
-                        }
-
-                        const cIndex = this.canvases.findIndex(
-                            (canvas: any) => canvas.id === target.canvasId,
-                        );
-
-                        if (cIndex < 0) {
-                            continue;
-                        }
-
-                        if (canvasIndex === -1) {
-                            canvasIndex = cIndex;
-                        }
-
-                        if (target.xywh) {
-                            allBounds.push(target.xywh);
-                            if (!bounds) bounds = target.xywh;
-                        }
-                    }
-                }
+                const targets = annotations
+                    .map((id: string) => resourcesById.get(id)?.on)
+                    .filter(Boolean);
+                const { canvasIndex, bounds, allBounds } =
+                    this.resolveSearchTargets(targets, canvasIndexes);
 
                 if (canvasIndex >= 0) {
                     const group = this.getOrCreateCanvasGroup(
@@ -1588,9 +1601,8 @@ export class ViewerState {
                     continue;
                 }
 
-                const canvasIndex = this.canvases.findIndex(
-                    (canvas: any) => canvas.id === firstTarget.canvasId,
-                );
+                const canvasIndex =
+                    canvasIndexes.get(firstTarget.canvasId) ?? -1;
                 if (canvasIndex >= 0) {
                     const boundsArray = normalizedTargets
                         .map((target) => target.xywh)
@@ -1630,6 +1642,7 @@ export class ViewerState {
      */
     private parseV2SearchResponse(data: any): SearchResultGroup[] {
         const items: any[] = data.items || [];
+        const canvasIndexes = this.getSearchCanvasIndexes();
         const resultsByCanvas = new SvelteMap<
             number,
             { canvasIndex: number; canvasLabel: string; hits: any[] }
@@ -1687,28 +1700,8 @@ export class ViewerState {
         // Process each result annotation in items
         for (const item of items) {
             const annoId = item.id || item['@id'];
-
-            let canvasIndex = -1;
-            let bounds: number[] | null = null;
-            const allBounds: number[][] = [];
-
-            for (const target of normalizeIiifTargets(item.target)) {
-                if (!target.canvasId) continue;
-
-                const targetCanvasIndex = this.canvases.findIndex(
-                    (canvas: any) => canvas.id === target.canvasId,
-                );
-                if (targetCanvasIndex < 0) continue;
-
-                if (canvasIndex === -1) {
-                    canvasIndex = targetCanvasIndex;
-                }
-
-                if (target.xywh) {
-                    allBounds.push(target.xywh);
-                    if (!bounds) bounds = target.xywh;
-                }
-            }
+            const { canvasIndex, bounds, allBounds } =
+                this.resolveSearchTargets(item.target, canvasIndexes);
 
             if (canvasIndex < 0) continue;
 
