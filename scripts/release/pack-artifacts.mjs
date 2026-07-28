@@ -140,6 +140,56 @@ function packInto(pkgDir, outDir, versions) {
     }
 }
 
+/** Extract and parse `package/package.json` out of a packed `.tgz`. */
+function readTarballPackageJson(tarball) {
+    const res = spawnSync('tar', ['xzOf', tarball, 'package/package.json'], {
+        encoding: 'utf8',
+    });
+    if (res.status !== 0) {
+        process.stderr.write(res.stderr ?? '');
+        throw new Error(`could not read package.json from ${tarball}`);
+    }
+    return JSON.parse(res.stdout);
+}
+
+/**
+ * Guard: a packed tarball must carry NO residual `workspace:` protocol in any
+ * dependency field. `npm pack` copies `workspace:` strings verbatim (that's why
+ * rewriteWorkspaceRanges runs above), so if that rewrite ever misses a field or
+ * regresses, the published tarball crashes consumers with EUNSUPPORTEDPROTOCOL
+ * the moment npm parses the peer spec.
+ *
+ * This inspects the ACTUAL shipped bytes (re-read from the `.tgz`), not just our
+ * in-memory intent, so a regression fails the release pack in required CI —
+ * where `pnpm release:pack` produces the promoted artifact — instead of reaching
+ * npm, where a version is immutable. See the 1.0.0-rc.1 @triiiceratops/plugin-sdk
+ * incident: it shipped `triiiceratops: workspace:^` from a pipeline that packed
+ * with `npm pack` before any rewrite, and nothing asserted the npm-packed output
+ * (the packed-consumer harness only ever checked `pnpm pack` tarballs, which
+ * rewrite `workspace:` automatically).
+ */
+function assertNoWorkspaceProtocol(tarball, name) {
+    const pkg = readTarballPackageJson(tarball);
+    const leaks = [];
+    for (const field of DEPENDENCY_FIELDS) {
+        const deps = pkg[field];
+        if (!deps) continue;
+        for (const [dep, range] of Object.entries(deps)) {
+            if (typeof range === 'string' && range.startsWith('workspace:')) {
+                leaks.push(`${field}.${dep} = ${range}`);
+            }
+        }
+    }
+    if (leaks.length > 0) {
+        throw new Error(
+            `${name}: packed tarball contains residual workspace: protocol ` +
+                `(${leaks.join(', ')}). The workspace-range rewrite failed to ` +
+                `resolve these; publishing would crash consumers with ` +
+                `EUNSUPPORTEDPROTOCOL.`,
+        );
+    }
+}
+
 function sha256(file) {
     return createHash('sha256').update(readFileSync(file)).digest('hex');
 }
@@ -166,6 +216,7 @@ function main() {
         if (!existsSync(tarball)) {
             throw new Error(`expected tarball not found: ${tarball}`);
         }
+        assertNoWorkspaceProtocol(tarball, pkg.name);
         const version = readVersion(pkg);
         summary.push({
             name: pkg.name,
