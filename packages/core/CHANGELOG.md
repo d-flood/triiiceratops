@@ -1,5 +1,19 @@
 # triiiceratops
 
+## 1.0.0-rc.29
+
+### Patch Changes
+
+- 4eca8dc: Fix theme tokens not reaching the canvas in the Svelte (light-DOM) build. `OSDViewer`'s wrapper used the same `viewer-root` class as the real viewer root, and the published `triiiceratops/style.css` re-declares every base `--tri-*` / `--ui-*` token on that class — so the nested copy shadowed the root's `theme` prop and `themeConfig`, painting the canvas surface with the stock light `--tri-viewer-bg` (white) in every theme. The wrapper is now `osd-root`, so only the actual viewer root carries `viewer-root`.
+
+    The bug only affected the packaged Svelte distribution; the custom-element (shadow DOM) build, dev, and source were never affected. `osd-root`/`viewer-root` are internal markup details, not documented styling hooks, but the class change is observable in the DOM — if you were selecting the inner `.viewer-root` element, target `.osd-root` instead.
+
+- b6bc43f: Fix SDK plugin chrome being labelled with the raw package name. A plugin's toolbar tooltip/aria-label and its docked-panel header rendered `@triiiceratops/plugin-pdf-export` instead of "PDF Export": core passed `SdkPluginMeta.name` — the package-qualified identity — straight through as display copy, and then resolved it against CORE's message catalog, where a plugin's own title key never lives.
+
+    `definePlugin` gains an optional `title`. Core resolves it through the plugin's OWN `catalog` in the viewer's active locale (English fallback), so plugin titles stay translated and follow a `config.locale` change; a `title` with no matching catalog key renders verbatim, so a monolingual plugin can just write `title: 'My Plugin'`. All four first-party plugins now declare their existing catalog title keys, restoring their localized names (`PDF Export` / `PDF-Export`, `Download Image` / `Bild herunterladen`, `Image Adjustments` / `Bildanpassungen`, `Annotation Editor` / `Anmerkungs-Editor`). The image-manipulation flyout's toggle and dialog `aria-label` now also agree with the label announced inside it.
+
+    Backwards compatible: a plugin with no `title` renders exactly what it rendered before — its `name` looked up in core's catalog, else `name` verbatim — and the legacy `PluginDef` path, where `name` IS documented display copy, is unchanged. Do not work around this by overriding `name`: it keys the plugin registry, namespaces the plugin's injected styles, and sets `data-plugin-name`.
+
 ## 1.0.0-rc.28
 
 ### Minor Changes

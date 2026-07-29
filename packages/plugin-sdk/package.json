@@ -1,6 +1,6 @@
 {
     "name": "@triiiceratops/plugin-sdk",
-    "version": "1.0.0-rc.4",
+    "version": "1.0.0-rc.5",
     "type": "module",
     "description": "Framework-neutral plugin authoring SDK for the triiiceratops IIIF viewer.",
     "license": "MIT",

@@ -1,6 +1,6 @@
 {
     "name": "@triiiceratops/plugin-annotation-editor",
-    "version": "1.0.0-rc.4",
+    "version": "1.0.0-rc.5",
     "type": "module",
     "description": "Annotation editor plugin for the triiiceratops IIIF viewer, authored on @triiiceratops/plugin-sdk.",
     "license": "MIT",
