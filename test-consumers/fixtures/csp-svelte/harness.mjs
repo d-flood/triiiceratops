@@ -48,9 +48,11 @@ export default {
 
         // The plugin activated (core renders its toolbar button on the
         // core-owned-chrome path), so its `context.styles.install` ran.
+        // Accessible name = the plugin's DISPLAY title
+        // (`image_adjustments_title`), not its package name.
         await expect(
             page.locator(
-                '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+                '[data-flyout-toggle][aria-label="Image Adjustments"]',
             ),
         ).toBeAttached({
             timeout: 30_000,
@@ -84,9 +86,7 @@ export default {
         // path Svelte's un-nonced `append_styles` would otherwise have taken and
         // strict `style-src` would have blocked).
         await page.getByRole('button', { name: 'Open Menu' }).click();
-        const pdfButton = page.locator(
-            '[aria-label="@triiiceratops/plugin-pdf-export"]',
-        );
+        const pdfButton = page.locator('[aria-label="PDF Export"]');
         await expect(pdfButton).toBeVisible({ timeout: 30_000 });
         await pdfButton.click();
 

@@ -2226,17 +2226,24 @@ export class ViewerState {
      *
      * `id` is the caller-owned plugin id (used for open-state + unregister); it
      * must be passed to {@link unregisterPlugin} on deactivation.
+     *
+     * `name` is the plugin's package-qualified IDENTITY, kept on the records for
+     * diagnostics and as the legacy fallback. `label` — when the caller supplies
+     * it — is the DISPLAY COPY: a thunk the render sites call so the label
+     * re-resolves on an active-locale change. Chrome with no `label` renders
+     * `name` exactly as it did before `label` existed.
      */
     registerSdkChrome(config: {
         id: string;
         name: string;
+        label?: () => string;
         icon: IconDescriptor;
         target: PluginUiTarget;
         dismiss: 'light' | 'explicit';
         mount: PluginMountThunk;
         position?: 'left' | 'right' | 'bottom' | 'overlay';
     }): void {
-        const { id, name, icon, target, dismiss, mount } = config;
+        const { id, name, label, icon, target, dismiss, mount } = config;
 
         this.ensurePluginUiState(id, target, config.position ?? 'left');
 
@@ -2249,6 +2256,7 @@ export class ViewerState {
             pluginId: id,
             iconDescriptor: icon,
             tooltip: name,
+            label,
             flyoutDomId: domId,
             onClick: () => {
                 this.togglePluginOpen(id);
@@ -2267,6 +2275,7 @@ export class ViewerState {
             domId,
             pluginId: id,
             name,
+            label,
             iconDescriptor: icon,
             mount,
             dismiss,
@@ -2276,6 +2285,7 @@ export class ViewerState {
             id: `${id}:panel`,
             pluginId: id,
             name,
+            label,
             iconDescriptor: icon,
             mount,
             isVisible: () =>

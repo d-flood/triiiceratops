@@ -37,8 +37,10 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     await expect(openToolbar).toBeVisible({ timeout: 30_000 });
     await openToolbar.click();
 
+    // Accessible name = the plugin's DISPLAY title (`image_adjustments_title`
+    // from the plugin's own catalog), not its package name.
     const toggle = page.locator(
-        '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+        '[data-flyout-toggle][aria-label="Image Adjustments"]',
     );
     await expect(toggle).toBeVisible({ timeout: 30_000 });
     await toggle.click();

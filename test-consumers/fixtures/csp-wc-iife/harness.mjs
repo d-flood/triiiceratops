@@ -40,9 +40,11 @@ export default {
         // The plugin activated via the shared namespace; core renders its
         // toolbar button (in the shadow root) on the core-owned-chrome path, so
         // `context.styles.install` ran.
+        // Accessible name = the plugin's DISPLAY title
+        // (`image_adjustments_title`), not its package name.
         await expect(
             page.locator(
-                '[data-flyout-toggle][aria-label="@triiiceratops/plugin-image-manipulation"]',
+                '[data-flyout-toggle][aria-label="Image Adjustments"]',
             ),
         ).toBeAttached({
             timeout: 30_000,

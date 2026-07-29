@@ -907,10 +907,17 @@ export declare class ViewerState {
      *
      * `id` is the caller-owned plugin id (used for open-state + unregister); it
      * must be passed to {@link unregisterPlugin} on deactivation.
+     *
+     * `name` is the plugin's package-qualified IDENTITY, kept on the records for
+     * diagnostics and as the legacy fallback. `label` — when the caller supplies
+     * it — is the DISPLAY COPY: a thunk the render sites call so the label
+     * re-resolves on an active-locale change. Chrome with no `label` renders
+     * `name` exactly as it did before `label` existed.
      */
     registerSdkChrome(config: {
         id: string;
         name: string;
+        label?: () => string;
         icon: IconDescriptor;
         target: PluginUiTarget;
         dismiss: 'light' | 'explicit';
@@ -1854,8 +1861,20 @@ export interface PluginMenuButton {
      * core's `PluginIcon` with the same wrapper as built-in buttons.
      */
     iconDescriptor?: IconDescriptor;
-    /** Tooltip text */
+    /**
+     * Tooltip text. On the legacy `PluginDef` path this is the display copy (a
+     * core message key, else a literal). On the SDK core-owned-chrome path it
+     * carries the package-qualified plugin identity and is only the FALLBACK —
+     * {@link label} wins when present.
+     */
     tooltip: string;
+    /**
+     * SDK core-owned-chrome path only: a live, locale-resolved display label.
+     * When present it wins over {@link tooltip}, which stays as identity and as
+     * the legacy `PluginDef` fallback. A thunk (not a string) so it re-resolves
+     * when the viewer's active locale changes; call it during render.
+     */
+    label?: () => string;
     /** Click handler */
     onClick: () => void;
     /** Reactive getter for active/pressed state */
@@ -1881,8 +1900,19 @@ export interface PluginPanel {
     id: string;
     /** Owning plugin identifier */
     pluginId: string;
-    /** Plugin display name */
+    /**
+     * Plugin display name on the legacy `PluginDef` path (a core message key,
+     * else a literal). On the SDK core-owned-chrome path it carries the
+     * package-qualified plugin identity and is only the FALLBACK — {@link label}
+     * wins when present.
+     */
     name: string;
+    /**
+     * SDK core-owned-chrome path only: a live, locale-resolved panel-header
+     * label. When present it wins over {@link name}. A thunk (not a string) so
+     * it re-resolves when the viewer's active locale changes.
+     */
+    label?: () => string;
     /** Plugin toolbar/header icon component (legacy `PluginDef` path). */
     icon?: Component<any>;
     /** Framework-neutral header icon descriptor (SDK core-owned chrome path). */
@@ -1914,8 +1944,19 @@ export interface PluginFlyout {
     domId: string;
     /** Owning plugin identifier */
     pluginId: string;
-    /** Plugin display name */
+    /**
+     * Plugin display name on the legacy `PluginDef` path. On the SDK
+     * core-owned-chrome path it carries the package-qualified plugin identity.
+     * The flyout's user-visible label comes from its toolbar BUTTON (the toolbar
+     * reuses the button's tooltip as the dialog's `aria-label`); this field and
+     * {@link label} keep the three chrome records uniform.
+     */
     name: string;
+    /**
+     * SDK core-owned-chrome path only: a live, locale-resolved display label.
+     * When present it wins over {@link name}.
+     */
+    label?: () => string;
     /** Plugin toolbar icon component (legacy `PluginDef` path). */
     icon?: Component<any>;
     /** Framework-neutral toolbar icon descriptor (SDK core-owned chrome path). */
@@ -2265,8 +2306,24 @@ export interface PluginErrorReport {
 export declare const PLUGIN_ERROR_EVENT = "pluginerror";
 /** Declarative metadata + view an SDK plugin is defined with. */
 export interface SdkPluginMeta {
-    /** Package-qualified plugin name (e.g. `@triiiceratops/plugin-x`). */
+    /**
+     * Package-qualified plugin IDENTITY (e.g. `@triiiceratops/plugin-x`). It
+     * keys the registry, namespaces the plugin's injected styles, and lands in
+     * `data-plugin-name` — it is NOT display copy. See {@link title}.
+     */
     readonly name: string;
+    /**
+     * Human-readable chrome label: the toolbar button's tooltip/aria-label and
+     * the docked-panel header. Core resolves it against this plugin's
+     * {@link catalog} in the viewer's active locale (English fallback); a string
+     * with no matching key renders verbatim, so it doubles as a literal label
+     * for a monolingual plugin.
+     *
+     * Optional. When absent, core falls back to the pre-`title` behavior: it
+     * looks {@link name} up in CORE's own message catalog and otherwise renders
+     * `name` verbatim.
+     */
+    readonly title?: string;
     /**
      * Stable, DOM-safe UI id used as the key under `ViewerConfig.plugins` (for
      * `visible` / `open` / `target` control) and as the prefix for the plugin's
