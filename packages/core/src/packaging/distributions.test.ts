@@ -86,6 +86,42 @@ function findUnscopedSelectors(css: string): string[] {
     return [...new Set(leaks)];
 }
 
+/**
+ * A selector part that targets the viewer ROOT and nothing else: `.viewer-root`
+ * optionally wrapped in `:where()` and optionally compounded with attribute or
+ * class selectors. No descendant space, no `>`/`+`/`~`, no `*`.
+ */
+const ROOT_ONLY = /^(?::where\()?\.viewer-root(?:\[[^\]]*\]|\.[\w-]+)*\)?$/;
+
+/**
+ * Return every selector part in the sheet that DECLARES a base `--tri-*` or
+ * `--ui-*` custom property while matching something other than the viewer root.
+ *
+ * Base tokens must land on the root ALONE. Declared on a descendant they beat
+ * the root's `[data-theme=…]` block and `themeConfig` inline styles by cascade,
+ * so that subtree silently reverts to the stock light theme — the OSDViewer
+ * `class="viewer-root"` regression, from the other end (see
+ * viewerRootUnique.test.ts, which guards the markup side).
+ */
+function findNonRootTokenDeclarations(css: string): string[] {
+    css = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    css = stripAtRuleBlocks(css, /@[\w-]*keyframes/);
+    const bad: string[] = [];
+    const ruleRe = /([^{}]*)\{([^{}]*)\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = ruleRe.exec(css))) {
+        // `[^{}]*` after a nested block can pick up a trailing `}`; keep the
+        // text after the last one (the actual selector).
+        const sel = m[1].split('}').pop()!.trim();
+        if (!sel || sel.startsWith('@')) continue;
+        if (!/(?:--tri-|--ui-)[\w-]+\s*:/.test(m[2])) continue;
+        for (const part of splitTopLevel(sel)) {
+            if (part && !ROOT_ONLY.test(part)) bad.push(part);
+        }
+    }
+    return [...new Set(bad)];
+}
+
 beforeAll(() => {
     // Build the theme-bearing artifacts. The lib build also emits
     // dist/triiiceratops.css (unscoped) which the styles build overwrites, so
@@ -160,6 +196,16 @@ describe('published distributions ship styles + themes', () => {
             expect(
                 leaks,
                 `unscoped selectors would style the host page:\n${leaks.join('\n')}`,
+            ).toEqual([]);
+        });
+
+        it('declares base tokens on the viewer root ONLY (never a descendant)', () => {
+            const bad = findNonRootTokenDeclarations(css);
+            expect(
+                bad,
+                `these selectors declare base --tri-*/--ui-* tokens on something\n` +
+                    `other than the viewer root, shadowing the root's theme for\n` +
+                    `that subtree:\n${bad.join('\n')}`,
             ).toEqual([]);
         });
     });
