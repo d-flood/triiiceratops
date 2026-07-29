@@ -17,6 +17,19 @@
  * targets) and its descendants — never the host page. The shadow-DOM build
  * (`?inline` into the custom element) does NOT use this transform; there the
  * unscoped selectors are correct.
+ *
+ * PRECONDITION: exactly ONE element per viewer carries `viewer-root` — the
+ * root. Mapping the base `:where(:root, :host)` token block onto the class
+ * turns it into a real DECLARATION of every `--tri-*`/`--ui-*` token, and a
+ * declaration beats inheritance: a NESTED element with the class would shadow
+ * the root's `[data-theme=…]` block and `themeConfig` inline styles for its
+ * whole subtree. Enforced by viewerRootUnique.test.ts.
+ *
+ * Corollary — do NOT "harden" the emitted selector to something like
+ * `.viewer-root:not(.viewer-root *)`. Two viewers legitimately nest (a viewer
+ * inside another viewer's plugin panel), and each needs its own base tokens
+ * declared; a root-only guard would make the inner one inherit the outer
+ * viewer's theme. The invariant belongs in the markup, not in this transform.
  */
 
 const ROOT = '.viewer-root';

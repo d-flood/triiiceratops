@@ -35,7 +35,9 @@ test('viewer chrome has no CSS transitions/animations under reduced motion', asy
         const root = document
             .querySelector('triiiceratops-viewer')
             ?.shadowRoot?.querySelector('.viewer-root');
-        const selectors = ['.viewer-root', 'button', '[data-flyout-panel]'];
+        // `.osd-root` is OSDViewer's wrapper (renamed from `viewer-root`, which
+        // is now reserved for the single viewer root queried above).
+        const selectors = ['.osd-root', 'button', '[data-flyout-panel]'];
         const seen: { sel: string; transition: string; animation: string }[] =
             [];
         const scope: ParentNode = root ?? document;
