@@ -9,11 +9,10 @@ import { expect } from '@playwright/test';
 
 const CAPTURE_BLOBS = () => {
     const orig = URL.createObjectURL.bind(URL);
-    // eslint-disable-next-line no-undef
+
     window.__pdfBlobs = [];
     URL.createObjectURL = (obj) => {
         if (obj instanceof Blob) {
-            // eslint-disable-next-line no-undef
             window.__pdfBlobs.push(obj);
         }
         return orig(obj);
@@ -22,7 +21,6 @@ const CAPTURE_BLOBS = () => {
 
 async function readPdf(page) {
     return page.evaluate(async () => {
-        // eslint-disable-next-line no-undef
         const blobs = window.__pdfBlobs || [];
         const pdf = blobs.find((b) => b.type === 'application/pdf');
         if (!pdf) return { found: false };
@@ -64,10 +62,10 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     // in the viewer chrome. Open the (default-closed) toolbar, then click the
     // plugin's core-rendered button to dock its panel. The viewer's DOM lives in
     // the custom element's shadow root; Playwright role/CSS locators pierce it.
+    // The accessible name is the plugin's DISPLAY title (`pdf_export_title`
+    // resolved against the plugin's own catalog), never its package name.
     await page.getByRole('button', { name: 'Open Menu' }).click();
-    const pluginButton = page.locator(
-        '[aria-label="@triiiceratops/plugin-pdf-export"]',
-    );
+    const pluginButton = page.locator('[aria-label="PDF Export"]');
     await expect(pluginButton).toBeVisible({ timeout: 30_000 });
     await pluginButton.click();
 

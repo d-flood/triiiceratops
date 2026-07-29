@@ -53,6 +53,7 @@
         PluginError,
         PluginErrorReport,
         PluginErrorPhase,
+        PluginLocaleService,
         PluginMountThunk,
     } from '../types/plugin';
     import { isSdkPlugin, PLUGIN_ERROR_EVENT } from '../types/plugin';
@@ -580,11 +581,20 @@
         onpluginerror?.(payload);
     }
 
-    /** Assemble the `PluginHost` for one activation (shared by both paths). */
+    /**
+     * Assemble the `PluginHost` for one activation (shared by both paths).
+     *
+     * `locale` is passed in rather than built here: the SAME service instance
+     * also resolves the plugin's chrome label (`SdkPluginMeta.title`), so the
+     * plugin's UI strings and its toolbar/panel label can never disagree. It
+     * must stay one instance PER ACTIVATION — it closes over that plugin's
+     * catalog.
+     */
     function buildSdkHost(
         plugin: SdkPlugin,
         container: HTMLElement,
         chromeId: string,
+        locale: PluginLocaleService,
         reportError: (report: PluginErrorReport) => void,
     ) {
         return {
@@ -597,7 +607,7 @@
                 internalViewerState.getStyleRoot() ?? document,
                 plugin.name,
             ),
-            locale: createPluginLocaleService(sdkLocaleSource, plugin.catalog),
+            locale,
             ui: createPluginUiService(),
             // The plugin's own chrome: how it learns whether its panel/flyout is
             // open (core mounts it once, so open/close is no longer a mount
@@ -631,6 +641,13 @@
         // closes over it and is handed to `view.mount`, which runs below.
         const chromeId = sdkPluginChromeId(plugin);
 
+        // One locale service per activation, shared by the plugin's own UI
+        // strings and by its core-owned chrome label below.
+        const locale = createPluginLocaleService(
+            sdkLocaleSource,
+            plugin.catalog,
+        );
+
         // Content-only container: created and owned by core, detached until the
         // plugin's surface opens.
         const el = document.createElement('div');
@@ -656,7 +673,7 @@
 
         try {
             const activation = plugin.activate(
-                buildSdkHost(plugin, el, chromeId, reportError),
+                buildSdkHost(plugin, el, chromeId, locale, reportError),
             );
             record.deactivate = activation.deactivate;
         } catch (error) {
@@ -694,9 +711,14 @@
             };
         };
 
+        const pluginTitle = plugin.title;
         internalViewerState.registerSdkChrome({
             id: chromeId,
             name: plugin.name,
+            // Display copy, resolved live so it follows the active locale. The
+            // plugin's identity (`name`) stays on the record as the fallback for
+            // plugins built before `title` existed.
+            label: pluginTitle ? () => locale.t(pluginTitle) : undefined,
             icon: plugin.icon,
             target: plugin.target,
             dismiss: plugin.dismiss ?? 'light',
@@ -886,6 +908,11 @@
      * panels render their Svelte `component`; SDK core-owned-chrome panels
      * (ticket 02) carry a DOM-mount thunk instead, rendered through the shared
      * `PluginMountHost` adapter — one panel rendering path for both.
+     *
+     * Header copy: an SDK panel whose plugin declared a `title` carries a
+     * `label` thunk already resolved against the PLUGIN's catalog; otherwise
+     * fall through to the legacy behavior — look `name` up in core's own
+     * catalog, else render it verbatim.
      */
     function toPluginPanelItem(
         panel: (typeof internalViewerState.pluginPanels)[number],
@@ -893,7 +920,8 @@
         const resolveTitle = (
             m as unknown as Record<string, (() => string) | undefined>
         )[panel.name];
-        const title = resolveTitle ? resolveTitle() : panel.name;
+        const title =
+            panel.label?.() ?? (resolveTitle ? resolveTitle() : panel.name);
         if (panel.mount) {
             return {
                 id: panel.id,

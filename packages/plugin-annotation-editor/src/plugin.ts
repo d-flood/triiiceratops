@@ -50,6 +50,7 @@ export function createAnnotationEditorPlugin(
 
     return definePlugin({
         name: '@triiiceratops/plugin-annotation-editor',
+        title: 'annotation_editor_title',
         uiId: 'annotation-editor',
         version: '1.0.0-rc.0',
         coreRange: '>=1.0.0-rc.0',

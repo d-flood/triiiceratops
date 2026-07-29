@@ -59,6 +59,7 @@ const view: PluginView = {
 /** The image-download plugin factory. Activate it explicitly, per viewer. */
 export const ImageDownloadPlugin: SdkPlugin = definePlugin({
     name: '@triiiceratops/plugin-image-export',
+    title: 'image_download_title',
     uiId: 'image-download',
     version: '1.0.0-rc.0',
     coreRange: '>=1.0.0-rc.0',

@@ -124,8 +124,24 @@ export declare function negotiateCompatibility(plugin: SdkPluginMeta, host: Plug
 import type { IconDescriptor, LocaleCatalog, PluginUiTarget, PluginView, SdkPlugin } from 'triiiceratops';
 /** Declarative configuration accepted by {@link definePlugin}. */
 export interface DefinePluginConfig {
-    /** Package-qualified plugin name (e.g. `@triiiceratops/plugin-x`). */
+    /**
+     * Package-qualified plugin IDENTITY (e.g. `@triiiceratops/plugin-x`). It
+     * keys the registry, namespaces the plugin's injected styles, and lands in
+     * `data-plugin-name` — it is NOT display copy. Set {@link title} for the
+     * label a user reads.
+     */
     name: string;
+    /**
+     * Human-readable chrome label: the toolbar button's tooltip/aria-label and
+     * the docked-panel header. Resolved against this plugin's {@link catalog} in
+     * the viewer's active locale (English fallback); a string with no matching
+     * catalog key renders verbatim, so `title: 'My Plugin'` works for a
+     * monolingual plugin and `title: 'my_plugin_title'` picks up translations.
+     *
+     * Defaults to {@link name} — set this, or your package id becomes your UI
+     * copy.
+     */
+    title?: string;
     /**
      * Stable, DOM-safe UI id — the key consumers use under
      * `ViewerConfig.plugins` to control this plugin's toolbar-button `visible`,
