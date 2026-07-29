@@ -22,7 +22,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { definePlugin, type PluginContext } from '@triiiceratops/plugin-sdk';
 
 import TriiiceratopsViewer from '../components/TriiiceratopsViewer.svelte';
-import type { PluginError, SdkPlugin } from '../types/plugin';
+import type {
+    LocaleCatalog,
+    PluginDef,
+    PluginError,
+    SdkPlugin,
+} from '../types/plugin';
+import type { ViewerConfig } from '../types/config';
 import type { ViewerState } from '../state/viewer.svelte';
 
 vi.mock('openseadragon', () => ({
@@ -90,9 +96,13 @@ function makeDouble(config: {
     dismiss?: 'light' | 'explicit';
     throwOnMount?: boolean;
     capture?: Capture;
+    title?: string;
+    catalog?: LocaleCatalog;
 }): SdkPlugin {
     const plugin = definePlugin({
         name: config.name,
+        title: config.title,
+        catalog: config.catalog,
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
@@ -117,39 +127,42 @@ function makeDouble(config: {
     return plugin as unknown as SdkPlugin;
 }
 
+// happy-dom has no Web Animations API; the docked-panel path animates
+// (transition:fly / animate:flip / slideWidth). Stub `animate` with an
+// immediately-finishing animation so outros complete and nodes unmount.
+function stubAnimate() {
+    if (!('animate' in Element.prototype)) {
+        (Element.prototype as unknown as Record<string, unknown>).animate =
+            function () {
+                const anim: Record<string, unknown> = {
+                    onfinish: null,
+                    oncancel: null,
+                    cancel() {},
+                    finish() {},
+                    pause() {},
+                    play() {},
+                    finished: Promise.resolve(),
+                    currentTime: 0,
+                    playState: 'finished',
+                };
+                queueMicrotask(() => {
+                    const cb = anim.onfinish as
+                        | ((...a: unknown[]) => void)
+                        | null;
+                    if (typeof cb === 'function') cb();
+                });
+                return anim as unknown as Animation;
+            };
+    }
+}
+
 describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
     let target: HTMLElement;
 
     beforeEach(() => {
         target = document.createElement('div');
         document.body.appendChild(target);
-
-        // happy-dom has no Web Animations API; the docked-panel path animates
-        // (transition:fly / animate:flip / slideWidth). Stub `animate` with an
-        // immediately-finishing animation so outros complete and nodes unmount.
-        if (!('animate' in Element.prototype)) {
-            (Element.prototype as unknown as Record<string, unknown>).animate =
-                function () {
-                    const anim: Record<string, unknown> = {
-                        onfinish: null,
-                        oncancel: null,
-                        cancel() {},
-                        finish() {},
-                        pause() {},
-                        play() {},
-                        finished: Promise.resolve(),
-                        currentTime: 0,
-                        playState: 'finished',
-                    };
-                    queueMicrotask(() => {
-                        const cb = anim.onfinish as
-                            | ((...a: unknown[]) => void)
-                            | null;
-                        if (typeof cb === 'function') cb();
-                    });
-                    return anim as unknown as Animation;
-                };
-        }
+        stubAnimate();
     });
 
     afterEach(() => {
@@ -560,6 +573,213 @@ describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
                 '[data-plugin-name="@triiiceratops/plugin-surface-selfclose"]',
             ),
         ).toBeNull();
+
+        await unmount(app);
+    });
+});
+
+// Chrome DISPLAY COPY for SDK plugins (issue 2). `SdkPluginMeta.name` is the
+// package-qualified IDENTITY (registry key, style namespace, `data-plugin-name`)
+// and must never be the label a user reads. `definePlugin({ title })` supplies
+// the label, resolved through the PLUGIN's own catalog in the viewer's active
+// locale — key-or-literal, exactly like `PluginLocaleService.t`.
+describe('SDK plugin chrome labels', () => {
+    let target: HTMLElement;
+
+    const TITLE_CATALOG: LocaleCatalog = {
+        en: { my_title: 'My Title' },
+        de: { my_title: 'Mein Titel' },
+    };
+
+    beforeEach(() => {
+        target = document.createElement('div');
+        document.body.appendChild(target);
+        stubAnimate();
+    });
+
+    afterEach(() => {
+        target.remove();
+        vi.restoreAllMocks();
+    });
+
+    it('labels the toolbar button and the panel header from the plugin catalog, not the package name', async () => {
+        const plugin = makeDouble({
+            name: '@triiiceratops/plugin-titled-double',
+            target: 'panel',
+            title: 'my_title',
+            catalog: TITLE_CATALOG,
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        const button = target.querySelector<HTMLElement>(
+            'button[aria-label="My Title"]',
+        );
+        expect(button).not.toBeNull();
+        expect(button!.getAttribute('data-tip')).toBe('My Title');
+        expect(
+            target.querySelector(
+                'button[aria-label="@triiiceratops/plugin-titled-double"]',
+            ),
+        ).toBeNull();
+
+        // Second render site: the docked panel header.
+        button!.click();
+        await settle();
+        const section = target.querySelector<HTMLElement>(
+            '[data-panel-id="triiiceratops-plugin-titled-double:panel"]',
+        );
+        expect(section).not.toBeNull();
+        expect(section!.querySelector('.title')?.textContent).toBe('My Title');
+
+        await unmount(app);
+    });
+
+    it('labels the flyout toggle and the flyout dialog from the plugin catalog', async () => {
+        const plugin = makeDouble({
+            name: '@triiiceratops/plugin-titled-flyout',
+            target: 'flyout',
+            title: 'my_title',
+            catalog: TITLE_CATALOG,
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        const button = target.querySelector<HTMLElement>(
+            '[data-flyout-toggle][aria-label="My Title"]',
+        );
+        expect(button).not.toBeNull();
+
+        const dialog = target.querySelector<HTMLElement>(
+            `#${button!.getAttribute('aria-controls')}`,
+        );
+        expect(dialog).not.toBeNull();
+        expect(dialog!.getAttribute('aria-label')).toBe('My Title');
+
+        await unmount(app);
+    });
+
+    it('resolves the chrome label in the viewer active locale and follows a locale change', async () => {
+        const plugin = makeDouble({
+            name: '@triiiceratops/plugin-titled-de',
+            target: 'panel',
+            title: 'my_title',
+            catalog: TITLE_CATALOG,
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            config: { locale: 'de' } as ViewerConfig,
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        expect(
+            target.querySelector('button[aria-label="Mein Titel"]'),
+        ).not.toBeNull();
+
+        // The label is a live thunk over the viewer's active locale, so a
+        // post-mount `config.locale` change retitles the chrome.
+        props.config = { locale: 'en' } as ViewerConfig;
+        await settle();
+        expect(
+            target.querySelector('button[aria-label="My Title"]'),
+        ).not.toBeNull();
+        expect(
+            target.querySelector('button[aria-label="Mein Titel"]'),
+        ).toBeNull();
+
+        await unmount(app);
+    });
+
+    it('renders a catalog-less title verbatim (key-or-literal)', async () => {
+        const plugin = makeDouble({
+            name: '@triiiceratops/plugin-literal-title',
+            target: 'panel',
+            title: 'Plain Label',
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        expect(
+            target.querySelector('button[aria-label="Plain Label"]'),
+        ).not.toBeNull();
+
+        await unmount(app);
+    });
+
+    it('still resolves a legacy PluginDef name against CORE’s catalog', async () => {
+        // The legacy `PluginDef.name` IS documented as display copy and may be a
+        // core message key (docs/plugin-authoring.md). Adding the SDK `label`
+        // must not disturb that path — it has no `label`, so the toolbar keeps
+        // resolving `tooltip` through core's own catalog.
+        const legacy: PluginDef = {
+            id: 'legacy-core-key',
+            name: 'search_panel_title',
+            icon: (() => {}) as unknown as PluginDef['icon'],
+        };
+
+        const props = $state({
+            plugins: [legacy],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        const button = target.querySelector<HTMLElement>(
+            'button[data-plugin-toggle="legacy-core-key"]',
+        );
+        expect(button).not.toBeNull();
+        expect(button!.getAttribute('aria-label')).toBe('Search');
+
+        await unmount(app);
+    });
+
+    it('falls back to the old name-as-copy behavior for a plugin with no title', async () => {
+        // Back-compat: a plugin built against the pre-`title` SDK must render
+        // exactly what it renders today — the core-catalog lookup of `name`,
+        // else `name` verbatim. Never blank, never `undefined`.
+        const plugin = makeDouble({
+            name: '@triiiceratops/plugin-untitled',
+            target: 'panel',
+        });
+
+        const props = $state({
+            plugins: [plugin],
+            viewerState: undefined as ViewerState | undefined,
+        });
+        const app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+
+        const button = target.querySelector<HTMLElement>(
+            'button[aria-label="@triiiceratops/plugin-untitled"]',
+        );
+        expect(button).not.toBeNull();
+
+        button!.click();
+        await settle();
+        const section = target.querySelector<HTMLElement>(
+            '[data-panel-id="triiiceratops-plugin-untitled:panel"]',
+        );
+        expect(section!.querySelector('.title')?.textContent).toBe(
+            '@triiiceratops/plugin-untitled',
+        );
 
         await unmount(app);
     });

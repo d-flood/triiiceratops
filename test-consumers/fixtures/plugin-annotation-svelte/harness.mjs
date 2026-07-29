@@ -58,13 +58,15 @@ export default {
         // Core now owns the plugin chrome: the plugin's button lives in the
         // viewer's floating toolbar, which starts collapsed. Open the toolbar,
         // then open the plugin's docked panel from its core-rendered button
-        // (accessible name = the plugin's package-qualified name), and enter
-        // create mode.
+        // (accessible name = the plugin's DISPLAY title, `annotation_editor_title`
+        // resolved against the plugin's own catalog — never its package name),
+        // and enter create mode.
         const openMenu = page.getByRole('button', { name: 'Open Menu' });
         if (await openMenu.count()) await openMenu.first().click();
         await page
             .getByRole('button', {
-                name: '@triiiceratops/plugin-annotation-editor',
+                name: 'Annotation Editor',
+                exact: true,
             })
             .click();
         await page.getByRole('button', { name: 'Create', exact: true }).click();

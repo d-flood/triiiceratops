@@ -12,8 +12,23 @@
  * form).
  */
 
+import { describe, expect, it } from 'vitest';
+
 import { runPluginConformance } from '@triiiceratops/plugin-sdk/testing';
+
+import { catalog } from './catalog';
 
 import { createPdfExportPlugin } from './plugin';
 
 runPluginConformance(() => createPdfExportPlugin());
+
+// Chrome-title drift guard. `title` is key-or-literal, so a typo'd key renders
+// verbatim in the toolbar — the exact cosmetic bug `title` exists to fix. Pin
+// that the declared key really is in this package's catalog.
+describe('chrome title', () => {
+    it('declares a title that resolves against this plugin catalog', () => {
+        const plugin = createPdfExportPlugin();
+        expect(plugin.title).toBeTruthy();
+        expect(catalog.en?.[plugin.title!]).toBeTruthy();
+    });
+});
