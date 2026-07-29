@@ -3,7 +3,7 @@
 import type { PluginContext } from 'triiiceratops';
 
 function greeting(context: PluginContext) {
-    const text = context.locale.t('title');
+    const text = context.locale.t('example_title');
     const stop = context.locale.subscribe((locale) => {
         console.log('active locale is now', locale);
     });
