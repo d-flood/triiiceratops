@@ -38,9 +38,11 @@ export const DEFAULT_RUNS = 9;
 // The first-party plugins measured for ESM/IIFE size and first-activation time.
 // `pkg` is the browser-runtime registry name; `toggle` is the stable toolbar
 // button marker each plugin renders once activated (used as the "activated"
-// signal — the same selectors the packed-consumer fixtures assert on).
+// signal).
 // The package-name aria-label fallback lets the head-owned harness measure base
-// artifacts built before Toolbar exposed the stable data-plugin-toggle marker.
+// artifacts built before Toolbar exposed the stable data-plugin-toggle marker —
+// and before SDK plugins gained a `title`, when the button's accessible name
+// still WAS the package name. Current builds match on the first alternative.
 export const PLUGINS = [
     {
         key: 'image-manipulation',

@@ -898,8 +898,19 @@
     });
 </script>
 
+<!--
+    NOTE: this wrapper must NOT be called `viewer-root`. That class is reserved
+    for TriiiceratopsViewer's single root element: the published light-DOM
+    stylesheet is scoped by src/packaging/scopeViewerRoot.ts, which rewrites
+    `:where(:root, :host)` to `:where(.viewer-root)` — turning the base token
+    block into a real DECLARATION of every `--tri-*`/`--ui-*` token on ANY
+    element with the class. A declaration beats inheritance, so a nested
+    `viewer-root` shadows the root's `[data-theme]` / `themeConfig` values for
+    its whole subtree (this painted the canvas stock-light in every theme).
+    Guarded by src/packaging/viewerRootUnique.test.ts.
+-->
 <div
-    class="viewer-root"
+    class="osd-root"
     onpointermove={updateReadonlyTooltip}
     onpointerleave={clearReadonlyTooltip}
 >
@@ -1099,7 +1110,8 @@
         --anno-yellow: oklch(85.2% 0.199 91.936);
     }
 
-    .viewer-root {
+    /* See the note on the markup: this is deliberately NOT `.viewer-root`. */
+    .osd-root {
         width: 100%;
         height: 100%;
         position: relative;
@@ -1120,6 +1132,14 @@
      * background (and every other token) to whatever it picked at mount and
      * ignoring later theme changes. Re-anchor every token Annotorious's
      * attribute could re-trigger back to the real (inherited) value.
+     *
+     * DO NOT DELETE — it looks dead from the light-DOM dist alone. There,
+     * scopeViewerRoot.ts compounds every theme block onto the root
+     * (`.viewer-root[data-theme=…]`), so Annotorious's attribute on THIS
+     * element matches nothing and the block is a harmless no-op. It is still
+     * load-bearing in the SHADOW-DOM custom-element build and in dev/source,
+     * where the sheets are unscoped and the bare `[data-theme='…']` /
+     * `:where(:root, :host, [data-theme])` selectors do match this element.
      */
     .osd-background {
         --tri-color-primary: inherit;

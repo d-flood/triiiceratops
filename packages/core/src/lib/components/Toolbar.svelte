@@ -787,7 +787,13 @@
             {#key language.current}
                 {#each sortedPluginButtons as button (button.id)}
                     {@const LegacyIcon = button.icon}
-                    {@const tooltipText = resolvePluginTooltip(button.tooltip)}
+                    <!-- SDK plugins that declared a `title` carry a live label
+                         thunk already resolved against their OWN catalog; legacy
+                         `PluginDef` buttons fall through to the core-catalog
+                         lookup of `tooltip`. -->
+                    {@const tooltipText =
+                        button.label?.() ??
+                        resolvePluginTooltip(button.tooltip)}
                     <!-- Every plugin registers both a panel and a flyout entry;
                          render the anchored flyout only when the plugin's
                          effective target is 'flyout', otherwise a plain toggle

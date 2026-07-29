@@ -51,12 +51,12 @@ export default {
         ).toBeVisible({ timeout: 30_000 });
 
         // Core renders the plugin's toolbar button (core-owned chrome, ticket
-        // 04) — labelled with the plugin name — and owns opening the docked
-        // panel. The app opens the toolbar via config (`toolbarOpen`), so the
-        // button sits visible among the toolbar buttons.
-        const toggle = page.locator(
-            '[aria-label="@triiiceratops/plugin-image-export"]',
-        );
+        // 04) — labelled with the plugin's DISPLAY title
+        // (`image_download_title` from the plugin's own catalog, NOT its package
+        // name) — and owns opening the docked panel. The app opens the toolbar
+        // via config (`toolbarOpen`), so the button sits visible among the
+        // toolbar buttons.
+        const toggle = page.locator('[aria-label="Download Image"]');
         await expect(toggle).toBeVisible({ timeout: 30_000 });
         await toggle.click();
 
