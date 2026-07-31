@@ -33,6 +33,13 @@
             "reflect": false
         },
         {
+            "property": "plugins",
+            "attribute": "plugins",
+            "type": "String",
+            "reflect": false,
+            "attributeSupported": false
+        },
+        {
             "property": "searchProvider",
             "attribute": "searchprovider",
             "type": "String",

@@ -60,6 +60,22 @@
                 type: 'String',
                 reflect: false,
             },
+            // Property-only input, stated explicitly for the same reason as
+            // `searchProvider` above. Svelte already emits a prototype
+            // accessor and an observed attribute for every DECLARED prop
+            // (`transform-client.js` fills in `{}` for props missing from this
+            // map), so `element.plugins = [...]` has always reached the
+            // component — but the defaults were implicit and therefore absent
+            // from the API report. Pinning them here records that the derived
+            // `plugins` attribute is inert and unsupported: `type: 'String'`
+            // keeps a stray one a harmless string rather than something
+            // JSON.parse would throw on, and the inner viewer already ignores
+            // any non-array value. Framework wrappers use the property only.
+            plugins: {
+                attribute: 'plugins',
+                type: 'String',
+                reflect: false,
+            },
         },
     }}
 />
@@ -67,7 +83,7 @@
 <script lang="ts">
     import styles from '../../app.css?inline';
     import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
-    import type { PluginDef } from '../types/plugin';
+    import type { PluginDef, SdkPlugin } from '../types/plugin';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
     import type { ViewerConfig } from '../types/config';
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
@@ -96,7 +112,13 @@
         manifestId?: string;
         manifestJson?: string | Record<string, any>;
         canvasId?: string;
-        plugins?: PluginDef[];
+        /**
+         * Legacy `PluginDef`s and framework-neutral `SdkPlugin`s, in any mix.
+         * A property-only input (there is no supported `plugins` attribute):
+         * assign `element.plugins = [...]`, before or after upgrade. The inner
+         * viewer ignores anything that is not an array.
+         */
+        plugins?: Array<PluginDef | SdkPlugin>;
         /**
          * Host-supplied custom search backend (property-only input). There is
          * no supported attribute: assign `element.searchProvider = fn`, before

@@ -119,3 +119,32 @@ Rules:
   public `any`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-19 · **Review by:** 2027-01-19
+
+### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
+
+- **Code:** `ts(2307)` "Cannot find module `../triiiceratops-element.js`",
+  suppressed by a single inline `@ts-expect-error` with a description.
+- **File / target:** the one dynamic `import('../triiiceratops-element.js')` in
+  `createViewerElementRegistrar`'s default loader. Nothing else in the repo
+  suppresses this code.
+- **Mechanism:** inline `@ts-expect-error` — the narrowest possible scope, and
+  self-invalidating: if the module ever becomes resolvable, TypeScript reports
+  the unused directive and `pnpm --filter triiiceratops check` fails.
+- **Rationale:** the framework substrate must load the SELF-CONTAINED element
+  bundle by relative specifier, so a consumer's bundler resolves it inside the
+  installed package with no self-reference and no export condition to configure.
+  That artifact — `dist/triiiceratops-element.js` — is emitted by
+  `build:element`, which runs AFTER the `build:lib` step that compiles this
+  module, so it has no counterpart in `src/` and cannot be typed there.
+  Alternatives were rejected: a hand-written `src/lib/triiiceratops-element.d.ts`
+  shim would ship a misleading declaration next to a real artifact, and a
+  non-literal specifier would make the import unanalyzable, so a consumer's
+  bundler could not resolve it at all.
+- **Behavior test / gate:** `packages/core/scripts/check-element-artifact.mjs`,
+  appended to `build:element`, parses the built
+  `dist/framework/registration.js`, requires it to still contain a relative
+  dynamic import, and fails the build if the file that import resolves to is
+  missing. `packages/core/src/lib/framework/registration.test.ts` covers the
+  registrar itself through its injected `load` seam.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-07-31 · **Review by:** 2027-01-31

@@ -6,9 +6,47 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 import { coverage } from '../../vitest.coverage.js';
 
+/**
+ * The framework substrate (`src/lib/framework/registration.ts`) dynamic-imports
+ * the self-contained element bundle by RELATIVE specifier so a consumer's
+ * bundler resolves it inside the installed package. That artifact,
+ * `dist/triiiceratops-element.js`, is produced by `build:element` — a LATER
+ * build step than the one that compiles the substrate — so it does not exist in
+ * `src/`, and Vite's import analysis fails the whole module graph over it in
+ * dev and under vitest.
+ *
+ * Resolve it to an inert stub here. No test loads it: registration is always
+ * driven through the registrar's injected `load` seam, precisely so the shared
+ * memoized registrar never depends on a built artifact. That the REAL artifact
+ * exists beside the real import is asserted at build time by
+ * `scripts/check-element-artifact.mjs`, after `build:element`.
+ */
+const ELEMENT_ARTIFACT_SPECIFIER = '../triiiceratops-element.js';
+const ELEMENT_ARTIFACT_STUB_ID = '\0triiiceratops:element-artifact-stub';
+
+function elementArtifactStub() {
+    return {
+        name: 'triiiceratops:element-artifact-stub',
+        resolveId(source: string, importer: string | undefined) {
+            if (
+                source === ELEMENT_ARTIFACT_SPECIFIER &&
+                importer?.includes('lib/framework/')
+            ) {
+                return ELEMENT_ARTIFACT_STUB_ID;
+            }
+            return null;
+        },
+        load(id: string) {
+            if (id === ELEMENT_ARTIFACT_STUB_ID) return 'export default null;';
+            return null;
+        },
+    };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [
+        elementArtifactStub(),
         paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
