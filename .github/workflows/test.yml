@@ -1,3 +1,18 @@
+# Required CI.
+#
+# Every job carries `if: github.head_ref != 'changeset-release/main'`. That skips
+# the whole suite on the Changesets "Version Packages" pull request, whose diff is
+# entirely machine-generated (`package.json` version fields + CHANGELOG.md) on top
+# of a main that this workflow already tested green on push, and whose identical
+# tree is tested again on the push to main that merging it produces. That post-merge
+# run is the one that matters: publish.yml promotes ITS packed tarballs. Testing the
+# version PR cannot fail while the runs either side of it pass.
+#
+# `github.head_ref` is empty on `push`, so this never skips a main-branch run — only
+# the one release PR. The condition is deliberately at JOB level, not workflow level:
+# a job skipped by an `if` still REPORTS a (skipped) check that satisfies branch
+# protection, whereas a workflow-level filter would report nothing and block the
+# merge forever.
 name: Run Tests
 
 on:
@@ -9,6 +24,7 @@ on:
 jobs:
     test:
         name: Run Unit Tests
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 60
 
@@ -43,6 +59,7 @@ jobs:
         # and 24) so a Node-version incompatibility in the build tooling surfaces
         # in CI. fail-fast disabled so a 22-only failure is visible next to 24.
         name: Quality Gates (lint, diagnostics, coverage, clean build) (Node ${{ matrix.node-version }})
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 45
         strategy:
@@ -135,6 +152,7 @@ jobs:
     # does not mask the others).
     e2e:
         name: E2E (${{ matrix.project }})
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 60
         strategy:
@@ -192,6 +210,7 @@ jobs:
 
     accessibility:
         name: Accessibility (WCAG 2.2 AA)
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 30
 
@@ -243,6 +262,7 @@ jobs:
         # incompatibility in a shipped package would surface. fail-fast disabled
         # so a 22-only failure is visible next to 24.
         name: Packed Consumers (Node ${{ matrix.node-version }})
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 60
         strategy:
@@ -288,7 +308,7 @@ jobs:
         name: Performance Comparison
         runs-on: ubuntu-latest
         timeout-minutes: 60
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
 
         steps:
             - uses: actions/checkout@v7
@@ -333,6 +353,7 @@ jobs:
     # PR — when a snapshot-touching change lacks a Changeset.
     api-report:
         name: API Snapshots + Strict Types
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 30
 
@@ -399,6 +420,7 @@ jobs:
     # metadata to exclude (documented in scripts/release/verify-reproducible.mjs).
     reproducibility:
         name: Release Reproducibility (deterministic tarballs)
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 45
 
@@ -426,7 +448,11 @@ jobs:
     # workflow downloads THIS artifact (matched by run id → commit SHA), verifies
     # the checksums, and runs `npm publish <tgz>` with no build of its own.
     release-artifacts:
+        # Skipped on the Version Packages PR like every other job: the artifacts
+        # that get promoted come from the push-to-main run after it merges (which
+        # is the run carrying the bumped versions), never from the PR itself.
         name: Release Artifacts (pack + checksum)
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         timeout-minutes: 45
 
