@@ -69,6 +69,13 @@ export type {
 } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
 
+// The custom element's state bridge (framework-wrappers ticket 02): the
+// getter-only `viewerState` property paired with the `viewerstateavailable`
+// lifecycle event. This is how a Web Component host binds to the live
+// `ViewerState` a given element owns.
+export type { TriiiceratopsViewerElement } from './types/viewerElement';
+export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
+
 // Opt-in developer diagnostics (ticket 18). Production is quiet by default;
 // consumers enable logging through `ViewerConfig.debug`. `configureLogging`
 // additionally allows a host to inject a custom log sink.

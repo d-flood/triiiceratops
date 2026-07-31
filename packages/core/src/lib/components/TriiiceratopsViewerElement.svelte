@@ -47,6 +47,19 @@
                 type: 'String',
                 reflect: false,
             },
+            // Property-only input. Declaring it here is what makes Svelte
+            // define a prototype accessor for it and port a value assigned
+            // BEFORE the element upgrades (`custom-element.js`
+            // `connectedCallback`). Svelte derives an observed attribute from
+            // every declared prop, so an inert `searchprovider` attribute
+            // exists; `type: 'String'` keeps a stray attribute a harmless
+            // string (an `Object` type would JSON.parse and throw), and the
+            // script below ignores every non-function value.
+            searchProvider: {
+                attribute: 'searchprovider',
+                type: 'String',
+                reflect: false,
+            },
         },
     }}
 />
@@ -61,6 +74,8 @@
     import type { ViewerState } from '../state/viewer.svelte';
     import type { PluginError } from '../types/plugin';
     import type { ViewerError } from '../types/viewerError';
+    import type { SearchProvider } from '../types/config';
+    import { VIEWER_STATE_AVAILABLE_EVENT } from '../types/viewerElement';
     import type { CanvasRegion } from '../utils/contentState';
     import { parseJsonProp } from '../utils/jsonProp';
     import { logger } from '../logging/logger';
@@ -74,6 +89,7 @@
         themeConfig = undefined as string | ThemeConfig | undefined,
         config = undefined as string | ViewerConfig | undefined,
         initialCanvasRegion = undefined as string | CanvasRegion | undefined,
+        searchProvider = undefined as SearchProvider | null | undefined,
         onpluginerror = undefined as ((error: PluginError) => void) | undefined,
         onviewererror = undefined as ((error: ViewerError) => void) | undefined,
     }: {
@@ -81,6 +97,12 @@
         manifestJson?: string | Record<string, any>;
         canvasId?: string;
         plugins?: PluginDef[];
+        /**
+         * Host-supplied custom search backend (property-only input). There is
+         * no supported attribute: assign `element.searchProvider = fn`, before
+         * or after upgrade. Anything that is not a function is ignored.
+         */
+        searchProvider?: SearchProvider | null;
         /**
          * Element-property host callback for the `pluginerror` channel
          * (ticket 09). WC hosts may also listen for the bubbling, composed
@@ -118,15 +140,44 @@
     // ViewerState from the inner component (via bindable prop)
     let internalViewerState: ViewerState | undefined = $state();
 
-    // Track if we've already wired up the event target (only do once)
+    /**
+     * The state bridge (see `../types/viewerElement`). Exporting the binding
+     * makes the Svelte compiler list `viewerState` in `create_custom_element`'s
+     * `exports`, which defines a GETTER-ONLY property on the element prototype
+     * reading `this.$$c?.viewerState`. That is exactly the required contract
+     * with no custom code: `undefined` before the inner viewer mounts,
+     * `undefined` again once disconnection clears `$$c`, no setter at all, and
+     * — because it lives on the prototype — the version handshake a framework
+     * wrapper can probe on the registered constructor.
+     */
+    export { internalViewerState as viewerState };
+
+    // Track if we've already wired up the event target and announced state
+    // availability (only do once per mounted inner component).
     let eventTargetSet = false;
 
-    // Wire up eventTarget when viewerState is available - only once
+    // Wire up eventTarget when viewerState is available - only once - and
+    // announce the state instance on the `viewerstateavailable` channel.
     $effect(() => {
-        if (internalViewerState && hostElement && !eventTargetSet) {
-            eventTargetSet = true;
-            internalViewerState.setEventTarget(hostElement);
-        }
+        if (!internalViewerState || !hostElement || eventTargetSet) return;
+        eventTargetSet = true;
+        const state = internalViewerState;
+        const target = hostElement;
+        state.setEventTarget(target);
+        // Dispatched asynchronously, like the other channels, so a host
+        // listener never runs inside the reactive cycle that mounted the
+        // viewer. Bubbling + composed so it escapes the shadow root. The
+        // property is already readable by now, which is what makes
+        // listen-then-check race-free for hosts that initialize late.
+        queueMicrotask(() => {
+            target.dispatchEvent(
+                new CustomEvent(VIEWER_STATE_AVAILABLE_EVENT, {
+                    detail: state,
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
+        });
     });
 
     // Validate and convert theme string to BuiltInTheme type
@@ -185,6 +236,24 @@
         },
     );
 
+    // `searchProvider` is property-only: the inert `searchprovider` observed
+    // attribute Svelte derives from the prop declaration can only ever deliver
+    // a string, so anything that is not a function is dropped here rather than
+    // reaching the search path.
+    let validatedSearchProvider = $derived.by((): SearchProvider | null => {
+        if (searchProvider === undefined || searchProvider === null)
+            return null;
+        if (typeof searchProvider !== 'function') {
+            logger.warn(
+                'Ignoring non-function searchProvider. It is a property-only ' +
+                    'input with no supported attribute: assign ' +
+                    'element.searchProvider = (query, context) => ….',
+            );
+            return null;
+        }
+        return searchProvider;
+    });
+
     let parsedInitialCanvasRegion = $derived.by(
         (): CanvasRegion | null | undefined => {
             if (!initialCanvasRegion) return null;
@@ -213,6 +282,7 @@
         themeConfig={parsedThemeConfig}
         config={parsedConfig}
         initialCanvasRegion={parsedInitialCanvasRegion}
+        searchProvider={validatedSearchProvider}
         {onpluginerror}
         {onviewererror}
         bind:viewerState={internalViewerState}

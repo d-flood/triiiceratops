@@ -25,11 +25,34 @@ interface ElementProps {
     theme: unknown;
 }
 
+/**
+ * The custom element's state bridge and its property-only `searchProvider`
+ * input, observed through the BUILT element rather than a native Svelte
+ * component (framework-wrappers ticket 02).
+ */
+interface StateBridge {
+    availabilityEvents: Array<{
+        targetIsHost: boolean;
+        detailIsProperty: boolean;
+        bubbles: boolean;
+        composed: boolean;
+    }>;
+    getterOnlyOnPrototype: boolean;
+    noOwnProperty: boolean;
+    searchCalls: Array<{ query: string; manifestId: string }>;
+    searchResultCount: number;
+    searchProviderAttribute: string | null;
+}
+
 async function drive(
     page: Page,
     path: string,
     expectedEntry: string,
-): Promise<{ runtime: RuntimeShape; props: ElementProps }> {
+): Promise<{
+    runtime: RuntimeShape;
+    props: ElementProps;
+    bridge: StateBridge;
+}> {
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
 
@@ -88,9 +111,68 @@ async function drive(
         { timeout: 20000 },
     );
 
+    // The state bridge announced the element's own ViewerState.
+    await page.waitForFunction(
+        () =>
+            ((window as unknown as { __viewerStateEvents?: unknown[] })
+                .__viewerStateEvents?.length ?? 0) > 0,
+        undefined,
+        { timeout: 20000 },
+    );
+
+    const bridge = await page.evaluate(async (): Promise<StateBridge> => {
+        const el = document.getElementById('v') as unknown as {
+            viewerState: any;
+            getAttribute(name: string): string | null;
+        };
+        const ctor = customElements.get('triiiceratops-viewer')!;
+        const descriptor = Object.getOwnPropertyDescriptor(
+            ctor.prototype,
+            'viewerState',
+        );
+        const w = window as unknown as {
+            __viewerStateEvents: StateBridge['availabilityEvents'];
+            __searchCalls: StateBridge['searchCalls'];
+        };
+        // Drive the real search path through the property-assigned provider.
+        await el.viewerState.search('parity');
+        return {
+            availabilityEvents: w.__viewerStateEvents,
+            getterOnlyOnPrototype:
+                typeof descriptor?.get === 'function' &&
+                descriptor?.set === undefined,
+            noOwnProperty:
+                Object.getOwnPropertyDescriptor(el, 'viewerState') ===
+                undefined,
+            searchCalls: w.__searchCalls,
+            searchResultCount: el.viewerState.searchResults.length,
+            searchProviderAttribute: el.getAttribute('searchprovider'),
+        };
+    });
+
+    // Exactly one availability event for the one mounted state instance, and
+    // the detail is the very object the getter returns.
+    expect(bridge.availabilityEvents).toEqual([
+        {
+            targetIsHost: true,
+            detailIsProperty: true,
+            bubbles: true,
+            composed: true,
+        },
+    ]);
+    // Getter-only, on the prototype — the wrappers' version handshake.
+    expect(bridge.getterOnlyOnPrototype).toBe(true);
+    expect(bridge.noOwnProperty).toBe(true);
+    // The provider assigned as a property (never as an attribute) ran.
+    expect(bridge.searchCalls).toHaveLength(1);
+    expect(bridge.searchCalls[0].query).toBe('parity');
+    expect(bridge.searchCalls[0].manifestId).toBeTruthy();
+    expect(bridge.searchResultCount).toBe(1);
+    expect(bridge.searchProviderAttribute).toBeNull();
+
     expect(pageErrors, 'no uncaught page errors').toEqual([]);
 
-    return { runtime: runtime!, props };
+    return { runtime: runtime!, props, bridge };
 }
 
 test.describe('Web Component ESM/IIFE parity', () => {
@@ -110,5 +192,12 @@ test.describe('Web Component ESM/IIFE parity', () => {
         // Identical documented element properties across entries.
         expect(esm.props.manifestId).toBe(iife.props.manifestId);
         expect(esm.props.theme).toBe(iife.props.theme);
+
+        // Identical state bridge across entries, including for the ESM fixture
+        // where `searchProvider` was assigned before the tag was even defined.
+        expect(esm.bridge.availabilityEvents).toEqual(
+            iife.bridge.availabilityEvents,
+        );
+        expect(esm.bridge.searchCalls).toEqual(iife.bridge.searchCalls);
     });
 });
