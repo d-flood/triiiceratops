@@ -405,7 +405,6 @@ export declare const manifestsState: ManifestsState;
 // ======================================================================
 // FILE: dist/state/viewer.svelte.d.ts
 // ======================================================================
-import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import type OpenSeadragon from 'openseadragon';
 import type { ViewerErrorReporter } from '../types/viewerError';
 import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
@@ -458,7 +457,8 @@ export declare class ViewerState {
     showStructuresPanel: boolean;
     initialCanvasRegion: CanvasRegion | null;
     dockSide: string;
-    visibleAnnotationIds: SvelteSet<string>;
+    /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
+    visibleAnnotationIds: Set<string>;
     annotationVisibilityTouched: boolean;
     hoveredAnnotationId: string | null;
     /**
@@ -468,14 +468,20 @@ export declare class ViewerState {
      * page. Plugins write it only through {@link setUserAnnotations} /
      * {@link clearUserAnnotations}; core merges it on top of manifest annotations
      * in {@link getAnnotations}. Its changes notify subscribers (command state).
+     *
+     * Reactive collection declared as a plain `Map` — see the note on the
+     * `svelte/reactivity` import.
      */
-    userAnnotations: SvelteMap<string, any[]>;
+    userAnnotations: Map<string, any[]>;
     /**
      * Manifest ids this viewer has finished loading/registering. Observable: core
      * adds to it when a manifest becomes ready, giving subscribers a
      * manifest-readiness notification (queryable via {@link isManifestReady}).
+     *
+     * Reactive collection declared as a plain `Set` — see the note on the
+     * `svelte/reactivity` import.
      */
-    loadedManifestIds: SvelteSet<string>;
+    loadedManifestIds: Set<string>;
     private userAnnotationKey;
     /**
      * Replace this viewer's displayed user annotations for one canvas. The
@@ -520,7 +526,7 @@ export declare class ViewerState {
         message?: string;
         details?: string;
     } | null;
-    selectedChoices: SvelteMap<string, string>;
+    selectedChoices: Map<string, string>;
     selectedSequenceIndex: number;
     collectionId: string | null;
     collectionLabel: string;
