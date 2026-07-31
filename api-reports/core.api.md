@@ -638,7 +638,8 @@ export declare class ViewerState {
         canvasId?: string;
     }): Promise<void>;
     /**
-     * The canvas ID specified by the manifest's `start` property (IIIF Presentation 3.0).
+     * The canvas ID specified by the manifest's `start` property (IIIF
+     * Presentation 3.0) or its sequence's `startCanvas` (IIIF Presentation 2.x).
      * Used during auto-selection to navigate to the correct initial canvas.
      * Only set once per manifest load; cleared when a new manifest is set.
      */
@@ -2623,6 +2624,12 @@ export declare function getThumbnailSrc(canvas: any, size?: number): string;
 // FILE: dist/utils/iiifIds.d.ts
 // ======================================================================
 export declare function getResourceId(resource: any): string | null;
+/**
+ * A IIIF reference may be a bare id string (common in Presentation 2.x, e.g. a
+ * sequence's `startCanvas`) or an object carrying `id`/`@id`. Returns the id
+ * either way.
+ */
+export declare function getReferenceId(reference: unknown): string | null;
 export declare function getCanvasId(canvas: any): string;
 export declare function getAnnotationId(annotation: any): string;
 export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;

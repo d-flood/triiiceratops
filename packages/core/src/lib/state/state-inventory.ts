@@ -76,7 +76,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'startCanvasId',
         classification: 'internal',
-        notes: 'Manifest-load bookkeeping: mirrors the manifest `start` property during auto-selection and is cleared as a control-flow flag. No plugin contract.',
+        notes: 'Manifest-load bookkeeping: mirrors the manifest `start` property (v3) or sequence `startCanvas` (v2) during auto-selection and is cleared as a control-flow flag. No plugin contract.',
     },
     {
         member: 'initialCanvasRegion',
