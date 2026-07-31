@@ -57,9 +57,7 @@ export interface ViewerPropertyProps {
     /** Initial canvas region — a JSON string or the parsed object. */
     initialCanvasRegion?: string | CanvasRegion;
     /**
-     * Framework-neutral SDK plugins. Legacy `PluginDef` carries Svelte
-     * component types and a Svelte runtime requirement, so it is deliberately
-     * not offered through the framework wrappers.
+     * Framework-neutral SDK plugins — the one plugin path.
      *
      * Activation lifetime is keyed to PLUGIN identity, not list identity:
      * re-supplying an equal list leaves running plugins untouched.

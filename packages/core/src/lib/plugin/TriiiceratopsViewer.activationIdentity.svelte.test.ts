@@ -2,7 +2,7 @@
 //
 // An activation's lifetime is keyed to the plugin's identity WITHIN the viewer's
 // plugin list, not to the identity of the list itself (CONTEXT.md
-// **Activation**). Both plugin effects in `TriiiceratopsViewer` therefore diff
+// **Activation**). The plugin effect in `TriiiceratopsViewer` therefore diffs
 // the incoming list against live activations by plugin OBJECT REFERENCE:
 //   - present before and after → untouched (no deactivate, no re-mount, no
 //     style re-install, no chrome re-registration, no subscription churn);
@@ -25,7 +25,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { definePlugin, type PluginContext } from '@triiiceratops/plugin-sdk';
 
 import TriiiceratopsViewer from '../components/TriiiceratopsViewer.svelte';
-import type { PluginDef, PluginError, SdkPlugin } from '../types/plugin';
+import type { PluginError, SdkPlugin } from '../types/plugin';
 import type { ViewerState } from '../state/viewer.svelte';
 
 vi.mock('openseadragon', () => ({
@@ -166,21 +166,6 @@ function makeDouble(config: {
     return plugin as unknown as SdkPlugin;
 }
 
-/** A minimal legacy `PluginDef`; `onInit` counts its registrations. */
-function makeLegacyDef(config: {
-    name: string;
-    id?: string;
-    onInit: () => void;
-}): PluginDef {
-    return {
-        id: config.id,
-        name: config.name,
-        icon: (() => {}) as unknown as PluginDef['icon'],
-        panel: (() => {}) as unknown as PluginDef['panel'],
-        onInit: config.onInit,
-    };
-}
-
 // happy-dom lacks the Web Animations API used by the docked-panel transitions.
 function stubAnimate() {
     if (!('animate' in Element.prototype)) {
@@ -204,11 +189,9 @@ function stubAnimate() {
     }
 }
 
-type AnyPlugin = SdkPlugin | PluginDef;
-
 interface Harness {
     /** Re-supply the plugin list — the whole point of these tests. */
-    plugins: AnyPlugin[];
+    plugins: SdkPlugin[];
     readonly viewerState: ViewerState;
     unmount(): Promise<void>;
 }
@@ -225,7 +208,7 @@ interface Harness {
  */
 function mountViewer(
     target: HTMLElement,
-    initialPlugins: AnyPlugin[],
+    initialPlugins: SdkPlugin[],
     onpluginerror?: (error: PluginError) => void,
 ): Harness {
     let pluginList = $state.raw(initialPlugins);
@@ -251,7 +234,7 @@ function mountViewer(
         get plugins() {
             return pluginList;
         },
-        set plugins(next: AnyPlugin[]) {
+        set plugins(next: SdkPlugin[]) {
             pluginList = next;
         },
         get viewerState() {
@@ -442,100 +425,6 @@ describe('SDK plugin activation is keyed to plugin identity, not list identity',
         expect(capBoom.cleanups).toBe(0);
         expect(capOk.mounts).toBe(1);
         expect(capOk.cleanups).toBe(0);
-
-        await viewer.unmount();
-    });
-});
-
-describe('legacy PluginDef registration is keyed to plugin identity', () => {
-    let target: HTMLElement;
-
-    beforeEach(() => {
-        target = document.createElement('div');
-        document.body.appendChild(target);
-        stubAnimate();
-    });
-
-    afterEach(() => {
-        target.remove();
-        vi.restoreAllMocks();
-    });
-
-    it('keeps anonymous plugins registered under their assigned id across an equal re-supply', async () => {
-        let initsA = 0;
-        let initsB = 0;
-        // No `id`: core mints a fresh one per registration, so keying on the
-        // derived id could never recognize these as the same plugins.
-        const a = makeLegacyDef({ name: 'Legacy A', onInit: () => initsA++ });
-        const b = makeLegacyDef({ name: 'Legacy B', onInit: () => initsB++ });
-
-        const viewer = mountViewer(target, [a, b]);
-        await settle();
-
-        expect(initsA).toBe(1);
-        expect(initsB).toBe(1);
-        const buttonsBefore = [...viewer.viewerState.pluginMenuButtons];
-        expect(buttonsBefore).toHaveLength(2);
-        const idsBefore = buttonsBefore.map((button) => button.id);
-
-        // Open A, so a re-registration would visibly drop its UI state.
-        const pluginIdA = buttonsBefore[0].pluginId!;
-        viewer.viewerState.setPluginOpen(pluginIdA, true);
-        await settle();
-
-        viewer.plugins = [a, b];
-        await settle();
-
-        // Neither was unregistered and re-registered: no second `onInit`, the
-        // assigned ids survived, and the registered chrome objects are the same.
-        expect(initsA).toBe(1);
-        expect(initsB).toBe(1);
-        const buttonsAfter = viewer.viewerState.pluginMenuButtons;
-        expect(buttonsAfter.map((button) => button.id)).toEqual(idsBefore);
-        expect(buttonsAfter[0]).toBe(buttonsBefore[0]);
-        expect(buttonsAfter[1]).toBe(buttonsBefore[1]);
-        expect(viewer.viewerState.isPluginOpen(pluginIdA)).toBe(true);
-
-        // Unmounting still unregisters everything.
-        await viewer.unmount();
-        expect(viewer.viewerState.pluginMenuButtons).toHaveLength(0);
-    });
-
-    it('unregisters only the removed plugin and registers only the added one', async () => {
-        let initsA = 0;
-        let initsB = 0;
-        let initsC = 0;
-        const a = makeLegacyDef({
-            name: 'Legacy A',
-            id: 'legacy-a',
-            onInit: () => initsA++,
-        });
-        const b = makeLegacyDef({
-            name: 'Legacy B',
-            id: 'legacy-b',
-            onInit: () => initsB++,
-        });
-        const c = makeLegacyDef({
-            name: 'Legacy C',
-            id: 'legacy-c',
-            onInit: () => initsC++,
-        });
-
-        const viewer = mountViewer(target, [a, b]);
-        await settle();
-        expect(initsC).toBe(0);
-
-        viewer.plugins = [a, c];
-        await settle();
-
-        expect(initsA).toBe(1);
-        expect(initsB).toBe(1);
-        expect(initsC).toBe(1);
-        expect(
-            viewer.viewerState.pluginMenuButtons.map(
-                (button) => button.pluginId,
-            ),
-        ).toEqual(['legacy-a', 'legacy-c']);
 
         await viewer.unmount();
     });

@@ -367,18 +367,30 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'pluginMenuButtons',
         classification: 'command',
-        commands: ['registerPlugin', 'unregisterPlugin', 'destroyAllPlugins'],
+        commands: [
+            'registerSdkChrome',
+            'unregisterPlugin',
+            'destroyAllPlugins',
+        ],
         notes: 'Toolbar buttons contributed by plugins; managed only through plugin registration methods.',
     },
     {
         member: 'pluginPanels',
         classification: 'command',
-        commands: ['registerPlugin', 'unregisterPlugin', 'destroyAllPlugins'],
+        commands: [
+            'registerSdkChrome',
+            'unregisterPlugin',
+            'destroyAllPlugins',
+        ],
     },
     {
         member: 'pluginFlyouts',
         classification: 'command',
-        commands: ['registerPlugin', 'unregisterPlugin', 'destroyAllPlugins'],
+        commands: [
+            'registerSdkChrome',
+            'unregisterPlugin',
+            'destroyAllPlugins',
+        ],
     },
     {
         member: 'pluginUiState',
@@ -391,7 +403,6 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
             'setPluginTarget',
             'setPluginPosition',
             'updateConfig',
-            'registerPlugin',
             'registerSdkChrome',
             'unregisterPlugin',
             'destroyAllPlugins',

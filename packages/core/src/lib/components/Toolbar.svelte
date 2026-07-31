@@ -786,11 +786,9 @@
             <!-- --- Plugin Actions --- -->
             {#key language.current}
                 {#each sortedPluginButtons as button (button.id)}
-                    {@const LegacyIcon = button.icon}
-                    <!-- SDK plugins that declared a `title` carry a live label
-                         thunk already resolved against their OWN catalog; legacy
-                         `PluginDef` buttons fall through to the core-catalog
-                         lookup of `tooltip`. -->
+                    <!-- Plugins that declared a `title` carry a live label thunk
+                         already resolved against their OWN catalog; the rest
+                         fall through to the core-catalog lookup of `tooltip`. -->
                     {@const tooltipText =
                         button.label?.() ??
                         resolvePluginTooltip(button.tooltip)}
@@ -806,7 +804,6 @@
                             : undefined}
                     <li>
                         {#if flyout}
-                            {@const Flyout = flyout.component}
                             {@const open = button.isActive?.() ?? false}
                             <button
                                 class="menu-item tooltip {tooltipPlacement}"
@@ -826,16 +823,12 @@
                                         descriptor={button.iconDescriptor}
                                         size={24}
                                     />
-                                {:else if LegacyIcon}
-                                    <LegacyIcon size={24} />
                                 {/if}
                             </button>
                             <!-- A normal (non-top-layer) anchored element so
-                                 tooltips always paint above it. Legacy flyouts
-                                 stay mounted and toggle via `.open` so their
-                                 plugin state persists; SDK (core-owned chrome)
-                                 flyouts mount their content-only container on open
-                                 and unmount on close. -->
+                                 tooltips always paint above it. The plugin's
+                                 content-only container mounts on open and
+                                 unmounts on close. -->
                             <div
                                 id="tri-flyout-{flyout.domId}"
                                 class="menu-flyout {flyoutPlacement}"
@@ -845,21 +838,8 @@
                                 aria-label={tooltipText}
                                 style="position-anchor:--anchor-{flyout.domId}"
                             >
-                                {#if flyout.mount}
-                                    {#if open}
-                                        <PluginMountHost mount={flyout.mount} />
-                                    {/if}
-                                {:else if Flyout}
-                                    <Flyout
-                                        {...flyout.props}
-                                        placement={flyoutPlacement}
-                                        close={() =>
-                                            button.pluginId &&
-                                            viewerState.setPluginOpen(
-                                                button.pluginId,
-                                                false,
-                                            )}
-                                    />
+                                {#if flyout.mount && open}
+                                    <PluginMountHost mount={flyout.mount} />
                                 {/if}
                             </div>
                         {:else}
@@ -876,8 +856,6 @@
                                         descriptor={button.iconDescriptor}
                                         size={24}
                                     />
-                                {:else if LegacyIcon}
-                                    <LegacyIcon size={24} />
                                 {/if}
                             </button>
                         {/if}

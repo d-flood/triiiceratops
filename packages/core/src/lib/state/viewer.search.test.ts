@@ -1044,11 +1044,13 @@ describe('ViewerState - IIIF Search', () => {
 
     describe('Config updates', () => {
         it('applies information, structures, and collection panel config without dropping plugin UI config', () => {
-            state.registerPlugin({
+            state.registerSdkChrome({
                 id: 'plugin-a',
                 name: 'Plugin A',
-                icon: {} as any,
-                panel: {} as any,
+                icon: { kind: 'svg', inner: '', viewBox: '0 0 1 1' },
+                target: 'panel',
+                dismiss: 'light',
+                mount: () => () => {},
             });
 
             state.updateConfig({

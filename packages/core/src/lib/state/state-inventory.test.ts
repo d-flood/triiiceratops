@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tick, type Component } from 'svelte';
+import { tick } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import { ViewerState } from './viewer.svelte';
 import { manifestsState } from './manifests.svelte';
+import type { IconDescriptor } from '../types/plugin';
 import {
     REACTIVE_COLLECTION_MEMBERS,
     STATE_INVENTORY,
@@ -158,7 +159,26 @@ describe('ViewerState state inventory', () => {
 // giving it a scenario here.
 // ============================================================================
 
-const noopIcon = (() => {}) as unknown as Component<Record<string, unknown>>;
+const noopIcon: IconDescriptor = {
+    kind: 'svg',
+    inner: '<path d="M0 0h1v1H0z" />',
+    viewBox: '0 0 1 1',
+};
+
+/** Minimal plugin chrome registration; the matrix only needs the state change. */
+function registerChrome(
+    state: ViewerState,
+    target: 'panel' | 'flyout' = 'panel',
+): void {
+    state.registerSdkChrome({
+        id: 'P',
+        name: 'P',
+        icon: noopIcon,
+        target,
+        dismiss: 'light',
+        mount: () => () => {},
+    });
+}
 
 /**
  * Read a member as the watcher observes it: reactive collections notify on size
@@ -319,20 +339,15 @@ const commandScenarios: CapabilityScenario[] = [
     },
     {
         member: 'pluginMenuButtons',
-        act: (state) => state.registerPlugin({ name: 'P', icon: noopIcon }),
+        act: (state) => registerChrome(state),
     },
     {
         member: 'pluginPanels',
-        act: (state) => state.registerPlugin({ name: 'P', icon: noopIcon }),
+        act: (state) => registerChrome(state),
     },
     {
         member: 'pluginFlyouts',
-        act: (state) =>
-            state.registerPlugin({
-                name: 'P',
-                icon: noopIcon,
-                target: 'flyout',
-            }),
+        act: (state) => registerChrome(state, 'flyout'),
     },
     {
         member: 'pluginUiState',
@@ -341,7 +356,7 @@ const commandScenarios: CapabilityScenario[] = [
         // same-key value swap, so it is invisible to this matrix's size
         // comparison; `plugin/surface.test.ts` asserts that those swaps notify
         // (the channel a plugin's `PluginSurface.isOpen` depends on).
-        act: (state) => state.registerPlugin({ name: 'P', icon: noopIcon }),
+        act: (state) => registerChrome(state),
     },
 ];
 

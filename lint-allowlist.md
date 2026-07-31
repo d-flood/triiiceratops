@@ -114,11 +114,15 @@ Rules:
   itself is `any`-clean. **Update protocol:** adding or removing a line requires
   regenerating the txt via `node scripts/check-public-api.mjs --write-allowlist`
   AND updating this entry's rationale/date in the same commit.
+  **2026-07-31:** five lines were REMOVED (`dist/types/plugin.d.ts`'s
+  `icon`/`panel`/`flyout`/`component` `Component<any>` fields). They were not
+  IIIF-boundary `any`s at all — they were the Svelte-only `PluginDef` chrome
+  path, deleted for 1.0 by framework-wrappers ticket 12. Nothing was added.
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
   `pnpm api:check` in required CI) — fails the build on any non-allowlisted
   public `any`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
-- **Recorded:** 2026-07-19 · **Review by:** 2027-01-19
+- **Recorded:** 2026-07-19 · **Updated:** 2026-07-31 · **Review by:** 2027-01-19
 
 ### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
 

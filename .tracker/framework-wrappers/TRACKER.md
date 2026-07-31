@@ -11,8 +11,9 @@ installing Svelte at runtime or at type-check time.
 
 Overall status: `In Progress`
 
-Current ticket: None — 05 has landed; 06 and 07 are both unblocked and can proceed in
-parallel.
+Current ticket: None. 12 is resolved and `Completed` — see "Resolution of ticket 12's `.`
+entry finding" below. 06 and 07 are unblocked, subject to the re-export constraint
+recorded in the ticket 12 verification gate.
 
 Last updated: 2026-07-31
 
@@ -25,12 +26,21 @@ Last updated: 2026-07-31
 | 03     | `03-remove-svelte-types-from-public-surface.md` | Completed                              | None           |
 | 04     | `04-identity-keyed-plugin-activation.md`        | Completed                              | None           |
 | 05     | `05-framework-wrapper-substrate.md`             | Completed                              | 01, 02, 03     |
-| 06     | `06-react-framework-wrapper.md`                 | Not Started                            | 05             |
-| 07     | `07-vue-framework-wrapper.md`                   | Not Started                            | 05             |
+| 12     | `12-drop-legacy-plugindef.md`                   | Completed                              | None           |
+| 06     | `06-react-framework-wrapper.md`                 | Not Started                            | 05, 12         |
+| 07     | `07-vue-framework-wrapper.md`                   | Not Started                            | 05, 12         |
 | 08     | `08-consumer-testing-helper.md`                 | Not Started                            | 06, 07         |
 | 09     | `09-packed-framework-consumers.md`              | Not Started                            | 04, 06, 07, 08 |
-| 10     | `10-public-api-release.md`                      | Not Started                            | 09             |
+| 10     | `10-public-api-release.md`                      | Not Started                            | 09, 12         |
 | 11     | `11-framework-wrapper-docs.md`                  | Not Started                            | 06, 07, 08     |
+
+Ticket 12 was added mid-epic, after the wave-1 gate proved that the epic's "no Svelte at
+type-check time" promise is unreachable while `ViewerState` references `PluginDef` and the
+`Component<any>`-annotated chrome fields. The owner's decision was to drop the Svelte-only
+`PluginDef` path for 1.0 rather than introduce a structural stand-in type. This supersedes
+ticket 03's "Do not change `PluginDef`, `PluginPanel`, `PluginFlyout`, or `PluginMenuButton`"
+constraint and the SPEC's statement that the leak is "resolved by scope"; see the
+**Superseded decisions** section of `SPEC.md`.
 
 ## Notes
 
@@ -80,6 +90,132 @@ Two things ticket 05 must know, found only by composing 01 with 03:
    import from `svelte` in `dist/state/viewer.svelte.d.ts` — reachable from the
    Svelte-free `./selectors` entry — passes the guard. Only `svelte/reactivity` is hard-forbidden
    there. Tighten this before relying on the guard for the framework subpaths.
+
+### Resolution of ticket 12's `.` entry finding
+
+The ticket-12 gate correctly reported that acceptance criteria 2 and 4 were not literally
+met on the `.` entry: a no-Svelte consumer type-checking `import type { ViewerState } from
+'triiiceratops'` under `skipLibCheck: false` still gets one error, from
+`dist/components/TriiiceratopsViewer.svelte.d.ts`.
+
+That was a defect in the criteria, not in the work. Criteria 2 and 4 were written against
+`triiiceratops` as a whole, but `.` **is** the Svelte-consumer entry — `package.json` maps
+the `svelte` export condition to it, and it deliberately exports the compiled
+`TriiiceratopsViewer` component, whose declaration legitimately imports `svelte`. SPEC user
+story 8 scopes the promise to a _framework consumer_, who imports `triiiceratops/react` or
+`triiiceratops/vue`, never `.`. The residual is pre-existing (byte-identical at `1e5cb1a`)
+and the entry went from two errors to one because ticket 12 removed the one it owned.
+
+Both criteria were amended to be per entry point, and ticket 12 is `Completed`. Making `.`
+itself Svelte-free would require giving it a component-free `types` target for non-Svelte
+conditions — a packaging and public-API change that belongs to ticket 10 if it is wanted at
+all. It is **not** currently planned.
+
+### Ticket 12 outcome — what 06, 07, and 10 must know
+
+`PluginDef` is gone, and with it `definePlugin`/`createPanelPlugin`/`createFlyoutPlugin`
+(core's, not the SDK's), `ViewerState.registerPlugin`, the constructor's third
+`initialPlugins` parameter, and the `icon`/`component` fields on `PluginMenuButton`,
+`PluginPanel`, and `PluginFlyout`. `types/plugin.ts` imports nothing from `svelte`.
+`PluginUiTarget`, `IconDescriptor`, `PluginMountThunk`, `PluginSurface`, `SdkPlugin`,
+`unregisterPlugin`, the three chrome arrays, and the chrome reset are all untouched.
+`registerSdkChrome` is now the only writer of the chrome arrays, and the state inventory
+lists it in place of `registerPlugin` for `pluginMenuButtons`/`pluginPanels`/
+`pluginFlyouts`/`pluginUiState`.
+
+Two corrections to what wave 1 recorded, both found by measuring rather than inferring:
+
+1. **Wave-1 note 1's "exactly one error from `types/plugin.d.ts`" was measured against the
+   Svelte-FREE subpaths, not against `triiiceratops` itself.** Re-measured on HEAD before
+   this ticket, in a real packed consumer with every dependency installed and no `svelte`:
+   `triiiceratops/selectors` + `triiiceratops/testing` under `skipLibCheck: false` reported
+   exactly one error, from `types/plugin.d.ts` — and reports **zero** after this ticket.
+   The `.` entry reported **two**: that one plus
+   `components/TriiiceratopsViewer.svelte.d.ts`, and still reports the latter. That
+   residual is not a leak this ticket left behind — the `.` entry deliberately exports the
+   compiled Svelte component for its `svelte` export condition, and the ticket-03 guard
+   allowlists exactly that. **Tickets 06/07 must therefore not re-export anything from
+   `.`'s component surface into `triiiceratops/react` / `triiiceratops/vue`**, or their own
+   `types` entries will inherit that error; and ticket 10's type-dependency criterion should
+   be stated per entry point, because `.` can only reach zero by splitting its `types`
+   condition, which no ticket currently owns.
+2. **Wave-1 note 2's guard hole is closed.** `isAllowedSvelteImport` no longer keys the
+   compiled-component allowance on the `.svelte.d.ts` extension. It asks whether the
+   ORIGINATING source is a `*.svelte` component, which `svelte-package` answers by copying
+   that source into `dist` next to the declaration; a `*.svelte.ts` rune module emits only
+   `<name>.svelte.js`. Verified both ways on the real `dist`: a planted
+   `import type { Component } from 'svelte'` in `dist/state/viewer.svelte.d.ts` now fails
+   the build naming the chain, and the build is clean once reverted. Synthetic fixtures in
+   `dtsSvelteImports.test.ts` must now write the `.svelte` sibling for a case that expects
+   the component allowance. `ALLOWED_SVELTE_IMPORTS_BY_FILE` is now empty and a test pins it
+   that way.
+
+Test-porting note for anyone touching plugin chrome tests: `viewer.pluginTarget.test.ts`,
+`viewer.pluginPosition.test.ts`, `state-inventory.test.ts`, and `viewer.search.test.ts`
+covered SHARED target/position/inventory machinery through `registerPlugin` only because it
+was the convenient vehicle. They were ported to `registerSdkChrome`, not deleted — the
+machinery is content-agnostic and the coverage is unchanged. Only genuinely legacy-only
+cases were deleted (see the ticket-12 commit).
+
+### Ticket 12 verification gate — why the status is not `Completed`
+
+Verified independently of the implementing agent's account, on a freshly packed
+`triiiceratops-1.0.0-rc.31.tgz` installed into a throwaway project with every real
+dependency present (15 packages) and **zero** Svelte packages, type-checked with
+`typescript@5.9.3` under `strict: true`, `moduleResolution: bundler`, `types: []`,
+`skipLibCheck: false`:
+
+| Probe                                                          | Result                                                                                                     |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `triiiceratops/selectors` + `triiiceratops/testing`            | **0 errors**, `tsc` exit 0                                                                                 |
+| `import type { ViewerState } from 'triiiceratops'` (`.` entry) | **1 error** — `dist/components/TriiiceratopsViewer.svelte.d.ts(38,43) TS2307: Cannot find module 'svelte'` |
+
+Everything else in the ticket verifies clean. All nine commands in the Run block exit 0
+(`check`, `test` 712, `lint`, `build:lib`, `build:element`, workspace `check`, workspace
+`test`, `api:check`, `docs:examples:check`); plugin-SDK and annotation-editor both build
+and pass (71 / 102) and still consume `PluginUiTarget`; `PluginUiTarget`, `IconDescriptor`,
+`PluginMountThunk`, `PluginSurface`, `SdkPlugin`, `unregisterPlugin`, the three chrome
+arrays, and the chrome reset all survive with their shapes unchanged; ticket 04's
+identity-keyed SDK effect diffs byte-for-byte against 503754c apart from losing its legacy
+sibling, and its four cases pass; every deleted test case was legacy-path-only and the four
+ported files kept their assertions verbatim; the `core.api.md` diff contains no removal
+beyond `PluginDef`, the three `PluginDef` helpers, `registerPlugin`, the constructor
+parameter, and the nine `Component` fields; the breaking changeset is present and correct.
+Both guard criteria were re-verified by planting and reverting real imports in `dist`: a
+`svelte` import in `dist/types/plugin.d.ts` now fails (exit 1), and one in
+`dist/state/viewer.svelte.d.ts` now fails while the **pre-ticket** guard restored from
+1e5cb1a passes the same plant (exit 0) — the hole is genuinely closed, not merely claimed.
+
+So the failure is narrow and structural, not sloppiness:
+
+- **Acceptance criteria 2 and 4 are not literally met for the `.` entry.** `.`'s single
+  `types` condition is `dist/index.d.ts`, which re-exports the compiled
+  `TriiiceratopsViewer.svelte`; TypeScript resolves `types` regardless of the `svelte`
+  export condition, so a Svelte-free consumer reaches
+  `import("svelte").Component<Props, {}, "viewerState">`.
+- **This is pre-existing, not regression.** That exact declaration is byte-identical in
+  `api-reports/core.api.md` at 1e5cb1a and at HEAD, and `index.ts` exported the component
+  before this ticket. The `.` entry went from two errors to one; ticket 12 removed the one
+  it owned.
+- **No in-scope fix exists.** Reaching zero on `.` means giving it a component-free `types`
+  target for non-Svelte conditions — a packaging and public-API decision the ticket's
+  Contract and Out of Scope do not authorize, and most naturally ticket 10's.
+
+**Owner decision needed:** either (a) accept the criteria as per-entry-point — `.` is the
+Svelte-consumer entry and keeps its component type; `./selectors`, `./testing`, and the
+future framework subpaths are provably Svelte-free — and hand the `.` split to ticket 10,
+or (b) authorize the `.` `types` split now. Nothing in ticket 12's own work needs redoing
+either way.
+
+**Hard constraint for 06 and 07 in the meantime:** re-export into `triiiceratops/react` /
+`triiiceratops/vue` from `framework/index.ts`, `./selectors`, and `types/*` **only**. Do
+not re-export anything from `.`'s component surface, or those subpaths' `types` entries
+inherit this error and their `skipLibCheck: false` type test fails for a reason unrelated
+to them. Confirmed viable: `dist/framework/props.d.ts` type-checks to **0 errors** in the
+same no-Svelte consumer, so the substrate is already clean.
+
+**Ticket 10** should state its type-dependency criterion per entry point rather than for
+`triiiceratops` as a whole.
 
 ### Ticket 05 outcome — what 06, 07, and 08 must know
 

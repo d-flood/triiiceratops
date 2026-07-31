@@ -189,9 +189,8 @@ a flyout entry, so the effective target is switchable at runtime — like
 `visible`/`open` — via `config.plugins[id].target` or
 `viewerState.setPluginTarget(id, target)`. A panel's dock side works the same way:
 `config.plugins[id].position` or `viewerState.setPluginPosition(id, position)` sets
-it for **any** plugin — SDK (`definePlugin`) or legacy `PluginDef` alike — as a
-consumer-only decision; `definePlugin` itself has no `position` field, so an SDK
-plugin author cannot fix one. This lets one plugin render as a panel on desktop and
+it for any plugin as a consumer-only decision; `definePlugin` itself has no
+`position` field, so a plugin author cannot fix one. This lets one plugin render as a panel on desktop and
 a flyout on a narrow viewport; see [controlling plugin UI at
 runtime](#controlling-plugin-ui-at-runtime) below for the per-framework code.
 Switching remounts the plugin UI in the new container, so a plugin that must
@@ -218,14 +217,11 @@ type ViewerConfig = {
 };
 ```
 
-The record key is the plugin's stable id:
-
-- **Legacy `PluginDef` plugins** — the `id` you set on the def.
-- **SDK (`definePlugin`) plugins** — the plugin's `uiId`. First-party plugins
-  set short, documented ids (`pdf-export`, `image-download`,
-  `image-manipulation`, `annotation-editor`). If a plugin omits `uiId`, core
-  derives a stable id from its package name by replacing every run of unsafe
-  characters with `-` (e.g. `@scope/plugin-foo` → `scope-plugin-foo`).
+The record key is the plugin's stable id — its `uiId`. First-party plugins set
+short, documented ids (`pdf-export`, `image-download`, `image-manipulation`,
+`annotation-editor`). If a plugin omits `uiId`, core derives a stable id from its
+package name by replacing every run of unsafe characters with `-` (e.g.
+`@scope/plugin-foo` → `scope-plugin-foo`).
 
 Every field is a sparse override applied on top of the plugin's authored
 defaults; omitting a field leaves the current live value untouched:
@@ -345,9 +341,10 @@ conformance test kit.
 See the [plugin authoring guide](plugin-authoring.md) and the
 [plugin testing guide](plugin-testing.md) for the full API and examples.
 
-Svelte hosts that would rather skip the SDK entirely have a lighter-weight
-legacy shortcut (`PluginDef`, `createPanelPlugin`/`createFlyoutPlugin`) — see
-the Svelte tab in [rendering UI in your
+`definePlugin` is the only plugin path. The Svelte-only shortcut (`PluginDef`,
+`createPanelPlugin`/`createFlyoutPlugin`) was removed in 1.0; a Svelte host
+mounts its component from the SDK's `mount()` instead — see the Svelte tab in
+[rendering UI in your
 framework](plugin-authoring.md#rendering-ui-in-your-framework).
 
 ---

@@ -268,6 +268,35 @@ interface ViewerHandle {
 - Package exports, runtime-dependency checks, public API reports, build ordering, release artifact packing, and consumer fixture orchestration are extended for the new subpaths without creating separately versioned packages.
 - The API report will list an inert `searchprovider` observed attribute, because Svelte derives observed attributes from every declared prop. It is annotated as unsupported in the snapshot so a future contributor does not wire it up.
 
+### Superseded decisions
+
+Recorded mid-epic, after the wave-1 integration gate. Where these conflict with anything
+above or with a ticket, these win.
+
+- **The `Component` leak is not "resolved by scope".** This spec asserted that restricting
+  the wrappers' `plugins` prop to `readonly SdkPlugin[]` kept Svelte out of the framework
+  subpaths' declaration graph. That reasoning was incomplete: the leak arrives through
+  `ViewerState` itself, which publicly exposes `pluginMenuButtons`, `pluginPanels`,
+  `pluginFlyouts`, and `registerPlugin(def: PluginDef)` — all annotated with
+  `Component<any>` from `svelte`. Because `ReadonlyViewerState` is
+  `Readonly<Omit<ViewerState, …>>`, and `Omit` still forces the full `ViewerState`
+  declaration to resolve, no amount of member omission removes the import. User story 8,
+  tickets 06/07's `skipLibCheck: false` type test, and ticket 10's type-dependency criterion
+  were therefore all unsatisfiable as originally written.
+- **The Svelte-only `PluginDef` path is dropped for 1.0** (ticket 12), rather than retyped
+  behind a Svelte-free structural stand-in. This supersedes ticket 03's "Do not change
+  `PluginDef`, `PluginPanel`, `PluginFlyout`, or `PluginMenuButton`" constraint and its
+  statement that "`PluginDef` itself is unchanged for existing Svelte and custom-element
+  consumers". It is a breaking change to core's public API.
+- Only `PluginDef` was ever legacy. `PluginMenuButton`, `PluginPanel`, and `PluginFlyout`
+  are live types shared by both chrome paths; each carries a `PluginDef`-path field
+  (`icon`, `component`) beside its SDK-path equivalent (`iconDescriptor`, `mount`).
+  Dropping `PluginDef` is what lets the paired fields go, leaving those three types clean.
+- The Out of Scope entry "Legacy `PluginDef` support through the framework wrappers" still
+  holds, but now trivially: `PluginDef` no longer exists anywhere.
+- `PluginUiTarget` is **not** part of the legacy path and stays exported. The plugin SDK's
+  `definePlugin` and the annotation-editor plugin both consume it.
+
 ## Testing Decisions
 
 - Tests assert external behavior and published-package usability, not internal hook counts, private fields, Svelte effects, or exact implementation structure.

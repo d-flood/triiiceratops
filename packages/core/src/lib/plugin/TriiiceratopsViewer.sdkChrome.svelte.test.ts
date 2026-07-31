@@ -22,12 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { definePlugin, type PluginContext } from '@triiiceratops/plugin-sdk';
 
 import TriiiceratopsViewer from '../components/TriiiceratopsViewer.svelte';
-import type {
-    LocaleCatalog,
-    PluginDef,
-    PluginError,
-    SdkPlugin,
-} from '../types/plugin';
+import type { LocaleCatalog, PluginError, SdkPlugin } from '../types/plugin';
 import type { ViewerConfig } from '../types/config';
 import type { ViewerState } from '../state/viewer.svelte';
 
@@ -386,7 +381,7 @@ describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
     //
     // Core mounts the plugin ONCE (asserted above: `capture.mounts` stays 1
     // across close→reopen), so a plugin cannot learn open/close from its mount
-    // lifecycle the way a legacy `PluginDef` component did. It learns it from
+    // lifecycle the way a Svelte component would. It learns it from
     // `context.surface`. These are the end-to-end guards: a real toolbar button
     // press in the real viewer chrome must reach the plugin's subscription.
 
@@ -536,7 +531,7 @@ describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
     });
 
     it('lets a plugin close its own surface from inside its content', async () => {
-        // The SDK equivalent of the `close` prop a legacy `PluginDef` component
+        // The SDK equivalent of the `close` prop a Svelte component
         // received — a "done"/"apply" affordance inside the plugin's own UI.
         const seen: boolean[] = [];
         const surfaceRef: { current: PluginContext['surface'] | null } = {
@@ -720,33 +715,6 @@ describe('SDK plugin chrome labels', () => {
         expect(
             target.querySelector('button[aria-label="Plain Label"]'),
         ).not.toBeNull();
-
-        await unmount(app);
-    });
-
-    it('still resolves a legacy PluginDef name against CORE’s catalog', async () => {
-        // The legacy `PluginDef.name` IS documented as display copy and may be a
-        // core message key (docs/plugin-authoring.md). Adding the SDK `label`
-        // must not disturb that path — it has no `label`, so the toolbar keeps
-        // resolving `tooltip` through core's own catalog.
-        const legacy: PluginDef = {
-            id: 'legacy-core-key',
-            name: 'search_panel_title',
-            icon: (() => {}) as unknown as PluginDef['icon'],
-        };
-
-        const props = $state({
-            plugins: [legacy],
-            viewerState: undefined as ViewerState | undefined,
-        });
-        const app = mount(TriiiceratopsViewer, { target, props });
-        await settle();
-
-        const button = target.querySelector<HTMLElement>(
-            'button[data-plugin-toggle="legacy-core-key"]',
-        );
-        expect(button).not.toBeNull();
-        expect(button!.getAttribute('aria-label')).toBe('Search');
 
         await unmount(app);
     });

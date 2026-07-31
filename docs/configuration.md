@@ -66,7 +66,7 @@ interface ViewerConfig {
         showCollection?: boolean; // Default: true (only visible when a collection is loaded)
     };
 
-    // Plugin UI Settings (keyed by plugin id — PluginDef.id or SDK uiId)
+    // Plugin UI Settings (keyed by plugin id — the SDK `uiId`)
     plugins?: {
         [pluginId: string]: {
             visible?: boolean; // Default: true (Toolbar button visible)
@@ -166,7 +166,7 @@ When multiple panels are open on the same side, they stack vertically. `search`,
 
 ### Plugin UI Control
 
-Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's stable id as the key — `PluginDef.id` for legacy plugins, or the SDK `uiId` for `definePlugin` plugins (first-party plugins use `pdf-export`, `image-download`, `image-manipulation`, `annotation-editor`):
+Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's stable id as the key — the SDK `uiId` a `definePlugin` plugin declares (first-party plugins use `pdf-export`, `image-download`, `image-manipulation`, `annotation-editor`):
 
 ```typescript
 const config = {
