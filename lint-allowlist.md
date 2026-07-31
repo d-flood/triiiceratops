@@ -118,6 +118,13 @@ Rules:
   `icon`/`panel`/`flyout`/`component` `Component<any>` fields). They were not
   IIIF-boundary `any`s at all — they were the Svelte-only `PluginDef` chrome
   path, deleted for 1.0 by framework-wrappers ticket 12. Nothing was added.
+  **2026-07-31 (later):** ONE line was ADDED —
+  `dist/framework/props.d.ts :: manifestJson?: string | Record<string, any>`.
+  It is the same IIIF boundary as the already-listed
+  `TriiiceratopsViewer.svelte.d.ts :: manifestJson?: any`, reached for the first
+  time because framework-wrappers ticket 06 published `triiiceratops/react`,
+  whose declaration graph includes the shared framework prop metadata. No new
+  boundary and no new `any` — only a new public path to an existing one.
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
   `pnpm api:check` in required CI) — fails the build on any non-allowlisted
   public `any`.

@@ -17,6 +17,10 @@
                 "svelte": "./dist/index.js",
                 "import": "./dist/index.js"
             },
+            "./react": {
+                "types": "./dist/react.d.ts",
+                "import": "./dist/react.js"
+            },
             "./selectors": {
                 "types": "./dist/state/selectors/index.d.ts",
                 "import": "./dist/state/selectors/index.js"

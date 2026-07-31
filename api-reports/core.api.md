@@ -6,8 +6,127 @@
 // Entry points:
 //   - dist/image-export.d.ts
 //   - dist/index.d.ts
+//   - dist/react.d.ts
 //   - dist/state/selectors/index.d.ts
 //   - dist/testing/index.d.ts
+
+// ======================================================================
+// FILE: dist/browser-runtime.d.ts
+// ======================================================================
+/**
+ * The `window.Triiiceratops` browser runtime namespace (ticket 10).
+ *
+ * One namespace per page, bootstrapped order-independently: every core (and,
+ * later, every plugin) IIFE creates it if absent via {@link ensureBrowserRuntime}
+ * (`window.Triiiceratops ??= …`), so a plugin script may load and register before
+ * core. Core fills in `coreVersion`/`pluginApiVersion`/`capabilities` when it
+ * loads, and registers the `<triiiceratops-viewer>` custom element.
+ *
+ * "One core per page, first wins" (SPEC.md "Plugin SDK And Browser API"): a
+ * second core with a different version leaves the namespace and the custom
+ * element untouched and throws a structured {@link TriiiceratopsCoreConflictError}
+ * — the same error path as duplicate custom-element registration (one rule, one
+ * error). A same-version double-load is a harmless no-op, including idempotent
+ * element registration.
+ *
+ * Registration never activates anything (CONTEXT.md **Registration**);
+ * activation is explicit, per viewer, and negotiated later (CONTEXT.md
+ * **Activation**).
+ */
+import type { SdkPlugin } from './types/plugin';
+/** The custom-element tag both Web Component entries register. */
+export declare const VIEWER_ELEMENT_TAG = "triiiceratops-viewer";
+/** The property name of the namespace on the global object. */
+export declare const BROWSER_RUNTIME_KEY = "Triiiceratops";
+/**
+ * Order-independent registry of plugin factories keyed by package name (with
+ * version as the first-wins tiebreaker). Loading a plugin registers its factory
+ * here; it never activates the plugin.
+ */
+export interface PluginFactoryRegistry {
+    /**
+     * Register a plugin factory. Keyed by package name + version:
+     * - unseen name: registered;
+     * - same name + same version: idempotent no-op;
+     * - same name + different version: ignored (first wins) with a structured
+     *   `console.warn`.
+     */
+    register(factory: SdkPlugin): void;
+    /** The first-registered factory for a package name, if any. */
+    get(name: string): SdkPlugin | undefined;
+    /** Whether a factory is registered for a package name. */
+    has(name: string): boolean;
+    /** All registered factories, in registration order. */
+    list(): readonly SdkPlugin[];
+}
+/**
+ * The browser runtime descriptor (SPEC.md — normative shape). `coreVersion`,
+ * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
+ * them; the `plugins` registry exists from first bootstrap so plugins can
+ * register before core.
+ */
+export interface TriiiceratopsBrowserRuntime {
+    readonly coreVersion: string;
+    readonly pluginApiVersion: string;
+    readonly capabilities: readonly string[];
+    readonly plugins: PluginFactoryRegistry;
+}
+declare global {
+    interface Window {
+        Triiiceratops?: TriiiceratopsBrowserRuntime;
+    }
+}
+/**
+ * Structured, actionable error for the "one core per page" rule. Thrown when a
+ * second core with a different version tries to load, and — because element
+ * registration is routed through this runtime — it is the single error path for
+ * duplicate custom-element registration too.
+ */
+export declare class TriiiceratopsCoreConflictError extends Error {
+    readonly code: "CORE_VERSION_CONFLICT";
+    readonly existingVersion: string;
+    readonly attemptedVersion: string;
+    constructor(existingVersion: string, attemptedVersion: string);
+}
+/**
+ * Bootstrap the namespace if absent and return it. Idempotent and
+ * order-independent (`window.Triiiceratops ??= …`): whoever runs first — core or
+ * a plugin — creates the shared registry, and everyone else reuses it.
+ */
+export declare function ensureBrowserRuntime(target?: Window): TriiiceratopsBrowserRuntime;
+/**
+ * Idempotently define the viewer custom element. Returns `true` if it defined
+ * the tag, `false` if the tag was already registered (a same-version double-load
+ * or a foreign registration). Never throws on an already-defined tag.
+ */
+export declare function defineViewerElement(ctor: CustomElementConstructor, tag?: string, target?: Window): boolean;
+/** Options for installing core into the browser runtime. */
+export interface InstallCoreOptions {
+    /** Core package version (drives the first-wins conflict rule). */
+    coreVersion: string;
+    /** Plugin API version core declares for activation-time negotiation. */
+    pluginApiVersion: string;
+    /** Capabilities core declares (e.g. `osd@5`). */
+    capabilities: readonly string[];
+    /** The custom-element constructor to register for {@link tag}. */
+    elementCtor: CustomElementConstructor;
+    /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
+    tag?: string;
+    /** Global to install onto. Defaults to `window` (injectable for tests). */
+    target?: Window;
+}
+/**
+ * Install core into the (possibly plugin-bootstrapped) namespace and register
+ * the custom element.
+ *
+ * - First core wins: fills `coreVersion`/`pluginApiVersion`/`capabilities` and
+ *   defines the element.
+ * - Same-version double-load: harmless no-op (element registration stays
+ *   idempotent).
+ * - Different version: throws {@link TriiiceratopsCoreConflictError} and leaves
+ *   the namespace and the custom element untouched.
+ */
+export declare function installBrowserRuntime(options: InstallCoreOptions): TriiiceratopsBrowserRuntime;
 
 // ======================================================================
 // FILE: dist/components/TriiiceratopsViewer.svelte.d.ts
@@ -139,6 +258,632 @@ export declare function getCanvasBehaviors(canvas: any): string[];
 export declare function getPagedCanvasGroups(canvases: any[], pagedOffset: number): PagedCanvasGroup[];
 export declare function getVisibleCanvasEntries({ canvases, currentCanvasId, currentCanvasIndex, viewingMode, pagedOffset, }: Omit<VisibleChoiceGroupArgs, 'viewingDirection' | 'getSelectedChoice'>): VisibleCanvasEntry[];
 export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, currentCanvasIndex, viewingMode, pagedOffset, viewingDirection, getSelectedChoice, }: VisibleChoiceGroupArgs): ChoiceGroup[];
+
+// ======================================================================
+// FILE: dist/framework/applier.d.ts
+// ======================================================================
+/**
+ * The ONE property-tier applier both framework wrappers use.
+ *
+ * It exists because "assign an object prop to a custom element" has three
+ * hazards that are easy to get wrong once per framework:
+ *
+ * 1. **It must not wait for registration.** Svelte's custom element ports
+ *    properties assigned BEFORE upgrade into its props record on connect
+ *    (`custom-element.js` `connectedCallback`), so imperative assignment is
+ *    safe in either order. Gating assignment on the element bundle's dynamic
+ *    import would gate first paint on a network round trip for no benefit —
+ *    and, in Vue, routing these values through vnode props instead would let
+ *    `shouldSetAsProp` fall back to `setAttribute(key, String(value))` on a
+ *    not-yet-defined element, stringifying a manifest or a search function.
+ * 2. **Clearing a value before upgrade must DELETE, not assign `undefined`.**
+ *    That same porting loop skips keys whose value is `undefined`, so an
+ *    `undefined` assigned before upgrade is never ported and never removed. The
+ *    own property then shadows the prototype accessor permanently and every
+ *    later assignment silently stops reaching the component.
+ * 3. **Writes are edge-triggered against the PROP value, never the element's
+ *    state.** Re-asserting an unchanged value after the viewer has moved on —
+ *    the user navigated, so `canvas-id` reflects something else — must write
+ *    nothing. Otherwise every parent re-render would reload the manifest, snap
+ *    the viewport, or restart the plugins.
+ *
+ * Change detection is the uniform one-level {@link shallowEqual}. It never
+ * inspects a value's contents beyond one level and never branches on which prop
+ * is being written.
+ */
+import { type ViewerElementProps } from './props.js';
+import type { TriiiceratopsViewerElement } from '../types/viewerElement.js';
+/**
+ * How many writes of a single property-tier input over one wrapper's lifetime
+ * are implausible enough to name in development. Exceeding it almost always
+ * means an object or function prop is rebuilt on every parent render.
+ */
+export declare const PROPERTY_WRITE_WARNING_THRESHOLD = 10;
+export interface ViewerPropApplierOptions {
+    /** Override the development warn-once threshold. Mainly for tests. */
+    warnThreshold?: number;
+}
+export interface ViewerPropApplier {
+    /**
+     * Apply the current props. Attribute-tier keys in the same object are
+     * ignored — wrappers render those declaratively — so a wrapper can pass its
+     * whole props object unchanged.
+     *
+     * Safe to call before the element is registered, before it is connected,
+     * and on every render.
+     */
+    apply(props: Readonly<ViewerElementProps>): void;
+}
+/**
+ * Create the property-tier applier for one element. One applier per mounted
+ * wrapper: its memory of previously applied values IS the edge-trigger, and its
+ * per-prop write counters back the development warning.
+ */
+export declare function createViewerPropApplier(element: TriiiceratopsViewerElement, options?: ViewerPropApplierOptions): ViewerPropApplier;
+
+// ======================================================================
+// FILE: dist/framework/binding.d.ts
+// ======================================================================
+/**
+ * The per-wrapper binding: one element, its live `ViewerState`, and exactly one
+ * selector runtime.
+ *
+ * `<TriiiceratopsViewer>` owns this. Providers and handles only distribute it.
+ *
+ * **Listen-then-check.** Binding attaches the `viewerstateavailable` listener
+ * BEFORE it triggers registration, then reads `element.viewerState`. The
+ * element populates the property before dispatching the event, so state that
+ * became available before, during, or after the wrapper initialized is caught
+ * by exactly one of the two — never both (the same state binds once) and never
+ * neither.
+ *
+ * **Availability is repeatable, not a one-shot latch.** Disconnecting the
+ * element destroys the inner viewer and its `ViewerState`; reconnecting builds
+ * a new one and dispatches a new event. Vue's `<KeepAlive>` does exactly that
+ * on every deactivate/reactivate cycle. On each event after the first this
+ * disposes the previous runtime, publishes the new binding, and rebuilds the
+ * handle — all synchronously, before any listener is notified — so no consumer
+ * can ever observe a handle whose projections are subscribed to a disposed
+ * runtime. Because the loss of canvas, zoom, and plugin state is otherwise
+ * completely silent, the second availability warns once in development.
+ *
+ * Preserving or restoring viewer state across that teardown is deliberately not
+ * attempted: it would require the wrapper to own a second state surface, which
+ * is precisely what ADR 0007 rules out.
+ */
+import { type SelectorRuntime } from '../state/selectors/index.js';
+import type { ViewerState } from '../state/viewer.svelte.js';
+import type { ViewerHandleSlot } from './handle.js';
+import type { TriiiceratopsViewerElement, ViewerHandle } from './types.js';
+/** Everything one mounted wrapper is bound to. Rebuilt whole on rebind. */
+export interface ViewerBinding {
+    readonly element: TriiiceratopsViewerElement;
+    /** The element's live state. `handle.state` is the same object, typed down. */
+    readonly state: ViewerState;
+    /** This wrapper's own runtime — never shared with a plugin activation. */
+    readonly runtime: SelectorRuntime;
+    /** The imperative handle for this binding. */
+    readonly handle: ViewerHandle;
+}
+export interface ViewerBindingOptions {
+    /**
+     * Called after every binding change: first bind, each rebind, and teardown.
+     * Wrappers turn this into a framework update (React's external-store
+     * listener, a Vue ref write).
+     */
+    onChange?: () => void;
+    /** Consumer-created slot this viewer claims while mounted, if any. */
+    handle?: ViewerHandleSlot | null;
+    /**
+     * Registration hook. Defaults to the shared memoized registrar; injectable
+     * so tests can drive registration outcomes without a real bundle.
+     */
+    ensureRegistered?: () => Promise<void>;
+    /**
+     * Registration rejected. Wrappers surface this framework-natively (React:
+     * rethrow during render into an error boundary; Vue: throw from a watcher).
+     * With no handler the failure is logged as a developer diagnostic.
+     */
+    onRegistrationError?: (error: unknown) => void;
+}
+export interface ViewerBindingController {
+    /** The element this controller is attached to, or `null`. */
+    readonly element: TriiiceratopsViewerElement | null;
+    /** The current binding, or `null` while the element has no state. */
+    readonly binding: ViewerBinding | null;
+    /**
+     * The current imperative handle, or `null`. Reference-stable while
+     * unchanged, so it is a valid React `getSnapshot`.
+     */
+    readonly handle: ViewerHandle | null;
+    /** Wake on binding changes. Idempotent unsubscribe. */
+    subscribe(listener: () => void): () => void;
+    /**
+     * Bind to a mounted element: claim the handle slot, listen, trigger shared
+     * registration, then check for already-available state. Idempotent for the
+     * same element; attaching a different element detaches the previous one.
+     *
+     * Throws `TriiiceratopsHandleConflictError` if the slot is already bound to
+     * another element.
+     */
+    attach(element: TriiiceratopsViewerElement): void;
+    /**
+     * Tear down: remove DOM listeners, dispose the runtime, clear the binding
+     * and the handle, and release the slot. Idempotent, and terminal — a
+     * destroyed controller never binds again.
+     */
+    destroy(): void;
+}
+/**
+ * Create the binding controller for one mounted wrapper.
+ *
+ * Every member of the returned object is a closure, not a prototype method, so
+ * `controller.subscribe` can be handed straight to `useSyncExternalStore`
+ * without binding or memoization.
+ */
+export declare function createViewerBinding(options?: ViewerBindingOptions): ViewerBindingController;
+
+// ======================================================================
+// FILE: dist/framework/errors.d.ts
+// ======================================================================
+/**
+ * The framework wrappers' own structured failures.
+ *
+ * Each one names a wiring mistake a consumer can actually fix, and each is
+ * thrown (or handed to the wrapper's `onRegistrationError` seam) so it reaches
+ * the framework's native error handling — a React error boundary, Vue's
+ * `app.config.errorHandler` — rather than the console.
+ *
+ * `TriiiceratopsCoreConflictError` (`../browser-runtime`) is deliberately NOT
+ * wrapped by any of these: its message is already the right diagnostic, so the
+ * registrar passes it through unmodified.
+ */
+/**
+ * The environment cannot register a custom element at all — no
+ * `customElements` registry exists. In practice this means a wrapper's mount
+ * path ran outside a browser (a DOM-less test runner, or a server render that
+ * incorrectly executed client effects).
+ */
+export declare class TriiiceratopsElementRegistrationError extends Error {
+    readonly code: "ELEMENT_REGISTRATION_UNAVAILABLE";
+    constructor(message: string);
+}
+/**
+ * The tag is owned by a constructor that is not a compatible Triiiceratops
+ * core — it has no `viewerState` getter on its prototype, so there is no state
+ * bridge to bind to.
+ *
+ * This is the only diagnosis for `defineViewerElement`'s deliberately silent
+ * `false`: the browser runtime's "one core per page, first wins" rule leaves a
+ * foreign registration in place without complaint, and a wrapper that simply
+ * waited would hang forever. Detection is synchronous and uses no timer.
+ */
+export declare class TriiiceratopsElementVersionError extends Error {
+    readonly code: "ELEMENT_VERSION_CONFLICT";
+    readonly tag: string;
+    constructor(tag: string, detail: string);
+}
+/**
+ * One viewer handle was passed to two viewers. Handles are bound to exactly
+ * one element so per-viewer isolation is unambiguous; silently rebinding would
+ * make a page with two viewers read from whichever mounted last.
+ */
+export declare class TriiiceratopsHandleConflictError extends Error {
+    readonly code: "VIEWER_HANDLE_CONFLICT";
+    constructor(held: string, claiming: string);
+}
+/** A short, log-safe description of an element for a diagnostic message. */
+export declare function describeViewerElement(element: Element | null): string;
+
+// ======================================================================
+// FILE: dist/framework/handle.d.ts
+// ======================================================================
+/**
+ * The consumer-created handle slot: a stable box a mounted viewer claims and
+ * publishes its {@link ViewerHandle} into.
+ *
+ * Consumers create the handle and pass it to the component, rather than the
+ * component providing one, so application UI has no placement constraint — it
+ * can live before the viewer, after it, or nested in the consumer's own layout.
+ * This is the framework-neutral half of that: React's `useViewerHandle()`
+ * returns a slot and reads it through `useSyncExternalStore`; Vue consumers
+ * normally use an ordinary template ref instead, and reach for a slot only when
+ * they want the same claim rules.
+ *
+ * The slot is a SLOT, not the handle. `get()` returns `ViewerHandle | null` —
+ * null until a viewer claims it and publishes state, null again after that
+ * viewer unmounts. Reads being nullable is the honest state of the world, so
+ * nothing here gates or withholds a value to manufacture non-nullability.
+ *
+ * Three wiring mistakes are named rather than left silent:
+ * - a handle created but never passed to a viewer warns once (development);
+ * - a second viewer claiming a bound handle THROWS, naming both elements;
+ * - a handle whose viewer unmounts reverts to unbound and rebinds cleanly.
+ */
+import type { TriiiceratopsViewerElement, ViewerHandle } from './types.js';
+/** A mounted viewer's exclusive lease on a slot. */
+export interface ViewerHandleClaim {
+    /** Publish the current handle (or `null` while state is unavailable). */
+    publish(handle: ViewerHandle | null): void;
+    /**
+     * Give the slot back: clears the handle and allows a later viewer to claim
+     * it. Idempotent, and a no-op once another viewer legitimately holds it.
+     */
+    release(): void;
+}
+export interface ViewerHandleSlot {
+    /**
+     * The current handle, or `null` while unbound. Reference-stable while
+     * unchanged, so it is a valid React `getSnapshot` with no extra machinery.
+     */
+    get(): ViewerHandle | null;
+    /**
+     * Wake up when the published handle changes. Returns an idempotent
+     * unsubscribe function.
+     */
+    subscribe(listener: () => void): () => void;
+    /**
+     * Arm the development-only "created but never passed to a viewer" warning.
+     * Call from a mount effect (React `useEffect`, Vue `onMounted`), never
+     * during render: a render discarded by React Strict Mode's double
+     * invocation never runs an effect, so a discarded slot cannot warn.
+     *
+     * Returns a cancel function; cancelling is idempotent.
+     */
+    armUnboundWarning(): () => void;
+    /**
+     * INTERNAL — a mounted viewer takes the slot. Throws
+     * {@link TriiiceratopsHandleConflictError} when a DIFFERENT element already
+     * holds it. Re-claiming with the same element returns a fresh lease.
+     */
+    claim(element: TriiiceratopsViewerElement): ViewerHandleClaim;
+}
+/**
+ * Create an unbound handle slot. Cheap, inert, and safe to create during
+ * render: it touches no browser global and schedules nothing until
+ * {@link ViewerHandleSlot.armUnboundWarning} is called.
+ */
+export declare function createViewerHandleSlot(): ViewerHandleSlot;
+
+// ======================================================================
+// FILE: dist/framework/index.d.ts
+// ======================================================================
+/**
+ * The framework-neutral substrate `triiiceratops/react` and
+ * `triiiceratops/vue` are built on (CONTEXT.md **Framework wrapper**).
+ *
+ * Everything here is plain TypeScript: no React, no Vue, no Svelte runtime, and
+ * no browser global touched at module evaluation. A framework entry point can
+ * therefore be imported during server rendering, and both wrappers share ONE
+ * implementation of registration, prop assignment, handle rules, binding
+ * lifecycle, and re-availability — so their behavior cannot drift apart.
+ *
+ * The wrappers add framework packaging on top: rendering the host element,
+ * translating events into callbacks or emits, and turning
+ * {@link ViewerBindingController.subscribe} plus the core selector runtime into
+ * `useSyncExternalStore` and `computed`.
+ */
+export { createViewerPropApplier, PROPERTY_WRITE_WARNING_THRESHOLD, type ViewerPropApplier, type ViewerPropApplierOptions, } from './applier.js';
+export { createViewerBinding, type ViewerBinding, type ViewerBindingController, type ViewerBindingOptions, } from './binding.js';
+export { describeViewerElement, TriiiceratopsElementRegistrationError, TriiiceratopsElementVersionError, TriiiceratopsHandleConflictError, } from './errors.js';
+export { createViewerHandleSlot, type ViewerHandleClaim, type ViewerHandleSlot, } from './handle.js';
+export { shallowEqual, VIEWER_ATTRIBUTE_PROPS, VIEWER_PROPERTY_PROPS, viewerElementAttributes, viewerPropTier, type ViewerAttributePropName, type ViewerAttributeProps, type ViewerElementProps, type ViewerPropertyPropName, type ViewerPropertyProps, type ViewerPropName, type ViewerPropTier, } from './props.js';
+export { assertViewerElementCompatible, createViewerElementRegistrar, ensureViewerElementRegistered, VIEWER_ELEMENT_TAG, VIEWER_STATE_BRIDGE_PROPERTY, type ViewerElementRegistrarOptions, } from './registration.js';
+export { getSelectorRuntime } from './runtimeRegistry.js';
+export { VIEWER_EVENT_CHANNELS, type ReadonlyViewerState, type TriiiceratopsViewerElement, type ViewerEventChannel, type ViewerEventDetail, type ViewerEventDetailMap, type ViewerHandle, } from './types.js';
+export { VIEWER_STATE_AVAILABLE_EVENT } from '../types/viewerElement.js';
+export { TriiiceratopsCoreConflictError } from '../browser-runtime.js';
+export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, SelectorRuntime, } from '../state/selectors/index.js';
+
+// ======================================================================
+// FILE: dist/framework/props.d.ts
+// ======================================================================
+/**
+ * The shared, framework-neutral prop metadata every viewer input is classified
+ * by, and the change detection the applier uses.
+ *
+ * Three tiers, and the tier is a property of the INPUT, never of the runtime
+ * value it happens to carry:
+ *
+ * - **Attribute tier** (`manifestId`, `canvasId`, `theme`) — rendered
+ *   declaratively as kebab-case attributes by each wrapper, on the server and
+ *   on the client's first render alike, so hydration reuses the same host with
+ *   no mismatch. {@link viewerElementAttributes} builds that record; it is a
+ *   pure function of the props, which is exactly why server and client agree.
+ * - **Property tier** (`manifestJson`, `themeConfig`, `config`,
+ *   `initialCanvasRegion`, `plugins`, `searchProvider`) — assigned imperatively
+ *   as element properties by the applier, never server-rendered. The four
+ *   inputs that accept a string OR an object route here UNCONDITIONALLY:
+ *   assignment must never branch on the runtime type of a value, or the same
+ *   prop would take different paths on different renders.
+ * - **Host attributes** (`class`/`className`, `style`, `id`, `data-*`,
+ *   `aria-*`, ordinary DOM attributes) — forwarded declaratively by each
+ *   wrapper. They need no metadata here; they are simply not viewer inputs.
+ *
+ * `viewerState` is never a prop and never assigned (it is getter-only anyway).
+ */
+import type { SdkPlugin } from '../types/plugin.js';
+import type { SearchProvider, ViewerConfig } from '../types/config.js';
+import type { ThemeConfig } from '../theme/types.js';
+import type { CanvasRegion } from '../utils/contentState.js';
+/** Viewer inputs rendered as kebab-case attributes. */
+export interface ViewerAttributeProps {
+    /**
+     * IIIF Manifest URL to load. A one-way, UNCONTROLLED input: it is an
+     * instruction to the viewer, not a continuously enforced binding, so the
+     * wrapper never fights the user's own navigation. Observe where the viewer
+     * actually is through a selector or the `manifestchange` channel.
+     */
+    manifestId?: string;
+    /**
+     * Canvas to show. Uncontrolled, exactly like {@link manifestId}: after the
+     * user navigates internally, re-asserting the same value writes nothing.
+     */
+    canvasId?: string;
+    /** Built-in theme name (`light`, `dark`, …). Unknown names are ignored. */
+    theme?: string;
+}
+/** Viewer inputs assigned imperatively as element properties. */
+export interface ViewerPropertyProps {
+    /** Inline IIIF Manifest — a JSON string or the parsed object. */
+    manifestJson?: string | Record<string, any>;
+    /** Theme overrides — a JSON string or the parsed object. */
+    themeConfig?: string | ThemeConfig;
+    /** Viewer configuration — a JSON string or the parsed object. */
+    config?: string | ViewerConfig;
+    /** Initial canvas region — a JSON string or the parsed object. */
+    initialCanvasRegion?: string | CanvasRegion;
+    /**
+     * Framework-neutral SDK plugins — the one plugin path.
+     *
+     * Activation lifetime is keyed to PLUGIN identity, not list identity:
+     * re-supplying an equal list leaves running plugins untouched.
+     */
+    plugins?: readonly SdkPlugin[];
+    /** Host-supplied custom search backend, or `null` for the built-in path. */
+    searchProvider?: SearchProvider | null;
+}
+/** Every viewer input a framework wrapper accepts, across both written tiers. */
+export interface ViewerElementProps extends ViewerAttributeProps, ViewerPropertyProps {
+}
+/** Which tier an input belongs to. */
+export type ViewerPropTier = 'attribute' | 'property';
+export type ViewerAttributePropName = keyof ViewerAttributeProps;
+export type ViewerPropertyPropName = keyof ViewerPropertyProps;
+export type ViewerPropName = keyof ViewerElementProps;
+/**
+ * Attribute-tier inputs and the kebab-case attribute each renders as. Iteration
+ * order is the render order, so the two wrappers emit attributes identically.
+ */
+export declare const VIEWER_ATTRIBUTE_PROPS: {
+    readonly manifestId: "manifest-id";
+    readonly canvasId: "canvas-id";
+    readonly theme: "theme";
+};
+/** Property-tier inputs, in the order the applier writes them. */
+export declare const VIEWER_PROPERTY_PROPS: readonly ["manifestJson", "themeConfig", "config", "initialCanvasRegion", "plugins", "searchProvider"];
+/** The tier of a viewer input, or `undefined` if it is not a viewer input. */
+export declare function viewerPropTier(name: string): ViewerPropTier | undefined;
+/**
+ * Build the attribute-tier record a wrapper renders declaratively. Pure: the
+ * same props always produce the same record, which is what makes the server's
+ * markup and the client's first render agree with no readiness special case.
+ *
+ * Absent inputs are omitted rather than rendered empty, so a viewer configured
+ * only by properties emits a bare host.
+ */
+export declare function viewerElementAttributes(props: Readonly<ViewerAttributeProps>): Record<string, string>;
+/**
+ * The ONE change-detection rule for property-tier inputs: one uniform,
+ * one-level shallow comparison.
+ *
+ * Equal when the values are identical by `Object.is`; or both arrays of equal
+ * length whose elements are identical by `Object.is`; or both plain objects
+ * with equal own-key sets whose values are identical by `Object.is`. Everything
+ * else is unequal.
+ *
+ * Deep equality, serialization comparison, and value-specific identity
+ * heuristics are deliberately excluded: they make write suppression depend on
+ * the SHAPE of a consumer's data, which is unpredictable and expensive. A
+ * consumer whose object is nested and freshly built each render gets a write,
+ * and — after enough of them — a development warning naming the prop.
+ */
+export declare function shallowEqual(a: unknown, b: unknown): boolean;
+
+// ======================================================================
+// FILE: dist/framework/registration.d.ts
+// ======================================================================
+/**
+ * Lazy, shared, automatic registration of `<triiiceratops-viewer>` for the
+ * framework wrappers, with deterministic version-conflict detection.
+ *
+ * Three properties make this module safe to import from a framework entry
+ * point:
+ *
+ * 1. **Module evaluation touches no browser global.** The registrar closes over
+ *    a loader and a registry accessor; neither is called until a wrapper's
+ *    browser lifecycle callback asks for registration. Importing
+ *    `triiiceratops/react` or `triiiceratops/vue` on a server evaluates this
+ *    file and registers nothing.
+ * 2. **One memoized operation serves every wrapper instance**, and BOTH
+ *    outcomes are memoized. A second instance never re-imports the element
+ *    bundle, and a failed registration fails the next caller immediately
+ *    instead of retrying a broken import forever.
+ * 3. **Detection is deterministic — there are no timers.** No timeout, no
+ *    deadline, no retry loop, and `customElements.whenDefined` is never used as
+ *    a readiness signal. After the load settles, the registrar probes the
+ *    constructor that ACTUALLY owns the tag.
+ *
+ * That probe is the whole point. `defineViewerElement` returns `false`
+ * *silently* when the tag is already taken (`../browser-runtime`), because the
+ * browser runtime's "one core per page, first wins" rule is intentional and
+ * unchanged here. A wrapper that trusted registration to have succeeded would
+ * then wait forever for a `viewerstateavailable` event that a foreign element
+ * will never dispatch. Probing `'viewerState' in ctor.prototype` — the state
+ * bridge's getter, and by design the version handshake — turns that silent hang
+ * into a prompt, framework-native {@link TriiiceratopsElementVersionError}.
+ *
+ * Incompatibility is diagnosed at the framework-wrapper boundary ONLY. Nothing
+ * here changes the global first-wins rule, and a
+ * {@link TriiiceratopsCoreConflictError} raised by the element bundle's own
+ * install step is passed through unmodified: its message is already the right
+ * diagnostic.
+ */
+import { VIEWER_ELEMENT_TAG } from '../browser-runtime.js';
+/** The property whose presence on the tag owner's prototype is the handshake. */
+export declare const VIEWER_STATE_BRIDGE_PROPERTY = "viewerState";
+/** Injectable seams. Defaults are the real browser registry and element bundle. */
+export interface ViewerElementRegistrarOptions {
+    /**
+     * Side-effect import of the self-contained element bundle. It must define
+     * the tag (or throw) by the time its promise settles.
+     */
+    load: () => Promise<unknown>;
+    /** The tag to register and probe. Defaults to `triiiceratops-viewer`. */
+    tag?: string;
+    /**
+     * Resolve the custom-element registry. Called lazily, never at module
+     * scope, so importing this module is SSR-safe.
+     */
+    getRegistry?: () => CustomElementRegistry | undefined;
+}
+/**
+ * Create a memoized registrar. Calling the returned function repeatedly — from
+ * any number of wrapper instances, concurrently or not — performs at most one
+ * load and at most one probe, and always returns the same promise.
+ */
+export declare function createViewerElementRegistrar(options: ViewerElementRegistrarOptions): () => Promise<void>;
+/**
+ * Confirm the constructor that owns `tag` carries the `viewerState` state
+ * bridge. Synchronous, allocation-free, and the only check that catches
+ * `defineViewerElement`'s silent `false`.
+ *
+ * Probe `viewerState` and nothing else: "one core per page, first wins" is a
+ * settled rule, and this is not the place to invent a broader compatibility
+ * policy.
+ */
+export declare function assertViewerElementCompatible(registry: CustomElementRegistry, tag?: string): void;
+/**
+ * Register `<triiiceratops-viewer>` if it is not already defined, then confirm
+ * the tag's owner exposes the `viewerState` state bridge.
+ *
+ * Lazy, automatic, idempotent, and shared across every wrapper instance on the
+ * page. Call it from a browser lifecycle callback; never at module scope.
+ * Rejections are the wrapper's to surface framework-natively.
+ */
+export declare function ensureViewerElementRegistered(): Promise<void>;
+export { VIEWER_ELEMENT_TAG };
+
+// ======================================================================
+// FILE: dist/framework/runtimeRegistry.d.ts
+// ======================================================================
+/**
+ * The `ViewerState` → {@link SelectorRuntime} registry that keeps
+ * {@link ViewerHandle} at exactly two members.
+ *
+ * A consumer holds `{ element, state }`. The selector helpers need that
+ * viewer's runtime, and putting it on the handle would both widen the
+ * imperative contract and invite a consumer to hold a runtime across a rebind.
+ * A `WeakMap` keyed by the state object resolves it internally instead, and
+ * drops the entry the moment the state itself is unreachable.
+ *
+ * Only the framework wrappers' own runtimes are registered here. Plugin
+ * activations own SEPARATE runtimes over the same `ViewerState`: they share the
+ * implementation and the state, never the lifecycle or the subscription.
+ */
+import type { SelectorRuntime } from '../state/selectors/index.js';
+import type { ViewerState } from '../state/viewer.svelte.js';
+import type { ReadonlyViewerState } from './types.js';
+/** Publish the wrapper-owned runtime for a viewer state. */
+export declare function attachSelectorRuntime(state: ViewerState, runtime: SelectorRuntime): void;
+/**
+ * Remove the registration, but only if `runtime` is still the registered one.
+ * A rebind that already published a newer runtime must not be undone by the
+ * disposal of the older one.
+ */
+export declare function detachSelectorRuntime(state: ViewerState, runtime: SelectorRuntime): void;
+/**
+ * The framework wrapper's selector runtime for a viewer state, or `undefined`
+ * when no wrapper owns that state (an unbound handle, a plugin-only viewer, or
+ * a state whose wrapper has torn down).
+ *
+ * Resolve this INSIDE a reactive read — a Vue `computed`, a React
+ * `getSnapshot` — never once outside it. After a rebind the previous runtime is
+ * disposed, and a helper that cached it would read a disposed runtime forever.
+ */
+export declare function getSelectorRuntime(state: ReadonlyViewerState | null | undefined): SelectorRuntime | undefined;
+
+// ======================================================================
+// FILE: dist/framework/types.d.ts
+// ======================================================================
+/**
+ * The shared, framework-neutral types every framework wrapper is built from
+ * (CONTEXT.md **Framework wrapper**, **Viewer state**; ADR 0007).
+ *
+ * Nothing here imports React, Vue, or a Svelte runtime. `triiiceratops/react`
+ * and `triiiceratops/vue` re-export these so a consumer never needs a deep
+ * import, and the two wrappers agree on one vocabulary by construction.
+ */
+import type { PluginError } from '../types/plugin.js';
+import type { ViewerState, ViewerStateSnapshot } from '../state/viewer.svelte.js';
+import type { TriiiceratopsViewerElement } from '../types/viewerElement.js';
+import type { ViewerError } from '../types/viewerError.js';
+/**
+ * The supported view of a viewer's live state: everything a consumer may read
+ * or command, with the four lifecycle-plumbing methods hidden.
+ *
+ * This is a TYPE-LEVEL view of the very same live object — there is no facade
+ * class, no `Proxy`, and no wrapper instance (SPEC "Access model"). A
+ * `ReadonlyViewerState` obtained from a {@link ViewerHandle} is reference-equal
+ * to the element's own `viewerState`, so identity comparisons hold and the
+ * escape hatch stays honest.
+ *
+ * `readonly` applies one level deep, to the members themselves. It does not
+ * freeze the collections a member holds, and it is not a runtime guarantee:
+ * direct assignment remains a physically possible, unsupported escape hatch
+ * (ADR 0007).
+ */
+export type ReadonlyViewerState = Readonly<Omit<ViewerState, 'setEventTarget' | 'setViewerElement' | 'destroy' | 'destroyAllPlugins'>>;
+/**
+ * The imperative contract both wrappers expose — React through a forwarded
+ * ref, Vue through an ordinary template ref. Exactly two members: the hosted
+ * custom element and its viewer state.
+ *
+ * A handle is REBUILT, never mutated, whenever the element publishes a new
+ * `ViewerState` (see `createViewerBinding`), so holding one across a rebind
+ * cannot silently point at a disposed selector runtime. A consumer that needs
+ * the runtime resolves it from `state` through `getSelectorRuntime`, which is
+ * why this stays two members.
+ */
+export interface ViewerHandle {
+    readonly element: TriiiceratopsViewerElement;
+    readonly state: ReadonlyViewerState;
+}
+/**
+ * The custom element's translated event channels, in the order the wrappers
+ * document them. Wrappers install one DOM listener per channel and hand the
+ * consumer {@link ViewerEventDetail} — never a `CustomEvent`.
+ */
+export declare const VIEWER_EVENT_CHANNELS: readonly ["statechange", "canvaschange", "manifestchange", "choicechange", "pluginerror", "viewererror"];
+/** One translated custom-element event channel. */
+export type ViewerEventChannel = (typeof VIEWER_EVENT_CHANNELS)[number];
+/**
+ * What each channel's `CustomEvent.detail` carries. The four state channels
+ * share `ViewerStateSnapshot`; the two failure channels carry the EXACT
+ * `PluginError` (with a callable `retry()`) and `ViewerError` objects core
+ * dispatched, so framework translation removes no recovery behavior.
+ */
+export interface ViewerEventDetailMap {
+    statechange: ViewerStateSnapshot;
+    canvaschange: ViewerStateSnapshot;
+    manifestchange: ViewerStateSnapshot;
+    choicechange: ViewerStateSnapshot;
+    pluginerror: PluginError;
+    viewererror: ViewerError;
+}
+/** The detail type for one channel. */
+export type ViewerEventDetail<C extends ViewerEventChannel> = ViewerEventDetailMap[C];
+export type { TriiiceratopsViewerElement };
 
 // ======================================================================
 // FILE: dist/image-export.d.ts
@@ -366,6 +1111,299 @@ import type { PluginSurface, PluginUiTarget } from '../types/plugin';
  * a no-op re-apply.
  */
 export declare function createPluginSurface(state: ViewerState, chromeId: string, authoredTarget: PluginUiTarget): PluginSurface;
+
+// ======================================================================
+// FILE: dist/react.d.ts
+// ======================================================================
+/**
+ * `triiiceratops/react` — the React 19 framework wrapper.
+ *
+ * A React application renders `<TriiiceratopsViewer>` with typed props, creates
+ * a handle with `useViewerHandle()`, and reads the viewer's live state through
+ * `useViewer()` and `useViewerSelector()`. Registration of the self-contained
+ * custom element is automatic, lazy, and shared; Svelte stays behind the
+ * custom-element boundary at runtime AND at type-check time.
+ *
+ * ```ts
+ * const handle = useViewerHandle();
+ * const canvasId = useViewerSelector(handle, (state) => state.canvasId);
+ * return createElement(TriiiceratopsViewer, {
+ *     handle,
+ *     manifestId: 'https://example.org/manifest',
+ *     onCanvasChange: (snapshot) => console.log(snapshot.canvasId),
+ * });
+ * ```
+ *
+ * React 19 is an OPTIONAL peer dependency: `react` is a bare import specifier
+ * here and never a runtime dependency of core. Importing this module on a
+ * server is safe — nothing touches `window`, `document`, or `customElements`
+ * at evaluation, and nothing is registered.
+ *
+ * **Re-export boundary.** Everything below comes from the framework substrate,
+ * `triiiceratops/selectors`, or the shared `types/*` modules. Nothing is
+ * re-exported from core's `.` entry: its declarations reach the compiled
+ * `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and inheriting
+ * that would break this subpath's no-Svelte type promise (SPEC "Superseded
+ * decisions").
+ */
+export { TriiiceratopsViewer, useViewer, useViewerHandle, useViewerSelector, ViewerProvider, type TriiiceratopsViewerProps, type TriiiceratopsViewerRef, type ViewerEventProps, type ViewerProjection, type ViewerProviderProps, type ViewerSelectorOptions, } from './react/index.js';
+export { TriiiceratopsCoreConflictError, TriiiceratopsElementRegistrationError, TriiiceratopsElementVersionError, TriiiceratopsHandleConflictError, VIEWER_ELEMENT_TAG, VIEWER_EVENT_CHANNELS, VIEWER_STATE_AVAILABLE_EVENT, type ReadonlyViewerState, type TriiiceratopsViewerElement, type ViewerEventChannel, type ViewerEventDetail, type ViewerEventDetailMap, type ViewerHandle, type ViewerHandleSlot, } from './framework/index.js';
+export type { SelectorCadence } from './state/selectors/index.js';
+export type { ViewerStateSnapshot } from './state/viewer.svelte.js';
+export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, ViewerConfig, } from './types/config.js';
+export type { IconDescriptor, PluginError, PluginMountThunk, PluginSurface, PluginUiTarget, SdkPlugin, } from './types/plugin.js';
+export type { ViewerError } from './types/viewerError.js';
+export type { ThemeConfig } from './theme/types.js';
+export type { CanvasRegion } from './utils/contentState.js';
+
+// ======================================================================
+// FILE: dist/react/context.d.ts
+// ======================================================================
+/**
+ * Distributing one viewer's handle to a deep React tree.
+ *
+ * Consumers create the handle (`useViewerHandle`) and pass it to
+ * `<TriiiceratopsViewer handle={…}>`, so application UI has no placement
+ * constraint. `<ViewerProvider>` exists only so a deep component does not have
+ * to be threaded that handle through every intermediate component: it is a
+ * trivial value provider. It gates nothing, renders its children
+ * unconditionally, and has no fallback — reads through the handle are nullable
+ * until the viewer's state exists, which is the honest state of the world.
+ */
+import type { ReactElement, ReactNode } from 'react';
+import type { ViewerHandleSlot } from '../framework/index.js';
+export interface ViewerProviderProps {
+    /** The handle from `useViewerHandle()`, for this subtree's viewer. */
+    value: ViewerHandleSlot;
+    children?: ReactNode;
+}
+/**
+ * Publish one viewer handle to a subtree. Nest a second provider to scope a
+ * second viewer; the nearest one wins, exactly like any React context.
+ */
+export declare function ViewerProvider(props: ViewerProviderProps): ReactElement;
+/**
+ * The handle a hook should read: the one passed explicitly, else the nearest
+ * provided one.
+ *
+ * Being given neither is a wiring mistake with no sensible fallback — the hook
+ * cannot know which viewer it means — so it is named rather than silently
+ * returning `undefined` forever.
+ */
+export declare function useResolvedViewerHandle(explicit: ViewerHandleSlot | null | undefined, hookName: string): ViewerHandleSlot;
+
+// ======================================================================
+// FILE: dist/react/handle.d.ts
+// ======================================================================
+/**
+ * `useViewerHandle()` — the consumer-created handle a React application passes
+ * to its viewer and reads through.
+ *
+ * The hook returns the substrate's {@link ViewerHandleSlot}: a stable box, not
+ * the handle itself. `slot.get()` is `ViewerHandle | null` — null until the
+ * viewer publishes its state, null again after that viewer unmounts, and a NEW
+ * object after a rebind. That is why the box is what gets passed around: a
+ * stable identity for the `handle` prop and `<ViewerProvider>`, with the
+ * genuinely changing value read through it.
+ *
+ * Strict Mode double-invokes the `useState` initializer, so two slots are
+ * created and one is discarded. The discarded one is inert: it is never claimed
+ * by a viewer and its "created but never used" warning is armed from an EFFECT,
+ * which a discarded render never runs.
+ */
+import { type ViewerHandleSlot } from '../framework/index.js';
+/**
+ * Create the stable viewer handle for one `<TriiiceratopsViewer>`.
+ *
+ * Pass it to the component's `handle` prop, then read through it with
+ * `useViewer()` / `useViewerSelector()`, or imperatively with `handle.get()`.
+ * A viewer with no state-reading consumers needs no handle at all.
+ *
+ * Create one handle per viewer: passing the same handle to a second viewer
+ * throws `TriiiceratopsHandleConflictError`, because ambiguous ownership would
+ * silently break per-viewer isolation.
+ */
+export declare function useViewerHandle(): ViewerHandleSlot;
+
+// ======================================================================
+// FILE: dist/react/index.d.ts
+// ======================================================================
+/**
+ * Internal barrel for the React framework wrapper. The PUBLISHED entry point is
+ * `../react.ts` (`triiiceratops/react`); this file exists so the wrapper's own
+ * modules and tests have one import site.
+ */
+export { ViewerProvider, type ViewerProviderProps } from './context.js';
+export { useViewerHandle } from './handle.js';
+export { useViewer, useViewerSelector, type ViewerProjection, type ViewerSelectorOptions, } from './selector.js';
+export { TriiiceratopsViewer, type TriiiceratopsViewerProps, type TriiiceratopsViewerRef, type ViewerEventProps, } from './viewer.js';
+
+// ======================================================================
+// FILE: dist/react/selector.d.ts
+// ======================================================================
+/**
+ * Reading one viewer's state from React: `useViewer()` for an on-demand
+ * snapshot of the live object, `useViewerSelector()` for a reactive, memoized,
+ * equality-gated projection of it.
+ *
+ * Both are built on `useSyncExternalStore`, hand-rolled against React 19's
+ * built-in hook — `use-sync-external-store` is deliberately not a dependency.
+ *
+ * Three decisions are load bearing:
+ *
+ * 1. **The projection object is created inside a `useMemo` keyed on the
+ *    projection and equality identities.** It is never frozen on first render
+ *    (the plugin SDK's React helper deliberately does freeze its selector; that
+ *    is prior art for the external-store contract only). An inline arrow whose
+ *    closure changed therefore reads current values with no `useCallback` or
+ *    `useMemo` from the consumer, and no shared projection is mutated during a
+ *    render pass — which is what keeps this correct under concurrent rendering.
+ * 2. **`getSnapshot` is the runtime's equality-gated cached read.** It is
+ *    version-memoized and returns the previously returned reference while the
+ *    selected value is equal, so React neither loops nor warns — even when the
+ *    projection builds a fresh object literal every time.
+ * 3. **`getServerSnapshot` is omitted.** State-reading components do not render
+ *    on the server, so React's "Missing getServerSnapshot" is the correct, loud
+ *    failure rather than an undesigned readiness path.
+ *
+ * A projection or equality function that throws is retained by the runtime and
+ * rethrown from the consumer's own read, so it reaches a React error boundary.
+ * It is never converted to `viewererror`, attributed as `pluginerror`, or
+ * served as a stale value.
+ */
+import { type ReadonlyViewerState, type SelectorCadence, type ViewerHandleSlot } from '../framework/index.js';
+/** Per-call selector options. Both are optional. */
+export interface ViewerSelectorOptions<T> {
+    /** Equality gate for the selected value. Defaults to `Object.is`. */
+    equals?: (a: T, b: T) => boolean;
+    /**
+     * Which notification wakes the projection. `state` (the default) is the
+     * batched inventoried-member watcher; `frame` additionally wakes on the
+     * live OpenSeadragon instance's own animation events, which is how
+     * continuous viewport values (zoom, pan, rotation, bounds) are read
+     * reactively.
+     */
+    cadence?: SelectorCadence;
+}
+/** A projection over the supported view of a viewer's live state. */
+export type ViewerProjection<T> = (state: ReadonlyViewerState) => T;
+/**
+ * The supported, readonly view of a viewer's live state — or `undefined` until
+ * that state exists.
+ *
+ * This is a TYPE-LEVEL view of the very same live object the element owns, so
+ * identity comparisons against `handle.get()!.state` hold and every supported
+ * command is callable on it. The four lifecycle-plumbing methods are hidden.
+ *
+ * Reading a notifying member here does NOT subscribe to it: the component
+ * re-renders when the viewer binds or rebinds, not when viewer state changes.
+ * Use {@link useViewerSelector} for reactive reads.
+ *
+ * @param handle The viewer's handle. Omit it to use the nearest
+ * `<ViewerProvider>`; supplying neither is a wiring mistake and throws.
+ */
+export declare function useViewer(handle?: ViewerHandleSlot | null): ReadonlyViewerState | undefined;
+/**
+ * Subscribe to a projection of one viewer's live state.
+ *
+ * `T` is inferred from the projection, equality defaults to `Object.is`, and
+ * the result is `undefined` until the viewer's state exists. Inline
+ * projections and inline equality functions are fully supported: neither needs
+ * `useCallback` or `useMemo`.
+ *
+ * @example
+ * ```ts
+ * const canvasId = useViewerSelector(handle, (state) => state.canvasId);
+ * const zoom = useViewerSelector(
+ *     handle,
+ *     (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+ *     { cadence: 'frame' },
+ * );
+ * ```
+ */
+export declare function useViewerSelector<T>(handle: ViewerHandleSlot | null | undefined, projection: ViewerProjection<T>, options?: ViewerSelectorOptions<T>): T | undefined;
+/** Context form: resolves the handle from the nearest `<ViewerProvider>`. */
+export declare function useViewerSelector<T>(projection: ViewerProjection<T>, options?: ViewerSelectorOptions<T>): T | undefined;
+
+// ======================================================================
+// FILE: dist/react/viewer.d.ts
+// ======================================================================
+/**
+ * `<TriiiceratopsViewer>` — the React 19 framework wrapper.
+ *
+ * It hosts the existing `<triiiceratops-viewer>` custom element and translates
+ * its lifecycle, properties, events, and viewer state into React idioms. It
+ * does not implement or own a second viewer, and it renders exactly ONE
+ * element: no layout wrapper, no children, nothing projected into light or
+ * shadow DOM. Adopting the wrapper therefore changes no sizing or CSS.
+ *
+ * Authored as plain TypeScript with `createElement` — no JSX, no `.tsx`, and no
+ * extra build step. `build:lib`'s `svelte-package` step copies unknown file
+ * types verbatim, so a `.tsx` here would ship broken.
+ *
+ * ## The three prop tiers
+ *
+ * - **Attribute tier** (`manifestId`, `canvasId`, `theme`) is rendered
+ *   declaratively as kebab-case attributes, identically on the server and on
+ *   the client's first render, so hydration reuses and upgrades the same host.
+ * - **Property tier** (`manifestJson`, `themeConfig`, `config`,
+ *   `initialCanvasRegion`, `plugins`, `searchProvider`) goes through the shared
+ *   applier in a LAYOUT effect. Layout, not passive: Svelte's
+ *   `connectedCallback` awaits a microtask before mounting the inner viewer,
+ *   and React's layout phase runs inside the commit's own task, so the values
+ *   are in place before the viewer first mounts.
+ * - **Host attributes** (`className`, `style`, `id`, `data-*`, `aria-*`, and
+ *   ordinary DOM attributes and handlers) are forwarded to the element by
+ *   React, unchanged.
+ *
+ * `manifestId` and `canvasId` are one-way, UNCONTROLLED inputs — `defaultValue`
+ * + `onChange`, never `value` + `onChange`. Re-asserting an unchanged value
+ * after the user navigates internally writes nothing, so the wrapper never
+ * fights the viewer. Observe where the viewer actually is with a selector or
+ * the `onCanvasChange` / `onManifestChange` callbacks.
+ */
+import type { HTMLAttributes, ReactElement, Ref } from 'react';
+import { type ViewerElementProps, type ViewerHandle, type ViewerHandleSlot } from '../framework/index.js';
+import type { PluginError } from '../types/plugin.js';
+import type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
+import type { ViewerError } from '../types/viewerError.js';
+/**
+ * Typed callbacks for the custom element's event channels. Each receives the
+ * event DETAIL directly — never a `CustomEvent` — so application code is
+ * independent of the DOM event envelope. The error channels carry the exact
+ * objects core dispatched, including `PluginError.retry()`.
+ */
+export interface ViewerEventProps {
+    /** Any inventoried viewer-state change, batched. */
+    onStateChange?: (snapshot: ViewerStateSnapshot) => void;
+    /** The displayed canvas changed. */
+    onCanvasChange?: (snapshot: ViewerStateSnapshot) => void;
+    /** The loaded manifest changed. */
+    onManifestChange?: (snapshot: ViewerStateSnapshot) => void;
+    /** A IIIF `Choice` selection changed. */
+    onChoiceChange?: (snapshot: ViewerStateSnapshot) => void;
+    /** A plugin failed. The exact `PluginError`, with a callable `retry()`. */
+    onPluginError?: (error: PluginError) => void;
+    /** The viewer failed. The exact typed `ViewerError`. */
+    onViewerError?: (error: ViewerError) => void;
+}
+export interface TriiiceratopsViewerProps extends ViewerElementProps, ViewerEventProps, Omit<HTMLAttributes<HTMLElement>, keyof ViewerEventProps | 'children' | 'dangerouslySetInnerHTML'> {
+    /**
+     * The handle from `useViewerHandle()`, bound to this viewer while it is
+     * mounted. Optional: a viewer with no state-reading consumers needs none.
+     * Passing one handle to two viewers throws.
+     */
+    handle?: ViewerHandleSlot | null;
+    /** Yields `ViewerHandle | null`; cleared on unmount. */
+    ref?: Ref<ViewerHandle | null>;
+    /** Reserved and unused: the viewer accepts no children. */
+    children?: never;
+    /** `data-*` attributes are forwarded to the host element. */
+    [dataAttribute: `data-${string}`]: unknown;
+}
+/** The imperative value a forwarded `ref` receives. */
+export type TriiiceratopsViewerRef = ViewerHandle;
+export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): ReactElement;
 
 // ======================================================================
 // FILE: dist/state/manifests.svelte.d.ts
