@@ -11,6 +11,24 @@
             into the shadow root, so no element stylesheet is needed.
         -->
         <script src="/dist/triiiceratops-element.iife.js"></script>
+        <script>
+            // The state bridge (ticket 02). Recorded from the document, before
+            // the element is even parsed, because `viewerstateavailable` is
+            // dispatched as soon as the inner viewer mounts — which, with the
+            // IIFE entry already registered above, can happen before the
+            // trailing body script runs. A composed event retargets to the
+            // host, so `event.target` is the custom element itself.
+            window.__viewerStateEvents = [];
+            document.addEventListener('viewerstateavailable', (event) => {
+                const host = event.target;
+                window.__viewerStateEvents.push({
+                    targetIsHost: host === document.getElementById('v'),
+                    detailIsProperty: event.detail === host.viewerState,
+                    bubbles: event.bubbles,
+                    composed: event.composed,
+                });
+            });
+        </script>
         <style>
             #v {
                 display: block;
@@ -41,6 +59,23 @@
                     window.__statechangeCount += 1;
                 });
             }
+
+            // Custom search as a property-only input, assigned as a JavaScript
+            // property with no attribute involved.
+            window.__searchCalls = [];
+            v.searchProvider = async (query, context) => {
+                window.__searchCalls.push({
+                    query,
+                    manifestId: context.manifestId,
+                });
+                return [
+                    {
+                        canvasIndex: 0,
+                        canvasLabel: 'parity',
+                        hits: [{ type: 'hit', match: query }],
+                    },
+                ];
+            };
         </script>
     </body>
 </html>

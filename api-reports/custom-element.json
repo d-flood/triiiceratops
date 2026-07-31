@@ -33,6 +33,13 @@
             "reflect": false
         },
         {
+            "property": "searchProvider",
+            "attribute": "searchprovider",
+            "type": "String",
+            "reflect": false,
+            "attributeSupported": false
+        },
+        {
             "property": "theme",
             "attribute": "theme",
             "type": "String",
@@ -48,6 +55,9 @@
     "callbackProperties": [
         "onpluginerror",
         "onviewererror"
+    ],
+    "readonlyProperties": [
+        "viewerState"
     ],
     "methods": [],
     "events": [
@@ -84,6 +94,12 @@
         {
             "name": "viewererror",
             "detail": "ViewerError",
+            "bubbles": true,
+            "composed": true
+        },
+        {
+            "name": "viewerstateavailable",
+            "detail": "ViewerState",
             "bubbles": true,
             "composed": true
         }
