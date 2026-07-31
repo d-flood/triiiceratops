@@ -4,6 +4,12 @@
     import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    const CONNECTOR_VIEWER_EVENTS = [
+        'open',
+        'animation',
+        'resize',
+        'rotate',
+    ] as const;
 
     let annotations = $derived.by(() => {
         if (!viewerState.manifestId || !viewerState.canvasId) {
@@ -85,19 +91,53 @@
             return;
         }
 
-        const updateCoords = () => {
+        // Rebind observers if annotation display sync changes the rendered nodes
+        // while the same annotation remains hovered.
+        void annotations;
+        void viewerState.visibleAnnotationIds.size;
+
+        let root: Document | ShadowRoot = document;
+        if (toolbarContainer) {
+            const node = toolbarContainer.getRootNode();
+            if (node instanceof Document || node instanceof ShadowRoot) {
+                root = node;
+            }
+        }
+
+        const osdViewer = viewerState.osdViewer;
+        let frame: number | null = null;
+        let observedElements: Element[] = [];
+
+        const scheduleUpdate = () => {
+            if (frame !== null) return;
+            frame = requestAnimationFrame(() => {
+                frame = null;
+                updateCoords();
+            });
+        };
+
+        const resizeObserver = new ResizeObserver(scheduleUpdate);
+
+        const observeElements = (elements: Element[]) => {
+            if (
+                elements.length === observedElements.length &&
+                elements.every(
+                    (element, index) => element === observedElements[index],
+                )
+            ) {
+                return;
+            }
+
+            resizeObserver.disconnect();
+            observedElements = elements;
+            elements.forEach((element) => resizeObserver.observe(element));
+        };
+
+        function updateCoords() {
             const hoveredAnnotationId = viewerState.hoveredAnnotationId;
             if (!hoveredAnnotationId) {
                 lines = [];
                 return;
-            }
-
-            let root: Document | ShadowRoot = document;
-            if (toolbarContainer) {
-                const node = toolbarContainer.getRootNode();
-                if (node instanceof Document || node instanceof ShadowRoot) {
-                    root = node;
-                }
             }
 
             // Note: The list item ID is now in AnnotationPanel, which must be rendered for this to work
@@ -119,6 +159,11 @@
                     (toolbarContainer &&
                         toolbarContainer.closest('#triiiceratops-viewer')) ||
                     root.getElementById('triiiceratops-viewer');
+                observeElements([
+                    listItem,
+                    ...visuals,
+                    ...(viewerEl ? [viewerEl] : []),
+                ]);
                 let isRightPanel = false;
                 if (viewerEl) {
                     const viewerRect = viewerEl.getBoundingClientRect();
@@ -149,18 +194,28 @@
                     return { x1: startX, y1: startY, x2: endX, y2: endY };
                 });
             } else {
+                observeElements([]);
                 lines = [];
             }
-        };
+        }
 
-        // Run immediately
         updateCoords();
 
-        // Optional: Could add resize listener or interval if things move,
-        // but for hover it might be enough to just set it once or on scroll
-        const interval = setInterval(updateCoords, 16); // ~60fps follow
+        root.addEventListener('scroll', scheduleUpdate, true);
+        window.addEventListener('resize', scheduleUpdate);
+        for (const event of CONNECTOR_VIEWER_EVENTS) {
+            osdViewer?.addHandler(event, scheduleUpdate);
+        }
 
-        return () => clearInterval(interval);
+        return () => {
+            root.removeEventListener('scroll', scheduleUpdate, true);
+            window.removeEventListener('resize', scheduleUpdate);
+            for (const event of CONNECTOR_VIEWER_EVENTS) {
+                osdViewer?.removeHandler(event, scheduleUpdate);
+            }
+            resizeObserver.disconnect();
+            if (frame !== null) cancelAnimationFrame(frame);
+        };
     });
 </script>
 
