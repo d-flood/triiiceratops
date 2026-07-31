@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.30
+
+### Patch Changes
+
+- 7ff8c4b: improve performance of annotation overlays and tooltip positioning
+
 ## 1.0.0-rc.29
 
 ### Patch Changes
