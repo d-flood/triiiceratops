@@ -392,11 +392,16 @@ export async function installFixture(pm, fixtureDir) {
             },
         );
     } else {
+        // pnpm 11 requires each standalone consumer to explicitly approve
+        // esbuild's postinstall script, which Vite-based fixtures require.
+        writeFileSync(
+            join(fixtureDir, 'pnpm-workspace.yaml'),
+            'allowBuilds:\n  esbuild: true\n',
+        );
         await run(
             'pnpm',
             [
                 'install',
-                '--ignore-workspace',
                 '--no-frozen-lockfile',
                 '--config.confirmModulesPurge=false',
             ],
