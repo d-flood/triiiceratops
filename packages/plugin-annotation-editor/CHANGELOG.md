@@ -1,5 +1,14 @@
 # @triiiceratops/plugin-annotation-editor
 
+## 1.0.0-rc.6
+
+### Patch Changes
+
+- 7ff8c4b: improve performance of annotation overlays and tooltip positioning
+- Updated dependencies [7ff8c4b]
+    - triiiceratops@1.0.0-rc.30
+    - @triiiceratops/plugin-sdk@1.0.0-rc.5
+
 ## 1.0.0-rc.5
 
 ### Patch Changes
