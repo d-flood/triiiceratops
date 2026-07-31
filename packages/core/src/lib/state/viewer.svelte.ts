@@ -42,6 +42,7 @@ import {
     findCanvasIndexById,
     getAnnotationId,
     getCanvasId,
+    getReferenceId,
 } from '../utils/iiifIds';
 import { normalizeIiifTargets } from '../utils/iiifTargets';
 import { createPluginId } from '../utils/pluginId';
@@ -653,7 +654,8 @@ export class ViewerState {
     }
 
     /**
-     * The canvas ID specified by the manifest's `start` property (IIIF Presentation 3.0).
+     * The canvas ID specified by the manifest's `start` property (IIIF
+     * Presentation 3.0) or its sequence's `startCanvas` (IIIF Presentation 2.x).
      * Used during auto-selection to navigate to the correct initial canvas.
      * Only set once per manifest load; cleared when a new manifest is set.
      */
@@ -823,27 +825,35 @@ export class ViewerState {
         if (!manifest) return;
         const rawManifest = manifestsState.getManifestEntry(manifestId)?.json;
 
-        // 0. Start Canvas (IIIF Presentation 3.0 `start` property)
+        // 0. Start Canvas: the manifest-level `start` property (IIIF
+        // Presentation 3.0) or the sequence-level `startCanvas` (IIIF
+        // Presentation 2.x).
         try {
             let startId: string | null = null;
 
             // Check raw JSON first (most reliable for IIIF v3)
             if (manifest.__jsonld?.start) {
-                const startObj = manifest.__jsonld.start;
-                if (typeof startObj === 'string') {
-                    startId = startObj;
-                } else if (startObj.id) {
-                    startId = startObj.id;
-                } else if (startObj['@id']) {
-                    startId = startObj['@id'];
-                }
+                startId = getReferenceId(manifest.__jsonld.start);
             }
 
             // Fallback: check manifesto accessor
             if (!startId && manifest.getStartCanvas) {
-                const sc = manifest.getStartCanvas();
-                if (sc) {
-                    startId = sc.id || sc['@id'] || null;
+                startId = getReferenceId(manifest.getStartCanvas());
+            }
+
+            // IIIF v2 hangs the start canvas off the sequence, not the manifest.
+            if (!startId) {
+                startId = getReferenceId(
+                    rawManifest?.sequences?.[0]?.startCanvas,
+                );
+            }
+            if (!startId) {
+                const sequence = manifest.getSequences?.()?.[0];
+                if (sequence) {
+                    startId = getReferenceId(sequence.__jsonld?.startCanvas);
+                    if (!startId && sequence.getStartCanvas) {
+                        startId = getReferenceId(sequence.getStartCanvas());
+                    }
                 }
             }
 
