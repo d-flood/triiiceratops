@@ -250,7 +250,7 @@ function emitCustomElement(): void {
     // accessor and ports a pre-upgrade assignment, but the observed attribute
     // Svelte derives from the declaration is INERT and unsupported. Recorded so
     // a future contributor does not wire the attribute up.
-    const PROPERTY_ONLY_INPUTS = new Set(['searchProvider']);
+    const PROPERTY_ONLY_INPUTS = new Set(['searchProvider', 'plugins']);
     const attrProps: Array<{
         property: string;
         attribute: string;
