@@ -9,6 +9,18 @@ export function getResourceId(resource: any): string | null {
     );
 }
 
+/**
+ * A IIIF reference may be a bare id string (common in Presentation 2.x, e.g. a
+ * sequence's `startCanvas`) or an object carrying `id`/`@id`. Returns the id
+ * either way.
+ */
+export function getReferenceId(reference: unknown): string | null {
+    if (typeof reference === 'string') {
+        return reference || null;
+    }
+    return getResourceId(reference);
+}
+
 export function getCanvasId(canvas: any): string {
     return (
         getResourceId(canvas) ||
