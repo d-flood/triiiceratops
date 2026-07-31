@@ -11,8 +11,12 @@ jobs:
     # internal links (`zensical build --strict`), and every extracted doc example
     # is in sync with the Markdown (`docs:examples:check`). Runs on pull requests;
     # the deploy job below runs only on pushes to main.
+    #
+    # Skipped on the Changesets "Version Packages" PR (see the note in test.yml):
+    # its diff is generated version bumps + CHANGELOG entries, which cannot break
+    # the docs build that already passed on the main it was cut from.
     build-check:
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
