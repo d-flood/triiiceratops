@@ -83,7 +83,7 @@
 <script lang="ts">
     import styles from '../../app.css?inline';
     import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
-    import type { PluginDef, SdkPlugin } from '../types/plugin';
+    import type { SdkPlugin } from '../types/plugin';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
     import type { ViewerConfig } from '../types/config';
     import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
@@ -113,12 +113,12 @@
         manifestJson?: string | Record<string, any>;
         canvasId?: string;
         /**
-         * Legacy `PluginDef`s and framework-neutral `SdkPlugin`s, in any mix.
-         * A property-only input (there is no supported `plugins` attribute):
-         * assign `element.plugins = [...]`, before or after upgrade. The inner
-         * viewer ignores anything that is not an array.
+         * Framework-neutral `SdkPlugin`s. A property-only input (there is no
+         * supported `plugins` attribute): assign `element.plugins = [...]`,
+         * before or after upgrade. The inner viewer ignores anything that is
+         * not an array.
          */
-        plugins?: Array<PluginDef | SdkPlugin>;
+        plugins?: readonly SdkPlugin[];
         /**
          * Host-supplied custom search backend (property-only input). There is
          * no supported attribute: assign `element.searchProvider = fn`, before

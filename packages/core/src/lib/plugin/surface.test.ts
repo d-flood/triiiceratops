@@ -2,8 +2,8 @@
 //
 // Regression guard: core mounts an SDK plugin ONCE and re-parents its content
 // element in and out of the open surface, so `view.mount` is not re-run on
-// open/close. A legacy `PluginDef` learned open/close from its Svelte component's
-// mount/destroy lifecycle; an SDK plugin learns it here. These tests pin the two
+// open/close. A Svelte component would learn open/close from its mount/destroy
+// lifecycle; an SDK plugin learns it here. These tests pin the two
 // properties that make that work:
 //   - the surface is a LIVE projection of `ViewerState` (never a snapshot), and
 //   - open-state changes NOTIFY, from every write source — including the toolbar

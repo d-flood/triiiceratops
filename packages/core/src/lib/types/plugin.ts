@@ -1,4 +1,3 @@
-import type { Component } from 'svelte';
 import type { ViewerState } from '../state/viewer.svelte';
 
 /**
@@ -11,10 +10,8 @@ export type PluginUiTarget = 'panel' | 'flyout';
 /**
  * A DOM-mount thunk (SPEC.md — content-only container). Core hands the plugin a
  * core-created, core-placed container; the thunk renders the plugin's content
- * into it and returns a cleanup. Used to generalize the flyout/panel chrome
- * entries so ONE rendering path carries either a Svelte `component` (legacy
- * `PluginDef`) or this thunk (SDK core-owned chrome) — see {@link PluginFlyout}
- * / {@link PluginPanel}.
+ * into it and returns a cleanup. It is the ONE rendering path for plugin chrome
+ * — see {@link PluginFlyout} / {@link PluginPanel}.
  */
 export type PluginMountThunk = (container: HTMLElement) => () => void;
 
@@ -29,31 +26,22 @@ export interface PluginMenuButton {
     pluginId?: string;
 
     /**
-     * Phosphor icon component (legacy `PluginDef` path). SDK core-chrome buttons
-     * carry an {@link IconDescriptor} in {@link iconDescriptor} instead; exactly
-     * one of the two is set.
-     */
-    icon?: Component<any>;
-
-    /**
-     * Framework-neutral icon descriptor (SDK core-owned chrome path). Rendered by
-     * core's `PluginIcon` with the same wrapper as built-in buttons.
+     * Framework-neutral icon descriptor. Rendered by core's `PluginIcon` with
+     * the same wrapper as built-in buttons.
      */
     iconDescriptor?: IconDescriptor;
 
     /**
-     * Tooltip text. On the legacy `PluginDef` path this is the display copy (a
-     * core message key, else a literal). On the SDK core-owned-chrome path it
-     * carries the package-qualified plugin identity and is only the FALLBACK —
-     * {@link label} wins when present.
+     * Tooltip text. Carries the package-qualified plugin identity and is only
+     * the FALLBACK — {@link label} wins when present.
      */
     tooltip: string;
 
     /**
-     * SDK core-owned-chrome path only: a live, locale-resolved display label.
-     * When present it wins over {@link tooltip}, which stays as identity and as
-     * the legacy `PluginDef` fallback. A thunk (not a string) so it re-resolves
-     * when the viewer's active locale changes; call it during render.
+     * A live, locale-resolved display label. When present it wins over
+     * {@link tooltip}, which stays as identity and as the fallback. A thunk (not
+     * a string) so it re-resolves when the viewer's active locale changes; call
+     * it during render.
      */
     label?: () => string;
 
@@ -91,40 +79,28 @@ export interface PluginPanel {
     pluginId: string;
 
     /**
-     * Plugin display name on the legacy `PluginDef` path (a core message key,
-     * else a literal). On the SDK core-owned-chrome path it carries the
-     * package-qualified plugin identity and is only the FALLBACK — {@link label}
-     * wins when present.
+     * Plugin display name. Carries the package-qualified plugin identity and is
+     * only the FALLBACK — {@link label} wins when present.
      */
     name: string;
 
     /**
-     * SDK core-owned-chrome path only: a live, locale-resolved panel-header
-     * label. When present it wins over {@link name}. A thunk (not a string) so
-     * it re-resolves when the viewer's active locale changes.
+     * A live, locale-resolved panel-header label. When present it wins over
+     * {@link name}. A thunk (not a string) so it re-resolves when the viewer's
+     * active locale changes.
      */
     label?: () => string;
 
-    /** Plugin toolbar/header icon component (legacy `PluginDef` path). */
-    icon?: Component<any>;
-
-    /** Framework-neutral header icon descriptor (SDK core-owned chrome path). */
+    /** Framework-neutral header icon descriptor. */
     iconDescriptor?: IconDescriptor;
 
     /**
-     * Svelte component to render (legacy `PluginDef` path). Mutually exclusive
-     * with {@link mount}.
-     */
-    component?: Component<any>;
-
-    /**
-     * DOM-mount thunk (SDK core-owned chrome path): core places the docked panel
-     * container and this thunk renders the plugin content into it. Mutually
-     * exclusive with {@link component}.
+     * DOM-mount thunk: core places the docked panel container and this thunk
+     * renders the plugin content into it.
      */
     mount?: PluginMountThunk;
 
-    /** Props passed to the component */
+    /** Props passed to the mounted content, if any. */
     props?: Record<string, unknown>;
 
     /** Reactive getter for visibility */
@@ -146,40 +122,29 @@ export interface PluginFlyout {
     pluginId: string;
 
     /**
-     * Plugin display name on the legacy `PluginDef` path. On the SDK
-     * core-owned-chrome path it carries the package-qualified plugin identity.
-     * The flyout's user-visible label comes from its toolbar BUTTON (the toolbar
-     * reuses the button's tooltip as the dialog's `aria-label`); this field and
+     * Plugin display name: the package-qualified plugin identity. The flyout's
+     * user-visible label comes from its toolbar BUTTON (the toolbar reuses the
+     * button's tooltip as the dialog's `aria-label`); this field and
      * {@link label} keep the three chrome records uniform.
      */
     name: string;
 
     /**
-     * SDK core-owned-chrome path only: a live, locale-resolved display label.
-     * When present it wins over {@link name}.
+     * A live, locale-resolved display label. When present it wins over
+     * {@link name}.
      */
     label?: () => string;
 
-    /** Plugin toolbar icon component (legacy `PluginDef` path). */
-    icon?: Component<any>;
-
-    /** Framework-neutral toolbar icon descriptor (SDK core-owned chrome path). */
+    /** Framework-neutral toolbar icon descriptor. */
     iconDescriptor?: IconDescriptor;
 
     /**
-     * Svelte component to render inside the flyout (legacy `PluginDef` path).
-     * Mutually exclusive with {@link mount}.
-     */
-    component?: Component<any>;
-
-    /**
-     * DOM-mount thunk (SDK core-owned chrome path): core places the anchored
-     * flyout container and this thunk renders the plugin content into it.
-     * Mutually exclusive with {@link component}.
+     * DOM-mount thunk: core places the anchored flyout container and this thunk
+     * renders the plugin content into it.
      */
     mount?: PluginMountThunk;
 
-    /** Props passed to the component */
+    /** Props passed to the mounted content, if any. */
     props?: Record<string, unknown>;
 
     /**
@@ -192,59 +157,6 @@ export interface PluginFlyout {
     dismiss?: 'light' | 'explicit';
 }
 
-/**
- * Simplified definition for a plugin.
- * This allows plugins to be defined as simple objects with a component and icon.
- */
-export interface PluginDef {
-    /** Unique ID (optional, will be auto-generated if missing) */
-    id?: string;
-
-    /** Name/Tooltip for the menu button */
-    name: string;
-
-    /** Icon component */
-    icon: Component<any>;
-
-    /** Where the plugin renders its UI (default: 'panel') */
-    target?: PluginUiTarget;
-
-    /** Panel component (rendered when `target` is 'panel') */
-    panel?: Component<any>;
-
-    /** Flyout component (rendered when `target` is 'flyout') */
-    flyout?: Component<any>;
-
-    /**
-     * Preferred panel position (default: 'left'; ignored for flyouts). A
-     * consumer can override this per-viewer via `config.plugins[id].position`
-     * (see `PluginUiConfig.position`) without the plugin being re-authored.
-     */
-    position?: 'left' | 'right' | 'bottom' | 'overlay';
-
-    /** Props to pass to the panel/flyout component */
-    props?: Record<string, unknown>;
-
-    /**
-     * Lifecycle hook called when the plugin is registered.
-     * Use this to set up background logic, reactive effects, or event listeners
-     * that should run regardless of whether the plugin's UI is open.
-     */
-    onInit?: (viewerState: ViewerState) => void;
-}
-
-export function definePlugin<T extends PluginDef>(plugin: T): T {
-    return plugin;
-}
-
-export function createPanelPlugin(plugin: PluginDef): PluginDef {
-    return definePlugin({ ...plugin, target: plugin.target ?? 'panel' });
-}
-
-export function createFlyoutPlugin(plugin: PluginDef): PluginDef {
-    return definePlugin({ ...plugin, target: 'flyout' });
-}
-
 // ============================================================================
 // SDK plugin seam (ticket 07)
 // ----------------------------------------------------------------------------
@@ -252,7 +164,9 @@ export function createFlyoutPlugin(plugin: PluginDef): PluginDef {
 // implements `definePlugin`, activation, selectors, and compatibility
 // negotiation against these types; core owns the types (because `PluginContext`
 // hands out the live `ViewerState`, a core API) and mounts SDK-style plugins
-// beside the legacy `PluginDef` path above.
+// through this seam. It is the ONE plugin path in 1.0: the Svelte-only
+// `PluginDef` path was removed so nothing reachable from `ViewerState` refers
+// to a Svelte `Component`.
 //
 // Core deliberately does NOT import the SDK at runtime: an SDK plugin object
 // carries its own `activate(host)` method (a closure over the SDK's activation
@@ -391,9 +305,9 @@ export interface PluginUiService {
  * Core mounts an SDK plugin exactly once, into a content element it re-parents
  * into and out of the open surface, so `view.mount` is NOT re-run on open/close
  * (deliberate: Activation state survives close→reopen). This is the replacement
- * for the open/close signal a legacy `PluginDef` got from its Svelte component's
- * mount/destroy lifecycle: a plugin observes {@link isOpen} to start and pause
- * work that only matters while the user can see it.
+ * for the open/close signal a Svelte component's mount/destroy lifecycle used
+ * to provide: a plugin observes {@link isOpen} to start and pause work that
+ * only matters while the user can see it.
  *
  * Every member reads through the live `ViewerState`, so `isOpen`/`target` are
  * plain getters that are always current — and because they project inventoried
@@ -437,9 +351,8 @@ export interface PluginSurface {
     /** Open this plugin's surface. No-op if already open. */
     open(): void;
     /**
-     * Close this plugin's surface. No-op if already closed. This is the SDK
-     * equivalent of the `close` prop a legacy `PluginDef` component received —
-     * for a "done"/"apply" affordance inside the plugin's own UI.
+     * Close this plugin's surface. No-op if already closed. Use it for a
+     * "done"/"apply" affordance inside the plugin's own UI.
      */
     close(): void;
     /** Toggle this plugin's surface open state. */
@@ -608,9 +521,9 @@ export interface SdkPluginMeta {
     /**
      * Stable, DOM-safe UI id used as the key under `ViewerConfig.plugins` (for
      * `visible` / `open` / `target` control) and as the prefix for the plugin's
-     * toolbar button, panel, and flyout. This is the SDK equivalent of the
-     * legacy `PluginDef.id`: a consumer sets `config.plugins[uiId] = {...}` to
-     * control the plugin. Keep it short and stable (e.g. `pdf-export`) — it must
+     * toolbar button, panel, and flyout. A consumer sets
+     * `config.plugins[uiId] = {...}` to control the plugin. Keep it short and
+     * stable (e.g. `pdf-export`) — it must
      * match `[A-Za-z0-9_-]+` because it seeds a DOM id and CSS `anchor-name`.
      *
      * Optional: when omitted, core derives a stable id from {@link name} by
@@ -669,7 +582,7 @@ export interface SdkPlugin extends SdkPluginMeta {
     activate(host: PluginHost): PluginActivation;
 }
 
-/** Structural type guard: is this an SDK plugin (vs a legacy `PluginDef`)? */
+/** Structural type guard: is this value an SDK plugin? */
 export function isSdkPlugin(value: unknown): value is SdkPlugin {
     return (
         typeof value === 'object' &&

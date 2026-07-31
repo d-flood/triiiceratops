@@ -50,17 +50,16 @@ const ALLOWED_IN_COMPONENT_DECLARATIONS: readonly string[] = [
  * Per-file exceptions, keyed by dist-relative POSIX path. Each is a documented
  * scope decision, not a suppression: add one only when the Svelte type is
  * unreachable from the framework wrappers' supported surface.
+ *
+ * Deliberately EMPTY. `types/plugin.d.ts` used to be listed here because the
+ * Svelte-only `PluginDef` chrome path typed its icons and panels as
+ * `Component<any>`; framework-wrappers ticket 12 removed that path, so nothing
+ * reachable from `ViewerState` needs Svelte types any more.
  */
 export const ALLOWED_SVELTE_IMPORTS_BY_FILE: ReadonlyMap<
     string,
     readonly string[]
-> = new Map([
-    // Legacy plugin chrome (`PluginDef`/`PluginPanel`/`PluginFlyout`/
-    // `PluginMenuButton`) types its icons and panels as Svelte `Component`s and
-    // requires a Svelte runtime anyway. The framework wrappers accept
-    // `readonly SdkPlugin[]` only, and `SdkPlugin` is Svelte-free.
-    ['types/plugin.d.ts', ['svelte']],
-]);
+> = new Map<string, readonly string[]>([]);
 
 /** A disallowed Svelte type import, with the entry-to-file chain reaching it. */
 export interface SvelteTypeImportViolation {
@@ -172,14 +171,35 @@ function collectModuleSpecifiers(sourceFile: ts.SourceFile): string[] {
     return specifiers;
 }
 
+/**
+ * Is this declaration the output of COMPILING a `*.svelte` component, as opposed
+ * to a `*.svelte.ts` rune module?
+ *
+ * Both emit `<name>.svelte.d.ts`, so the extension alone cannot tell them apart
+ * — and that mattered: `state/viewer.svelte.d.ts` is a rune module reachable
+ * from the Svelte-free `./selectors` and framework subpaths, and an
+ * extension-based allowance let a `svelte` type import slip through it.
+ *
+ * The originating source file is what distinguishes them, and `svelte-package`
+ * puts it in dist: a compiled component's `.svelte` SOURCE is copied next to its
+ * declaration (for the `.` entry's Svelte consumers), while a rune module emits
+ * only `<name>.svelte.js`. So the sibling `<name>.svelte` file existing means —
+ * and only means — the declaration came from a `*.svelte` component.
+ */
+function isCompiledSvelteComponentDeclaration(filePath: string): boolean {
+    if (!filePath.endsWith('.svelte.d.ts')) return false;
+    return existsSync(filePath.slice(0, -'.d.ts'.length));
+}
+
 function isAllowedSvelteImport(
+    filePath: string,
     distRelativePath: string,
     specifier: string,
 ): boolean {
     if (NEVER_ALLOWED_SPECIFIERS.includes(specifier)) return false;
 
     if (
-        distRelativePath.endsWith('.svelte.d.ts') &&
+        isCompiledSvelteComponentDeclaration(filePath) &&
         ALLOWED_IN_COMPONENT_DECLARATIONS.includes(specifier)
     ) {
         return true;
@@ -236,7 +256,13 @@ export function checkDeclarationGraph(
 
         for (const specifier of collectModuleSpecifiers(sourceFile)) {
             if (SVELTE_SPECIFIER_RE.test(specifier)) {
-                if (!isAllowedSvelteImport(distRelativePath, specifier)) {
+                if (
+                    !isAllowedSvelteImport(
+                        filePath,
+                        distRelativePath,
+                        specifier,
+                    )
+                ) {
                     violations.push({
                         chain: [...chain, distRelativePath],
                         specifier,

@@ -14,23 +14,18 @@ export type {
     SearchResultGroup,
 } from './types/config';
 
-// Plugin system exports (legacy PluginDef path)
+// Plugin chrome records — the panel, flyout, and toolbar-button entries core
+// registers for a plugin and renders from.
 export type {
-    PluginDef,
     PluginMenuButton,
     PluginPanel,
     PluginFlyout,
     PluginUiTarget,
 } from './types/plugin';
-export {
-    definePlugin,
-    createPanelPlugin,
-    createFlyoutPlugin,
-} from './types/plugin';
 
 // SDK plugin seam (ticket 07) — the framework-neutral authoring contract that
-// `@triiiceratops/plugin-sdk` implements against. Core owns the types and can
-// mount SDK-style plugins beside the legacy path above.
+// `@triiiceratops/plugin-sdk` implements against, and the ONE plugin path in
+// 1.0. Core owns the types and mounts SDK plugins through this structural seam.
 export type {
     Selector,
     ViewerSelectors,

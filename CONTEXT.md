@@ -180,7 +180,9 @@ compatibility (core range, plugin API range, capabilities) is negotiated and whe
 isolated per-viewer plugin state is created. A plugin can register successfully and
 still fail activation. An activation's lifetime is keyed to the plugin's identity
 within a viewer's plugin list, not to the identity of the list itself: re-supplying an
-equal list leaves existing activations untouched.
+equal list leaves existing activations untouched. There is one activation path — the
+framework-neutral SDK plugin (`definePlugin`). The Svelte-only `PluginDef` shortcut,
+which core registered without negotiating anything, was removed for 1.0.
 _Avoid_: enabling, mounting (mounting is the UI step inside a successful activation)
 
 **Test viewer context**:

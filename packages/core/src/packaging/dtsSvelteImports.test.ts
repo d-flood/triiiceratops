@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import {
+    ALLOWED_SVELTE_IMPORTS_BY_FILE,
     checkDeclarationGraph,
     collectEntryDeclarations,
     formatDeclarationGraphProblems,
@@ -99,6 +100,9 @@ describe('published declaration graph', () => {
         writePackage(singleEntry, {
             'index.d.ts':
                 "export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';\n",
+            // svelte-package copies the component SOURCE next to its
+            // declaration; that sibling is what marks this a compiled component.
+            'components/TriiiceratopsViewer.svelte': '<script></script>\n',
             'components/TriiiceratopsViewer.svelte.d.ts':
                 "import type { SvelteSet } from 'svelte/reactivity';\n" +
                 'declare const TriiiceratopsViewer: import("svelte").Component<{ ids: SvelteSet<string> }>;\n' +
@@ -125,6 +129,7 @@ describe('published declaration graph', () => {
         writePackage(singleEntry, {
             'index.d.ts':
                 "export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';\n",
+            'components/TriiiceratopsViewer.svelte': '<script></script>\n',
             'components/TriiiceratopsViewer.svelte.d.ts':
                 "import type { ClassValue } from 'svelte/elements';\n" +
                 'declare const TriiiceratopsViewer: import("svelte").Component<{ class: ClassValue }>;\n' +
@@ -134,16 +139,49 @@ describe('published declaration graph', () => {
         expect(checkDeclarationGraph(packageDir).violations).toEqual([]);
     });
 
-    // Legacy plugin chrome types its icons and panels as Svelte components; the
-    // exception is scoped to that one file, not to the specifier.
-    it('allows the legacy plugin chrome file to import svelte and nothing else to', () => {
+    // The wave-1 guard hole (framework-wrappers ticket 12). A `.svelte.ts` rune
+    // module emits `<name>.svelte.d.ts` too, so the old extension-based
+    // allowance let it import `svelte` — and `state/viewer.svelte.d.ts` is a
+    // rune module reachable from the Svelte-free `./selectors` and framework
+    // subpaths. Only a compiled component has its `.svelte` SOURCE copied
+    // alongside; a rune module has just the emitted `.js`.
+    it('fails on a svelte type import in a .svelte.ts rune module declaration', () => {
         writePackage(singleEntry, {
             'index.d.ts':
-                "export type { PluginDef } from './types/plugin.js';\n" +
+                "export type { ViewerState } from './state/viewer.svelte.js';\n",
+            'state/viewer.svelte.js': 'export class ViewerState {}\n',
+            'state/viewer.svelte.d.ts':
+                "import type { Component } from 'svelte';\n" +
+                'export declare class ViewerState {\n' +
+                '    chrome: Component<any>[];\n' +
+                '}\n',
+        });
+
+        const report = checkDeclarationGraph(packageDir);
+
+        expect(report.violations).toEqual([
+            {
+                chain: ['index.d.ts', 'state/viewer.svelte.d.ts'],
+                specifier: 'svelte',
+            },
+        ]);
+    });
+
+    // Framework-wrappers ticket 12 removed the last per-file exception (the
+    // Svelte-only `PluginDef` chrome path in `types/plugin.d.ts`). A plain
+    // declaration importing `svelte` is a violation wherever it lives.
+    it('has no per-file Svelte import exceptions', () => {
+        expect([...ALLOWED_SVELTE_IMPORTS_BY_FILE.keys()]).toEqual([]);
+    });
+
+    it('fails on a svelte type import from any plain declaration', () => {
+        writePackage(singleEntry, {
+            'index.d.ts':
+                "export type { PluginPanel } from './types/plugin.js';\n" +
                 "export type { ThemeConfig } from './theme/types.js';\n",
             'types/plugin.d.ts':
                 "import type { Component } from 'svelte';\n" +
-                'export interface PluginDef { icon?: Component }\n',
+                'export interface PluginPanel { icon?: Component }\n',
             'theme/types.d.ts':
                 "import type { Component } from 'svelte';\n" +
                 'export interface ThemeConfig { icon?: Component }\n',
@@ -152,6 +190,10 @@ describe('published declaration graph', () => {
         const report = checkDeclarationGraph(packageDir);
 
         expect(report.violations).toEqual([
+            {
+                chain: ['index.d.ts', 'types/plugin.d.ts'],
+                specifier: 'svelte',
+            },
             {
                 chain: ['index.d.ts', 'theme/types.d.ts'],
                 specifier: 'svelte',

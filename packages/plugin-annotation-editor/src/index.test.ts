@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { AnnotationEditorPlugin, createAnnotationEditorPlugin } from './index';
 
 /**
- * The factory now returns an SDK plugin (framework-neutral `definePlugin`
- * factory) rather than the legacy `PluginDef` object. This suite is the moved
- * `index.test.ts`, updated to assert the SDK shape: the `target` still threads
- * through from config (flyout vs panel), and the plugin carries a neutral
- * `view.mount`, the `osd@5` capability, and its package-qualified name.
+ * The factory returns an SDK plugin (framework-neutral `definePlugin` factory).
+ * This suite is the moved `index.test.ts`, updated to assert the SDK shape: the
+ * `target` still threads through from config (flyout vs panel), and the plugin
+ * carries a neutral `view.mount`, the `osd@5` capability, and its
+ * package-qualified name.
  */
 describe('createAnnotationEditorPlugin', () => {
     it('can create the annotation editor as a flyout', () => {
