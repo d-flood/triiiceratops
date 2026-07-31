@@ -301,7 +301,7 @@
                         )}
                         <Tooltip
                             tip={toolName}
-                            placement="bottom"
+                            placement="top"
                             class="join-item tool-tip"
                         >
                             <Button
