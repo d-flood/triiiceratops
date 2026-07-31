@@ -38,6 +38,13 @@ export default defineConfig({
             '@triiiceratops/plugin-sdk': fileURLToPath(
                 new URL('../plugin-sdk/src/index.ts', import.meta.url),
             ),
+            // The SDK source above imports the selector runtime from core's
+            // `triiiceratops/selectors` entry. Point that back at SOURCE so
+            // core's own tests and dev server compile ONE copy of the runtime
+            // and never need a built `dist/` to resolve their own package.
+            'triiiceratops/selectors': fileURLToPath(
+                new URL('./src/lib/state/selectors/index.ts', import.meta.url),
+            ),
             // The first-party plugins resolve to their BUILT `dist/` (not source).
             // Their CSP-safe styling contract is build-time: `emitCss:true` +
             // `bundledCss()` extract each component's CSS into a string the plugin

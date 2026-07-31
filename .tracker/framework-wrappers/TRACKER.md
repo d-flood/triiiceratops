@@ -19,7 +19,7 @@ Last updated: 2026-07-31
 
 | Number | Filename                                        | Status      | Depends On     |
 | ------ | ----------------------------------------------- | ----------- | -------------- |
-| 01     | `01-generalize-selector-runtime.md`             | Not Started | None           |
+| 01     | `01-generalize-selector-runtime.md`             | Completed   | None           |
 | 02     | `02-custom-element-state-bridge.md`             | Not Started | None           |
 | 03     | `03-remove-svelte-types-from-public-surface.md` | Completed   | None           |
 | 04     | `04-identity-keyed-plugin-activation.md`        | Not Started | None           |
