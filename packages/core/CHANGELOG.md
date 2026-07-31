@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.31
+
+### Patch Changes
+
+- 2f811cc: honor the start canvas in IIIF Presentation 2.x manifests (`sequences[].startCanvas`), not just the v3 `start` property
+
 ## 1.0.0-rc.30
 
 ### Patch Changes
