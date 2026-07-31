@@ -49,6 +49,10 @@
             "types": "./dist/testing/index.d.ts",
             "import": "./dist/testing/index.js"
         },
+        "./vue": {
+            "types": "./dist/vue.d.ts",
+            "import": "./dist/vue.js"
+        },
         "./image-export": {
             "types": "./dist/image-export.d.ts",
             "svelte": "./dist/image-export.js",
@@ -60,13 +64,17 @@
     },
     "peerDependencies": {
         "react": "^19.0.0",
-        "svelte": "^5.0.0"
+        "svelte": "^5.0.0",
+        "vue": "^3.5.0"
     },
     "peerDependenciesMeta": {
         "react": {
             "optional": true
         },
         "svelte": {
+            "optional": true
+        },
+        "vue": {
             "optional": true
         }
     },
@@ -136,7 +144,8 @@
         "typescript-eslint": "^8.53.1",
         "vite": "^6.0.0",
         "vite-plugin-dts": "^4.5.4",
-        "vitest": "^4.0.15"
+        "vitest": "^4.0.15",
+        "vue": "3.5.40"
     },
     "dependencies": {
         "@types/openseadragon": "^5.0.1",

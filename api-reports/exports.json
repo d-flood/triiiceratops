@@ -29,6 +29,10 @@
                 "types": "./dist/testing/index.d.ts",
                 "import": "./dist/testing/index.js"
             },
+            "./vue": {
+                "types": "./dist/vue.d.ts",
+                "import": "./dist/vue.js"
+            },
             "./image-export": {
                 "types": "./dist/image-export.d.ts",
                 "svelte": "./dist/image-export.js",
