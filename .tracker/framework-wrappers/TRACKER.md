@@ -12,9 +12,9 @@ installing Svelte at runtime or at type-check time.
 Overall status: `In Progress`
 
 Current ticket: None. 12 is resolved and `Completed` — see "Resolution of ticket 12's `.`
-entry finding" below. 06 and 07 are both `Completed` and both have passed an independent
-verification gate (see "Tickets 06 and 07 verification gate"), so 08 is unblocked and 09
-waits only on 08.
+entry finding" below. 06, 07, and 08 are all `Completed`; 06 and 07 have passed an
+independent verification gate (see "Tickets 06 and 07 verification gate"). 09 and 11 are
+now unblocked.
 
 Last updated: 2026-07-31
 
@@ -30,7 +30,7 @@ Last updated: 2026-07-31
 | 12     | `12-drop-legacy-plugindef.md`                   | Completed                              | None           |
 | 06     | `06-react-framework-wrapper.md`                 | Completed                              | 05, 12         |
 | 07     | `07-vue-framework-wrapper.md`                   | Completed                              | 05, 12         |
-| 08     | `08-consumer-testing-helper.md`                 | Not Started                            | 06, 07         |
+| 08     | `08-consumer-testing-helper.md`                 | Completed                              | 06, 07         |
 | 09     | `09-packed-framework-consumers.md`              | Not Started                            | 04, 06, 07, 08 |
 | 10     | `10-public-api-release.md`                      | Not Started                            | 09, 12         |
 | 11     | `11-framework-wrapper-docs.md`                  | Not Started                            | 06, 07, 08     |
@@ -434,6 +434,83 @@ jsdom`: it guards the premise (`isRealViewerElementDefined() === false`), mounts
   land as PROPERTIES with the consumer's own identity and that no attribute was stringified,
   then defines the tag, lets the platform upgrade the live element, and confirms the values
   reached the inner viewer. Routing those three props through vnode props instead fails it.
+
+### Ticket 08 outcome — what 09 and 11 must know
+
+`createTestViewerHandle()` ships from `packages/core/src/lib/testing/index.ts` — the
+existing single-file `triiiceratops/testing` entry, not a new module. Its exported shape:
+
+```ts
+export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
+    readonly element: TriiiceratopsViewerElement;
+    readonly state: ViewerState;
+    setOsdViewer(stub: unknown): void;
+    dispose(): void;
+}
+export function createTestViewerHandle(options?: {
+    fixtures?: HeadlessViewerFixtures;
+}): TestViewerHandle;
+```
+
+`ReadonlyViewerState`, `TriiiceratopsViewerElement`, `ViewerHandle`, and `ViewerHandleSlot`
+are re-exported from the entry so a consumer's own test helpers need no deep import.
+
+Facts worth not rediscovering:
+
+1. **The handle is deliberately BOTH shapes.** React's `useViewerSelector` takes a
+   `ViewerHandleSlot`, Vue's takes a `{ readonly value: TriiiceratopsViewerInstance | null }`.
+   Satisfying both is what makes the ticket's "React consumers pass the handle directly;
+   Vue consumers wrap it in a `ref`" literally true with no adapter. **Vue consumers must
+   use `shallowRef`, not `ref`** — a deep `ref` hands the composable a reactive PROXY of
+   the handle, so `handle.state` identity comparisons fail (ticket 07 note 4, same trap).
+   Docs (ticket 11) must show `shallowRef`.
+2. **It is built on the substrate's real `createViewerHandleSlot()`**, claimed by the inert
+   host, publishing the `TestViewerHandle` itself. So `handle.get() === handle`,
+   `dispose()` publishes `null` through the real notify path (React re-renders to
+   `undefined`), and a test handle mistakenly passed to a real `<TriiiceratopsViewer>`
+   raises the real `TriiiceratopsHandleConflictError` rather than binding twice.
+3. **The entry imports the substrate's LEAF modules, not `framework/index.js`.** The barrel
+   re-exports `registration.js`, whose `import('../triiiceratops-element.js')` cannot
+   resolve under `vite.config.testing.ts` (that config has no element-artifact stub, unlike
+   `vite.config.ts`), so the barrel would break `build:testing` outright — and bundling the
+   registrar would contradict the helper's promise to register nothing. The wave-2 gate's
+   prediction that `attachSelectorRuntime` must be added to `framework/index.ts` therefore
+   did NOT hold; adding it would have been an unused export. Nothing in the barrel changed.
+4. **`build:testing` now ends in `pnpm check:testing-entry`**
+   (`packages/core/scripts/check-testing-entry.mjs`), which walks the real
+   `dist/testing/index.js` graph and fails on a `react`/`react-dom`/`vue`/`@vue/`/`svelte`
+   specifier. The source legitimately imports `svelte` (`flushSync`); only the built
+   artifact is guarded. It was verified to have teeth by planting `import "svelte"` and
+   `import "react"` into the built chunk (exit 1 both times) and reverting. The real chunk
+   has **no bare imports at all**.
+5. **The built testing entry cannot be imported in bare Node — `ReferenceError: self is not
+defined` — and that is PRE-EXISTING**, from a `cross-fetch`-style polyfill bundled in
+   with `manifesto.js`. Confirmed by rebuilding the entry from the pre-ticket source and
+   reproducing it byte-for-byte. With `globalThis.self = globalThis` set, the built entry
+   imports and `createTestViewerHandle()` works with **no `document` and no
+   `customElements`** at all (the inert host falls back to a plain object). Ticket 09's
+   packed fixture should either run under a DOM-ish environment (jsdom/happy-dom, which is
+   what a React/Vue consumer's test runner already has) or shim `self`; do not read that
+   error as a regression from this ticket.
+6. **`ViewerConfig` has no `theme` member** (`toolbarOpen`, `locale`, … do), and the
+   toolbar state member is `toolbarOpen`, not `toolbarVisible`. Both cost a `check` cycle.
+7. **Tests live in `src/lib/testing/`** (`viewerHandle.test.ts`, `react.consumer.test.ts`,
+   `vue.consumer.test.ts` — 35 tests) and are pruned from `dist` by `pruneDist`. They mount
+   REAL React and REAL Vue against the helper under the default happy-dom environment; no
+   custom element is registered in any of them, and each asserts
+   `customElements.get('triiiceratops-viewer') === undefined` so the file cannot silently
+   start depending on a mounted viewer.
+
+Mutation-tested, so the suite is not vacuous. Four deliberate defects were planted and every
+one was caught: dropping `attachSelectorRuntime` (7 failures, including both consumer
+suites), dropping `runtime.dispose()` (4), dropping `claim.release()` (3), and publishing a
+separate `{ element, state }` object instead of the handle itself (2).
+
+Verified: all five commands in the ticket's Run block plus core `lint` exit 0; core's suite
+is 813 → 848; workspace `check`, `test`, `lint`, `format:check`, `api:check`, and
+`docs:examples:check` all pass; `api:report` regenerated `core.api.md` (+106/−6, all in the
+`dist/testing/index.d.ts` section) and a changeset accompanies it. `build:element` was
+re-run after `api:report`, per the build-ordering trap.
 
 ### Ticket 05 outcome — what 06, 07, and 08 must know
 
