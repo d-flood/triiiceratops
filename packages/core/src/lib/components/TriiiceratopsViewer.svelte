@@ -452,8 +452,14 @@
         configureLogging({ debug: config?.debug ?? false });
     });
 
-    // Register plugins reactively with cleanup
-    let registeredPluginIds: string[] = [];
+    // Live legacy `PluginDef` registrations, keyed by plugin OBJECT REFERENCE.
+    // An activation's lifetime is keyed to the plugin's identity within the
+    // list, not to the identity of the list (CONTEXT.md **Activation**), so a
+    // host that re-evaluates its plugin array every render does not restart
+    // every plugin. The assigned id has to be retained across effect runs
+    // because `plugin.id || createPluginId()` mints a FRESH id for anonymous
+    // plugins — keying on the derived id would re-register them every run.
+    let registeredPluginIds = new Map<PluginDef, string>();
 
     $effect(() => {
         const currentPlugins = plugins;
@@ -461,15 +467,34 @@
         // Use untrack so that operations inside (like registerPlugin accessing/writing state)
         // do NOT become dependencies of this effect. This prevents infinite loops.
         untrack(() => {
-            // Cleanup previous plugins first
-            for (const id of registeredPluginIds) {
-                internalViewerState.unregisterPlugin(id);
-            }
-            registeredPluginIds = [];
+            // Plain bookkeeping inside untrack, deliberately not reactive.
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity
+            const retained = new Map<PluginDef, string>();
 
-            // Register new plugins
+            // Present before AND after → untouched: no unregister, no
+            // re-register, and the id it was first registered under is kept.
             for (const plugin of currentPlugins) {
                 if (!plugin || typeof plugin !== 'object') {
+                    continue;
+                }
+                const id = registeredPluginIds.get(plugin);
+                if (id !== undefined) retained.set(plugin, id);
+            }
+
+            // Absent now → unregister through the existing path.
+            for (const [plugin, id] of registeredPluginIds) {
+                if (!retained.has(plugin)) {
+                    internalViewerState.unregisterPlugin(id);
+                }
+            }
+
+            // Newly present → register through the existing path. A repeated
+            // object reference is one registration.
+            for (const plugin of currentPlugins) {
+                if (!plugin || typeof plugin !== 'object') {
+                    continue;
+                }
+                if (retained.has(plugin)) {
                     continue;
                 }
 
@@ -477,17 +502,22 @@
                 // Create a copy with the ID to ensure stability for THIS registration
                 const defWithId = { ...plugin, id };
                 internalViewerState.registerPlugin(defWithId);
-                registeredPluginIds.push(id);
+                retained.set(plugin, id);
             }
-        });
 
-        // Cleanup on effect re-run
-        return () => {
-            for (const id of registeredPluginIds) {
-                internalViewerState.unregisterPlugin(id);
-            }
-            registeredPluginIds = [];
-        };
+            registeredPluginIds = retained;
+        });
+    });
+
+    // Unmounting the viewer still unregisters everything. This lives in
+    // `onDestroy` rather than in the effect's cleanup because an effect cleanup
+    // ALSO runs before every re-run — which is exactly the whole-list churn the
+    // identity diff above exists to remove.
+    onDestroy(() => {
+        for (const id of registeredPluginIds.values()) {
+            internalViewerState.unregisterPlugin(id);
+        }
+        registeredPluginIds = new Map();
     });
 
     // ---- SDK plugin activation (ticket 07 + services ticket 08) ------------
@@ -779,16 +809,44 @@
         const currentSdkPlugins = sdkPlugins;
 
         untrack(() => {
-            teardownSdkActivations();
+            // Diff the incoming list against live activations by plugin OBJECT
+            // REFERENCE (CONTEXT.md **Activation**): activation lifetime follows
+            // the plugin's identity within the list, not the identity of the
+            // list. A plugin present before and after is left COMPLETELY
+            // untouched — no `deactivate`, no re-mount, no style re-install, no
+            // chrome re-registration, no subscription churn — so a host that
+            // re-evaluates its plugin array every render keeps its plugins.
+            // Reordering with unchanged membership is therefore also inert.
+            const wanted = new Set(currentSdkPlugins);
+            const retained: SdkActivationRecord[] = [];
 
+            for (const activation of sdkActivations) {
+                if (wanted.has(activation.plugin)) {
+                    retained.push(activation);
+                } else {
+                    // Absent now → the existing teardown path, unchanged.
+                    deactivateSdkRecord(activation);
+                }
+            }
+            sdkActivations = retained;
+
+            // Newly present → the existing activation path, unchanged. A
+            // repeated object reference is one activation.
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity
+            const live = new Set(retained.map((r) => r.plugin));
             for (const plugin of currentSdkPlugins) {
+                if (live.has(plugin)) continue;
+                live.add(plugin);
                 activateSdkPlugin(plugin);
             }
         });
+    });
 
-        return () => {
-            teardownSdkActivations();
-        };
+    // Unmounting the viewer still deactivates everything. As with the legacy
+    // registrations above, this is `onDestroy` rather than the effect's cleanup
+    // so that a re-supplied plugin list does not tear the whole set down.
+    onDestroy(() => {
+        teardownSdkActivations();
     });
 
     onDestroy(() => {
