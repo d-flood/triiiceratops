@@ -12,8 +12,8 @@ installing Svelte at runtime or at type-check time.
 Overall status: `In Progress`
 
 Current ticket: None. 12 is resolved and `Completed` — see "Resolution of ticket 12's `.`
-entry finding" below. 06 and 07 are unblocked, subject to the re-export constraint
-recorded in the ticket 12 verification gate.
+entry finding" below. 06 is `Completed`; 07 is unblocked, subject to the re-export
+constraint recorded in the ticket 12 verification gate.
 
 Last updated: 2026-07-31
 
@@ -27,7 +27,7 @@ Last updated: 2026-07-31
 | 04     | `04-identity-keyed-plugin-activation.md`        | Completed                              | None           |
 | 05     | `05-framework-wrapper-substrate.md`             | Completed                              | 01, 02, 03     |
 | 12     | `12-drop-legacy-plugindef.md`                   | Completed                              | None           |
-| 06     | `06-react-framework-wrapper.md`                 | Not Started                            | 05, 12         |
+| 06     | `06-react-framework-wrapper.md`                 | Completed                              | 05, 12         |
 | 07     | `07-vue-framework-wrapper.md`                   | Not Started                            | 05, 12         |
 | 08     | `08-consumer-testing-helper.md`                 | Not Started                            | 06, 07         |
 | 09     | `09-packed-framework-consumers.md`              | Not Started                            | 04, 06, 07, 08 |
@@ -216,6 +216,68 @@ same no-Svelte consumer, so the substrate is already clean.
 
 **Ticket 10** should state its type-dependency criterion per entry point rather than for
 `triiiceratops` as a whole.
+
+### Ticket 06 outcome — what 07, 08, 09, and 11 must know
+
+`triiiceratops/react` ships from `packages/core/src/lib/react.ts` (the published entry,
+a re-export barrel only) plus `packages/core/src/lib/react/` (implementation and tests:
+`context.ts`, `effects.ts`, `handle.ts`, `selector.ts`, `viewer.ts`, `index.ts`). The
+split exists because the acceptance criterion demands `dist/react.js` / `dist/react.d.ts`,
+which `svelte-package` produces only from a top-level `src/lib/react.ts`. Ticket 07
+should mirror it exactly: `src/lib/vue.ts` + `src/lib/vue/`.
+
+Facts worth not rediscovering:
+
+1. **The `./react` exports entry pulls `dist/framework/props.d.ts` into the PUBLIC
+   declaration graph, which trips `api:check`.** `manifestJson?: string | Record<string, any>`
+   is an `any` on a public declaration; it is the same IIIF/manifesto.js boundary already
+   allowlisted for `TriiiceratopsViewer.svelte.d.ts`. Regenerated the txt with
+   `node scripts/check-public-api.mjs --write-allowlist` and updated `lint-allowlist.md`
+   entry 4 in the same commit, per its stated protocol. **Ticket 07 will not hit this
+   again** — `./vue` reaches the same file, which is now listed.
+2. **`api:report` adds ~1,000 lines to `core.api.md`** (the whole react entry's reachable
+   graph) and one `exports.json` entry. Both are pure additions; a changeset is required
+   because `api-reports/` changed.
+3. **The distribution-cleanup guard scans doc comments.** A `console.log(...)` inside a
+   ` ```ts ` example in `src/lib/**` fails `distribution-cleanup.guard.test.ts`. Write
+   examples that call something else.
+4. **The global `EventTarget` in core's vitest run is Node's, not happy-dom's.** Spying on
+   `EventTarget.prototype.addEventListener` instruments a class no page element inherits
+   from and silently counts nothing. Walk the prototype chain of a real element to find the
+   owner instead (`prototypeOwning` in `react/strictMode.test.ts`).
+5. **React 19 + happy-dom + `react-dom/client` works fine** with `IS_REACT_ACT_ENVIRONMENT`
+   and the shared `installInertAnimations()` / `defineRealViewerElement()` / `settle()`
+   harness — jsdom was not needed, because no test here turns on upgrade ordering.
+   `react-dom/server`'s `renderToStaticMarkup` also works under happy-dom, which is how the
+   server/client attribute-parity assertion lives in one file.
+6. **`viewererror` has exactly one live emitter** in the viewer today: the nav-edge/toolbar
+   conflict (`config: { controls: 'split', toolbar: { anchor: 'top' }, nav: { edge: 'top' } }`).
+   A 404 manifest does NOT emit one. Use that config to drive the channel.
+7. **`canvasId` is not two-way.** Internal navigation (`state.setCanvas(…)`) does not move the
+   element's reflected `canvas-id` attribute, because the element passes `canvasId` one-way
+   into the inner viewer. The consumer-visible proof that an unchanged re-render does not undo
+   navigation is therefore `element.viewerState.canvasId`, not the attribute.
+8. **A plugin activation owns its own `ViewerState.subscribe`.** Any test that counts live
+   subscriptions to prove "one subscription" must use a viewer with no plugins, or expect
+   wrapper + one per activation.
+9. **A `<TriiiceratopsViewer>` with two viewers sharing one handle throws from the second
+   viewer's mount effect**, which React surfaces as a failed commit; the root is not
+   recoverable afterwards, so such a test must skip the shared `unmount()` teardown.
+
+Verified directly, not inferred: a freshly packed `triiiceratops-1.0.0-rc.31.tgz` installed
+into a throwaway project with `react`, `@types/react`, and `typescript@5.9.3` and **zero**
+Svelte packages type-checks a real `triiiceratops/react` consumer under `strict`,
+`moduleResolution: bundler`, `types: []`, `skipLibCheck: false` with **0 errors**. The same
+project still reports the known single `.`-entry error for
+`import type { ViewerState } from 'triiiceratops'`, which proves the probe has teeth and
+confirms the ticket-12 boundary constraint held.
+
+Mutation-tested, so the suite is not vacuous. Four deliberate defects were planted and every
+one was caught: keying the selector `useMemo` on the runtime alone (freezing inline
+projections), dropping `controller.destroy()` from the unmount cleanup, recreating the prop
+applier on every effect run, and handing callbacks the `CustomEvent` instead of its `detail`.
+The `expectTypeOf` assertions in `react/types.test.ts` were confirmed to fail `tsc` when a
+claim is wrong, so they are a real gate on `pnpm check`, not decoration.
 
 ### Ticket 05 outcome — what 06, 07, and 08 must know
 

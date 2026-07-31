@@ -39,6 +39,7 @@ triiiceratops :: dist/components/viewerControls.d.ts :: choices: any[];
 triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getCanvasBehaviors(canvas: any): string[];
 triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getCanvasChoices(canvas: any): any;
 triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getPagedCanvasGroups(canvases: any[], pagedOffset: number): PagedCanvasGroup[];
+triiiceratops :: dist/framework/props.d.ts :: manifestJson?: string | Record<string, any>;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: error?: any;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: fetchResource(url: string, requestConfig?: RequestConfig): Promise<any>;

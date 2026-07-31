@@ -37,6 +37,10 @@
             "svelte": "./dist/index.js",
             "import": "./dist/index.js"
         },
+        "./react": {
+            "types": "./dist/react.d.ts",
+            "import": "./dist/react.js"
+        },
         "./selectors": {
             "types": "./dist/state/selectors/index.d.ts",
             "import": "./dist/state/selectors/index.js"
@@ -55,9 +59,13 @@
         "./style.css": "./dist/triiiceratops.css"
     },
     "peerDependencies": {
+        "react": "^19.0.0",
         "svelte": "^5.0.0"
     },
     "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
         "svelte": {
             "optional": true
         }
@@ -108,6 +116,8 @@
         "@triiiceratops/ui": "workspace:*",
         "@tsconfig/svelte": "^5.0.6",
         "@types/node": "^24.10.1",
+        "@types/react": "19.2.17",
+        "@types/react-dom": "19.2.3",
         "@vitest/coverage-v8": "4.0.15",
         "axe-core": "^4.12.1",
         "eslint": "^9.39.2",
@@ -118,6 +128,8 @@
         "jsdom": "^27.3.0",
         "prettier": "^3.7.4",
         "prettier-plugin-svelte": "^3.4.0",
+        "react": "19.2.7",
+        "react-dom": "19.2.7",
         "svelte": "^5.43.8",
         "svelte-check": "^4.3.4",
         "typescript": "~5.9.3",
