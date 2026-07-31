@@ -2190,13 +2190,21 @@ export declare const VIEWER_STATE_KEY = "triiiceratops:viewerState";
 // FILE: dist/testing/index.d.ts
 // ======================================================================
 /**
- * `triiiceratops/testing` — the compiled headless viewer-state entry (ticket 14).
+ * `triiiceratops/testing` — the compiled headless viewer-state entry.
  *
- * The SDK test kit (`@triiiceratops/plugin-sdk/testing`) builds a **test viewer
- * context** on top of this: a real, live `ViewerState` — real commands, real
- * batched notifications — running under vitest/jsdom with NO Svelte tooling
- * (CONTEXT.md **Test viewer context**: "the harness is fake; the state is never
- * fake").
+ * Two audiences share it, and both get the same guarantee — CONTEXT.md **Test
+ * viewer context**: "the harness is fake; the state is never fake."
+ *
+ * - **Plugin authors.** The SDK test kit (`@triiiceratops/plugin-sdk/testing`)
+ *   builds a **test viewer context** on top of {@link createHeadlessViewerState}:
+ *   a real, live `ViewerState` — real commands, real batched notifications —
+ *   with recording service doubles.
+ * - **Framework consumers.** {@link createTestViewerHandle} returns a real
+ *   `ViewerHandle` over that same real state, so a React or Vue component that
+ *   reads `useViewerSelector()` is unit-testable without mounting the custom
+ *   element, loading OpenSeadragon, or fetching a manifest.
+ *
+ * Neither React, Vue, nor a DOM is required to import this module.
  *
  * `ViewerState` is authored as a Svelte runes module (`viewer.svelte.ts`), so a
  * React/Vue/Lit plugin author with no Svelte compiler cannot import it from the
@@ -2218,6 +2226,8 @@ export declare const VIEWER_STATE_KEY = "triiiceratops:viewerState";
  * This is real production timing, not a test artifact — a passing test reflects
  * the batched semantics a plugin sees in a real viewer.
  */
+import type { ViewerHandleSlot } from '../framework/handle.js';
+import type { TriiiceratopsViewerElement, ViewerHandle } from '../framework/types.js';
 import { ViewerState } from '../state/viewer.svelte.js';
 import type { ViewerConfig } from '../types/config.js';
 import { createPluginLocaleService } from '../plugin/localeService.js';
@@ -2284,6 +2294,96 @@ export declare function createHeadlessLocaleService(state: ViewerState, catalog?
  * while a flush is already in progress.
  */
 export declare function flush(): Promise<void>;
+export type { ViewerHandleSlot } from '../framework/handle.js';
+export type { ReadonlyViewerState, TriiiceratopsViewerElement, ViewerHandle, } from '../framework/types.js';
+/** Options accepted by {@link createTestViewerHandle}. */
+export interface TestViewerHandleOptions {
+    /**
+     * Pre-load the real state exactly as {@link createHeadlessViewerState} does
+     * (locale, config, already-parsed manifest JSON — still no network).
+     */
+    fixtures?: HeadlessViewerFixtures;
+}
+/**
+ * A real {@link ViewerHandle} over real viewer state, with no viewer mounted.
+ *
+ * It is deliberately BOTH shapes a framework helper accepts, so neither
+ * framework needs an adapter:
+ *
+ * - It satisfies {@link ViewerHandleSlot}, so React's `useViewer()` and
+ *   `useViewerSelector()` take it directly where a `useViewerHandle()` slot
+ *   would go.
+ * - It satisfies {@link ViewerHandle} (`element` + `state`), so Vue's
+ *   composables take `shallowRef(handle)` where a template ref would go.
+ */
+export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
+    /**
+     * The inert stand-in for the custom-element host. It is a detached element
+     * (or, with no `document`, a plain inert object): it is never connected,
+     * never upgraded, dispatches no viewer events, and owns no viewer. Its
+     * `viewerState` getter returns {@link state}, matching the invariant a real
+     * mounted wrapper holds.
+     */
+    readonly element: TriiiceratopsViewerElement;
+    /**
+     * The real, live `ViewerState` — real commands, real batched notifications.
+     * Never a fake, never a `Proxy`. Typed as the full `ViewerState` rather
+     * than `ReadonlyViewerState` because a test legitimately drives fixtures
+     * (`setManifestData`) that application code would not.
+     *
+     * Commands are batched: `await flush()` before asserting a consumer
+     * re-rendered.
+     */
+    readonly state: ViewerState;
+    /**
+     * Inject an OpenSeadragon stand-in and fire the real readiness path
+     * (`ViewerState.notifyOSDReady`), which is what makes `cadence: 'frame'`
+     * exercisable headlessly. `state.osdViewer` is `null` until this is called.
+     *
+     * No OSD fake ships here — the stub is the caller's, exactly as in the SDK
+     * test kit. A `frame`-cadence projection attaches to it through
+     * `addHandler`/`removeHandler`, so a stub needs at least those two and a way
+     * for the test to fire `animation` / `viewport-change` / `animation-finish`.
+     *
+     * `osdViewer` is an inventoried observable member, so the selector runtime
+     * only learns about the injection on the next flush: `await flush()` after
+     * calling this.
+     */
+    setOsdViewer(stub: unknown): void;
+    /**
+     * Release everything this handle owns: publish `null` to subscribers, drop
+     * the selector runtime's registration, and remove its single underlying
+     * `ViewerState.subscribe`. Idempotent, so an `afterEach` that disposes a
+     * handle a test already disposed is fine.
+     */
+    dispose(): void;
+}
+/**
+ * Build a headless {@link TestViewerHandle} so a consumer can unit-test their
+ * own components that read viewer state.
+ *
+ * Nothing is faked below the harness: the state is a real `ViewerState` with
+ * real commands and real batched notifications, and the selector runtime is the
+ * real one, registered in the very registry `useViewerSelector()` consults — so
+ * the helper drives the production code path rather than a parallel one.
+ *
+ * Nothing is mounted either: no custom element is defined or rendered, no
+ * OpenSeadragon is created, and no network request is made.
+ *
+ * @example
+ * ```ts
+ * const handle = createTestViewerHandle();
+ * // React: pass it straight in.
+ * const canvasId = useViewerSelector(handle, (state) => state.canvasId);
+ * // Vue: wrap it in a ref.
+ * const viewer = shallowRef(handle);
+ * // Drive a real command, then settle the real batched notification.
+ * handle.state.setCanvas('https://example.org/canvas/2');
+ * await flush();
+ * handle.dispose();
+ * ```
+ */
+export declare function createTestViewerHandle(options?: TestViewerHandleOptions): TestViewerHandle;
 
 // ======================================================================
 // FILE: dist/theme/colorUtils.d.ts
