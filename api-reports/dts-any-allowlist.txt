@@ -59,7 +59,7 @@ triiiceratops :: dist/state/viewer.svelte.d.ts :: getUserAnnotations(manifestId:
 triiiceratops :: dist/state/viewer.svelte.d.ts :: searchAnnotations: any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: setManifestData(manifestId: string, manifestJson: any, options?: {
 triiiceratops :: dist/state/viewer.svelte.d.ts :: setUserAnnotations(manifestId: string, canvasId: string, annotations: any[]): void;
-triiiceratops :: dist/state/viewer.svelte.d.ts :: userAnnotations: SvelteMap<string, any[]>;
+triiiceratops :: dist/state/viewer.svelte.d.ts :: userAnnotations: Map<string, any[]>;
 triiiceratops :: dist/types/config/search.d.ts :: canvases: any[];
 triiiceratops :: dist/types/config/search.d.ts :: manifest: any;
 triiiceratops :: dist/types/plugin.d.ts :: component?: Component<any>;

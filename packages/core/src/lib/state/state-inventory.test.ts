@@ -4,7 +4,11 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import { ViewerState } from './viewer.svelte';
 import { manifestsState } from './manifests.svelte';
-import { STATE_INVENTORY, type StateInventoryEntry } from './state-inventory';
+import {
+    REACTIVE_COLLECTION_MEMBERS,
+    STATE_INVENTORY,
+    type StateInventoryEntry,
+} from './state-inventory';
 
 vi.mock('./manifests.svelte', () => ({
     manifestsState: {
@@ -115,6 +119,30 @@ describe('ViewerState state inventory', () => {
                     `non-command member "${entry.member}" must not list mutation methods`,
                 ).toBeUndefined();
             }
+        }
+    });
+
+    // These four members are declared as plain `Set`/`Map` so that
+    // `svelte/reactivity` stays out of core's published declarations. The type
+    // system therefore no longer guards them, and a plain collection would stop
+    // notifying subscribers; the inventory owns the invariant instead.
+    it('holds reactive collections for every inventoried reactive-collection member', () => {
+        for (const member of REACTIVE_COLLECTION_MEMBERS) {
+            const value = (state as unknown as Record<string, unknown>)[member];
+
+            expect(
+                value instanceof SvelteSet || value instanceof SvelteMap,
+                `"${member}" must hold a SvelteSet/SvelteMap (see REACTIVE_COLLECTION_MEMBERS)`,
+            ).toBe(true);
+        }
+    });
+
+    it('inventories every reactive-collection member', () => {
+        for (const member of REACTIVE_COLLECTION_MEMBERS) {
+            expect(
+                byMember.has(member),
+                `"${member}" must have a state-inventory entry`,
+            ).toBe(true);
         }
     });
 });

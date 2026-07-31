@@ -32,6 +32,9 @@
  * Direct property assignment stays physically possible (the object is not
  * sealed); it is an unsupported escape hatch carrying no semver or invariant
  * guarantees (ADR 0007).
+ *
+ * The inventory is also the home of the reactive-collection invariant — see
+ * {@link REACTIVE_COLLECTION_MEMBERS}.
  */
 
 export type StateClassification =
@@ -88,7 +91,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'selectedChoices',
         classification: 'command',
         commands: ['selectChoice'],
-        notes: 'Reactive SvelteMap of canvasId -> choiceId (IIIF Choice).',
+        notes: 'Reactive SvelteMap of canvasId -> choiceId (IIIF Choice); declared as a plain Map (see REACTIVE_COLLECTION_MEMBERS).',
     },
 
     // ---- Panels, toolbar & chrome toggles ------------------------------------
@@ -150,7 +153,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
             'setAnnotationVisible',
             'setAllAnnotationsVisible',
         ],
-        notes: 'Reactive SvelteSet of visible annotation ids. Parity commands setAnnotationVisible/setAllAnnotationsVisible added this ticket.',
+        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). Parity commands setAnnotationVisible/setAllAnnotationsVisible added this ticket.',
     },
     {
         member: 'annotationVisibilityTouched',
@@ -168,14 +171,14 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'userAnnotations',
         classification: 'command',
         commands: ['setUserAnnotations', 'clearUserAnnotations'],
-        notes: 'Per-viewer plugin-written annotation display state (SvelteMap keyed by manifestId::canvasId). Moved off the page-shared manifest cache onto ViewerState (ticket 05, ADR 0007) so annotations never leak between viewers; the annotation-editor store display-syncs through these commands.',
+        notes: 'Per-viewer plugin-written annotation display state (SvelteMap keyed by manifestId::canvasId, declared as a plain Map — see REACTIVE_COLLECTION_MEMBERS). Moved off the page-shared manifest cache onto ViewerState (ticket 05, ADR 0007) so annotations never leak between viewers; the annotation-editor store display-syncs through these commands.',
     },
 
     // ---- Manifest readiness (per-viewer view of the shared cache) ------------
     {
         member: 'loadedManifestIds',
         classification: 'observable',
-        notes: 'Manifest ids this viewer has finished loading (SvelteSet). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady(). Added ticket 05.',
+        notes: 'Manifest ids this viewer has finished loading (SvelteSet, declared as a plain Set — see REACTIVE_COLLECTION_MEMBERS). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady(). Added ticket 05.',
     },
 
     // ---- Active locale (per-viewer i18n contract) ----------------------------
@@ -422,4 +425,31 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         classification: 'internal',
         notes: 'Private reference to the viewer DOM element, used for fullscreen.',
     },
+];
+
+/**
+ * Public `ViewerState` members that MUST hold a reactive collection
+ * (`SvelteSet`/`SvelteMap` from `svelte/reactivity`) at runtime.
+ *
+ * These four members are declared as the plain built-ins `Set`/`Map` — which
+ * `SvelteSet`/`SvelteMap` extend — so that `svelte/reactivity` never reaches
+ * core's published declaration graph and Svelte is not a type-time requirement
+ * for a React or Vue framework wrapper consumer. That is a deliberate trade: the
+ * type system no longer prevents assigning a plain `Set`/`Map` over one of these
+ * members, and a plain collection would silently stop notifying subscribers
+ * (`trackWatchedMembers` reads a reactive collection's size and version to wake
+ * the batched notification — ADR 0008). Direct assignment onto `ViewerState` is
+ * already an unsupported escape hatch (ADR 0007), so the invariant lives here
+ * and in `state-inventory.test.ts`, which asserts a constructed instance still
+ * holds reactive collections for every member listed below.
+ *
+ * Core itself must never replace one of these members with a plain collection;
+ * commands mutate the existing collection in place or assign a fresh
+ * `SvelteSet`/`SvelteMap`.
+ */
+export const REACTIVE_COLLECTION_MEMBERS: readonly string[] = [
+    'visibleAnnotationIds',
+    'userAnnotations',
+    'loadedManifestIds',
+    'selectedChoices',
 ];
