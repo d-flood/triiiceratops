@@ -12,8 +12,9 @@ installing Svelte at runtime or at type-check time.
 Overall status: `In Progress`
 
 Current ticket: None. 12 is resolved and `Completed` — see "Resolution of ticket 12's `.`
-entry finding" below. 06 is `Completed`; 07 is unblocked, subject to the re-export
-constraint recorded in the ticket 12 verification gate.
+entry finding" below. 06 and 07 are both `Completed` and both have passed an independent
+verification gate (see "Tickets 06 and 07 verification gate"), so 08 is unblocked and 09
+waits only on 08.
 
 Last updated: 2026-07-31
 
@@ -28,7 +29,7 @@ Last updated: 2026-07-31
 | 05     | `05-framework-wrapper-substrate.md`             | Completed                              | 01, 02, 03     |
 | 12     | `12-drop-legacy-plugindef.md`                   | Completed                              | None           |
 | 06     | `06-react-framework-wrapper.md`                 | Completed                              | 05, 12         |
-| 07     | `07-vue-framework-wrapper.md`                   | Not Started                            | 05, 12         |
+| 07     | `07-vue-framework-wrapper.md`                   | Completed                              | 05, 12         |
 | 08     | `08-consumer-testing-helper.md`                 | Not Started                            | 06, 07         |
 | 09     | `09-packed-framework-consumers.md`              | Not Started                            | 04, 06, 07, 08 |
 | 10     | `10-public-api-release.md`                      | Not Started                            | 09, 12         |
@@ -278,6 +279,161 @@ projections), dropping `controller.destroy()` from the unmount cleanup, recreati
 applier on every effect run, and handing callbacks the `CustomEvent` instead of its `detail`.
 The `expectTypeOf` assertions in `react/types.test.ts` were confirmed to fail `tsc` when a
 claim is wrong, so they are a real gate on `pnpm check`, not decoration.
+
+### Ticket 07 outcome — what 08, 09, and 11 must know
+
+`triiiceratops/vue` ships from `packages/core/src/lib/vue.ts` (the published entry, a
+re-export barrel only) plus `packages/core/src/lib/vue/` (implementation and tests:
+`context.ts`, `handle.ts`, `selector.ts`, `viewer.ts`, `index.ts`). The layout mirrors
+ticket 06's exactly, for the same reason: `svelte-package` produces `dist/vue.js` /
+`dist/vue.d.ts` only from a TOP-LEVEL `src/lib/vue.ts`.
+
+**One deliberate divergence from the ticket's Contract, and why.** The ticket says the
+template ref "resolves to `ViewerHandle | null`" and shows `viewer.value?.state.…`. Vue's
+template-ref mechanism cannot deliver that literally: for a component vnode the renderer
+sets the ref to `getComponentPublicInstance(...)`, which is ALWAYS an object once mounted
+(`proxyRefs(markRaw(instance.exposed))`, wrapped again in `exposeProxy`) and `null` only
+before mount and after unmount. There is no knob — no `expose()` shape, no re-`expose`,
+no re-`setRef` — that makes it null during the window between mount and the element
+publishing its first `ViewerState`. Typing `state` as non-optional would therefore have
+been a lie for exactly that window. The wrapper exposes **exactly the two `ViewerHandle`
+members** and the entry point exports
+
+```ts
+export interface TriiiceratopsViewerInstance extends Omit<
+    ViewerHandle,
+    'state'
+> {
+    readonly state: ReadonlyViewerState | undefined;
+}
+```
+
+derived from `ViewerHandle` so the two cannot drift. `ViewerHandle` is assignable to it.
+Consumers write `viewer.value?.state?.setCanvas(…)` (one more `?.` than the ticket's
+sketch) and `useTemplateRef<TriiiceratopsViewerInstance>('viewer')`. **Docs (ticket 11)
+must use that form.** The composables accept `ViewerHandleRef`, a structural
+`{ readonly value: TriiiceratopsViewerInstance | null | undefined }` rather than
+`Ref<…>`, because Vue's `Ref<T, S>` has both a getter and a setter and is therefore
+invariant — `Readonly<ShallowRef<TriiiceratopsViewerInstance | null>>` would not be
+assignable to `Ref<…>`.
+
+Facts worth not rediscovering:
+
+1. **The attribute tier must be `^`-prefixed in the vnode props.** Vue's
+   `shouldSetAsProp` ends in `key in el`, so a bare `theme` becomes `el.theme = …` once
+   the element is upgraded and `setAttribute('theme', …)` when it is not — the same prop
+   taking different paths depending on whether the lazy registration import has resolved.
+   `'^theme'` is Vue's own force-as-attribute marker: `patchProp` strips it and always
+   calls `setAttribute`, and `@vue/server-renderer`'s `ssrRenderAttrs` strips it too
+   (`if (key.startsWith("^")) key = key.slice(1)`), so the server's markup and every
+   client render agree. Removing the prefix fails the server/client attribute-parity test.
+2. **Vue's runtime compiler auto-detects ALREADY-registered custom elements** —
+   `compileToFunction` installs a default `isCustomElement: tag => !!customElements.get(tag)`.
+   So a test that writes the raw tag in a template only warns while the element is
+   unregistered. `vue/compilerOptions.test.ts` runs its contrast case FIRST and asserts
+   `isRealViewerElementDefined() === false` at that moment, so the file cannot silently
+   pass if its order changes.
+3. **Vue's `emit()` is a no-op on an unmounted instance** (`if (instance.isUnmounted) return`),
+   so a leaked DOM listener is INVISIBLE through emits — dropping the wrapper's
+   `removeEventListener` loop broke nothing consumer-visible. `vue/lifecycle.test.ts`
+   measures the resources directly instead, with ticket 06's `prototypeOwning()` trick and
+   a `ViewerState.prototype.subscribe` counter.
+4. **`ref(obj)` deep-wraps.** A test (or a consumer) that passes a property-tier object
+   through a plain `ref` hands the wrapper a `reactive` PROXY, not the original object, so
+   identity assertions fail. Use `shallowRef` for property-tier values.
+5. **A component's own `provide()` is not visible to its own `inject()`.** A setup that
+   calls `provideViewer(viewer)` must still pass `viewer` explicitly to composables in the
+   SAME setup; only descendants resolve it by injection.
+6. **Vue's `computed` throws once and then serves its last cached value.** After a
+   projection failure surfaces (correctly) through `onErrorCaptured` /
+   `app.config.errorHandler`, a later read with no new invalidation returns the previously
+   cached selection — that is Vue's caching, not the wrapper's. The discriminating
+   assertion for "no stale value" is therefore: every subsequent INVALIDATION throws again,
+   and once the consumer's bug is fixed the selection is current state, never the value
+   cached before the failure. `vue/selector.test.ts` asserts exactly that.
+7. **`api:check` needed eight NEW allowlist lines that are NOT the IIIF boundary**: the six
+   `(detail) => any` emit-handler props and the trailing `any` type argument of Vue's
+   `DefineComponent`, both hard-coded inside `@vue/runtime-core`'s own types
+   (`EmitsToProps` maps every emit to `=> any`). They are recorded as **entry 6** in
+   `lint-allowlist.md`, separately from entry 4, which gained one genuine IIIF line
+   (`dist/vue/viewer.d.ts :: readonly type: PropType<string | Record<string, any>>` — the
+   runtime prop declaration `defineComponent` inlines into the component type). The emit
+   PAYLOAD types are fully typed and pinned by `vue/types.test.ts`. Name the emit
+   validators' parameters properly: they appear verbatim in the published `.d.ts` and in
+   consumer autocompletion.
+8. **`vue` resolves to the FULL build under core's vitest** (`index.mjs`, via the `node`
+   condition), so the runtime template compiler is available and no `vue` alias or feature-
+   flag `define` was needed. `vue/server-renderer` resolves in both the happy-dom and the
+   `@vitest-environment node` files.
+
+Verified directly, not inferred: a freshly packed `triiiceratops-1.0.0-rc.31.tgz`
+installed into a throwaway project with `vue@3.5.40`, `typescript@5.9.3`, and every real
+dependency but **zero** Svelte packages type-checks a real `triiiceratops/vue` consumer
+(component, template ref, both selector forms, both cadences, all six emits, every
+re-exported type) under `strict`, `moduleResolution: bundler`, `types: []`,
+`skipLibCheck: false` with **0 errors**. The same project reports the known single
+`.`-entry error for `import type { ViewerState } from 'triiiceratops'`, which proves the
+probe has teeth and confirms the ticket-12 re-export boundary held.
+
+Mutation-tested, so the suite is not vacuous. Six deliberate defects were planted and every
+one was caught: caching the selector runtime outside the `computed` (the `<KeepAlive>`
+rewire), using `read()` instead of `recompute()` (the Vue-reactive-dependency and
+retained-failure cases), dropping the `^` attribute markers (server/client parity), routing
+property-tier values through vnode props (they were stringified into attributes), dropping
+the `removeEventListener` loop, and dropping `controller.destroy()`. The `expectTypeOf`
+assertions in `vue/types.test.ts` were confirmed to fail `tsc` when a claim is wrong.
+
+#### Tickets 06 and 07 verification gate
+
+Independently re-verified on `react-and-vue-adapters`, all exiting `0`:
+`pnpm --filter triiiceratops check`, `test` (812 → 813 tests, see below), `lint`,
+`build:lib`, `build:element`, `build:testing`, then workspace `pnpm check`, `pnpm test`,
+`pnpm api:check`, `pnpm format:check`, and `pnpm install --frozen-lockfile`.
+
+Beyond re-running the commands, the claims most worth doubting were checked directly, from
+a freshly packed tarball rather than from either implementing agent's account:
+
+- **The epic's central promise holds for BOTH entry points at once.**
+  `npm pack` in `packages/core` (against the final `dist`) was installed into one throwaway
+  project whose only dependencies are the tarball, `react@19.2.7`, `@types/react@19.2.17`,
+  `vue@3.5.40`, and `typescript@5.9.3` — 27 top-level `node_modules` entries, none of them
+  Svelte. Under `strict`, `moduleResolution: bundler`, `types: []`, **`skipLibCheck: false`**,
+  `npx tsc` reports **0 errors** across three consumer files: a `.ts` React consumer using
+  every named export of `triiiceratops/react`, a `.ts` Vue consumer using every named export
+  of `triiiceratops/vue` (component, `useTemplateRef<TriiiceratopsViewerInstance>`,
+  `provideViewer`, `<ViewerProvider>`, both selector forms, both cadences, all six emit
+  handler props, `viewer.value?.state?.setCanvas(…)`), and a `.tsx` JSX consumer of the React
+  component with `ref`, `className`, `style`, `data-*`, and typed callbacks. The probe has
+  teeth: adding one `import type { ViewerState } from 'triiiceratops'` makes the same command
+  exit 2 with the known single `.`-entry error
+  (`dist/components/TriiiceratopsViewer.svelte.d.ts` imports `svelte`), and removing it
+  returns to 0. That residual is ticket 10's, unchanged by 06/07.
+- **The artifacts are real and clean.** `dist/react.js`, `dist/react.d.ts`, `dist/vue.js`,
+  and `dist/vue.d.ts` all exist; `grep` over them and `dist/react/*`, `dist/vue/*` finds no
+  `svelte*` specifier; both were imported in plain Node and export only the expected NAMED
+  values (no default export anywhere). No `.tsx` and no `.vue` file exists in the repository.
+- **`react` and `vue` are optional peers only** — neither appears in core's `dependencies`.
+- **Mutation-tested independently.** (a) Freezing React's projection in a `useRef` across
+  renders was caught by two selector tests ("reads current closure values with no useCallback
+  or useMemo" and "honours a current inline equality function"). (b) Hoisting Vue's runtime
+  resolution outside the `computed` was caught by `vue/keepAlive.test.ts`. Both were reverted
+  and `git status` confirmed clean. The `<KeepAlive>` test was read, not trusted: it asserts
+  two distinct `viewerstateavailable` details and two distinct `ViewerState` objects, so it
+  cannot pass against a viewer that never detached.
+
+One gap was found and closed here (commit follows the implementation commits):
+
+- Ticket 07's stated reason for keeping the property tier out of vnode props is Vue's
+  `shouldSetAsProp` falling back to `setAttribute(key, String(value))` **on an element that
+  is not yet defined** — and no Vue test could observe that window. Every other file in
+  `src/lib/vue/` registers the element in `beforeAll` and runs under happy-dom, which
+  implements no upgrade at all, so `key in el` was always true and the risky path was never
+  exercised. `vue/propertyTier.upgrade.test.ts` now drives it under `@vitest-environment
+jsdom`: it guards the premise (`isRealViewerElementDefined() === false`), mounts the
+  wrapper with `manifestJson`, `config`, and a function-valued `searchProvider`, asserts they
+  land as PROPERTIES with the consumer's own identity and that no attribute was stringified,
+  then defines the tag, lets the platform upgrade the live element, and confirms the values
+  reached the inner viewer. Routing those three props through vnode props instead fails it.
 
 ### Ticket 05 outcome — what 06, 07, and 08 must know
 

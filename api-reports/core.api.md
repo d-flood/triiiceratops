@@ -9,6 +9,7 @@
 //   - dist/react.d.ts
 //   - dist/state/selectors/index.d.ts
 //   - dist/testing/index.d.ts
+//   - dist/vue.d.ts
 
 // ======================================================================
 // FILE: dist/browser-runtime.d.ts
@@ -1130,7 +1131,7 @@ export declare function createPluginSurface(state: ViewerState, chromeId: string
  * return createElement(TriiiceratopsViewer, {
  *     handle,
  *     manifestId: 'https://example.org/manifest',
- *     onCanvasChange: (snapshot) => console.log(snapshot.canvasId),
+ *     onCanvasChange: (snapshot) => setUrlCanvas(snapshot.canvasId),
  * });
  * ```
  *
@@ -4039,3 +4040,462 @@ export declare function isStructureNodeActive(node: StructureNode, canvasId: str
  * Get the top-level sequence node index for a structure node id.
  */
 export declare function getSequenceNodeIndexById(nodes: StructureNode[], nodeId: string): number | undefined;
+
+// ======================================================================
+// FILE: dist/vue.d.ts
+// ======================================================================
+/**
+ * `triiiceratops/vue` — the Vue 3.5 framework wrapper.
+ *
+ * A Vue application renders `<TriiiceratopsViewer>` with typed props, puts an
+ * ordinary template ref on it, and reads the viewer's live state through
+ * `useViewer()` and `useViewerSelector()`. Registration of the self-contained
+ * custom element is automatic, lazy, and shared; Svelte stays behind the
+ * custom-element boundary at runtime AND at type-check time.
+ *
+ * ```vue
+ * <script setup lang="ts">
+ * import {
+ *     TriiiceratopsViewer,
+ *     useViewerSelector,
+ *     type TriiiceratopsViewerInstance,
+ * } from 'triiiceratops/vue';
+ *
+ * const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+ * const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
+ * </script>
+ *
+ * <template>
+ *     <TriiiceratopsViewer
+ *         ref="viewer"
+ *         manifest-id="https://example.org/manifest"
+ *         @canvas-change="(snapshot) => syncUrl(snapshot.canvasId)"
+ *     />
+ * </template>
+ * ```
+ *
+ * Because the component is a render function, the raw custom-element tag never
+ * reaches Vue's template compiler: no `compilerOptions.isCustomElement`
+ * configuration is required.
+ *
+ * Vue 3.5 is an OPTIONAL peer dependency: `vue` is a bare import specifier here
+ * and never a runtime dependency of core. Importing this module on a server is
+ * safe — nothing touches `window`, `document`, or `customElements` at
+ * evaluation, and nothing is registered.
+ *
+ * **Re-export boundary.** Everything below comes from the framework substrate,
+ * `triiiceratops/selectors`, or the shared `types/*` modules. Nothing is
+ * re-exported from core's `.` entry: its declarations reach the compiled
+ * `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and inheriting
+ * that would break this subpath's no-Svelte type promise (SPEC "Superseded
+ * decisions").
+ */
+export { provideViewer, TriiiceratopsViewer, useViewer, useViewerSelector, ViewerProvider, type TriiiceratopsViewerInstance, type TriiiceratopsViewerProps, type ViewerEmits, type ViewerHandleRef, type ViewerProjection, type ViewerProviderProps, type ViewerSelectorOptions, } from './vue/index.js';
+export { TriiiceratopsCoreConflictError, TriiiceratopsElementRegistrationError, TriiiceratopsElementVersionError, TriiiceratopsHandleConflictError, VIEWER_ELEMENT_TAG, VIEWER_EVENT_CHANNELS, VIEWER_STATE_AVAILABLE_EVENT, type ReadonlyViewerState, type TriiiceratopsViewerElement, type ViewerEventChannel, type ViewerEventDetail, type ViewerEventDetailMap, type ViewerHandle, type ViewerHandleSlot, } from './framework/index.js';
+export type { SelectorCadence } from './state/selectors/index.js';
+export type { ViewerStateSnapshot } from './state/viewer.svelte.js';
+export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, ViewerConfig, } from './types/config.js';
+export type { IconDescriptor, PluginError, PluginMountThunk, PluginSurface, PluginUiTarget, SdkPlugin, } from './types/plugin.js';
+export type { ViewerError } from './types/viewerError.js';
+export type { ThemeConfig } from './theme/types.js';
+export type { CanvasRegion } from './utils/contentState.js';
+
+// ======================================================================
+// FILE: dist/vue/context.d.ts
+// ======================================================================
+/**
+ * `<ViewerProvider>` — the component form of {@link provideViewer}.
+ *
+ * Vue needs no provider component: `provideViewer(viewer)` in `setup` already
+ * publishes the handle to the whole subtree. This exists for consumers who
+ * prefer the boundary to be visible in the template, and for parity with
+ * `triiiceratops/react`, where a provider component is the only option.
+ *
+ * It is a trivial value provider. It gates nothing, renders its default slot
+ * unconditionally, and has no fallback — reads through the handle are nullable
+ * until the viewer's state exists, which is the honest state of the world.
+ */
+import type { PropType, VNode } from 'vue';
+import { type ViewerHandleRef } from './handle.js';
+/** Props of {@link ViewerProvider}. */
+export interface ViewerProviderProps {
+    /** The template ref of the `<TriiiceratopsViewer>` this subtree reads. */
+    value: ViewerHandleRef;
+}
+export declare const ViewerProvider: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+    value: {
+        type: PropType<ViewerHandleRef>;
+        required: true;
+    };
+}>, () => VNode[], {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+    value: {
+        type: PropType<ViewerHandleRef>;
+        required: true;
+    };
+}>> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+
+// ======================================================================
+// FILE: dist/vue/handle.d.ts
+// ======================================================================
+/**
+ * The Vue handle: an ordinary template ref on `<TriiiceratopsViewer>`.
+ *
+ * Vue already has the thing React's `useViewerHandle()` had to invent — a
+ * stable, consumer-owned box whose value the component fills in — so this
+ * wrapper adds no handle API of its own. `useTemplateRef('viewer')` IS the
+ * handle:
+ *
+ * ```ts
+ * const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+ * const goTo = (id: string) => viewer.value?.state?.setCanvas(id);
+ * ```
+ *
+ * The component exposes exactly the two {@link ViewerHandle} members and
+ * nothing else, so the imperative escape hatch stays small. Both are read
+ * through Vue reactive sources, which is what lets a `computed` that touches
+ * `handleRef.value?.state` rewire itself after the element is detached and
+ * reattached (`<KeepAlive>`).
+ *
+ * Nullability is honest rather than manufactured. Vue's template-ref mechanism
+ * fills the ref with the component's exposed object on mount and clears it on
+ * unmount, so `viewer.value` is `null` before mount and after unmount, and
+ * `viewer.value.state` is `undefined` in the window between mount and the
+ * element publishing its first `ViewerState`. Nothing is gated or withheld to
+ * hide that window.
+ */
+import type { ReadonlyViewerState, ViewerHandle } from '../framework/index.js';
+/**
+ * What a template ref on `<TriiiceratopsViewer>` resolves to: exactly the two
+ * members of {@link ViewerHandle}, with `state` widened to admit the window
+ * between mount and the element publishing its first `ViewerState`. Once
+ * `state` is present the object satisfies `ViewerHandle`, and `state` is
+ * reference-equal to the element's own `viewerState`.
+ *
+ * Derived from `ViewerHandle` rather than restated, so the two cannot drift.
+ */
+export interface TriiiceratopsViewerInstance extends Omit<ViewerHandle, 'state'> {
+    /** The live readonly state, or `undefined` until the viewer publishes it. */
+    readonly state: ReadonlyViewerState | undefined;
+}
+/**
+ * Anything the composables accept as "which viewer to read". A template ref
+ * from `useTemplateRef()`, a `shallowRef` a consumer manages, or a `computed`
+ * that picks one of several viewers — every one of them is a box whose `value`
+ * is read reactively.
+ *
+ * Deliberately structural and read-only rather than `Ref<…>`: Vue's `Ref<T>`
+ * has both a getter and a setter, so it is invariant in `T` and a
+ * `Readonly<ShallowRef<TriiiceratopsViewerInstance | null>>` would not be
+ * assignable to it.
+ */
+export interface ViewerHandleRef {
+    readonly value: TriiiceratopsViewerInstance | null | undefined;
+}
+/**
+ * Publish one viewer's handle to this component's subtree, so a deep component
+ * can call `useViewer()` / `useViewerSelector(projection)` without the ref
+ * being threaded through every intermediate component.
+ *
+ * Call it from `setup`, exactly like `provide`. It gates nothing and has no
+ * fallback: reads through the handle stay nullable until the viewer's state
+ * exists. Providing again in a nested component scopes a second viewer, and
+ * the nearest one wins.
+ *
+ * @example
+ * ```ts
+ * const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+ * provideViewer(viewer);
+ * ```
+ */
+export declare function provideViewer(handle: ViewerHandleRef): void;
+/**
+ * The handle a composable should read: the one passed explicitly, else the
+ * nearest provided one.
+ *
+ * Being given neither is a wiring mistake with no sensible fallback — the
+ * composable cannot know which viewer is meant — so it is named rather than
+ * silently returning `undefined` forever.
+ */
+export declare function resolveViewerHandleRef(explicit: ViewerHandleRef | null | undefined, composableName: string): ViewerHandleRef;
+
+// ======================================================================
+// FILE: dist/vue/index.d.ts
+// ======================================================================
+/**
+ * Internal barrel for the Vue framework wrapper. The PUBLISHED entry point is
+ * `../vue.ts` (`triiiceratops/vue`); this file exists so the wrapper's own
+ * modules and tests have one import site.
+ */
+export { ViewerProvider, type ViewerProviderProps } from './context.js';
+export { provideViewer, type TriiiceratopsViewerInstance, type ViewerHandleRef, } from './handle.js';
+export { useViewer, useViewerSelector, type ViewerProjection, type ViewerSelectorOptions, } from './selector.js';
+export { TriiiceratopsViewer, type TriiiceratopsViewerProps, type ViewerEmits, } from './viewer.js';
+
+// ======================================================================
+// FILE: dist/vue/selector.d.ts
+// ======================================================================
+/**
+ * Reading one viewer's state from Vue: `useViewer()` for the live readonly
+ * state object, `useViewerSelector()` for a reactive, memoized, equality-gated
+ * projection of it.
+ *
+ * Both are a `computed`, and that shape is what makes three requirements free:
+ *
+ * 1. **Vue reactive dependencies read by the projection are tracked.** The
+ *    projection runs inside the `computed`'s own evaluation, so a `ref` or
+ *    `reactive` it reads invalidates the selection with no manual watcher.
+ *    The runtime's dependency-driven `recompute()` exists precisely so that
+ *    invalidation is not swallowed by a viewer-notification version memo.
+ * 2. **A failing projection throws during the CONSUMER's evaluation.** It
+ *    reaches `onErrorCaptured` and `app.config.errorHandler` — Vue's own
+ *    application error handling — instead of being swallowed, converted to
+ *    `viewererror`, attributed as `pluginerror`, or served as a stale value.
+ * 3. **Equal selections cost nothing downstream.** The runtime's gate returns
+ *    the previously returned reference, so `computed`'s own `Object.is`
+ *    dirty-check suppresses the update.
+ *
+ * A pushed `shallowRef` written from the subscription callback — the shape the
+ * plugin SDK's Vue adapter uses — is deliberately NOT the design here: it would
+ * either swallow projection failures inside the notification or freeze a stale
+ * value after one.
+ *
+ * The `computed` reads BOTH the handle and the runtime's notification version
+ * inside its own body. Resolving the runtime once, outside, is the specific bug
+ * to avoid: after a `<KeepAlive>` round trip the element publishes a NEW
+ * `ViewerState` and the previous runtime is disposed, so a cached one would be
+ * read forever with no updates.
+ */
+import type { ComputedRef } from 'vue';
+import { type ViewerHandleRef } from './handle.js';
+import { type ReadonlyViewerState, type SelectorCadence } from '../framework/index.js';
+/** Per-call selector options. Both are optional. */
+export interface ViewerSelectorOptions<T> {
+    /** Equality gate for the selected value. Defaults to `Object.is`. */
+    equals?: (a: T, b: T) => boolean;
+    /**
+     * Which notification wakes the projection. `state` (the default) is the
+     * batched inventoried-member watcher; `frame` additionally wakes on the
+     * live OpenSeadragon instance's own animation events, which is how
+     * continuous viewport values (zoom, pan, rotation, bounds) are read
+     * reactively.
+     */
+    cadence?: SelectorCadence;
+}
+/** A projection over the supported view of a viewer's live state. */
+export type ViewerProjection<T> = (state: ReadonlyViewerState) => T;
+/**
+ * The supported, readonly view of a viewer's live state — or `undefined` until
+ * that state exists.
+ *
+ * This is a TYPE-LEVEL view of the very same live object the element owns, so
+ * identity comparisons against `viewer.value?.state` hold and every supported
+ * command is callable on it. The four lifecycle-plumbing methods are hidden.
+ *
+ * Reading a notifying member off the returned object does NOT subscribe to it:
+ * the ref changes when the viewer binds or rebinds, not when viewer state
+ * changes. Use {@link useViewerSelector} for reactive reads.
+ *
+ * @param handle The viewer's template ref. Omit it to use the handle published
+ * by `provideViewer()` / `<ViewerProvider>`; supplying neither is a wiring
+ * mistake and throws.
+ */
+export declare function useViewer(handle?: ViewerHandleRef | null): ComputedRef<ReadonlyViewerState | undefined>;
+/**
+ * Subscribe a component to a projection of one viewer's live state.
+ *
+ * `T` is inferred from the projection, equality defaults to `Object.is`, and
+ * the value is `undefined` until the viewer's state exists.
+ *
+ * @example
+ * ```ts
+ * const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+ * const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
+ * const zoom = useViewerSelector(
+ *     viewer,
+ *     (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+ *     { cadence: 'frame' },
+ * );
+ * ```
+ */
+export declare function useViewerSelector<T>(handle: ViewerHandleRef | null | undefined, projection: ViewerProjection<T>, options?: ViewerSelectorOptions<T>): ComputedRef<T | undefined>;
+/**
+ * Context form: the handle comes from `provideViewer()` / `<ViewerProvider>`.
+ * The only permitted overload — a projection is a function and a handle never
+ * is, so the two forms need no sentinel.
+ */
+export declare function useViewerSelector<T>(projection: ViewerProjection<T>, options?: ViewerSelectorOptions<T>): ComputedRef<T | undefined>;
+
+// ======================================================================
+// FILE: dist/vue/viewer.d.ts
+// ======================================================================
+/**
+ * `<TriiiceratopsViewer>` — the Vue 3.5 framework wrapper.
+ *
+ * It hosts the existing `<triiiceratops-viewer>` custom element and translates
+ * its lifecycle, properties, events, and viewer state into Vue idioms. It does
+ * not implement or own a second viewer, and it renders exactly ONE element: no
+ * layout wrapper, no slot content, nothing projected into light or shadow DOM.
+ * Adopting the wrapper therefore changes no sizing or CSS.
+ *
+ * Authored as a plain `.ts` render function with `h()` and `defineComponent` —
+ * no single-file component, no `.vue` file, and no extra build step.
+ * `build:lib`'s `svelte-package` step copies unknown file types verbatim, so a
+ * `.vue` here would ship broken. Because the component is a render function,
+ * the raw custom-element tag never reaches Vue's template compiler and a
+ * consumer needs no `compilerOptions.isCustomElement` configuration.
+ *
+ * ## The three prop tiers
+ *
+ * - **Attribute tier** (`manifestId`, `canvasId`, `theme`) is rendered
+ *   declaratively as kebab-case attributes, identically on the server and on
+ *   the client's first render, so hydration reuses and upgrades the same host.
+ *   Each key is `^`-prefixed, which is Vue's own "force this to be an
+ *   attribute" marker: without it `shouldSetAsProp`'s `key in el` test would
+ *   route `theme` through `el.theme = …` once the element happened to be
+ *   upgraded, and through `setAttribute` when it happened not to be.
+ * - **Property tier** (`manifestJson`, `themeConfig`, `config`,
+ *   `initialCanvasRegion`, `plugins`, `searchProvider`) goes through the shared
+ *   applier, NEVER through vnode props. Vue's `shouldSetAsProp` falls back to
+ *   `setAttribute(key, String(value))` on an element that is not yet defined,
+ *   which would stringify a manifest object or a search function into an
+ *   attribute.
+ * - **Host attributes** (`class`, `style`, `id`, `data-*`, `aria-*`, ordinary
+ *   DOM attributes and listeners) are forwarded deliberately. `inheritAttrs` is
+ *   disabled and `attrs` is spread onto the element by the render function, so
+ *   attribute inheritance stays predictable even though the component renders a
+ *   single element.
+ *
+ * `manifestId` and `canvasId` are one-way, UNCONTROLLED inputs: they are an
+ * instruction to the viewer, not a continuously enforced binding, so
+ * re-asserting an unchanged value after the user navigates internally writes
+ * nothing and the wrapper never fights the viewer. No `v-model` is offered.
+ * Observe where the viewer actually is with `useViewerSelector` or the
+ * `canvas-change` / `manifest-change` emits.
+ */
+import type { PropType, VNode } from 'vue';
+import { type ViewerElementProps } from '../framework/index.js';
+import type { SearchProvider, ViewerConfig } from '../types/config.js';
+import type { SdkPlugin } from '../types/plugin.js';
+import type { PluginError } from '../types/plugin.js';
+import type { ThemeConfig } from '../theme/types.js';
+import type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
+import type { ViewerError } from '../types/viewerError.js';
+import type { CanvasRegion } from '../utils/contentState.js';
+/**
+ * Every viewer input `<TriiiceratopsViewer>` accepts, across the attribute and
+ * property tiers. Ordinary host attributes are not props — they arrive as
+ * `attrs` and are forwarded, which is Vue's normal contract for them.
+ */
+export type TriiiceratopsViewerProps = ViewerElementProps;
+/**
+ * The component's typed emits. Each carries the custom element's event DETAIL
+ * directly — never a `CustomEvent` — so application code is independent of the
+ * DOM event envelope, and the error channels carry the exact objects core
+ * dispatched, including a callable `PluginError.retry()`.
+ *
+ * Usable with Vue's normal template casing: `@state-change`, `@canvas-change`,
+ * `@manifest-change`, `@choice-change`, `@plugin-error`, `@viewer-error`.
+ */
+export interface ViewerEmits {
+    /** Any inventoried viewer-state change, batched. */
+    stateChange: [snapshot: ViewerStateSnapshot];
+    /** The displayed canvas changed. */
+    canvasChange: [snapshot: ViewerStateSnapshot];
+    /** The loaded manifest changed. */
+    manifestChange: [snapshot: ViewerStateSnapshot];
+    /** A IIIF `Choice` selection changed. */
+    choiceChange: [snapshot: ViewerStateSnapshot];
+    /** A plugin failed. The exact `PluginError`, with a callable `retry()`. */
+    pluginError: [error: PluginError];
+    /** The viewer failed. The exact typed `ViewerError`. */
+    viewerError: [error: ViewerError];
+}
+export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+    readonly manifestId: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly canvasId: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly theme: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly manifestJson: {
+        readonly type: PropType<string | Record<string, any>>;
+        readonly required: false;
+    };
+    readonly themeConfig: {
+        readonly type: PropType<string | ThemeConfig>;
+        readonly required: false;
+    };
+    readonly config: {
+        readonly type: PropType<string | ViewerConfig>;
+        readonly required: false;
+    };
+    readonly initialCanvasRegion: {
+        readonly type: PropType<string | CanvasRegion>;
+        readonly required: false;
+    };
+    readonly plugins: {
+        readonly type: PropType<readonly SdkPlugin[]>;
+        readonly required: false;
+    };
+    readonly searchProvider: {
+        readonly type: PropType<SearchProvider | null>;
+        readonly required: false;
+    };
+}>, () => VNode, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
+    stateChange: (snapshot: ViewerStateSnapshot) => boolean;
+    canvasChange: (snapshot: ViewerStateSnapshot) => boolean;
+    manifestChange: (snapshot: ViewerStateSnapshot) => boolean;
+    choiceChange: (snapshot: ViewerStateSnapshot) => boolean;
+    pluginError: (error: PluginError) => boolean;
+    viewerError: (error: ViewerError) => boolean;
+}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+    readonly manifestId: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly canvasId: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly theme: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly manifestJson: {
+        readonly type: PropType<string | Record<string, any>>;
+        readonly required: false;
+    };
+    readonly themeConfig: {
+        readonly type: PropType<string | ThemeConfig>;
+        readonly required: false;
+    };
+    readonly config: {
+        readonly type: PropType<string | ViewerConfig>;
+        readonly required: false;
+    };
+    readonly initialCanvasRegion: {
+        readonly type: PropType<string | CanvasRegion>;
+        readonly required: false;
+    };
+    readonly plugins: {
+        readonly type: PropType<readonly SdkPlugin[]>;
+        readonly required: false;
+    };
+    readonly searchProvider: {
+        readonly type: PropType<SearchProvider | null>;
+        readonly required: false;
+    };
+}>> & Readonly<{
+    onStateChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+    onCanvasChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+    onManifestChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+    onChoiceChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+    onPluginError?: ((error: PluginError) => any) | undefined;
+    onViewerError?: ((error: ViewerError) => any) | undefined;
+}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
