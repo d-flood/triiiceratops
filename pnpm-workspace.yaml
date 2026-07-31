@@ -6,3 +6,13 @@ packages:
     # deliberately NOT workspace members: each consumes the packed `.tgz`
     # tarball, never workspace source.
     - 'test-consumers'
+
+allowBuilds:
+    esbuild: true
+    simple-git-hooks: true
+
+overrides:
+    lodash@>=4.0.0 <4.18.0: '>=4.18.0'
+    qs@<6.15.2: '>=6.15.2'
+    uuid@>=13.0.0 <13.0.1: ^13.0.1
+    devalue@<5.6.4: '>=5.6.4'
