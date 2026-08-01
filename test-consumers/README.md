@@ -51,6 +51,8 @@ network IIIF**.
 | `plugin-vue`      | Vue plugin consuming `@triiiceratops/plugin-sdk/vue` (`useViewerSelector` → readonly ref).                          |
 | `plugin-lit`      | Lit plugin consuming `@triiiceratops/plugin-sdk/lit` (`SelectorController`).                                        |
 | `plugin-svelte`   | Svelte 5 plugin consuming `@triiiceratops/plugin-sdk/svelte` (`viewerSelector` store) — the tracer-pattern fixture. |
+| `framework-react` | React 19 app consuming `triiiceratops/react` + `triiiceratops/testing`: three routes, no Svelte, no plugin SDK.     |
+| `framework-vue`   | Vue 3.5 app consuming `triiiceratops/vue` + `triiiceratops/testing`: the same three routes, with `<KeepAlive>`.     |
 
 Each fixture is self-describing: `harness.mjs` exports `{ buildScript,
 serveDir, manifestTarget, browser, tarballs, assert }`. Assertions live **with**
@@ -58,6 +60,36 @@ the fixture; the driver only orchestrates. The four `plugin-*` adapter fixtures
 share one journey (`fixtures/plugin-adapter-assert.mjs`): mount a plugin through
 the SDK mount contract, render the selected `toolbarOpen` value, flip it with a
 command, and unmount cleanly.
+
+### The framework-wrapper fixtures
+
+`framework-react` and `framework-vue` are the release seam for
+`triiiceratops/react` and `triiiceratops/vue`. Each is a plain Vite app whose
+only package dependency is the packed core tarball plus its own framework — no
+`svelte`, no `@sveltejs/vite-plugin-svelte`, no plugin SDK, and (Vue) no
+`compilerOptions.isCustomElement` anywhere, which the fixtures assert against
+their own installed `node_modules` and source tree.
+
+Each builds **three routes** driven by one Playwright pass through the shared
+journey in `fixtures/framework-consumer-assert.mjs`:
+
+- `index.html` — the whole client contract: automatic shared registration, all
+  three prop tiers (including a function-valued `searchProvider` and a new
+  plugin array every render), post-mount updates, suppressed unchanged writes,
+  both selector cadences against a real OpenSeadragon zoom, every translated
+  event channel with exact payload identity, a callable `PluginError.retry()`,
+  the imperative handle, a consumer projection failure reaching framework-native
+  error capture, the `triiiceratops/testing` handle, unmount/remount, two
+  isolated viewers, and (Vue) a `<KeepAlive>` round trip;
+- `ssr.html` — rendered at **build time** by `prerender.mjs` with
+  `react-dom/server` / `vue/server-renderer` in plain Node (which is also the
+  SSR-safety gate), then hydrated in the browser with zero mismatch
+  diagnostics;
+- `conflict.html` — pre-registers a foreign `<triiiceratops-viewer>` and
+  requires a prompt, framework-native version-conflict error.
+
+A driver-level assertion covers the one DOM-free case: both packed subpaths are
+imported in plain Node with no browser globals and must register nothing.
 
 ## Determinism
 

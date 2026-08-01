@@ -1,0 +1,17 @@
+{
+    "name": "consumer-framework-vue",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build && node ./prerender.mjs"
+    },
+    "dependencies": {
+        "triiiceratops": "file:./vendor/triiiceratops.tgz",
+        "vue": "3.5.40"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^6.0.0",
+        "vite": "^6.0.0"
+    }
+}

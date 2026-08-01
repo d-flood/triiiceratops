@@ -1,0 +1,17 @@
+{
+    "name": "consumer-framework-react",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build && node ./prerender.mjs"
+    },
+    "dependencies": {
+        "react": "19.2.7",
+        "react-dom": "19.2.7",
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    },
+    "devDependencies": {
+        "vite": "^6.0.0"
+    }
+}
