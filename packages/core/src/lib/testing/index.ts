@@ -43,6 +43,14 @@ import { flushSync } from 'svelte';
 // points at a later build step's artifact that does not exist while
 // `vite.config.testing.ts` bundles this entry — and pulling the element
 // registrar in here would contradict this helper's promise to register nothing.
+//
+// `runtimeRegistry.js` is additionally kept EXTERNAL by that build (see the
+// shared-identity externals in `vite.config.testing.ts`). Its module-level
+// `WeakMap` is the whole mechanism by which `triiiceratops/react` and
+// `triiiceratops/vue` — separate build outputs — find a test handle's selector
+// runtime, so a bundled copy would be a second, private registry and
+// `useViewerSelector()` would return `undefined` forever in the published
+// package. `check:testing-entry` fails the build if the artifact inlines it.
 import { VIEWER_ELEMENT_TAG } from '../browser-runtime.js';
 import { createViewerHandleSlot } from '../framework/handle.js';
 import {
@@ -301,8 +309,11 @@ export function createTestViewerHandle(
     // The substrate's real slot, claimed by the inert host. Reusing it rather
     // than re-implementing `get`/`subscribe` means a consumer's React component
     // exercises the same publish-and-notify path a mounted viewer would, and a
-    // test handle mistakenly passed to a real <TriiiceratopsViewer> raises the
-    // real `TriiiceratopsHandleConflictError` instead of binding twice.
+    // test handle mistakenly passed to a real <TriiiceratopsViewer> throws a
+    // `TriiiceratopsHandleConflictError` naming both elements instead of binding
+    // twice. (In the PUBLISHED package that error is this bundle's own copy of
+    // the class — same name, same message, but not `instanceof` the one
+    // `triiiceratops/react` exports. Only the registry needs shared identity.)
     const slot = createViewerHandleSlot();
     const claim = slot.claim(element);
 

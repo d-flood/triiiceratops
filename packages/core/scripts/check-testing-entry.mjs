@@ -12,6 +12,16 @@
  * or Svelte. Run at the END of `build:testing`, because nothing earlier in the
  * pipeline has produced the compiled chunk yet (`svelte-package` leaves an
  * UNCOMPILED copy there that this check would rightly reject).
+ *
+ * It also guards the one module the entry must NOT bundle. `createTestViewerHandle()`
+ * publishes its selector runtime into the module-level `WeakMap` in
+ * `framework/runtimeRegistry.js`, and `triiiceratops/react` / `triiiceratops/vue`
+ * read it back out of that same `WeakMap`. Those entries are separate build
+ * outputs, so a bundled copy would give the testing entry a private registry and
+ * `useViewerSelector()` would resolve no runtime for a test handle — `undefined`
+ * forever in the published package, while source-resolved unit tests stayed
+ * green. `vite.config.testing.ts` keeps it external; this asserts the artifact
+ * actually says so.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -40,9 +50,25 @@ const SPECIFIER_PATTERNS = [
     /\bimport\s*['"]([^'"]+)['"]/g,
 ];
 
+/**
+ * Modules the entry must IMPORT rather than inline, because a second copy would
+ * be a second module-level identity. Keyed by the exact specifier the entry
+ * chunk has to contain.
+ */
+const SHARED_IDENTITY_IMPORTS = [
+    {
+        specifier: '../framework/runtimeRegistry.js',
+        why:
+            'its module-level WeakMap is how createTestViewerHandle() hands a ' +
+            'selector runtime to triiiceratops/react and triiiceratops/vue; a ' +
+            'bundled copy makes useViewerSelector() return undefined forever',
+    },
+];
+
 const visited = new Set();
 const bare = new Set();
 const violations = [];
+const entrySpecifiers = new Set();
 
 async function visit(filePath) {
     const normalized = path.resolve(filePath);
@@ -54,6 +80,9 @@ async function visit(filePath) {
     const specifiers = new Set();
     for (const pattern of SPECIFIER_PATTERNS) {
         for (const match of source.matchAll(pattern)) specifiers.add(match[1]);
+    }
+    if (normalized === path.resolve(entryFile)) {
+        for (const specifier of specifiers) entrySpecifiers.add(specifier);
     }
 
     for (const specifier of specifiers) {
@@ -81,6 +110,20 @@ if (violations.length > 0) {
     throw new Error(
         `The triiiceratops/testing entry graph must not reach React, Vue, or ` +
             `Svelte:\n${details}`,
+    );
+}
+
+const inlined = SHARED_IDENTITY_IMPORTS.filter(
+    ({ specifier }) => !entrySpecifiers.has(specifier),
+);
+if (inlined.length > 0) {
+    const details = inlined
+        .map(({ specifier, why }) => `- ${specifier} — ${why}`)
+        .join('\n');
+    throw new Error(
+        `The triiiceratops/testing entry must IMPORT these modules, not bundle ` +
+            `a private copy of them:\n${details}\n` +
+            `Check the shared-identity externals in vite.config.testing.ts.`,
     );
 }
 
