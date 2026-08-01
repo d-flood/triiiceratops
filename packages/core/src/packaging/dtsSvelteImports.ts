@@ -14,6 +14,22 @@
  * file chain that reaches it. Comments are not scanned: the graph is parsed with
  * the TypeScript AST, so prose mentioning `svelte/reactivity` is not a finding.
  *
+ * TWO checks run over that graph, because the promise is PER ENTRY POINT
+ * (framework-wrappers ticket 10):
+ *
+ *   1. A whole-package check with the documented allowances below. A compiled
+ *      Svelte component's declaration IS a Svelte type, and `.` deliberately
+ *      exports one, so it is allowed there.
+ *   2. A strict per-entry check over every subpath EXCEPT `.` (see
+ *      `SVELTE_CONSUMER_SUBPATHS`). Those graphs are walked independently, with
+ *      no allowance at all: `triiiceratops/react`, `triiiceratops/vue`,
+ *      `triiiceratops/selectors`, and `triiiceratops/testing` must reach zero
+ *      `svelte*` specifiers. Check 1 cannot express this — its
+ *      compiled-component allowance is keyed by FILE, so it would happily let
+ *      `./react` re-export something that reaches
+ *      `components/TriiiceratopsViewer.svelte.d.ts`, which is exactly the leak
+ *      tickets 06 and 07 were constrained to avoid.
+ *
  * Run directly: `node ./src/packaging/dtsSvelteImports.ts` (Node strips the
  * types), which is how `build:lib` invokes it after `svelte-package` emits
  * `dist/**\/*.d.ts`.
@@ -61,6 +77,26 @@ export const ALLOWED_SVELTE_IMPORTS_BY_FILE: ReadonlyMap<
     readonly string[]
 > = new Map<string, readonly string[]>([]);
 
+/**
+ * Export subpaths that may reach a Svelte type at all — everything else is held
+ * to the strict per-entry rule.
+ *
+ * `.` IS the Svelte-consumer entry: `package.json` maps the `svelte` export
+ * condition to it and it deliberately exports the compiled
+ * `TriiiceratopsViewer` component, whose declaration is
+ * `import("svelte").Component<…>`. TypeScript resolves the single `types`
+ * condition regardless of the `svelte` condition, so a Svelte-free consumer
+ * type-checking `import type { ViewerState } from 'triiiceratops'` under
+ * `skipLibCheck: false` gets exactly one error from that file. That residual is
+ * recorded and accepted (TRACKER "Resolution of ticket 12's `.` entry finding");
+ * closing it means giving `.` a component-free `types` target, which is a
+ * packaging decision no ticket owns.
+ *
+ * Every OTHER subpath — the framework wrappers included — must be strictly
+ * Svelte-free, and a subpath added later is strict by default.
+ */
+export const SVELTE_CONSUMER_SUBPATHS: ReadonlySet<string> = new Set(['.']);
+
 /** A disallowed Svelte type import, with the entry-to-file chain reaching it. */
 export interface SvelteTypeImportViolation {
     /** Dist-relative paths from the entry declaration to the offending file. */
@@ -74,6 +110,20 @@ export interface UnresolvedDeclarationImport {
     specifier: string;
 }
 
+/**
+ * A Svelte type import reached from a subpath that promises to need none. Unlike
+ * `SvelteTypeImportViolation` this carries the offending SUBPATH, because the
+ * same declaration is legitimate when `.` reaches it and a broken promise when
+ * `./react` does.
+ */
+export interface SvelteFreeEntryViolation {
+    /** The `package.json#exports` key whose graph reached the import. */
+    subpath: string;
+    /** Dist-relative paths from that subpath's declaration to the offender. */
+    chain: string[];
+    specifier: string;
+}
+
 export interface DeclarationGraphReport {
     /** Dist-relative entry declarations derived from `package.json#exports`. */
     entryFiles: string[];
@@ -81,6 +131,68 @@ export interface DeclarationGraphReport {
     visitedFiles: string[];
     violations: SvelteTypeImportViolation[];
     unresolvedImports: UnresolvedDeclarationImport[];
+    /** Subpaths held to the strict rule, with their dist-relative declaration. */
+    svelteFreeEntries: Array<{ subpath: string; declaration: string }>;
+    /** Every `svelte*` specifier any of those subpaths reaches. */
+    svelteFreeViolations: SvelteFreeEntryViolation[];
+}
+
+/** Every `types` condition anywhere below one `exports` node. */
+function collectTypesTargets(
+    node: unknown,
+    packageDir: string,
+    into: Set<string>,
+): void {
+    if (typeof node !== 'object' || node === null) return;
+    for (const [key, value] of Object.entries(node)) {
+        if (key === 'types' && typeof value === 'string') {
+            into.add(path.resolve(packageDir, value));
+        } else {
+            collectTypesTargets(value, packageDir, into);
+        }
+    }
+}
+
+/**
+ * Map each export SUBPATH to the declaration(s) its `types` condition names.
+ *
+ * A condition-map `exports` with no subpaths (`{ types, import }`) describes the
+ * `.` subpath, and the legacy top-level `types` field does too.
+ */
+export function collectEntryDeclarationsBySubpath(
+    packageJson: unknown,
+    packageDir: string,
+): Map<string, string[]> {
+    const manifest = (packageJson ?? {}) as Record<string, unknown>;
+    const bySubpath = new Map<string, Set<string>>();
+
+    const add = (subpath: string, targets: Set<string>): void => {
+        if (targets.size === 0) return;
+        const existing = bySubpath.get(subpath) ?? new Set<string>();
+        for (const target of targets) existing.add(target);
+        bySubpath.set(subpath, existing);
+    };
+
+    const exportsField = manifest.exports;
+    if (typeof exportsField === 'object' && exportsField !== null) {
+        for (const [key, value] of Object.entries(exportsField)) {
+            const targets = new Set<string>();
+            if (key.startsWith('.')) {
+                collectTypesTargets(value, packageDir, targets);
+                add(key, targets);
+            } else {
+                // A bare condition key at the top level belongs to `.`.
+                collectTypesTargets({ [key]: value }, packageDir, targets);
+                add('.', targets);
+            }
+        }
+    }
+
+    if (typeof manifest.types === 'string') {
+        add('.', new Set([path.resolve(packageDir, manifest.types)]));
+    }
+
+    return new Map([...bySubpath].map(([key, set]) => [key, [...set]]));
 }
 
 /** Collect every `types` condition declared in `package.json#exports`. */
@@ -89,24 +201,12 @@ export function collectEntryDeclarations(
     packageDir: string,
 ): string[] {
     const entries = new Set<string>();
-
-    const visit = (node: unknown): void => {
-        if (typeof node !== 'object' || node === null) return;
-        for (const [key, value] of Object.entries(node)) {
-            if (key === 'types' && typeof value === 'string') {
-                entries.add(path.resolve(packageDir, value));
-            } else {
-                visit(value);
-            }
-        }
-    };
-
-    const manifest = (packageJson ?? {}) as Record<string, unknown>;
-    visit(manifest.exports);
-    if (typeof manifest.types === 'string') {
-        entries.add(path.resolve(packageDir, manifest.types));
+    for (const targets of collectEntryDeclarationsBySubpath(
+        packageJson,
+        packageDir,
+    ).values()) {
+        for (const target of targets) entries.add(target);
     }
-
     return [...entries];
 }
 
@@ -291,11 +391,68 @@ export function checkDeclarationGraph(
         visit(entry, []);
     }
 
+    // Strict per-entry pass. Each subpath gets its OWN visited set: a file the
+    // `.` entry already walked must still be walked (and judged) for `./react`,
+    // because what matters is which entry point can REACH the Svelte type.
+    const svelteFreeEntries: Array<{ subpath: string; declaration: string }> =
+        [];
+    const svelteFreeViolations: SvelteFreeEntryViolation[] = [];
+
+    for (const [subpath, declarations] of collectEntryDeclarationsBySubpath(
+        packageJson,
+        packageDir,
+    )) {
+        if (SVELTE_CONSUMER_SUBPATHS.has(subpath)) continue;
+
+        for (const declaration of declarations) {
+            svelteFreeEntries.push({
+                subpath,
+                declaration: toDistRelative(declaration),
+            });
+
+            const seen = new Set<string>();
+            const walk = (filePath: string, chain: string[]): void => {
+                if (seen.has(filePath)) return;
+                seen.add(filePath);
+
+                const distRelativePath = toDistRelative(filePath);
+                const sourceFile = ts.createSourceFile(
+                    filePath,
+                    readFileSync(filePath, 'utf8'),
+                    ts.ScriptTarget.Latest,
+                    /* setParentNodes */ false,
+                    ts.ScriptKind.TS,
+                );
+
+                for (const specifier of collectModuleSpecifiers(sourceFile)) {
+                    if (SVELTE_SPECIFIER_RE.test(specifier)) {
+                        svelteFreeViolations.push({
+                            subpath,
+                            chain: [...chain, distRelativePath],
+                            specifier,
+                        });
+                        continue;
+                    }
+                    if (!specifier.startsWith('.')) continue;
+                    const resolved = resolveDeclaration(filePath, specifier);
+                    // A missing relative target is already reported by the
+                    // whole-package pass as an unresolved import.
+                    if (resolved === null) continue;
+                    walk(resolved, [...chain, distRelativePath]);
+                }
+            };
+
+            walk(declaration, []);
+        }
+    }
+
     return {
         entryFiles: entryFiles.map(toDistRelative),
         visitedFiles: [...visited].map(toDistRelative),
         violations,
         unresolvedImports,
+        svelteFreeEntries,
+        svelteFreeViolations,
     };
 }
 
@@ -313,6 +470,19 @@ export function formatDeclarationGraphProblems(
                         `- ${chain.join(' -> ')} imports ${specifier}`,
                 )
                 .join('\n')}`,
+        );
+    }
+
+    if (report.svelteFreeViolations.length > 0) {
+        problems.push(
+            `These export subpaths promise a consumer needs no \`svelte\` package to type-check them, but their declaration graphs reach one:\n${report.svelteFreeViolations
+                .map(
+                    ({ subpath, chain, specifier }) =>
+                        `- ${subpath}: ${chain.join(' -> ')} imports ${specifier}`,
+                )
+                .join(
+                    '\n',
+                )}\nOnly ${[...SVELTE_CONSUMER_SUBPATHS].join(', ')} may reach a Svelte type. Re-export from the framework substrate, \`./selectors\`, or \`types/*\` — never from the \`.\` entry's component surface.`,
         );
     }
 
@@ -337,7 +507,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
         throw new Error(problems);
     }
 
+    const strict = report.svelteFreeEntries
+        .map(({ subpath }) => subpath)
+        .join(', ');
     console.log(
-        `dts-svelte-types: ${report.visitedFiles.length} declaration(s) from ${report.entryFiles.length} entry point(s) need no Svelte types beyond the documented Svelte-consumer surface.`,
+        `dts-svelte-types: ${report.visitedFiles.length} declaration(s) from ${report.entryFiles.length} entry point(s) need no Svelte types beyond the documented Svelte-consumer surface. Strictly Svelte-free subpaths: ${strict || 'none'}.`,
     );
 }

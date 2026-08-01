@@ -37,14 +37,16 @@
             "attribute": "plugins",
             "type": "String",
             "reflect": false,
-            "attributeSupported": false
+            "attributeSupported": false,
+            "attributeNote": "INERT. Svelte derives an observed attribute from every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
         },
         {
             "property": "searchProvider",
             "attribute": "searchprovider",
             "type": "String",
             "reflect": false,
-            "attributeSupported": false
+            "attributeSupported": false,
+            "attributeNote": "INERT. Svelte derives an observed attribute from every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
         },
         {
             "property": "theme",

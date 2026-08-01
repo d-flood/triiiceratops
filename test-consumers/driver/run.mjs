@@ -34,8 +34,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assertTarballCss } from './assert-tarball-css.mjs';
 import {
+    assertCoreExportTargets,
+    assertCoreOptionalPeers,
     assertTarballContents,
     assertTarballPeerRanges,
+    selfCheckFrameworkSubpathAssertions,
     selfCheckPeerRangeRejectsPin,
     selfCheckPlantedTest,
 } from './assert-tarball-contents.mjs';
@@ -290,6 +293,17 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-peer-range-self', ok: peerSelf.ok });
     ok = ok && peerSelf.ok;
 
+    // Framework-wrappers ticket 10: one-time guard that the framework-subpath
+    // assertions below reject a missing `dist/react.js` and a `./vue` subpath
+    // that lost its `types` condition.
+    const subpathSelf = selfCheckFrameworkSubpathAssertions();
+    (subpathSelf.ok ? pass : fail)(
+        'contract: framework-subpath checks reject a missing wrapper artifact',
+        subpathSelf.detail,
+    );
+    results.push({ label: 'tarball-subpath-self', ok: subpathSelf.ok });
+    ok = ok && subpathSelf.ok;
+
     for (const pkg of PACKAGES_TO_PACK) {
         const tarball = tarballs[pkg.filter];
         const { ok: pkgOk, checks } = assertTarballContents(
@@ -313,6 +327,36 @@ async function assertContentsFromTarballs(tarballs) {
         }
         results.push({ label: `tarball-peers:${pkg.filter}`, ok: peerOk });
         ok = ok && peerOk;
+
+        // Framework-wrappers ticket 10 — core only: the export map must be
+        // backed by real files (the framework wrappers among them) and the
+        // framework peers must be optional, ranged, and absent from
+        // `dependencies`.
+        if (pkg.filter !== 'triiiceratops') continue;
+
+        const { ok: targetsOk, checks: targetChecks } = assertCoreExportTargets(
+            tarball,
+            pkg.filter,
+        );
+        for (const chk of targetChecks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({
+            label: `tarball-export-targets:${pkg.filter}`,
+            ok: targetsOk,
+        });
+        ok = ok && targetsOk;
+
+        const { ok: optionalOk, checks: optionalChecks } =
+            assertCoreOptionalPeers(tarball, pkg.filter);
+        for (const chk of optionalChecks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({
+            label: `tarball-optional-peers:${pkg.filter}`,
+            ok: optionalOk,
+        });
+        ok = ok && optionalOk;
     }
     return ok;
 }
