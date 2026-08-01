@@ -39,14 +39,23 @@ The RC's `window.TriiiceratopsPlugins` globals and the
 A plugin is handed to the viewer through its **`plugins` list**. How you set
 that list depends on how the viewer is embedded:
 
+- **React** — the `plugins` prop of `<TriiiceratopsViewer>` from
+  `triiiceratops/react`.
+- **Vue** — the `:plugins` prop of `<TriiiceratopsViewer>` from
+  `triiiceratops/vue`.
 - **Svelte** — the `plugins` prop of `<TriiiceratopsViewer>`.
-- **Everything else** (React, Vue, vanilla JS, plain HTML) — the `.plugins`
-  **property** of the `<triiiceratops-viewer>` web component.
+- **Everything else** (vanilla JS, plain HTML, other frameworks) — the
+  `.plugins` **property** of the `<triiiceratops-viewer>` web component.
 
 Plugins are plain objects, so they cannot go through an HTML attribute; the web
-component always receives them as a JavaScript property after the element is
-defined. Registering a plugin package does not activate it — activation is
-per-viewer and happens when the list is assigned.
+component always receives them as a JavaScript property. (The React and Vue
+wrappers do that assignment for you, and do it correctly whether or not the
+element has upgraded yet.) Registering a plugin package does not activate it —
+activation is per-viewer and happens when the list is assigned.
+
+Activation lifetime is keyed to **plugin identity**, not to the identity of the
+list: re-supplying an equal list leaves running plugins completely untouched, so
+a parent re-render never tears down and restarts your plugins.
 
 Every example below adds `@triiiceratops/plugin-image-manipulation`; each plugin
 is added the same way.
@@ -88,53 +97,43 @@ is added the same way.
 
 === "React"
 
-    React drives the web component. Set `.plugins` through a ref once the
-    element has mounted.
+    A typed prop on the [React wrapper](react.md). Build the list once — a
+    hoisted constant or a `useMemo` — so its contents keep their identity.
 
-    ```jsx
-    import { useEffect, useRef } from 'react';
-    import 'triiiceratops/element/register';
+    ```tsx
+    import { TriiiceratopsViewer } from 'triiiceratops/react';
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
+    const plugins = [ImageManipulationPlugin];
+
     export function Viewer() {
-        const ref = useRef(null);
-        useEffect(() => {
-            if (ref.current) ref.current.plugins = [ImageManipulationPlugin];
-        }, []);
         return (
-            <triiiceratops-viewer
-                ref={ref}
-                manifest-id="https://example.org/manifest.json"
+            <TriiiceratopsViewer
+                manifestId="https://example.org/manifest.json"
+                plugins={plugins}
                 style={{ display: 'block', height: '600px' }}
             />
         );
     }
     ```
 
-    TypeScript hosts: declare the tag in `JSX.IntrinsicElements` (or set
-    `.plugins` through a typed ref) to satisfy the compiler.
-
 === "Vue"
 
-    Tell Vue the tag is a custom element so it does not try to resolve it as a
-    component (Vite: `vue({ template: { compilerOptions: { isCustomElement: (t) => t === 'triiiceratops-viewer' } } })`).
+    A typed prop on the [Vue wrapper](vue.md) — no `isCustomElement` compiler
+    option and no `onMounted` assignment.
 
     ```vue
-    <script setup>
-    import { onMounted, ref } from 'vue';
-    import 'triiiceratops/element/register';
+    <script setup lang="ts">
+    import { TriiiceratopsViewer, type SdkPlugin } from 'triiiceratops/vue';
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
-    const viewer = ref(null);
-    onMounted(() => {
-        viewer.value.plugins = [ImageManipulationPlugin];
-    });
+    const plugins: readonly SdkPlugin[] = [ImageManipulationPlugin];
     </script>
 
     <template>
-        <triiiceratops-viewer
-            ref="viewer"
+        <TriiiceratopsViewer
             manifest-id="https://example.org/manifest.json"
+            :plugins="plugins"
             style="display: block; height: 600px"
         />
     </template>
@@ -258,40 +257,86 @@ it to whichever side fits your layout:
     mq.addEventListener('change', sync);
     ```
 
-    The web component does not expose `viewerState` — use `config` here.
+    The element also exposes its live viewer state through the getter-only
+    `viewerState` property (see [the state
+    bridge](integration.md#the-state-bridge)), so
+    `el.viewerState?.setPluginTarget(id, target)` is available too. `config` is
+    the declarative option; the bridge is the imperative one.
 
 === "React"
 
-    Assign a new `config` object through the same ref:
+    Either pass a new `config` object, or call the command through the handle:
 
-    ```ts
-    const mq = window.matchMedia('(max-width: 640px)');
-    const sync = () => {
-        ref.current.config = {
-            plugins: {
-                'image-manipulation': { target: mq.matches ? 'flyout' : 'panel' },
-            },
-        };
-    };
-    sync();
-    mq.addEventListener('change', sync);
+    ```tsx
+    import { useEffect, useState } from 'react';
+    import {
+        TriiiceratopsViewer,
+        useViewer,
+        useViewerHandle,
+    } from 'triiiceratops/react';
+
+    export function Viewer() {
+        const handle = useViewerHandle();
+        const viewer = useViewer(handle);
+        const [narrow, setNarrow] = useState(false);
+
+        useEffect(() => {
+            const mq = window.matchMedia('(max-width: 640px)');
+            const sync = () => setNarrow(mq.matches);
+            sync();
+            mq.addEventListener('change', sync);
+            return () => mq.removeEventListener('change', sync);
+        }, []);
+
+        useEffect(() => {
+            viewer?.setPluginTarget(
+                'image-manipulation',
+                narrow ? 'flyout' : 'panel',
+            );
+        }, [viewer, narrow]);
+
+        return (
+            <TriiiceratopsViewer
+                handle={handle}
+                manifestId="https://example.org/manifest.json"
+                style={{ display: 'block', height: '600px' }}
+            />
+        );
+    }
     ```
 
 === "Vue"
 
-    Assign a new `config` object through the same ref:
+    Either pass a new `config` object, or call the command through the template
+    ref:
 
-    ```ts
+    ```vue
+    <script setup lang="ts">
+    import { computed, useTemplateRef, watchEffect } from 'vue';
+    import {
+        TriiiceratopsViewer,
+        useViewer,
+        type TriiiceratopsViewerInstance,
+    } from 'triiiceratops/vue';
+
+    const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+    const state = useViewer(viewer);
+
     const mq = window.matchMedia('(max-width: 640px)');
-    const sync = () => {
-        viewer.value.config = {
-            plugins: {
-                'image-manipulation': { target: mq.matches ? 'flyout' : 'panel' },
-            },
-        };
-    };
-    sync();
-    mq.addEventListener('change', sync);
+    const target = computed(() => (mq.matches ? 'flyout' : 'panel'));
+
+    watchEffect(() => {
+        state.value?.setPluginTarget('image-manipulation', target.value);
+    });
+    </script>
+
+    <template>
+        <TriiiceratopsViewer
+            ref="viewer"
+            manifest-id="https://example.org/manifest.json"
+            style="display: block; height: 600px"
+        />
+    </template>
     ```
 
 === "Svelte"
@@ -369,6 +414,10 @@ reference.
 | ---------------------------------------------------- | ---------------------------------------- |
 | `triiiceratops`                                      | Core Svelte component and utilities      |
 | `triiiceratops/style.css`                            | Core stylesheet (Svelte usage)           |
+| `triiiceratops/react`                                | [React 19 framework wrapper](react.md)   |
+| `triiiceratops/vue`                                  | [Vue 3.5 framework wrapper](vue.md)      |
+| `triiiceratops/selectors`                            | Framework-neutral selector runtime       |
+| `triiiceratops/testing`                              | Headless viewer state + `createTestViewerHandle()` |
 | `triiiceratops/element`                              | Web Component self-contained IIFE        |
 | `triiiceratops/element/register`                     | Web Component ESM registration           |
 | `@triiiceratops/plugin-sdk`                          | Plugin SDK (base)                        |

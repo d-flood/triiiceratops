@@ -12,9 +12,12 @@ installing Svelte at runtime or at type-check time.
 Overall status: `In Progress`
 
 Current ticket: None. 12 is resolved and `Completed` — see "Resolution of ticket 12's `.`
-entry finding" below. 06, 07, and 08 are all `Completed`; 06 and 07 have passed an
-independent verification gate (see "Tickets 06 and 07 verification gate"). 09 and 11 are
-now unblocked.
+entry finding" below. 06, 07, 08, and 11 are all `Completed`; 06 and 07 have passed an
+independent verification gate (see "Tickets 06 and 07 verification gate"), and so have 08
+and 11 (see "Tickets 08 and 11 verification gate" — one real defect found and fixed there:
+the built testing entry bundled a private copy of the selector-runtime registry, so
+`useViewerSelector()` against a test handle resolved nothing in the published package).
+09 is the remaining unblocked ticket.
 
 Last updated: 2026-07-31
 
@@ -33,7 +36,7 @@ Last updated: 2026-07-31
 | 08     | `08-consumer-testing-helper.md`                 | Completed                              | 06, 07         |
 | 09     | `09-packed-framework-consumers.md`              | Not Started                            | 04, 06, 07, 08 |
 | 10     | `10-public-api-release.md`                      | Not Started                            | 09, 12         |
-| 11     | `11-framework-wrapper-docs.md`                  | Not Started                            | 06, 07, 08     |
+| 11     | `11-framework-wrapper-docs.md`                  | Completed                              | 06, 07, 08     |
 
 Ticket 12 was added mid-epic, after the wave-1 gate proved that the epic's "no Svelte at
 type-check time" promise is unreachable while `ViewerState` references `PluginDef` and the
@@ -482,7 +485,9 @@ Facts worth not rediscovering:
    specifier. The source legitimately imports `svelte` (`flushSync`); only the built
    artifact is guarded. It was verified to have teeth by planting `import "svelte"` and
    `import "react"` into the built chunk (exit 1 both times) and reverting. The real chunk
-   has **no bare imports at all**.
+   has **no bare imports at all**. It has exactly ONE relative import,
+   `../framework/runtimeRegistry.js`, deliberately kept external — see the 08/11
+   verification gate below, which also added a guard for it.
 5. **The built testing entry cannot be imported in bare Node — `ReferenceError: self is not
 defined` — and that is PRE-EXISTING**, from a `cross-fetch`-style polyfill bundled in
    with `manifesto.js`. Confirmed by rebuilding the entry from the pre-ticket source and
@@ -511,6 +516,156 @@ is 813 → 848; workspace `check`, `test`, `lint`, `format:check`, `api:check`, 
 `docs:examples:check` all pass; `api:report` regenerated `core.api.md` (+106/−6, all in the
 `dist/testing/index.d.ts` section) and a changeset accompanies it. `build:element` was
 re-run after `api:report`, per the build-ordering trap.
+
+### Ticket 11 outcome — what 09 and 10 must know
+
+The primary React and Vue guides are new pages, `docs/react.md` and
+`docs/vue.md`, both added to `zensical.toml`'s explicit `nav` (React and Vue sit
+above "Use with any framework"). `docs/integration.md` keeps every direct
+custom-element example, moved under a new `## Low-level: driving the custom
+element directly` section that also documents the `viewerState` state bridge and
+the element's `searchProvider` property; its React/Vue tabs now show the wrappers
+and link to the guides. `docs/plugins.md`, `docs/configuration.md`,
+`docs/index.md`, and `docs/theming.md` were corrected in place.
+
+Facts worth not rediscovering:
+
+1. **`scripts/docs-examples.mjs` now also extracts fenced `vue` blocks.** It
+   pulls the `<script setup lang="ts">` body out as a `.ts` file, so the Vue
+   guide can be written as idiomatic single-file components AND still be
+   type-checked against the packed declarations. Only `lang="ts"` script-setup
+   blocks are extracted, so every pre-existing plain `<script setup>` block in
+   the docs is untouched — `docs:examples:check` reported no drift after the
+   change and before any doc edit. **An extracted body must stand alone as a
+   module: no `defineProps`/`defineEmits`/`withDefaults` in a block you want
+   checked.** Verified to have teeth by planting `state.noSuchMember` into an
+   SFC (tsc exit 2, naming `vue-02.ts`) and reverting.
+2. **`test-consumers/fixtures/docs-examples/globals.d.ts` gained
+   `declare module '*.vue'`**, for the one example that imports a reader-owned
+   `./CanvasLabel.vue`. No new fixture dependency was added — `@testing-library/react`
+   was deliberately NOT introduced; the React testing example uses
+   `react-dom/client` + `act`, both already installed.
+3. **`ViewerConfig` is not exported from the `.` entry** (only from `./react`,
+   `./vue`). A low-level TypeScript consumer therefore cannot type `el.config`
+   from `triiiceratops`; the docs widen `TriiiceratopsViewerElement` with a local
+   structural type instead. If ticket 10 wants that gap closed, it is a public-API
+   addition, not a docs fix.
+4. **`state.canvases` is typed `any`**, so `state.canvases.map((c) => …)` in an
+   example fails `noImplicitAny`. `state.canvases.length` is fine. Cost one
+   iteration.
+5. **All four development warnings are `logger.warn`, which is silent unless
+   `config: { debug: true }`.** The docs say so explicitly for each; do not
+   describe them as unconditional dev-mode warnings.
+6. **`docs:build` needs the Python `zensical` CLI on `PATH`** (`uv sync`, then
+   `.venv/bin`). Locally installed 0.0.11 prints "Strict mode is currently
+   unsupported", so `--strict` link checking does NOT run locally even though CI
+   pip-installs a newer zensical and relies on it. Every internal link and anchor
+   added here was therefore verified by hand against the built HTML.
+7. **Docs are prettier- and eslint-ignored** (`docs/`), and the generated fixture
+   directory is too, so only `scripts/docs-examples.mjs` and `globals.d.ts` are
+   format-gated by this ticket.
+
+Verified: `pnpm docs:examples`, `pnpm docs:examples:check` (90 examples, in
+sync), `pnpm docs:build`, `pnpm format:check`, and
+`PACKED_ONLY=docs-examples pnpm test:packed` all exit 0 — the packed fixture
+type-checks every extracted example against freshly packed tarballs under BOTH
+npm and pnpm. `api-reports/` is unchanged, so no changeset is required (the CI
+gate keys on that directory).
+
+Not done here, deliberately: ticket 09's full packed matrix. Only the
+`docs-examples` fixture was run, per the ticket's own guidance.
+
+#### Tickets 08 and 11 verification gate
+
+Independently re-verified on `react-and-vue-adapters`, all exiting `0`:
+`pnpm --filter triiiceratops check` / `test` (848) / `lint` / `build:lib` /
+`build:element` / `build:testing`, then workspace `pnpm check`, `pnpm test`,
+`pnpm api:check`, `pnpm docs:examples:check` (90, in sync), `pnpm docs:build`,
+`pnpm format:check`, and `PACKED_ONLY=docs-examples pnpm test:packed` (npm and
+pnpm both PASS, plus every tarball-contents/peers check).
+
+**One real defect was found and fixed** (`fix(core)` commit below). Everything
+else held.
+
+1. **The helper's central promise was FALSE in the published package.**
+   `framework/runtimeRegistry.js` owns a module-level `WeakMap`;
+   `createTestViewerHandle()` writes the handle's selector runtime into it and
+   `triiiceratops/react` / `triiiceratops/vue` read it back out. But those are
+   SEPARATE build outputs: `dist/react.js` imports `dist/framework/runtimeRegistry.js`
+   as a real module, while `vite.config.testing.ts` inlined a private copy into
+   `dist/testing/index.js`. Two `WeakMap`s. Against the built `dist`,
+   `getSelectorRuntime(handle.state)` returned `undefined`, so
+   `useViewerSelector()` against a test handle would have been `undefined`
+   forever for every consumer. Every source unit test stayed green, because
+   vitest resolves one copy of the source module — the bug is only observable in
+   the artifact. Fix: `vite.config.testing.ts` keeps that one module external
+   (a `resolveId` plugin plus `makeAbsoluteExternalsRelative: false`, because
+   rollup's own relativization of a relative external is derived from the source
+   tree, which does not mirror `dist/`). The entry now emits exactly one relative
+   import, `../framework/runtimeRegistry.js`, and no bare imports at all.
+   `check:testing-entry` gained an assertion that the artifact contains that
+   specifier; planting an inlined copy back in makes it exit 1.
+   **Proof, not inspection:** `npm pack` was installed into a throwaway project
+   with `react`, `react-dom`, and `vue` — a React `<Sidebar>` and a Vue
+   `CanvasLabel` both render `undefined`→value from a real command through the
+   PACKED package, and a `cadence: 'frame'` zoom readout follows an injected OSD
+   stand-in's `animation` handler. Swapping only that one import back to a
+   private copy inside `node_modules` makes all three fail; restoring it makes
+   all three pass. Ticket 09's packed helper fixture would have hit this.
+2. **Everything else about ticket 08 checked out, verified against the tarball.**
+   In a second throwaway project whose ONLY dependencies are the tarball,
+   `vitest`, and `jsdom` — importing `react`, `react-dom`, `vue`, and `svelte`
+   all reject — `createTestViewerHandle()` imports and works;
+   `handle.state instanceof ViewerState`; `element.viewerState === handle.state`;
+   two commands in one tick produce exactly ONE notification, and none before
+   `await flush()`. With `fetch` and `XMLHttpRequest` stubbed to throw, neither
+   is called, `customElements.get('triiiceratops-viewer')` stays `undefined`,
+   the inert host is never connected, and `osdViewer` stays absent.
+3. **Disposal was verified by COUNTING live registrations**, not by reading code:
+   `ViewerState.prototype.subscribe` was patched to track subscribe/unsubscribe
+   pairs. One handle = exactly 1 live registration; mounting three selector
+   components against it still = 1; `dispose()` → 0; two further `dispose()`
+   calls → still 0, no throw; 100 handles created and double-disposed leak 0.
+4. **Ticket 11's React testing example emitted React errors when run verbatim.**
+   Extracted and executed, it logged "The current testing environment is not
+   configured to support act(...)" (twice) and then "An update to Root inside a
+   test was not wrapped in act(...)" for the bare `root.unmount()`. Fixed in
+   `docs/react.md`: the example now sets `IS_REACT_ACT_ENVIRONMENT` with a note
+   that most setups do it in a shared setup file, and wraps the unmount in `act`.
+   Re-extracted and re-run: clean. The Vue testing example runs verbatim with no
+   diagnostics.
+5. **The docs' factual claims were spot-checked against source, not trusted.**
+   Prop/emit tables match `vue/viewer.ts`'s `viewerProps` and `ViewerEmits` and
+   the React prop types; the four error classes exist and are exported from both
+   entries; `showCanvasNav`, `showToggle`, `toolbar.side`, `debug` exist on
+   `ViewerConfig`; `BuiltInTheme` is exactly `light | dark | teal | dracula`;
+   the `ViewerStateSnapshot` interface reproduced in `configuration.md` matches
+   `viewer.svelte.ts` field for field; the four hidden lifecycle methods named in
+   both guides match `ReadonlyViewerState`'s `Omit`. No doc mentions `PluginDef`,
+   `createPanelPlugin`, `createFlyoutPlugin`, or `ViewerState.registerPlugin`
+   except as explicitly-removed legacy; no doc calls the `.` entry Svelte-free
+   (the claim is correctly scoped to `./react` and `./vue` everywhere it appears);
+   `plugins.md`'s "the web component does not expose `viewerState`" is gone and
+   replaced by a pointer to the state bridge. A script slugified every heading in
+   `docs/` and resolved every internal link and anchor: all resolve.
+6. **The guides are genuinely per-framework, not one example rewritten twice.**
+   React is built on `useViewerHandle()` + a `handle` prop, `<ViewerProvider>`,
+   `useMemo`/hoisting, a forwarded `ref`, and React's loud `Missing
+getServerSnapshot` SSR failure. Vue is written as single-file components with
+   `useTemplateRef<TriiiceratopsViewerInstance>` and both optional chains,
+   `provideViewer`, kebab emits, `shallowRef`, and has two sections React has no
+   analogue for (Vue reactive dependencies tracked inside a projection;
+   `<KeepAlive>` rebinding and its state loss) plus a scoped-styles note. The
+   shared conceptual material (cadence, "what notifies", the boundary section) is
+   deliberately parallel. Low-level custom-element guidance survives in full
+   under `integration.md`'s new low-level section, reframed rather than deleted.
+
+Left alone deliberately: `framework/handle.js`, `errors.js`, and `logger.js` are
+still BUNDLED into the testing entry. Only the registry needs shared module
+identity. The consequence is that a test handle mistakenly passed to a real
+`<TriiiceratopsViewer>` throws a `TriiiceratopsHandleConflictError` with the
+right name and message but not `instanceof` the class `triiiceratops/react`
+exports; the code comment that overclaimed this now says so.
 
 ### Ticket 05 outcome — what 06, 07, and 08 must know
 

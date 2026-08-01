@@ -7,8 +7,17 @@
 // are type-checked with `tsc` against the PACKED tarballs by `pnpm test:packed`,
 // so published guidance provably matches what users can install.
 //
+// A fenced `vue` block additionally contributes its `<script setup lang="ts">`
+// body as a `.ts` file (ticket 11), so the Vue guide's single-file-component
+// examples are idiomatic Markdown AND compiled guidance. Only `lang="ts"`
+// script-setup blocks are extracted, and the body must stand alone as a module:
+// use no compiler macros (`defineProps`, `defineEmits`, …) in a block you want
+// checked. A `vue` block with no TypeScript script setup — a template-only
+// snippet, or a plain `<script setup>` — is skipped exactly as before.
+//
 // A block opts OUT with a first line of `// example-ignore` (used only for the
-// migration guide's intentionally-removed "before" samples).
+// migration guide's intentionally-removed "before" samples). For a `vue` block
+// the marker goes on the first line inside the script.
 //
 // Usage:
 //   node scripts/docs-examples.mjs           # (re)generate the fixture sources
@@ -54,6 +63,20 @@ const EXT_BY_LANG = {
 
 const IMPORTS_PACKAGE =
     /(?:from|import)\s+['"]@?triiiceratops(?:\/[\w./-]+)?['"]/;
+
+/**
+ * The `<script setup lang="ts">` body of a Vue single-file-component block, or
+ * `null` when the block has none (template-only snippets, plain-JS setups).
+ */
+function scriptSetupTs(sfc) {
+    for (const match of sfc.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
+        const attributes = match[1];
+        if (!/\bsetup\b/.test(attributes)) continue;
+        if (!/\blang\s*=\s*["']ts["']/.test(attributes)) continue;
+        return match[2].replace(/^\n+/, '');
+    }
+    return null;
+}
 
 // Loosely-typed stub modules for the reader-owned local files that examples
 // import by relative path (e.g. "the `./my-plugin` you just wrote"). Committed
@@ -133,11 +156,18 @@ export function extractDocExamples() {
         const base = slug(md);
         let n = 0;
         for (const block of fencedBlocks(readFileSync(md, 'utf8'))) {
-            const ext = EXT_BY_LANG[block.lang];
+            let ext = EXT_BY_LANG[block.lang];
+            let body = block.body.join('\n');
+            if (block.lang === 'vue') {
+                const script = scriptSetupTs(body);
+                if (script === null) continue;
+                ext = 'ts';
+                body = script;
+            }
             if (!ext) continue;
-            const body = block.body.join('\n');
             if (!IMPORTS_PACKAGE.test(body)) continue;
-            const firstCode = block.body.find((l) => l.trim().length > 0) ?? '';
+            const firstCode =
+                body.split('\n').find((l) => l.trim().length > 0) ?? '';
             if (firstCode.trim() === '// example-ignore') continue;
             n += 1;
             const name = `${base}-${String(n).padStart(2, '0')}.${ext}`;
