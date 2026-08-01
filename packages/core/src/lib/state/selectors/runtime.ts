@@ -228,15 +228,44 @@ export function createSelectorRuntime(
         // last evaluation succeeded.
         let failure: { error: unknown } | null = null;
         let warnedOsdRead = false;
+        // Whether the `osdViewer` probe below has run at least once while debug
+        // mode was ON. Distinct from `warnedOsdRead`: a probe that ran and found
+        // nothing is still a probe that ran.
+        let probedOsdRead = false;
 
         const currentVersion = (): number =>
             cadence === 'frame' ? stateVersion + frameVersion : stateVersion;
+
+        /**
+         * Whether this projection still owes the debug-gated `osdViewer` probe
+         * a run at the CURRENT version — i.e. debug mode was switched on after
+         * the projection was already evaluated.
+         *
+         * That is the normal order, not an exotic one: a framework wrapper
+         * bridges `config.debug` when it applies the property tier, a second
+         * viewer can bridge it later still, and a projection over a handle from
+         * `triiiceratops/testing` has no wrapper behind it at all. Gating only
+         * inside {@link compute} would therefore decide "no probe" at whatever
+         * moment the projection happened to be read first and, because reads are
+         * memoized by version, never revisit it on an idle viewer.
+         *
+         * Costs nothing when debug is off: three field comparisons and one
+         * boolean read, no allocation, no accessor installed, no timer, no
+         * subscription. The forced re-evaluation happens at most ONCE per
+         * projection, since the probe sets `probedOsdRead`.
+         */
+        const owesOsdProbe = (): boolean =>
+            cadence === 'state' &&
+            !probedOsdRead &&
+            !warnedOsdRead &&
+            isDebugEnabled();
 
         const compute = (): T => {
             // Development-only diagnostic (debug-gated, once per projection):
             // a batched-cadence projection that reaches for the OSD pass-through
             // is the one selector mistake that fails silently.
             if (cadence === 'state' && !warnedOsdRead && isDebugEnabled()) {
+                probedOsdRead = true;
                 const probe = readingOsdViewer(viewerState, () =>
                     projection(viewerState),
                 );
@@ -293,7 +322,7 @@ export function createSelectorRuntime(
             },
             read() {
                 const version = currentVersion();
-                if (evaluatedVersion !== version) {
+                if (evaluatedVersion !== version || owesOsdProbe()) {
                     evaluatedVersion = version;
                     evaluate();
                 }

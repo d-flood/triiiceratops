@@ -2,7 +2,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { definePlugin } from '@triiiceratops/plugin-sdk';
 
-import { configureLogging, type LogLevel } from '../logging/logger.js';
+import {
+    configureLogging,
+    isDebugEnabled,
+    type LogLevel,
+} from '../logging/logger.js';
 import type { SearchProvider } from '../types/config.js';
 import type { SdkPlugin } from '../types/plugin.js';
 import { createViewerPropApplier } from './applier.js';
@@ -407,5 +411,79 @@ describe('unmemoized property warning', () => {
         }
 
         expect(records).toHaveLength(0);
+    });
+});
+
+describe('bridging ViewerConfig.debug to the wrapper-side logger', () => {
+    beforeAll(() => {
+        defineRealViewerElement();
+    });
+
+    it('enables wrapper-side debug logging when config.debug is applied', () => {
+        const applier = createViewerPropApplier(createElement());
+        expect(isDebugEnabled()).toBe(false);
+
+        applier.apply({ config: { debug: true } });
+
+        expect(isDebugEnabled()).toBe(true);
+    });
+
+    it('accepts the JSON-string form of the same input', () => {
+        const applier = createViewerPropApplier(createElement());
+
+        applier.apply({ config: '{"debug":true}' });
+
+        expect(isDebugEnabled()).toBe(true);
+    });
+
+    it('follows config changes after mount, in both directions', () => {
+        const applier = createViewerPropApplier(createElement());
+
+        applier.apply({ config: { debug: true } });
+        expect(isDebugEnabled()).toBe(true);
+
+        applier.apply({ config: { debug: false } });
+        expect(isDebugEnabled()).toBe(false);
+
+        applier.apply({ config: { debug: true } });
+        expect(isDebugEnabled()).toBe(true);
+    });
+
+    it('never bridges when config is absent, so the default stands', () => {
+        const applier = createViewerPropApplier(createElement());
+
+        applier.apply({ manifestId: 'https://example.test/manifest' });
+        expect(isDebugEnabled()).toBe(false);
+
+        // And an absent config never contradicts a viewer that DID ask for
+        // diagnostics: page-level debug is one flag, most recent opinion wins.
+        configureLogging({ debug: true });
+        applier.apply({ manifestId: 'https://example.test/other' });
+        expect(isDebugEnabled()).toBe(true);
+    });
+
+    it('leaves a second viewer’s debug flag alone when it states no opinion', () => {
+        createViewerPropApplier(createElement()).apply({
+            config: { debug: true },
+        });
+        createViewerPropApplier(createElement()).apply({
+            config: { locale: 'fr' } as never,
+        });
+
+        expect(isDebugEnabled()).toBe(true);
+    });
+
+    it('is edge-triggered: an unchanged config re-asserts nothing', () => {
+        const applier = createViewerPropApplier(createElement());
+        const config = { debug: true };
+
+        applier.apply({ config });
+        configureLogging({ debug: false });
+        // Same object, and a shallow-equal twin: neither is a write, so neither
+        // may reach back into the logger.
+        applier.apply({ config });
+        applier.apply({ config: { debug: true } });
+
+        expect(isDebugEnabled()).toBe(false);
     });
 });

@@ -1,0 +1,13 @@
+---
+'triiiceratops': patch
+---
+
+fix: make `config: { debug: true }` actually reach the framework wrappers, so their four development warnings can fire in the published package.
+
+`configureLogging` had exactly one product call site — `TriiiceratopsViewer` — and that component ships inside `dist/triiiceratops-element.js`, a fully self-contained bundle with no static imports that inlines its own copy of `logging/logger.js`. The React and Vue wrappers, the framework substrate and the selector runtime are a different module graph importing `dist/logging/logger.js`: a **second** logger instance whose debug gate nothing in the package ever wrote. So every warning those wrappers exist to raise — a handle created and never passed to a viewer, a property-tier prop rebuilt on every render, a second `ViewerState` after a `<KeepAlive>` round trip, and a `state`-cadence projection reading through `osdViewer` — was permanently silent for consumers, while every unit test passed, because under vitest the two "instances" are one module.
+
+The property-tier applier now bridges the flag: when it writes `config`, it resolves the value the way the element does (object or JSON string) and, if it carries a `debug` key, configures the wrapper-side logger. No new public API and no new switch — `ViewerConfig.debug` is still the only one. A `config` with no `debug` key states no opinion, so a second viewer configured for something unrelated never silences the first; debug mode remains one page-level flag where the most recently applied opinion wins.
+
+Two module-identity leaks behind the same symptom are closed with it. `dist/testing/index.js` inlined its own logger copy, which made `configureLogging` unreachable from that entry and let the minifier prove `debugEnabled` constant and **delete** the `osdViewer` probe outright — the warning was not merely silent there, it was absent from the artifact; `logging/logger.js` now stays external alongside `framework/runtimeRegistry.js`. And the selector runtime no longer decides the probe once at whatever moment a projection happened to be read first: debug mode is normally switched on *after* that, so the probe is owed until it has run once with debug on. An idle viewer with debug off still installs no accessor, creates no timer, and re-evaluates nothing.
+
+Proven where it broke — in the artifact. The packed `framework-react` and `framework-vue` consumer fixtures each gained a route that installs the real tarball, provokes every warning with `config: { debug: false }` and asserts the console stays silent, flips the same viewer to `config: { debug: true }` and asserts each warning arrives, then flips it back and asserts silence again.

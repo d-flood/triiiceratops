@@ -317,6 +317,68 @@ describe('state-cadence projection reading the OSD pass-through', () => {
         expect(warnings).toHaveLength(1);
     });
 
+    it('probes a projection that was first read before debug was enabled', () => {
+        // The real order in the published package: a framework wrapper bridges
+        // `config.debug` when it applies the property tier, and a consumer's
+        // projection over a testing handle — or over a second viewer — can have
+        // been created and read before that. Deciding "no probe" at the first
+        // read and never revisiting it is what made this warning dead.
+        configureLogging({ debug: false });
+        const selected = runtime.createProjection(
+            (s: ViewerState) => s.osdViewer?.viewport.getZoom() ?? 0,
+        );
+
+        expect(selected.read()).toBe(0);
+        expect(warnings).toEqual([]);
+
+        configureLogging({ debug: true });
+        // No viewer notification in between: the version has not advanced, so
+        // only the owed probe can force this re-evaluation.
+        expect(selected.read()).toBe(0);
+
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toContain("cadence: 'frame'");
+    });
+
+    it('forces at most ONE extra evaluation for the owed probe', () => {
+        configureLogging({ debug: false });
+        let evaluations = 0;
+        const selected = runtime.createProjection((s: ViewerState) => {
+            evaluations++;
+            return s.toolbarOpen;
+        });
+
+        selected.read();
+        expect(evaluations).toBe(1);
+
+        configureLogging({ debug: true });
+        selected.read();
+        expect(evaluations).toBe(2);
+
+        // An idle viewer costs nothing from here on: the probe has run, the
+        // version has not advanced, and every further read is served from the
+        // gated cache.
+        for (let i = 0; i < 10; i++) selected.read();
+        expect(evaluations).toBe(2);
+        expect(warnings).toEqual([]);
+    });
+
+    it('leaves an idle projection untouched while debug is off', () => {
+        configureLogging({ debug: false });
+        let evaluations = 0;
+        const selected = runtime.createProjection((s: ViewerState) => {
+            evaluations++;
+            return s.osdViewer;
+        });
+
+        for (let i = 0; i < 10; i++) selected.read();
+
+        expect(evaluations).toBe(1);
+        expect(
+            Object.getOwnPropertyDescriptor(state, 'osdViewer'),
+        ).toBeUndefined();
+    });
+
     it('leaves the state it probed exactly as it found it', () => {
         const before = state.osdViewer;
         runtime.createProjection((s: ViewerState) => s.osdViewer).read();

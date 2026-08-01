@@ -25,26 +25,48 @@ const EXTERNAL = [/^openseadragon(\/|$)/, /^@annotorious\//];
 /**
  * Kept external for a different and stricter reason: MODULE IDENTITY.
  *
- * `framework/runtimeRegistry.js` owns a module-level `WeakMap` keyed by
- * `ViewerState`. `createTestViewerHandle()` writes the handle's selector runtime
- * into it, and `triiiceratops/react` / `triiiceratops/vue` read it back out
- * through `getSelectorRuntime()`. Those two entries are SEPARATE build outputs:
- * `dist/react.js` imports `dist/framework/runtimeRegistry.js` as a real module,
- * while this build would otherwise inline a private copy — two `WeakMap`s, so
- * `useViewerSelector()` would resolve no runtime for a test handle and return
- * `undefined` forever in the published package (green in source-resolved unit
- * tests, broken in the tarball).
+ * Both of these own module-level MUTABLE state that another published entry
+ * writes or reads. Inlining a private copy here does not fail loudly — it
+ * produces a second instance that is green in source-resolved unit tests
+ * (where there is only ever one) and silently wrong in the tarball.
  *
- * The specifier is relative and `dist/testing/index.js` sits at the same depth
- * as the copy `svelte-package` emits, so rollup can preserve
- * `../framework/runtimeRegistry.js` verbatim and it resolves inside `dist/`.
- * The module is dependency-free plain JS (no Svelte, no runes), so keeping it
- * external costs the entry nothing it was built to avoid.
+ * - `framework/runtimeRegistry.js` owns a `WeakMap` keyed by `ViewerState`.
+ *   `createTestViewerHandle()` writes the handle's selector runtime into it and
+ *   `triiiceratops/react` / `triiiceratops/vue` read it back out through
+ *   `getSelectorRuntime()`. `dist/react.js` imports
+ *   `dist/framework/runtimeRegistry.js` as a real module; a private copy here
+ *   would be two `WeakMap`s, so `useViewerSelector()` would resolve no runtime
+ *   for a test handle and return `undefined` forever.
+ * - `logging/logger.js` owns the `debugEnabled` gate every development warning
+ *   is checked against. A framework wrapper turns it on from
+ *   `ViewerConfig.debug` (see `framework/debugFlag.ts`) by writing
+ *   `dist/logging/logger.js`. A private copy here would be a second gate that
+ *   nothing can reach — and worse: with `configureLogging` unreachable from
+ *   this entry's exports, `debugEnabled` becomes a provable constant `false`
+ *   and the minifier DELETES the `state`-cadence `osdViewer` probe outright, so
+ *   the warning is not merely silent in the artifact, it is absent from it.
+ *
+ * Both specifiers are relative and `dist/testing/index.js` sits at the same
+ * depth as the copies `svelte-package` emits, so rollup can preserve them
+ * verbatim and they resolve inside `dist/`. Both modules are dependency-free
+ * plain JS (no Svelte, no runes), so keeping them external costs the entry
+ * nothing it was built to avoid.
  */
-const SHARED_MODULE_IDENTITY = [/(^|\/)framework\/runtimeRegistry\.js$/];
+const SHARED_MODULE_IDENTITY = [
+    {
+        match: /(^|\/)framework\/runtimeRegistry\.js$/,
+        /** Where it sits relative to `dist/testing/index.js` in the package. */
+        specifier: '../framework/runtimeRegistry.js',
+    },
+    {
+        match: /(^|\/)logging\/logger\.js$/,
+        specifier: '../logging/logger.js',
+    },
+] as const;
 
-/** Where that module sits relative to `dist/testing/index.js` in the package. */
-const SHARED_RUNTIME_REGISTRY_SPECIFIER = '../framework/runtimeRegistry.js';
+const SHARED_SPECIFIERS: readonly string[] = SHARED_MODULE_IDENTITY.map(
+    (entry) => entry.specifier,
+);
 
 /**
  * Build the compiled headless `triiiceratops/testing` entry (ticket 14).
@@ -79,12 +101,13 @@ export default defineConfig({
             // Resolving it to the literal output specifier and marking it
             // external — with `makeAbsoluteExternalsRelative: false` so rollup
             // leaves it alone — writes exactly what the artifact needs.
-            name: 'triiiceratops:shared-runtime-registry',
+            name: 'triiiceratops:shared-module-identity',
             enforce: 'pre' as const,
             resolveId(source: string) {
-                return SHARED_MODULE_IDENTITY.some((re) => re.test(source))
-                    ? { id: SHARED_RUNTIME_REGISTRY_SPECIFIER, external: true }
-                    : null;
+                const shared = SHARED_MODULE_IDENTITY.find((entry) =>
+                    entry.match.test(source),
+                );
+                return shared ? { id: shared.specifier, external: true } : null;
             },
         },
     ],
@@ -100,14 +123,14 @@ export default defineConfig({
             fileName: () => 'testing/index.js',
         },
         rollupOptions: {
-            // The shared-identity specifier above is already the exact string
-            // the artifact must contain; leave it alone.
+            // The shared-identity specifiers above are already the exact
+            // strings the artifact must contain; leave them alone.
             makeAbsoluteExternalsRelative: false,
             // Externalize ONLY the heavy tarball dependencies; bundle Svelte and
             // its transitive closure so no Svelte tooling/runtime is required.
             external: (id) =>
                 EXTERNAL.some((re) => re.test(id)) ||
-                id === SHARED_RUNTIME_REGISTRY_SPECIFIER,
+                SHARED_SPECIFIERS.includes(id),
             output: {
                 // Single self-contained file: the lazy manifesto import folds
                 // inline rather than emitting a sibling chunk.
