@@ -9,15 +9,28 @@ installing Svelte at runtime or at type-check time.
 
 ## Current Status
 
-Overall status: `In Progress`
+Overall status: `Needs Human Validation or Intervention`
 
-Current ticket: None. 12 is resolved and `Completed` — see "Resolution of ticket 12's `.`
-entry finding" below. 06, 07, 08, and 11 are all `Completed`; 06 and 07 have passed an
-independent verification gate (see "Tickets 06 and 07 verification gate"), and so have 08
-and 11 (see "Tickets 08 and 11 verification gate" — one real defect found and fixed there:
-the built testing entry bundled a private copy of the selector-runtime registry, so
-`useViewerSelector()` against a test handle resolved nothing in the published package).
-09 is `Completed` (see "Ticket 09 outcome"), so 10 is the remaining unblocked ticket.
+All twelve tickets are implemented and the epic's central promise is verified end to end
+(see "Final epic gate" below). Nine of the ten repository gate commands exit `0`;
+`pnpm test:packed` exits `1` for the one long-standing environment reason (webkit system
+libraries need root). Two things keep the epic from reading `Completed`:
+
+1. **EPIC-1 — the framework wrappers' four development-only warnings are dead in the
+   published package.** They log through `dist/logging/logger.js`, whose debug gate is only
+   ever set by `TriiiceratopsViewer.svelte` — which ships inside the fully self-contained
+   `dist/triiiceratops-element.js` (0 static imports, its own inlined logger). Two module
+   instances, so `config: { debug: true }` cannot reach the wrapper copy. This is a defect,
+   not a nit: it makes user stories 35, 45, and half of 62 undeliverable, contradicts a claim
+   the React and Vue guides repeat seven times, and invalidates an explicit acceptance
+   criterion in tickets 01, 05, and 06. **Needs an owner decision** (see "What still needs
+   the owner").
+2. **Ticket 02** is still `Needs Human Validation or Intervention` for the same environment
+   reason as before: `wc-parity.spec.ts` passes on chromium and firefox but cannot launch
+   webkit here. Re-confirmed on 2026-07-31.
+
+Everything else holds. The epic delivers 70 of SPEC.md's 76 user stories outright, 1 by a
+recorded superseded decision, 3 partially, and 2 not at all (both are EPIC-1).
 
 Last updated: 2026-07-31
 
@@ -25,18 +38,36 @@ Last updated: 2026-07-31
 
 | Number | Filename                                        | Status                                 | Depends On     |
 | ------ | ----------------------------------------------- | -------------------------------------- | -------------- |
-| 01     | `01-generalize-selector-runtime.md`             | Completed                              | None           |
+| 01     | `01-generalize-selector-runtime.md`             | Needs Human Validation or Intervention | None           |
 | 02     | `02-custom-element-state-bridge.md`             | Needs Human Validation or Intervention | None           |
 | 03     | `03-remove-svelte-types-from-public-surface.md` | Completed                              | None           |
 | 04     | `04-identity-keyed-plugin-activation.md`        | Completed                              | None           |
-| 05     | `05-framework-wrapper-substrate.md`             | Completed                              | 01, 02, 03     |
+| 05     | `05-framework-wrapper-substrate.md`             | Needs Human Validation or Intervention | 01, 02, 03     |
 | 12     | `12-drop-legacy-plugindef.md`                   | Completed                              | None           |
-| 06     | `06-react-framework-wrapper.md`                 | Completed                              | 05, 12         |
+| 06     | `06-react-framework-wrapper.md`                 | Needs Human Validation or Intervention | 05, 12         |
 | 07     | `07-vue-framework-wrapper.md`                   | Completed                              | 05, 12         |
 | 08     | `08-consumer-testing-helper.md`                 | Completed                              | 06, 07         |
 | 09     | `09-packed-framework-consumers.md`              | Completed                              | 04, 06, 07, 08 |
-| 10     | `10-public-api-release.md`                      | Not Started                            | 09, 12         |
-| 11     | `11-framework-wrapper-docs.md`                  | Completed                              | 06, 07, 08     |
+| 10     | `10-public-api-release.md`                      | Completed                              | 09, 12         |
+| 11     | `11-framework-wrapper-docs.md`                  | Needs Human Validation or Intervention | 06, 07, 08     |
+
+Why the four non-`Completed` statuses besides 02 — all one root cause, EPIC-1:
+
+- **01** — acceptance criterion "A development-only warning fires once when a `state`-cadence
+  projection reads through `osd`" is satisfied in vitest (one module instance) and unmet in
+  the published artifact.
+- **05** — acceptance criterion "All three development warnings fire once and only in
+  development" is unmet in the published artifact. (Separately: there is no
+  development/production distinction anywhere in the mechanism; the gate is
+  `ViewerConfig.debug`, not `NODE_ENV`.)
+- **06** — the second half of "a `state`-cadence projection reading `osd` triggers the
+  development warning" is unmet in the published artifact.
+- **11** — `docs/react.md` and `docs/vue.md` tell readers, in seven places, that
+  `config: { debug: true }` surfaces these warnings. It does not. The rest of ticket 11 was
+  spot-checked against source and holds.
+
+None of these four needs its implementation redone; they need EPIC-1 decided and then a
+one-line status flip (plus, for 11, a docs correction that matches whatever is decided).
 
 Ticket 12 was added mid-epic, after the wave-1 gate proved that the epic's "no Svelte at
 type-check time" promise is unreachable while `ViewerState` references `PluginDef` and the
@@ -45,6 +76,219 @@ type-check time" promise is unreachable while `ViewerState` references `PluginDe
 ticket 03's "Do not change `PluginDef`, `PluginPanel`, `PluginFlyout`, or `PluginMenuButton`"
 constraint and the SPEC's statement that the leak is "resolved by scope"; see the
 **Superseded decisions** section of `SPEC.md`.
+
+## Final epic gate (all twelve tickets, composed)
+
+Run on `react-and-vue-adapters` at `90c07a8`, 2026-07-31, independently of every implementing
+agent's account. The working tree was clean before and after.
+
+### The ten gate commands
+
+| Command                    | Exit  | Note                                                               |
+| -------------------------- | ----- | ------------------------------------------------------------------ |
+| `pnpm check`               | 0     |                                                                    |
+| `pnpm test`                | 0     |                                                                    |
+| `pnpm lint`                | 0     |                                                                    |
+| `pnpm format:check`        | 0     |                                                                    |
+| `pnpm build:all`           | 0     |                                                                    |
+| `pnpm api:check`           | 0     | `api-report.ts --no-build` afterwards produced no drift            |
+| `pnpm docs:examples:check` | 0     | 90 examples, in sync                                               |
+| `pnpm docs:build`          | 0     | local zensical still prints "Strict mode is currently unsupported" |
+| `pnpm coverage:check`      | 0     | floor OK for 7 packages                                            |
+| `pnpm test:packed`         | **1** | 25 fixtures × 2 package managers = 50 runs; **46 PASS, 4 FAIL**    |
+
+`pnpm test:packed` was run to completion, not interrupted. The four failures are
+`csp-svelte [npm]`, `csp-svelte [pnpm]`, `csp-wc-iife [npm]`, `csp-wc-iife [pnpm]`, each of
+which passes on chromium AND firefox in the same run and fails only at its third engine with
+`browserType.launch: Host system is missing dependencies to run browsers`
+(`libgstreamer-plugins-bad1.0-0`, `libflite1`, `libavif16`, `gstreamer1.0-libav`; installing
+them needs root). Nothing in this epic touches those two fixtures. `framework-react` and
+`framework-vue` both PASS under npm and pnpm. CI's `packed-consumers` job installs webkit with
+`--with-deps`, so `pnpm test:packed` is expected to exit `0` there.
+
+Also re-run outside the ten: `pnpm release:reproducible` (all six tarballs byte-identical
+across two clean builds), `pnpm release:pack` (six tarballs + `SHA256SUMS` +
+`release-manifest.json`, core first), and `playwright test tests/wc-parity.spec.ts` —
+2 passed on chromium + firefox, 1 failed to launch on webkit. Ticket 02's blocker is exactly
+what was recorded, unchanged.
+
+### The central promise, measured one final time
+
+A tarball packed from the final `dist` (`triiiceratops-1.0.0-rc.31.tgz`) was installed with
+`file:` into a throwaway project whose only dependencies are `react@19.2.7`,
+`react-dom@19.2.7`, `vue@3.5.40`, `@types/react`, `@types/react-dom`, `typescript@5.9.3`, and
+`jsdom` — 60 top-level `node_modules` entries, **zero** Svelte packages anywhere in the tree.
+Under `strict`, `moduleResolution: bundler`, `types: []`, **`skipLibCheck: false`**:
+
+| Consumer                                           | `tsc` exit | Errors |
+| -------------------------------------------------- | ---------- | ------ |
+| `triiiceratops/react` (every named export, `.ts`)  | 0          | **0**  |
+| `triiiceratops/react` (JSX consumer, `.tsx`)       | 0          | **0**  |
+| `triiiceratops/vue` (every named export, `.ts`)    | 0          | **0**  |
+| `triiiceratops/selectors`                          | 0          | **0**  |
+| `triiiceratops/testing`                            | 0          | **0**  |
+| all five together                                  | 0          | **0**  |
+| `import type { ViewerState } from 'triiiceratops'` | 2          | **1**  |
+
+The last row is the probe's teeth and the known, deliberately-scoped `.`-entry residual
+(`dist/components/TriiiceratopsViewer.svelte.d.ts(38,43) TS2307: Cannot find module 'svelte'`).
+
+Runtime, in the same project. Bare Node, `window`/`document`/`customElements` all `undefined`
+before and after every import:
+
+| Subpath                   | Named exports | Default export | Touched a DOM global | `globalThis.Triiiceratops` |
+| ------------------------- | ------------- | -------------- | -------------------- | -------------------------- |
+| `triiiceratops/react`     | 12            | no             | no                   | never set                  |
+| `triiiceratops/vue`       | 12            | no             | no                   | never set                  |
+| `triiiceratops/selectors` | 1             | no             | no                   | never set                  |
+| `triiiceratops/testing`   | 11            | no             | no                   | never set                  |
+
+`triiiceratops/testing` still needs `globalThis.self` in **bare** Node
+(`ReferenceError: self is not defined`, from the `manifesto.js` fetch polyfill) — pre-existing,
+recorded by ticket 08, documented in both guides, and irrelevant under jsdom/happy-dom.
+
+And they run. Under jsdom, against the packed tarball, driving one real command through a real
+`ViewerState` from `createTestViewerHandle()`:
+
+- React `useViewerSelector` re-rendered `none` → `canvas-42`;
+- Vue `useViewerSelector` (with the documented `shallowRef`) re-rendered `canvas-42` → `canvas-99`;
+- a `triiiceratops/selectors` projection read `canvas-99` → `canvas-7`;
+- `customElements.get('triiiceratops-viewer')` stayed `undefined` throughout.
+
+That is ticket 08's shared-registry fix holding in the artifact, verified from outside.
+
+### EPIC-1 — the four development-only warnings never fire in the published package
+
+**Measured, not inferred.** `dist/triiiceratops-element.js` contains **0** static import
+statements and its own inlined `[triiiceratops]` log prefix: it is a fully self-contained
+bundle. `configureLogging` has exactly one caller in the whole repository —
+`TriiiceratopsViewer.svelte:444`, `configureLogging({ debug: config?.debug ?? false })` — and
+that file ships _inside_ that bundle. The framework substrate, the React and Vue wrappers, and
+the selector runtime all warn through `dist/logging/logger.js`, a **separate** module instance
+whose `debugEnabled` starts `false` and is never written by anything a framework consumer can
+reach. Importing `configureLogging` from the `.` entry would reach it, but that entry pulls the
+compiled Svelte component into the graph, which is precisely what these subpaths exist to
+avoid — and `configureLogging` is not exported from `./react`, `./vue`, `./selectors`, or
+`./testing`.
+
+Confirmed by running the built modules directly: with the substrate's logger left alone, an
+applier driven past its threshold produced **0** warnings; after calling `configureLogging`
+on that module instance, **1**. The four affected warnings:
+
+| Warning                                                       | Site                             | SPEC story        |
+| ------------------------------------------------------------- | -------------------------------- | ----------------- |
+| property-tier prop re-assigned an implausible number of times | `framework/applier.ts:97`        | (Impl. decisions) |
+| handle created and never passed to a viewer                   | `framework/handle.ts:107`        | 35                |
+| `state`-cadence projection reading through `osd`              | `state/selectors/runtime.ts:245` | 45                |
+| a second `ViewerState` published (`<KeepAlive>` state loss)   | `framework/binding.ts:151`       | 62                |
+
+**Why every wave missed it.** Each warning's test calls `configureLogging` on the _source_
+module, which under vitest is the same instance the code under test uses, so the tests are
+correct about the source and silent about the artifact. The packed fixtures never set
+`debug: true` and never assert a warning. It is the same class of defect the 08/11 gate found
+in the testing entry (two `WeakMap`s), in a place nobody thought to look twice.
+
+The `state`-cadence probe is additionally gated on `isDebugEnabled()` before it installs its
+`osdViewer` accessor, so in the published package it costs nothing — and does nothing.
+`armUnboundWarning`'s `setTimeout` still runs on every `useViewerHandle()` mount and can never
+warn.
+
+**Not fixed here.** The fix is a design choice — export `configureLogging` from the framework
+subpaths, have registration bridge the flag across the boundary, or gate on `NODE_ENV` instead
+of `ViewerConfig.debug` — and each has a different public-API and docs consequence. Nothing was
+changed in product code or in the guides so the owner is not pre-empted.
+
+### Other cross-wave findings
+
+1. **SPEC's "at least one type-test consumer compiles with `skipLibCheck: false` and no Svelte
+   installed, so a Svelte type leak fails the build" is not automated anywhere.**
+   `strict-osd-types` uses `skipLibCheck: false` but installs `svelte` and imports the `.`
+   entry; `docs-examples` installs `svelte` and uses `skipLibCheck: true`; `framework-react`
+   and `framework-vue` are plain JavaScript with no `tsconfig.json` and no `tsc` step. Every
+   measurement of the promise so far — including the table above — has been a manual,
+   throwaway-project run by a gate agent. The automated substitutes that DO exist are
+   `check:dts-svelte-types`'s strict per-entry pass (specifier-level, over the whole
+   declaration graph) and `check:framework-entries` (runtime graph); both were independently
+   mutation-tested here and both bite. They are narrower than a consumer `tsc` run but, for
+   the Svelte question specifically, arguably stricter.
+2. **Story 36 is React-only, and that is fine but worth stating.** The Vue wrapper never
+   claims a `ViewerHandleSlot`, so `TriiiceratopsHandleConflictError` is exported from
+   `triiiceratops/vue` and can never be thrown by it. `docs/vue.md` says so explicitly.
+3. **Stale claim corrected below**: the 06/07 gate recorded "No `.tsx` and no `.vue` file
+   exists in the repository". 32 tracked `.tsx`/`.vue` files exist now (generated
+   docs-example output and the Vue fixture's SFCs). Ticket 09 already flagged this; the
+   original sentence is annotated in place.
+4. **Nothing in `git diff 3a5420a..HEAD` is unrequested.** The changes that look off-topic —
+   `Toolbar.svelte`, five icon components, `types/config/panels.ts`, `plugin/surface.ts`,
+   three pre-existing changesets — are all comment or type edits from ticket 12's `PluginDef`
+   removal; `public/e2e/wc-*.html` is ticket 02's. No `TODO`/`FIXME`/`HACK` was added and no
+   test is skipped or `todo`.
+5. **Guards re-verified by mutation, independently of the tickets that added them.** Planting
+   `export { default as __Planted } from './components/TriiiceratopsViewer.svelte'` in
+   `dist/react.d.ts` fails `check:dts-svelte-types` (exit 1); planting `import 'svelte'` in
+   `dist/framework/handle.js` fails `check:framework-entries` naming both subpaths (exit 1);
+   repointing the testing entry's `../framework/runtimeRegistry.js` import at a real private
+   copy fails `check:testing-entry` with the intended message (exit 1). All three were
+   reverted and re-run clean.
+6. **`framework-react/src/{fixtures,events}.js` are still byte-identical** to their Vue
+   counterparts (verified with `diff`). The hand-maintained duplication ticket 09 warned about
+   has not drifted yet.
+
+### User-story audit against SPEC.md (76 stories)
+
+**70 delivered, 1 deliberately superseded, 3 partial, 2 not delivered.** Everything not fully
+delivered:
+
+- **8** (published declarations resolve with no Svelte installed) — _deliberately superseded_.
+  Met for `./react`, `./vue`, `./selectors`, `./testing`, and `./image-export` (0 errors each,
+  measured above). The `.` entry keeps its single documented residual by the decision recorded
+  in SPEC "Superseded decisions" and "Resolution of ticket 12's `.` entry finding". A framework
+  consumer never imports `.`, so the story's own persona is satisfied.
+- **35** (development warning for a handle never passed to a viewer) — _not delivered_. EPIC-1;
+  additionally React-only, since a Vue template ref has no arming point.
+- **36** (prompt error when one handle goes to two viewers) — _partial_. React throws
+  `TriiiceratopsHandleConflictError` naming both elements. Vue cannot: the wrapper claims no
+  slot. Documented.
+- **45** (development warning when a batched-cadence projection reads through `osd`) —
+  _not delivered_. EPIC-1.
+- **62** (`<KeepAlive>` state loss documented **and** warned about) — _partial_. Documented in
+  `docs/vue.md`; the warning is EPIC-1.
+- **67** (testing helper importable with no React, Vue, or Svelte, in whatever runner you
+  already use) — _partial_. Importable and functional with none of the three installed
+  (measured), but the built entry needs a `self` global, so a bare-Node runner fails. Works in
+  vitest/jest under jsdom or happy-dom. Pre-existing, documented in both guides.
+
+The remaining 70 were each checked against something observed — the packed browser journey, a
+measurement against the built `dist`, the type-check table above, or the source with a test
+that was read rather than trusted.
+
+### What still needs the owner
+
+1. **Decide EPIC-1.** Either make the wrapper-side warnings reachable (export
+   `configureLogging` from `./react` and `./vue`, bridge the flag during registration, or
+   switch the gate to `NODE_ENV`) or drop the promise and remove the seven
+   "`config: { debug: true }`" claims from `docs/react.md` and `docs/vue.md` and the three
+   acceptance criteria in tickets 01, 05, and 06. Whichever way, add one packed-fixture
+   assertion so the
+   answer is measured rather than asserted. Public-API and docs decision; owned by nobody.
+2. **Install the webkit system libraries** (`sudo pnpm exec playwright install-deps`, or
+   `libgstreamer-plugins-bad1.0-0 libflite1 libavif16 gstreamer1.0-libav`) and re-run
+   `pnpm test:packed` and `playwright test tests/wc-parity.spec.ts` to close ticket 02 and get
+   a locally observed `0` from the packed matrix. Needs root.
+3. **Run `pnpm release:smoke -- --manifest …` once against a test registry.** Ticket 10
+   rewrote it to cover both framework subpaths and validated every probe body offline against
+   a `file:`-installed tarball, but the registry-fetch plumbing itself is still unexercised.
+   Needs a registry the owner controls.
+4. **Decide whether to automate the `skipLibCheck: false` + no-Svelte consumer type-check**
+   (finding 1 above) — most cheaply as a `tsconfig.json` and a `check` script inside
+   `framework-react` / `framework-vue`, which already install exactly the right dependency
+   set. Adds a `tsc` run to two packed fixtures.
+5. **Decide whether `.` should ever be Svelte-free.** Unchanged and still owned by nobody; the
+   shape of the fix is recorded in "Ticket 10 outcome" and the exemption is encoded in
+   `SVELTE_CONSUMER_SUBPATHS`.
+6. **Watch the `packed-consumers` CI job's duration.** Still unmeasured against its 60-minute
+   timeout; the full local matrix took roughly 45 minutes on a 20-core machine, and CI runs it
+   twice (Node 22 and 24) on smaller runners.
 
 ## Notes
 
@@ -415,6 +659,9 @@ a freshly packed tarball rather than from either implementing agent's account:
   and `dist/vue.d.ts` all exist; `grep` over them and `dist/react/*`, `dist/vue/*` finds no
   `svelte*` specifier; both were imported in plain Node and export only the expected NAMED
   values (no default export anywhere). No `.tsx` and no `.vue` file exists in the repository.
+  **(That last sentence is STALE as of ticket 09: 32 tracked `.tsx`/`.vue` files exist now —
+  the generated `docs-examples` output and the Vue fixture's single-file components. It is
+  still true of `packages/`.)**
 - **`react` and `vue` are optional peers only** — neither appears in core's `dependencies`.
 - **Mutation-tested independently.** (a) Freezing React's projection in a `useRef` across
   renders was caught by two selector tests ("reads current closure values with no useCallback
@@ -791,6 +1038,119 @@ Two things ticket 10 should know:
   timing out, that is the cause.
 - Nothing in `packages/` changed, so `api-reports/` is unchanged and the
   changeset gate does not fire for this ticket.
+
+### Ticket 10 outcome
+
+Most of the packaging was already in place when this ticket started, and saying so is the
+point: `./react` and `./vue` were already declared subpaths of core with `types` + `import`
+conditions, `react ^19.0.0` / `vue ^3.5.0` were already optional peers with neither in
+`dependencies`, `api-report.ts` already annotated `searchProvider` and `plugins`
+`attributeSupported: false`, the declaration report and `exports.json` already covered both
+subpaths, `PUBLISHABLE_PACKAGES` already listed six with core first and already built
+`build:element` before packing, and the tarball allowlist's extension rules already ADMITTED
+`dist/react.*` / `dist/vue.*`. What was missing was enforcement — nothing would have failed
+if any of it regressed.
+
+Five gaps closed, each mutation-tested:
+
+1. **The `.d.ts` promise was not enforced per entry point, and the whole-package check could
+   not express it.** `check:dts-svelte-types` allows a compiled Svelte component's
+   declaration to import `svelte`, keyed by FILE — so it would have happily let `./react`
+   re-export something reaching `components/TriiiceratopsViewer.svelte.d.ts`, which is
+   exactly the leak tickets 06 and 07 were verbally constrained to avoid. `dtsSvelteImports.ts`
+   now runs a SECOND, strict pass: every export subpath except `.` (`SVELTE_CONSUMER_SUBPATHS`)
+   is walked with its OWN visited set and no allowance at all. A subpath added later is strict
+   by default. Measured on the real `dist`: `./react`, `./vue`, `./selectors`, `./testing`, and
+   `./image-export` reach **zero** `svelte*` specifiers; `.` keeps its documented single
+   residual. **The discriminating mutation** — appending
+   `export { default as __Planted } from './components/TriiiceratopsViewer.svelte';` to
+   `dist/react.d.ts` — fires ONLY the new section, and the old check passes it. A plain
+   `import type { Component } from 'svelte'` in `dist/framework/props.d.ts` fires both.
+2. **Nothing checked the built wrapper RUNTIME graphs.** New
+   `packages/core/scripts/check-framework-entries.mjs` (`pnpm check:framework-entries`) walks
+   what `exports["./react"].import` / `["./vue"].import` actually point at and fails on any
+   `svelte*` specifier or on the OTHER framework. Four planted defects all caught:
+   `import 'svelte'` in `dist/framework/handle.js` (both subpaths), `import 'vue'` in
+   `dist/react/index.js`, a deleted element bundle, and an entry emptied of its wrapper
+   re-export (the non-vacuity guard). Real result: `./react` = 22 modules, bare imports
+   `react`; `./vue` = 21 modules, bare imports `vue`.
+3. **Nothing asserted the tarball CONTAINS the wrappers.** `assert-tarball-contents.mjs`
+   gained `REQUIRED_CORE_DIST_FILES` (`dist/react.js`, `dist/react.d.ts`, `dist/vue.js`,
+   `dist/vue.d.ts`), `assertCoreExportTargets` (every `./dist/...` target the PACKED
+   `exports` names must exist in the archive; `./react` and `./vue` must each declare both
+   conditions), and `assertCoreOptionalPeers` (ranged, optional, absent from `dependencies`).
+   A `selfCheckFrameworkSubpathAssertions()` guard proves all three bite, alongside the
+   existing planted-test and peer-pin self-checks.
+4. **Registry smoke never touched the framework subpaths.** It now resolves all four core
+   subpaths from a consumer with NO peer installed, asserts the published core's own
+   `peerDependenciesMeta` marks react/svelte/vue optional and that npm auto-installed none of
+   them, then builds ONE THROWAWAY CONSUMER PER FRAMEWORK — published core plus exactly one
+   peer, at the range read out of the published package rather than hard-coded — and imports
+   that subpath for real in Node with no `window`/`document`/`customElements`.
+5. **The inert-attribute annotation was a bare boolean.** `attributeSupported: false` now
+   carries an `attributeNote` saying why (`searchProvider` is a function, `plugins` an array
+   of live objects; the attribute could only stringify them), so a future contributor reads a
+   reason rather than an apparent oversight. This is the only `api-reports/` change.
+
+Facts worth not rediscovering:
+
+1. **A regex scan of the built wrapper entries reports FALSE imports.** `svelte-package`
+   preserves doc comments, and `dist/vue.js`'s header contains a literal
+   `from 'triiiceratops/vue';` inside a ` ```vue ` example — a regex walk reports
+   `triiiceratops/vue` as a bare import of itself. `check-framework-entries.mjs` parses with
+   the TypeScript AST (`ScriptKind.JS`) instead, which also picks up `import(...)` call
+   expressions properly. `check-testing-entry.mjs` gets away with regexes only because its
+   input is a comment-free vite bundle.
+2. **The element bundle IS in the wrappers' runtime graph, and is clean.** The substrate's
+   `import('../triiiceratops-element.js')` is followed like any other relative import; a TS
+   parse of the 1.4 MB bundle finds **zero** module specifiers (everything, Svelte included,
+   is bundled) and costs ~0.4 s. So "Svelte stays behind the custom-element boundary" is
+   measured, not assumed. A naive regex over that file matches multi-line garbage out of
+   OpenSeadragon string literals — another reason for the AST.
+3. **`check:framework-entries` runs at the end of `build:element`, not `build:lib`**, and
+   deliberately: it asserts the graph REACHES `dist/triiiceratops-element.js`, which
+   `build:lib` has not produced yet (and `svelte-package` clears `dist/`). That turns the
+   build-ordering trap into a build failure instead of a runtime one. Confirmed in the
+   release path: `pnpm release:pack` prints `check:runtime-deps` → `dts-svelte-types` →
+   `check-testing-entry` → `check-element-artifact` → `check-framework-entries`, in order.
+4. **The tarball allowlist needed no new PERMISSION rule.** `dist/react.js` and
+   `dist/react.d.ts` already matched the `.js` / `.d.ts` suffix rules, and nothing in
+   `isRejectedPath` touches them. The gap was the opposite direction — nothing REQUIRED them
+   — so the ticket's "add `dist/react.*` and `dist/vue.*` to the allowlist" is satisfied by a
+   required-files list plus a header note, not by a new suffix.
+5. **Ticket 12's breaking changeset was already accurate** (`.changeset/drop-legacy-plugindef.md`,
+   `'triiiceratops': major`): it names every removed member, the `plugins` narrowing to
+   `readonly SdkPlugin[]`, the absence of a deprecation shim, the guard tightening, and a
+   migration recipe. Nothing needed correcting. Ticket 10's own changeset
+   (`framework-wrappers-public-contract.md`, `minor`) describes the packaging/enforcement
+   contract only and adds no second React/Vue release entry — 06 and 07 already own those.
+6. **`.` is still not Svelte-free, deliberately.** See "Resolution of ticket 12's `.` entry
+   finding"; ticket 10 did NOT change it, and `SVELTE_CONSUMER_SUBPATHS` now encodes the
+   exception in code with the rationale attached.
+
+Verified, all exiting 0: `pnpm api:report` (only `custom-element.json` changed; re-running
+`--no-build` reproduces it byte-for-byte), `pnpm api:check` (76 allowlisted `any`, no new
+leakage, no stale entries), `pnpm --filter triiiceratops pack` (both wrapper entries and all
+of `dist/react/`, `dist/vue/` present), `pnpm release:reproducible` (all six tarballs
+byte-identical across two clean builds), `pnpm release:pack --out …` (six tarballs +
+`SHA256SUMS` + `release-manifest.json`, core first), core `check` / `test` (848 → 854) /
+`lint`, workspace `check` / `test` / `lint` / `format:check`, `docs:examples:check` (90, in
+sync), `PACKED_ONLY=__tarball_only__ pnpm test:packed` (every tarball assertion including the
+four new ones), and `PACKED_ONLY=framework-react,framework-vue pnpm test:packed` (PASS under
+npm AND pnpm).
+
+`pnpm release:smoke` was NOT run: it requires a registry test manifest, and none is
+available. Pointing it at the public registry would install the already-published
+`1.0.0-rc.31`, which predates the framework wrappers, so `triiiceratops/react` would fail for
+a reason that has nothing to do with this work. What WAS validated offline instead, against
+the freshly packed tarball installed with `file:`: the exact probe bodies the script writes
+(both subpaths import DOM-free, deliver their six named exports, expose no default export,
+and register no `globalThis.Triiiceratops`), the forbidden-peer expectations (npm installs no
+`vue` or `svelte` beside `react`, and no `react` or `svelte` beside `vue`), the four
+no-peer subpath resolutions, and the published peer metadata
+(`react ^19.0.0` / `svelte ^5.0.0` / `vue ^3.5.0`, all optional, none auto-installed). Only
+the registry-fetch plumbing itself is unexercised, and that code shape is unchanged from
+before this ticket.
 
 ### Ticket 05 outcome — what 06, 07, and 08 must know
 

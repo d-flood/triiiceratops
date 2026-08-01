@@ -251,12 +251,21 @@ function emitCustomElement(): void {
     // Svelte derives from the declaration is INERT and unsupported. Recorded so
     // a future contributor does not wire the attribute up.
     const PROPERTY_ONLY_INPUTS = new Set(['searchProvider', 'plugins']);
+    // Carried into the snapshot beside the flag, because the flag alone reads
+    // like an oversight. These inputs take a function (`searchProvider`) or an
+    // array of live plugin objects (`plugins`); an attribute could only ever
+    // carry a string, so wiring one up would silently stringify the value.
+    const PROPERTY_ONLY_NOTE =
+        'INERT. Svelte derives an observed attribute from every declared prop, ' +
+        'but this input carries a non-serializable value: the PROPERTY is the ' +
+        'only supported channel. Do not wire the attribute up.';
     const attrProps: Array<{
         property: string;
         attribute: string;
         type: string;
         reflect: boolean;
         attributeSupported?: false;
+        attributeNote?: string;
     }> = [];
     const entryRe =
         /(\w+):\s*\{\s*attribute:\s*'([^']+)',\s*type:\s*'([^']+)',\s*reflect:\s*(true|false)/g;
@@ -268,7 +277,10 @@ function emitCustomElement(): void {
             type: m[3],
             reflect: m[4] === 'true',
             ...(PROPERTY_ONLY_INPUTS.has(m[1])
-                ? { attributeSupported: false as const }
+                ? {
+                      attributeSupported: false as const,
+                      attributeNote: PROPERTY_ONLY_NOTE,
+                  }
                 : {}),
         });
     }
