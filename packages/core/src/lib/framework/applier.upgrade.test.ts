@@ -15,7 +15,7 @@
  * with nothing simulated.
  */
 
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { SearchProvider } from '../types/config.js';
 import { createViewerPropApplier } from './applier.js';
@@ -32,6 +32,8 @@ const { defineRealViewerElement, installInertAnimations, settle, VIEWER_TAG } =
     await import('../test/utils/realViewerElement.js');
 
 type Element = TriiiceratopsViewerElement & Record<string, unknown>;
+
+const mounted: HTMLElement[] = [];
 
 /** jsdom lacks the handful of browser APIs the viewer reads while mounting. */
 function installJsdomShims(): void {
@@ -63,11 +65,24 @@ beforeAll(() => {
     );
 });
 
+// Every mounted element must be disconnected before the file ends. A viewer
+// left in the document keeps its Svelte effects alive, and their teardown then
+// runs against a jsdom window vitest has already torn down — surfacing as an
+// unhandled `dom.removeEventListener is not a function` that arrives after the
+// tests pass and fails the run. Removing lets `disconnectedCallback` destroy
+// the component while the document is still real; the settle gives it the
+// microtask it waits on before doing so.
+afterEach(async () => {
+    for (const element of mounted.splice(0)) element.remove();
+    await settle(0);
+});
+
 describe('a real upgrade of an element the applier already wrote to', () => {
     it('is a real upgrade: jsdom adopts the registered class', () => {
         // Guard the premise. If this ever stops holding, every assertion below
         // would pass vacuously against an element that never upgraded.
         const probe = document.createElement('upgrade-premise-probe');
+        mounted.push(probe);
         document.body.appendChild(probe);
         class Probe extends HTMLElement {
             upgraded = true;
@@ -82,6 +97,7 @@ describe('a real upgrade of an element the applier already wrote to', () => {
         expect(customElements.get(VIEWER_TAG)).toBeUndefined();
 
         const element = document.createElement(VIEWER_TAG) as Element;
+        mounted.push(element);
         const manifestJson = { '@id': 'https://example.org/manifest' };
         const searchProvider = (async () => []) as SearchProvider;
         const plugins: never[] = [];
@@ -139,6 +155,7 @@ describe('a real upgrade of an element the applier already wrote to', () => {
 describe('edge-triggering against a reflected attribute', () => {
     it('writes nothing when an unchanged canvasId is re-asserted after navigation', async () => {
         const element = document.createElement(VIEWER_TAG) as Element;
+        mounted.push(element);
         document.body.appendChild(element);
         await settle();
 
