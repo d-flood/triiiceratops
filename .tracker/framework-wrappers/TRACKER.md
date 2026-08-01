@@ -17,7 +17,7 @@ independent verification gate (see "Tickets 06 and 07 verification gate"), and s
 and 11 (see "Tickets 08 and 11 verification gate" — one real defect found and fixed there:
 the built testing entry bundled a private copy of the selector-runtime registry, so
 `useViewerSelector()` against a test handle resolved nothing in the published package).
-09 is the remaining unblocked ticket.
+09 is `Completed` (see "Ticket 09 outcome"), so 10 is the remaining unblocked ticket.
 
 Last updated: 2026-07-31
 
@@ -34,7 +34,7 @@ Last updated: 2026-07-31
 | 06     | `06-react-framework-wrapper.md`                 | Completed                              | 05, 12         |
 | 07     | `07-vue-framework-wrapper.md`                   | Completed                              | 05, 12         |
 | 08     | `08-consumer-testing-helper.md`                 | Completed                              | 06, 07         |
-| 09     | `09-packed-framework-consumers.md`              | Not Started                            | 04, 06, 07, 08 |
+| 09     | `09-packed-framework-consumers.md`              | Completed                              | 04, 06, 07, 08 |
 | 10     | `10-public-api-release.md`                      | Not Started                            | 09, 12         |
 | 11     | `11-framework-wrapper-docs.md`                  | Completed                              | 06, 07, 08     |
 
@@ -666,6 +666,131 @@ identity. The consequence is that a test handle mistakenly passed to a real
 `<TriiiceratopsViewer>` throws a `TriiiceratopsHandleConflictError` with the
 right name and message but not `instanceof` the class `triiiceratops/react`
 exports; the code comment that overclaimed this now says so.
+
+### Ticket 09 outcome — what 10 must know
+
+Two packed consumer fixtures, `test-consumers/fixtures/framework-react` and
+`framework-vue`, plus one shared journey
+(`test-consumers/fixtures/framework-consumer-assert.mjs`, prior art:
+`plugin-adapter-assert.mjs`) and one driver-level Node assertion in
+`driver/run.mjs`. Both fixtures are in `FIXTURES`, so the matrix is now 25
+fixtures × 2 package managers × 2 Node versions. No package source changed, so
+`api-reports/` is untouched and no changeset is required.
+
+Each fixture builds THREE routes from one Vite build plus a `prerender.mjs`
+step: `index.html` (the whole client contract), `ssr.html` (rendered in plain
+Node by `react-dom/server` / `vue/server-renderer` at build time, then
+hydrated), and `conflict.html` (a foreign `<triiiceratops-viewer>` registered
+first). Both expose the SAME in-page control surface — `window.__tri`,
+`window.__ssr`, `window.__conflict` — which is what lets one journey drive both
+frameworks and prove they implement the same contract rather than two similar
+ones.
+
+Facts worth not rediscovering:
+
+1. **The driver now passes `fixtureDir` (and `serveRoot`) into a BROWSER
+   fixture's `assert` context.** That is what lets a fixture assert on what the
+   package manager actually installed. `assertNoSvelteAndNoSdk` reads
+   `package.json`, walks `node_modules` (including pnpm's `.pnpm` virtual store,
+   whose entries are `<name>@<version>[_peers]` with `/` written as `+`), and
+   scans every fixture source file for a Svelte import specifier or the string
+   `isCustomElement`. `harness.mjs` is excluded from that scan — it is
+   driver-side orchestration and its own comment mentions `isCustomElement`.
+2. **Optional peers really are optional.** Neither npm nor pnpm installs
+   `vue` into the React fixture or `react` into the Vue fixture, and the
+   fixtures assert that, so "React and Vue remain optional peer dependencies" is
+   measured rather than assumed.
+3. **`setManifestData` does NOT dispatch `manifestchange`.** Only the
+   `setManifest` (HTTP) path does, at `viewer.svelte.ts:745`. Viewer 1 therefore
+   supplies its manifest through the property tier (`manifestId` +
+   `manifestJson`, which the element's effect requires TOGETHER) and viewer 2
+   loads `/manifest.json` over HTTP — which is both the `manifestchange` source
+   and the two-viewer isolation proof.
+4. **A 120×120 image has no zoom headroom.** With OpenSeadragon's default
+   `maxZoomPixelRatio`, `state.zoomIn()` on a tiny source is clamped straight
+   back by `applyConstraints()` and the `frame`-cadence readout never moves —
+   which looks exactly like a broken cadence. The fixture manifest's canvases
+   are 1600×1200 for this reason.
+5. **A `state`-cadence contrast readout needs a HOISTED projection.** With an
+   inline arrow the projection object is re-created on every render, so it
+   recomputes from a fresh cache and tracks the zoom anyway, masking the
+   contrast. Both fixtures hoist `selectZoomThousandths`.
+6. **React's equality gate is only observable in a component that re-renders
+   for nothing else.** An unmemoised inline `equals` mints a new projection on
+   every render, so a sibling selector that re-renders the component resets the
+   gate. `GatedReadout` is therefore a SIBLING of `<ViewerOne>` under `App`, not
+   a child. (Vue has no such constraint: its composable's `computed` and
+   projection persist for the component's lifetime.)
+7. **React's viewer-1 handle is created in `App`, above the viewer**, so it
+   survives the unmount/remount leg and exercises "a handle whose viewer
+   unmounts reverts to unbound and rebinds cleanly".
+8. **Hydration-mismatch reporting differs by framework, and both needed care.**
+   Vue compiles it out of production builds unless
+   `__VUE_PROD_HYDRATION_MISMATCH_DETAILS__` is defined — the Vue fixture's
+   `vite.config.js` sets it to `true`, and without it the zero-mismatch
+   assertion would be vacuous. React 19 production ignores _extra_ server
+   attributes and extra sibling nodes; what it does do on a real mismatch is
+   discard the server host and client-render, so the discriminating assertion is
+   `hostReused` (an identity check against the node captured before
+   `hydrateRoot`), not the console.
+9. **Recording framework errors instead of logging them is what keeps the
+   "no uncaught page errors" assertion meaningful.** React's root takes
+   `onCaughtError` / `onUncaughtError` / `onRecoverableError`; Vue sets
+   `app.config.errorHandler`. The Vue `<Boundary>` deliberately does NOT return
+   `false` from `onErrorCaptured`, because returning `false` would stop
+   propagation and `app.config.errorHandler` would never see the failure.
+10. **The fixtures need no plugin SDK to exercise plugins.** `SdkPlugin` is a
+    structural, framework-neutral seam owned by core, so `src/fixtures.js`
+    hand-authors two plain objects with `kind: 'triiiceratops-plugin'` and their
+    own `activate(host)`. One is made to throw on its first activation, which is
+    how the `pluginerror` channel and the delivered `PluginError.retry()` are
+    driven; the other proves ticket 04's identity-keyed activation survives a
+    parent re-render that supplies a NEW array of the SAME plugin objects.
+11. **`viewererror` is driven by the documented nav-edge conflict** applied as a
+    post-mount `config` change, which doubles as the property-tier
+    prop-update proof. `choicechange` is driven by `state.selectChoice(...)`,
+    which `ReadonlyViewerState` exposes.
+12. **Event identity is witnessed at `document`.** The channels are
+    `bubbles: true, composed: true`, so a `document`-level listener runs AFTER
+    the wrapper's own element-level listener and can compare the payload the
+    framework handler received against `event.detail` by identity. `event.target`
+    retargets to the host element, so the forwarded `id` host attribute
+    (`viewer-1` / `viewer-2`) is what attributes each event to its viewer.
+13. **The built testing entry works fine in the browser.** Ticket 08's
+    `ReferenceError: self is not defined` is a bare-Node-only problem; both
+    fixtures import `triiiceratops/testing` straight into the client bundle.
+
+Mutation-tested, so the fixtures are not vacuous. Nine deliberate defects were
+planted into the INSTALLED packed package (or the built server HTML) and every
+one was caught: the applier skipping `searchProvider`/`plugins`; React's
+callbacks handed the `CustomEvent` instead of its `detail`; `frame` cadence
+collapsed to `state`; React's unmount cleanup not calling `controller.destroy()`;
+`assertViewerElementCompatible` removed from registration (React and Vue — the
+conflict route then hangs at `pending`, which is exactly the failure mode the
+probe exists to prevent); Vue's selector runtime cached outside the `computed`
+(the `<KeepAlive>` rewire); the applier skipping the property tier under Vue;
+and a planted server/client mismatch in each fixture's built `ssr.html`.
+
+Verified: `PACKED_ONLY=framework-react pnpm test:packed` and
+`PACKED_ONLY=framework-vue pnpm test:packed` both exit `0` with `PASS` under npm
+AND pnpm. The full `pnpm test:packed` matrix was run once, end to end: **every
+one of the 25 fixtures passes under both package managers except `csp-svelte`
+and `csp-wc-iife`**, which fail only at their third engine — Playwright cannot
+launch **webkit** on this machine, the same missing-system-libraries problem
+already recorded for ticket 02 (`sudo playwright install-deps` needs root).
+Both of those fixtures pass on chromium and firefox in the same run, and CI
+installs webkit with `--with-deps`, so this is a local environment limitation,
+not a regression. The driver therefore exits `1` here and is expected to exit
+`0` in CI.
+
+Two things ticket 10 should know:
+
+- The `packed-consumers` CI job has a 60-minute timeout and now runs two more
+  fixtures plus one extra `npm install` (the Node import probe pulls `react` and
+  `vue`). Nothing here measured the CI job's total duration; if it starts
+  timing out, that is the cause.
+- Nothing in `packages/` changed, so `api-reports/` is unchanged and the
+  changeset gate does not fire for this ticket.
 
 ### Ticket 05 outcome — what 06, 07, and 08 must know
 
