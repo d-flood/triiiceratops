@@ -641,14 +641,21 @@ the wrapper probes the constructor that actually owns the tag for the
 `customElements.whenDefined` poll anywhere in the path, so an incompatible page
 fails fast instead of hanging.
 
-Three additional development-only warnings exist because their failure modes are
-otherwise silent. All of them go through the viewer's logger, which is quiet
-unless you opt in with `config: { debug: true }`:
+Three additional **debug-mode** warnings exist because their failure modes are
+otherwise silent:
 
 - a property-tier prop re-assigned an implausible number of times (an
   unmemoized object);
 - a handle created and never passed to a viewer, so reads stay `null` forever;
 - a `state`-cadence projection that reads through `osdViewer`.
+
+They are gated on `ViewerConfig.debug`, not on `NODE_ENV` — a production build
+with `config: { debug: true }` logs them and a development build without it does
+not. Debug mode is **page-level**: passing `config: { debug: true }` to any one
+viewer turns these warnings on for every wrapper on the page, and the most
+recently applied `debug` value wins. A `config` that omits `debug` entirely
+states no opinion, so a second viewer configured for something else never
+silences the first. Pass `config: { debug: false }` to turn them back off.
 
 ## Testing your own components
 

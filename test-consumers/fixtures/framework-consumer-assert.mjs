@@ -615,6 +615,92 @@ export async function assertFrameworkFixture(ctx, options) {
         'the conflict is diagnosed promptly, not by timing out',
     ).toBeLessThan(5_000);
 
+    // ── Development-warning route ──────────────────────────────────────────
+    //
+    // EPIC-1. The wrapper-side development warnings are gated on
+    // `ViewerConfig.debug`, and in the published package the wrappers and the
+    // element bundle hold two different copies of the logger module — so this
+    // has to be measured on the ARTIFACT, from outside, on the real console.
+    // A source-level test cannot see the difference: under vitest the two
+    // copies are one module.
+    await page.goto(`${baseURL}/debug.html`, { waitUntil: 'load' });
+    await expect
+        .poll(() => page.evaluate(() => window.__debug.ready()), {
+            timeout: 30_000,
+        })
+        .toBe(true);
+    const capabilities = await page.evaluate(() => window.__debug.capabilities);
+
+    // Phase 1 — `config: { debug: false }`. Every warning is provoked and none
+    // may reach the console.
+    const quiet = await page.evaluate(() => window.__debug.runPhase(false));
+    expect(quiet.bound, 'the debug route binds a viewer').toBe(true);
+    expect(
+        quiet.warnings,
+        `${framework}: nothing may be logged with config.debug false`,
+    ).toEqual([]);
+
+    // Phase 2 — `config: { debug: true }`, and nothing else changed.
+    const loud = await page.evaluate(() => window.__debug.runPhase(true));
+    expect(loud.bound).toBe(true);
+
+    // The property-tier applier's unmemoized-prop warning, on a SECOND viewer
+    // whose own config carries no `debug` key at all — so the flag one viewer
+    // sets is not undone by another viewer that states no opinion.
+    expect(
+        loud.warnings.filter((w) => /has been re-assigned/.test(w)),
+        `${framework}: an unmemoized property-tier prop must warn with debug on`,
+    ).toHaveLength(1);
+    expect(loud.warnings.find((w) => /has been re-assigned/.test(w))).toContain(
+        '`themeConfig`',
+    );
+
+    // The selector runtime's batched-cadence OSD warning (tickets 01 and 06),
+    // once for each of the two projections that make the mistake: one over the
+    // mounted viewer, one over an idle `triiiceratops/testing` state that never
+    // notifies at all. Both were created and first read in phase 1, while debug
+    // was still off. The idle one is the strict case — its version can never
+    // advance, so a probe decided once, too early, would never fire again.
+    expect(
+        loud.warnings.filter((w) => /`state`-cadence selector read/.test(w)),
+        `${framework}: a state-cadence projection reading osdViewer must warn`,
+    ).toHaveLength(2);
+    expect(
+        loud.warnings.find((w) => /`state`-cadence selector read/.test(w)),
+    ).toContain("cadence: 'frame'");
+
+    // React only: a handle created and never passed to a viewer.
+    if (capabilities.unboundHandle) {
+        expect(
+            loud.warnings.filter((w) => /never passed to a/.test(w)),
+            `${framework}: an unbound handle must warn with debug on`,
+        ).toHaveLength(1);
+    }
+
+    // Vue only: a `<KeepAlive>` round trip publishes a second `ViewerState`.
+    if (capabilities.keepAlive) {
+        expect(loud.rebound, '<KeepAlive> published a NEW ViewerState').toBe(
+            true,
+        );
+        expect(
+            loud.warnings.filter((w) =>
+                /published a second ViewerState/.test(w),
+            ),
+            `${framework}: a second ViewerState must warn with debug on`,
+        ).toHaveLength(1);
+    }
+
+    // Phase 3 — back to `config: { debug: false }`. The switch works in both
+    // directions, so a warning proven reachable is also proven suppressible.
+    const quietAgain = await page.evaluate(() =>
+        window.__debug.runPhase(false),
+    );
+    expect(quietAgain.bound).toBe(true);
+    expect(
+        quietAgain.warnings,
+        `${framework}: config.debug false silences the wrappers again`,
+    ).toEqual([]);
+
     // ── Page-wide hygiene ──────────────────────────────────────────────────
     expect(
         consoleMessages

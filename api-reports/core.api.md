@@ -291,6 +291,14 @@ export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, curr
  * Change detection is the uniform one-level {@link shallowEqual}. It never
  * inspects a value's contents beyond one level and never branches on which prop
  * is being written.
+ *
+ * One value IS read on its way past: `config.debug`. Writing it is not enough,
+ * because the element bundle configures its own inlined logger and the wrapper
+ * side is a separate module instance — so the applier is also where
+ * `ViewerConfig.debug` is bridged to the logger these wrappers warn through
+ * (see {@link bridgeViewerDebugFlag}). That is a side effect of the WRITE, not
+ * of change detection: an unchanged `config` still writes nothing and bridges
+ * nothing.
  */
 import { type ViewerElementProps } from './props.js';
 import type { TriiiceratopsViewerElement } from '../types/viewerElement.js';

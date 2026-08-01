@@ -28,6 +28,9 @@ export default defineConfig({
                 conflict: fileURLToPath(
                     new URL('./conflict.html', import.meta.url),
                 ),
+                // The development-warning route: proves `config: { debug: true }`
+                // reaches the wrapper-side logger in the PUBLISHED package.
+                debug: fileURLToPath(new URL('./debug.html', import.meta.url)),
             },
         },
     },

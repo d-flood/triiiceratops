@@ -110,7 +110,7 @@ useViewerSelector;
 
 - [ ] Tests mount the **real** custom element in happy-dom with `react-dom/client` and cover: handle creation and binding, nullable reads before availability, all three prop tiers including function-valued `searchProvider`, post-mount updates, unchanged-prop writes suppressed, direct callback details, ref lifecycle, unmount/remount, and two-viewer isolation.
 - [ ] Inline projections whose closures change return current values with no consumer memoization, and equality gating prevents re-render for equal selections; a projection returning a fresh object literal does not loop or warn.
-- [ ] A `cadence: 'frame'` selector updates from OSD animation events; a `state`-cadence projection reading `osd` triggers the development warning.
+- [ ] A `cadence: 'frame'` selector updates from OSD animation events; a `state`-cadence projection reading `osd` triggers the debug-mode warning under `config: { debug: true }`, in the PUBLISHED package as well as in source-resolved tests.
 - [ ] A throwing projection is caught by a React error boundary and is not reported as `viewererror` or `pluginerror`.
 - [ ] Strict Mode double-invocation creates one handle, one binding, and one subscription.
 - [ ] `triiiceratops/react` builds as precompiled JS and declarations with named exports and no `.tsx` in the source tree.

@@ -106,9 +106,9 @@ type ReadonlyViewerState = Readonly<
 - **Availability is repeatable, not a one-shot latch.** On each event after the first,
   atomically dispose the previous runtime, publish the new binding, and rebuild the handle,
   so no consumer ever holds a projection subscribed to a disposed runtime.
-- Development warning: warn once when a wrapper observes a second availability event, because
+- Debug-mode warning: warn once when a wrapper observes a second availability event, because
   the accompanying viewer-state loss is otherwise silent.
-- Handle lifecycle: a handle created but never bound warns once in development; a second
+- Handle lifecycle: a handle created but never bound warns once in debug mode; a second
   element claiming a bound handle **throws**, naming both elements; a handle whose element
   goes away reverts to unbound and rebinds cleanly on remount.
 - Teardown removes DOM listeners, disposes the runtime, and invalidates the binding and
@@ -141,7 +141,7 @@ type ReadonlyViewerState = Readonly<
 - [ ] A second availability event swaps runtimes atomically; no projection remains subscribed to the disposed runtime; the handle is rebuilt.
 - [ ] Handle rules are covered: unbound warning, double-bind throw, unbind-and-rebind.
 - [ ] Cleanup and remount prove listeners, runtime, binding, and handle are invalidated idempotently.
-- [ ] All three development warnings fire once and only in development.
+- [ ] All three debug-mode warnings fire once with `config: { debug: true }` and not at all without it. The gate is `ViewerConfig.debug`, not `NODE_ENV` — there is no development/production distinction in the mechanism — and it must hold in the PUBLISHED package, where the wrappers and the element bundle carry separate copies of the logger module.
 - [ ] Core checks and the library build pass.
 
 Run:

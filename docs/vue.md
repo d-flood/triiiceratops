@@ -781,10 +781,15 @@ wrapper probes the constructor that actually owns the tag for the `viewerState`
 getter. There is no timeout, deadline, retry, or `customElements.whenDefined`
 poll anywhere in the path, so an incompatible page fails fast instead of hanging.
 
-Development-only warnings — unstable property-tier props, a `state`-cadence
+**Debug-mode** warnings — unstable property-tier props, a `state`-cadence
 projection reading through `osdViewer`, and the `<KeepAlive>` state loss above —
-all go through the viewer's logger, which is quiet unless you opt in with
-`config: { debug: true }`.
+are gated on `ViewerConfig.debug`, not on `NODE_ENV`: a production build with
+`config: { debug: true }` logs them and a development build without it does not.
+Debug mode is **page-level**: passing `config: { debug: true }` to any one viewer
+turns these warnings on for every wrapper on the page, and the most recently
+applied `debug` value wins. A `config` that omits `debug` entirely states no
+opinion, so a second viewer configured for something else never silences the
+first. Pass `config: { debug: false }` to turn them back off.
 
 ## Testing your own components
 

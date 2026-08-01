@@ -26,9 +26,18 @@
  * Change detection is the uniform one-level {@link shallowEqual}. It never
  * inspects a value's contents beyond one level and never branches on which prop
  * is being written.
+ *
+ * One value IS read on its way past: `config.debug`. Writing it is not enough,
+ * because the element bundle configures its own inlined logger and the wrapper
+ * side is a separate module instance — so the applier is also where
+ * `ViewerConfig.debug` is bridged to the logger these wrappers warn through
+ * (see {@link bridgeViewerDebugFlag}). That is a side effect of the WRITE, not
+ * of change detection: an unchanged `config` still writes nothing and bridges
+ * nothing.
  */
 
 import { logger } from '../logging/logger.js';
+import { bridgeViewerDebugFlag } from './debugFlag.js';
 import {
     shallowEqual,
     VIEWER_PROPERTY_PROPS,
@@ -78,6 +87,17 @@ export function createViewerPropApplier(
     const target = element as unknown as Record<string, unknown>;
 
     function write(prop: ViewerPropertyPropName, value: unknown): void {
+        if (prop === 'config') {
+            // The element bundle configures its OWN inlined logger from
+            // `config.debug`; this configures the wrapper-side one, which is a
+            // different module instance in the published package and is what
+            // gates every development warning a framework consumer can hit.
+            // Edge-triggered like the write itself, so re-asserting an equal
+            // config re-asserts nothing. See `./debugFlag.ts` for what happens
+            // with a JSON string, an absent `config`, a `config` that changes
+            // after mount, and two wrappers that disagree.
+            bridgeViewerDebugFlag(value);
+        }
         if (value === undefined) {
             // Hazard 2: never leave an `undefined` own property shadowing the
             // prototype accessor on a not-yet-upgraded element.

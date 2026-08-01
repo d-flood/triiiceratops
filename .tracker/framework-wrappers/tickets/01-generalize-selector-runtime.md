@@ -54,8 +54,10 @@ and idempotent disposal. Existing plugin SDK consumers observe no source break.
       `requestAnimationFrame` loop and an idle viewer costs nothing.
 - Cadence is a selector concern only. No `ViewerState` field, state-inventory entry, watched
   member, batching behavior, notification payload, or plugin subscription semantic changes.
-- In development, a `state`-cadence projection that reads through `osd` warns **once** and
-  names `cadence: 'frame'` as the fix.
+- With debug mode on (`ViewerConfig.debug`, not `NODE_ENV`), a `state`-cadence projection
+  that reads through `osd` warns **once** and names `cadence: 'frame'` as the fix. Debug mode
+  can be switched on after a projection has already been read, so the probe is owed, not
+  decided once; with debug off it costs nothing and installs nothing.
 - Plugin activations retain isolated runtimes. Projection failures retain `command`
   attribution and listener failures retain `subscription` attribution.
 - Consumer projection or equality failures are retained and rethrowable through a read. They
@@ -79,7 +81,7 @@ and idempotent disposal. Existing plugin SDK consumers observe no source break.
 
 - [ ] Core tests demonstrate memoization, default and custom equality, equality gating of the cached value (a stable reference across equal recomputes), both read entry points, dynamic projection replacement, retained errors, one-subscription fan-out, and idempotent disposal.
 - [ ] Core tests demonstrate `frame` cadence waking a projection from OSD animation events, the ticker attaching lazily and detaching on teardown and on OSD replacement, and no ticker existing for a viewer with only `state`-cadence projections.
-- [ ] A development-only warning fires once when a `state`-cadence projection reads through `osd`, and does not fire for `frame` cadence.
+- [ ] A debug-mode warning (`config: { debug: true }`) fires once when a `state`-cadence projection reads through `osd`, and does not fire for `frame` cadence — including when debug mode is switched on after the projection was first read, and in the PUBLISHED package, not only in source-resolved tests.
 - [ ] Existing React/Vue plugin SDK adapter and test-kit tests pass without consumer API changes.
 - [ ] Plugin command/subscription error attribution remains covered and passing.
 - [ ] Core and plugin SDK type checks and builds pass.
