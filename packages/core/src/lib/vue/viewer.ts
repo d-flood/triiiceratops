@@ -35,6 +35,17 @@
  *   attribute inheritance stays predictable even though the component renders a
  *   single element.
  *
+ * ## The template ref belongs to one viewer
+ *
+ * The handle is an ordinary template ref rather than a wrapper-owned prop, so
+ * nothing about the component's signature says a ref may not be reused. The
+ * mount hook therefore claims the BOX the ref writes into, through the same
+ * substrate slot React's `handle` prop claims: one ref put on two viewers
+ * raises `TriiiceratopsHandleConflictError` naming both elements instead of
+ * silently making every read follow whichever mounted last. See
+ * `templateRefOwnership.ts` for which ref shapes own a box and which (a
+ * callback ref, a ref inside `v-for`) deliberately do not.
+ *
  * `manifestId` and `canvasId` are one-way, UNCONTROLLED inputs: they are an
  * instruction to the viewer, not a continuously enforced binding, so
  * re-asserting an unchanged value after the user navigates internally writes
@@ -45,8 +56,11 @@
 
 import {
     defineComponent,
+    getCurrentInstance,
     h,
+    onActivated,
     onBeforeUnmount,
+    onDeactivated,
     onMounted,
     shallowRef,
     watch,
@@ -75,6 +89,7 @@ import type { ThemeConfig } from '../theme/types.js';
 import type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
 import type { ViewerError } from '../types/viewerError.js';
 import type { CanvasRegion } from '../utils/contentState.js';
+import { claimTemplateRefOwnership } from './templateRefOwnership.js';
 
 /**
  * Every viewer input `<TriiiceratopsViewer>` accepts, across the attribute and
@@ -222,6 +237,10 @@ export const TriiiceratopsViewer = defineComponent({
     props: viewerProps,
     emits: viewerEmits,
     setup(props, { attrs, emit, expose }) {
+        // Captured in `setup` so the mount hook can read the template ref Vue
+        // recorded for THIS component (`instance.vnode.ref`) and take ownership
+        // of the box it writes into. See `templateRefOwnership.ts`.
+        const instance = getCurrentInstance();
         const elementRef = shallowRef<TriiiceratopsViewerElement | null>(null);
         // The current binding's handle. A REF, not a plain field: the exposed
         // `state` getter reads it, so a `computed` that touches
@@ -233,6 +252,7 @@ export const TriiiceratopsViewer = defineComponent({
         let applier: ViewerPropApplier | null = null;
         let applierElement: TriiiceratopsViewerElement | null = null;
         let removeListeners: Array<() => void> = [];
+        let releaseTemplateRef: (() => void) | null = null;
 
         /**
          * Write the property tier. The applier suppresses unchanged writes
@@ -260,9 +280,36 @@ export const TriiiceratopsViewer = defineComponent({
             throw error;
         });
 
+        /**
+         * Take the template ref, unless this viewer already holds it.
+         *
+         * Called from `onMounted` AND `onActivated`, because a `<KeepAlive>`
+         * child gets both on its first mount and only the latter afterwards.
+         * Idempotent so the pair never produces two leases on one box.
+         */
+        const claimTemplateRef = (
+            element: TriiiceratopsViewerElement,
+        ): void => {
+            if (releaseTemplateRef) return;
+            releaseTemplateRef = claimTemplateRefOwnership(instance, element);
+        };
+
+        /** Give the template ref back. Idempotent. */
+        const releaseTemplateRefIfHeld = (): void => {
+            releaseTemplateRef?.();
+            releaseTemplateRef = null;
+        };
+
         onMounted(() => {
             const element = elementRef.value;
             if (!element) return;
+
+            // Ownership FIRST, like React's binding: one template ref put on
+            // two viewers throws `TriiiceratopsHandleConflictError` naming both
+            // elements, before this viewer listens or triggers registration.
+            // Thrown from a lifecycle hook, so it reaches `onErrorCaptured` and
+            // `app.config.errorHandler` rather than the console.
+            claimTemplateRef(element);
 
             // Synchronously, before Svelte's `connectedCallback` reaches its
             // first microtask, so the inner viewer mounts with these values
@@ -294,9 +341,24 @@ export const TriiiceratopsViewer = defineComponent({
             controller.attach(element);
         });
 
+        // `<KeepAlive>` never unmounts: it parks the component and Vue clears
+        // the template ref for it, so a deactivated viewer no longer owns the
+        // box and must not block the viewer that takes its place. Reactivation
+        // re-fills the ref, so it takes ownership back — and legitimately
+        // conflicts if some OTHER mounted viewer has claimed it meanwhile.
+        // Registered unconditionally; outside a `<KeepAlive>` neither ever runs.
+        onDeactivated(releaseTemplateRefIfHeld);
+        onActivated(() => {
+            const element = elementRef.value;
+            if (element) claimTemplateRef(element);
+        });
+
         onBeforeUnmount(() => {
             for (const remove of removeListeners) remove();
             removeListeners = [];
+            // Give the template ref back, so an unmount/remount or a `v-if`
+            // swap rebinds the same ref cleanly. Idempotent.
+            releaseTemplateRefIfHeld();
             // Removes the availability listener, disposes this viewer's
             // selector runtime, and clears the binding. Idempotent.
             controller?.destroy();

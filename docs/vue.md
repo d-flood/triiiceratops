@@ -141,7 +141,13 @@ ancestors, nested inside your own layout components, or in a completely
 different part of the tree. The wrapper imposes no markup structure.
 
 **One ref per viewer.** Two viewers on a page means two template refs; their
-state, selectors, commands, emits, and handles are completely isolated.
+state, selectors, commands, emits, and handles are completely isolated. Putting
+the *same* ref on a second `<TriiiceratopsViewer>` throws
+`TriiiceratopsHandleConflictError` naming both elements, because ambiguous
+ownership would silently make every read follow whichever viewer mounted last.
+Two shapes are exempt, because sharing is the intent rather than a mistake: a
+ref inside `v-for` (Vue collects every match into an array) and a callback ref
+(`:ref="(el) => …"`, where you decide what to do with each value).
 
 ### `useViewer()` vs `useViewerSelector()`
 
@@ -770,11 +776,13 @@ Failures are thrown from a watcher so they reach `onErrorCaptured` and
 | `TriiiceratopsElementVersionError` | `<triiiceratops-viewer>` is already defined by a constructor with no `viewerState` getter — usually a second, older Triiiceratops core that registered first |
 | `TriiiceratopsCoreConflictError` | two different Triiiceratops core versions loaded on one page |
 | `TriiiceratopsElementRegistrationError` | no `customElements` registry — the mount path ran outside a browser |
+| `TriiiceratopsHandleConflictError` | one template ref was put on two viewers |
 
-(`TriiiceratopsHandleConflictError` is also exported here, for parity with
-`triiiceratops/react`, where one handle passed to two viewers raises it.
-Ordinary Vue usage cannot: each `<TriiiceratopsViewer>` owns its own binding and
-a template ref belongs to one element.)
+The handle conflict is raised from the second viewer's mount hook, so it reaches
+`onErrorCaptured` and `app.config.errorHandler` like the others. It is the same
+error, with the same message, that `triiiceratops/react` raises when one
+`useViewerHandle()` slot is passed to two viewers — see
+[One ref per viewer](#the-template-ref-is-the-handle).
 
 Version conflicts are diagnosed **synchronously**, right after registration: the
 wrapper probes the constructor that actually owns the tag for the `viewerState`

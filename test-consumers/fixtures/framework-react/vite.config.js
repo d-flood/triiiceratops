@@ -11,10 +11,11 @@ import { fileURLToPath } from 'node:url';
 //     no JSX to transform. (A real app would add `@vitejs/plugin-react` for
 //     JSX and fast refresh; nothing about the wrapper needs it.)
 //
-// Four routes, one build: the client contract, the server-rendered route
+// Five routes, one build: the client contract, the server-rendered route
 // (whose markup `prerender.mjs` injects after this build), the version-conflict
-// route, and the development-warning route that proves `config: { debug: true }`
-// reaches the wrapper-side logger in the PUBLISHED package.
+// route, the development-warning route that proves `config: { debug: true }`
+// reaches the wrapper-side logger in the PUBLISHED package, and the
+// double-bound-handle route that proves one handle on two viewers throws.
 export default defineConfig({
     build: {
         rollupOptions: {
@@ -25,6 +26,9 @@ export default defineConfig({
                     new URL('./conflict.html', import.meta.url),
                 ),
                 debug: fileURLToPath(new URL('./debug.html', import.meta.url)),
+                doubleBind: fileURLToPath(
+                    new URL('./double-bind.html', import.meta.url),
+                ),
             },
         },
     },

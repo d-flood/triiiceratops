@@ -4,6 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "check": "tsc -p tsconfig.json",
         "build": "vite build && node ./prerender.mjs"
     },
     "dependencies": {
@@ -12,6 +13,9 @@
         "triiiceratops": "file:./vendor/triiiceratops.tgz"
     },
     "devDependencies": {
+        "@types/react": "19.2.18",
+        "@types/react-dom": "19.2.4",
+        "typescript": "~5.9.3",
         "vite": "^6.0.0"
     }
 }
