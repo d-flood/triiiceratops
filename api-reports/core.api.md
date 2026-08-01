@@ -4473,6 +4473,17 @@ export declare function useViewerSelector<T>(projection: ViewerProjection<T>, op
  *   attribute inheritance stays predictable even though the component renders a
  *   single element.
  *
+ * ## The template ref belongs to one viewer
+ *
+ * The handle is an ordinary template ref rather than a wrapper-owned prop, so
+ * nothing about the component's signature says a ref may not be reused. The
+ * mount hook therefore claims the BOX the ref writes into, through the same
+ * substrate slot React's `handle` prop claims: one ref put on two viewers
+ * raises `TriiiceratopsHandleConflictError` naming both elements instead of
+ * silently making every read follow whichever mounted last. See
+ * `templateRefOwnership.ts` for which ref shapes own a box and which (a
+ * callback ref, a ref inside `v-for`) deliberately do not.
+ *
  * `manifestId` and `canvasId` are one-way, UNCONTROLLED inputs: they are an
  * instruction to the viewer, not a continuously enforced binding, so
  * re-asserting an unchanged value after the user navigates internally writes

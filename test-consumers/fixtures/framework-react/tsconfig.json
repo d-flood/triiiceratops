@@ -1,0 +1,30 @@
+{
+    // The automated form of the epic's headline promise: a React consumer that
+    // installs NO Svelte compiles against the packed tarball's `./react`,
+    // `./selectors`, and `./testing` declarations.
+    //
+    // `skipLibCheck: false` is the whole point — every `.d.ts` in the program is
+    // checked, so an unresolvable Svelte type import anywhere in those
+    // declaration graphs is an error here. `types: []` keeps ambient `@types/*`
+    // packages out of the program, so nothing resolves by accident. `strict`
+    // keeps the consumer honest about the nullability the wrappers publish.
+    //
+    // Scoped to `typecheck/` deliberately: the application under `src/` is plain
+    // JavaScript (no React plugin, no JSX transform in the Vite build), and the
+    // `.` entry — which is NOT Svelte-free, by decision — must never be imported
+    // from here.
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "jsx": "react-jsx",
+        "strict": true,
+        "noEmit": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": false,
+        "types": []
+    },
+    "include": ["typecheck/**/*.ts", "typecheck/**/*.tsx"]
+}

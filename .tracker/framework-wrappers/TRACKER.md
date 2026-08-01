@@ -11,63 +11,69 @@ installing Svelte at runtime or at type-check time.
 
 Overall status: `Needs Human Validation or Intervention`
 
-All twelve tickets are implemented and the epic's central promise is verified end to end
-(see "Final epic gate" below). Nine of the ten repository gate commands exit `0`;
-`pnpm test:packed` exits `1` for the one long-standing environment reason (webkit system
-libraries need root). Two things keep the epic from reading `Completed`:
+All twelve tickets are implemented. EPIC-1 is **fixed** and the two gaps the final epic gate
+left open are **closed**; all three were re-verified at the close-out gate below by
+measurement against the packed artifact, independently of the agents that wrote them.
+Eleven of the twelve tickets are `Completed`.
 
-1. **EPIC-1 — the framework wrappers' four development-only warnings are dead in the
-   published package.** They log through `dist/logging/logger.js`, whose debug gate is only
-   ever set by `TriiiceratopsViewer.svelte` — which ships inside the fully self-contained
-   `dist/triiiceratops-element.js` (0 static imports, its own inlined logger). Two module
-   instances, so `config: { debug: true }` cannot reach the wrapper copy. This is a defect,
-   not a nit: it makes user stories 35, 45, and half of 62 undeliverable, contradicts a claim
-   the React and Vue guides repeat seven times, and invalidates an explicit acceptance
-   criterion in tickets 01, 05, and 06. **Needs an owner decision** (see "What still needs
-   the owner").
-2. **Ticket 02** is still `Needs Human Validation or Intervention` for the same environment
-   reason as before: `wc-parity.spec.ts` passes on chromium and firefox but cannot launch
-   webkit here. Re-confirmed on 2026-07-31.
+Exactly ONE thing keeps the epic from reading `Completed`:
 
-Everything else holds. The epic delivers 70 of SPEC.md's 76 user stories outright, 1 by a
-recorded superseded decision, 3 partially, and 2 not at all (both are EPIC-1).
+- **Ticket 02** is `Needs Human Validation or Intervention` for the same environment reason
+  it has had all along: `wc-parity.spec.ts` passes on chromium and firefox but cannot launch
+  webkit on this machine (missing system libraries; installing them needs root). The same
+  limitation makes `pnpm test:packed` exit `1` locally, in the two CSP fixtures only.
+  Re-confirmed on 2026-08-01.
 
-Last updated: 2026-07-31
+The epic delivers 73 of SPEC.md's 76 user stories outright, 1 by a recorded superseded
+decision, and 2 partially. Nothing is undelivered.
+
+Last updated: 2026-08-01
 
 ## Ledger
 
 | Number | Filename                                        | Status                                 | Depends On     |
 | ------ | ----------------------------------------------- | -------------------------------------- | -------------- |
-| 01     | `01-generalize-selector-runtime.md`             | Needs Human Validation or Intervention | None           |
+| 01     | `01-generalize-selector-runtime.md`             | Completed                              | None           |
 | 02     | `02-custom-element-state-bridge.md`             | Needs Human Validation or Intervention | None           |
 | 03     | `03-remove-svelte-types-from-public-surface.md` | Completed                              | None           |
 | 04     | `04-identity-keyed-plugin-activation.md`        | Completed                              | None           |
-| 05     | `05-framework-wrapper-substrate.md`             | Needs Human Validation or Intervention | 01, 02, 03     |
+| 05     | `05-framework-wrapper-substrate.md`             | Completed                              | 01, 02, 03     |
 | 12     | `12-drop-legacy-plugindef.md`                   | Completed                              | None           |
-| 06     | `06-react-framework-wrapper.md`                 | Needs Human Validation or Intervention | 05, 12         |
+| 06     | `06-react-framework-wrapper.md`                 | Completed                              | 05, 12         |
 | 07     | `07-vue-framework-wrapper.md`                   | Completed                              | 05, 12         |
 | 08     | `08-consumer-testing-helper.md`                 | Completed                              | 06, 07         |
 | 09     | `09-packed-framework-consumers.md`              | Completed                              | 04, 06, 07, 08 |
 | 10     | `10-public-api-release.md`                      | Completed                              | 09, 12         |
-| 11     | `11-framework-wrapper-docs.md`                  | Needs Human Validation or Intervention | 06, 07, 08     |
+| 11     | `11-framework-wrapper-docs.md`                  | Completed                              | 06, 07, 08     |
 
-Why the four non-`Completed` statuses besides 02 — all one root cause, EPIC-1:
+Tickets 01, 05, 06, and 11 were `Needs Human Validation or Intervention` for one shared
+reason — EPIC-1, the dead development warnings — and each was moved to `Completed` only
+after ITS OWN criterion was re-measured against the published artifact, not as a batch. What
+was measured, at the close-out gate below:
 
-- **01** — acceptance criterion "A development-only warning fires once when a `state`-cadence
-  projection reads through `osd`" is satisfied in vitest (one module instance) and unmet in
-  the published artifact.
-- **05** — acceptance criterion "All three development warnings fire once and only in
-  development" is unmet in the published artifact. (Separately: there is no
-  development/production distinction anywhere in the mechanism; the gate is
-  `ViewerConfig.debug`, not `NODE_ENV`.)
-- **06** — the second half of "a `state`-cadence projection reading `osd` triggers the
-  development warning" is unmet in the published artifact.
-- **11** — `docs/react.md` and `docs/vue.md` tell readers, in seven places, that
-  `config: { debug: true }` surfaces these warnings. It does not. The rest of ticket 11 was
-  spot-checked against source and holds.
+- **01** — "a debug-mode warning fires once when a `state`-cadence projection reads through
+  `osd`, and does not fire for `frame` cadence — including when debug mode is switched on
+  after the projection was first read, and in the PUBLISHED package". All four clauses
+  measured against the installed tarball: silent with `debug` off; exactly one warning after
+  the flag is switched on later; still exactly one across 25 further recomputes; zero at
+  `frame` cadence.
+- **05** — "all three debug-mode warnings fire once with `config: { debug: true }` and not at
+  all without it". All three measured against the installed tarball: the unmemoized
+  property-tier prop (naming the prop), the unbound handle, and the second `ViewerState`.
+- **06** — "a `state`-cadence projection reading `osd` triggers the debug-mode warning under
+  `config: { debug: true }`, in the PUBLISHED package". Measured twice: directly against the
+  tarball, and through the `framework-react` packed fixture's `debug.html` route in a real
+  browser.
+- **11** — the `config: { debug: true }` claims in `docs/react.md` and `docs/vue.md` are now
+  true as written, and both guides were corrected to name `ViewerConfig.debug` rather than
+  "development" mode; both now also state the page-level, most-recent-opinion-wins rule and
+  tell the reader to pass `config: { debug: false }` to turn the warnings off, which matches
+  what was measured. `docs:examples:check` (90 examples, in sync) and `docs:build` exit 0,
+  and the `docs-examples` packed fixture passes under npm and pnpm. Its Run block's
+  `pnpm test:packed` exits `1` only for the two webkit-blocked CSP fixtures, which have
+  nothing to do with this ticket.
 
-None of these four needs its implementation redone; they need EPIC-1 decided and then a
-one-line status flip (plus, for 11, a docs correction that matches whatever is decided).
+Ticket 02 is unchanged and still environment-blocked; see "What still needs the owner".
 
 Ticket 12 was added mid-epic, after the wave-1 gate proved that the epic's "no Svelte at
 type-check time" promise is unreachable while `ViewerState` references `PluginDef` and the
@@ -77,7 +83,174 @@ ticket 03's "Do not change `PluginDef`, `PluginPanel`, `PluginFlyout`, or `Plugi
 constraint and the SPEC's statement that the leak is "resolved by scope"; see the
 **Superseded decisions** section of `SPEC.md`.
 
+## Close-out gate (2026-08-01)
+
+Run on `react-and-vue-adapters` at `c6fe0e0` — after the EPIC-1 fix (`6c54827`) and the
+two-gap fix (`c6fe0e0`) — independently of both implementing agents' accounts. Where this
+section and the 2026-07-31 "Final epic gate" below disagree, this one is current; the older
+section is kept as the historical record and is annotated in place.
+
+### The gate commands
+
+| Command                    | Exit  | Note                                                                               |
+| -------------------------- | ----- | ---------------------------------------------------------------------------------- |
+| `pnpm check`               | 0     |                                                                                    |
+| `pnpm test`                | 0     | the `applier.upgrade.test.ts` teardown flake recorded below did not reproduce here |
+| `pnpm lint`                | 0     |                                                                                    |
+| `pnpm format:check`        | 0     |                                                                                    |
+| `pnpm build:all`           | 0     |                                                                                    |
+| `pnpm api:check`           | 0     |                                                                                    |
+| `pnpm docs:examples:check` | 0     | 90 examples, in sync                                                               |
+| `pnpm docs:build`          | 0     | **needs `.venv/bin` on `PATH`** — see below                                        |
+| `pnpm test:coverage`       | 0     |                                                                                    |
+| `pnpm coverage:check`      | 0     | floor OK for 7 packages                                                            |
+| `pnpm test:packed`         | **1** | run to completion: 25 fixtures × 2 package managers = 50 runs, **46 PASS, 4 FAIL** |
+
+`pnpm docs:build` fails with `ENOENT: spawnSync zensical` on a shell that has not activated
+the Python environment. It is not a repository defect and not a regression: `uv sync` then
+`PATH=.venv/bin:$PATH pnpm docs:build` exits 0. Worth stating plainly because the raw command
+looks like a broken gate.
+
+The four `test:packed` failures are `csp-svelte [npm]`, `csp-svelte [pnpm]`,
+`csp-wc-iife [npm]`, `csp-wc-iife [pnpm]`. Each reaches its third engine — the chromium and
+firefox legs run first and pass — and fails with
+`browserType.launch: Host system is missing dependencies to run browsers`. Nothing in this
+epic touches those fixtures. `framework-react` and `framework-vue` PASS under npm AND pnpm,
+with the new `check` (consumer `tsc`) step visible as its own driver step in all four runs.
+
+### The three closing fixes, verified independently
+
+Not by reading the code and not by re-running the fixtures the fixing agents wrote. Every
+measurement below drives the **installed packed tarball** — `npm pack` from the final `dist`,
+installed with `file:` into a copy of each fixture — through purpose-written probes. Each
+probed module was first confirmed byte-identical (`sha256`) between `packages/core/dist` and
+the installed tarball.
+
+**1. All four wrapper development warnings are reachable with `config: { debug: true }` and
+silent without it.** Measured on the tarball, with the flag set ONLY the way a consumer sets
+it (a `config` value written through the real property-tier applier — never by calling
+`configureLogging`):
+
+| Warning                                  | `debug` absent | `debug: false` | `debug: true`                       |
+| ---------------------------------------- | -------------- | -------------- | ----------------------------------- |
+| unmemoized property-tier prop            | silent         | silent         | 1 warning, names `themeConfig`      |
+| handle created and never bound           | —              | silent         | 1 warning                           |
+| `state`-cadence projection reading `osd` | —              | silent         | 1 warning, names `cadence: 'frame'` |
+| second `ViewerState` published           | —              | silent         | 1 warning                           |
+
+The four edge cases the owner named were each measured, not assumed: a `config` supplied as a
+JSON string turns the warnings on; an unparseable string states no opinion; a `config` with no
+`debug` key states no opinion (so a second viewer cannot silence the first); and flipping the
+same live viewer back to `{ debug: false }` silences them again. Ticket 01's remaining clauses
+hold too: exactly one warning when debug is switched on AFTER the projection was created and
+first read, still exactly one across 25 further recomputes, and zero at `frame` cadence.
+
+The probe has teeth. Replacing `bridgeViewerDebugFlag(value)` with `void value` in the
+installed `dist/framework/applier.js` turns 12 passing assertions into 6; restoring the file
+returns all 12. The third logger instance the EPIC-1 agent found was checked separately: the
+`osd` warning also fires through the selector runtime that `dist/testing/index.js` builds
+inside its own bundle, reached the way a consumer reaches it (the shared runtime registry).
+
+**2. Vue throws `TriiiceratopsHandleConflictError` on a double-bound template ref.** One
+`shallowRef` on two `<TriiiceratopsViewer>`s, mounted from the tarball's `dist/vue.js` against
+the fixture's own Vue: exactly one error reaches `app.config.errorHandler`, it is
+`instanceof TriiiceratopsHandleConflictError`, its `code` is `VIEWER_HANDLE_CONFLICT`, and its
+message names both `probe-a` and `probe-b`. Two control cases stay silent: two separate refs,
+and a ref freed by unmount then reused by a second viewer.
+
+One caveat worth recording: the ownership claim is discovered through `getCurrentInstance()`,
+so it silently does nothing if the application and the wrapper resolve DIFFERENT copies of
+`vue`. Observed accidentally while writing the probe (Vue itself warns "Missing ref owner
+context"). A duplicated Vue is already broken for many other reasons, but the failure mode
+here is silence, not an error.
+
+**3. The packed fixtures' type check actually bites.** `npm run check` in each installed
+fixture exits 0 clean, with no Svelte package anywhere in either `node_modules`. Four Svelte
+type leaks were then planted, one per subpath the promise names, and each was caught:
+
+| Plant                                                                          | Fixture           | Exit | Reverted |
+| ------------------------------------------------------------------------------ | ----------------- | ---- | -------- |
+| `export … from './components/TriiiceratopsViewer.svelte'` in `dist/react.d.ts` | `framework-react` | 2    | 0        |
+| the same in `dist/vue.d.ts`                                                    | `framework-vue`   | 2    | 0        |
+| `export type { Component } from 'svelte'` in `dist/state/selectors/index.d.ts` | `framework-react` | 2    | 0        |
+| the same in `dist/testing/index.d.ts`                                          | `framework-vue`   | 2    | 0        |
+
+Each failed with `TS2307: Cannot find module 'svelte'`, and each returned to exit 0 when
+reverted. SPEC's "at least one type-test consumer compiles with `skipLibCheck: false` and no
+Svelte installed, so a Svelte type leak fails the build" is now automated in the packed
+matrix under both package managers.
+
+### User-story audit against SPEC.md (76 stories), re-scored
+
+**73 delivered, 1 deliberately superseded, 2 partial, 0 not delivered.** Changes from the
+2026-07-31 scoring, each backed by a measurement above:
+
+- **36** — _partial → delivered_. Vue now raises the same error React does, naming both
+  elements.
+- **45** — _not delivered → delivered_. The warning fires in the published package.
+- **62** — _partial → delivered_. Documented in `docs/vue.md` and the re-availability warning
+  fires in the published package.
+- **35** — _not delivered → partial_, for the residual reason only. The warning now fires in
+  the published package, so EPIC-1 no longer blocks it; what remains is that Vue has no
+  handle-CREATION API to arm. A Vue consumer's handle is an ordinary template ref, and an
+  unused ref is indistinguishable from any other unused ref, so there is nothing for the
+  wrapper to warn about. Delivered for React, inapplicable to Vue, and stated in the guides.
+
+Still not fully delivered:
+
+- **8** (published declarations resolve with no Svelte installed) — _deliberately superseded_.
+  Unchanged: met for `./react`, `./vue`, `./selectors`, `./testing`, and `./image-export`; the
+  `.` entry keeps its single documented residual by the recorded decision.
+- **35** — _partial_, React-only by nature. See above.
+- **67** (testing helper importable with no React, Vue, or Svelte, in whatever runner you
+  already use) — _partial_, unchanged. Re-measured: importing the built
+  `dist/testing/index.js` in bare Node still throws `ReferenceError: self is not defined`,
+  from the `manifesto.js` fetch polyfill. Works under jsdom/happy-dom, i.e. in every runner a
+  React or Vue consumer actually has. Pre-existing and documented in both guides.
+
+### What still needs the owner
+
+1. **Install the webkit system libraries and re-run** (`sudo pnpm exec playwright
+install-deps`, or `libgstreamer-plugins-bad1.0-0 libflite1 libavif16 gstreamer1.0-libav`),
+   then `pnpm test:packed` and `playwright test tests/wc-parity.spec.ts`. That closes ticket
+   02 and turns the local packed matrix green. **Needs root.** This is the only thing standing
+   between the epic and `Completed`.
+2. **Run `pnpm release:smoke -- --manifest …` once against a test registry.** Unchanged from
+   the previous gate: every probe body was validated offline against a `file:`-installed
+   tarball, but the registry-fetch plumbing itself has never been exercised. Needs a registry
+   the owner controls.
+3. **Fix the `applier.upgrade.test.ts` teardown flake, or accept random CI failures.**
+   Measured by the gap-fix agent on the clean tree at `6c54827` (1 of 16 runs) and with the
+   branch's changes (2 of 12), so it is pre-existing and timing-dependent, not caused by this
+   work: an unhandled `TypeError: dom.removeEventListener is not a function` from Svelte's
+   `execute_effect_teardown` arrives AFTER the file's tests pass, and `pnpm test` then exits 1
+   with "880 passed, 2 errors". It did NOT reproduce in this gate's run. Nobody owns it.
+4. **Decide whether `.` should ever be Svelte-free.** Unchanged and still owned by nobody; the
+   shape of the fix is recorded in "Ticket 10 outcome" and the exemption is encoded in
+   `SVELTE_CONSUMER_SUBPATHS`.
+5. **Watch the `packed-consumers` CI job's duration.** Still unmeasured against its 60-minute
+   timeout. The full local matrix took roughly 45 minutes on a 20-core machine, and CI runs it
+   twice (Node 22 and 24) on smaller runners — and each of `framework-react` and
+   `framework-vue` now runs an extra consumer `tsc` and builds two more routes.
+6. **Consider a build-time guard for shared module identity.** Three separate defects in this
+   epic were the same bug: a module holding module-level MUTABLE state got inlined into a
+   second published entry, producing two instances (two `WeakMap`s in ticket 08; two — in fact
+   three — loggers in EPIC-1). The standing rule is now "any module in `src/lib` holding
+   module-level mutable state that a different published entry reads or writes must be listed
+   in `SHARED_MODULE_IDENTITY` in `vite.config.testing.ts`", but nothing enforces it. A guard
+   enumerating such modules and asserting they are never inlined into a second entry would
+   catch the next one automatically. `vue/templateRefOwnership.ts` is the newest module of
+   that class (two ownership registries); it is safe today because only `dist/vue.js` reaches
+   it, as a real module.
+7. **Confirm the release bump for the two closing changesets.** `.changeset/
+bridge-viewer-debug-flag.md` and `.changeset/vue-template-ref-ownership.md` are `patch` on
+   `triiiceratops` and `.changeset/packed-framework-typecheck.md` covers the fixture work; the
+   repo is in `pre`/rc mode, so the release manager may want them treated differently.
+
 ## Final epic gate (all twelve tickets, composed)
+
+**Superseded in part by the close-out gate above (2026-08-01).** Kept as the historical
+record of what was true on 2026-07-31, with corrections annotated in place.
 
 Run on `react-and-vue-adapters` at `90c07a8`, 2026-07-31, independently of every implementing
 agent's account. The working tree was clean before and after.
@@ -159,6 +332,16 @@ That is ticket 08's shared-registry fix holding in the artifact, verified from o
 
 ### EPIC-1 — the four development-only warnings never fire in the published package
 
+> **FIXED in `6c54827`, and re-verified at the close-out gate above.** This subsection is the
+> diagnosis, kept for the record. Two corrections to it: there were **three** logger
+> instances, not two — `dist/testing/index.js` inlined a third, and because
+> `configureLogging` was unreachable from that entry the minifier proved `debugEnabled` a
+> constant `false` and DELETED the `osdViewer` probe from that artifact outright. And the
+> chosen fix was none of the three options listed under "Not fixed here": the owner chose to
+> **bridge the flag at registration**, so `config: { debug: true }` configures the
+> wrapper-side logger when the property-tier applier writes `config`. No public API changed.
+> See "The EPIC-1 fix" below.
+
 **Measured, not inferred.** `dist/triiiceratops-element.js` contains **0** static import
 statements and its own inlined `[triiiceratops]` log prefix: it is a fully self-contained
 bundle. `configureLogging` has exactly one caller in the whole repository —
@@ -202,6 +385,11 @@ changed in product code or in the guides so the owner is not pre-empted.
 
 1. **SPEC's "at least one type-test consumer compiles with `skipLibCheck: false` and no Svelte
    installed, so a Svelte type leak fails the build" is not automated anywhere.**
+   **CLOSED in `c6fe0e0`:** `framework-react` and `framework-vue` each gained a
+   `tsconfig.json` (`skipLibCheck: false`, `strict`, `types: []`) and a `check` script, run by
+   a new `checkScript` step in the packed driver before the build, under both package
+   managers. Re-verified at the close-out gate by planting a Svelte type leak into four
+   installed `.d.ts` files. The rest of this finding is the pre-fix state:
    `strict-osd-types` uses `skipLibCheck: false` but installs `svelte` and imports the `.`
    entry; `docs-examples` installs `svelte` and uses `skipLibCheck: true`; `framework-react`
    and `framework-vue` are plain JavaScript with no `tsconfig.json` and no `tsc` step. Every
@@ -211,9 +399,13 @@ changed in product code or in the guides so the owner is not pre-empted.
    declaration graph) and `check:framework-entries` (runtime graph); both were independently
    mutation-tested here and both bite. They are narrower than a consumer `tsc` run but, for
    the Svelte question specifically, arguably stricter.
-2. **Story 36 is React-only, and that is fine but worth stating.** The Vue wrapper never
+2. **Story 36 is React-only, and that is fine but worth stating.** ~~The Vue wrapper never
    claims a `ViewerHandleSlot`, so `TriiiceratopsHandleConflictError` is exported from
-   `triiiceratops/vue` and can never be thrown by it. `docs/vue.md` says so explicitly.
+   `triiiceratops/vue` and can never be thrown by it.~~ **NO LONGER TRUE, closed in
+   `c6fe0e0`:** the Vue wrapper now resolves the template ref Vue recorded on its own vnode to
+   the box the value is written into and gives that box the substrate's real handle slot to
+   claim, so one ref on two viewers raises the same `TriiiceratopsHandleConflictError`, naming
+   both elements. `docs/vue.md` was updated. Story 36 is delivered outright.
 3. **Stale claim corrected below**: the 06/07 gate recorded "No `.tsx` and no `.vue` file
    exists in the repository". 32 tracked `.tsx`/`.vue` files exist now (generated
    docs-example output and the Vue fixture's SFCs). Ticket 09 already flagged this; the
@@ -235,6 +427,11 @@ changed in product code or in the guides so the owner is not pre-empted.
    has not drifted yet.
 
 ### User-story audit against SPEC.md (76 stories)
+
+> **Superseded by "User-story audit against SPEC.md (76 stories), re-scored" in the close-out
+> gate above.** Stories 35, 36, 45, and 62 were all re-scored after the two closing fixes; the
+> current tally is 73 delivered, 1 superseded, 2 partial, 0 not delivered. The scoring below
+> is what was true on 2026-07-31.
 
 **70 delivered, 1 deliberately superseded, 3 partial, 2 not delivered.** Everything not fully
 delivered:
@@ -264,7 +461,12 @@ that was read rather than trusted.
 
 ### What still needs the owner
 
-1. **Decide EPIC-1.** Either make the wrapper-side warnings reachable (export
+> **Superseded by "What still needs the owner" in the close-out gate above.** Items 1 and 4
+> below are DONE (EPIC-1 was decided and fixed in `6c54827`; the consumer type-check was
+> automated in `c6fe0e0`). Items 2, 3, 5, and 6 are still open and are restated there.
+
+1. ~~**Decide EPIC-1.**~~ **DONE — bridged at registration; see "The EPIC-1 fix" below.**
+   Either make the wrapper-side warnings reachable (export
    `configureLogging` from `./react` and `./vue`, bridge the flag during registration, or
    switch the gate to `NODE_ENV`) or drop the promise and remove the seven
    "`config: { debug: true }`" claims from `docs/react.md` and `docs/vue.md` and the three
@@ -279,16 +481,113 @@ that was read rather than trusted.
    rewrote it to cover both framework subpaths and validated every probe body offline against
    a `file:`-installed tarball, but the registry-fetch plumbing itself is still unexercised.
    Needs a registry the owner controls.
-4. **Decide whether to automate the `skipLibCheck: false` + no-Svelte consumer type-check**
-   (finding 1 above) — most cheaply as a `tsconfig.json` and a `check` script inside
-   `framework-react` / `framework-vue`, which already install exactly the right dependency
-   set. Adds a `tsc` run to two packed fixtures.
+4. ~~**Decide whether to automate the `skipLibCheck: false` + no-Svelte consumer
+   type-check**~~ **DONE in `c6fe0e0`, exactly as sketched here** — a `tsconfig.json` and a
+   `check` script inside `framework-react` / `framework-vue`, which already install exactly
+   the right dependency set. Adds a `tsc` run to two packed fixtures.
 5. **Decide whether `.` should ever be Svelte-free.** Unchanged and still owned by nobody; the
    shape of the fix is recorded in "Ticket 10 outcome" and the exemption is encoded in
    `SVELTE_CONSUMER_SUBPATHS`.
 6. **Watch the `packed-consumers` CI job's duration.** Still unmeasured against its 60-minute
    timeout; the full local matrix took roughly 45 minutes on a 20-core machine, and CI runs it
    twice (Node 22 and 24) on smaller runners.
+
+## The EPIC-1 fix (`6c54827`) — what a later reader must know
+
+The owner's decision was to **bridge the flag at registration**: no new public API, no docs
+rewrite, and the switch stays where the guides already say it is, `ViewerConfig.debug`. The
+root cause turned out to have three independent parts, each of which had to be fixed for the
+warnings to reach a real consumer.
+
+1. **The bridge.** `packages/core/src/lib/framework/debugFlag.ts`, called from the
+   property-tier applier's `write()` when it writes `config`. It resolves the value the way
+   the element does (object, or JSON string) and, if the resolved object carries a `debug`
+   key, calls `configureLogging({ debug })` on the wrapper-side logger. The four cases the
+   owner named are handled and documented at that module's top: a JSON string is parsed (an
+   unparseable one states no opinion); an absent `config` is never written, so the flag keeps
+   its default; a `config` with no `debug` key deliberately states NO opinion; a `config` that
+   changes after mount re-bridges in both directions, because the applier is edge-triggered;
+   two wrappers that disagree resolve most-recent-opinion-wins, the rule `configureLogging`
+   already documents.
+2. **The selector-runtime probe.** `state/selectors/runtime.ts` decided whether to install the
+   `osdViewer` probe inside `compute()` only — at whatever moment a projection happened to be
+   read first. Since `read()` is memoized by notification version, a projection first read
+   before the flag was bridged never probed again. An `owesOsdProbe()` predicate now forces
+   exactly ONE re-evaluation after debug turns on (`probedOsdRead` makes it one-shot). With
+   debug off it short-circuits on a boolean: no accessor, no timer, no re-evaluation, so an
+   idle viewer still costs nothing (story 44 is unaffected).
+3. **A THIRD logger instance nobody had recorded.** `dist/testing/index.js` inlined its own
+   copy of `logging/logger.js`. Because `configureLogging` is unreachable from that entry's
+   exports, the minifier could prove `debugEnabled` a constant `false` and DELETE the
+   `osdViewer` probe from the artifact entirely — the warning was not merely silent there, it
+   was physically absent (`grep 'OpenSeadragon instance' dist/testing/index.js`: 0 before, 1
+   after). `logging/logger.js` is now kept external in `vite.config.testing.ts` alongside
+   `framework/runtimeRegistry.js`, through the same documented `SHARED_MODULE_IDENTITY`
+   mechanism.
+
+**One deliberate, documented asymmetry remains between the two loggers.** The element resolves
+a config with no `debug` key to `false` (`config?.debug ?? false`); the wrapper-side bridge
+treats a missing key as "no opinion" and leaves the flag alone. That is what stops a second
+viewer configured `{ locale: 'fr' }` from silencing the diagnostics the first viewer asked
+for. The consequence: going from `config: { debug: true }` to `config: {}` (or clearing
+`config`) leaves the wrapper warnings ON while the element's own logging goes off. Both guides
+now say to pass `config: { debug: false }` to turn them off. If that asymmetry is ever judged
+unacceptable, note that `framework/applier.test.ts`'s existing "warns per prop" and "does not
+warn below the threshold" tests depend on it.
+
+Also worth remembering: the Vue debug fixture route needs its OSD projection to read a Vue
+reactive dependency, because a `computed` is lazy and an idle viewer never re-evaluates it.
+React's `useSyncExternalStore` re-reads on every render; Vue does not.
+
+## The two-gap fix (`c6fe0e0`) — what a later reader must know
+
+**Vue's double-bound template ref.** `packages/core/src/lib/vue/templateRefOwnership.ts` reads
+the ref Vue itself recorded for the component (`instance.vnode.ref`, captured in `setup` via
+`getCurrentInstance()`), resolves it to the BOX the value will be written into, and gives that
+box the substrate's real `createViewerHandleSlot()` to `claim()`. So the ownership rule, the
+conflict detection, and the error naming both elements are the substrate's — identical to
+React's — and only "which box" is Vue-specific. Three ref shapes: a ref object is its own box;
+a string ref's box is `instance.refs[name]` on the OWNING component, so the same name in two
+different components does not conflict; a callback ref owns nothing. Vue's `v-for` marker
+(`f`) is skipped, because collecting into an array is the documented intent. `<KeepAlive>`
+needed explicit handling: Vue clears the template ref when it deactivates a component but
+never runs `onBeforeUnmount`, so the wrapper releases on `onDeactivated` and re-claims on
+`onActivated`, idempotently.
+
+Two properties of this that are easy to lose:
+
+- The key is read from `instance.vnode.ref`, whose atom shape (`{ i, r, k, f }`) is
+  Vue-internal and not an exported type. It is restated structurally in that module and only
+  `i`, `r`, and `f` are read. It is stable across Vue 3.x and is the one place the Vue wrapper
+  depends on something outside Vue's documented surface — re-check it on a Vue 4 upgrade.
+- The claim is discovered through `getCurrentInstance()`, so it does nothing at all if the
+  application and the wrapper resolve different copies of `vue`. Observed at the close-out
+  gate; Vue itself warns "Missing ref owner context", but the ownership check's own failure
+  mode is silence.
+
+One asymmetry with React remains, by nature rather than by choice: React's conflict is thrown
+from a layout effect and unmounts the subtree through the error boundary, so viewer 1 goes
+away with it. Vue's is thrown from `onMounted`, and Vue's error handling leaves the tree
+standing — viewer 1 stays bound and usable, and the offending second viewer stays rendered but
+unbound. The source suite pins the Vue behaviour; the shared packed assertion deliberately
+checks only the error.
+
+**The automated consumer type check.** `framework-react` and `framework-vue` each gained a
+`tsconfig.json` (`skipLibCheck: false`, `strict`, `types: []`, `jsx: react-jsx` for React) and
+a `check` script, wired in through a new optional `checkScript` step in the packed driver that
+runs before the build. Between them the two programs cover `./react`, `./vue`, `./selectors`,
+and `./testing`; `.` is never imported. The shared journey additionally asserts the compiler
+options themselves and which subpaths are imported, so the guarantee cannot be quietly retired
+by editing the tsconfig or deleting an import.
+
+Two traps recorded by the implementing agent and worth keeping:
+
+- `framework-consumer-assert.mjs`'s no-Svelte scan matches ANY `from '…svelte…'` occurrence in
+  a fixture file, **including inside comments**. Writing the word in a doc comment inside a
+  fixture fails the fixture. It cost one full packed run.
+- The `checkScript` seam is generic. `strict-osd-types` and `docs-examples` still overload
+  `buildScript` for their `tsc` runs and could move to `checkScript` for clearer logs; nothing
+  required it, so they were left alone.
 
 ## Notes
 
@@ -907,10 +1206,14 @@ getServerSnapshot` SSR failure. Vue is written as single-file components with
    deliberately parallel. Low-level custom-element guidance survives in full
    under `integration.md`'s new low-level section, reframed rather than deleted.
 
-Left alone deliberately: `framework/handle.js`, `errors.js`, and `logger.js` are
-still BUNDLED into the testing entry. Only the registry needs shared module
-identity. The consequence is that a test handle mistakenly passed to a real
-`<TriiiceratopsViewer>` throws a `TriiiceratopsHandleConflictError` with the
+Left alone deliberately: `framework/handle.js`, `errors.js`, and ~~`logger.js`~~ are
+still BUNDLED into the testing entry. ~~Only the registry needs shared module
+identity.~~ **CORRECTED 2026-08-01: `logging/logger.js` was NOT safe to bundle and is now
+external too — that inlined third copy is EPIC-1 part 3, and the minifier deleted a whole
+diagnostic from the artifact because of it. `SHARED_MODULE_IDENTITY` in
+`vite.config.testing.ts` now lists `framework/runtimeRegistry.js` AND `logging/logger.js`.**
+The consequence of `errors.js` still being bundled is that a test handle mistakenly passed to
+a real `<TriiiceratopsViewer>` throws a `TriiiceratopsHandleConflictError` with the
 right name and message but not `instanceof` the class `triiiceratops/react`
 exports; the code comment that overclaimed this now says so.
 
@@ -932,6 +1235,12 @@ first). Both expose the SAME in-page control surface — `window.__tri`,
 `window.__ssr`, `window.__conflict` — which is what lets one journey drive both
 frameworks and prove they implement the same contract rather than two similar
 ones.
+
+**Updated 2026-08-01: each fixture now builds FIVE routes and runs a `check` step before the
+build.** `debug.html` (`window.__debug`) was added by the EPIC-1 fix and `double-bind.html`
+(`window.__doubleBind`) by the two-gap fix, each with the same shared control surface and each
+driven from the same shared journey. The `check` step runs the fixture's own
+`tsc -p tsconfig.json` over `typecheck/`.
 
 Facts worth not rediscovering:
 

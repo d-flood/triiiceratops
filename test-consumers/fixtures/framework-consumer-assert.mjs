@@ -5,11 +5,13 @@ import { expect } from '@playwright/test';
 // The shared journey for the two packed framework-wrapper consumer fixtures
 // (`framework-react`, `framework-vue`).
 //
-// Both fixtures build three routes from the SAME packed `triiiceratops`
+// Both fixtures build five routes from the SAME packed `triiiceratops`
 // tarball and expose one identical in-page control surface (`window.__tri` on
 // the client route, `window.__ssr` on the server route, `window.__conflict` on
-// the conflict route), so this one journey can drive both frameworks and prove
-// their behaviour is genuinely the same contract rather than two similar ones.
+// the version-conflict route, `window.__debug` on the development-warning
+// route, and `window.__doubleBind` on the double-bound-handle route), so this
+// one journey can drive both frameworks and prove their behaviour is genuinely
+// the same contract rather than two similar ones.
 //
 // Everything asserted here is PUBLIC wrapper behaviour observed from outside:
 // DOM attributes and properties, rendered readouts, delivered event payloads,
@@ -112,7 +114,7 @@ function assertNoSvelteAndNoSdk(fixtureDir, { absentPeer }) {
     ).toBe(false);
 
     for (const file of fixtureFiles(fixtureDir)) {
-        if (!/\.(m?js|ts|json|html|vue)$/.test(file.path)) continue;
+        if (!/\.(m?js|tsx?|json|html|vue)$/.test(file.path)) continue;
         // `harness.mjs` is driver-side orchestration, not part of the consumer
         // application, and it is never installed or built.
         if (file.path === 'harness.mjs') continue;
@@ -132,6 +134,73 @@ function assertNoSvelteAndNoSdk(fixtureDir, { absentPeer }) {
     expect(
         existsSync(join(fixtureDir, 'svelte.config.js')),
         'the fixture must ship no Svelte config',
+    ).toBe(false);
+}
+
+/**
+ * The epic's headline promise, pinned as configuration.
+ *
+ * The fixture's `check` script (`tsc -p tsconfig.json`, run by the driver before
+ * the build) is the automated form of "a consumer with no Svelte installed
+ * compiles the framework subpaths under `skipLibCheck: false`". That only means
+ * something while the settings hold and the program actually reaches those
+ * declarations, so both are asserted here rather than trusted: flipping
+ * `skipLibCheck`, adding an ambient `types` entry, or deleting the imports fails
+ * the fixture instead of quietly retiring the guarantee.
+ *
+ * `.` is deliberately exempt — it is the Svelte consumer's entry and exports the
+ * compiled component — so importing it from the type-check program is an error
+ * here too.
+ */
+function assertStrictTypeCheck(fixtureDir, { framework }) {
+    const pkg = JSON.parse(
+        readFileSync(join(fixtureDir, 'package.json'), 'utf8'),
+    );
+    expect(
+        pkg.scripts?.check,
+        'the fixture must expose a `check` script that runs tsc',
+    ).toContain('tsc');
+
+    const raw = readFileSync(join(fixtureDir, 'tsconfig.json'), 'utf8');
+    // The file is commented for the reader; strip whole-line comments so the
+    // options can be read back without a JSON5 dependency.
+    const tsconfig = JSON.parse(raw.replace(/^\s*\/\/.*$/gm, ''));
+    const options = tsconfig.compilerOptions ?? {};
+    expect(
+        options.skipLibCheck,
+        'skipLibCheck MUST stay false — it is what makes a type leak fail',
+    ).toBe(false);
+    expect(options.strict, 'strict MUST stay on').toBe(true);
+    expect(
+        options.types,
+        'types: [] keeps ambient @types out, so nothing resolves by accident',
+    ).toEqual([]);
+
+    const sources = fixtureFiles(join(fixtureDir, 'typecheck'))
+        .filter((file) => /\.tsx?$/.test(file.path))
+        .map((file) => readFileSync(file.full, 'utf8'));
+    expect(
+        sources.length,
+        'the type-check program must contain sources',
+    ).toBeGreaterThan(0);
+    const specifiers = new Set(
+        sources.flatMap((text) =>
+            [...text.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]),
+        ),
+    );
+    for (const subpath of [
+        `triiiceratops/${framework}`,
+        'triiiceratops/selectors',
+        'triiiceratops/testing',
+    ]) {
+        expect(
+            specifiers.has(subpath),
+            `the type-check program must import ${subpath}`,
+        ).toBe(true);
+    }
+    expect(
+        specifiers.has('triiiceratops'),
+        'the `.` entry is the Svelte consumer’s and must not be type-checked here',
     ).toBe(false);
 }
 
@@ -161,6 +230,7 @@ export async function assertFrameworkFixture(ctx, options) {
     const { framework, absentPeer, keepAlive } = options;
 
     assertNoSvelteAndNoSdk(fixtureDir, { absentPeer });
+    assertStrictTypeCheck(fixtureDir, { framework });
 
     // ── Client route ───────────────────────────────────────────────────────
     await page.goto(`${baseURL}/`, { waitUntil: 'load' });
@@ -700,6 +770,41 @@ export async function assertFrameworkFixture(ctx, options) {
         quietAgain.warnings,
         `${framework}: config.debug false silences the wrappers again`,
     ).toEqual([]);
+
+    // ── Double-bound-handle route ──────────────────────────────────────────
+    //
+    // SPEC user story 36. One handle, two viewers: the second must fail loudly
+    // and framework-natively. React's handle is the `useViewerHandle()` slot
+    // passed with the `handle` prop; Vue's is an ordinary template ref, which
+    // the wrapper never sees as a prop — so the two arrive at the substrate's
+    // ownership rule by different routes and must reach the SAME error.
+    await page.goto(`${baseURL}/double-bind.html`, { waitUntil: 'load' });
+    await expect(page.locator('[data-testid="double-bind-status"]')).toHaveText(
+        'failed',
+        { timeout: 15_000 },
+    );
+    const doubleBind = await page.evaluate(() => ({
+        captured: window.__doubleBind.captured,
+        elapsedMs: window.__doubleBind.elapsedMs,
+    }));
+    expect(
+        doubleBind.captured.map((entry) => entry.name),
+        `${framework}: one handle on two viewers raises exactly one conflict`,
+    ).toEqual(['TriiiceratopsHandleConflictError']);
+    const doubleBound = doubleBind.captured[0];
+    expect(doubleBound.code).toBe('VIEWER_HANDLE_CONFLICT');
+    expect(
+        doubleBound.message,
+        'the error names the element that already holds the handle',
+    ).toContain('id="double-bind-a"');
+    expect(
+        doubleBound.message,
+        'and the element that tried to take it',
+    ).toContain('id="double-bind-b"');
+    expect(
+        doubleBind.elapsedMs,
+        'the double bind is diagnosed at mount, not by timing out',
+    ).toBeLessThan(5_000);
 
     // ── Page-wide hygiene ──────────────────────────────────────────────────
     expect(

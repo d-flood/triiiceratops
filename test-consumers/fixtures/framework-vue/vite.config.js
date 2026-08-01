@@ -31,6 +31,11 @@ export default defineConfig({
                 // The development-warning route: proves `config: { debug: true }`
                 // reaches the wrapper-side logger in the PUBLISHED package.
                 debug: fileURLToPath(new URL('./debug.html', import.meta.url)),
+                // The double-bound-handle route: proves ONE template ref put on
+                // two viewers throws, exactly as React's handle prop does.
+                doubleBind: fileURLToPath(
+                    new URL('./double-bind.html', import.meta.url),
+                ),
             },
         },
     },

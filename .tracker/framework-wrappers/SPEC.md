@@ -357,6 +357,14 @@ above or with a ticket, these win.
   entirely silent: unmemoized property-tier props, a handle that was never passed to a
   viewer, and a batched-cadence projection reading through `osd`. A fourth warns on
   re-availability, where the silent consequence is viewer-state loss.
+- **Precision on "development-only", added 2026-08-01.** There is no development/production
+  distinction anywhere in the mechanism: all four warnings are gated on `ViewerConfig.debug`,
+  never on `NODE_ENV` or a build condition. "Development-only" throughout this spec means
+  "off unless the consumer passes `config: { debug: true }`". Because the wrappers and the
+  self-contained element bundle carry SEPARATE instances of the logger module in the
+  published package, the wrapper side of that flag is bridged when the property-tier applier
+  writes `config` (`framework/debugFlag.ts`); a `config` with no `debug` key states no
+  opinion, so pass `config: { debug: false }` to turn the warnings back off.
 - The packed-consumer contract remains the highest and primary verification seam. Narrower
   tests exist for static typing, server import evaluation, real-element semantics, and
   selector mechanics that are materially clearer below that seam.

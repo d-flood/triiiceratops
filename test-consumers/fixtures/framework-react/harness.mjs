@@ -6,11 +6,19 @@ import { assertFrameworkFixture } from '../framework-consumer-assert.mjs';
 // no plugin SDK — and no React plugin either, because the app is authored with
 // `createElement`.
 //
-// Three routes, one Playwright pass: the full client contract, a route rendered
-// with `react-dom/server` at build time and hydrated in the browser, and a
-// route that pre-registers a foreign `<triiiceratops-viewer>`.
+// Five routes, one Playwright pass: the full client contract, a route rendered
+// with `react-dom/server` at build time and hydrated in the browser, a route
+// that pre-registers a foreign `<triiiceratops-viewer>`, a route that proves
+// `config: { debug: true }` reaches the wrapper-side warnings, and a route that
+// passes ONE handle to two viewers and must fail loudly.
+//
+// The fixture also type-checks itself: `typecheck/` compiles under
+// `skipLibCheck: false`, `strict`, and `types: []` with NO Svelte installed, so
+// a Svelte type leak into `triiiceratops/react` fails this fixture's build.
 export default {
     name: 'framework-react',
+    // `tsc -p tsconfig.json` over `typecheck/`, before the bundle is built.
+    checkScript: 'check',
     buildScript: 'build',
     serveDir: 'dist',
     // Viewer 2 loads this over HTTP, which is what dispatches `manifestchange`.

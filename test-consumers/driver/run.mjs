@@ -643,6 +643,20 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
     step(`${fixtureName} [${pm}]: install`);
     await installFixture(pm, fixtureDir);
 
+    // An optional type-check step, run BEFORE the build and reported as its own
+    // step so a compile failure is not mistaken for a bundler failure. The
+    // framework fixtures use it for the epic's headline promise: `tsc` with
+    // `skipLibCheck: false` and no Svelte installed, so a Svelte type leaking
+    // into `triiiceratops/react` / `/vue` / `/selectors` / `/testing` fails the
+    // packed run rather than waiting for a human to notice.
+    if (cfg.checkScript) {
+        step(`${fixtureName} [${pm}]: ${pm} run ${cfg.checkScript}`);
+        await run(pm, ['run', cfg.checkScript], {
+            cwd: fixtureDir,
+            timeout: 300_000,
+        });
+    }
+
     if (cfg.buildScript) {
         step(`${fixtureName} [${pm}]: ${pm} run ${cfg.buildScript}`);
         await run(pm, ['run', cfg.buildScript], {
