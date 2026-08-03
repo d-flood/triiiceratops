@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.34
+
+### Patch Changes
+
+- ca1a765: Slim down the collapsed gallery and fix paged thumbnails in the side rail.
+
 ## 1.0.0-rc.33
 
 ### Major Changes
