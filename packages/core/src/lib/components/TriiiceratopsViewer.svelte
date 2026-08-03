@@ -75,6 +75,10 @@
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
+    import {
+        getGalleryBandHeight,
+        getGalleryRailWidth,
+    } from './galleryGeometry';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
@@ -1114,21 +1118,29 @@
     );
 
     /**
-     * Docked gallery band height (top/bottom) and rail width (left/right).
-     * Unchanged by the expand control: that rides the gallery's edge as an
-     * overlay and reserves no space of its own, so opening the gallery costs
-     * exactly what it did before the feature existed.
+     * Docked gallery band height (top/bottom) and rail width (left/right). Both
+     * measure the thumbnail rather than the reverse: the band fits a strip row,
+     * the rail fits one grid cell, and each reserves the gutter the expand tab
+     * sits in. See `galleryGeometry`.
+     *
+     * Both stop short of the gallery's own border. It is added back in `calc()` by
+     * the `.gallery-band` / `.gallery-host` rules below, which read these as custom
+     * properties — so a host that themes `--tri-border` gets a band that still
+     * agrees with the padding math, instead of these helpers baking in the token's
+     * default width.
      */
     let galleryBandHeight = $derived(
-        internalViewerState.galleryFixedHeight + 55,
+        getGalleryBandHeight(internalViewerState.galleryFixedHeight),
     );
     let galleryRailWidth = $derived(
-        internalViewerState.galleryFixedHeight + 40,
+        getGalleryRailWidth(internalViewerState.galleryFixedHeight),
     );
 
     /**
      * The docked footprint the expand animation starts from, and the edge it
      * slides out of — the dock side, so a bottom-docked gallery grows upward.
+     * Takes the border-free size: a transition's start size can be a pixel out
+     * without anyone seeing it.
      */
     let galleryExpandFrom = $derived({
         edge: internalViewerState.dockSide as
@@ -1379,7 +1391,7 @@
             {#if galleryDocked && internalViewerState.dockSide === 'left'}
                 <div
                     class="gallery-host"
-                    style="width: {galleryRailWidth}px"
+                    style="--ui-gallery-rail: {galleryRailWidth}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
@@ -1392,7 +1404,10 @@
     <div id="triiiceratops-center-panel" class="center-col">
         <!-- Top Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
-            <div class="gallery-band" style="height: {galleryBandHeight}px">
+            <div
+                class="gallery-band"
+                style="--ui-gallery-band: {galleryBandHeight}px"
+            >
                 <ThumbnailGallery {canvases} />
             </div>
         {/if}
@@ -1548,7 +1563,10 @@
 
         <!-- Bottom Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
-            <div class="gallery-band" style="height: {galleryBandHeight}px">
+            <div
+                class="gallery-band"
+                style="--ui-gallery-band: {galleryBandHeight}px"
+            >
                 <ThumbnailGallery {canvases} />
             </div>
         {/if}
@@ -1610,7 +1628,7 @@
             {#if galleryDocked && internalViewerState.dockSide === 'right'}
                 <div
                     class="gallery-host"
-                    style="width: {galleryRailWidth}px"
+                    style="--ui-gallery-rail: {galleryRailWidth}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
@@ -1693,7 +1711,11 @@
         isolation: isolate;
         pointer-events: auto;
     }
+    /* Only the docked gallery rail uses this host, and its width is
+       `getGalleryRailWidth` (published as `--ui-gallery-rail`) plus the gallery's
+       own themeable border. */
     .gallery-host {
+        width: calc(var(--ui-gallery-rail) + var(--tri-border));
         height: 100%;
         min-height: 0;
         position: relative;
@@ -1709,8 +1731,11 @@
         flex-direction: column;
     }
 
+    /* `getGalleryBandHeight` (published as `--ui-gallery-band`) plus the gallery's
+       own themeable border — see `.gallery-host` above. */
     .gallery-band {
         flex: none;
+        height: calc(var(--ui-gallery-band) + var(--tri-border));
         width: 100%;
         position: relative;
         pointer-events: auto;
