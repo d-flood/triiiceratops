@@ -97,7 +97,7 @@ uses the custom element, or the native Svelte component if that's the stack.
 
     ```html
     <script lang="ts">
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         import 'triiiceratops/style.css'; // once, anywhere in your app
     </script>
 
@@ -114,6 +114,31 @@ uses the custom element, or the native Svelte component if that's the stack.
     dependency, no Svelte Vite plugin, and no custom-element tag configuration —
     and the published type declarations for `triiiceratops/react` and
     `triiiceratops/vue` resolve with no `svelte` package installed.
+
+### Which entry point do I import from?
+
+Every entry below except `triiiceratops/svelte` is **framework-neutral**: nothing
+reachable from it needs the optional `svelte` peer, at runtime or at type-check
+time. Import from the one that matches your framework and you never think about
+this again.
+
+| Entry | For | Needs `svelte` installed |
+| :--- | :--- | :--- |
+| `triiiceratops/react` | React 19 apps | no |
+| `triiiceratops/vue` | Vue 3 apps | no |
+| `triiiceratops/element/register` | plain HTML / any framework | no |
+| `triiiceratops` | shared types, theming, logging, plugin contracts | no |
+| `triiiceratops/selectors` | framework-neutral state projections | no |
+| `triiiceratops/testing` | headless test kit (constructible `ViewerState`) | no |
+| `triiiceratops/svelte` | Svelte 5 apps — the `<TriiiceratopsViewer>` component | **yes** |
+
+`triiiceratops/svelte` is a superset of `triiiceratops`: everything the root
+exports is re-exported there, so a Svelte app can import everything it needs from
+that single specifier.
+
+`ViewerState` is exported from the root as a **type**; the constructible class
+lives in `triiiceratops/svelte`, and `triiiceratops/testing` provides one that
+needs no Svelte.
 
 !!! tip "Plugins are framework-agnostic"
 

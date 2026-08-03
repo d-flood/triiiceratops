@@ -81,21 +81,27 @@ export const ALLOWED_SVELTE_IMPORTS_BY_FILE: ReadonlyMap<
  * Export subpaths that may reach a Svelte type at all — everything else is held
  * to the strict per-entry rule.
  *
- * `.` IS the Svelte-consumer entry: `package.json` maps the `svelte` export
- * condition to it and it deliberately exports the compiled
+ * `./svelte` IS the Svelte-consumer entry: `package.json` maps the `svelte`
+ * export condition to it and it deliberately exports the compiled
  * `TriiiceratopsViewer` component, whose declaration is
- * `import("svelte").Component<…>`. TypeScript resolves the single `types`
- * condition regardless of the `svelte` condition, so a Svelte-free consumer
- * type-checking `import type { ViewerState } from 'triiiceratops'` under
- * `skipLibCheck: false` gets exactly one error from that file. That residual is
- * recorded and accepted (TRACKER "Resolution of ticket 12's `.` entry finding");
- * closing it means giving `.` a component-free `types` target, which is a
- * packaging decision no ticket owns.
+ * `import("svelte").Component<…>`.
  *
- * Every OTHER subpath — the framework wrappers included — must be strictly
- * Svelte-free, and a subpath added later is strict by default.
+ * `.` USED TO BE that entry, and was exempt here for exactly that reason. It no
+ * longer is. TypeScript resolves the single `types` condition regardless of the
+ * `svelte` condition, so while the component hung off `.`, a Svelte-free
+ * consumer type-checking `import type { ViewerState } from 'triiiceratops'`
+ * under `skipLibCheck: false` got an error from a file it never asked for — and
+ * `@triiiceratops/plugin-sdk`'s react/vue entries import that very type from
+ * this entry, so the breakage reached framework consumers transitively. Moving
+ * the component to `./svelte` made `.` framework-neutral, and `.` is now held to
+ * the same strict rule as everything else.
+ *
+ * Every OTHER subpath — the framework wrappers and `.` included — must be
+ * strictly Svelte-free, and a subpath added later is strict by default.
  */
-export const SVELTE_CONSUMER_SUBPATHS: ReadonlySet<string> = new Set(['.']);
+export const SVELTE_CONSUMER_SUBPATHS: ReadonlySet<string> = new Set([
+    './svelte',
+]);
 
 /** A disallowed Svelte type import, with the entry-to-file chain reaching it. */
 export interface SvelteTypeImportViolation {

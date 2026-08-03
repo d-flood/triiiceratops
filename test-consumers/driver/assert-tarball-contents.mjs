@@ -41,6 +41,12 @@ const REQUIRED_CORE_DIST_FILES = [
     'dist/react.d.ts',
     'dist/vue.js',
     'dist/vue.d.ts',
+    // The Svelte entry. Listed for the same non-vacuity reason as the wrappers:
+    // if `svelte-package` ever stops emitting it, `.` would still build and every
+    // Svelte-free assertion would still pass — the failure would surface only as
+    // Svelte consumers being unable to import the component at all.
+    'dist/svelte.js',
+    'dist/svelte.d.ts',
 ];
 
 /**
@@ -417,6 +423,11 @@ export function selfCheckFrameworkSubpathAssertions() {
                 import: './dist/react.js',
             },
             './vue': { types: './dist/vue.d.ts', import: './dist/vue.js' },
+            './svelte': {
+                types: './dist/svelte.d.ts',
+                svelte: './dist/svelte.js',
+                import: './dist/svelte.js',
+            },
         },
     };
     const entries = [
@@ -426,12 +437,20 @@ export function selfCheckFrameworkSubpathAssertions() {
         'dist/react.js',
         'dist/vue.d.ts',
         'dist/vue.js',
+        'dist/svelte.d.ts',
+        'dist/svelte.js',
     ];
 
     const clean = classifyCoreExportTargets(healthy, entries);
     const droppedFile = classifyCoreExportTargets(
         healthy,
         entries.filter((e) => e !== 'dist/react.js'),
+    );
+    // The Svelte entry is required for the same non-vacuity reason: losing it
+    // breaks every Svelte consumer while leaving all Svelte-free checks green.
+    const droppedSvelte = classifyCoreExportTargets(
+        healthy,
+        entries.filter((e) => e !== 'dist/svelte.js'),
     );
     const droppedTypes = classifyCoreExportTargets(
         {
@@ -449,6 +468,8 @@ export function selfCheckFrameworkSubpathAssertions() {
         clean.missingSubpaths.length === 0 &&
         droppedFile.missingRequired.includes('dist/react.js') &&
         droppedFile.missingTargets.includes('dist/react.js') &&
+        droppedSvelte.missingRequired.includes('dist/svelte.js') &&
+        droppedSvelte.missingTargets.includes('dist/svelte.js') &&
         droppedTypes.missingSubpaths.includes('./vue');
 
     return {

@@ -281,7 +281,7 @@ change at all.
 
     ```html
     <script>
-      import { TriiiceratopsViewer } from 'triiiceratops';
+      import { TriiiceratopsViewer } from 'triiiceratops/svelte';
       import 'triiiceratops/style.css';
 
       let config = $state({
@@ -516,7 +516,7 @@ interface ViewerStateSnapshot {
 
     ```html
     <script>
-      import { TriiiceratopsViewer } from 'triiiceratops';
+      import { TriiiceratopsViewer } from 'triiiceratops/svelte';
       import 'triiiceratops/style.css';
 
       // This will strictly mirror the internal state
@@ -760,7 +760,7 @@ type SearchProvider = (
 
     ```html
     <script>
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
 
         const searchProvider = async (query, context) => {
             return [

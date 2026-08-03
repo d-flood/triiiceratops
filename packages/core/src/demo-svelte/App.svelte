@@ -16,8 +16,8 @@
      * the host page. A consumer styles their own chrome; the viewer styles
      * itself.
      */
-    import { TriiiceratopsViewer } from 'triiiceratops';
-    import type { BuiltInTheme } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
+    import type { BuiltInTheme } from 'triiiceratops/svelte';
 
     const SUGGESTED = [
         {

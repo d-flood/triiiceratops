@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# No lockfile is committed: these examples must resolve under npm, pnpm, yarn,
+# and bun alike, and a lockfile from one of them would pin the others' behavior.
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb

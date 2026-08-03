@@ -289,23 +289,30 @@ describe('published declaration graph', () => {
  */
 describe('strictly Svelte-free subpaths', () => {
     const frameworkExports = {
-        '.': { types: './dist/index.d.ts', svelte: './dist/index.js' },
+        '.': { types: './dist/index.d.ts' },
+        './svelte': { types: './dist/svelte.d.ts', svelte: './dist/svelte.js' },
         './react': { types: './dist/react.d.ts' },
         './vue': { types: './dist/vue.d.ts' },
     };
 
     // A compiled component's declaration IS allowed to import `svelte` — but
-    // only where `.` reaches it. This is the leak tickets 06 and 07 were
+    // only where `./svelte` reaches it. This is the leak tickets 06 and 07 were
     // constrained to avoid, and the whole-package pass alone cannot see it,
     // because its allowance is keyed by FILE rather than by entry point.
-    it('rejects a component declaration reached from a framework subpath while allowing it from `.`', () => {
+    //
+    // `.` is deliberately included among the violators here: it used to be the
+    // exempt entry, and the `./svelte` split is precisely the change that made it
+    // strict. If a future edit re-exports the component from `.`, this fails.
+    it('rejects a component declaration reached from `.` or a framework subpath while allowing it from `./svelte`', () => {
         writePackage(frameworkExports, {
-            'index.d.ts':
+            'svelte.d.ts':
                 "export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';\n",
             'components/TriiiceratopsViewer.svelte': '<script></script>\n',
             'components/TriiiceratopsViewer.svelte.d.ts':
                 'declare const TriiiceratopsViewer: import("svelte").Component<{ id: string }>;\n' +
                 'export default TriiiceratopsViewer;\n',
+            'index.d.ts':
+                "export { default as Viewer } from './components/TriiiceratopsViewer.svelte';\n",
             'react.d.ts':
                 "export { default as Viewer } from './components/TriiiceratopsViewer.svelte';\n",
             'vue.d.ts': 'export interface VueWrapper {}\n',
@@ -315,16 +322,14 @@ describe('strictly Svelte-free subpaths', () => {
 
         // The whole-package pass is satisfied: the file is a compiled component.
         expect(report.violations).toEqual([]);
-        expect(report.svelteFreeViolations).toEqual([
-            {
-                subpath: './react',
-                chain: [
-                    'react.d.ts',
-                    'components/TriiiceratopsViewer.svelte.d.ts',
-                ],
-                specifier: 'svelte',
-            },
-        ]);
+        expect(
+            report.svelteFreeViolations.map((v) => v.subpath).sort(),
+        ).toEqual(['.', './react']);
+        expect(report.svelteFreeViolations).toContainEqual({
+            subpath: './react',
+            chain: ['react.d.ts', 'components/TriiiceratopsViewer.svelte.d.ts'],
+            specifier: 'svelte',
+        });
         expect(formatDeclarationGraphProblems(report)).toContain(
             './react: react.d.ts -> components/TriiiceratopsViewer.svelte.d.ts imports svelte',
         );
@@ -337,6 +342,8 @@ describe('strictly Svelte-free subpaths', () => {
             'framework/props.d.ts':
                 "import type { Component } from 'svelte';\n" +
                 'export interface Props { icon: Component }\n',
+            'svelte.d.ts':
+                "export type { Props } from './framework/props.js';\n",
             'react.d.ts':
                 "export type { Props } from './framework/props.js';\n",
             'vue.d.ts': "export type { Props } from './framework/props.js';\n",
@@ -346,18 +353,20 @@ describe('strictly Svelte-free subpaths', () => {
 
         expect(
             report.svelteFreeViolations.map((v) => v.subpath).sort(),
-        ).toEqual(['./react', './vue']);
+        ).toEqual(['.', './react', './vue']);
     });
 
-    it('lists every non-`.` subpath as strict, so a subpath added later is covered by default', () => {
+    it('lists every non-`./svelte` subpath as strict, so a subpath added later is covered by default', () => {
         writePackage(
             {
                 '.': { types: './dist/index.d.ts' },
+                './svelte': { types: './dist/svelte.d.ts' },
                 './react': { types: './dist/react.d.ts' },
                 './solid': { types: './dist/solid.d.ts' },
             },
             {
                 'index.d.ts': 'export interface Core {}\n',
+                'svelte.d.ts': 'export interface S5 {}\n',
                 'react.d.ts': 'export interface R {}\n',
                 'solid.d.ts': 'export interface S {}\n',
             },
@@ -365,15 +374,24 @@ describe('strictly Svelte-free subpaths', () => {
 
         const report = checkDeclarationGraph(packageDir);
 
+        // `.` is strict now, and `./solid` — a subpath this guard has never heard
+        // of — is strict without anyone adding it anywhere.
         expect(report.svelteFreeEntries).toEqual([
+            { subpath: '.', declaration: 'index.d.ts' },
             { subpath: './react', declaration: 'react.d.ts' },
             { subpath: './solid', declaration: 'solid.d.ts' },
         ]);
         expect(report.svelteFreeViolations).toEqual([]);
     });
 
-    it('exempts only the `.` entry', () => {
-        expect([...SVELTE_CONSUMER_SUBPATHS]).toEqual(['.']);
+    it('exempts only the `./svelte` entry', () => {
+        expect([...SVELTE_CONSUMER_SUBPATHS]).toEqual(['./svelte']);
+    });
+
+    it('holds the `.` entry to the strict rule', () => {
+        // The whole point of the `./svelte` split: `.` is framework-neutral now,
+        // so a Svelte type reachable from it is a violation, not an allowance.
+        expect(SVELTE_CONSUMER_SUBPATHS.has('.')).toBe(false);
     });
 });
 
