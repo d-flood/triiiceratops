@@ -1,39 +1,22 @@
 // GENERATED from docs/configuration.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { useState } from 'react';
-import {
-    TriiiceratopsViewer,
-    useViewerHandle,
-    useViewerSelector,
-} from 'triiiceratops/react';
+import { TriiiceratopsViewer } from 'triiiceratops/react';
+import type { SearchProvider } from 'triiiceratops/react';
 
-export function Reader({ startCanvasId }: { startCanvasId: string }) {
-    const handle = useViewerHandle();
-    // Where the viewer actually is.
-    const canvasId = useViewerSelector(handle, (state) => state.canvasId);
-    // What we last told it to show.
-    const [requestedCanvasId, setRequestedCanvasId] = useState(startCanvasId);
+const searchProvider: SearchProvider = async (query) => [
+    {
+        canvasIndex: 0,
+        canvasLabel: 'Page 1',
+        hits: [{ type: 'hit', before: '', match: query, after: '' }],
+    },
+];
 
+export function Reader() {
     return (
-        <>
-            <p>Showing {canvasId ?? '…'}</p>
-            <button
-                type="button"
-                onClick={() =>
-                    setRequestedCanvasId('https://example.org/canvas/7')
-                }
-            >
-                Jump to canvas 7
-            </button>
-            <TriiiceratopsViewer
-                handle={handle}
-                manifestId="https://example.org/manifest.json"
-                canvasId={requestedCanvasId}
-                onCanvasChange={(snapshot) =>
-                    console.log('New Canvas ID:', snapshot.canvasId)
-                }
-                style={{ display: 'block', height: '600px' }}
-            />
-        </>
+        <TriiiceratopsViewer
+            manifestId="urn:example:manifest"
+            searchProvider={searchProvider}
+            style={{ display: 'block', height: '600px' }}
+        />
     );
 }

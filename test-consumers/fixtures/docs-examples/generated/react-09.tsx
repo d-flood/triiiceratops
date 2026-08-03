@@ -1,16 +1,19 @@
 // GENERATED from docs/react.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
 import { TriiiceratopsViewer } from 'triiiceratops/react';
-import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
-
-const plugins = [ImageManipulationPlugin, createPdfExportPlugin()];
 
 export function Reader() {
     return (
         <TriiiceratopsViewer
             manifestId="https://example.org/manifest.json"
-            plugins={plugins}
+            onCanvasChange={(snapshot) => history.replaceState(
+                null,
+                '',
+                `?canvas=${encodeURIComponent(snapshot.canvasId ?? '')}`,
+            )}
+            // The original PluginError object, recovery behavior intact.
+            onPluginError={(error) => error.retry()}
+            onViewerError={(error) => console.error(error.message)}
             style={{ display: 'block', height: '600px' }}
         />
     );
