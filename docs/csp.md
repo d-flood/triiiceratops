@@ -21,9 +21,23 @@ explicitly via `style-src-attr`.
 The two distributions need slightly different policies, because only the
 light-DOM Svelte package's component styles are nonce-addressable.
 
+**Which recipe applies to you?**
+
+| Your integration | Recipe |
+| :--- | :--- |
+| [Svelte](svelte.md) — `triiiceratops/svelte` | [Light DOM](#light-dom-svelte-component) |
+| [React](react.md) — `triiiceratops/react` | [Shadow DOM](#shadow-dom-custom-element) |
+| [Vue](vue.md) — `triiiceratops/vue` | [Shadow DOM](#shadow-dom-custom-element) |
+| [Any framework](integration.md) — the custom element | [Shadow DOM](#shadow-dom-custom-element) |
+
+The React and Vue wrappers host the same `<triiiceratops-viewer>` custom element
+every other non-Svelte integration uses, so its shadow root has the same style
+requirements — they follow the shadow-DOM recipe, not the Svelte one, and there
+is no nonce for them to advertise.
+
 ## Recommended policy
 
-### Svelte package (light DOM)
+### Light DOM (Svelte component)
 
 Component styles are extracted to a same-origin stylesheet at build time, so
 `<style>` **elements** can be locked to `'self'` plus a nonce:
@@ -41,7 +55,9 @@ Content-Security-Policy:
     base-uri 'self'
 ```
 
-### Web Component (custom element)
+### Shadow DOM (custom element)
+
+Used by the custom element directly **and** by the React and Vue wrappers.
 
 The custom element injects each Svelte component's scoped CSS into its shadow
 root as a `<style>` element at runtime — there is no per-element style nonce
@@ -78,9 +94,9 @@ Notes (both distributions):
 
 ## Advertising the style nonce
 
-Relevant to the Svelte-package (light DOM) recipe above — the Web Component
-recipe already allows `'unsafe-inline'` in `style-src` for its shadow-root
-styles, so it has no nonce to advertise.
+Relevant to the [light-DOM](#light-dom-svelte-component) recipe only — the
+[shadow-DOM](#shadow-dom-custom-element) recipe already allows `'unsafe-inline'`
+in `style-src` for its shadow-root styles, so it has no nonce to advertise.
 
 The style service discovers a nonce automatically. Advertise yours with a meta
 tag (substitute the same random value used in the CSP header), or on any nonced

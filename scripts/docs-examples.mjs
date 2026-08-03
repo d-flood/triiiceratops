@@ -51,7 +51,13 @@ const OUT_DIR = join(
 );
 
 // Build artifacts / non-authored trees under docs/ that must never be scanned.
-const SKIP_DIRS = new Set(['viewer', 'demo-consumer', 'demo', 'media']);
+const SKIP_DIRS = new Set([
+    'viewer',
+    'demo-consumer',
+    'demo',
+    'svelte-demo',
+    'media',
+]);
 
 const EXT_BY_LANG = {
     ts: 'ts',
