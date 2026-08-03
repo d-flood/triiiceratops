@@ -1,18 +1,10 @@
 // GENERATED from docs/configuration.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import 'triiiceratops/element/register';
-import type { SearchProvider, TriiiceratopsViewerElement } from 'triiiceratops';
+import { useTemplateRef } from 'vue';
+import {
+    TriiiceratopsViewer,
+    type TriiiceratopsViewerInstance,
+} from 'triiiceratops/vue';
 
-const el = document.querySelector<TriiiceratopsViewerElement>(
-    'triiiceratops-viewer',
-)!;
-
-const searchProvider: SearchProvider = async (query) => [
-    {
-        canvasIndex: 0,
-        canvasLabel: 'Page 1',
-        hits: [{ type: 'hit', before: '', match: query, after: '' }],
-    },
-];
-
-el.searchProvider = searchProvider;
+const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+const search = (query: string): void => void viewer.value?.state?.search(query);

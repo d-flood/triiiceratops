@@ -1,11 +1,19 @@
 // GENERATED from docs/vue.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { TriiiceratopsViewer, type SdkPlugin } from 'triiiceratops/vue';
-import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
+import {
+    TriiiceratopsViewer,
+    type PluginError,
+    type ViewerError,
+    type ViewerStateSnapshot,
+} from 'triiiceratops/vue';
 
-// Created once, outside any reactive re-evaluation.
-const plugins: readonly SdkPlugin[] = [
-    ImageManipulationPlugin,
-    createPdfExportPlugin(),
-];
+function syncUrl(snapshot: ViewerStateSnapshot): void {
+    history.replaceState(
+        null,
+        '',
+        `?canvas=${encodeURIComponent(snapshot.canvasId ?? '')}`,
+    );
+}
+// The original PluginError object, recovery behavior intact.
+const retry = (error: PluginError): void => error.retry();
+const report = (error: ViewerError): void => console.error(error.message);
