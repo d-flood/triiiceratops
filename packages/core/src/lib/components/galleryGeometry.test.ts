@@ -23,6 +23,9 @@ import {
  * Only the band and the rail commit to a size. Every view lays thumbnails out at
  * whatever width they turn out to be, so there is no cell size here to get wrong.
  */
+/** Mirrors `LABEL_LINE` — used to price the gutter against the old paged row. */
+const LABEL_LINE = 16;
+
 describe('gallery thumbnail geometry', () => {
     /**
      * A thumbnail button is the same height in every view and every viewing mode.
@@ -60,14 +63,13 @@ describe('gallery thumbnail geometry', () => {
 
     /**
      * The band's whole job: hold one thumbnail button, the track's padding, and the
-     * expand tab's gutter. It used to be `fixedHeight + 55` with no gutter reserved
-     * at all — the tab lived in the slack a short row happened to leave, and
-     * overlapped a paged pair, whose second label line ate that slack. Reserving
-     * the gutter properly costs nothing now that every row is one height: the band
-     * comes out SHORTER than it was.
+     * expand tab's gutter. It used to be `fixedHeight + 55` reserving nothing at all
+     * for the tab — which is why the tab sat over a thumbnail — so the gutter is new
+     * cost. Keeping every row to one height is what holds it to 7px: a 24px gutter on
+     * top of the old two-label-line row would have cost 23.
      */
-    it('fits a strip row plus the expand tab, without growing the band', () => {
-        const CARET_TAB = 12;
+    it('fits a strip row plus a full-size expand tab', () => {
+        const CARET_TAB = 24;
         const TRACK_PAD = 8;
 
         for (const fixedHeight of [50, 75, 120, 300]) {
@@ -76,9 +78,11 @@ describe('gallery thumbnail geometry', () => {
 
             // The gutter is genuinely reserved, not borrowed from the row's slack.
             expect(band - row - TRACK_PAD).toBeGreaterThanOrEqual(CARET_TAB);
-            // And it still costs less than the band did before it reserved one.
-            expect(band).toBeLessThan(fixedHeight + 55);
-            expect(band).toBe(fixedHeight + 50);
+            expect(band).toBe(fixedHeight + 62);
+            // Cheaper than the 23px a gutter would have cost the old paged row.
+            expect(band - (fixedHeight + 55)).toBeLessThan(
+                CARET_TAB - LABEL_LINE,
+            );
         }
     });
 
@@ -91,8 +95,34 @@ describe('gallery thumbnail geometry', () => {
     it('sizes the docked rail to one portrait thumbnail plus the tab gutter', () => {
         for (const fixedHeight of [50, 75, 120, 300]) {
             expect(getGalleryRailWidth(fixedHeight)).toBe(
-                getGalleryThumbFloorItemWidth(fixedHeight) + 16,
+                getGalleryThumbFloorItemWidth(fixedHeight) + 32,
             );
+        }
+    });
+
+    /**
+     * Both docked views reserve the tab a gutter at least WCAG 2.5.8's minimum target
+     * size, so the control meets that criterion on size rather than on its spacing
+     * exception — which a tab centred on the gallery's edge, with thumbnails just
+     * inboard of it, cannot satisfy for less. `a11y-axe.spec.ts` is what actually
+     * fails the build, but this is the arithmetic behind it.
+     */
+    it('reserves the tab a gutter of at least the WCAG 2.5.8 minimum', () => {
+        const WCAG_MIN_TARGET = 24;
+
+        for (const fixedHeight of [50, 75, 120, 300]) {
+            const bandGutter =
+                getGalleryBandHeight(fixedHeight) -
+                getGalleryThumbItemHeight(fixedHeight) -
+                8 -
+                2;
+            const railGutter =
+                getGalleryRailWidth(fixedHeight) -
+                getGalleryThumbFloorItemWidth(fixedHeight) -
+                8;
+
+            expect(bandGutter).toBeGreaterThanOrEqual(WCAG_MIN_TARGET);
+            expect(railGutter).toBeGreaterThanOrEqual(WCAG_MIN_TARGET);
         }
     });
 
@@ -103,8 +133,8 @@ describe('gallery thumbnail geometry', () => {
      * padding math it is supposed to hold.
      */
     it('leaves the themeable border to the caller', () => {
-        expect(getGalleryBandHeight(75)).toBe(125);
-        expect(getGalleryRailWidth(75)).toBe(81);
+        expect(getGalleryBandHeight(75)).toBe(137);
+        expect(getGalleryRailWidth(75)).toBe(97);
     });
 
     /**
@@ -115,7 +145,7 @@ describe('gallery thumbnail geometry', () => {
     it('publishes the button geometry as CSS custom properties', () => {
         expect(GALLERY_THUMB_VARS).toBe(
             '--ui-thumb-pad: 4px; --ui-thumb-gap: 4px; ' +
-                '--ui-thumb-label-line: 16px; --ui-caret-tab: 12px',
+                '--ui-thumb-label-line: 16px; --ui-caret-tab: 24px',
         );
     });
 

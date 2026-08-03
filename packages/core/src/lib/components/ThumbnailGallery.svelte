@@ -1170,16 +1170,6 @@
     .gallery-root.dock-vertical.caret-right {
         padding-right: calc(var(--ui-caret-tab) - var(--tri-border));
     }
-    /* The rail is exactly one cell wide, so it also drops the track's padding on
-       the tab's side — the thumbnail runs right up to the tab instead of standing
-       a gallery-padding gap away from it. The strip keeps its padding: it has
-       width to spare and the gap reads as breathing room, not waste. */
-    .dock-vertical.caret-left > .gallery-content {
-        padding-left: 0;
-    }
-    .dock-vertical.caret-right > .gallery-content {
-        padding-right: 0;
-    }
 
     /* Narrow on its long axis, so it reads as a handle on the edge rather than a
        bar across it. Its short axis is the gutter reserved above. */
@@ -1333,6 +1323,14 @@
     }
     .thumb-item:hover {
         background-color: var(--tri-surface-border);
+    }
+    /* The rail is one thumbnail wide, so a thumbnail wider than the width it
+       committed to has to be clamped rather than allowed to overflow: the track
+       centres its items, so an over-wide one spills equally out of BOTH sides and
+       the leading side is the tab's gutter. Clamped, it crops instead — which is
+       the concession the rail's width already documents. */
+    .track-vertical .thumb-item {
+        max-width: 100%;
     }
     .thumb-item.selected {
         background-color: color-mix(

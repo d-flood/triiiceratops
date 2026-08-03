@@ -11,6 +11,7 @@ import { mount, unmount, tick } from 'svelte';
 
 import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
 import {
+    getGalleryBandHeight,
     getGalleryRailWidth,
     getGalleryThumbItemHeight,
 } from './galleryGeometry';
@@ -281,7 +282,16 @@ describe('expanded thumbnail gallery', () => {
         const root = target.querySelector('.gallery-root') as HTMLElement;
         // Bottom-docked, so the canvas-facing edge — and the gutter — is the top.
         expect(root.classList.contains('caret-top')).toBe(true);
-        expect(root.style.getPropertyValue('--ui-caret-tab')).toBe('12px');
+
+        // Read rather than hardcoded, so this tracks the geometry module. It has to
+        // be the gutter the band was sized around, and at least WCAG 2.5.8's 24px.
+        const gutter = Number.parseFloat(
+            root.style.getPropertyValue('--ui-caret-tab'),
+        );
+        const bandGutter =
+            getGalleryBandHeight(75) - getGalleryThumbItemHeight(75) - 8 - 2;
+        expect(gutter).toBe(bandGutter);
+        expect(gutter).toBeGreaterThanOrEqual(24);
     });
 
     /**
