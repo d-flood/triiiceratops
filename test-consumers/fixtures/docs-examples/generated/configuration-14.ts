@@ -1,6 +1,11 @@
 // GENERATED from docs/configuration.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { TriiiceratopsViewer, type SearchProvider } from 'triiiceratops/vue';
+import 'triiiceratops/element/register';
+import type { SearchProvider, TriiiceratopsViewerElement } from 'triiiceratops';
+
+const el = document.querySelector<TriiiceratopsViewerElement>(
+    'triiiceratops-viewer',
+)!;
 
 const searchProvider: SearchProvider = async (query) => [
     {
@@ -9,3 +14,5 @@ const searchProvider: SearchProvider = async (query) => [
         hits: [{ type: 'hit', before: '', match: query, after: '' }],
     },
 ];
+
+el.searchProvider = searchProvider;

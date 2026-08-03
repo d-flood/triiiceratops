@@ -230,18 +230,11 @@ read. It is never swallowed, never converted into a `viewererror` or
 
 ### Selector cadence
 
-A **selector cadence** is which notification wakes a projection.
-
-| Cadence | Woken by | Use it for |
-| :-- | :-- | :-- |
-| `state` (default) | the batched, payload-free viewer-state notification | everything in the [state inventory](#what-notifies) — canvas, manifest, panels, gallery, plugin UI |
-| `frame` | the live OpenSeadragon instance's own animation events, **and** state notifications | continuous viewport values: zoom, pan, rotation, bounds |
-
-Continuous viewport values live on the OpenSeadragon instance and are
-deliberately **not** mirrored into viewer state: mirroring them would make the
-batched watcher fire at animation framerate for every subscriber on the page,
-so one component's zoom readout would tax every plugin. Cadence solves that with
-one option instead ([ADR 0011](adr/0011-selectors-choose-a-notification-cadence.md)):
+The `cadence` option chooses which notification wakes a projection: the default
+`state` for anything in the viewer's state inventory, and `frame` for continuous
+OpenSeadragon viewport values (zoom, pan, rotation, bounds) that are deliberately
+not mirrored into viewer state. [Selector cadence](configuration.md#selector-cadence)
+explains the split and why it exists; the React call is one option:
 
 ```tsx
 import { useViewerSelector } from 'triiiceratops/react';
@@ -258,28 +251,10 @@ export function ZoomReadout({ handle }: { handle: ViewerHandleSlot }) {
 }
 ```
 
-`frame` is the *finer* cadence, never a coarser one: a frame-cadence projection
-also wakes on state notifications, so it never serves a stale inventoried member
-between animations. The frame ticker attaches lazily when an OpenSeadragon
-instance appears and detaches on teardown or replacement — there is no
-`requestAnimationFrame` loop, and an idle viewer with no frame-cadence selector
-costs nothing.
-
-#### What notifies
-
-A `state`-cadence projection must read **inventoried** members — command state
-and observable state. The checked-in
-[state inventory](https://github.com/d-flood/triiiceratops/blob/main/packages/core/src/lib/state/state-inventory.ts)
-is the authority on which members those are; every mutable member is classified
-there, and an unclassified member fails CI.
-
-Reading *through* `state.osdViewer` at `state` cadence is the one selector
-mistake that fails silently — the projection simply appears frozen, because
-OpenSeadragon's viewport never wakes the batched watcher. With
-`config: { debug: true }` the runtime warns once and names the fix
-(`cadence: 'frame'`). Reading `state.osdViewer` only to *test readiness* is
-correct at `state` cadence: `osdViewer` is itself an inventoried observable
-member.
+Reading *through* `state.osdViewer` at the default `state` cadence is the one
+selector mistake that fails silently — the projection simply appears frozen. See
+[what notifies](configuration.md#what-notifies) for the inventory that decides
+which members a `state`-cadence projection may read.
 
 ## Passing the handle to a deep tree
 
@@ -447,31 +422,14 @@ element — so an unmemoized object prop is diagnosable instead of mysterious.
 ### Plugins
 
 `plugins` takes framework-neutral [SDK plugins](plugins.md) — `readonly
-SdkPlugin[]`. No Svelte types and no Svelte runtime are involved:
-
-```tsx
-import { TriiiceratopsViewer } from 'triiiceratops/react';
-import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
-
-const plugins = [ImageManipulationPlugin, createPdfExportPlugin()];
-
-export function Reader() {
-    return (
-        <TriiiceratopsViewer
-            manifestId="https://example.org/manifest.json"
-            plugins={plugins}
-            style={{ display: 'block', height: '600px' }}
-        />
-    );
-}
-```
+SdkPlugin[]`, with no Svelte types or Svelte runtime involved. The
+[plugins guide](plugins.md#adding-a-plugin-to-your-viewer) has the React example.
 
 Activation lifetime is keyed to **plugin identity**, not to the identity of the
-list: re-supplying an equal list leaves running plugins completely untouched —
-no teardown, no restart, no re-injected styles. The list above is hoisted anyway,
-since a fresh `createPdfExportPlugin()` call per render would produce a genuinely
-different plugin each time.
+list: re-supplying an equal list leaves running plugins completely untouched — no
+teardown, no restart, no re-injected styles. Hoist the list anyway, since a fresh
+`createPdfExportPlugin()` call per render would produce a genuinely different
+plugin each time.
 
 ## Events
 
@@ -515,48 +473,10 @@ always calls the current callback.
 
 ## Custom search
 
-`searchProvider` supplies search results from your own application code instead
-of a manifest-declared IIIF Content Search service. It is available through the
-React wrapper, the Vue wrapper, the custom element, and Svelte alike — it is not
-a Svelte-only feature.
-
-```tsx
-import { TriiiceratopsViewer } from 'triiiceratops/react';
-import type { SearchProvider } from 'triiiceratops/react';
-
-interface IndexHit {
-    canvasIndex: number;
-    label: string;
-    match: string;
-}
-
-const searchProvider: SearchProvider = async (query, context) => {
-    const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query)}` +
-            `&manifest=${encodeURIComponent(context.manifestId)}`,
-    );
-    const found: IndexHit[] = await response.json();
-    return found.map((hit) => ({
-        canvasIndex: hit.canvasIndex,
-        canvasLabel: hit.label,
-        hits: [{ type: 'hit', match: hit.match }],
-    }));
-};
-
-export function Reader() {
-    return (
-        <TriiiceratopsViewer
-            manifestId="https://example.org/manifest.json"
-            searchProvider={searchProvider}
-            style={{ display: 'block', height: '600px' }}
-        />
-    );
-}
-```
-
-Pass `null` (or omit it) to use the viewer's normal IIIF Content Search service
-discovery. `searchProvider` is an alternate search *source*; it is not a way to
-declare a Search service URI or inject one into a manifest.
+The `searchProvider` prop supplies search results from your own application code
+instead of a manifest-declared IIIF Content Search service. It behaves the same
+in every host, so it is documented once with a React tab in
+[custom search providers](configuration.md#custom-search-providers).
 
 ## The imperative escape hatch
 
@@ -641,36 +561,20 @@ the wrapper probes the constructor that actually owns the tag for the
 `customElements.whenDefined` poll anywhere in the path, so an incompatible page
 fails fast instead of hanging.
 
-Three additional **debug-mode** warnings exist because their failure modes are
-otherwise silent:
-
-- a property-tier prop re-assigned an implausible number of times (an
-  unmemoized object);
-- a handle created and never passed to a viewer, so reads stay `null` forever;
-- a `state`-cadence projection that reads through `osdViewer`.
-
-They are gated on `ViewerConfig.debug`, not on `NODE_ENV` — a production build
-with `config: { debug: true }` logs them and a development build without it does
-not. Debug mode is **page-level**: passing `config: { debug: true }` to any one
-viewer turns these warnings on for every wrapper on the page, and the most
-recently applied `debug` value wins. A `config` that omits `debug` entirely
-states no opinion, so a second viewer configured for something else never
-silences the first. Pass `config: { debug: false }` to turn them back off.
+Three further failure modes are silent by design and surface only under
+`config: { debug: true }` — an unmemoized property-tier prop, a handle created and
+never passed to a viewer, and a `state`-cadence projection reading through
+`osdViewer`. See [debug diagnostics](configuration.md#debug-diagnostics).
 
 ## Testing your own components
 
 `triiiceratops/testing` builds a handle backed by a **real** `ViewerState` — real
-commands, real batched notifications, the real selector runtime registered in the
-very registry `useViewerSelector()` consults — with no DOM viewer, no custom
-element, no OpenSeadragon, and no network. React, Vue, and Svelte need not be
-installed for it to import.
-
-!!! note "Run it under a DOM test environment"
-
-    The published entry bundles a `fetch` polyfill that reaches for a `self`
-    global, so importing it in bare Node fails with `ReferenceError: self is not
-    defined`. Run these tests under `jsdom` or `happy-dom` — which a React test
-    runner already provides — or set `globalThis.self = globalThis` first.
+commands, real batched notifications, the real selector runtime `useViewerSelector()`
+consults — with no DOM viewer, no custom element, no OpenSeadragon, and no
+network. Run it under `jsdom` or `happy-dom` — which a React test runner already
+provides — because the published entry bundles a `fetch` polyfill that reaches for
+a `self` global, so bare Node fails with `ReferenceError: self is not defined`
+(or set `globalThis.self = globalThis` first).
 
 React consumers pass the test handle straight in wherever a `useViewerHandle()`
 slot would go — no wrapper, no `.get()`:
@@ -728,117 +632,19 @@ OpenSeadragon stand-in and fires the real readiness path, which is how a
 
 ## What the wrapper does not do
 
-The promise of this wrapper is **idiomatic access** to the viewer. Two things are
-deliberately outside it, and it is better to know them now than mid-integration.
+The promise of this wrapper is **idiomatic access** to the viewer. Two limits are
+deliberately outside it, and both are shared by every host rather than being
+React-specific:
 
-### Styling stops at theme tokens
+- **Styling stops at theme tokens.** `theme`, `themeConfig`, and the `--tri-*`
+  custom properties are the whole surface; the shadow-DOM internals are not
+  reachable. Everything about the *host* element — `className`, `style`, layout,
+  size, borders — is yours as usual. See [theming](theming.md).
+- **Viewer chrome is not composable.** You cannot supply React components for the
+  toolbar, panels, or navigation, and the component accepts no children or slot
+  content. [Building your own chrome](configuration.md#building-your-own-chrome)
+  covers the three supported answers, with a React custom-toolbar example.
 
-Supported:
-
-- the `theme` prop (`light`, `dark`, `teal`, `dracula`);
-- the `themeConfig` prop — typed token overrides, plus a `cssVars` escape hatch
-  for tokens without a typed key;
-- setting the underlying `--tri-*` custom properties in your own CSS on the host
-  element, since they inherit through the shadow boundary;
-- everything about the **host**: `className`, `style`, layout, size, borders,
-  and any CSS that treats `<triiiceratops-viewer>` as a box in your page.
-
-See [theming](theming.md) for the full token reference.
-
-Not supported: the viewer's shadow-DOM internals are not reachable. There is no
-`::part()` surface, no way to inject a consumer stylesheet into the shadow root,
-and no light-DOM styling hook for internal elements. Restyling internals is out
-of scope for 1.0 — if a token you need is missing, ask for the token.
-
-### Viewer chrome is not composable
-
-You cannot supply React components for the viewer's toolbar, panels, or
-navigation, and the component accepts no children or slot content. There is no
-framework-agnostic chrome slot contract.
-
-The supported answers, in order of how much you need:
-
-1. **Configure the built-in chrome.** `config` turns panels, buttons, the
-   gallery, the toolbar side, and plugin surfaces on and off, and applies
-   reactively after mount. See [configuration](configuration.md).
-2. **Build your own controls.** Application-owned React UI *outside* the viewer,
-   driven by commands and selectors, is a first-class path — the handle is a
-   value, so your controls can live anywhere in your tree. This is the answer for
-   a custom toolbar:
-
-    ```tsx
-    import {
-        TriiiceratopsViewer,
-        useViewer,
-        useViewerHandle,
-        useViewerSelector,
-        ViewerProvider,
-    } from 'triiiceratops/react';
-
-    // Hide the built-in chrome you are replacing. Hoisted, so the wrapper
-    // never re-applies it.
-    const CONFIG = { showCanvasNav: false, showToggle: false };
-
-    function MyToolbar() {
-        const viewer = useViewer();
-        const hasPrevious = useViewerSelector((state) => state.hasPrevious);
-        const hasNext = useViewerSelector((state) => state.hasNext);
-        const position = useViewerSelector(
-            (state) => `${state.currentCanvasIndex + 1} / ${state.canvases.length}`,
-        );
-
-        return (
-            <nav className="my-toolbar">
-                <button
-                    type="button"
-                    disabled={!hasPrevious}
-                    onClick={() => viewer?.previousCanvas()}
-                >
-                    Previous
-                </button>
-                <span>{position}</span>
-                <button
-                    type="button"
-                    disabled={!hasNext}
-                    onClick={() => viewer?.nextCanvas()}
-                >
-                    Next
-                </button>
-                <button type="button" onClick={() => viewer?.zoomIn()}>
-                    Zoom in
-                </button>
-            </nav>
-        );
-    }
-
-    export function Reader() {
-        const handle = useViewerHandle();
-        return (
-            <ViewerProvider value={handle}>
-                <MyToolbar />
-                <TriiiceratopsViewer
-                    handle={handle}
-                    manifestId="https://example.org/manifest.json"
-                    config={CONFIG}
-                    style={{ display: 'block', height: '600px' }}
-                />
-            </ViewerProvider>
-        );
-    }
-    ```
-
-    Anything the viewer's own UI can do, a command can do — that is the parity
-    rule, and the [state inventory](#what-notifies) records which command backs
-    each member.
-
-3. **Write a plugin.** UI that must render *inside* the viewer's chrome — in a
-   docked panel or an anchored flyout — is what the
-   [plugin SDK](plugin-authoring.md) is for. A plugin mounts into a plain
-   `HTMLElement`, so you can render it with React and it stays framework-neutral.
-
-### Still want the raw element?
-
-Direct custom-element integration remains fully supported and documented for
-advanced hosts that want it — see
-[the low-level custom element](integration.md#low-level-driving-the-custom-element-directly).
+Direct custom-element integration also remains fully supported for hosts that
+want it — see [driving the element directly](integration.md#driving-the-element-directly).
 Adopting the wrapper is not required.

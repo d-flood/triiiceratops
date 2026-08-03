@@ -327,18 +327,11 @@ const label = useViewerSelector(viewer, (state) =>
 
 ### Selector cadence
 
-A **selector cadence** is which notification wakes a projection.
-
-| Cadence | Woken by | Use it for |
-| :-- | :-- | :-- |
-| `state` (default) | the batched, payload-free viewer-state notification | everything in the [state inventory](#what-notifies) — canvas, manifest, panels, gallery, plugin UI |
-| `frame` | the live OpenSeadragon instance's own animation events, **and** state notifications | continuous viewport values: zoom, pan, rotation, bounds |
-
-Continuous viewport values live on the OpenSeadragon instance and are
-deliberately **not** mirrored into viewer state: mirroring them would make the
-batched watcher fire at animation framerate for every subscriber on the page, so
-one component's zoom readout would tax every plugin. Cadence solves that with one
-option instead ([ADR 0011](adr/0011-selectors-choose-a-notification-cadence.md)):
+The `cadence` option chooses which notification wakes a projection: the default
+`state` for anything in the viewer's state inventory, and `frame` for continuous
+OpenSeadragon viewport values (zoom, pan, rotation, bounds) that are deliberately
+not mirrored into viewer state. [Selector cadence](configuration.md#selector-cadence)
+explains the split and why it exists; the Vue call is one option:
 
 ```vue
 <script setup lang="ts">
@@ -367,28 +360,10 @@ const zoom = useViewerSelector(
 </template>
 ```
 
-`frame` is the *finer* cadence, never a coarser one: a frame-cadence projection
-also wakes on state notifications, so it never serves a stale inventoried member
-between animations. The frame ticker attaches lazily when an OpenSeadragon
-instance appears and detaches on teardown or replacement — there is no
-`requestAnimationFrame` loop, and an idle viewer with no frame-cadence selector
-costs nothing.
-
-#### What notifies
-
-A `state`-cadence projection must read **inventoried** members — command state
-and observable state. The checked-in
-[state inventory](https://github.com/d-flood/triiiceratops/blob/main/packages/core/src/lib/state/state-inventory.ts)
-is the authority on which members those are; every mutable member is classified
-there, and an unclassified member fails CI.
-
-Reading *through* `state.osdViewer` at `state` cadence is the one selector
-mistake that fails silently — the projection simply appears frozen, because
-OpenSeadragon's viewport never wakes the batched watcher. With
-`config: { debug: true }` the runtime warns once and names the fix
-(`cadence: 'frame'`). Reading `state.osdViewer` only to *test readiness* is
-correct at `state` cadence: `osdViewer` is itself an inventoried observable
-member.
+Reading *through* `state.osdViewer` at the default `state` cadence is the one
+selector mistake that fails silently — the projection simply appears frozen. See
+[what notifies](configuration.md#what-notifies) for the inventory that decides
+which members a `state`-cadence projection may read.
 
 ## Passing the handle to a deep tree
 
@@ -564,35 +539,14 @@ mysterious.
 ### Plugins
 
 `plugins` takes framework-neutral [SDK plugins](plugins.md) — `readonly
-SdkPlugin[]`. No Svelte types and no Svelte runtime are involved:
-
-```vue
-<script setup lang="ts">
-import { TriiiceratopsViewer, type SdkPlugin } from 'triiiceratops/vue';
-import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
-
-// Created once, outside any reactive re-evaluation.
-const plugins: readonly SdkPlugin[] = [
-    ImageManipulationPlugin,
-    createPdfExportPlugin(),
-];
-</script>
-
-<template>
-    <TriiiceratopsViewer
-        manifest-id="https://example.org/manifest.json"
-        :plugins="plugins"
-        style="display: block; height: 600px"
-    />
-</template>
-```
+SdkPlugin[]`, with no Svelte types or Svelte runtime involved. The
+[plugins guide](plugins.md#adding-a-plugin-to-your-viewer) has the Vue example.
 
 Activation lifetime is keyed to **plugin identity**, not to the identity of the
-list: re-supplying an equal list leaves running plugins completely untouched —
-no teardown, no restart, no re-injected styles. Build the list once anyway, since
-a fresh `createPdfExportPlugin()` call would produce a genuinely different plugin
-each time.
+list: re-supplying an equal list leaves running plugins completely untouched — no
+teardown, no restart, no re-injected styles. Build the list once outside any
+reactive re-evaluation anyway, since a fresh `createPdfExportPlugin()` call would
+produce a genuinely different plugin each time.
 
 ## Emits
 
@@ -643,47 +597,10 @@ const report = (error: ViewerError): void => console.error(error.message);
 
 ## Custom search
 
-`search-provider` supplies search results from your own application code instead
-of a manifest-declared IIIF Content Search service. It is available through the
-Vue wrapper, the React wrapper, the custom element, and Svelte alike — it is not
-a Svelte-only feature.
-
-```vue
-<script setup lang="ts">
-import { TriiiceratopsViewer, type SearchProvider } from 'triiiceratops/vue';
-
-interface IndexHit {
-    canvasIndex: number;
-    label: string;
-    match: string;
-}
-
-const searchProvider: SearchProvider = async (query, context) => {
-    const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query)}` +
-            `&manifest=${encodeURIComponent(context.manifestId)}`,
-    );
-    const found: IndexHit[] = await response.json();
-    return found.map((hit) => ({
-        canvasIndex: hit.canvasIndex,
-        canvasLabel: hit.label,
-        hits: [{ type: 'hit', match: hit.match }],
-    }));
-};
-</script>
-
-<template>
-    <TriiiceratopsViewer
-        manifest-id="https://example.org/manifest.json"
-        :search-provider="searchProvider"
-        style="display: block; height: 600px"
-    />
-</template>
-```
-
-Pass `null` (or omit it) to use the viewer's normal IIIF Content Search service
-discovery. `search-provider` is an alternate search *source*; it is not a way to
-declare a Search service URI or inject one into a manifest.
+The `search-provider` prop supplies search results from your own application code
+instead of a manifest-declared IIIF Content Search service. It behaves the same in
+every host, so it is documented once with a Vue tab in
+[custom search providers](configuration.md#custom-search-providers).
 
 ## The imperative escape hatch
 
@@ -789,30 +706,20 @@ wrapper probes the constructor that actually owns the tag for the `viewerState`
 getter. There is no timeout, deadline, retry, or `customElements.whenDefined`
 poll anywhere in the path, so an incompatible page fails fast instead of hanging.
 
-**Debug-mode** warnings — unstable property-tier props, a `state`-cadence
-projection reading through `osdViewer`, and the `<KeepAlive>` state loss above —
-are gated on `ViewerConfig.debug`, not on `NODE_ENV`: a production build with
-`config: { debug: true }` logs them and a development build without it does not.
-Debug mode is **page-level**: passing `config: { debug: true }` to any one viewer
-turns these warnings on for every wrapper on the page, and the most recently
-applied `debug` value wins. A `config` that omits `debug` entirely states no
-opinion, so a second viewer configured for something else never silences the
-first. Pass `config: { debug: false }` to turn them back off.
+Further failure modes are silent by design and surface only under
+`config: { debug: true }` — unstable property-tier props, a `state`-cadence
+projection reading through `osdViewer`, and the `<KeepAlive>` state loss above.
+See [debug diagnostics](configuration.md#debug-diagnostics).
 
 ## Testing your own components
 
 `triiiceratops/testing` builds a handle backed by a **real** `ViewerState` — real
-commands, real batched notifications, the real selector runtime registered in the
-very registry `useViewerSelector()` consults — with no DOM viewer, no custom
-element, no OpenSeadragon, and no network. Vue, React, and Svelte need not be
-installed for it to import.
-
-!!! note "Run it under a DOM test environment"
-
-    The published entry bundles a `fetch` polyfill that reaches for a `self`
-    global, so importing it in bare Node fails with `ReferenceError: self is not
-    defined`. Run these tests under `jsdom` or `happy-dom` — which a Vue test
-    runner already provides — or set `globalThis.self = globalThis` first.
+commands, real batched notifications, the real selector runtime `useViewerSelector()`
+consults — with no DOM viewer, no custom element, no OpenSeadragon, and no
+network. Run it under `jsdom` or `happy-dom` — which a Vue test runner already
+provides — because the published entry bundles a `fetch` polyfill that reaches for
+a `self` global, so bare Node fails with `ReferenceError: self is not defined`
+(or set `globalThis.self = globalThis` first).
 
 Wrap the handle in a `shallowRef` and pass it where a template ref would go:
 
@@ -864,110 +771,21 @@ OpenSeadragon stand-in and fires the real readiness path, which is how a
 
 ## What the wrapper does not do
 
-The promise of this wrapper is **idiomatic access** to the viewer. Two things are
-deliberately outside it, and it is better to know them now than mid-integration.
+The promise of this wrapper is **idiomatic access** to the viewer. Two limits are
+deliberately outside it, and both are shared by every host rather than being
+Vue-specific:
 
-### Styling stops at theme tokens
+- **Styling stops at theme tokens.** `theme`, `theme-config`, and the `--tri-*`
+  custom properties are the whole surface; the shadow-DOM internals are not
+  reachable. Everything about the *host* element — `class`, `style`, layout, size,
+  borders — is yours as usual, and scoped styles (`<style scoped>`) reach the host
+  and nothing inside it, which is the same boundary stated a different way. See
+  [theming](theming.md).
+- **Viewer chrome is not composable.** You cannot supply Vue components for the
+  toolbar, panels, or navigation, and the component has no slots.
+  [Building your own chrome](configuration.md#building-your-own-chrome) covers the
+  three supported answers, with a Vue custom-toolbar example.
 
-Supported:
-
-- the `theme` prop (`light`, `dark`, `teal`, `dracula`);
-- the `theme-config` prop — typed token overrides, plus a `cssVars` escape hatch
-  for tokens without a typed key;
-- setting the underlying `--tri-*` custom properties in your own CSS on the host
-  element, since they inherit through the shadow boundary;
-- everything about the **host**: `class`, `style`, layout, size, borders, and any
-  CSS that treats `<triiiceratops-viewer>` as a box in your page.
-
-See [theming](theming.md) for the full token reference.
-
-Not supported: the viewer's shadow-DOM internals are not reachable. There is no
-`::part()` surface, no way to inject a consumer stylesheet into the shadow root,
-and no light-DOM styling hook for internal elements. Restyling internals is out
-of scope for 1.0 — if a token you need is missing, ask for the token.
-
-Note that scoped styles (`<style scoped>`) reach the host element and nothing
-inside it, which is the same boundary stated a different way.
-
-### Viewer chrome is not composable
-
-You cannot supply Vue components for the viewer's toolbar, panels, or
-navigation, and the component has no slots. There is no framework-agnostic
-chrome slot contract.
-
-The supported answers, in order of how much you need:
-
-1. **Configure the built-in chrome.** `config` turns panels, buttons, the
-   gallery, the toolbar side, and plugin surfaces on and off, and applies
-   reactively after mount. See [configuration](configuration.md).
-2. **Build your own controls.** Application-owned Vue UI *outside* the viewer,
-   driven by commands and selectors, is a first-class path — the handle is a
-   value, so your controls can live anywhere in your tree. This is the answer for
-   a custom toolbar:
-
-    ```vue
-    <script setup lang="ts">
-    import { useTemplateRef } from 'vue';
-    import {
-        TriiiceratopsViewer,
-        useViewer,
-        useViewerSelector,
-        type TriiiceratopsViewerInstance,
-    } from 'triiiceratops/vue';
-
-    const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
-    const state = useViewer(viewer);
-    const hasPrevious = useViewerSelector(viewer, (s) => s.hasPrevious);
-    const hasNext = useViewerSelector(viewer, (s) => s.hasNext);
-    const position = useViewerSelector(
-        viewer,
-        (s) => `${s.currentCanvasIndex + 1} / ${s.canvases.length}`,
-    );
-
-    // Hide the built-in chrome you are replacing.
-    const config = { showCanvasNav: false, showToggle: false };
-    </script>
-
-    <template>
-        <nav class="my-toolbar">
-            <button
-                type="button"
-                :disabled="!hasPrevious"
-                @click="state?.previousCanvas()"
-            >
-                Previous
-            </button>
-            <span>{{ position }}</span>
-            <button
-                type="button"
-                :disabled="!hasNext"
-                @click="state?.nextCanvas()"
-            >
-                Next
-            </button>
-            <button type="button" @click="state?.zoomIn()">Zoom in</button>
-        </nav>
-        <TriiiceratopsViewer
-            ref="viewer"
-            manifest-id="https://example.org/manifest.json"
-            :config="config"
-            style="display: block; height: 600px"
-        />
-    </template>
-    ```
-
-    Anything the viewer's own UI can do, a command can do — that is the parity
-    rule, and the [state inventory](#what-notifies) records which command backs
-    each member.
-
-3. **Write a plugin.** UI that must render *inside* the viewer's chrome — in a
-   docked panel or an anchored flyout — is what the
-   [plugin SDK](plugin-authoring.md) is for. A plugin mounts into a plain
-   `HTMLElement`, so you can render it with Vue and it stays framework-neutral.
-
-### Still want the raw element?
-
-Direct custom-element integration remains fully supported and documented for
-advanced hosts that want it — see
-[the low-level custom element](integration.md#low-level-driving-the-custom-element-directly).
+Direct custom-element integration also remains fully supported for hosts that
+want it — see [driving the element directly](integration.md#driving-the-element-directly).
 Adopting the wrapper is not required.

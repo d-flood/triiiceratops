@@ -1,4 +1,4 @@
-// GENERATED from docs/react.md — do not edit by hand.
+// GENERATED from docs/configuration.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
 import {
     TriiiceratopsViewer,
@@ -8,8 +8,7 @@ import {
     ViewerProvider,
 } from 'triiiceratops/react';
 
-// Hide the built-in chrome you are replacing. Hoisted, so the wrapper
-// never re-applies it.
+// Hoisted, so the wrapper never re-applies it.
 const CONFIG = { showCanvasNav: false, showToggle: false };
 
 function MyToolbar() {
