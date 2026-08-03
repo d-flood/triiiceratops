@@ -114,8 +114,92 @@ Rules:
   itself is `any`-clean. **Update protocol:** adding or removing a line requires
   regenerating the txt via `node scripts/check-public-api.mjs --write-allowlist`
   AND updating this entry's rationale/date in the same commit.
+  **2026-07-31:** five lines were REMOVED (`dist/types/plugin.d.ts`'s
+  `icon`/`panel`/`flyout`/`component` `Component<any>` fields). They were not
+  IIIF-boundary `any`s at all — they were the Svelte-only `PluginDef` chrome
+  path, deleted for 1.0 by framework-wrappers ticket 12. Nothing was added.
+  **2026-07-31 (later):** ONE line was ADDED —
+  `dist/framework/props.d.ts :: manifestJson?: string | Record<string, any>`.
+  It is the same IIIF boundary as the already-listed
+  `TriiiceratopsViewer.svelte.d.ts :: manifestJson?: any`, reached for the first
+  time because framework-wrappers ticket 06 published `triiiceratops/react`,
+  whose declaration graph includes the shared framework prop metadata. No new
+  boundary and no new `any` — only a new public path to an existing one.
+  **2026-07-31 (later still):** ONE further line was ADDED —
+  `dist/vue/viewer.d.ts :: readonly type: PropType<string | Record<string, any>>`.
+  Same IIIF boundary again, reached a third way: framework-wrappers ticket 07
+  published `triiiceratops/vue`, whose `defineComponent` inlines the runtime
+  prop declaration (including `manifestJson`'s `PropType`) into the emitted
+  component type. The other eight lines that ticket added are NOT this boundary
+  and are recorded separately in entry 6.
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
   `pnpm api:check` in required CI) — fails the build on any non-allowlisted
   public `any`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
-- **Recorded:** 2026-07-19 · **Review by:** 2027-01-19
+- **Recorded:** 2026-07-19 · **Updated:** 2026-07-31 · **Review by:** 2027-01-19
+
+### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
+
+- **Code:** `ts(2307)` "Cannot find module `../triiiceratops-element.js`",
+  suppressed by a single inline `@ts-expect-error` with a description.
+- **File / target:** the one dynamic `import('../triiiceratops-element.js')` in
+  `createViewerElementRegistrar`'s default loader. Nothing else in the repo
+  suppresses this code.
+- **Mechanism:** inline `@ts-expect-error` — the narrowest possible scope, and
+  self-invalidating: if the module ever becomes resolvable, TypeScript reports
+  the unused directive and `pnpm --filter triiiceratops check` fails.
+- **Rationale:** the framework substrate must load the SELF-CONTAINED element
+  bundle by relative specifier, so a consumer's bundler resolves it inside the
+  installed package with no self-reference and no export condition to configure.
+  That artifact — `dist/triiiceratops-element.js` — is emitted by
+  `build:element`, which runs AFTER the `build:lib` step that compiles this
+  module, so it has no counterpart in `src/` and cannot be typed there.
+  Alternatives were rejected: a hand-written `src/lib/triiiceratops-element.d.ts`
+  shim would ship a misleading declaration next to a real artifact, and a
+  non-literal specifier would make the import unanalyzable, so a consumer's
+  bundler could not resolve it at all.
+- **Behavior test / gate:** `packages/core/scripts/check-element-artifact.mjs`,
+  appended to `build:element`, parses the built
+  `dist/framework/registration.js`, requires it to still contain a relative
+  dynamic import, and fails the build if the file that import resolves to is
+  missing. `packages/core/src/lib/framework/registration.test.ts` covers the
+  registrar itself through its injected `load` seam.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-07-31 · **Review by:** 2027-01-31
+
+### 6. Public-declaration `any` — Vue's own component typing in `triiiceratops/vue`
+
+- **Code:** public-`any` in emitted `.d.ts` (guarded by `scripts/check-public-api.mjs`)
+- **File / target:** eight lines in `api-reports/dts-any-allowlist.txt` under
+  `dist/vue/viewer.d.ts` and `dist/vue/context.d.ts`:
+    - the six derived emit-handler props
+      (`onStateChange`, `onCanvasChange`, `onManifestChange`, `onChoiceChange`,
+      `onPluginError`, `onViewerError`), each typed `(detail: …) => any`;
+    - the trailing `…, true, {}, any>` type argument of the two `DefineComponent`
+      types (`TriiiceratopsViewer`, `ViewerProvider`).
+- **Mechanism:** allowlisted per-line in the same machine-readable txt file the
+  gate reads. No inline suppression exists or is possible — these declarations
+  are emitted by `tsc`, not written by hand.
+- **Rationale:** every one of these `any`s originates inside Vue's own public
+  type machinery and is not reachable from this repository's source. Vue's
+  `EmitsToProps` maps an `ObjectEmitsOptions` entry to
+  `(...args: P) => any` — the RETURN type is hard-coded `any` in
+  `@vue/runtime-core`, while the PAYLOAD types are fully typed and are asserted
+  by `packages/core/src/lib/vue/types.test.ts` (`EmitParams<'onPluginError'>` is
+  exactly `[PluginError]`, and so on). The trailing `any` is likewise a fixed
+  type argument of Vue's exported `DefineComponent` alias. Eliminating them
+  would mean either hand-writing the component's declaration — which would
+  desynchronize from the runtime `props`/`emits` objects Vue actually reads —
+  or abandoning `defineComponent`, which the ticket's authoring constraint
+  (plain `.ts`, `h()` + `defineComponent`, no `.vue` files) rules out. They are
+  a single documented boundary at the Vue seam, exactly parallel to the
+  `manifesto.js` boundary in entry 4. **Update protocol:** same as entry 4 —
+  regenerate the txt via `node scripts/check-public-api.mjs --write-allowlist`
+  AND update this entry in the same commit.
+- **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
+  `pnpm api:check` in required CI) — fails the build on any non-allowlisted
+  public `any`. Payload typing is pinned by
+  `packages/core/src/lib/vue/types.test.ts`, which `pnpm --filter triiiceratops check`
+  runs through `tsc`.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-07-31 · **Review by:** 2027-01-31

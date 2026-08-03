@@ -4,9 +4,9 @@ icon: lucide/rocket
 
 # Triiiceratops IIIF Viewer
 
-A modern, lightweight, **framework-agnostic** IIIF viewer. Drop it into React,
-Vue, plain HTML, or any other frontend as a standards-based web component — or
-use it as a native Svelte component if that's your stack.
+A modern, lightweight, **framework-agnostic** IIIF viewer. Use the typed React
+or Vue component, drop the standards-based web component into plain HTML or any
+other frontend, or use the native Svelte component if that's your stack.
 
 <!-- Absolute URL, not a relative `./viewer/` link: the demo is published at a
 stable, unversioned path (see docs-publish.mjs) because IIIF cookbook recipes
@@ -37,10 +37,45 @@ That is the whole integration. Styles and themes are bundled inside the element.
 
 ## Use it in a framework
 
-The viewer behaves the same everywhere. Install the package, then register the
-web component (any framework) or import the Svelte component directly if
-that's your stack. The full walkthrough for each — plugins, config, events,
-SSR — is in [use with any framework](integration.md).
+The viewer behaves the same everywhere. React and Vue applications import a
+typed component from `triiiceratops/react` or `triiiceratops/vue`; everyone else
+uses the custom element, or the native Svelte component if that's the stack.
+
+=== "React"
+
+    ```tsx
+    import { TriiiceratopsViewer } from 'triiiceratops/react';
+
+    export function Reader() {
+        return (
+            <TriiiceratopsViewer
+                manifestId="https://example.org/manifest.json"
+                style={{ display: 'block', height: '600px' }}
+            />
+        );
+    }
+    ```
+
+    Typed props, typed callbacks, automatic element registration, and hooks for
+    viewer state — full walkthrough in the [React guide](react.md).
+
+=== "Vue"
+
+    ```vue
+    <script setup lang="ts">
+    import { TriiiceratopsViewer } from 'triiiceratops/vue';
+    </script>
+
+    <template>
+        <TriiiceratopsViewer
+            manifest-id="https://example.org/manifest.json"
+            style="display: block; height: 600px"
+        />
+    </template>
+    ```
+
+    Typed props, typed emits, automatic element registration, and composables
+    for viewer state — full walkthrough in the [Vue guide](vue.md).
 
 === "HTML"
 
@@ -55,42 +90,14 @@ SSR — is in [use with any framework](integration.md).
     ></triiiceratops-viewer>
     ```
 
-=== "React"
-
-    ```jsx
-    import { useEffect, useRef } from 'react';
-    import 'triiiceratops/element/register';
-
-    function Viewer() {
-        const ref = useRef(null);
-        useEffect(() => {
-            if (ref.current) ref.current.manifestId = 'https://example.org/manifest.json';
-        }, []);
-        return <triiiceratops-viewer ref={ref} style={{ display: 'block', height: '600px' }} />;
-    }
-    ```
-
-=== "Vue"
-
-    ```vue
-    <script setup>
-    import { onMounted, ref } from 'vue';
-    import 'triiiceratops/element/register';
-
-    const viewer = ref(null);
-    onMounted(() => (viewer.value.manifestId = 'https://example.org/manifest.json'));
-    </script>
-
-    <template>
-        <triiiceratops-viewer ref="viewer" style="display: block; height: 600px" />
-    </template>
-    ```
+    The low-level path, documented in
+    [use with any framework](integration.md).
 
 === "Svelte"
 
     ```html
     <script lang="ts">
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         import 'triiiceratops/style.css'; // once, anywhere in your app
     </script>
 
@@ -99,6 +106,39 @@ SSR — is in [use with any framework](integration.md).
         <TriiiceratopsViewer manifestId="https://example.org/manifest.json" />
     </div>
     ```
+
+!!! tip "No Svelte in your React or Vue app"
+
+    The framework wrappers host the same custom element every other integration
+    uses, so Svelte and its runtime stay behind that boundary. You add no Svelte
+    dependency, no Svelte Vite plugin, and no custom-element tag configuration —
+    and the published type declarations for `triiiceratops/react` and
+    `triiiceratops/vue` resolve with no `svelte` package installed.
+
+### Which entry point do I import from?
+
+Every entry below except `triiiceratops/svelte` is **framework-neutral**: nothing
+reachable from it needs the optional `svelte` peer, at runtime or at type-check
+time. Import from the one that matches your framework and you never think about
+this again.
+
+| Entry | For | Needs `svelte` installed |
+| :--- | :--- | :--- |
+| `triiiceratops/react` | React 19 apps | no |
+| `triiiceratops/vue` | Vue 3 apps | no |
+| `triiiceratops/element/register` | plain HTML / any framework | no |
+| `triiiceratops` | shared types, theming, logging, plugin contracts | no |
+| `triiiceratops/selectors` | framework-neutral state projections | no |
+| `triiiceratops/testing` | headless test kit (constructible `ViewerState`) | no |
+| `triiiceratops/svelte` | Svelte 5 apps — the `<TriiiceratopsViewer>` component | **yes** |
+
+`triiiceratops/svelte` is a superset of `triiiceratops`: everything the root
+exports is re-exported there, so a Svelte app can import everything it needs from
+that single specifier.
+
+`ViewerState` is exported from the root as a **type**; the constructible class
+lives in `triiiceratops/svelte`, and `triiiceratops/testing` provides one that
+needs no Svelte.
 
 !!! tip "Plugins are framework-agnostic"
 
@@ -110,7 +150,9 @@ SSR — is in [use with any framework](integration.md).
 
 | I want to…                              | Guide                                                       |
 | :--------------------------------------- | :---------------------------------------------------------- |
-| Mount the viewer in React, Vue, Svelte, or plain HTML | [Use with any framework](integration.md) |
+| Use the viewer in a React app           | [React](react.md)                                           |
+| Use the viewer in a Vue app             | [Vue](vue.md)                                               |
+| Mount the viewer in Svelte, plain HTML, or another framework | [Use with any framework](integration.md) |
 | Add plugins to the viewer               | [Plugins](plugins.md)                                       |
 | Write a plugin (SDK)                    | [Plugin authoring](plugin-authoring.md) · [Plugin testing](plugin-testing.md) |
 | Configure panels, layout, and state      | [Configuration](configuration.md)                           |
@@ -149,7 +191,7 @@ Three layered mechanisms, easiest first:
 - **IIIF Search**: Full Content Search API support with hit highlighting
 - **Content State API**: Opens at a specific manifest, canvas, and region via the `iiif-content` URL parameter
 - **Direct Manifest Injection**: Pass manifest JSON directly instead of loading over HTTP
-- **Custom Search Providers**: Svelte hosts can feed search results from local state or app services
+- **Custom Search Providers**: React, Vue, Svelte, and custom-element hosts can all feed search results from local state or app services
 - **Metadata Display**: Manifest metadata, rights, `homepage`, `rendering`, `seeAlso`, and `provider`
 - **Multi-language**: Language-aware metadata with fallback chain; English and German UI translations
 - **Image Services**: IIIF Image API v1/v2/v3 tiled deep-zoom

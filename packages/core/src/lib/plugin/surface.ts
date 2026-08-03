@@ -2,8 +2,8 @@
  * Core-owned plugin surface service.
  *
  * A plugin's own panel/flyout chrome, handed to it as `PluginContext.surface`.
- * This restores the open/close awareness a legacy `PluginDef` got for free from
- * its Svelte component's mount/destroy lifecycle: core mounts an SDK plugin ONCE
+ * This supplies the open/close awareness a Svelte component's mount/destroy
+ * lifecycle used to give for free: core mounts an SDK plugin ONCE
  * into a content element it re-parents in and out of the open surface, so
  * `view.mount` is not re-run on open/close and the plugin needs an observable
  * instead of a lifecycle hook.

@@ -11,7 +11,7 @@
     //     and installed through the SAME service. This is the path that would
     //     otherwise be injected un-nonced by Svelte's `append_styles` and blocked
     //     by strict `style-src` — the regression this fixture guards.
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import 'triiiceratops/style.css';
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
     import { PdfExportPlugin } from '@triiiceratops/plugin-pdf-export';

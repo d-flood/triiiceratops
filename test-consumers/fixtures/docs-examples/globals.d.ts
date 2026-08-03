@@ -15,10 +15,16 @@ interface Window {
     appSelection?: string | null;
 }
 
-// Reader-owned Svelte component files examples import by relative path (e.g.
-// "the `./PluginUI.svelte` you just wrote") — loosely typed, same rationale
-// as the STUBS in scripts/docs-examples.mjs.
+// Reader-owned Svelte and Vue component files examples import by relative path
+// (e.g. "the `./PluginUI.svelte` you just wrote", "the `./CanvasLabel.vue`
+// beside it") — loosely typed, same rationale as the STUBS in
+// scripts/docs-examples.mjs.
 declare module '*.svelte' {
+    const component: any;
+    export default component;
+}
+
+declare module '*.vue' {
     const component: any;
     export default component;
 }

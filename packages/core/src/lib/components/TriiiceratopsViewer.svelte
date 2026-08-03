@@ -48,7 +48,6 @@
         DEFAULT_TOOLBAR_ANCHOR,
     } from '../types/config';
     import type {
-        PluginDef,
         SdkPlugin,
         PluginError,
         PluginErrorReport,
@@ -70,7 +69,7 @@
     import { createPluginUiService } from '../plugin/uiService';
     import { createPluginSurface } from '../plugin/surface';
     import type { CanvasRegion } from '../utils/contentState';
-    import { createPluginId, sdkPluginChromeId } from '../utils/pluginId';
+    import { sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
@@ -168,7 +167,7 @@
         manifestId?: string;
         manifestJson?: any;
         canvasId?: string;
-        plugins?: Array<PluginDef | SdkPlugin> | null | boolean;
+        plugins?: readonly SdkPlugin[] | null | boolean;
         /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
         theme?: BuiltInTheme;
         /** Custom theme configuration to override the base theme's values. */
@@ -217,10 +216,7 @@
     }: Props = $props();
 
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
-    // Legacy PluginDef path (unchanged) and the SDK path (ticket 07) coexist.
-    let plugins = $derived(
-        allPlugins.filter((p): p is PluginDef => !isSdkPlugin(p)),
-    );
+    // The SDK path (ticket 07) is the one plugin path.
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
     let isDragOver = $state(false);
     // Active locale (CONTEXT.md **Active locale**, ticket 06): the viewer's typed
@@ -244,7 +240,7 @@
     // Note: We pass empty initial values and use $effect blocks below to set
     // manifestId, canvasId, and plugins reactively, avoiding Svelte's
     // "state_referenced_locally" warning about capturing initial prop values.
-    const internalViewerState = new ViewerState(null, undefined, []);
+    const internalViewerState = new ViewerState(null, undefined);
     viewerState = internalViewerState; // Expose via bindable prop
     setContext(VIEWER_STATE_KEY, internalViewerState);
 
@@ -452,44 +448,6 @@
         configureLogging({ debug: config?.debug ?? false });
     });
 
-    // Register plugins reactively with cleanup
-    let registeredPluginIds: string[] = [];
-
-    $effect(() => {
-        const currentPlugins = plugins;
-
-        // Use untrack so that operations inside (like registerPlugin accessing/writing state)
-        // do NOT become dependencies of this effect. This prevents infinite loops.
-        untrack(() => {
-            // Cleanup previous plugins first
-            for (const id of registeredPluginIds) {
-                internalViewerState.unregisterPlugin(id);
-            }
-            registeredPluginIds = [];
-
-            // Register new plugins
-            for (const plugin of currentPlugins) {
-                if (!plugin || typeof plugin !== 'object') {
-                    continue;
-                }
-
-                const id = plugin.id || createPluginId();
-                // Create a copy with the ID to ensure stability for THIS registration
-                const defWithId = { ...plugin, id };
-                internalViewerState.registerPlugin(defWithId);
-                registeredPluginIds.push(id);
-            }
-        });
-
-        // Cleanup on effect re-run
-        return () => {
-            for (const id of registeredPluginIds) {
-                internalViewerState.unregisterPlugin(id);
-            }
-            registeredPluginIds = [];
-        };
-    });
-
     // ---- SDK plugin activation (ticket 07 + services ticket 08) ------------
     // SDK plugins carry their own framework-neutral `activate(host)`. Core owns
     // a container per plugin, negotiates nothing itself (the plugin's activate
@@ -630,9 +588,9 @@
      * Activate one SDK plugin. Core owns the chrome: core hands `view.mount` a
      * content-only element it created; on success core registers the toolbar
      * chrome (button + anchored flyout / docked panel) via
-     * {@link ViewerState.registerSdkChrome}, reusing the SAME rendering path as
-     * legacy `PluginDef` plugins. The element is placed into the open surface (and
-     * removed on close) by the shared `PluginMountHost` attachment. Fail closed
+     * {@link ViewerState.registerSdkChrome}. The element is placed into the open
+     * surface (and removed on close) by the shared `PluginMountHost`
+     * attachment. Fail closed
      * (ADR 0010): a setup/mount failure renders NO button.
      */
     function activateSdkPlugin(plugin: SdkPlugin) {
@@ -779,16 +737,44 @@
         const currentSdkPlugins = sdkPlugins;
 
         untrack(() => {
-            teardownSdkActivations();
+            // Diff the incoming list against live activations by plugin OBJECT
+            // REFERENCE (CONTEXT.md **Activation**): activation lifetime follows
+            // the plugin's identity within the list, not the identity of the
+            // list. A plugin present before and after is left COMPLETELY
+            // untouched — no `deactivate`, no re-mount, no style re-install, no
+            // chrome re-registration, no subscription churn — so a host that
+            // re-evaluates its plugin array every render keeps its plugins.
+            // Reordering with unchanged membership is therefore also inert.
+            const wanted = new Set(currentSdkPlugins);
+            const retained: SdkActivationRecord[] = [];
 
+            for (const activation of sdkActivations) {
+                if (wanted.has(activation.plugin)) {
+                    retained.push(activation);
+                } else {
+                    // Absent now → the existing teardown path, unchanged.
+                    deactivateSdkRecord(activation);
+                }
+            }
+            sdkActivations = retained;
+
+            // Newly present → the existing activation path, unchanged. A
+            // repeated object reference is one activation.
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity
+            const live = new Set(retained.map((r) => r.plugin));
             for (const plugin of currentSdkPlugins) {
+                if (live.has(plugin)) continue;
+                live.add(plugin);
                 activateSdkPlugin(plugin);
             }
         });
+    });
 
-        return () => {
-            teardownSdkActivations();
-        };
+    // Unmounting the viewer still deactivates everything. As with the legacy
+    // registrations above, this is `onDestroy` rather than the effect's cleanup
+    // so that a re-supplied plugin list does not tear the whole set down.
+    onDestroy(() => {
+        teardownSdkActivations();
     });
 
     onDestroy(() => {
@@ -895,28 +881,18 @@
         return side === 'left' || side === 'right' ? side : null;
     });
 
-    function getPluginPanelClose(
-        props: Record<string, unknown> | undefined,
-    ): (() => void) | undefined {
-        return typeof props?.close === 'function'
-            ? (props.close as () => void)
-            : undefined;
-    }
-
     function showPanelCloseButton(showCloseButton: boolean | undefined) {
         return showCloseButton ?? true;
     }
 
     /**
-     * Build a `PanelStackItem` from a registered plugin panel. Legacy `PluginDef`
-     * panels render their Svelte `component`; SDK core-owned-chrome panels
-     * (ticket 02) carry a DOM-mount thunk instead, rendered through the shared
-     * `PluginMountHost` adapter — one panel rendering path for both.
+     * Build a `PanelStackItem` from a registered plugin panel. A plugin panel
+     * carries a DOM-mount thunk, rendered through the shared `PluginMountHost`
+     * adapter.
      *
-     * Header copy: an SDK panel whose plugin declared a `title` carries a
-     * `label` thunk already resolved against the PLUGIN's catalog; otherwise
-     * fall through to the legacy behavior — look `name` up in core's own
-     * catalog, else render it verbatim.
+     * Header copy: a plugin that declared a `title` carries a `label` thunk
+     * already resolved against the PLUGIN's catalog; otherwise look `name` up in
+     * core's own catalog, else render it verbatim.
      */
     function toPluginPanelItem(
         panel: (typeof internalViewerState.pluginPanels)[number],
@@ -926,22 +902,12 @@
         )[panel.name];
         const title =
             panel.label?.() ?? (resolveTitle ? resolveTitle() : panel.name);
-        if (panel.mount) {
-            return {
-                id: panel.id,
-                title,
-                iconDescriptor: panel.iconDescriptor,
-                component: PluginMountHost,
-                props: { mount: panel.mount },
-            };
-        }
         return {
             id: panel.id,
             title,
-            icon: panel.icon,
-            component: panel.component!,
-            props: { ...(panel.props ?? {}), locale: viewerLocale },
-            close: getPluginPanelClose(panel.props),
+            iconDescriptor: panel.iconDescriptor,
+            component: PluginMountHost,
+            props: { mount: panel.mount },
         };
     }
 
@@ -1534,11 +1500,6 @@
                     <div class="plugin-overlay">
                         {#if panel.mount}
                             <PluginMountHost mount={panel.mount} />
-                        {:else if panel.component}
-                            <panel.component
-                                {...panel.props ?? {}}
-                                locale={viewerLocale}
-                            />
                         {/if}
                     </div>
                 {/if}
@@ -1577,11 +1538,6 @@
                 <div class="plugin-bottom">
                     {#if panel.mount}
                         <PluginMountHost mount={panel.mount} />
-                    {:else if panel.component}
-                        <panel.component
-                            {...panel.props ?? {}}
-                            locale={viewerLocale}
-                        />
                     {/if}
                 </div>
             {/if}

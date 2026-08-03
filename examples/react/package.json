@@ -1,0 +1,25 @@
+{
+    "name": "triiiceratops-example-react",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "description": "Self-contained React 19 example that installs triiiceratops from npm.",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "check": "tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "triiiceratops": "^1.0.0-rc.33"
+    },
+    "devDependencies": {
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "@vitejs/plugin-react": "^5.0.0",
+        "typescript": "~5.9.3",
+        "vite": "^6.0.0"
+    }
+}

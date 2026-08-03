@@ -10,8 +10,14 @@
 // `ViewerConfig.openSeadragonConfig` (`Partial<OpenSeadragon.Options>`, reached
 // transitively through the viewer component's `config` prop declaration). An
 // unresolved `OpenSeadragon` namespace anywhere in that graph fails the compile.
+//
+// Imports from `triiiceratops/svelte`, not `triiiceratops`: this fixture needs a
+// CONSTRUCTIBLE `ViewerState` (it calls `new`) and it needs the viewer
+// component's declaration in the graph to reach the second OSD surface. Both
+// moved to the `./svelte` entry when `.` became framework-neutral. This fixture
+// installs `svelte`, so the superset entry is the correct one for it.
 
-import { ViewerState } from 'triiiceratops';
+import { ViewerState } from 'triiiceratops/svelte';
 
 const state = new ViewerState();
 

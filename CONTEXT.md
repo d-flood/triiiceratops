@@ -86,10 +86,17 @@ _Avoid_: plugin (that means the whole annotation-editor plugin), hooks object
 
 ## Viewer state domain
 
+**Framework wrapper**:
+A framework-native React or Vue component that hosts the Triiiceratops custom element
+and translates its lifecycle, properties, and viewer state into the framework's
+idioms. It does not implement or own a second viewer.
+_Avoid_: framework-native viewer, adapter (reserved for annotation persistence)
+
 **Viewer state**:
-The per-viewer live state object (`ViewerState`) — the sole plugin-facing state
-contract. Every piece of state a plugin may read, mutate, or observe is reached through
-it; there is no second plugin-facing state surface.
+The per-viewer live state object (`ViewerState`) — the sole plugin-facing and
+framework-wrapper-facing state contract. Every piece of state an integration may read,
+mutate, or observe is reached through it; there is no second framework-specific state
+surface.
 _Avoid_: viewer store, global state
 
 **Manifest cache**:
@@ -126,14 +133,24 @@ commands replace members or bump collections, never deep-mutate innards.
 _Avoid_: event (notifications are not a transition log)
 
 **Selector**:
-The SDK-owned memoized `{ get(), subscribe() }` view of viewer state. Recomputes only
-when state has changed, propagates only when its selected value fails the equality
-gate.
+The framework-neutral memoized `{ get(), subscribe() }` view of viewer state.
+Recomputes only when state has changed and propagates only when its selected value
+fails the equality gate. Plugin activations and framework wrappers each own an
+isolated selector runtime for their viewer state.
+
+**Selector cadence**:
+Which notification wakes a selector: `state` (the default — the batched, inventoried
+member watcher) or `frame` (the live OSD instance's own animation events). Projection,
+memoization, equality gating, and disposal are identical in both; only the wake-up
+differs. Frame cadence is how continuous viewport values are read reactively without
+mirroring them into viewer state.
+_Avoid_: unbatched notification, polling (frame cadence is event-driven, not a loop)
 
 **Query-only state**:
 High-frequency (per-frame) values readable on demand but deliberately non-notifying —
 e.g. continuous viewport position. Which members are query-only is an explicit state
-inventory decision.
+inventory decision. Reading such values reactively is a selector cadence choice, not a
+reclassification.
 
 **OSD pass-through**:
 The raw OpenSeadragon viewer exposed as observable viewer state. Its existence and
@@ -161,7 +178,11 @@ _Avoid_: loading, installing (both conflate script delivery with registration)
 Explicitly attaching a registered plugin to one viewer instance. This is where
 compatibility (core range, plugin API range, capabilities) is negotiated and where
 isolated per-viewer plugin state is created. A plugin can register successfully and
-still fail activation.
+still fail activation. An activation's lifetime is keyed to the plugin's identity
+within a viewer's plugin list, not to the identity of the list itself: re-supplying an
+equal list leaves existing activations untouched. There is one activation path — the
+framework-neutral SDK plugin (`definePlugin`). The Svelte-only `PluginDef` shortcut,
+which core registered without negotiating anything, was removed for 1.0.
 _Avoid_: enabling, mounting (mounting is the UI step inside a successful activation)
 
 **Test viewer context**:

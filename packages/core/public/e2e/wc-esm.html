@@ -11,6 +11,22 @@
             behavior as the IIFE fixture.
         -->
         <script type="module" src="/dist/triiiceratops-element.js"></script>
+        <script>
+            // The state bridge (ticket 02), recorded from the document exactly
+            // as in the IIFE fixture so the two entries are compared on the
+            // same observation. A composed event retargets to the host, so
+            // `event.target` is the custom element itself.
+            window.__viewerStateEvents = [];
+            document.addEventListener('viewerstateavailable', (event) => {
+                const host = event.target;
+                window.__viewerStateEvents.push({
+                    targetIsHost: host === document.getElementById('v'),
+                    detailIsProperty: event.detail === host.viewerState,
+                    bubbles: event.bubbles,
+                    composed: event.composed,
+                });
+            });
+        </script>
         <style>
             #v {
                 display: block;
@@ -43,6 +59,24 @@
                     window.__statechangeCount += 1;
                 });
             }
+
+            // Custom search as a property-only input, assigned here — with the
+            // tag not yet defined, so the element must carry the value across
+            // its custom-element upgrade.
+            window.__searchCalls = [];
+            v.searchProvider = async (query, context) => {
+                window.__searchCalls.push({
+                    query,
+                    manifestId: context.manifestId,
+                });
+                return [
+                    {
+                        canvasIndex: 0,
+                        canvasLabel: 'parity',
+                        hits: [{ type: 'hit', match: query }],
+                    },
+                ];
+            };
         </script>
     </body>
 </html>

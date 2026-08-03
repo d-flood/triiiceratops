@@ -1,0 +1,15 @@
+---
+'triiiceratops': major
+---
+
+**BREAKING:** remove the Svelte-only `PluginDef` plugin path. SDK plugins (`definePlugin`) are the one plugin path in 1.0.
+
+Removed from core's public API: the `PluginDef` type, the `definePlugin`, `createPanelPlugin`, and `createFlyoutPlugin` helpers, `ViewerState.registerPlugin`, the `ViewerState` constructor's third `initialPlugins` parameter, and the `icon` / `component` fields on `PluginMenuButton`, `PluginPanel`, and `PluginFlyout`. The `plugins` input on `<TriiiceratopsViewer>` and `<triiiceratops-viewer>` narrows from `Array<PluginDef | SdkPlugin>` to `readonly SdkPlugin[]`. There is no deprecation shim: a `PluginDef` passed to `plugins` is now ignored like any other non-SDK value.
+
+`PluginMenuButton`, `PluginPanel`, `PluginFlyout`, and `PluginUiTarget` all stay exported — they are the live chrome records both `registerSdkChrome` and the render sites use; only their `PluginDef`-path fields are gone. Nothing about SDK plugins changes: activation semantics, identity-keyed activation, chrome registration and ordering, compatibility negotiation, `PluginError` channels, and ADR 0010's fail-closed behavior are all untouched, and `unregisterPlugin`, the three chrome arrays, and the chrome reset still work exactly as they did.
+
+Why it is worth a breaking change: every one of those removed members was annotated `Component<any>` from `svelte`, and all of them are reachable from `ViewerState`. Because `ReadonlyViewerState` is `Readonly<Omit<ViewerState, …>>` and `Omit` still forces the full declaration to resolve, no amount of member omission removed the import — so a React or Vue consumer that installed every real dependency but not the optional `svelte` peer could not type-check the published declarations under `skipLibCheck: false`. `types/plugin.ts` now imports nothing from `svelte`, and `triiiceratops/selectors` and `triiiceratops/testing` type-check cleanly with no Svelte installed.
+
+The declaration guard is tightened to match. Its per-file exception for `types/plugin.d.ts` is gone, so a reintroduced `svelte` import there fails the build; and its allowance for compiled Svelte component declarations now identifies them by the `.svelte` source `svelte-package` copies alongside, rather than by the `.svelte.d.ts` extension — which a `*.svelte.ts` rune module's declaration shares. A planted `svelte` type import in `dist/state/viewer.svelte.d.ts`, reachable from the Svelte-free subpaths, now fails the build instead of slipping through.
+
+Migrating a `PluginDef`: define the plugin with the SDK's `definePlugin`, give it an `svgIcon` descriptor instead of a Svelte icon component, and mount your existing Svelte component from `view.mount(container, context)` with Svelte's own `mount`/`unmount`. Use `uiId` where you used `id` for `config.plugins` keying, `context.viewerState` where you used the `onInit(viewerState)` hook, and `context.surface.close()` where a flyout component received a `close` prop. See `docs/plugin-authoring.md`.

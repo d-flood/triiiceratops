@@ -9,7 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ViewerState } from './viewer.svelte';
-import type { PluginDef } from '../types/plugin';
+import type { IconDescriptor } from '../types/plugin';
 
 vi.mock('./manifests.svelte', () => ({
     manifestsState: {
@@ -24,15 +24,24 @@ vi.mock('./manifests.svelte', () => ({
     },
 }));
 
-// A minimal legacy PluginDef — the target machinery is component-agnostic, so a
-// placeholder icon/component suffices for state-level assertions.
-function def(overrides: Partial<PluginDef> = {}): PluginDef {
+type SdkChromeConfig = Parameters<ViewerState['registerSdkChrome']>[0];
+
+const ICON: IconDescriptor = {
+    kind: 'svg',
+    inner: '<path d="M0 0h1v1H0z" />',
+    viewBox: '0 0 1 1',
+};
+
+// Minimal plugin chrome — the target machinery is content-agnostic, so a
+// placeholder icon and mount thunk suffice for state-level assertions.
+function chrome(overrides: Partial<SdkChromeConfig> = {}): SdkChromeConfig {
     return {
         id: 'p1',
         name: 'Plugin One',
-        icon: (() => {}) as unknown as PluginDef['icon'],
-        panel: (() => {}) as unknown as PluginDef['panel'],
-        flyout: (() => {}) as unknown as PluginDef['flyout'],
+        icon: ICON,
+        target: 'panel',
+        dismiss: 'light',
+        mount: () => () => {},
         ...overrides,
     };
 }
@@ -57,7 +66,7 @@ describe('ViewerState plugin render target (updatable)', () => {
     });
 
     it('registers BOTH a panel and a flyout entry regardless of authored target', () => {
-        state.registerPlugin(def({ id: 'p1', target: 'panel' }));
+        state.registerSdkChrome(chrome({ id: 'p1', target: 'panel' }));
         expect(panelOf(state, 'p1')).toBeDefined();
         expect(flyoutOf(state, 'p1')).toBeDefined();
         // One toolbar button, always carrying a flyout DOM id for anchoring.
@@ -69,8 +78,8 @@ describe('ViewerState plugin render target (updatable)', () => {
     });
 
     it('defaults the effective target to the authored target', () => {
-        state.registerPlugin(def({ id: 'panelish', target: 'panel' }));
-        state.registerPlugin(def({ id: 'flyish', target: 'flyout' }));
+        state.registerSdkChrome(chrome({ id: 'panelish', target: 'panel' }));
+        state.registerSdkChrome(chrome({ id: 'flyish', target: 'flyout' }));
         expect(state.getPluginTarget('panelish')).toBe('panel');
         expect(state.getPluginTarget('flyish')).toBe('flyout');
         // Unknown plugin falls back to 'panel'.
@@ -78,7 +87,7 @@ describe('ViewerState plugin render target (updatable)', () => {
     });
 
     it('panel entry is live only when effective target is panel AND open', () => {
-        state.registerPlugin(def({ id: 'p1', target: 'panel' }));
+        state.registerSdkChrome(chrome({ id: 'p1', target: 'panel' }));
         const panel = panelOf(state, 'p1')!;
 
         expect(panel.isVisible()).toBe(false); // closed
@@ -92,7 +101,7 @@ describe('ViewerState plugin render target (updatable)', () => {
     });
 
     it('setPluginTarget switches after registration and is a no-op when unchanged', () => {
-        state.registerPlugin(def({ id: 'p1', target: 'panel' }));
+        state.registerSdkChrome(chrome({ id: 'p1', target: 'panel' }));
         // dispatchStateChange is private; cast to observe the re-render signal.
         const spy = vi.spyOn(
             state as unknown as { dispatchStateChange: () => void },
@@ -112,7 +121,7 @@ describe('ViewerState plugin render target (updatable)', () => {
     });
 
     it('applies config.plugins[id].target on updateConfig, after registration', () => {
-        state.registerPlugin(def({ id: 'p1', target: 'panel' }));
+        state.registerSdkChrome(chrome({ id: 'p1', target: 'panel' }));
         expect(state.getPluginTarget('p1')).toBe('panel');
 
         state.updateConfig({ plugins: { p1: { target: 'flyout' } } });
@@ -127,13 +136,13 @@ describe('ViewerState plugin render target (updatable)', () => {
     it('seeds the effective target from config at registration time', () => {
         state.updateConfig({ plugins: { late: { target: 'flyout' } } });
         // Authored as panel, but config already asks for flyout.
-        state.registerPlugin(def({ id: 'late', target: 'panel' }));
+        state.registerSdkChrome(chrome({ id: 'late', target: 'panel' }));
         expect(state.getPluginTarget('late')).toBe('flyout');
     });
 
     it('closePluginFlyouts ignores plugins currently rendering as a panel', () => {
-        state.registerPlugin(def({ id: 'panelish', target: 'panel' }));
-        state.registerPlugin(def({ id: 'flyish', target: 'flyout' }));
+        state.registerSdkChrome(chrome({ id: 'panelish', target: 'panel' }));
+        state.registerSdkChrome(chrome({ id: 'flyish', target: 'flyout' }));
         state.setPluginOpen('panelish', true);
         state.setPluginOpen('flyish', true);
 

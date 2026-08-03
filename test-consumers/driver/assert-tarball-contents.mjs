@@ -25,9 +25,51 @@ const TOP_LEVEL_ALLOWED = new Set([
     'CHANGELOG.md',
 ]);
 
+// Files the CORE tarball must CONTAIN, not merely be permitted to contain
+// (framework-wrappers ticket 10). The allowlist above is a ceiling; these are
+// the floor. `dist/react.*` and `dist/vue.*` are the precompiled framework
+// wrappers `triiiceratops/react` and `triiiceratops/vue` resolve to — the
+// subpaths are part of core's published contract, so a build that silently
+// stops emitting them must fail the release, not ship a package whose export
+// map points at nothing.
+//
+// The per-file list is deliberately short: `assertCoreExportTargets` derives
+// the rest from the PACKED `exports` map, so any subpath added later is checked
+// without touching this file.
+const REQUIRED_CORE_DIST_FILES = [
+    'dist/react.js',
+    'dist/react.d.ts',
+    'dist/vue.js',
+    'dist/vue.d.ts',
+    // The Svelte entry. Listed for the same non-vacuity reason as the wrappers:
+    // if `svelte-package` ever stops emitting it, `.` would still build and every
+    // Svelte-free assertion would still pass — the failure would surface only as
+    // Svelte consumers being unable to import the component at all.
+    'dist/svelte.js',
+    'dist/svelte.d.ts',
+];
+
+/**
+ * Core's optional framework peers. React and Vue are OPTIONAL peers, never
+ * runtime dependencies — a React consumer installs no Vue, a Vue consumer
+ * installs no React, and neither installs Svelte.
+ */
+const CORE_OPTIONAL_PEERS = [
+    { name: 'react', range: /^\^19(\.|$)/ },
+    { name: 'svelte', range: /^\^5(\.|$)/ },
+    { name: 'vue', range: /^\^3\.5(\.|$)/ },
+];
+
+/** Never a production dependency of core, whatever else changes. */
+const CORE_FORBIDDEN_RUNTIME_DEPS = ['react', 'react-dom', 'svelte', 'vue'];
+
 // Extensions permitted inside `dist/`: JS + Svelte source (core is
 // source-distributed), TypeScript declarations, CSS, and source maps. Notably
 // ABSENT: `.json` (would admit fixture manifests), `.ico`/images, `.html`.
+//
+// `dist/react.js`, `dist/react.d.ts`, `dist/vue.js`, and `dist/vue.d.ts` — the
+// framework wrapper entries — are admitted by the `.js` / `.d.ts` rules here and
+// REQUIRED by `REQUIRED_CORE_DIST_FILES` above.
 const ALLOWED_DIST_SUFFIXES = [
     '.js',
     '.mjs',
@@ -211,6 +253,143 @@ export function assertTarballPeerRanges(tarballPath, pkgName) {
     };
 }
 
+/** Every `./dist/...` path an `exports`/`main`/`module`/`types`/… field names. */
+export function collectExportTargets(pkg) {
+    const targets = new Set();
+    const visit = (node) => {
+        if (typeof node === 'string') {
+            if (node.startsWith('./dist/')) targets.add(node.slice(2));
+            return;
+        }
+        if (typeof node !== 'object' || node === null) return;
+        for (const value of Object.values(node)) visit(value);
+    };
+    visit(pkg.exports);
+    for (const field of ['main', 'module', 'svelte', 'types', 'style']) {
+        visit(pkg[field]);
+    }
+    return [...targets].sort();
+}
+
+/**
+ * Assert the CORE tarball actually ships what its export map promises, and that
+ * the framework wrapper subpaths are among them (framework-wrappers ticket 10).
+ *
+ * Two failure modes this catches that the allowlist cannot, because the
+ * allowlist only says what MAY appear:
+ *   · a build stops emitting `dist/react.js` (e.g. `svelte-package` clears
+ *     `dist/` and a later step is skipped) — the package publishes with an
+ *     export map pointing at a missing file, and every React consumer's install
+ *     resolves to nothing;
+ *   · a subpath is removed from `exports` — `triiiceratops/react` stops
+ *     resolving even though the file is still in the tarball.
+ *
+ * Returns { ok, checks }.
+ */
+export function classifyCoreExportTargets(pkg, distRelativeEntries) {
+    const present = new Set(distRelativeEntries);
+
+    return {
+        missingRequired: REQUIRED_CORE_DIST_FILES.filter(
+            (file) => !present.has(file),
+        ),
+        missingTargets: collectExportTargets(pkg).filter(
+            (target) => !present.has(target),
+        ),
+        // The subpaths themselves, so removing `./react` from the export map
+        // fails here rather than silently in a consumer's resolver.
+        missingSubpaths: ['./react', './vue'].filter((subpath) => {
+            const condition = pkg.exports?.[subpath];
+            return (
+                typeof condition !== 'object' ||
+                condition === null ||
+                typeof condition.types !== 'string' ||
+                typeof condition.import !== 'string'
+            );
+        }),
+    };
+}
+
+export function assertCoreExportTargets(tarballPath, pkgName) {
+    const pkg = readTarballPackageJson(tarballPath);
+    const { missingRequired, missingTargets, missingSubpaths } =
+        classifyCoreExportTargets(
+            pkg,
+            listTarball(tarballPath)
+                .filter((entry) => entry.startsWith('package/'))
+                .map((entry) => entry.slice('package/'.length)),
+        );
+
+    const checks = [
+        {
+            name: `${pkgName}: framework wrapper JS + declarations present`,
+            ok: missingRequired.length === 0,
+            detail: missingRequired.join(', '),
+        },
+        {
+            name: `${pkgName}: ./react and ./vue export types + import`,
+            ok: missingSubpaths.length === 0,
+            detail: missingSubpaths.join(', '),
+        },
+        {
+            name: `${pkgName}: every export target exists in the tarball`,
+            ok: missingTargets.length === 0,
+            detail: missingTargets.join(', '),
+        },
+    ];
+
+    return { ok: checks.every((c) => c.ok), checks };
+}
+
+/**
+ * Assert core's framework peer metadata (framework-wrappers ticket 10).
+ *
+ * `react`, `vue`, and `svelte` must be declared peers, marked OPTIONAL, and must
+ * not appear in `dependencies`. Getting this wrong is what turns "install
+ * `triiiceratops` and your own framework" into npm pulling Vue into a React app
+ * (or Svelte into both). Returns { ok, checks }.
+ */
+export function assertCoreOptionalPeers(tarballPath, pkgName) {
+    const pkg = readTarballPackageJson(tarballPath);
+    const peers = pkg.peerDependencies ?? {};
+    const meta = pkg.peerDependenciesMeta ?? {};
+    const deps = pkg.dependencies ?? {};
+
+    const badRanges = CORE_OPTIONAL_PEERS.filter(
+        ({ name, range }) =>
+            typeof peers[name] !== 'string' || !range.test(peers[name]),
+    ).map(
+        ({ name, range }) =>
+            `${name}=${peers[name] ?? 'absent'} (want ${range})`,
+    );
+
+    const notOptional = CORE_OPTIONAL_PEERS.filter(
+        ({ name }) => meta[name]?.optional !== true,
+    ).map(({ name }) => name);
+
+    const leaked = CORE_FORBIDDEN_RUNTIME_DEPS.filter((name) => name in deps);
+
+    const checks = [
+        {
+            name: `${pkgName}: react/vue/svelte peer ranges`,
+            ok: badRanges.length === 0,
+            detail: badRanges.join(', '),
+        },
+        {
+            name: `${pkgName}: react/vue/svelte peers are optional`,
+            ok: notOptional.length === 0,
+            detail: notOptional.join(', '),
+        },
+        {
+            name: `${pkgName}: no framework in dependencies`,
+            ok: leaked.length === 0,
+            detail: leaked.join(', '),
+        },
+    ];
+
+    return { ok: checks.every((c) => c.ok), checks };
+}
+
 /**
  * One-time self-check: prove the peer-range classifier REJECTS an exact pin and
  * a residual `workspace:*`, and ACCEPTS a caret range — a permanent guard so the
@@ -225,6 +404,79 @@ export function selfCheckPeerRangeRejectsPin() {
     return {
         ok,
         detail: ok ? '' : 'peer-range classifier misclassified a sample value',
+    };
+}
+
+/**
+ * One-time self-check: prove the framework-subpath assertions actually bite —
+ * a tarball missing `dist/react.js`, an export map whose `./vue` lost its
+ * `types` condition, and an export target no archive entry backs must all be
+ * reported. Kept as a permanent guard rather than mutating a real tarball.
+ * Returns { ok, detail }.
+ */
+export function selfCheckFrameworkSubpathAssertions() {
+    const healthy = {
+        exports: {
+            '.': { types: './dist/index.d.ts', import: './dist/index.js' },
+            './react': {
+                types: './dist/react.d.ts',
+                import: './dist/react.js',
+            },
+            './vue': { types: './dist/vue.d.ts', import: './dist/vue.js' },
+            './svelte': {
+                types: './dist/svelte.d.ts',
+                svelte: './dist/svelte.js',
+                import: './dist/svelte.js',
+            },
+        },
+    };
+    const entries = [
+        'dist/index.d.ts',
+        'dist/index.js',
+        'dist/react.d.ts',
+        'dist/react.js',
+        'dist/vue.d.ts',
+        'dist/vue.js',
+        'dist/svelte.d.ts',
+        'dist/svelte.js',
+    ];
+
+    const clean = classifyCoreExportTargets(healthy, entries);
+    const droppedFile = classifyCoreExportTargets(
+        healthy,
+        entries.filter((e) => e !== 'dist/react.js'),
+    );
+    // The Svelte entry is required for the same non-vacuity reason: losing it
+    // breaks every Svelte consumer while leaving all Svelte-free checks green.
+    const droppedSvelte = classifyCoreExportTargets(
+        healthy,
+        entries.filter((e) => e !== 'dist/svelte.js'),
+    );
+    const droppedTypes = classifyCoreExportTargets(
+        {
+            exports: {
+                ...healthy.exports,
+                './vue': { import: './dist/vue.js' },
+            },
+        },
+        entries,
+    );
+
+    const ok =
+        clean.missingRequired.length === 0 &&
+        clean.missingTargets.length === 0 &&
+        clean.missingSubpaths.length === 0 &&
+        droppedFile.missingRequired.includes('dist/react.js') &&
+        droppedFile.missingTargets.includes('dist/react.js') &&
+        droppedSvelte.missingRequired.includes('dist/svelte.js') &&
+        droppedSvelte.missingTargets.includes('dist/svelte.js') &&
+        droppedTypes.missingSubpaths.includes('./vue');
+
+    return {
+        ok,
+        detail: ok
+            ? ''
+            : 'framework-subpath tarball assertions misclassified a sample package',
     };
 }
 

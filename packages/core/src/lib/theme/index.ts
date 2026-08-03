@@ -32,7 +32,7 @@
  * @example Svelte component
  * ```svelte
  * <script>
- *   import { TriiiceratopsViewer } from 'triiiceratops';
+ *   import { TriiiceratopsViewer } from 'triiiceratops/svelte';
  *   import { MediaQuery } from 'svelte/reactivity';
  *
  *   const prefersDark = new MediaQuery('(prefers-color-scheme: dark)');

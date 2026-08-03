@@ -51,6 +51,8 @@ Copyright &copy; 2025 David Flood
 # Read more: https://zensical.org/docs/setup/navigation/
 nav = [
     { "Home" = "index.md" },
+    { "React" = "react.md" },
+    { "Vue" = "vue.md" },
     { "Use with any framework" = "integration.md" },
     { "Configuration & State Management" = "configuration.md" },
     { "Theming and Styling" = "theming.md" },

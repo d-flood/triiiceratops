@@ -7,9 +7,15 @@ icon: lucide/wrench
 Triiiceratops provides a flexible configuration system that works consistently
 across every host — React, Vue, Svelte, or plain HTML.
 
-Every host shares the same `ViewerConfig` object, documented once below. Every
-host can also load manifest JSON directly; `searchProvider` remains a
-Svelte-only integration prop (a nice bonus of the native integration).
+Every host shares the same `ViewerConfig` object, documented once below, and
+every host can load manifest JSON directly and supply a `searchProvider`. There
+are no host-specific viewer inputs.
+
+The React and Vue tabs on this page use the framework wrappers, which are the
+supported integration path for those frameworks — see the [React](react.md) and
+[Vue](vue.md) guides. Hosts driving the custom element by hand should read the
+[low-level section](integration.md#low-level-driving-the-custom-element-directly)
+of the framework page.
 
 ## Configuration Object
 
@@ -66,7 +72,7 @@ interface ViewerConfig {
         showCollection?: boolean; // Default: true (only visible when a collection is loaded)
     };
 
-    // Plugin UI Settings (keyed by plugin id — PluginDef.id or SDK uiId)
+    // Plugin UI Settings (keyed by plugin id — the SDK `uiId`)
     plugins?: {
         [pluginId: string]: {
             visible?: boolean; // Default: true (Toolbar button visible)
@@ -166,7 +172,7 @@ When multiple panels are open on the same side, they stack vertically. `search`,
 
 ### Plugin UI Control
 
-Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's stable id as the key — `PluginDef.id` for legacy plugins, or the SDK `uiId` for `definePlugin` plugins (first-party plugins use `pdf-export`, `image-download`, `image-manipulation`, `annotation-editor`):
+Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's stable id as the key — the SDK `uiId` a `definePlugin` plugin declares (first-party plugins use `pdf-export`, `image-download`, `image-manipulation`, `annotation-editor`):
 
 ```typescript
 const config = {
@@ -191,10 +197,16 @@ const config = {
 
 ## Usage
 
-Everywhere but Svelte, the viewer is the `<triiiceratops-viewer>` custom
-element and `config` is a **property** on it (objects can't go through HTML
-attributes — see [use with any framework](integration.md)). In Svelte,
-`config` is a normal reactive **prop** on `<TriiiceratopsViewer>`.
+In React, Vue, and Svelte, `config` is a normal typed **prop** on
+`<TriiiceratopsViewer>`. When you drive the custom element directly it is a
+**property** on the element (objects can't go through HTML attributes — see
+[use with any framework](integration.md)).
+
+Whichever host you use, treat `config` as immutable: **assign a new object** to
+change it. Mutating nested keys on the existing object does not notify the
+viewer, and in React and Vue the wrapper compares what you pass with one
+uniform, one-level shallow equality, so an in-place mutation looks like no
+change at all.
 
 ### Passing Configuration
 
@@ -221,27 +233,47 @@ attributes — see [use with any framework](integration.md)). In Svelte,
 
 === "React"
 
-    ```jsx
-    useEffect(() => {
-        if (ref.current) {
-            ref.current.config = { toolbar: { side: 'left' }, gallery: { dockPosition: 'right' } };
-        }
-    }, []);
+    ```tsx
+    import { TriiiceratopsViewer } from 'triiiceratops/react';
+    import type { ViewerConfig } from 'triiiceratops/react';
 
-    <triiiceratops-viewer ref={ref} manifest-id="https://example.org/iiif/manifest.json" />
+    // Hoisted (or `useMemo`d) so a parent re-render does not re-apply it.
+    const config: ViewerConfig = {
+        toolbar: { side: 'left' },
+        gallery: { dockPosition: 'right' },
+    };
+
+    export function Reader() {
+        return (
+            <TriiiceratopsViewer
+                manifestId="https://example.org/iiif/manifest.json"
+                config={config}
+                style={{ display: 'block', height: '600px' }}
+            />
+        );
+    }
     ```
 
 === "Vue"
 
     ```vue
-    <script setup>
-    onMounted(() => {
-        viewer.value.config = { toolbar: { side: 'left' }, gallery: { dockPosition: 'right' } };
+    <script setup lang="ts">
+    import { shallowRef } from 'vue';
+    import { TriiiceratopsViewer, type ViewerConfig } from 'triiiceratops/vue';
+
+    // shallowRef, not ref: the wrapper receives this exact object.
+    const config = shallowRef<ViewerConfig>({
+        toolbar: { side: 'left' },
+        gallery: { dockPosition: 'right' },
     });
     </script>
 
     <template>
-        <triiiceratops-viewer ref="viewer" manifest-id="https://example.org/iiif/manifest.json" />
+        <TriiiceratopsViewer
+            manifest-id="https://example.org/iiif/manifest.json"
+            :config="config"
+            style="display: block; height: 600px"
+        />
     </template>
     ```
 
@@ -249,7 +281,7 @@ attributes — see [use with any framework](integration.md)). In Svelte,
 
     ```html
     <script>
-      import { TriiiceratopsViewer } from 'triiiceratops';
+      import { TriiiceratopsViewer } from 'triiiceratops/svelte';
       import 'triiiceratops/style.css';
 
       let config = $state({
@@ -261,10 +293,8 @@ attributes — see [use with any framework](integration.md)). In Svelte,
     <TriiiceratopsViewer {config} manifestId="https://example.org/iiif/manifest.json" />
     ```
 
-For the custom element (React, Vue, HTML): if you use `setAttribute('config',
-...)`, stringify the object yourself. Assign a new `config` object for
-updates; mutating nested keys on the existing object does not notify the
-custom element.
+Driving the element directly: if you use `setAttribute('config', …)`, stringify
+the object yourself, and assign a new `config` object for updates.
 
 ### Direct Manifest Data
 
@@ -290,18 +320,46 @@ directly and never fetches over HTTP.
 
 === "React"
 
-    ```jsx
-    useEffect(() => {
-        if (ref.current) ref.current.manifestJson = manifestJson;
-    }, [manifestJson]);
+    ```tsx
+    import { TriiiceratopsViewer } from 'triiiceratops/react';
+
+    export function Reader({ manifestJson }: { manifestJson: object }) {
+        return (
+            <TriiiceratopsViewer
+                manifestId="urn:example:manifest"
+                manifestJson={manifestJson as Record<string, unknown>}
+                style={{ display: 'block', height: '600px' }}
+            />
+        );
+    }
     ```
+
+    Keep the object's identity stable — a manifest rebuilt on every render is
+    re-applied on every render.
 
 === "Vue"
 
-    ```ts
-    onMounted(() => {
-        viewer.value.manifestJson = manifestJson;
+    ```vue
+    <script setup lang="ts">
+    import { shallowRef } from 'vue';
+    import { TriiiceratopsViewer } from 'triiiceratops/vue';
+
+    // shallowRef, not ref: a deep ref would hand the wrapper a reactive proxy.
+    const manifestJson = shallowRef<Record<string, unknown>>({
+        id: 'urn:example:manifest',
+        type: 'Manifest',
+        label: { none: ['Local manifest'] },
+        items: [],
     });
+    </script>
+
+    <template>
+        <TriiiceratopsViewer
+            manifest-id="urn:example:manifest"
+            :manifest-json="manifestJson"
+            style="display: block; height: 600px"
+        />
+    </template>
     ```
 
 === "Svelte"
@@ -325,10 +383,17 @@ This is useful when your app stores or assembles manifests locally.
 
 ### Reacting to State Changes
 
-The viewer keeps its internal state in sync with the user's interactions
-(e.g., opening/closing panels, changing canvas). The custom element (React,
-Vue, HTML) dispatches events to notify the host; the Svelte component instead
-exposes state through a two-way bound prop.
+The viewer keeps its internal state in sync with the user's interactions (e.g.,
+opening/closing panels, changing canvas). How you observe that depends on the
+host:
+
+- **React and Vue** — typed callbacks and emits for the notification channels,
+  and `useViewerSelector()` for reactive reads of the live viewer state. The
+  selector is usually what you want for rendering; the callbacks are for
+  side effects outside your framework's state (a URL, analytics).
+- **Custom element** — DOM events carrying a `ViewerStateSnapshot`, plus the
+  element's getter-only `viewerState` bridge for direct reads and subscriptions.
+- **Svelte** — a two-way bound `viewerState` prop.
 
 #### Events (custom element)
 
@@ -377,23 +442,71 @@ interface ViewerStateSnapshot {
 
 === "React"
 
-    ```jsx
-    useEffect(() => {
-        const el = ref.current;
-        const onStateChange = (e) => console.log('Gallery open:', e.detail.showThumbnailGallery);
-        el.addEventListener('statechange', onStateChange);
-        return () => el.removeEventListener('statechange', onStateChange);
-    }, []);
+    Render from a selector; use the callback props for side effects.
+
+    ```tsx
+    import {
+        TriiiceratopsViewer,
+        useViewerHandle,
+        useViewerSelector,
+    } from 'triiiceratops/react';
+
+    export function Reader() {
+        const handle = useViewerHandle();
+        const galleryOpen = useViewerSelector(
+            handle,
+            (state) => state.showThumbnailGallery,
+        );
+
+        return (
+            <>
+                <p>Gallery is {galleryOpen ? 'open' : 'closed'}</p>
+                <TriiiceratopsViewer
+                    handle={handle}
+                    manifestId="https://example.org/manifest.json"
+                    onStateChange={(snapshot) =>
+                        console.log('Dock side:', snapshot.dockSide)
+                    }
+                    style={{ display: 'block', height: '600px' }}
+                />
+            </>
+        );
+    }
     ```
 
 === "Vue"
 
-    ```ts
-    onMounted(() => {
-        viewer.value.addEventListener('statechange', (e) => {
-            console.log('Gallery open:', e.detail.showThumbnailGallery);
-        });
-    });
+    Render from a selector; use the emits for side effects.
+
+    ```vue
+    <script setup lang="ts">
+    import { useTemplateRef } from 'vue';
+    import {
+        TriiiceratopsViewer,
+        useViewerSelector,
+        type TriiiceratopsViewerInstance,
+        type ViewerStateSnapshot,
+    } from 'triiiceratops/vue';
+
+    const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+    const galleryOpen = useViewerSelector(
+        viewer,
+        (state) => state.showThumbnailGallery,
+    );
+
+    const log = (snapshot: ViewerStateSnapshot): void =>
+        console.log('Dock side:', snapshot.dockSide);
+    </script>
+
+    <template>
+        <p>Gallery is {{ galleryOpen ? 'open' : 'closed' }}</p>
+        <TriiiceratopsViewer
+            ref="viewer"
+            manifest-id="https://example.org/manifest.json"
+            style="display: block; height: 600px"
+            @state-change="log"
+        />
+    </template>
     ```
 
 === "Svelte"
@@ -403,7 +516,7 @@ interface ViewerStateSnapshot {
 
     ```html
     <script>
-      import { TriiiceratopsViewer } from 'triiiceratops';
+      import { TriiiceratopsViewer } from 'triiiceratops/svelte';
       import 'triiiceratops/style.css';
 
       // This will strictly mirror the internal state
@@ -426,7 +539,12 @@ interface ViewerStateSnapshot {
 
 You can trigger a search programmatically by setting the `search.query` property in the configuration. This allows you to integrate external search bars or predefined queries.
 
-For Svelte integrations, you can also provide a `searchProvider` prop when the search source is local application state rather than a manifest-declared IIIF Search service.
+Hosts that hold the live viewer state can instead call the `search(query)`
+command directly — React and Vue reach it through `useViewer()`, the custom
+element through its `viewerState` bridge, Svelte through `bind:viewerState`.
+
+Any host can also provide a `searchProvider` when the search source is local
+application state rather than a manifest-declared IIIF Search service.
 
 === "HTML"
 
@@ -453,18 +571,57 @@ For Svelte integrations, you can also provide a `searchProvider` prop when the s
 
 === "React"
 
-    ```jsx
-    function search(query) {
-        ref.current.config = { search: { open: true, query } };
+    Call the command through the handle — no config round trip needed:
+
+    ```tsx
+    import {
+        TriiiceratopsViewer,
+        useViewer,
+        useViewerHandle,
+    } from 'triiiceratops/react';
+
+    export function Reader() {
+        const handle = useViewerHandle();
+        const viewer = useViewer(handle);
+        return (
+            <>
+                <button type="button" onClick={() => void viewer?.search('lorem')}>
+                    Search
+                </button>
+                <TriiiceratopsViewer
+                    handle={handle}
+                    manifestId="https://example.org/manifest.json"
+                    style={{ display: 'block', height: '600px' }}
+                />
+            </>
+        );
     }
     ```
 
 === "Vue"
 
-    ```ts
-    function search(query) {
-        viewer.value.config = { search: { open: true, query } };
-    }
+    Call the command through the template ref:
+
+    ```vue
+    <script setup lang="ts">
+    import { useTemplateRef } from 'vue';
+    import {
+        TriiiceratopsViewer,
+        type TriiiceratopsViewerInstance,
+    } from 'triiiceratops/vue';
+
+    const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+    const search = (query: string): void => void viewer.value?.state?.search(query);
+    </script>
+
+    <template>
+        <button type="button" @click="search('lorem')">Search</button>
+        <TriiiceratopsViewer
+            ref="viewer"
+            manifest-id="https://example.org/manifest.json"
+            style="display: block; height: 600px"
+        />
+    </template>
     ```
 
 === "Svelte"
@@ -487,14 +644,18 @@ For Svelte integrations, you can also provide a `searchProvider` prop when the s
     <TriiiceratopsViewer {config} ... />
     ```
 
-For the custom element (React, Vue, HTML): the viewer does **not** write user
-interactions back to the external `config` object. If the user clears the
-search in the viewer, your external `config` will still have the old query
-unless you reset it.
+The viewer does **not** write user interactions back to your external `config`
+object, in any host. If the user clears the search in the viewer, your `config`
+still has the old query unless you reset it — read the viewer's own state (a
+selector, the `viewerState` bridge, or `bind:viewerState`) when you need to know
+where it actually is.
 
 ## Custom Search Providers
 
-Svelte integrations can pass a `searchProvider` prop to supply search results from host application code.
+`searchProvider` supplies search results from host application code. It is
+available in **every** host — the React wrapper's `searchProvider` prop, the Vue
+wrapper's `search-provider` prop, the custom element's `searchProvider` property,
+and the Svelte component's `searchProvider` prop.
 
 `searchProvider` is a callback-based alternate search source. It is not a way to declare a IIIF Search service URI, inject a missing service into a manifest, or override the manifest's service metadata. Use normal manifest `service` declarations for traditional IIIF Content Search endpoints.
 
@@ -523,27 +684,101 @@ type SearchProvider = (
 >;
 ```
 
-```html
-<script>
-    import { TriiiceratopsViewer } from 'triiiceratops';
+=== "React"
 
-    const searchProvider = async (query, context) => {
-        return [
-            {
-                canvasIndex: 0,
-                canvasLabel: 'Page 1',
-                hits: [{ type: 'hit', before: '', match: query, after: '' }],
-            },
-        ];
-    };
-</script>
+    ```tsx
+    import { TriiiceratopsViewer } from 'triiiceratops/react';
+    import type { SearchProvider } from 'triiiceratops/react';
 
-<TriiiceratopsViewer
-    manifestId="urn:example:manifest"
-    {manifestJson}
-    {searchProvider}
-/>
-```
+    const searchProvider: SearchProvider = async (query) => [
+        {
+            canvasIndex: 0,
+            canvasLabel: 'Page 1',
+            hits: [{ type: 'hit', before: '', match: query, after: '' }],
+        },
+    ];
+
+    export function Reader() {
+        return (
+            <TriiiceratopsViewer
+                manifestId="urn:example:manifest"
+                searchProvider={searchProvider}
+                style={{ display: 'block', height: '600px' }}
+            />
+        );
+    }
+    ```
+
+=== "Vue"
+
+    ```vue
+    <script setup lang="ts">
+    import { TriiiceratopsViewer, type SearchProvider } from 'triiiceratops/vue';
+
+    const searchProvider: SearchProvider = async (query) => [
+        {
+            canvasIndex: 0,
+            canvasLabel: 'Page 1',
+            hits: [{ type: 'hit', before: '', match: query, after: '' }],
+        },
+    ];
+    </script>
+
+    <template>
+        <TriiiceratopsViewer
+            manifest-id="urn:example:manifest"
+            :search-provider="searchProvider"
+            style="display: block; height: 600px"
+        />
+    </template>
+    ```
+
+=== "HTML"
+
+    A property, never an attribute — assign it on the element:
+
+    ```ts
+    import 'triiiceratops/element/register';
+    import type { SearchProvider, TriiiceratopsViewerElement } from 'triiiceratops';
+
+    const el = document.querySelector<TriiiceratopsViewerElement>(
+        'triiiceratops-viewer',
+    )!;
+
+    const searchProvider: SearchProvider = async (query) => [
+        {
+            canvasIndex: 0,
+            canvasLabel: 'Page 1',
+            hits: [{ type: 'hit', before: '', match: query, after: '' }],
+        },
+    ];
+
+    el.searchProvider = searchProvider;
+    ```
+
+=== "Svelte"
+
+    ```html
+    <script>
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
+
+        const searchProvider = async (query, context) => {
+            return [
+                {
+                    canvasIndex: 0,
+                    canvasLabel: 'Page 1',
+                    hits: [{ type: 'hit', before: '', match: query, after: '' }],
+                },
+            ];
+        };
+    </script>
+
+    <TriiiceratopsViewer
+        manifestId="urn:example:manifest"
+        {manifestJson}
+        {searchProvider}
+    />
+    ```
 
 If no `searchProvider` is supplied, the viewer falls back to its normal IIIF Content Search service discovery.
 
@@ -551,7 +786,19 @@ If `searchProvider` is supplied, the viewer uses that callback instead of fetchi
 
 ## Controlling Active Canvas
 
-You can control which canvas is displayed and stay in sync with the viewer's navigation.
+You can tell the viewer which canvas to show, and stay in sync with the user's
+own navigation.
+
+!!! important "`canvasId` is an uncontrolled input"
+
+    `canvasId` (and `manifestId`) is **one-way**: an instruction to the viewer,
+    not a continuously enforced binding. Think `defaultValue` + `onChange`,
+    never `value` + `onChange`. Re-asserting a value the wrapper has already
+    applied writes nothing, so a parent re-render never undoes the user's
+    navigation. There is no controlled mode and no `v-model` for it.
+
+    To know where the viewer actually is, **observe** it: a selector over
+    `state.canvasId`, or the canvas-change channel.
 
 === "HTML"
 
@@ -582,29 +829,92 @@ You can control which canvas is displayed and stay in sync with the viewer's nav
 
 === "React"
 
-    Set `canvasId` as a property; listen for `canvaschange` on the same ref.
+    Pass `canvasId` to navigate; read a selector to follow the viewer. The
+    selector is the authoritative value — it updates for internal navigation
+    (Next/Prev, gallery clicks) as well as for your own instructions.
 
-    ```jsx
-    useEffect(() => {
-        const el = ref.current;
-        el.canvasId = canvasId;
-        const onChange = (e) => console.log('New Canvas ID:', e.detail.canvasId);
-        el.addEventListener('canvaschange', onChange);
-        return () => el.removeEventListener('canvaschange', onChange);
-    }, [canvasId]);
+    ```tsx
+    import { useState } from 'react';
+    import {
+        TriiiceratopsViewer,
+        useViewerHandle,
+        useViewerSelector,
+    } from 'triiiceratops/react';
+
+    export function Reader({ startCanvasId }: { startCanvasId: string }) {
+        const handle = useViewerHandle();
+        // Where the viewer actually is.
+        const canvasId = useViewerSelector(handle, (state) => state.canvasId);
+        // What we last told it to show.
+        const [requestedCanvasId, setRequestedCanvasId] = useState(startCanvasId);
+
+        return (
+            <>
+                <p>Showing {canvasId ?? '…'}</p>
+                <button
+                    type="button"
+                    onClick={() =>
+                        setRequestedCanvasId('https://example.org/canvas/7')
+                    }
+                >
+                    Jump to canvas 7
+                </button>
+                <TriiiceratopsViewer
+                    handle={handle}
+                    manifestId="https://example.org/manifest.json"
+                    canvasId={requestedCanvasId}
+                    onCanvasChange={(snapshot) =>
+                        console.log('New Canvas ID:', snapshot.canvasId)
+                    }
+                    style={{ display: 'block', height: '600px' }}
+                />
+            </>
+        );
+    }
     ```
 
 === "Vue"
 
-    Set `canvasId` as a property; listen for `canvaschange` on the same ref.
+    Bind `:canvas-id` to navigate; read a selector to follow the viewer. The
+    selector is the authoritative value — it updates for internal navigation
+    (Next/Prev, gallery clicks) as well as for your own instructions.
 
-    ```ts
-    onMounted(() => {
-        viewer.value.canvasId = canvasId.value;
-        viewer.value.addEventListener('canvaschange', (e) => {
-            console.log('New Canvas ID:', e.detail.canvasId);
-        });
-    });
+    ```vue
+    <script setup lang="ts">
+    import { ref, useTemplateRef } from 'vue';
+    import {
+        TriiiceratopsViewer,
+        useViewerSelector,
+        type TriiiceratopsViewerInstance,
+        type ViewerStateSnapshot,
+    } from 'triiiceratops/vue';
+
+    const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+    // Where the viewer actually is.
+    const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
+    // What we last told it to show.
+    const requestedCanvasId = ref('https://example.org/canvas/1');
+
+    const log = (snapshot: ViewerStateSnapshot): void =>
+        console.log('New Canvas ID:', snapshot.canvasId);
+    </script>
+
+    <template>
+        <p>Showing {{ canvasId ?? '…' }}</p>
+        <button
+            type="button"
+            @click="requestedCanvasId = 'https://example.org/canvas/7'"
+        >
+            Jump to canvas 7
+        </button>
+        <TriiiceratopsViewer
+            ref="viewer"
+            manifest-id="https://example.org/manifest.json"
+            :canvas-id="requestedCanvasId"
+            style="display: block; height: 600px"
+            @canvas-change="log"
+        />
+    </template>
     ```
 
 === "Svelte"
@@ -780,5 +1090,6 @@ No configuration is required. The sequence picker appears automatically when `se
 
 ## Best Practices
 
-1. **Syncing External Controls**: If you build external controls (like the settings menu in the Demo), listen to `statechange` (WC) or bind `viewerState` (Svelte) to keep your controls in sync with the viewer's actual state.
+1. **Syncing External Controls**: If you build external controls (like the settings menu in the Demo), read the viewer's own state rather than assuming your inputs are still current — `useViewerSelector()` in [React](react.md) and [Vue](vue.md), `statechange` or the `viewerState` bridge on the custom element, `bind:viewerState` in Svelte.
 2. **Avoiding Loops**: When syncing state back to configuration, ensure you only update your configuration if the value has actually changed to avoid infinite update loops.
+3. **Keep object inputs stable**: `config`, `manifestJson`, `themeConfig`, `initialCanvasRegion`, and `plugins` are compared with a one-level shallow equality. A nested object rebuilt on every render is re-applied on every render — hoist it, memoize it, or keep it in a `shallowRef`.

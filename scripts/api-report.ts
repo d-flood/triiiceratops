@@ -246,11 +246,26 @@ function emitCustomElement(): void {
         elSrc.indexOf('props: {'),
         elSrc.indexOf('},\n    }}'),
     );
+    // Property-only inputs: declared as props so Svelte defines a prototype
+    // accessor and ports a pre-upgrade assignment, but the observed attribute
+    // Svelte derives from the declaration is INERT and unsupported. Recorded so
+    // a future contributor does not wire the attribute up.
+    const PROPERTY_ONLY_INPUTS = new Set(['searchProvider', 'plugins']);
+    // Carried into the snapshot beside the flag, because the flag alone reads
+    // like an oversight. These inputs take a function (`searchProvider`) or an
+    // array of live plugin objects (`plugins`); an attribute could only ever
+    // carry a string, so wiring one up would silently stringify the value.
+    const PROPERTY_ONLY_NOTE =
+        'INERT. Svelte derives an observed attribute from every declared prop, ' +
+        'but this input carries a non-serializable value: the PROPERTY is the ' +
+        'only supported channel. Do not wire the attribute up.';
     const attrProps: Array<{
         property: string;
         attribute: string;
         type: string;
         reflect: boolean;
+        attributeSupported?: false;
+        attributeNote?: string;
     }> = [];
     const entryRe =
         /(\w+):\s*\{\s*attribute:\s*'([^']+)',\s*type:\s*'([^']+)',\s*reflect:\s*(true|false)/g;
@@ -261,6 +276,12 @@ function emitCustomElement(): void {
             attribute: m[2],
             type: m[3],
             reflect: m[4] === 'true',
+            ...(PROPERTY_ONLY_INPUTS.has(m[1])
+                ? {
+                      attributeSupported: false as const,
+                      attributeNote: PROPERTY_ONLY_NOTE,
+                  }
+                : {}),
         });
     }
 
@@ -268,6 +289,16 @@ function emitCustomElement(): void {
     const callbackProps = ['onpluginerror', 'onviewererror'].filter((p) =>
         elSrc.includes(p),
     );
+
+    // Getter-only properties the Svelte compiler emits from instance exports
+    // (`create_custom_element`'s `exports`). These live on the constructor's
+    // prototype with no setter — the state bridge, and the version handshake a
+    // framework wrapper probes.
+    const readonlyProps: string[] = [];
+    const exportRe = /export\s*\{\s*\w+\s+as\s+(\w+)\s*\}/g;
+    while ((m = exportRe.exec(elSrc))) {
+        readonlyProps.push(m[1]);
+    }
 
     // Events. The state-change family is derived from the dispatch call sites in
     // ViewerState; `pluginerror`/`viewererror` from their event-name constants.
@@ -286,6 +317,13 @@ function emitCustomElement(): void {
     const viewerEvent = /VIEWER_ERROR_EVENT\s*=\s*'([^']+)'/.exec(
         readFileSync(resolve(CORE_SRC, 'lib/types/viewerError.ts'), 'utf8'),
     );
+    const stateAvailableEvent =
+        /VIEWER_STATE_AVAILABLE_EVENT\s*=\s*'([^']+)'/.exec(
+            readFileSync(
+                resolve(CORE_SRC, 'lib/types/viewerElement.ts'),
+                'utf8',
+            ),
+        );
 
     const events = [
         ...[...stateEvents].sort().map((name) => ({
@@ -311,6 +349,14 @@ function emitCustomElement(): void {
             composed: true,
         });
     }
+    if (stateAvailableEvent) {
+        events.push({
+            name: stateAvailableEvent[1],
+            detail: 'ViewerState',
+            bubbles: true,
+            composed: true,
+        });
+    }
     events.sort((a, b) => a.name.localeCompare(b.name));
 
     writeFileSync(
@@ -322,6 +368,7 @@ function emitCustomElement(): void {
                 a.property.localeCompare(b.property),
             ),
             callbackProperties: callbackProps.sort(),
+            readonlyProperties: readonlyProps.sort(),
             // The Svelte-compiled custom element exposes no imperative methods
             // beyond the standard HTMLElement surface; properties are the API.
             methods: [],
@@ -340,7 +387,7 @@ function main(): void {
     emitBrowserRuntime();
     emitCustomElement();
     emitDeclarationReports();
-    // eslint-disable-next-line no-console
+
     console.log(`API snapshots written to ${OUT}`);
 }
 

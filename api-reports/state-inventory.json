@@ -220,7 +220,7 @@
             "member": "pluginFlyouts",
             "classification": "command",
             "commands": [
-                "registerPlugin",
+                "registerSdkChrome",
                 "unregisterPlugin",
                 "destroyAllPlugins"
             ]
@@ -229,7 +229,7 @@
             "member": "pluginMenuButtons",
             "classification": "command",
             "commands": [
-                "registerPlugin",
+                "registerSdkChrome",
                 "unregisterPlugin",
                 "destroyAllPlugins"
             ]
@@ -238,7 +238,7 @@
             "member": "pluginPanels",
             "classification": "command",
             "commands": [
-                "registerPlugin",
+                "registerSdkChrome",
                 "unregisterPlugin",
                 "destroyAllPlugins"
             ]
@@ -254,7 +254,6 @@
                 "setPluginTarget",
                 "setPluginPosition",
                 "updateConfig",
-                "registerPlugin",
                 "registerSdkChrome",
                 "unregisterPlugin",
                 "destroyAllPlugins"

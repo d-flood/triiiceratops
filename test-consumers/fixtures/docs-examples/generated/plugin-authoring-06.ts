@@ -1,16 +1,31 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import type { Component } from 'svelte';
-import type { ViewerState } from 'triiiceratops';
+import { SelectorController } from '@triiiceratops/plugin-sdk/lit';
+import { LitElement, html } from 'lit';
+import type { PluginContext } from 'triiiceratops';
 
-interface PluginDef {
-    id?: string; // Unique identifier (auto-generated if not provided)
-    name: string; // Title shown in tooltips/headers
-    icon: Component; // Svelte icon component
-    target?: 'panel' | 'flyout'; // Where the UI renders (default: 'panel')
-    panel?: Component; // Component rendered when target is 'panel'
-    flyout?: Component; // Component rendered when target is 'flyout'
-    position?: 'left' | 'right'; // Panel position (default: 'left'; ignored for flyouts)
-    props?: Record<string, unknown>; // Optional props to pass to the component
-    onInit?: (viewerState: ViewerState) => void; // Called once when the plugin activates
+class PluginUI extends LitElement {
+    createRenderRoot() {
+        return this; // light DOM
+    }
+    toolbar?: SelectorController<boolean>;
+
+    setContext(context: PluginContext) {
+        this.toolbar = new SelectorController(
+            this,
+            context.selectors.select((s) => s.toolbarOpen),
+        );
+    }
+
+    render() {
+        return html`<span>${this.toolbar?.value ? 'open' : 'closed'}</span>`;
+    }
+}
+customElements.define('plugin-ui', PluginUI);
+
+function mount(container: HTMLElement, context: PluginContext): () => void {
+    const el = document.createElement('plugin-ui') as PluginUI;
+    el.setContext(context);
+    container.appendChild(el);
+    return () => el.remove();
 }

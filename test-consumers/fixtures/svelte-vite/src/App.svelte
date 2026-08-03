@@ -2,7 +2,7 @@
     // Consume ONLY the packed tarball's public surface:
     //   - the Svelte component export
     //   - the documented stylesheet export
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import 'triiiceratops/style.css';
 </script>
 
