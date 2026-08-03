@@ -1,5 +1,213 @@
 # triiiceratops
 
+## 1.0.0-rc.33
+
+### Major Changes
+
+- 4afa631: **BREAKING:** remove the Svelte-only `PluginDef` plugin path. SDK plugins (`definePlugin`) are the one plugin path in 1.0.
+
+    Removed from core's public API: the `PluginDef` type, the `definePlugin`, `createPanelPlugin`, and `createFlyoutPlugin` helpers, `ViewerState.registerPlugin`, the `ViewerState` constructor's third `initialPlugins` parameter, and the `icon` / `component` fields on `PluginMenuButton`, `PluginPanel`, and `PluginFlyout`. The `plugins` input on `<TriiiceratopsViewer>` and `<triiiceratops-viewer>` narrows from `Array<PluginDef | SdkPlugin>` to `readonly SdkPlugin[]`. There is no deprecation shim: a `PluginDef` passed to `plugins` is now ignored like any other non-SDK value.
+
+    `PluginMenuButton`, `PluginPanel`, `PluginFlyout`, and `PluginUiTarget` all stay exported — they are the live chrome records both `registerSdkChrome` and the render sites use; only their `PluginDef`-path fields are gone. Nothing about SDK plugins changes: activation semantics, identity-keyed activation, chrome registration and ordering, compatibility negotiation, `PluginError` channels, and ADR 0010's fail-closed behavior are all untouched, and `unregisterPlugin`, the three chrome arrays, and the chrome reset still work exactly as they did.
+
+    Why it is worth a breaking change: every one of those removed members was annotated `Component<any>` from `svelte`, and all of them are reachable from `ViewerState`. Because `ReadonlyViewerState` is `Readonly<Omit<ViewerState, …>>` and `Omit` still forces the full declaration to resolve, no amount of member omission removed the import — so a React or Vue consumer that installed every real dependency but not the optional `svelte` peer could not type-check the published declarations under `skipLibCheck: false`. `types/plugin.ts` now imports nothing from `svelte`, and `triiiceratops/selectors` and `triiiceratops/testing` type-check cleanly with no Svelte installed.
+
+    The declaration guard is tightened to match. Its per-file exception for `types/plugin.d.ts` is gone, so a reintroduced `svelte` import there fails the build; and its allowance for compiled Svelte component declarations now identifies them by the `.svelte` source `svelte-package` copies alongside, rather than by the `.svelte.d.ts` extension — which a `*.svelte.ts` rune module's declaration shares. A planted `svelte` type import in `dist/state/viewer.svelte.d.ts`, reachable from the Svelte-free subpaths, now fails the build instead of slipping through.
+
+    Migrating a `PluginDef`: define the plugin with the SDK's `definePlugin`, give it an `svgIcon` descriptor instead of a Svelte icon component, and mount your existing Svelte component from `view.mount(container, context)` with Svelte's own `mount`/`unmount`. Use `uiId` where you used `id` for `config.plugins` keying, `context.viewerState` where you used the `onInit(viewerState)` hook, and `context.surface.close()` where a flyout component received a `close` prop. See `docs/plugin-authoring.md`.
+
+### Minor Changes
+
+- 246dbda: add `createTestViewerHandle()` to `triiiceratops/testing`, so a React or Vue application can unit-test its own viewer-reading components without mounting a viewer.
+
+    Getting a `viewer` to hand a `<Sidebar>` previously meant mounting the real custom element — OpenSeadragon, a manifest fetch, and a shadow root — which pushed a unit-level concern into Playwright. The new helper returns a `ViewerHandle` backed by a **real** `ViewerState`: real commands, real batched notifications, and a real selector runtime registered in the very `WeakMap` `useViewerSelector()` consults, so the framework helpers work against it unchanged rather than against a parallel test-only path. Nothing about the state is faked; only the harness is (CONTEXT.md **Test viewer context**).
+
+    The returned handle is deliberately both shapes a framework helper accepts: it satisfies `ViewerHandleSlot`, so React passes it straight into `useViewer()` / `useViewerSelector()` where a `useViewerHandle()` slot would go, and it satisfies `ViewerHandle`, so Vue wraps it in a `shallowRef` where a template ref would go. `handle.element` is an inert, detached stand-in for the host — never connected, never upgraded, dispatching no viewer events — and it reports the handle's own state through `viewerState`, matching the invariant a mounted wrapper holds. `setOsdViewer()` injects a caller-supplied OpenSeadragon stand-in through the real readiness path, which is what makes `cadence: 'frame'` exercisable headlessly; no OSD fake ships here. `dispose()` is idempotent and removes the runtime's single underlying `ViewerState.subscribe`, so a test file creating many handles leaks nothing.
+
+    Nothing is registered, rendered, fetched, or required: no custom element is defined, no React, Vue, or Svelte specifier appears anywhere in the built entry's module graph, and a DOM is not needed to import it. `build:testing` now ends in `check:testing-entry`, which walks the real `dist/testing/index.js` graph and fails the build on a React, Vue, or Svelte specifier — the source legitimately imports `svelte`, and the guard is about what actually ships.
+
+- f7630d2: move the selector runtime into core as the one framework-neutral implementation shared by plugin activations and (next) the React/Vue framework wrappers. New entry point `triiiceratops/selectors` — which imports no Svelte runtime, though its declarations still reach the legacy plugin types' `svelte` `Component` import, so the optional `svelte` peer is still needed to type-check it — exports `createSelectorRuntime` plus `SelectorCadence`, `SelectorProjection`, `SelectorProjectionOptions`, `SelectorRuntime`, and `SelectorRuntimeOptions`; `@triiiceratops/plugin-sdk` now re-exports it, so plugin imports, `selectors.select(fn, equals)`, the React/Vue adapter signatures, and `pluginerror` command/subscription attribution are all unchanged.
+
+    Two behavior changes come with it. Equality now gates the selector's **cached value**, not only its notification: a recompute whose result satisfies `equals` returns the previously returned reference, so `Selector.get()` is reference-stable while unchanged (previously it returned a fresh-but-equal value after any version bump). And a projection can choose a **cadence** (ADR 0011): `state` (the default batched inventoried-member watcher) or `frame`, which additionally wakes from the live OpenSeadragon instance's own `animation`/`viewport-change`/`animation-finish` events so continuous viewport values are readable reactively without being mirrored into viewer state. The frame ticker attaches lazily when an OSD instance appears and detaches on teardown or replacement — an idle viewer costs nothing and there is no `requestAnimationFrame` loop. Nothing about `ViewerState`, the state inventory, notification batching, or plugin subscription semantics changed.
+
+- 971e748: add the custom element's state bridge and a property-only `searchProvider` input.
+
+    `<triiiceratops-viewer>` now exposes the live per-instance `ViewerState` its viewer owns as a **getter-only** `viewerState` property on the element prototype (a Svelte instance export, so a host physically cannot replace it), paired with a new bubbling, composed `viewerstateavailable` event whose `detail` is that exact object. Availability means only that state can be bound — not that a manifest has loaded or OpenSeadragon is ready — and it is announced once per mounted state instance: ordinary state changes do not repeat it, while a disconnection that destroys the inner viewer and a later reconnection produce a new `ViewerState` and its own event. Because the property is populated before the event is dispatched, hosts bind race-free by listening then checking. `VIEWER_STATE_AVAILABLE_EVENT` and the `TriiiceratopsViewerElement` type are exported from `triiiceratops`.
+
+    The element also gains `searchProvider`, forwarded to the viewer's existing native custom-search behavior. It is a **property-only** input: assign `element.searchProvider = (query, context) => …` before or after upgrade. Svelte derives an inert `searchprovider` observed attribute from every declared prop, so one appears in the custom-element API report annotated `attributeSupported: false`; any non-function value (such as a stray attribute string) is ignored with a debug-gated warning and never reaches the search path. Existing properties, callback properties, snapshots, events, and first-wins registration are unchanged.
+
+- b975980: add the framework-neutral substrate the React and Vue wrappers are built on.
+
+    Internal for now — nothing new is exported from a published subpath yet — but it is the whole shared half of both wrappers, so their behavior cannot drift apart. It comprises: a lazy, automatic, shared registration of `<triiiceratops-viewer>` that memoizes **both** outcomes, imports the self-contained element bundle by relative specifier, passes a `TriiiceratopsCoreConflictError` through unmodified, and diagnoses a tag already owned by a foreign constructor by probing `viewerState` on its prototype — synchronously, with no timeout, retry, or `customElements.whenDefined` used as a readiness signal, which is the only thing that turns `defineViewerElement`'s deliberately silent `false` into a prompt error instead of a hang. Shared prop metadata classifies every viewer input as attribute tier (`manifest-id`, `canvas-id`, `theme`, rendered declaratively on the server and the client's first render alike) or property tier (`manifestJson`, `themeConfig`, `config`, `initialCanvasRegion`, `plugins`, `searchProvider`), and one applier performs every property assignment: edge-triggered against the last applied prop value, compared with one uniform one-level `shallowEqual`, never awaiting registration, and never branching on a value's runtime type. A binding controller owns one element, its `ViewerState`, and exactly one selector runtime; it listens for `viewerstateavailable` before triggering registration and then reads the property, so already-ready and later-ready elements both bind exactly once, and each subsequent availability atomically disposes the previous runtime, publishes the new binding, and rebuilds the handle. `ViewerHandle` stays two members (`element`, `state`) because a `WeakMap` from `ViewerState` to its runtime resolves the rest internally. Development warns — once each, and only with debug logging on — about an unmemoized property-tier prop, a handle created but never passed to a viewer, and a second availability event with its silent viewer-state loss.
+
+    Module evaluation touches no browser global, so a framework entry point built on this is safe to import during server rendering.
+
+    `<triiiceratops-viewer>`'s `plugins` input is now declared explicitly in the element's `customElement.props` map. Behavior is unchanged — Svelte already emitted a prototype accessor and an inert observed attribute for it — but the defaults are now pinned (`type: 'String'`, no reflection) and the property appears in the custom-element API report annotated `attributeSupported: false`, recording that the property is the only supported channel. Its declared type is `readonly SdkPlugin[]` — the one plugin path in 1.0 (see the `PluginDef` removal in this release).
+
+- 2f9538c: Finalize `triiiceratops/react` and `triiiceratops/vue` as supported, release-tested
+  subpaths of core rather than experimental additions. They are subpaths — not
+  separate `@triiiceratops/react` / `@triiiceratops/vue` packages — so the release
+  still promotes the same six publishable tarballs, core first.
+
+    Both subpaths resolve to precompiled JS and declarations with named exports only,
+    and `react ^19` / `vue ^3.5` are OPTIONAL peer dependencies. Neither is a runtime
+    dependency of core, and neither obliges the other: a React application installs no
+    Vue, a Vue application installs no React, and neither installs Svelte.
+
+    What now enforces that, so it cannot regress into a release:
+    - **The no-Svelte type promise is checked PER ENTRY POINT.** `check:dts-svelte-types`
+      already walked the whole published declaration graph, but its allowance for a
+      compiled Svelte component's declaration is keyed by file — so it would have let
+      `./react` re-export something reaching `TriiiceratopsViewer.svelte.d.ts`. Every
+      export subpath except `.` is now additionally walked on its own, with no
+      allowance at all: `./react`, `./vue`, `./selectors`, `./testing`, and
+      `./image-export` must reach zero `svelte*` specifiers. `.` keeps the compiled
+      component, because `.` is the Svelte-consumer entry its `svelte` export
+      condition targets.
+    - **The built wrapper graphs are checked too.** A new `check:framework-entries`
+      walks what `exports["./react"].import` and `exports["./vue"].import` actually
+      point at and fails on any `svelte*` specifier or on the other framework. It
+      cannot pass vacuously: each entry must reach its own peer and must reach the
+      self-contained element bundle it lazy-loads by relative specifier — which also
+      pins the build order, since `svelte-package` clears `dist/` and the element
+      bundle is written by a later step.
+    - **The published tarball is checked against its own export map.** Core's packed
+      archive must contain `dist/react.js`, `dist/react.d.ts`, `dist/vue.js`, and
+      `dist/vue.d.ts`, every other `./dist/...` target its `exports` names must exist,
+      `./react` and `./vue` must each declare both `types` and `import`, and
+      `react` / `vue` / `svelte` must be declared, ranged, optional peers that appear
+      nowhere in `dependencies`.
+    - **The registry smoke installs the optional peer.** After the six published
+      packages resolve, it now also resolves all four core subpaths from a consumer
+      with no peer installed at all, then builds one throwaway consumer per framework
+      — published core plus exactly one peer, at the range the published package
+      itself declares — and imports that subpath for real in plain Node with no
+      `window`, `document`, or `customElements`, asserting the named exports arrive,
+      there is no default export, nothing registers a browser runtime, and the other
+      framework and Svelte were never installed.
+
+    The custom-element API snapshot's inert `searchprovider` and `plugins` observed
+    attributes now carry an explanatory note beside `attributeSupported: false`.
+    Svelte derives an observed attribute from every declared prop; these two inputs
+    carry a function and an array of live plugin objects, so the property is the only
+    supported channel and the attribute must not be wired up.
+
+- cef4153: Add the React 19 framework wrapper at `triiiceratops/react`. A React application
+  now renders `<TriiiceratopsViewer>` with typed props for every viewer input
+  (including `searchProvider`), creates a handle with `useViewerHandle()`, reads
+  live viewer state with `useViewer()` and `useViewerSelector()`, receives typed
+  callbacks (`onStateChange`, `onCanvasChange`, `onManifestChange`,
+  `onChoiceChange`, `onPluginError`, `onViewerError`) carrying the event detail
+  directly, and gets a `ViewerHandle` through a forwarded ref — with no Svelte
+  installed at runtime or at type-check time, no JSX build changes, and no manual
+  custom-element setup. Registration of the self-contained element is automatic,
+  lazy, and shared across every wrapper instance.
+
+    The wrapper renders exactly one custom element and no layout wrapper. The
+    attribute tier (`manifestId`, `canvasId`, `theme`) is rendered declaratively so
+    a server render and the client's first render emit the same host; the property
+    tier is applied imperatively and edge-triggered, so re-rendering with unchanged
+    values never reloads a manifest, snaps the viewport, or restarts a plugin.
+    `manifestId` and `canvasId` are uncontrolled inputs. `useViewerSelector` is
+    built on `useSyncExternalStore` (hand-rolled — `use-sync-external-store` is not
+    a dependency), supports inline projections and inline equality with no
+    `useCallback` or `useMemo`, offers `state` and `frame` cadences, and surfaces a
+    consumer's own projection failures through React error boundaries.
+    `getServerSnapshot` is deliberately omitted, so a state-reading component
+    rendered on the server fails loudly instead of hydrating from a fabricated
+    snapshot.
+
+    React 19 is an optional peer dependency.
+
+- 15fd990: Add the Vue 3.5 framework wrapper at `triiiceratops/vue`. A Vue application now
+  renders `<TriiiceratopsViewer>` with typed props for every viewer input
+  (including `searchProvider`), puts an ordinary template ref on it to get the
+  `ViewerHandle` shape (`viewer.value?.state`), reads live viewer state with
+  `useViewer()` and `useViewerSelector()`, and receives typed emits
+  (`state-change`, `canvas-change`, `manifest-change`, `choice-change`,
+  `plugin-error`, `viewer-error`) carrying the event detail directly — with no
+  Svelte installed at runtime or at type-check time, no `.vue` compilation of the
+  wrapper, and no manual custom-element setup. Because the component is a render
+  function, no `compilerOptions.isCustomElement` configuration is required.
+  Registration of the self-contained element is automatic, lazy, and shared across
+  every wrapper instance.
+
+    The wrapper renders exactly one custom element and no layout wrapper.
+    `inheritAttrs` is disabled and `attrs` are forwarded deliberately. The attribute
+    tier (`manifestId`, `canvasId`, `theme`) is rendered declaratively as
+    force-attribute vnode props, so a server render and the client's first render
+    emit the same host; the property tier goes through the shared edge-triggered
+    applier rather than vnode props, so object- and function-valued inputs are never
+    stringified by `setAttribute` and re-rendering with unchanged values never
+    reloads a manifest, snaps the viewport, or restarts a plugin. `manifestId` and
+    `canvasId` are uncontrolled inputs and no `v-model` is offered.
+
+    `provideViewer(handleRef)` and `<ViewerProvider :value="handleRef">` distribute
+    the handle to deep trees. `useViewerSelector` is a `computed` that reads both the
+    handle and the runtime's notification version in its own body: Vue reactive
+    dependencies read by a projection are tracked with no manual watcher, a
+    `<KeepAlive>` round trip rebinds every composable to the new `ViewerState`, and a
+    failing projection or equality function throws during the consumer's own
+    evaluation so it reaches `onErrorCaptured` and `app.config.errorHandler` instead
+    of being swallowed, mislabelled, or served as a stale value. Both `state` and
+    `frame` cadences are supported.
+
+    Vue 3.5 is an optional peer dependency.
+
+### Patch Changes
+
+- 6510417: fix: make `config: { debug: true }` actually reach the framework wrappers, so their four development warnings can fire in the published package.
+
+    `configureLogging` had exactly one product call site — `TriiiceratopsViewer` — and that component ships inside `dist/triiiceratops-element.js`, a fully self-contained bundle with no static imports that inlines its own copy of `logging/logger.js`. The React and Vue wrappers, the framework substrate and the selector runtime are a different module graph importing `dist/logging/logger.js`: a **second** logger instance whose debug gate nothing in the package ever wrote. So every warning those wrappers exist to raise — a handle created and never passed to a viewer, a property-tier prop rebuilt on every render, a second `ViewerState` after a `<KeepAlive>` round trip, and a `state`-cadence projection reading through `osdViewer` — was permanently silent for consumers, while every unit test passed, because under vitest the two "instances" are one module.
+
+    The property-tier applier now bridges the flag: when it writes `config`, it resolves the value the way the element does (object or JSON string) and, if it carries a `debug` key, configures the wrapper-side logger. No new public API and no new switch — `ViewerConfig.debug` is still the only one. A `config` with no `debug` key states no opinion, so a second viewer configured for something unrelated never silences the first; debug mode remains one page-level flag where the most recently applied opinion wins.
+
+    Two module-identity leaks behind the same symptom are closed with it. `dist/testing/index.js` inlined its own logger copy, which made `configureLogging` unreachable from that entry and let the minifier prove `debugEnabled` constant and **delete** the `osdViewer` probe outright — the warning was not merely silent there, it was absent from the artifact; `logging/logger.js` now stays external alongside `framework/runtimeRegistry.js`. And the selector runtime no longer decides the probe once at whatever moment a projection happened to be read first: debug mode is normally switched on _after_ that, so the probe is owed until it has run once with debug on. An idle viewer with debug off still installs no accessor, creates no timer, and re-evaluates nothing.
+
+    Proven where it broke — in the artifact. The packed `framework-react` and `framework-vue` consumer fixtures each gained a route that installs the real tarball, provokes every warning with `config: { debug: false }` and asserts the console stays silent, flips the same viewer to `config: { debug: true }` and asserts each warning arrives, then flips it back and asserts silence again.
+
+- 1fae8dd: key plugin activation lifetime to plugin identity instead of to the plugins array.
+
+    The viewer's plugin lifecycle effect previously tore down and rebuilt _every_ plugin whenever the `plugins` array changed identity, so any host that re-evaluated its plugin list per render restarted all of them — losing plugin UI state, dropping subscriptions, releasing and re-installing styles, and re-registering toolbar chrome. It now diffs the incoming list against live activations by plugin **object reference**: a plugin present before and after is left completely untouched, one that is absent goes through the existing teardown path, and a newly present one goes through the existing activation path. Reordering a list whose membership is unchanged causes no activation churn at all.
+
+    Nothing else about activation changes: compatibility negotiation, the `pluginerror` channels, chrome registration, ordering guarantees, and ADR 0010's fail-closed behavior are all as before, the `retry()` on a `PluginError` still performs its deliberate full re-activation of the single plugin instance it names, and unmounting the viewer still deactivates everything.
+
+- 140c2c0: test(consumers): automate the promise that the framework subpaths need no Svelte at type-check time.
+
+    SPEC's testing decisions require at least one type-test consumer that compiles with `skipLibCheck: false` and no Svelte installed, so a Svelte type leak fails the build. Nothing automated it: `strict-osd-types` sets `skipLibCheck: false` but installs `svelte` and imports the `.` entry, `docs-examples` installs `svelte` and skips lib checks, and the two framework fixtures were plain JavaScript with no `tsc` step at all. Every measurement of the promise had been a human running `tsc` by hand.
+
+    `framework-react` and `framework-vue` — which already install exactly the right dependency set and no Svelte — now each carry a `tsconfig.json` (`skipLibCheck: false`, `strict`, `types: []`) and a `check` script the packed driver runs before the build. The programs use the subpaths' real exports rather than importing them bare: the component rendered with props from every tier (React's as JSX, in a `.tsx`), the hooks and composables called and their results consumed, each error class narrowed to, and every exported type annotating a value. Between them they cover `./react`, `./vue`, `./selectors`, and `./testing`; `.` stays exempt by decision and is asserted absent from the program, alongside the compiler options themselves, so retiring the guarantee fails the fixture rather than passing quietly.
+
+    Mutation-tested against real installed artifacts: planting a re-export of the compiled Svelte component into `dist/react.d.ts` and `dist/vue.d.ts`, and a `svelte` type import into `dist/state/selectors/index.d.ts` and `dist/testing/index.d.ts`, each failed the fixture's `check`; all four reverted clean.
+
+- 90a5701: The root `triiiceratops` entry is now framework-neutral: no entry except
+  `triiiceratops/svelte` requires the optional `svelte` peer, at runtime or at
+  type-check time.
+
+    Svelte consumers import from `triiiceratops/svelte`:
+
+    ```diff
+    - import { TriiiceratopsViewer, ViewerState } from 'triiiceratops';
+    + import { TriiiceratopsViewer, ViewerState } from 'triiiceratops/svelte';
+    ```
+
+    Moved: `TriiiceratopsViewer`, the constructible `ViewerState` class,
+    `VIEWER_STATE_KEY`, `ManifestsState`, `manifestsState`. `triiiceratops/svelte`
+    re-exports the root entry, so that one specifier change is sufficient.
+    `ViewerState` is still a root export as a **type**. React, Vue, and
+    custom-element consumers are unaffected.
+
+- 2c9dcdb: keep Svelte out of the published type surface: `ViewerState`'s four reactive-collection members (`visibleAnnotationIds`, `userAnnotations`, `loadedManifestIds`, `selectedChoices`) are now declared as plain `Set`/`Map` while still holding `SvelteSet`/`SvelteMap` at runtime, so `triiiceratops` declarations resolve with no `svelte` package installed. Reactivity and notifications are unchanged; the invariant that these members hold reactive collections now lives in the state inventory (`REACTIVE_COLLECTION_MEMBERS`), and `build:lib` fails if a Svelte type import reappears in the published declaration graph.
+- 140c2c0: fix(vue): one template ref put on two `<TriiiceratopsViewer>`s now throws `TriiiceratopsHandleConflictError` naming both elements, instead of silently binding twice.
+
+    A handle identifies exactly one viewer. `triiiceratops/react` has enforced that since it shipped — the `useViewerHandle()` slot is handed to the binding, which claims it and throws when a second element claims the same slot. `triiiceratops/vue` could not: its handle is an ordinary template ref, which the wrapper never sees as a prop, so a ref reused on a second viewer just got overwritten and every composable reading through it silently followed whichever viewer mounted last.
+
+    The Vue wrapper now resolves the ref Vue itself recorded for the component to the BOX the value will be written into, and gives that box the substrate's own handle slot to claim — so the ownership rule, the detection, and the error message are shared with React and cannot drift. Vue's public handle type is unchanged; nothing new is exported.
+
+    Two shapes are deliberately exempt, because sharing is the intent rather than a mistake: a ref inside `v-for` (Vue collects every match into an array) and a callback ref. `<KeepAlive>` is handled explicitly — a deactivated viewer gives the ref back, since Vue has already cleared it, and takes ownership again on reactivation.
+
+    Proven on the artifact: both packed framework fixtures gained a `double-bind.html` route that installs the real tarball, puts one handle on two viewers, and asserts the same error, with the same code and both element descriptions, reaches the framework's own error handling within milliseconds.
+
 ## 1.0.0-rc.32
 
 ### Patch Changes
