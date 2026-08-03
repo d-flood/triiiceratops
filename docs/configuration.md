@@ -200,7 +200,7 @@ const config = {
 In React, Vue, and Svelte, `config` is a normal typed **prop** on
 `<TriiiceratopsViewer>`. When you drive the custom element directly it is a
 **property** on the element (objects can't go through HTML attributes — see
-[use with any framework](integration.md)).
+[any framework](integration.md)).
 
 Whichever host you use, treat `config` as immutable: **assign a new object** to
 change it. Mutating nested keys on the existing object does not notify the

@@ -49,14 +49,27 @@ Copyright &copy; 2025 David Flood
 # the site search either.
 #
 # Read more: https://zensical.org/docs/setup/navigation/
+# The framework guides sit together under "Get started" because choosing a
+# stack is the reader's first decision and their guides differ in *model*, not
+# just syntax (React hands out a handle object; a Vue template ref IS the
+# handle; Svelte's runes need neither). Pages below that section are
+# framework-neutral and carry a linked content tab per stack instead — see the
+# "content.tabs.link" feature below, which keeps the reader's choice sticky
+# across pages. Tabs for one idea in four syntaxes; separate pages for four
+# different ideas.
 nav = [
     { "Home" = "index.md" },
-    { "React" = "react.md" },
-    { "Vue" = "vue.md" },
-    { "Use with any framework" = "integration.md" },
-    { "Configuration & State Management" = "configuration.md" },
-    { "Theming and Styling" = "theming.md" },
-    { "Content Security Policy" = "csp.md" },
+    { "Get started" = [
+        { "React" = "react.md" },
+        { "Vue" = "vue.md" },
+        { "Svelte" = "svelte.md" },
+        { "Any framework (web component)" = "integration.md" },
+    ] },
+    { "Guides" = [
+        { "Configuration & State Management" = "configuration.md" },
+        { "Theming and Styling" = "theming.md" },
+        { "Content Security Policy" = "csp.md" },
+    ] },
     { "Plugins" = [
         { "Plugin System" = "plugins.md" },
         { "First-party Plugins" = [

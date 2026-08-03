@@ -2,26 +2,33 @@
 icon: lucide/code-xml
 ---
 
-# Use with any framework
+# Any framework (web component)
 
 Triiiceratops ships the viewer as a standards-based custom element,
-`<triiiceratops-viewer>`. It works the same way in plain HTML, Angular, Lit, or
-any other framework — and in a Svelte app too, though Svelte hosts get a nice
-native bonus instead of the custom element (its own tab below).
+`<triiiceratops-viewer>`. If your stack can put a tag on a page, it can host the
+viewer — no adapter required.
 
-!!! tip "React and Vue have first-class components"
+**This is your page if you are using** Angular, Lit, Solid, Svelte-free vanilla
+JavaScript, Alpine.js, htmx, Astro, Ember, jQuery, a server-rendered template
+language (Django, Rails, Laravel, ASP.NET, PHP), a static-site generator, or
+**WordPress** — as a block, a shortcode, or a raw HTML widget. Every one of
+those is the same two steps: get the script onto the page, then set attributes
+and properties on the tag.
 
-    Do not integrate the custom element by hand in React or Vue. Import the
-    typed **framework wrapper** instead — it hosts this same element, registers
-    it automatically, and translates its props, events, and viewer state into
-    the framework's own idioms:
+!!! tip "React, Vue, and Svelte have first-class components"
+
+    Those three have dedicated guides, and you should use them rather than the
+    element directly — each translates props, events, and viewer state into its
+    framework's own idioms:
 
     - **[React guide](react.md)** — `triiiceratops/react`
     - **[Vue guide](vue.md)** — `triiiceratops/vue`
+    - **[Svelte guide](svelte.md)** — `triiiceratops/svelte`
 
-    Neither requires Svelte, at runtime or at type-check time. The custom-element
-    material on this page remains fully supported as the explicitly low-level
-    option, for hosts that want direct DOM control.
+    React and Vue require no Svelte, at runtime or at type-check time. The
+    custom-element material here stays fully supported for hosts that want
+    direct DOM control, including a React or Vue app that deliberately drops
+    down to it — see [hand-wiring](#hand-wiring-a-component-framework).
 
 The element comes in two forms:
 
@@ -59,153 +66,52 @@ a CDN `<script>` tag.
 
 ## Use it
 
-=== "HTML"
+Load the self-contained IIFE from a CDN or a copied file — no install, no build
+step. It bundles the element, the Svelte runtime, OpenSeadragon, and all styles:
 
-    Load the self-contained IIFE from a CDN or a copied file — no install, no
-    build step. It bundles the element, the Svelte runtime, OpenSeadragon, and
-    all styles:
+```html
+<script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
+<script src="https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js"></script>
 
-    ```html
-    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
-    <script src="https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js"></script>
+<triiiceratops-viewer
+    manifest-id="https://example.org/manifest.json"
+    style="display: block; width: 100%; height: 100vh;"
+></triiiceratops-viewer>
 
-    <triiiceratops-viewer
-        manifest-id="https://example.org/manifest.json"
-        style="display: block; width: 100%; height: 100vh;"
-    ></triiiceratops-viewer>
-
-    <script>
-        customElements.whenDefined('triiiceratops-viewer').then(() => {
-            const viewer = document.querySelector('triiiceratops-viewer');
-            const plugin = window.Triiiceratops.plugins.get(
-                '@triiiceratops/plugin-image-manipulation',
-            );
-            viewer.plugins = [plugin];
-        });
-    </script>
-    ```
-
-    Using a bundler instead? Register the element with
-    `import 'triiiceratops/element/register'`, then set properties directly —
-    `document.querySelector('triiiceratops-viewer').manifestId = …` — no ref
-    needed outside a component framework.
-
-    - Loading the **same** core version twice is a harmless no-op.
-    - Loading a **different** core version alongside one already registered
-      leaves the first registration and custom element untouched and throws
-      an actionable conflict error. Side-by-side multi-version loading on one
-      page is not supported.
-    - Registering a plugin whose name is already registered keeps the first
-      factory; a version mismatch is reported as a console warning
-      (first-wins), not an error.
-
-    Runs under a strict CSP without `unsafe-eval` — see the
-    [CSP recipe](csp.md).
-
-=== "React"
-
-    Import the component from `triiiceratops/react`. No registration import, no
-    refs to assign properties through, no `JSX.IntrinsicElements` declaration:
-
-    ```tsx
-    import { TriiiceratopsViewer } from 'triiiceratops/react';
-    import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-
-    const plugins = [ImageManipulationPlugin];
-    const config = { toolbar: { side: 'right' as const } };
-
-    export function Viewer({ manifestId }: { manifestId: string }) {
-        return (
-            <TriiiceratopsViewer
-                manifestId={manifestId}
-                plugins={plugins}
-                config={config}
-                onStateChange={(snapshot) => console.log('viewer state', snapshot)}
-                style={{ display: 'block', width: '100%', height: '600px' }}
-            />
+<script>
+    customElements.whenDefined('triiiceratops-viewer').then(() => {
+        const viewer = document.querySelector('triiiceratops-viewer');
+        const plugin = window.Triiiceratops.plugins.get(
+            '@triiiceratops/plugin-image-manipulation',
         );
-    }
-    ```
+        viewer.plugins = [plugin];
+    });
+</script>
+```
 
-    The [React guide](react.md) covers handles, selectors and cadence, typed
-    events, SSR, testing, and the styling and chrome boundary.
+That snippet is the entire integration for a WordPress custom-HTML block, a
+Django or Rails template, or any page you can add a `<script>` tag to.
 
-=== "Vue"
+Using a bundler instead? Register the element with
+`import 'triiiceratops/element/register'`, then set properties directly —
+`document.querySelector('triiiceratops-viewer').manifestId = …` — no ref needed
+outside a component framework.
 
-    Import the component from `triiiceratops/vue`. No `isCustomElement`
-    compiler option, no registration import, no `onMounted` property assignment:
+- Loading the **same** core version twice is a harmless no-op.
+- Loading a **different** core version alongside one already registered leaves
+  the first registration and custom element untouched and throws an actionable
+  conflict error. Side-by-side multi-version loading on one page is not
+  supported.
+- Registering a plugin whose name is already registered keeps the first factory;
+  a version mismatch is reported as a console warning (first-wins), not an
+  error.
 
-    ```vue
-    <script setup lang="ts">
-    import { TriiiceratopsViewer, type SdkPlugin } from 'triiiceratops/vue';
-    import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-
-    const plugins: readonly SdkPlugin[] = [ImageManipulationPlugin];
-    const config = { toolbar: { side: 'right' as const } };
-    </script>
-
-    <template>
-        <TriiiceratopsViewer
-            manifest-id="https://example.org/manifest.json"
-            :plugins="plugins"
-            :config="config"
-            style="display: block; width: 100%; height: 600px"
-            @state-change="(snapshot) => console.log('viewer state', snapshot)"
-        />
-    </template>
-    ```
-
-    The [Vue guide](vue.md) covers template refs, selectors and cadence, typed
-    emits, `<KeepAlive>`, SSR, testing, and the styling and chrome boundary.
-
-=== "Svelte"
-
-    A native Svelte component, no custom element involved: core's package also
-    ships the viewer as a **source-distributed Svelte 5 component**. Your
-    application compiles it inside its own Svelte runtime, so it tree-shakes
-    normally and never bundles a second copy of Svelte.
-
-    ```html
-    <script lang="ts">
-        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
-        // Import the design tokens + themes exactly once, anywhere in your app.
-        import 'triiiceratops/style.css';
-        import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
-    </script>
-
-    <div style="height: 600px;">
-        <TriiiceratopsViewer
-            manifestId="https://example.org/manifest.json"
-            plugins={[ImageManipulationPlugin]}
-        />
-    </div>
-    ```
-
-    !!! important "The stylesheet is an explicit import"
-
-        Importing the component adds **no** global CSS side effects. Styling
-        comes from the one `import 'triiiceratops/style.css'`. Every rule in
-        that stylesheet is scoped to the viewer root, so it cannot restyle
-        your host page.
-
-    !!! note "Works in SvelteKit out of the box"
-
-        Bundler-neutral (no `import.meta.env` reliance) and SSR-safe — core
-        server-renders cleanly and lazily loads browser-only dependencies
-        (OpenSeadragon), so it hydrates without mismatch warnings. You do
-        **not** need `export const ssr = false` or a browser-only guard.
-        Import the stylesheet once in your root `+layout.svelte`.
+Runs under a strict CSP without `unsafe-eval` — see the [CSP recipe](csp.md).
 
 From there: [add plugins](plugins.md), [configure the UI](configuration.md), or
 [theme it](theming.md).
 
-## Low-level: driving the custom element directly
-
-Everything below is the **low-level** path. It is fully supported and is what
-Angular, Lit, server-rendered templates, and vanilla JavaScript hosts use — and
-it is also what React and Vue hosts can drop to when they want direct DOM
-control. React and Vue applications that just want a viewer should prefer the
-[React](react.md) and [Vue](vue.md) wrappers, which do all of this for you.
+## Driving the element directly
 
 ### Registering the element
 
@@ -327,11 +233,14 @@ el.searchProvider = searchProvider;
 Set it to `null` (or leave it unset) to use the viewer's normal IIIF Content
 Search service discovery.
 
-### Hand-wiring React (low-level)
+## Hand-wiring a component framework
 
-Only for hosts that deliberately want the raw element — for example, an existing
-integration being migrated. New React code should use
-[`triiiceratops/react`](react.md).
+The two recipes below exist only for hosts that deliberately want the raw
+element — most often an existing integration mid-migration. New React and Vue
+code should use the [React](react.md) and [Vue](vue.md) wrappers, which do all of
+this for you and are the supported path.
+
+### Hand-wiring React
 
 ```jsx
 import { useEffect, useRef } from 'react';
@@ -365,10 +274,7 @@ TypeScript hosts taking this path must declare the tag in
 `JSX.IntrinsicElements` (or set properties through a typed ref, as above) to
 satisfy the compiler. The wrapper removes that requirement.
 
-### Hand-wiring Vue (low-level)
-
-Only for hosts that deliberately want the raw element. New Vue code should use
-[`triiiceratops/vue`](vue.md).
+### Hand-wiring Vue
 
 Tell the compiler the tag is a custom element so it does not try to resolve it
 as a Vue component, then set complex values as properties through a template
@@ -419,11 +325,8 @@ assignments, and the manual listeners.
 
 ## Verified against the packed package
 
-CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit for
-every host above: `wc-esm` (bundler ESM registration), `plain-html-iife` and
-`plugin-image-manip-iife` (script tags, core and a plugin IIFE loaded in
-**both** script orders), `svelte-vite` (the native Svelte component), and
-`sveltekit-ssr` (server-rendered, then hydrated, without mismatch warnings).
-React 19 and Vue 3.5 consumer fixtures install the same packed artifacts with
-no Svelte dependency and no Svelte Vite plugin, and every code sample on this
-site is type-checked against those tarballs.
+CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit for both
+element forms on this page: `wc-esm` (bundler ESM registration) and
+`plain-html-iife` plus `plugin-image-manip-iife` (script tags, core and a plugin
+IIFE loaded in **both** script orders). Every code sample on this site is also
+type-checked against those same tarballs.
