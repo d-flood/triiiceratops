@@ -10,9 +10,15 @@ import {
 import { mount, unmount, tick } from 'svelte';
 
 import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
+import {
+    getGalleryBandHeight,
+    getGalleryRailWidth,
+    getGalleryThumbItemHeight,
+} from './galleryGeometry';
 
 /**
- * The expanded gallery — a thumbnail grid filling the viewer's center column.
+ * The expanded gallery — a wrapped track of thumbnails filling the viewer's
+ * center column.
  *
  * The contract these tests hold down:
  *
@@ -25,8 +31,10 @@ import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
  *   its top edge and stays there as that edge travels to the top of the column —
  *   so the control never jumps out from under the cursor. Only the glyph flips,
  *   to keep pointing the way the gallery will travel next.
- * - The expanded view is the floating window's grid at viewer size, not a third
- *   layout with its own density.
+ * - The expanded view is the floating window's track at viewer size, not a third
+ *   layout with its own density. Thumbnails are laid out at whatever width their
+ *   image turns out to be — the same way the docked strip lays them out — so no
+ *   view reserves space a thumbnail does not fill.
  * - The overlay covers the center column only: side panels stay usable.
  */
 
@@ -207,6 +215,7 @@ describe('expanded thumbnail gallery', () => {
     const band = () => target.querySelector('.gallery-band');
     const caret = () =>
         target.querySelector('.expand-toggle') as HTMLButtonElement | null;
+    const caretAnchor = () => target.querySelector('.toggle-anchor');
 
     it('renders the docked strip with an expand caret when collapsed', async () => {
         await mountViewer({ dockPosition: 'bottom' });
@@ -219,6 +228,108 @@ describe('expanded thumbnail gallery', () => {
         expect(toggle).not.toBeNull();
         expect(toggle?.getAttribute('aria-expanded')).toBe('false');
         expect(toggle?.getAttribute('aria-label')).toBe('Expand Gallery');
+    });
+
+    /**
+     * The tab is 12px of glyph, so the label has to come from somewhere: it gets
+     * the same hover tooltip the toolbar buttons use, tracking the same label the
+     * button announces. Collapsed, the bubble opens outward over the canvas;
+     * expanded, the gallery IS the column, so it opens inward instead of off the
+     * viewer's edge.
+     */
+    it('labels the caret with a tooltip that follows the toggle state', async () => {
+        const props = await mountViewer({ dockPosition: 'bottom' });
+
+        expect(caretAnchor()?.getAttribute('data-tip')).toBe('Expand Gallery');
+        expect(caretAnchor()?.classList.contains('top')).toBe(true);
+
+        props.viewerState?.setGalleryExpanded(true);
+        await settle();
+
+        expect(caretAnchor()?.getAttribute('data-tip')).toBe(
+            'Collapse Gallery',
+        );
+        expect(caretAnchor()?.classList.contains('bottom')).toBe(true);
+    });
+
+    /**
+     * The rail is the one view that must commit to a width before it knows what is
+     * in it: one portrait thumbnail plus the expand tab's gutter. Pinned end-to-end
+     * because the arithmetic lives in `galleryGeometry` while the two consumers are
+     * separate components; the border comes from `--tri-border` in `calc()` rather
+     * than being baked into the number.
+     */
+    it('sizes the docked rail to one portrait thumbnail', async () => {
+        await mountViewer({ dockPosition: 'left', fixedHeight: 120 });
+
+        const host = target.querySelector('.gallery-host') as HTMLElement;
+        expect(host.style.getPropertyValue('--ui-gallery-rail')).toBe(
+            `${getGalleryRailWidth(120)}px`,
+        );
+    });
+
+    /**
+     * The tab needs a gutter to sit in, and on a docked strip it is reserved as
+     * padding on the gallery ROOT — not on the scrolling content, whose padding
+     * would scroll away and let rows pass back under the tab. Asserted through the
+     * wiring rather than a computed pixel: the root publishes the tab's width as the
+     * custom property its own CSS reserves from, and `galleryGeometry.test.ts` pins
+     * that the band leaves at least that much over after a row.
+     */
+    it('reserves the expand tab a gutter on the docked strip', async () => {
+        await mountViewer({ dockPosition: 'bottom' });
+
+        const root = target.querySelector('.gallery-root') as HTMLElement;
+        // Bottom-docked, so the canvas-facing edge — and the gutter — is the top.
+        expect(root.classList.contains('caret-top')).toBe(true);
+
+        // Read rather than hardcoded, so this tracks the geometry module. It has to
+        // be the gutter the band was sized around, and at least WCAG 2.5.8's 24px.
+        const gutter = Number.parseFloat(
+            root.style.getPropertyValue('--ui-caret-tab'),
+        );
+        const bandGutter =
+            getGalleryBandHeight(75) - getGalleryThumbItemHeight(75) - 8 - 2;
+        expect(gutter).toBe(bandGutter);
+        expect(gutter).toBeGreaterThanOrEqual(24);
+    });
+
+    /**
+     * A paged pair names two canvases, and used to get a second label line of its
+     * own — which made a paged strip row taller than an unpaged one and left the
+     * band, sized for the taller row, nothing to spare for the tab's gutter. The
+     * second line rides over the bottom of the frame instead, so every row is one
+     * height whatever the viewing mode.
+     */
+    it('keeps a paged pair the same height as a single page', async () => {
+        const props = await mountViewer({ dockPosition: 'bottom' });
+
+        const rowHeights = () =>
+            [...target.querySelectorAll('.thumb-item')].map(
+                (item) => (item as HTMLElement).style.height,
+            );
+        const expected = `${getGalleryThumbItemHeight(75)}px`;
+
+        expect(rowHeights().length).toBeGreaterThan(0);
+        expect(new Set(rowHeights())).toEqual(new Set([expected]));
+
+        props.viewerState.viewingMode = 'paged';
+        await settle();
+
+        // Three canvases pair as [1+2], [3] — so both shapes are on screen.
+        const items = [...target.querySelectorAll('.thumb-item')];
+        const stacks = items.map((item) => item.querySelector('.label-stack')!);
+        expect(stacks.some((s) => s.classList.contains('label-overlay'))).toBe(
+            true,
+        );
+        expect(stacks.some((s) => !s.classList.contains('label-overlay'))).toBe(
+            true,
+        );
+
+        // The pair carries a line per canvas, and still costs the same height.
+        const pair = stacks.find((s) => s.classList.contains('label-overlay'))!;
+        expect(pair.querySelectorAll('.label-line')).toHaveLength(2);
+        expect(new Set(rowHeights())).toEqual(new Set([expected]));
     });
 
     it('moves the gallery into the center-column overlay when the caret is clicked', async () => {
@@ -286,7 +397,7 @@ describe('expanded thumbnail gallery', () => {
         expect(props.viewerState?.dockSide).toBe('right');
     });
 
-    it('renders as a grid, not a strip, when expanded from a horizontal dock', async () => {
+    it('renders as a wrapped track, not a strip, when expanded from a horizontal dock', async () => {
         await mountViewer({ dockPosition: 'bottom', expanded: true });
 
         const track = target.querySelector('.gallery-track');
@@ -295,12 +406,12 @@ describe('expanded thumbnail gallery', () => {
     });
 
     /**
-     * The expanded view is the floating window's grid at viewer size, not a third
-     * layout: same `fixedHeight` cell floor, same track classes. Asserted by
-     * comparing the two directly, so a future density tweak to one that skips the
-     * other fails here.
+     * The expanded view is the floating window's track at viewer size, not a third
+     * layout: same track classes, same (absent) inline sizing. Asserted by comparing
+     * the two directly, so a future density tweak to one that skips the other fails
+     * here.
      */
-    it('uses the same grid geometry as the floating window', async () => {
+    it('uses the same track geometry as the floating window', async () => {
         const trackStyle = (root: HTMLElement) =>
             root.querySelector('.gallery-track')?.getAttribute('style')?.trim();
         const trackClass = (root: HTMLElement) =>
@@ -319,19 +430,28 @@ describe('expanded thumbnail gallery', () => {
 
         expect(expandedStyle).toBe(trackStyle(target));
         expect(expandedClass).toBe(trackClass(target));
-        // And that shared geometry is driven by fixedHeight (default 75).
-        expect(expandedStyle).toContain('minmax(75px');
+        // Neither carries an inline cell size: the track wraps items at whatever
+        // width their thumbnail turns out to be, so there is no cell to size.
+        expect(expandedStyle ?? '').not.toContain('grid-template-columns');
     });
 
-    it('honors gallery.fixedHeight as the expanded grid cell floor', async () => {
+    /**
+     * `fixedHeight` is a thumbnail HEIGHT, and it is the only knob that changes a
+     * thumbnail's size — in the expanded view exactly as in the strip. Widths follow
+     * from the images, so the expanded thumbnail's HEIGHT is what pins the two views
+     * together.
+     */
+    it('sizes the expanded thumbnail from gallery.fixedHeight', async () => {
         await mountViewer({
             dockPosition: 'bottom',
             expanded: true,
             fixedHeight: 120,
         });
 
-        const track = target.querySelector('.gallery-track');
-        expect(track?.getAttribute('style')).toContain('minmax(120px');
+        const frame = target.querySelector('.thumb-frame') as HTMLElement;
+        expect(getComputedStyle(frame).height).toBe('120px');
+        // The same height a strip row is built around.
+        expect(getGalleryThumbItemHeight(120)).toBe(148);
     });
 
     it('keeps the caret on the same edge across expand, flipping only the glyph', async () => {
