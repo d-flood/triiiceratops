@@ -1,5 +1,6 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
+    import { Tooltip } from './ui';
     import { getContext } from 'svelte';
     import type { IconName } from '../generated/icons';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
@@ -7,6 +8,11 @@
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { resolveLanguageValue } from '../utils/languageMap';
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
+    import {
+        GALLERY_THUMB_VARS,
+        getGalleryThumbFloorWidth,
+        getGalleryThumbItemHeight,
+    } from './galleryGeometry';
 
     // Minimal canvas/annotation types covering methods used here
     type ManifestService = {
@@ -341,10 +347,10 @@
     // Switch to horizontal layout if height is small or docked to top/bottom.
     //
     // Expanded always wins: an expanded gallery IS the floating window's grid at
-    // viewer size — same `fixedHeight` cell floor, same padding and gap — so it
-    // takes the grid branch for the same reason a tall floating window does.
-    // Deliberately not a third layout with its own density: the float grid is
-    // already the right one, and one fewer knob is one fewer thing to diverge.
+    // viewer size — same cell size, same padding and gap — so it takes the grid
+    // branch for the same reason a tall floating window does. Deliberately not a
+    // third layout with its own density: the float grid is already the right one,
+    // and one fewer knob is one fewer thing to diverge.
     let isHorizontal = $derived(
         !expanded &&
             (dockSide === 'top' ||
@@ -353,6 +359,21 @@
     );
 
     let fixedHeight = $derived(viewerState.galleryFixedHeight);
+
+    /**
+     * Height of every thumbnail button in the strip. Set explicitly rather than
+     * left intrinsic so the row is literally the number the docked band was
+     * sized from (see `getGalleryBandHeight`) — the two are computed in separate
+     * components and only line up if the strip states the one it was promised.
+     */
+    let thumbItemHeight = $derived(getGalleryThumbItemHeight(fixedHeight));
+
+    /**
+     * Width a frame falls back to when there is nothing to measure. Published to
+     * the CSS below rather than restated there, because the docked rail commits to
+     * its width from this same number (see `getGalleryRailWidth`).
+     */
+    let thumbFloorWidth = $derived(getGalleryThumbFloorWidth(fixedHeight));
     let isRTL = $derived(viewerState.viewingDirection === 'right-to-left');
 
     // The glyph points the way the gallery will travel: away from its dock edge
@@ -410,6 +431,22 @@
 
     let toggleLabel = $derived(
         expanded ? m.collapse_gallery() : m.expand_gallery(),
+    );
+
+    /**
+     * Which side of the tab its tooltip bubble opens on. Collapsed, that is
+     * outward, over the canvas — empty space, and it leaves the thumbnails
+     * readable. Expanded, the gallery IS the whole column, so outward would push
+     * the bubble past the viewer edge; it opens inward over the grid instead.
+     * The floating window's inline button has no edge, so its bubble goes left,
+     * away from the window's own corner.
+     */
+    let tooltipPlacement = $derived<'top' | 'bottom' | 'left' | 'right'>(
+        dockEdge === null
+            ? 'left'
+            : expanded
+              ? dockEdge
+              : OPPOSITE_EDGE[dockEdge],
     );
 
     // The header hosts the drag grip, which is meaningless for an expanded
@@ -561,9 +598,10 @@
             caretEdge === 'right' && 'caret-right',
             viewerState.isGalleryDragging && 'dragging',
         ]}
-        style={expanded || dockSide !== 'none'
+        style="{GALLERY_THUMB_VARS}; --ui-thumb-h: {fixedHeight}px;
+        --ui-thumb-floor: {thumbFloorWidth}px; {expanded || dockSide !== 'none'
             ? ''
-            : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}
+            : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}"
     >
         <!-- Header Area (drag grip when draggable/floating; also the floating
              gallery's home for the maximize/restore button) -->
@@ -609,30 +647,40 @@
                 {/if}
 
                 {#if dockSide === 'none'}
-                    <button
-                        class="expand-toggle toggle-inline"
-                        onclick={toggleExpanded}
-                        aria-label={toggleLabel}
-                        aria-expanded={expanded}
-                        title={toggleLabel}
+                    <Tooltip
+                        tip={toggleLabel}
+                        placement={tooltipPlacement}
+                        class="toggle-anchor toggle-anchor-inline"
                     >
-                        <Icon name={toggleIcon} size={14} />
-                    </button>
+                        <button
+                            class="expand-toggle toggle-inline"
+                            onclick={toggleExpanded}
+                            aria-label={toggleLabel}
+                            aria-expanded={expanded}
+                        >
+                            <Icon name={toggleIcon} size={14} />
+                        </button>
+                    </Tooltip>
                 {/if}
             </div>
         {/if}
 
         <!-- Expand/collapse caret, centered on the canvas-facing edge (docked only) -->
         {#if caretEdge}
-            <button
-                class="expand-toggle toggle-edge"
-                onclick={toggleExpanded}
-                aria-label={toggleLabel}
-                aria-expanded={expanded}
-                title={toggleLabel}
+            <Tooltip
+                tip={toggleLabel}
+                placement={tooltipPlacement}
+                class="toggle-anchor toggle-anchor-edge"
             >
-                <Icon name={toggleIcon} size={12} />
-            </button>
+                <button
+                    class="expand-toggle toggle-edge"
+                    onclick={toggleExpanded}
+                    aria-label={toggleLabel}
+                    aria-expanded={expanded}
+                >
+                    <Icon name={toggleIcon} size={12} />
+                </button>
+            </Tooltip>
         {/if}
 
         <!-- Content (Grid or Horizontal Scroll) -->
@@ -649,9 +697,6 @@
                     isHorizontal && 'track-horizontal',
                     !isHorizontal && 'track-vertical',
                 ]}
-                style={isHorizontal
-                    ? ''
-                    : `grid-template-columns: repeat(auto-fill, minmax(${fixedHeight}px, 1fr));`}
             >
                 {#if viewerState.viewingMode === 'paged'}
                     <!-- grouped thumbnail display -->
@@ -670,15 +715,11 @@
                         })()}
                         <button
                             class={[
-                                'thumb-item thumb-group',
-                                isHorizontal && 'thumb-horizontal',
-                                !isHorizontal &&
-                                    thumbGroup.srcs.length > 1 &&
-                                    'span-2',
+                                'thumb-item',
                                 isGroupSelected && 'selected',
                             ]}
                             style="{isHorizontal
-                                ? `height: ${fixedHeight + (thumbGroup.labels.length > 1 ? 40 : 24)}px;`
+                                ? `height: ${thumbItemHeight}px;`
                                 : ''}{isGroupSelected
                                 ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
                                 : ''}"
@@ -688,49 +729,13 @@
                                 ' / ',
                             )}"
                         >
-                            <div
-                                class={[
-                                    'thumb-frame',
-                                    isHorizontal && 'frame-horizontal',
-                                    !isHorizontal &&
-                                        thumbGroup.srcs.length > 1 &&
-                                        'frame-aspect-wide',
-                                    !isHorizontal &&
-                                        thumbGroup.srcs.length <= 1 &&
-                                        'frame-aspect-tall',
-                                    isRTL && 'frame-rtl',
-                                ]}
-                                style={isHorizontal
-                                    ? `height: ${fixedHeight}px`
-                                    : ''}
-                            >
-                                <div
-                                    class={[
-                                        'thumb-pane',
-                                        isHorizontal && 'pane-horizontal',
-                                        !isHorizontal && 'pane-full-height',
-                                        !isHorizontal &&
-                                            thumbGroup.srcs.length > 1 &&
-                                            'pane-half',
-                                        !isHorizontal &&
-                                            thumbGroup.srcs.length <= 1 &&
-                                            'pane-full',
-                                    ]}
-                                >
+                            <div class={['thumb-frame', isRTL && 'frame-rtl']}>
+                                <div class="thumb-pane">
                                     {#if thumbGroup.srcs[0]}
                                         <img
                                             src={thumbGroup.srcs[0]}
                                             alt={thumbGroup.labels[0]}
-                                            class={[
-                                                'thumb-img',
-                                                isHorizontal &&
-                                                    'img-horizontal',
-                                                !isHorizontal && 'img-fill',
-                                                thumbGroup.srcs.length > 1 &&
-                                                    'img-right',
-                                                thumbGroup.srcs.length <= 1 &&
-                                                    'img-center',
-                                            ]}
+                                            class="thumb-img"
                                             loading="lazy"
                                             draggable="false"
                                         />
@@ -739,24 +744,12 @@
                                     {/if}
                                 </div>
                                 {#if thumbGroup.srcs.length > 1}
-                                    <div
-                                        class={[
-                                            'thumb-pane',
-                                            isHorizontal && 'pane-horizontal',
-                                            !isHorizontal &&
-                                                'pane-full-height pane-half',
-                                        ]}
-                                    >
+                                    <div class="thumb-pane">
                                         {#if thumbGroup.srcs[1]}
                                             <img
                                                 src={thumbGroup.srcs[1]}
                                                 alt={thumbGroup.labels[1]}
-                                                class={[
-                                                    'thumb-img img-left',
-                                                    isHorizontal &&
-                                                        'img-horizontal',
-                                                    !isHorizontal && 'img-fill',
-                                                ]}
+                                                class="thumb-img"
                                                 loading="lazy"
                                                 draggable="false"
                                             />
@@ -769,36 +762,24 @@
                                 {/if}
                             </div>
                             <div
-                                class={[
-                                    'thumb-label',
-                                    isHorizontal && 'label-horizontal',
-                                    !isHorizontal && 'label-vertical',
-                                ]}
+                                class="thumb-label"
                                 title="{thumbGroup.index + 1}. {thumbGroup
                                     .labels[0]}{thumbGroup.labels.length > 1
                                     ? ` / ${thumbGroup.index + 2}. ${thumbGroup.labels[1]}`
                                     : ''}"
                             >
-                                <div class="label-line">
-                                    <span class="label-num"
-                                        >{thumbGroup.index + 1}.</span
-                                    >{thumbGroup
-                                        .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
-                                            class="choice-badge"
-                                            title="Has choices/layers"
-                                            ><Icon
-                                                name="Stack"
-                                                size={12}
-                                                class="choice-icon"
-                                            /></span
-                                        >{/if}
-                                </div>
-                                {#if thumbGroup.labels.length > 1}
+                                <div
+                                    class={[
+                                        'label-stack',
+                                        thumbGroup.labels.length > 1 &&
+                                            'label-overlay',
+                                    ]}
+                                >
                                     <div class="label-line">
                                         <span class="label-num"
-                                            >{thumbGroup.index + 2}.</span
+                                            >{thumbGroup.index + 1}.</span
                                         >{thumbGroup
-                                            .labels[1]}{#if thumbGroup.hasChoice}<span
+                                            .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
                                                 class="choice-badge"
                                                 title="Has choices/layers"
                                                 ><Icon
@@ -808,7 +789,23 @@
                                                 /></span
                                             >{/if}
                                     </div>
-                                {/if}
+                                    {#if thumbGroup.labels.length > 1}
+                                        <div class="label-line">
+                                            <span class="label-num"
+                                                >{thumbGroup.index + 2}.</span
+                                            >{thumbGroup
+                                                .labels[1]}{#if thumbGroup.hasChoice}<span
+                                                    class="choice-badge"
+                                                    title="Has choices/layers"
+                                                    ><Icon
+                                                        name="Stack"
+                                                        size={12}
+                                                        class="choice-icon"
+                                                    /></span
+                                                >{/if}
+                                        </div>
+                                    {/if}
+                                </div>
                             </div>
                         </button>
                     {/each}
@@ -817,11 +814,10 @@
                         <button
                             class={[
                                 'thumb-item',
-                                isHorizontal && 'thumb-horizontal',
                                 viewerState.canvasId === thumb.id && 'selected',
                             ]}
                             style="{isHorizontal
-                                ? `height: ${fixedHeight + 24}px;`
+                                ? `height: ${thumbItemHeight}px;`
                                 : ''}{viewerState.canvasId === thumb.id
                                 ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
                                 : ''}"
@@ -829,48 +825,40 @@
                             data-id={thumb.id}
                             aria-label="Select canvas {thumb.label}"
                         >
-                            <div
-                                class={[
-                                    'thumb-frame',
-                                    isHorizontal && 'frame-horizontal',
-                                    !isHorizontal && 'frame-aspect-tall',
-                                ]}
-                                style={isHorizontal
-                                    ? `height: ${fixedHeight}px`
-                                    : ''}
-                            >
-                                {#if thumb.src}
-                                    <img
-                                        src={thumb.src}
-                                        alt={thumb.label}
-                                        class={[
-                                            'thumb-img',
-                                            isHorizontal && 'img-horizontal',
-                                            !isHorizontal && 'img-fill',
-                                        ]}
-                                        loading="lazy"
-                                        draggable="false"
-                                    />
-                                {:else}
-                                    <span class="thumb-placeholder">?</span>
-                                {/if}
-                            </div>
-                            <div class="thumb-label label-simple">
-                                <span class="label-num">{thumb.index + 1}.</span
-                                >
-                                {thumb.label}
-                                {#if thumb.hasChoice}
-                                    <span
-                                        class="choice-badge choice-badge-simple"
-                                        title="Has choices/layers"
-                                    >
-                                        <Icon
-                                            name="Stack"
-                                            size={12}
-                                            class="choice-icon"
+                            <div class="thumb-frame">
+                                <div class="thumb-pane">
+                                    {#if thumb.src}
+                                        <img
+                                            src={thumb.src}
+                                            alt={thumb.label}
+                                            class="thumb-img"
+                                            loading="lazy"
+                                            draggable="false"
                                         />
-                                    </span>
-                                {/if}
+                                    {:else}
+                                        <span class="thumb-placeholder">?</span>
+                                    {/if}
+                                </div>
+                            </div>
+                            <div
+                                class="thumb-label"
+                                title="{thumb.index + 1}. {thumb.label}"
+                            >
+                                <div class="label-stack">
+                                    <div class="label-line">
+                                        <span class="label-num"
+                                            >{thumb.index + 1}.</span
+                                        >{thumb.label}{#if thumb.hasChoice}<span
+                                                class="choice-badge"
+                                                title="Has choices/layers"
+                                                ><Icon
+                                                    name="Stack"
+                                                    size={12}
+                                                    class="choice-icon"
+                                                /></span
+                                            >{/if}
+                                    </div>
+                                </div>
                             </div>
                         </button>
                     {/each}
@@ -956,6 +944,10 @@
         user-select: none;
         background-color: var(--tri-gallery-bg);
         color: var(--tri-gallery-content);
+        /* The caret gutter below is root padding, and every sizing rule here
+           (100% when docked, an explicit pixel size when floating) means the
+           gallery's OUTER box. */
+        box-sizing: border-box;
     }
     .gallery-root.docked {
         position: relative;
@@ -966,7 +958,11 @@
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
         border-color: var(--tri-surface-border);
-        transition-property: all;
+        /* Named rather than `all`: the caret gutter is root padding now, and `all`
+           made the gutter itself animate — it opened from zero on every dock
+           change, so the tab sat over a thumbnail until the transition caught up.
+           Only the colours and shadow were ever meant to move. */
+        transition-property: background-color, border-color, box-shadow;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.2s;
     }
@@ -1081,118 +1077,193 @@
     }
 
     /* ===== Expand / collapse control =====
-       `toggle-edge` is a low-profile tab centred on whichever gallery edge faces
-       the canvas (see `caretEdge`).
+       `toggle-edge` is a small tab centred on whichever gallery edge faces the
+       canvas (see `caretEdge`), sitting in a gutter reserved for it there.
 
-       It reserves NO layout space: it is absolutely positioned over the gallery's
-       own edge, so the docked band/rail measures exactly what it did before this
-       control existed and opening the gallery costs no extra height. The price is
-       that it overlays content rather than sitting in a gutter — hence the
-       semi-opaque backdrop, which keeps the glyph legible over a busy thumbnail
-       and over rows scrolling beneath it. In the horizontal strip it happens to
-       land in the slack the centred track already leaves above the thumbnails, so
-       there it overlaps nothing at all.
+       It is chrome, not gallery content, so it borrows the toolbar's button look
+       verbatim — translucent toolbar fill over a blur, a hairline border, and the
+       same `--tri-surface-border` hover. That is what makes a 12px control read as
+       a control: the fill and border give it an edge against the gallery behind
+       it, where the old fully-transparent treatment left a bare glyph that looked
+       like a stray mark.
 
-       It stays inside the gallery's bounds rather than protruding into the canvas,
-       because the canvas side of a bottom-docked strip is where the canvas nav
-       lives. */
+       Each button is wrapped in a `<Tooltip>`, and the WRAPPER is what gets
+       positioned — the tooltip's bubble is a pseudo-element of that span, so it
+       has to be the thing pinned to the edge. Hence `.toggle-anchor` carries the
+       absolute positioning and the size, and the button just fills it. Those
+       rules need `:global()` because a class handed to a child component is
+       outside this component's scoping. */
+    .gallery-root :global(.toggle-anchor) {
+        position: absolute;
+        display: block;
+        z-index: 60;
+    }
     .expand-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--tri-gallery-content);
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        cursor: pointer;
+        color: var(--tri-toolbar-content);
         background-color: color-mix(
             in oklab,
-            var(--tri-gallery-bg) 82%,
+            var(--tri-toolbar-bg) 70%,
             transparent
         );
-        border: 0;
-        cursor: pointer;
-        z-index: 60;
-        opacity: 0.5;
-        transition-property: opacity, background-color;
+        backdrop-filter: blur(8px);
+        border-width: var(--tri-border);
+        border-style: solid;
+        border-color: var(--tri-surface-border);
+        box-shadow: var(--ui-chrome-shadow, none);
+        transition-property: color, background-color, border-color;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
     .expand-toggle:hover,
     .expand-toggle:focus-visible {
-        opacity: 1;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-surface-border) 70%,
-            var(--tri-gallery-bg)
-        );
-    }
-    .expand-toggle.toggle-edge {
-        position: absolute;
-        width: 2.25rem;
-        height: 0.75rem;
-        padding: 0;
-    }
-    /* Expanded only: reserve the tab's 12px as root padding. The overlay fills the
-       center column either way, so this costs no gallery size — it just insets the
-       grid so no cell is clipped and no scrolled row passes beneath the tab. It
-       must be padding on the ROOT, not on `.gallery-content`: padding on a scroll
-       box scrolls away with its content. The docked strip deliberately gets none
-       of this — there the tab lands in the centred track's existing slack, so the
-       strip measures exactly what it did before this control existed. */
-    .gallery-root.expanded.caret-top,
-    .gallery-root.expanded.caret-bottom,
-    .gallery-root.expanded.caret-left,
-    .gallery-root.expanded.caret-right {
-        box-sizing: border-box;
-    }
-    .gallery-root.expanded.caret-top {
-        padding-top: 0.75rem;
-    }
-    .gallery-root.expanded.caret-bottom {
-        padding-bottom: 0.75rem;
-    }
-    .gallery-root.expanded.caret-left {
-        padding-left: 0.75rem;
-    }
-    .gallery-root.expanded.caret-right {
-        padding-right: 0.75rem;
+        background-color: var(--tri-surface-border);
     }
 
-    /* Vertical edges get the tab rotated onto its short axis. */
-    .caret-left > .toggle-edge,
-    .caret-right > .toggle-edge {
-        width: 0.75rem;
-        height: 2.25rem;
+    /* Reserve the tab's width as root padding, so it sits in a gutter beside the
+       thumbnails rather than over one. It must be padding on the ROOT, not on
+       `.gallery-content`: padding on a scroll box scrolls away with its content,
+       and rows would pass back underneath the tab.
+
+       Every view reserves it, including the horizontal strip. The strip used to
+       lean on the slack a short row left in the band instead, which held only
+       while every row was short — a paged pair, with a label line per canvas, ate
+       that slack and took the tab with it. Its label rides over the frame as an
+       overlay now (see `.label-overlay`), so all rows are one height and the band
+       can reserve this gutter honestly while still coming out slightly shorter
+       than it was before (see `getGalleryBandHeight`).
+
+       `--ui-caret-tab` comes from `galleryGeometry`, which is also what the band
+       and rail budget from — the value is never restated here. */
+    .gallery-root.expanded.caret-top {
+        padding-top: var(--ui-caret-tab);
     }
-    /* Flush with the canvas-facing edge, rounded on that side only, so it reads
-       as a small handle rising out of the gallery. */
-    .caret-top > .toggle-edge {
+    .gallery-root.expanded.caret-bottom {
+        padding-bottom: var(--ui-caret-tab);
+    }
+    .gallery-root.expanded.caret-left {
+        padding-left: var(--ui-caret-tab);
+    }
+    .gallery-root.expanded.caret-right {
+        padding-right: var(--ui-caret-tab);
+    }
+    /* A docked tab sits ON the gallery's border where there is one (see the
+       negative offset below), so the room it needs there is its own width LESS
+       that border — otherwise the leftover pixel shows as a gap on the thumbnail
+       side. Only the edges that actually carry a border subtract it: the strip's
+       top and both of the rail's sides. */
+    .gallery-root.dock-horizontal.caret-top {
+        padding-top: calc(var(--ui-caret-tab) - var(--tri-border));
+    }
+    .gallery-root.dock-horizontal.caret-bottom {
+        padding-bottom: var(--ui-caret-tab);
+    }
+    .gallery-root.dock-vertical.caret-left {
+        padding-left: calc(var(--ui-caret-tab) - var(--tri-border));
+    }
+    .gallery-root.dock-vertical.caret-right {
+        padding-right: calc(var(--ui-caret-tab) - var(--tri-border));
+    }
+    /* The rail is exactly one cell wide, so it also drops the track's padding on
+       the tab's side — the thumbnail runs right up to the tab instead of standing
+       a gallery-padding gap away from it. The strip keeps its padding: it has
+       width to spare and the gap reads as breathing room, not waste. */
+    .dock-vertical.caret-left > .gallery-content {
+        padding-left: 0;
+    }
+    .dock-vertical.caret-right > .gallery-content {
+        padding-right: 0;
+    }
+
+    /* Narrow on its long axis, so it reads as a handle on the edge rather than a
+       bar across it. Its short axis is the gutter reserved above. */
+    .caret-top > :global(.toggle-anchor),
+    .caret-bottom > :global(.toggle-anchor) {
+        width: 1.75rem;
+        height: var(--ui-caret-tab);
+    }
+    .caret-left > :global(.toggle-anchor),
+    .caret-right > :global(.toggle-anchor) {
+        width: var(--ui-caret-tab);
+        height: 1.75rem;
+    }
+    /* Flush against the canvas-facing edge, in the same idiom as the toolbar's
+       open handle: the border touching that edge is dropped and those corners are
+       square, so the tab reads as part of the edge rather than a chip floating
+       beside it. Only the two inboard corners round, into the gallery. */
+    .caret-top > :global(.toggle-anchor) {
         top: 0;
         left: 50%;
         transform: translateX(-50%);
-        border-radius: 0.25rem 0.25rem 0 0;
     }
-    .caret-bottom > .toggle-edge {
+    .caret-top .toggle-edge {
+        border-top-width: 0;
+        border-radius: 0 0 0.25rem 0.25rem;
+    }
+    .caret-bottom > :global(.toggle-anchor) {
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
-        border-radius: 0 0 0.25rem 0.25rem;
     }
-    .caret-left > .toggle-edge {
+    .caret-bottom .toggle-edge {
+        border-bottom-width: 0;
+        border-radius: 0.25rem 0.25rem 0 0;
+    }
+    .caret-left > :global(.toggle-anchor) {
         left: 0;
         top: 50%;
         transform: translateY(-50%);
-        border-radius: 0.25rem 0 0 0.25rem;
     }
-    .caret-right > .toggle-edge {
+    .caret-left .toggle-edge {
+        border-left-width: 0;
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+    .caret-right > :global(.toggle-anchor) {
         right: 0;
         top: 50%;
         transform: translateY(-50%);
-        border-radius: 0 0.25rem 0.25rem 0;
     }
-    .expand-toggle.toggle-inline {
-        position: absolute;
+    .caret-right .toggle-edge {
+        border-right-width: 0;
+        border-radius: 0.25rem 0 0 0.25rem;
+    }
+
+    /* An absolutely positioned child is offset from the padding box, so `right: 0`
+       above lands the tab just INSIDE the docked gallery's own border, leaving a
+       hairline of gallery between the tab and the edge the user sees. Pull it out
+       by that border width so the tab sits ON the edge line and touches it.
+
+       Applied only where a border actually exists to sit on — the strip's top
+       (`.dock-horizontal`) and both of the rail's sides (`.dock-vertical`).
+       Anywhere else the tab is already flush with the edge, and a negative offset
+       would just overhang it: a top-docked strip carries no bottom border, and the
+       expanded overlay has none at all (and clips its own overflow, so the offset
+       would shave a pixel off the tab). */
+    .gallery-root.dock-horizontal.caret-top > :global(.toggle-anchor) {
+        top: calc(-1 * var(--tri-border));
+    }
+    .gallery-root.dock-vertical.caret-left > :global(.toggle-anchor) {
+        left: calc(-1 * var(--tri-border));
+    }
+    .gallery-root.dock-vertical.caret-right > :global(.toggle-anchor) {
+        right: calc(-1 * var(--tri-border));
+    }
+
+    /* The floating window has no dock edge, so its maximize/restore button lives
+       in the header's top corner instead. */
+    .gallery-root :global(.toggle-anchor-inline) {
         top: 0.125rem;
         right: 0.25rem;
         width: 1.25rem;
         height: 1.25rem;
+    }
+    .toggle-inline {
         border-radius: 0.25rem;
     }
 
@@ -1211,6 +1282,12 @@
         overflow-y: auto;
         overflow-x: hidden;
     }
+    /* The rail is exactly one cell wide (`getGalleryRailWidth`), so on the
+       platforms that give a scrollbar real width it comes out of the thumbnail.
+       Ask for the thin one to keep that as small as possible. */
+    .dock-vertical .gallery-content {
+        scrollbar-width: thin;
+    }
 
     .gallery-track.track-horizontal {
         display: flex;
@@ -1219,17 +1296,31 @@
         height: 100%;
         align-items: center;
     }
+    /* Every other view is that same row, wrapped. Deliberately NOT a fixed-width
+       grid: a grid has to reserve its cell for the widest thumbnail it might hold,
+       which leaves a portrait page — most pages — sitting in a wide box of empty
+       space, and a paged pair in twice that. Wrapping means an item is exactly as
+       wide as the thumbnail in it, so a thumbnail looks the same here as it does in
+       the strip. The cost is a ragged last row instead of aligned columns. */
     .gallery-track.track-vertical {
-        display: grid;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: var(--ui-gallery-gap, 0.5rem);
+        justify-content: center;
+        align-content: flex-start;
     }
 
-    /* ===== Thumbnail item (button) ===== */
+    /* ===== Thumbnail item (button) =====
+       One rule set for every view: the strip and the grid differ only in how they
+       are laid OUT (a flex row vs. fixed-width grid cells), never in what a
+       thumbnail is. The paddings come from `galleryGeometry`, which is also what
+       the docked band and rail are measured from. */
     .thumb-item {
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
-        padding: 0.25rem;
+        gap: var(--ui-thumb-gap);
+        padding: var(--ui-thumb-pad);
         border-radius: 0.25rem;
         text-align: left;
         position: relative;
@@ -1240,17 +1331,8 @@
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
     }
-    .thumb-item.thumb-group {
-        overflow: hidden;
-    }
     .thumb-item:hover {
         background-color: var(--tri-surface-border);
-    }
-    .thumb-item.thumb-horizontal {
-        width: auto;
-    }
-    .thumb-item.span-2 {
-        grid-column: span 2 / span 2;
     }
     .thumb-item.selected {
         background-color: color-mix(
@@ -1260,29 +1342,28 @@
         );
     }
 
-    /* ===== Thumbnail frame (image container) ===== */
+    /* ===== Thumbnail frame (image container) =====
+       `fixedHeight` tall (set inline, since it is a config value) and as wide as
+       the image itself at that height — so a canvas renders at its own shape,
+       identically in every view, instead of being letterboxed into a slot.
+
+       `max-width` is the one concession to the grid: an image wider than the cell
+       reserves room for keeps its height and centre-crops, which at least holds
+       the height the strip shows it at. The frame's own width is just the sum of
+       its panes. */
     .thumb-frame {
+        height: var(--ui-thumb-h);
         background-color: var(--tri-surface-border);
         border-radius: 0.25rem;
         overflow: hidden;
         position: relative;
         display: flex;
+        flex-direction: row;
         align-items: center;
         justify-content: center;
         gap: 1px;
-    }
-    .thumb-frame.frame-horizontal {
-        height: 100%;
         width: auto;
-        flex-direction: row;
-    }
-    .thumb-frame.frame-aspect-wide {
-        aspect-ratio: 3 / 2;
-        width: 100%;
-    }
-    .thumb-frame.frame-aspect-tall {
-        aspect-ratio: 3 / 4;
-        width: 100%;
+        max-width: 100%;
     }
     .thumb-frame.frame-rtl {
         flex-direction: row-reverse;
@@ -1294,75 +1375,83 @@
         align-items: center;
         justify-content: center;
         overflow: hidden;
-    }
-    .thumb-pane.pane-horizontal {
         height: 100%;
         width: auto;
-    }
-    .thumb-pane.pane-full-height {
-        height: 100%;
-    }
-    .thumb-pane.pane-half {
-        width: 50%;
-    }
-    .thumb-pane.pane-full {
-        width: 100%;
     }
 
-    /* ===== Thumbnail image ===== */
+    /* ===== Thumbnail image =====
+       `fixedHeight` tall and as wide as the image is at that height.
+
+       `min-width` is a floor for the case where there is nothing to measure yet,
+       and it is load-bearing rather than cosmetic: a lazy image with no intrinsic
+       size has an auto width of ZERO, a zero-area box never intersects the
+       viewport, and so Chrome never loads it — leaving it permanently sizeless. The
+       floor breaks that deadlock, and incidentally keeps a grid of loading
+       thumbnails at its final size instead of popping open row by row.
+
+       `--ui-thumb-floor` is a portrait 3:4 of the thumbnail height, from
+       `galleryGeometry` — the same number the docked rail commits its width to. An
+       image narrower than that letterboxes into it; that is the one shape these
+       views do not render exactly, and the alternative is not rendering it at all. */
+    .thumb-img,
+    .thumb-placeholder {
+        min-width: var(--ui-thumb-floor);
+    }
     .thumb-img {
         object-fit: contain;
-    }
-    .thumb-img.img-horizontal {
         height: 100%;
         width: auto;
-    }
-    .thumb-img.img-fill {
-        width: 100%;
-        height: 100%;
-    }
-    .thumb-img.img-right {
-        object-position: right;
-    }
-    .thumb-img.img-center {
-        object-position: center;
-    }
-    .thumb-img.img-left {
-        object-position: left;
     }
 
     .thumb-placeholder {
         opacity: 0.2;
+        text-align: center;
         font-size: 2.25rem;
         line-height: 2.5rem;
     }
 
-    /* ===== Thumbnail label ===== */
+    /* ===== Thumbnail label =====
+       The row reserves exactly ONE line's height in every view and viewing mode —
+       that uniformity is what lets the band reserve the expand tab's gutter
+       without growing (see the caret gutter rules above).
+
+       The lines themselves are stacked upward from that row's bottom edge, so a
+       paged pair's second canvas gets a line without asking for more room: it
+       rides up over the bottom of the frame instead. `align-self` keeps the row
+       full-width under a centred frame, and the absolute stack means the label
+       never contributes to the item's own width — the frame alone decides that. */
     .thumb-label {
         font-size: 0.75rem;
-        line-height: 1rem;
+        line-height: var(--ui-thumb-label-line);
         font-weight: 500;
         opacity: 0.7;
+        position: relative;
+        align-self: stretch;
+        height: var(--ui-thumb-label-line);
     }
     .thumb-item:hover .thumb-label {
         opacity: 1;
     }
-    .thumb-label.label-horizontal {
-        width: 0;
-        min-width: 100%;
-        overflow: hidden;
+    .label-stack {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
     }
-    .thumb-label.label-vertical {
-        width: 100%;
-        overflow: hidden;
+    /* Only a stack that outgrows its row overlaps the frame, and only that one
+       needs to stay legible against an image. Borrows the expand tab's treatment
+       — translucent toolbar fill over a blur — so the two read as the same chrome
+       rather than two different ideas about overlaying a thumbnail. */
+    .label-stack.label-overlay {
+        padding: 0 0.125rem;
+        border-radius: 0.25rem;
+        background-color: color-mix(
+            in oklab,
+            var(--tri-toolbar-bg) 70%,
+            transparent
+        );
+        backdrop-filter: blur(8px);
     }
-    .thumb-label.label-simple {
-        width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
     .label-line {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1378,9 +1467,6 @@
         display: inline-flex;
         align-items: center;
         vertical-align: middle;
-    }
-    .choice-badge.choice-badge-simple {
-        vertical-align: baseline;
     }
     .choice-badge :global(.choice-icon) {
         opacity: 0.7;
