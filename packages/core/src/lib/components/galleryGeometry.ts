@@ -5,16 +5,15 @@
  * exactly that in every gallery view. A thumbnail renders the same way wherever it
  * appears: the frame is `fixedHeight` tall and as wide as the image itself at that
  * height, so nothing is letterboxed or cropped to fit a slot. The horizontal strip
- * flows those frames along a row; the grid views (floating window, docked side rail,
- * expanded overlay) lay them out in fixed-width cells and centre each frame in its
- * cell.
+ * flows those frames along a row; every other view (floating window, docked side
+ * rail, expanded overlay) is that same row, wrapped.
  *
- * A grid can only be told a cell WIDTH, so the cell reserves room for the widest
- * frame it undertakes to show whole (`WIDEST_FRAME_ASPECT`) and portrait thumbnails
- * leave slack either side. That slack is the price of showing every thumbnail at its
- * own shape; the alternative — a fixed-aspect cell the image is letterboxed into —
- * renders the same canvas differently in the two views, which is what this module
- * exists to prevent.
+ * So there is no cell size here, deliberately. A fixed-width grid has to reserve its
+ * cell for the widest thumbnail it might hold, which leaves a portrait page — most
+ * pages — sitting in a box of empty space, and a paged pair in twice that. Only two
+ * things below commit to a size at all: the docked band's height and the docked
+ * rail's width, because their host has to be given a number before it knows what is
+ * going in it.
  *
  * These numbers are the single source of truth for the pixels a thumbnail button
  * spends around its frame. `ThumbnailGallery` publishes them to its own scoped CSS
@@ -71,13 +70,24 @@ const FRAME_FLOOR_ASPECT = 3 / 4;
 const TRACK_PAD = 4;
 
 /**
- * The expand tab's short axis: the gutter it needs on the gallery's canvas-facing
- * edge. Reserved as padding on the gallery ROOT so the tab sits beside the
- * thumbnails rather than over one — it cannot be padding on `.gallery-content`,
+ * The expand tab's short axis, and so the gutter it needs on the gallery's
+ * canvas-facing edge. Reserved as padding on the gallery ROOT so the tab sits beside
+ * the thumbnails rather than over one — it cannot be padding on `.gallery-content`,
  * because padding on a scroll box scrolls away with its content and rows would pass
  * back underneath the tab.
+ *
+ * 24px because that is WCAG 2.5.8's minimum target size, and the tab has to meet it
+ * on the size criterion rather than its spacing exception. The exception wants a
+ * 24px-radius circle centred on the target to stay clear of every other target, and
+ * a tab centred on the gallery's edge has thumbnails a few pixels inboard of it — so
+ * honouring it would mean reserving MORE room here, not less, and putting the gutter
+ * at 24px is both cheaper and a genuinely bigger control.
+ *
+ * It was 12px when the tab sat behind the thumbnails: an obscured control is one axe
+ * declines to audit, so the violation stayed hidden for exactly as long as the tab
+ * was hard to click. `a11y-axe.spec.ts` fails the build if this drops back under 24.
  */
-const CARET_TAB = 12;
+const CARET_TAB = 24;
 
 /** A pixel or two so a row whose height rounds up is never clipped by the band. */
 const BAND_SLACK = 2;
@@ -123,10 +133,14 @@ export function getGalleryThumbFloorItemWidth(fixedHeight: number) {
  * padding math instead of being baked in here at its default.
  *
  * Sized as: the expand tab's gutter, the track's padding, one thumbnail button, and
- * a pixel or two of slack. Every strip row is the same height now, so the band fits
- * all of them with the tab's gutter genuinely reserved — and comes out slightly
- * SHORTER than the `fixedHeight + 55` it used to be, rather than growing to buy the
- * gutter.
+ * a pixel or two of slack. Every strip row is the same height now, whatever the
+ * viewing mode, so one row's worth is all the band ever needs.
+ *
+ * That works out at `fixedHeight + 62`, against `fixedHeight + 55` before. The 7px
+ * is what a tab big enough to satisfy WCAG 2.5.8 costs (see `CARET_TAB`): the band
+ * used to reserve nothing at all for it and let it sit over a thumbnail instead.
+ * Making every row one height is what kept the bill that low — reserving a 24px
+ * gutter on top of the old two-label-line row would have cost 23px.
  */
 export function getGalleryBandHeight(fixedHeight: number) {
     return (
@@ -140,16 +154,21 @@ export function getGalleryBandHeight(fixedHeight: number) {
 /**
  * Docked side-rail width, EXCLUDING the root's border (see `getGalleryBandHeight`).
  *
- * Accounted from the canvas-facing edge inward: the tab's gutter, then one thumbnail
- * at the floor width with nothing between them, then the track's padding on the far
- * side. The rail zeroes its track padding on the tab's side to make that happen, so
- * a thumbnail sits directly against the tab rather than a padding gap away from it.
+ * Accounted from the canvas-facing edge inward: the tab's gutter, then the track's
+ * padding, one thumbnail at the floor width, and the track's padding again.
+ *
+ * A thumbnail wider than the floor is clamped to the track rather than allowed to
+ * overflow it — see `.thumb-item`'s `max-width`. Without that clamp the track centres
+ * an over-wide thumbnail, which spills it equally out of BOTH sides and lands it back
+ * under the tab, which is the whole thing the gutter exists to prevent.
  *
  * It reserves no width for the rail's scrollbar. Most platforms overlay it, so a
  * reservation would show up as dead space beside the thumbnail rather than as a
- * scrollbar; where the platform does take width, the `minmax(0, …)` cell absorbs it
- * and the rail asks for a thin scrollbar to keep that small.
+ * scrollbar; where the platform does take width, the clamp above absorbs it and the
+ * rail asks for a thin scrollbar to keep that small.
  */
 export function getGalleryRailWidth(fixedHeight: number) {
-    return CARET_TAB + getGalleryThumbFloorItemWidth(fixedHeight) + TRACK_PAD;
+    return (
+        CARET_TAB + TRACK_PAD * 2 + getGalleryThumbFloorItemWidth(fixedHeight)
+    );
 }
