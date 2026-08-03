@@ -30,6 +30,9 @@
 /** Padding `.thumb-item` puts around its contents, per side. */
 const ITEM_PAD = 4;
 
+/** Gap between the two panes of a paged pair's frame. */
+const PANE_GAP = 1;
+
 /** Gap between a thumbnail's frame and its label row. */
 const ITEM_GAP = 4;
 
@@ -70,22 +73,24 @@ const FRAME_FLOOR_ASPECT = 3 / 4;
 const TRACK_PAD = 4;
 
 /**
- * The expand tab's short axis, and so the gutter it needs on the gallery's
- * canvas-facing edge. Reserved as padding on the gallery ROOT so the tab sits beside
- * the thumbnails rather than over one — it cannot be padding on `.gallery-content`,
- * because padding on a scroll box scrolls away with its content and rows would pass
- * back underneath the tab.
+ * The expand tab's short axis.
  *
  * 24px because that is WCAG 2.5.8's minimum target size, and the tab has to meet it
- * on the size criterion rather than its spacing exception. The exception wants a
- * 24px-radius circle centred on the target to stay clear of every other target, and
- * a tab centred on the gallery's edge has thumbnails a few pixels inboard of it — so
- * honouring it would mean reserving MORE room here, not less, and putting the gutter
- * at 24px is both cheaper and a genuinely bigger control.
+ * on the size criterion rather than its spacing exception — a tab centred on the
+ * gallery's edge has thumbnails a few pixels inboard of it, which the exception's
+ * 24px-radius clearance circle can never be satisfied by. It was 12px once, and an
+ * obscured 12px control is one axe declines to audit, so the violation stayed hidden
+ * for exactly as long as the tab was hard to click. `a11y-axe.spec.ts` fails the
+ * build if this drops back under 24.
  *
- * It was 12px when the tab sat behind the thumbnails: an obscured control is one axe
- * declines to audit, so the violation stayed hidden for exactly as long as the tab
- * was hard to click. `a11y-axe.spec.ts` fails the build if this drops back under 24.
+ * Only the EXPANDED overlay reserves that 24px as a gutter beside the thumbnails
+ * (root padding — see `.gallery-root.expanded.caret-*`). The docked band and rail do
+ * not: 24px is a large fraction of a strip barely wider than one thumbnail, and
+ * spending it on empty space made the collapsed strip conspicuously fat and its
+ * thumbnails visibly off-centre within it. Docked, the tab floats OVER whichever
+ * thumbnail is under the middle of the canvas-facing edge instead — it is drawn above
+ * the track (`z-index`) and keeps its full 24px hit area, so it stays clickable and
+ * auditable; it just costs the strip nothing.
  */
 const CARET_TAB = 24;
 
@@ -99,6 +104,7 @@ const BAND_SLACK = 2;
 export const GALLERY_THUMB_VARS = [
     `--ui-thumb-pad: ${ITEM_PAD}px`,
     `--ui-thumb-gap: ${ITEM_GAP}px`,
+    `--ui-thumb-pane-gap: ${PANE_GAP}px`,
     `--ui-thumb-label-line: ${LABEL_LINE}px`,
     `--ui-caret-tab: ${CARET_TAB}px`,
 ].join('; ');
@@ -132,35 +138,28 @@ export function getGalleryThumbFloorItemWidth(fixedHeight: number) {
  * `var(--tri-border)` in CSS so a themed border width stays in step with the
  * padding math instead of being baked in here at its default.
  *
- * Sized as: the expand tab's gutter, the track's padding, one thumbnail button, and
- * a pixel or two of slack. Every strip row is the same height now, whatever the
- * viewing mode, so one row's worth is all the band ever needs.
+ * Sized as: the track's padding, one thumbnail button, and a pixel or two of slack.
+ * Every strip row is the same height now, whatever the viewing mode, so one row's
+ * worth is all the band ever needs.
  *
- * That works out at `fixedHeight + 62`, against `fixedHeight + 55` before. The 7px
- * is what a tab big enough to satisfy WCAG 2.5.8 costs (see `CARET_TAB`): the band
- * used to reserve nothing at all for it and let it sit over a thumbnail instead.
- * Making every row one height is what kept the bill that low — reserving a 24px
- * gutter on top of the old two-label-line row would have cost 23px.
+ * Nothing is reserved for the expand tab — it overlays the middle thumbnail rather
+ * than sitting in a gutter of its own (see `CARET_TAB`), which is what keeps the band
+ * exactly as tall as the row it holds.
  */
 export function getGalleryBandHeight(fixedHeight: number) {
-    return (
-        CARET_TAB +
-        TRACK_PAD * 2 +
-        getGalleryThumbItemHeight(fixedHeight) +
-        BAND_SLACK
-    );
+    return TRACK_PAD * 2 + getGalleryThumbItemHeight(fixedHeight) + BAND_SLACK;
 }
 
 /**
  * Docked side-rail width, EXCLUDING the root's border (see `getGalleryBandHeight`).
  *
- * Accounted from the canvas-facing edge inward: the tab's gutter, then the track's
- * padding, one thumbnail at the floor width, and the track's padding again.
+ * Accounted from the canvas-facing edge inward: the track's padding, one thumbnail at
+ * the floor width, and the track's padding again. Nothing for the expand tab, which
+ * overlays the middle thumbnail instead of taking a gutter (see `CARET_TAB`) — so the
+ * thumbnail sits centred in the rail, with the same padding either side of it.
  *
  * A thumbnail wider than the floor is clamped to the track rather than allowed to
- * overflow it — see `.thumb-item`'s `max-width`. Without that clamp the track centres
- * an over-wide thumbnail, which spills it equally out of BOTH sides and lands it back
- * under the tab, which is the whole thing the gutter exists to prevent.
+ * overflow it — see `.thumb-item`'s `max-width`.
  *
  * It reserves no width for the rail's scrollbar. Most platforms overlay it, so a
  * reservation would show up as dead space beside the thumbnail rather than as a
@@ -168,7 +167,35 @@ export function getGalleryBandHeight(fixedHeight: number) {
  * rail asks for a thin scrollbar to keep that small.
  */
 export function getGalleryRailWidth(fixedHeight: number) {
-    return (
-        CARET_TAB + TRACK_PAD * 2 + getGalleryThumbFloorItemWidth(fixedHeight)
+    return TRACK_PAD * 2 + getGalleryThumbFloorItemWidth(fixedHeight);
+}
+
+/**
+ * The frame height a paged PAIR falls back to in the docked rail, and the pane width
+ * that goes with it.
+ *
+ * The rail commits to one portrait page's width (see `getGalleryRailWidth`), and two
+ * pages cannot both be shown at that width and full height. At `fixedHeight` the pair
+ * overflowed the frame, which clips — so each page was cropped to roughly half of
+ * itself and neither was legible. Shrinking the pair is the honest trade: both pages
+ * stay whole, just smaller than a single page in the same rail.
+ *
+ * Derived by inverting the rail's own arithmetic rather than measuring: the frame gets
+ * the floor width, the two panes split it with `PANE_GAP` between them, and the height
+ * is whatever a portrait page is at that pane width. So a pair fits the rail by
+ * construction, at every `fixedHeight`, before anything has loaded.
+ *
+ * A page wider than portrait still crops here, exactly as a single page does at the
+ * rail's committed width — that concession is the rail's, not this function's.
+ */
+export function getGalleryPairFrame(fixedHeight: number) {
+    const paneWidth = Math.floor(
+        (getGalleryThumbFloorWidth(fixedHeight) - PANE_GAP) / 2,
     );
+    return {
+        paneWidth,
+        // Ceiling for the same reason `getGalleryThumbFloorWidth` uses one: a height
+        // a fraction of a pixel short of the page it stands in for would crop it.
+        frameHeight: Math.ceil(paneWidth / FRAME_FLOOR_ASPECT),
+    };
 }

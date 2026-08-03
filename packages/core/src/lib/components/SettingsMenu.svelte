@@ -920,7 +920,7 @@
                                         min="50"
                                         max="300"
                                         value={config.gallery?.fixedHeight ??
-                                            75}
+                                            115}
                                         oninput={(e) => {
                                             if (!config.gallery)
                                                 config.gallery = {};
@@ -930,7 +930,7 @@
                                     />
                                     <span class="value-readout"
                                         >{config.gallery?.fixedHeight ??
-                                            75}px</span
+                                            115}px</span
                                     >
                                 </label>
                             </li>
