@@ -20,26 +20,29 @@ docs version directory, where the demo no longer lives. -->
     are published under the `@triiiceratops` npm scope and versioned
     independently.
 
-## Quick start
+## Start here
 
-Drop in the web component from a CDN — no build step, no styles to import:
+Pick your stack. Each tab is a complete, working viewer; the guide behind it is
+the one place that stack's integration is documented.
 
-```html
-<script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
+=== "HTML"
 
-<triiiceratops-viewer
-    manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
-    style="display: block; width: 100%; height: 100vh;"
-></triiiceratops-viewer>
-```
+    No install and no build step — one script tag from a CDN:
 
-That is the whole integration. Styles and themes are bundled inside the element.
+    ```html
+    <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
 
-## Use it in a framework
+    <triiiceratops-viewer
+        manifest-id="https://iiif.wellcomecollection.org/presentation/v2/b18035723"
+        style="display: block; width: 100%; height: 100vh;"
+    ></triiiceratops-viewer>
+    ```
 
-The viewer behaves the same everywhere. React and Vue applications import a
-typed component from `triiiceratops/react` or `triiiceratops/vue`; everyone else
-uses the custom element, or the native Svelte component if that's the stack.
+    That is the whole integration — styles and themes ship inside the element.
+    The same custom element is how you use the viewer from **Angular, Lit,
+    Solid, Alpine, htmx, Django or Rails templates, and WordPress**.
+
+    [Any framework guide](integration.md){ .md-button }
 
 === "React"
 
@@ -57,7 +60,9 @@ uses the custom element, or the native Svelte component if that's the stack.
     ```
 
     Typed props, typed callbacks, automatic element registration, and hooks for
-    viewer state — full walkthrough in the [React guide](react.md).
+    viewer state.
+
+    [React guide](react.md){ .md-button }
 
 === "Vue"
 
@@ -75,23 +80,9 @@ uses the custom element, or the native Svelte component if that's the stack.
     ```
 
     Typed props, typed emits, automatic element registration, and composables
-    for viewer state — full walkthrough in the [Vue guide](vue.md).
+    for viewer state.
 
-=== "HTML"
-
-    ```ts
-    import 'triiiceratops/element/register';
-    ```
-
-    ```html
-    <triiiceratops-viewer
-        manifest-id="https://example.org/manifest.json"
-        style="display: block; height: 600px;"
-    ></triiiceratops-viewer>
-    ```
-
-    The low-level path, documented in
-    [use with any framework](integration.md).
+    [Vue guide](vue.md){ .md-button }
 
 === "Svelte"
 
@@ -107,6 +98,10 @@ uses the custom element, or the native Svelte component if that's the stack.
     </div>
     ```
 
+    A native Svelte 5 component — no custom element in the way.
+
+    [Svelte guide](svelte.md){ .md-button }
+
 !!! tip "No Svelte in your React or Vue app"
 
     The framework wrappers host the same custom element every other integration
@@ -115,7 +110,7 @@ uses the custom element, or the native Svelte component if that's the stack.
     and the published type declarations for `triiiceratops/react` and
     `triiiceratops/vue` resolve with no `svelte` package installed.
 
-### Which entry point do I import from?
+## Which entry point do I import from?
 
 Every entry below except `triiiceratops/svelte` is **framework-neutral**: nothing
 reachable from it needs the optional `svelte` peer, at runtime or at type-check
@@ -124,9 +119,9 @@ this again.
 
 | Entry | For | Needs `svelte` installed |
 | :--- | :--- | :--- |
+| `triiiceratops/element/register` | plain HTML / any framework | no |
 | `triiiceratops/react` | React 19 apps | no |
 | `triiiceratops/vue` | Vue 3 apps | no |
-| `triiiceratops/element/register` | plain HTML / any framework | no |
 | `triiiceratops` | shared types, theming, logging, plugin contracts | no |
 | `triiiceratops/selectors` | framework-neutral state projections | no |
 | `triiiceratops/testing` | headless test kit (constructible `ViewerState`) | no |
@@ -146,36 +141,20 @@ needs no Svelte.
     [plugin SDK](plugin-authoring.md) and use them from React, Vue, Svelte, Lit, or
     vanilla JS. See [using plugins](plugins.md#adding-a-plugin-to-your-viewer).
 
-## Guides
+## Once it renders
 
-| I want to…                              | Guide                                                       |
-| :--------------------------------------- | :---------------------------------------------------------- |
-| Use the viewer in a React app           | [React](react.md)                                           |
-| Use the viewer in a Vue app             | [Vue](vue.md)                                               |
-| Mount the viewer in Svelte, plain HTML, or another framework | [Use with any framework](integration.md) |
-| Add plugins to the viewer               | [Plugins](plugins.md)                                       |
-| Write a plugin (SDK)                    | [Plugin authoring](plugin-authoring.md) · [Plugin testing](plugin-testing.md) |
-| Configure panels, layout, and state      | [Configuration](configuration.md)                           |
-| Theme it                                | [Theming](theming.md)                                      |
-| Deploy under a strict CSP               | [Content Security Policy](csp.md)                           |
+The guides below are framework-neutral: every example carries a tab per stack,
+and the tab you picked above follows you across the site.
 
-## Configuration
-
-Triiiceratops is highly configurable: customize the UI layout, enable or disable
-panels (search, annotations, table of contents, collection navigation), and control
-the thumbnail gallery.
-
-[**Read the Configuration Guide**](./configuration.md){ .md-button }
-
-## Theming
-
-Three layered mechanisms, easiest first:
-
-1. **Built-in themes** — `light`, `dark`, `teal`, or `dracula`.
-2. **`themeConfig`** — override individual tokens with typed, friendly keys.
-3. **CSS variables** — set the underlying `--tri-*` tokens directly.
-
-[**Read the Theming Guide**](./theming.md){ .md-button }
+- **[Configuration & state](configuration.md)** — panels (search, annotations,
+  table of contents, collections), layout, the thumbnail gallery, and reading or
+  commanding viewer state.
+- **[Theming](theming.md)** — four built-in themes, typed `themeConfig` token
+  overrides, or raw `--tri-*` CSS variables.
+- **[Plugins](plugins.md)** — add the first-party plugins, or
+  [author](plugin-authoring.md) and [test](plugin-testing.md) your own against
+  the framework-neutral SDK.
+- **[Content Security Policy](csp.md)** — ready-made strict-CSP recipes.
 
 ## Features
 

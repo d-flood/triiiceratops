@@ -11,11 +11,11 @@ Every host shares the same `ViewerConfig` object, documented once below, and
 every host can load manifest JSON directly and supply a `searchProvider`. There
 are no host-specific viewer inputs.
 
-The React and Vue tabs on this page use the framework wrappers, which are the
-supported integration path for those frameworks — see the [React](react.md) and
-[Vue](vue.md) guides. Hosts driving the custom element by hand should read the
-[low-level section](integration.md#low-level-driving-the-custom-element-directly)
-of the framework page.
+Pick your stack's tab in any example below and the choice follows you across the
+site. The React, Vue, and Svelte tabs use those frameworks' components, which are
+the supported integration path — see the [React](react.md), [Vue](vue.md), and
+[Svelte](svelte.md) guides. The HTML tab is the custom element, documented in
+[any framework](integration.md).
 
 ## Configuration Object
 
@@ -200,7 +200,7 @@ const config = {
 In React, Vue, and Svelte, `config` is a normal typed **prop** on
 `<TriiiceratopsViewer>`. When you drive the custom element directly it is a
 **property** on the element (objects can't go through HTML attributes — see
-[use with any framework](integration.md)).
+[any framework](integration.md)).
 
 Whichever host you use, treat `config` as immutable: **assign a new object** to
 change it. Mutating nested keys on the existing object does not notify the
@@ -534,6 +534,284 @@ interface ViewerStateSnapshot {
     user interacts with the viewer (e.g., closes the gallery), the
     `viewerState` binding updates your local variable — a nice bonus of the
     native integration.
+
+#### Selector cadence
+
+A **selector cadence** is which notification wakes a projection. It applies
+wherever the selector runtime does — `useViewerSelector()` in React and Vue, and
+`triiiceratops/selectors` (`createSelectorRuntime`) for the custom element, the
+plugin SDK, and any other host.
+
+| Cadence | Woken by | Use it for |
+| :-- | :-- | :-- |
+| `state` (default) | the batched, payload-free viewer-state notification | everything in the [state inventory](#what-notifies) — canvas, manifest, panels, gallery, plugin UI |
+| `frame` | the live OpenSeadragon instance's own animation events, **and** state notifications | continuous viewport values: zoom, pan, rotation, bounds |
+
+Continuous viewport values live on the OpenSeadragon instance and are
+deliberately **not** mirrored into viewer state: mirroring them would make the
+batched watcher fire at animation framerate for every subscriber on the page, so
+one component's zoom readout would tax every plugin. Cadence solves that with one
+option instead ([ADR 0011](adr/0011-selectors-choose-a-notification-cadence.md)).
+
+`frame` is the *finer* cadence, never a coarser one: a frame-cadence projection
+also wakes on state notifications, so it never serves a stale inventoried member
+between animations. The frame ticker attaches lazily when an OpenSeadragon
+instance appears and detaches on teardown or replacement — there is no
+`requestAnimationFrame` loop, and an idle viewer with no frame-cadence selector
+costs nothing.
+
+For the per-framework call, see the [React](react.md#selector-cadence) and
+[Vue](vue.md#selector-cadence) guides; Svelte reads reactive members directly and
+needs no selector at all.
+
+#### What notifies
+
+A `state`-cadence projection must read **inventoried** members — command state
+and observable state. The checked-in
+[state inventory](https://github.com/d-flood/triiiceratops/blob/main/packages/core/src/lib/state/state-inventory.ts)
+is the authority on which members those are; every mutable member is classified
+there, and an unclassified member fails CI.
+
+Reading *through* `state.osdViewer` at `state` cadence is the one selector
+mistake that fails silently — the projection simply appears frozen, because
+OpenSeadragon's viewport never wakes the batched watcher. With
+`config: { debug: true }` the runtime warns once and names the fix
+(`cadence: 'frame'`). Reading `state.osdViewer` only to *test readiness* is
+correct at `state` cadence: `osdViewer` is itself an inventoried observable
+member.
+
+### Debug diagnostics
+
+`debug` turns on developer diagnostics that are otherwise silent, because their
+failure modes produce no error — just a viewer that quietly does the wrong thing:
+
+- a property-tier prop re-assigned an implausible number of times (an unmemoized
+  object prop in React or Vue);
+- a handle or ref created and never passed to a viewer, so reads stay empty
+  forever;
+- a `state`-cadence projection that reads through `osdViewer` (above).
+
+These are gated on `ViewerConfig.debug`, **not** on `NODE_ENV` — a production
+build with `config: { debug: true }` logs them, and a development build without it
+does not. Debug mode is **page-level**: passing `config: { debug: true }` to any
+one viewer turns the warnings on for every viewer and wrapper on the page, and
+the most recently applied `debug` value wins. A `config` that omits `debug`
+entirely states no opinion, so a second viewer configured for something else
+never silences the first. Pass `config: { debug: false }` to turn them back off.
+
+Actionable failures always surface through `viewererror` / `pluginerror`
+regardless of this flag.
+
+## Building your own chrome
+
+The viewer's chrome is **not composable**: you cannot supply your own components
+for its toolbar, panels, or navigation, the component takes no children or slot
+content, and there is no framework-agnostic chrome slot contract. This holds in
+every host, wrappers included.
+
+The supported answers, in order of how much you need:
+
+1. **Configure the built-in chrome.** The `config` object above turns panels,
+   buttons, the gallery, the toolbar side, and plugin surfaces on and off, and
+   applies reactively after mount.
+2. **Build your own controls outside the viewer**, driven by commands and
+   selectors. This is a first-class path and the answer for a custom toolbar:
+   hide the built-in chrome you are replacing, then drive the viewer yourself.
+   Anything the viewer's own UI can do, a command can do — that is the parity
+   rule, and the [state inventory](#what-notifies) records which command backs
+   each member.
+3. **Write a plugin.** UI that must render *inside* the viewer's chrome — in a
+   docked panel or an anchored flyout — is what the
+   [plugin SDK](plugin-authoring.md) is for. A plugin mounts into a plain
+   `HTMLElement`, so you can render it with any framework and it stays
+   framework-neutral.
+
+A custom toolbar, replacing the built-in canvas navigation:
+
+=== "HTML"
+
+    ```ts
+    import 'triiiceratops/element/register';
+    import type { TriiiceratopsViewerElement } from 'triiiceratops';
+
+    const el = document.querySelector<TriiiceratopsViewerElement>(
+        'triiiceratops-viewer',
+    )!;
+    // Hide the built-in chrome you are replacing.
+    (el as { config?: unknown }).config = {
+        showCanvasNav: false,
+        showToggle: false,
+    };
+
+    const previous = document.querySelector('button#previous')!;
+    const next = document.querySelector('button#next')!;
+
+    function bind(state: NonNullable<TriiiceratopsViewerElement['viewerState']>) {
+        previous.addEventListener('click', () => state.previousCanvas());
+        next.addEventListener('click', () => state.nextCanvas());
+        // Batched, payload-free: "state changed — read what you need".
+        return state.subscribe(() => {
+            (previous as HTMLButtonElement).disabled = !state.hasPrevious;
+            (next as HTMLButtonElement).disabled = !state.hasNext;
+        });
+    }
+
+    el.addEventListener('viewerstateavailable', (event) => {
+        bind((event as CustomEvent).detail);
+    });
+    if (el.viewerState) bind(el.viewerState);
+    ```
+
+=== "React"
+
+    ```tsx
+    import {
+        TriiiceratopsViewer,
+        useViewer,
+        useViewerHandle,
+        useViewerSelector,
+        ViewerProvider,
+    } from 'triiiceratops/react';
+
+    // Hoisted, so the wrapper never re-applies it.
+    const CONFIG = { showCanvasNav: false, showToggle: false };
+
+    function MyToolbar() {
+        const viewer = useViewer();
+        const hasPrevious = useViewerSelector((state) => state.hasPrevious);
+        const hasNext = useViewerSelector((state) => state.hasNext);
+        const position = useViewerSelector(
+            (state) => `${state.currentCanvasIndex + 1} / ${state.canvases.length}`,
+        );
+
+        return (
+            <nav className="my-toolbar">
+                <button
+                    type="button"
+                    disabled={!hasPrevious}
+                    onClick={() => viewer?.previousCanvas()}
+                >
+                    Previous
+                </button>
+                <span>{position}</span>
+                <button
+                    type="button"
+                    disabled={!hasNext}
+                    onClick={() => viewer?.nextCanvas()}
+                >
+                    Next
+                </button>
+                <button type="button" onClick={() => viewer?.zoomIn()}>
+                    Zoom in
+                </button>
+            </nav>
+        );
+    }
+
+    export function Reader() {
+        const handle = useViewerHandle();
+        return (
+            <ViewerProvider value={handle}>
+                <MyToolbar />
+                <TriiiceratopsViewer
+                    handle={handle}
+                    manifestId="https://example.org/manifest.json"
+                    config={CONFIG}
+                    style={{ display: 'block', height: '600px' }}
+                />
+            </ViewerProvider>
+        );
+    }
+    ```
+
+=== "Vue"
+
+    ```vue
+    <script setup lang="ts">
+    import { useTemplateRef } from 'vue';
+    import {
+        TriiiceratopsViewer,
+        useViewer,
+        useViewerSelector,
+        type TriiiceratopsViewerInstance,
+    } from 'triiiceratops/vue';
+
+    const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
+    const state = useViewer(viewer);
+    const hasPrevious = useViewerSelector(viewer, (s) => s.hasPrevious);
+    const hasNext = useViewerSelector(viewer, (s) => s.hasNext);
+    const position = useViewerSelector(
+        viewer,
+        (s) => `${s.currentCanvasIndex + 1} / ${s.canvases.length}`,
+    );
+
+    // Hide the built-in chrome you are replacing.
+    const config = { showCanvasNav: false, showToggle: false };
+    </script>
+
+    <template>
+        <nav class="my-toolbar">
+            <button
+                type="button"
+                :disabled="!hasPrevious"
+                @click="state?.previousCanvas()"
+            >
+                Previous
+            </button>
+            <span>{{ position }}</span>
+            <button type="button" :disabled="!hasNext" @click="state?.nextCanvas()">
+                Next
+            </button>
+            <button type="button" @click="state?.zoomIn()">Zoom in</button>
+        </nav>
+        <TriiiceratopsViewer
+            ref="viewer"
+            manifest-id="https://example.org/manifest.json"
+            :config="config"
+            style="display: block; height: 600px"
+        />
+    </template>
+    ```
+
+=== "Svelte"
+
+    ```html
+    <script lang="ts">
+        import { TriiiceratopsViewer, type ViewerState } from 'triiiceratops/svelte';
+        import 'triiiceratops/style.css';
+
+        let viewerState = $state<ViewerState | undefined>();
+
+        // Hide the built-in chrome you are replacing.
+        const config = { showCanvasNav: false, showToggle: false };
+    </script>
+
+    <nav class="my-toolbar">
+        <button
+            type="button"
+            disabled={!viewerState?.hasPrevious}
+            onclick={() => viewerState?.previousCanvas()}
+        >
+            Previous
+        </button>
+        <span>{(viewerState?.currentCanvasIndex ?? 0) + 1}</span>
+        <button
+            type="button"
+            disabled={!viewerState?.hasNext}
+            onclick={() => viewerState?.nextCanvas()}
+        >
+            Next
+        </button>
+    </nav>
+
+    <div style="height: 600px;">
+        <TriiiceratopsViewer
+            bind:viewerState
+            {config}
+            manifestId="https://example.org/manifest.json"
+        />
+    </div>
+    ```
 
 ## Programmatic Search
 

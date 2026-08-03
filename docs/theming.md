@@ -23,10 +23,10 @@ inject a consumer stylesheet into the shadow root, and no light-DOM styling hook
 for internal elements. Everything about the **host** element — layout, size,
 borders, and any CSS that treats it as a box in your page — is yours as usual.
 
-Every host takes the same inputs. React passes `theme` and `themeConfig` props
-([React guide](react.md)); Vue passes `theme` and `:theme-config`
-([Vue guide](vue.md)); Svelte passes the props directly; the custom element takes
-a `theme` attribute and a `themeConfig` property.
+Every host takes the same two inputs, `theme` and `themeConfig` — as props in
+[React](react.md), [Vue](vue.md), and [Svelte](svelte.md), and as an attribute
+plus a property on the [custom element](integration.md). Pick your stack's tab in
+the examples below.
 
 All three compose, but they do not have equal precedence. From lowest to highest:
 OS-aware default tokens, CSS variables inherited from the host/page, an explicit
@@ -41,13 +41,31 @@ Four themes ship with the viewer: two light (`light`, `teal`) and two dark
 viewer follows the OS `prefers-color-scheme` defaults and can inherit CSS
 variables from the host/page.
 
-=== "Web Component"
+=== "HTML"
 
     ```html
     <triiiceratops-viewer manifest-id="..." theme="dark"></triiiceratops-viewer>
     ```
 
-=== "Svelte Component"
+=== "React"
+
+    ```tsx
+    import { TriiiceratopsViewer } from 'triiiceratops/react';
+
+    export function Reader() {
+        return <TriiiceratopsViewer manifestId="..." theme="dracula" />;
+    }
+    ```
+
+=== "Vue"
+
+    ```vue
+    <template>
+        <TriiiceratopsViewer manifest-id="..." theme="dracula" />
+    </template>
+    ```
+
+=== "Svelte"
 
     ```html
     <script>
@@ -257,7 +275,9 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
 
 ### Example Usage
 
-=== "Web Component (HTML Attribute)"
+=== "HTML"
+
+    As an attribute, JSON-encoded:
 
     ```html
     <triiiceratops-viewer
@@ -267,7 +287,7 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
     ></triiiceratops-viewer>
     ```
 
-=== "Web Component (JavaScript)"
+    Or as a property, from JavaScript:
 
     ```html
     <triiiceratops-viewer manifest-id="..."></triiiceratops-viewer>
@@ -290,7 +310,56 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
     Assign a new `themeConfig` object when updating from JavaScript. Mutating a
     nested property on the existing object does not notify the custom element.
 
-=== "Svelte Component"
+=== "React"
+
+    ```tsx
+    import { TriiiceratopsViewer } from 'triiiceratops/react';
+    import type { ThemeConfig } from 'triiiceratops';
+
+    // Defined outside the component (or memoized) so the wrapper's shallow
+    // equality check sees a stable value and never re-applies it.
+    const customTheme: ThemeConfig = {
+        primary: '#0ea5e9',
+        panelBg: '#0f172a',
+        radiusBox: '1rem',
+    };
+
+    export function Reader() {
+        return (
+            <TriiiceratopsViewer
+                manifestId="..."
+                theme="light"
+                themeConfig={customTheme}
+            />
+        );
+    }
+    ```
+
+=== "Vue"
+
+    ```vue
+    <script setup lang="ts">
+    import { shallowRef } from 'vue';
+    import { TriiiceratopsViewer } from 'triiiceratops/vue';
+    import type { ThemeConfig } from 'triiiceratops';
+
+    const customTheme = shallowRef<ThemeConfig>({
+        primary: '#0ea5e9',
+        panelBg: '#0f172a',
+        radiusBox: '1rem',
+    });
+    </script>
+
+    <template>
+        <TriiiceratopsViewer
+            manifest-id="..."
+            theme="light"
+            :theme-config="customTheme"
+        />
+    </template>
+    ```
+
+=== "Svelte"
 
     ```html
     <script lang="ts">

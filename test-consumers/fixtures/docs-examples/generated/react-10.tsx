@@ -1,20 +1,24 @@
 // GENERATED from docs/react.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
+import { useRef } from 'react';
 import { TriiiceratopsViewer } from 'triiiceratops/react';
+import type { TriiiceratopsViewerRef } from 'triiiceratops/react';
 
 export function Reader() {
+    const ref = useRef<TriiiceratopsViewerRef | null>(null);
     return (
-        <TriiiceratopsViewer
-            manifestId="https://example.org/manifest.json"
-            onCanvasChange={(snapshot) => history.replaceState(
-                null,
-                '',
-                `?canvas=${encodeURIComponent(snapshot.canvasId ?? '')}`,
-            )}
-            // The original PluginError object, recovery behavior intact.
-            onPluginError={(error) => error.retry()}
-            onViewerError={(error) => console.error(error.message)}
-            style={{ display: 'block', height: '600px' }}
-        />
+        <>
+            <button
+                type="button"
+                onClick={() => ref.current?.element.scrollIntoView()}
+            >
+                Scroll to viewer
+            </button>
+            <TriiiceratopsViewer
+                ref={ref}
+                manifestId="https://example.org/manifest.json"
+                style={{ display: 'block', height: '600px' }}
+            />
+        </>
     );
 }

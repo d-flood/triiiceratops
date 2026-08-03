@@ -7,7 +7,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const dist = (p: string) => resolve(__dirname, 'dist', p);
 
 /*
- * Builds the /svelte/ demo (docs/svelte) — a real Svelte-package CONSUMER.
+ * Builds the /svelte-demo/ demo (docs/svelte-demo) — a real Svelte-package
+ * CONSUMER. The output dir is `svelte-demo`, not `svelte`, because the authored
+ * Svelte guide (docs/svelte.md) owns the /svelte/ URL.
  *
  * The `triiiceratops*` aliases below point at the BUILT `dist/` outputs, so the
  * demo imports the package exactly as an external app resolving it from
@@ -30,7 +32,7 @@ export default defineConfig({
     root: 'src/demo-svelte',
     base: './', // Relative paths for GitHub Pages
     build: {
-        outDir: resolve(__dirname, '../../docs/svelte'),
+        outDir: resolve(__dirname, '../../docs/svelte-demo'),
         emptyOutDir: true,
     },
     publicDir: resolve(__dirname, 'public'),
