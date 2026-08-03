@@ -1342,9 +1342,16 @@ export interface GalleryConfig {
      */
     showCloseButton?: boolean;
     /**
-     * Thumbnail size in pixels: the row height in the horizontal strip view, and
-     * the minimum cell width of the grid used by the floating and expanded views
-     * (cells flex wider to fill the row, so this sets how many fit across).
+     * Height of a thumbnail image in pixels, and the only knob that changes a
+     * thumbnail's size. It means the same thing in every view — the horizontal
+     * strip, the floating window, the docked side rail, and the expanded gallery
+     * all render a thumbnail at this height and at the image's own aspect ratio,
+     * so the same canvas looks the same wherever you see it.
+     *
+     * The grid views lay those thumbnails out in cells wide enough for a 4:3
+     * landscape page; cells do not flex, so a portrait thumbnail leaves slack
+     * either side rather than stretching. An image wider than 4:3 keeps this
+     * height and crops to the cell. The docked rail sizes itself to one cell.
      * @default 75
      */
     fixedHeight?: number;
