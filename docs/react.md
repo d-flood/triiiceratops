@@ -1,5 +1,5 @@
 ---
-icon: lucide/atom
+icon: simple/react
 ---
 
 # React

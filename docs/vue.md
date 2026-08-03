@@ -1,5 +1,5 @@
 ---
-icon: lucide/leaf
+icon: simple/vuedotjs
 ---
 
 # Vue

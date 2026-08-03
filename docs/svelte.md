@@ -1,5 +1,5 @@
 ---
-icon: lucide/flame
+icon: simple/svelte
 ---
 
 # Svelte
