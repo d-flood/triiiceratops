@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.0-rc.32
+
+### Patch Changes
+
+- 2b59e2e: tweak the gallery extend button and use same thumbnail size for both collapsed and extended views
+
 ## 1.0.0-rc.31
 
 ### Patch Changes
