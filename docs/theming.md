@@ -51,7 +51,7 @@ variables from the host/page.
 
     ```html
     <script>
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         // Import the library styles once in your app:
         import 'triiiceratops/style.css';
     </script>
@@ -294,7 +294,7 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
 
     ```html
     <script lang="ts">
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         import 'triiiceratops/style.css';
         import type { ThemeConfig } from 'triiiceratops';
 

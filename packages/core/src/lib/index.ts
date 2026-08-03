@@ -1,12 +1,14 @@
-// Main Svelte component export
-
-export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';
-
-// Type exports for TypeScript users
-export { ViewerState, VIEWER_STATE_KEY } from './state/viewer.svelte';
-export type { ViewerStateSnapshot } from './state/viewer.svelte';
-export { ManifestsState } from './state/manifests.svelte';
-export { manifestsState } from './state/manifests.svelte';
+// This entry is FRAMEWORK-NEUTRAL: nothing reachable from here requires the
+// optional `svelte` peer, at runtime or at type-check time. The Svelte component
+// and the constructible rune-backed state classes live in `./svelte.ts`
+// (`triiiceratops/svelte`), which re-exports everything below as a superset.
+//
+// `ViewerState` stays here as a TYPE — its declaration is Svelte-free by
+// construction, and `@triiiceratops/plugin-sdk` imports it from this entry — but
+// the constructible class needs `svelte/reactivity` at runtime, so it is only
+// exported from `triiiceratops/svelte`. For a constructible state with no Svelte
+// installed, use `triiiceratops/testing`.
+export type { ViewerState, ViewerStateSnapshot } from './state/viewer.svelte';
 export type {
     SearchHit,
     SearchProvider,

@@ -1,5 +1,5 @@
 <script>
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import 'triiiceratops/style.css';
 </script>
 

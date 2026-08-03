@@ -143,7 +143,7 @@ is added the same way.
 
     ```html
     <script>
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         import 'triiiceratops/style.css';
         import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
     </script>
@@ -345,7 +345,7 @@ it to whichever side fits your layout:
 
     ```html
     <script>
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
         let narrow = $state(false);

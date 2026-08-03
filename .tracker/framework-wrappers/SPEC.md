@@ -297,6 +297,18 @@ above or with a ticket, these win.
 - `PluginUiTarget` is **not** part of the legacy path and stays exported. The plugin SDK's
   `definePlugin` and the annotation-editor plugin both consume it.
 
+Added after the epic closed (2026-08-03):
+
+- **The `.` entry IS Svelte-free after all, via a new `./svelte` subpath.** The epic accepted
+  a single documented residual: `.` kept the compiled `TriiiceratopsViewer` declaration, so
+  user story 8 was met for every subpath EXCEPT the root. The owner later chose to close it
+  rather than carry it into 1.0. `TriiiceratopsViewer`, the constructible `ViewerState` class,
+  `VIEWER_STATE_KEY`, `ManifestsState`, and `manifestsState` moved to `triiiceratops/svelte`,
+  which re-exports the neutral root as a superset. `ViewerState` stays a root TYPE export.
+  This is a breaking change for Svelte consumers — a one-line specifier change — and it
+  supersedes the residual recorded above and in TRACKER's "Resolution of ticket 12's `.`
+  entry finding". **User story 8 is now delivered in full.**
+
 ## Testing Decisions
 
 - Tests assert external behavior and published-package usability, not internal hook counts, private fields, Svelte effects, or exact implementation structure.

@@ -1,0 +1,23 @@
+{
+    "name": "triiiceratops-example-vue",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "description": "Self-contained Vue 3 example that installs triiiceratops from npm.",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "check": "vue-tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "triiiceratops": "^1.0.0-rc.33",
+        "vue": "^3.5.0"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^6.0.0",
+        "typescript": "~5.9.3",
+        "vite": "^6.0.0",
+        "vue-tsc": "^3.0.0"
+    }
+}

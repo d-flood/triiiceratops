@@ -9,42 +9,42 @@ installing Svelte at runtime or at type-check time.
 
 ## Current Status
 
-Overall status: `Needs Human Validation or Intervention`
+Overall status: `Completed`
 
-All twelve tickets are implemented. EPIC-1 is **fixed** and the two gaps the final epic gate
-left open are **closed**; all three were re-verified at the close-out gate below by
-measurement against the packed artifact, independently of the agents that wrote them.
-Eleven of the twelve tickets are `Completed`.
+All twelve tickets are implemented and all twelve are `Completed`. EPIC-1 is **fixed** and the
+two gaps the final epic gate left open are **closed**; all three were re-verified at the
+close-out gate below by measurement against the packed artifact, independently of the agents
+that wrote them.
 
-Exactly ONE thing keeps the epic from reading `Completed`:
+The last remaining blocker — **ticket 02**, environment-blocked since the beginning — was
+cleared on 2026-08-03. The owner installed the webkit system libraries, and both gates were
+then measured green (see "Webkit unblocked" below):
 
-- **Ticket 02** is `Needs Human Validation or Intervention` for the same environment reason
-  it has had all along: `wc-parity.spec.ts` passes on chromium and firefox but cannot launch
-  webkit on this machine (missing system libraries; installing them needs root). The same
-  limitation makes `pnpm test:packed` exit `1` locally, in the two CSP fixtures only.
-  Re-confirmed on 2026-08-01.
+- `playwright test tests/wc-parity.spec.ts` — **3 passed** on chromium, firefox, AND webkit.
+- `pnpm test:packed` — **exit 0**, `FAIL=0`, "All packed-consumer checks passed." The four
+  runs that used to fail (`csp-svelte` and `csp-wc-iife`, each under npm and pnpm) now pass.
 
 The epic delivers 73 of SPEC.md's 76 user stories outright, 1 by a recorded superseded
 decision, and 2 partially. Nothing is undelivered.
 
-Last updated: 2026-08-01
+Last updated: 2026-08-03
 
 ## Ledger
 
-| Number | Filename                                        | Status                                 | Depends On     |
-| ------ | ----------------------------------------------- | -------------------------------------- | -------------- |
-| 01     | `01-generalize-selector-runtime.md`             | Completed                              | None           |
-| 02     | `02-custom-element-state-bridge.md`             | Needs Human Validation or Intervention | None           |
-| 03     | `03-remove-svelte-types-from-public-surface.md` | Completed                              | None           |
-| 04     | `04-identity-keyed-plugin-activation.md`        | Completed                              | None           |
-| 05     | `05-framework-wrapper-substrate.md`             | Completed                              | 01, 02, 03     |
-| 12     | `12-drop-legacy-plugindef.md`                   | Completed                              | None           |
-| 06     | `06-react-framework-wrapper.md`                 | Completed                              | 05, 12         |
-| 07     | `07-vue-framework-wrapper.md`                   | Completed                              | 05, 12         |
-| 08     | `08-consumer-testing-helper.md`                 | Completed                              | 06, 07         |
-| 09     | `09-packed-framework-consumers.md`              | Completed                              | 04, 06, 07, 08 |
-| 10     | `10-public-api-release.md`                      | Completed                              | 09, 12         |
-| 11     | `11-framework-wrapper-docs.md`                  | Completed                              | 06, 07, 08     |
+| Number | Filename                                        | Status    | Depends On     |
+| ------ | ----------------------------------------------- | --------- | -------------- |
+| 01     | `01-generalize-selector-runtime.md`             | Completed | None           |
+| 02     | `02-custom-element-state-bridge.md`             | Completed | None           |
+| 03     | `03-remove-svelte-types-from-public-surface.md` | Completed | None           |
+| 04     | `04-identity-keyed-plugin-activation.md`        | Completed | None           |
+| 05     | `05-framework-wrapper-substrate.md`             | Completed | 01, 02, 03     |
+| 12     | `12-drop-legacy-plugindef.md`                   | Completed | None           |
+| 06     | `06-react-framework-wrapper.md`                 | Completed | 05, 12         |
+| 07     | `07-vue-framework-wrapper.md`                   | Completed | 05, 12         |
+| 08     | `08-consumer-testing-helper.md`                 | Completed | 06, 07         |
+| 09     | `09-packed-framework-consumers.md`              | Completed | 04, 06, 07, 08 |
+| 10     | `10-public-api-release.md`                      | Completed | 09, 12         |
+| 11     | `11-framework-wrapper-docs.md`                  | Completed | 06, 07, 08     |
 
 Tickets 01, 05, 06, and 11 were `Needs Human Validation or Intervention` for one shared
 reason — EPIC-1, the dead development warnings — and each was moved to `Completed` only
@@ -73,7 +73,8 @@ was measured, at the close-out gate below:
   `pnpm test:packed` exits `1` only for the two webkit-blocked CSP fixtures, which have
   nothing to do with this ticket.
 
-Ticket 02 is unchanged and still environment-blocked; see "What still needs the owner".
+Ticket 02 was environment-blocked at that gate and was cleared on 2026-08-03; see "Webkit
+unblocked (2026-08-03)".
 
 Ticket 12 was added mid-epic, after the wave-1 gate proved that the epic's "no Svelte at
 type-check time" promise is unreachable while `ViewerState` references `PluginDef` and the
@@ -82,6 +83,36 @@ type-check time" promise is unreachable while `ViewerState` references `PluginDe
 ticket 03's "Do not change `PluginDef`, `PluginPanel`, `PluginFlyout`, or `PluginMenuButton`"
 constraint and the SPEC's statement that the leak is "resolved by scope"; see the
 **Superseded decisions** section of `SPEC.md`.
+
+## Webkit unblocked (2026-08-03) — ticket 02 closed
+
+The owner installed the webkit system libraries on this machine. Both of ticket 02's blocked
+gates were then re-run and both are green. Run on `react-and-vue-adapters` at `9ed9aa6`.
+
+| Command                                   | Exit | Result                                          |
+| ----------------------------------------- | ---- | ----------------------------------------------- |
+| `pnpm build:all`                          | 0    | required first — see below                      |
+| `playwright test tests/wc-parity.spec.ts` | 0    | **3 passed** — chromium, firefox, webkit (4.4s) |
+| `pnpm test:packed`                        | 0    | `FAIL=0`, "All packed-consumer checks passed."  |
+
+`csp-svelte [npm]`, `csp-svelte [pnpm]`, `csp-wc-iife [npm]`, and `csp-wc-iife [pnpm]` — the
+four failures at the close-out gate, all of them
+`browserType.launch: Host system is missing dependencies to run browsers` — now pass. The
+phrase "missing dependencies" appears zero times in the run log.
+
+### `dist/` must be rebuilt before either gate — a trap for the next reader
+
+The first `wc-parity.spec.ts` run after the libraries went in failed on **all three** engines,
+not just webkit, with a uniform `page.waitForFunction` timeout at line 115. That is NOT a
+regression and NOT a webkit problem. The spec drives built artifacts out of `packages/core/dist`,
+`dist` is gitignored, and the tree had `main` merged in (`9ed9aa6`, 15:04) after `dist` was last
+built (13:55) — so `dist/triiiceratops-element.js` was absent entirely and the IIFE bundle was
+stale. The only surface symptom was a `Failed to load source map` warning from Vite, which is
+easy to read past.
+
+`pnpm build:all` (exit 0) fixed it and the spec then passed on all three engines. **Run
+`pnpm build:all` before `wc-parity.spec.ts` or `test:packed`**, especially after a merge or a
+fresh checkout. A uniform all-engine timeout in this spec means stale `dist`, not broken code.
 
 ## Close-out gate (2026-08-01)
 
@@ -210,24 +241,47 @@ Still not fully delivered:
 
 ### What still needs the owner
 
-1. **Install the webkit system libraries and re-run** (`sudo pnpm exec playwright
-install-deps`, or `libgstreamer-plugins-bad1.0-0 libflite1 libavif16 gstreamer1.0-libav`),
-   then `pnpm test:packed` and `playwright test tests/wc-parity.spec.ts`. That closes ticket
-   02 and turns the local packed matrix green. **Needs root.** This is the only thing standing
-   between the epic and `Completed`.
+1. ~~**Install the webkit system libraries and re-run.**~~ **DONE 2026-08-03.** The owner
+   installed them; `wc-parity.spec.ts` passes on all three engines and `pnpm test:packed` exits
+   0 with no failures. Ticket 02 is `Completed`. See "Webkit unblocked (2026-08-03)". Note for
+   anyone repeating this: `sudo pnpm …` fails with `sudo: pnpm: command not found` when pnpm
+   comes from nvm, and `playwright` is not at the workspace root — it lives in
+   `packages/core`. What worked:
+   `cd packages/core && sudo env "PATH=$PATH" pnpm exec playwright install-deps webkit`.
 2. **Run `pnpm release:smoke -- --manifest …` once against a test registry.** Unchanged from
    the previous gate: every probe body was validated offline against a `file:`-installed
    tarball, but the registry-fetch plumbing itself has never been exercised. Needs a registry
    the owner controls.
-3. **Fix the `applier.upgrade.test.ts` teardown flake, or accept random CI failures.**
-   Measured by the gap-fix agent on the clean tree at `6c54827` (1 of 16 runs) and with the
-   branch's changes (2 of 12), so it is pre-existing and timing-dependent, not caused by this
-   work: an unhandled `TypeError: dom.removeEventListener is not a function` from Svelte's
-   `execute_effect_teardown` arrives AFTER the file's tests pass, and `pnpm test` then exits 1
-   with "880 passed, 2 errors". It did NOT reproduce in this gate's run. Nobody owns it.
-4. **Decide whether `.` should ever be Svelte-free.** Unchanged and still owned by nobody; the
-   shape of the fix is recorded in "Ticket 10 outcome" and the exemption is encoded in
-   `SVELTE_CONSUMER_SUBPATHS`.
+3. ~~**Fix the `applier.upgrade.test.ts` teardown flake.**~~ **DONE — the owner fixed it in
+   `2bf5cc2`**, 42 minutes after the close-out gate below was written, which is why that gate
+   still lists it as open. The file appended two `<triiiceratops-viewer>` elements to
+   `document.body` and never removed them, so their Svelte components were still mounted with
+   live effects when the file finished and teardown ran against a jsdom window vitest had
+   already torn down — surfacing as the unhandled
+   `TypeError: dom.removeEventListener is not a function` that arrived after the tests passed
+   and flipped `pnpm test` to exit 1. Every other real-element suite already had the
+   `afterEach`; this file was the only one without it.
+4. ~~**Decide whether `.` should ever be Svelte-free.**~~ **DECIDED AND DONE 2026-08-03 — yes.**
+   The owner's call was to split rather than accept the residual. The Svelte component and the
+   constructible rune-backed state classes moved to a new `triiiceratops/svelte` subpath, which
+   is a SUPERSET of `.` (it re-exports the whole neutral surface), so the Svelte migration is a
+   one-line specifier change. `.` is now framework-neutral on BOTH axes — measured on the built
+   output, its runtime graph is 11 modules and its declaration graph 23 `.d.ts`, with zero
+   `svelte*` specifiers in either. `SVELTE_CONSUMER_SUBPATHS` moved from `['.']` to
+   `['./svelte']`, so `check:dts-svelte-types` now holds `.` to the strict rule and a
+   regression fails the build. `ViewerState` remains a root TYPE export (its declaration was
+   always Svelte-free); only the constructible class moved.
+
+    This also closed an unrecorded transitive hole nobody had noticed: `plugin-sdk`'s
+    `dist/react.d.ts` and `dist/vue.d.ts` both `import type { ViewerState } from 'triiiceratops'`
+    — the ROOT entry — so a React or Vue app using `@triiiceratops/plugin-sdk` under
+    `skipLibCheck: false` inherited the Svelte type requirement even though
+    `triiiceratops/react` itself was clean. The framework fixtures could not catch it: their
+    `assertNoSvelteAndNoSdk` forbids any `@triiiceratops/*` package, so "framework wrapper PLUS
+    plugin SDK" was never a tested combination. It is worth adding one.
+
+    Story 8 in the user-story audit moves from _deliberately superseded_ to _delivered_.
+
 5. **Watch the `packed-consumers` CI job's duration.** Still unmeasured against its 60-minute
    timeout. The full local matrix took roughly 45 minutes on a 20-core machine, and CI runs it
    twice (Node 22 and 24) on smaller runners — and each of `framework-react` and

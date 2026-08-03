@@ -1,0 +1,23 @@
+{
+    // `skipLibCheck: false` is deliberate: it type-checks every `.d.ts` in the
+    // program, including the whole reachable declaration graph of
+    // `triiiceratops/vue`. Since this app installs no `svelte` package, a Svelte
+    // type reaching the Vue wrapper's declarations would fail `npm run check`
+    // here — in a plain consumer project, against the published package.
+    //
+    // `types: []` is omitted on purpose, unlike the React example: `vue-tsc`
+    // needs Vue's own ambient types to resolve `.vue` modules.
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "jsx": "preserve",
+        "strict": true,
+        "noEmit": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": false
+    },
+    "include": ["src", "src/**/*.vue"]
+}

@@ -306,7 +306,7 @@ example wired up in each supported framework:
 
 ```html
 <script lang="ts">
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import { createExamplePlugin } from './my-plugin';
 </script>
 
@@ -319,13 +319,14 @@ In module builds you can also activate a plugin explicitly against a live
 plugin outside of `TriiiceratopsViewer` (a custom host, a manual test, a
 one-off script):
 
+The constructible `ViewerState` class comes from `triiiceratops/svelte` and needs
+the `svelte` peer installed — it is the same class the viewer component itself
+uses. For **tests**, prefer `createHeadlessViewerState()` from the
+[test kit](plugin-testing.md), which needs no Svelte.
+
 ```ts
-import {
-    ViewerState,
-    CORE_VERSION,
-    pluginApiVersion,
-    capabilities,
-} from 'triiiceratops';
+import { CORE_VERSION, pluginApiVersion, capabilities } from 'triiiceratops';
+import { ViewerState } from 'triiiceratops/svelte';
 import { activatePlugin } from '@triiiceratops/plugin-sdk';
 import { createExamplePlugin } from './my-plugin';
 

@@ -5,7 +5,7 @@
     // plugin-local error state (a badged toolbar button + retry), and the
     // structured `pluginerror` is delivered to the host callback with phase
     // `mount`.
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import 'triiiceratops/style.css';
     import { definePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
 

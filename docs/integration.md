@@ -167,7 +167,7 @@ a CDN `<script>` tag.
 
     ```html
     <script lang="ts">
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         // Import the design tokens + themes exactly once, anywhere in your app.
         import 'triiiceratops/style.css';
         import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';

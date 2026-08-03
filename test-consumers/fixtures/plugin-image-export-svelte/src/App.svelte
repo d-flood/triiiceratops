@@ -3,7 +3,7 @@
     // `triiiceratops`, and the migrated plugin from its own scoped package
     // (`@triiiceratops/plugin-image-export`, ESM entry). The plugin is
     // activated explicitly by passing it to the viewer's `plugins` prop.
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import 'triiiceratops/style.css';
     import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
 </script>
