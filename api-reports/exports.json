@@ -14,8 +14,13 @@
             ".": {
                 "types": "./dist/index.d.ts",
                 "style": "./dist/triiiceratops.css",
-                "svelte": "./dist/index.js",
                 "import": "./dist/index.js"
+            },
+            "./svelte": {
+                "types": "./dist/svelte.d.ts",
+                "style": "./dist/triiiceratops.css",
+                "svelte": "./dist/svelte.js",
+                "import": "./dist/svelte.js"
             },
             "./react": {
                 "types": "./dist/react.d.ts",
