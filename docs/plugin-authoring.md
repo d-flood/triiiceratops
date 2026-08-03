@@ -163,37 +163,13 @@ whether the toolbar is open" plugin, mounted five ways:
     }
     ```
 
-    !!! note "Svelte hosts: a lighter-weight legacy shortcut"
+    !!! note "Svelte hosts use the same SDK path"
 
-        If your host app is Svelte and you'd rather not use the SDK at all, core
-        also accepts a plain `PluginDef` object whose panel/flyout are Svelte
-        components directly — no `mount()`, no `PluginContext`. This predates the
-        SDK and stays supported, but the SDK path above is recommended for new
-        plugins since it works in every host, not just Svelte.
-
-        ```typescript
-        import type { Component } from 'svelte';
-        import type { ViewerState } from 'triiiceratops';
-
-        interface PluginDef {
-            id?: string; // Unique identifier (auto-generated if not provided)
-            name: string; // Title shown in tooltips/headers
-            icon: Component; // Svelte icon component
-            target?: 'panel' | 'flyout'; // Where the UI renders (default: 'panel')
-            panel?: Component; // Component rendered when target is 'panel'
-            flyout?: Component; // Component rendered when target is 'flyout'
-            position?: 'left' | 'right'; // Panel position (default: 'left'; ignored for flyouts)
-            props?: Record<string, unknown>; // Optional props to pass to the component
-            onInit?: (viewerState: ViewerState) => void; // Called once when the plugin activates
-        }
-        ```
-
-        Set an explicit, stable `id` if you plan to control the plugin through
-        `config.plugins` — auto-generated ids are not stable across
-        re-registration. `createPanelPlugin` and `createFlyoutPlugin` wrap
-        `PluginDef` with the right target; the Svelte components read viewer
-        context via `getContext(VIEWER_STATE_KEY)`, and flyout components also
-        receive a `close()` prop.
+        There is no Svelte-only shortcut. The Svelte-component plugin path
+        (`PluginDef`, `createPanelPlugin`, `createFlyoutPlugin`) was removed in
+        1.0, because it put Svelte component types into every consumer's type
+        graph. Mount your Svelte component from `mount()` exactly as above; set a
+        stable `uiId` if you plan to control the plugin through `config.plugins`.
 
 === "Lit"
 
@@ -330,7 +306,7 @@ example wired up in each supported framework:
 
 ```html
 <script lang="ts">
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import { createExamplePlugin } from './my-plugin';
 </script>
 
@@ -343,13 +319,14 @@ In module builds you can also activate a plugin explicitly against a live
 plugin outside of `TriiiceratopsViewer` (a custom host, a manual test, a
 one-off script):
 
+The constructible `ViewerState` class comes from `triiiceratops/svelte` and needs
+the `svelte` peer installed — it is the same class the viewer component itself
+uses. For **tests**, prefer `createHeadlessViewerState()` from the
+[test kit](plugin-testing.md), which needs no Svelte.
+
 ```ts
-import {
-    ViewerState,
-    CORE_VERSION,
-    pluginApiVersion,
-    capabilities,
-} from 'triiiceratops';
+import { CORE_VERSION, pluginApiVersion, capabilities } from 'triiiceratops';
+import { ViewerState } from 'triiiceratops/svelte';
 import { activatePlugin } from '@triiiceratops/plugin-sdk';
 import { createExamplePlugin } from './my-plugin';
 

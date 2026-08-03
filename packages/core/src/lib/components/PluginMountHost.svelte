@@ -2,9 +2,8 @@
     /*
      * Content adapter for the SDK core-owned-chrome path (epic
      * restore-plugin-toolbar-chrome, ticket 02). The one core chrome rendering
-     * path (plugin buttons + flyouts/panels) renders EITHER a Svelte `component`
-     * (legacy `PluginDef`) OR this host, which bridges to a framework-neutral
-     * DOM-mount thunk (SDK).
+     * path (plugin buttons + flyouts/panels) renders this host, which bridges to
+     * the plugin's framework-neutral DOM-mount thunk.
      *
      * Container provisioning is reactive: this component renders the content
      * container node and an attachment invokes the plugin's mount thunk when the

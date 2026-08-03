@@ -39,6 +39,7 @@ triiiceratops :: dist/components/viewerControls.d.ts :: choices: any[];
 triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getCanvasBehaviors(canvas: any): string[];
 triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getCanvasChoices(canvas: any): any;
 triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getPagedCanvasGroups(canvases: any[], pagedOffset: number): PagedCanvasGroup[];
+triiiceratops :: dist/framework/props.d.ts :: manifestJson?: string | Record<string, any>;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: error?: any;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: fetchResource(url: string, requestConfig?: RequestConfig): Promise<any>;
@@ -59,14 +60,9 @@ triiiceratops :: dist/state/viewer.svelte.d.ts :: getUserAnnotations(manifestId:
 triiiceratops :: dist/state/viewer.svelte.d.ts :: searchAnnotations: any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: setManifestData(manifestId: string, manifestJson: any, options?: {
 triiiceratops :: dist/state/viewer.svelte.d.ts :: setUserAnnotations(manifestId: string, canvasId: string, annotations: any[]): void;
-triiiceratops :: dist/state/viewer.svelte.d.ts :: userAnnotations: SvelteMap<string, any[]>;
+triiiceratops :: dist/state/viewer.svelte.d.ts :: userAnnotations: Map<string, any[]>;
 triiiceratops :: dist/types/config/search.d.ts :: canvases: any[];
 triiiceratops :: dist/types/config/search.d.ts :: manifest: any;
-triiiceratops :: dist/types/plugin.d.ts :: component?: Component<any>;
-triiiceratops :: dist/types/plugin.d.ts :: flyout?: Component<any>;
-triiiceratops :: dist/types/plugin.d.ts :: icon: Component<any>;
-triiiceratops :: dist/types/plugin.d.ts :: icon?: Component<any>;
-triiiceratops :: dist/types/plugin.d.ts :: panel?: Component<any>;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function extractBody(annotation: any): {
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function isFullCanvasAnnotation(annotation: any): boolean;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean): ParsedAnnotation | null;
@@ -93,3 +89,12 @@ triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function r
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function resolveCanvasImage(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage | null;
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: resource: any;
 triiiceratops :: dist/utils/structures.d.ts :: export declare function parseStructures(manifest: any): StructureNode[];
+triiiceratops :: dist/vue/context.d.ts :: }>> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+triiiceratops :: dist/vue/viewer.d.ts :: onCanvasChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+triiiceratops :: dist/vue/viewer.d.ts :: onChoiceChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+triiiceratops :: dist/vue/viewer.d.ts :: onManifestChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+triiiceratops :: dist/vue/viewer.d.ts :: onPluginError?: ((error: PluginError) => any) | undefined;
+triiiceratops :: dist/vue/viewer.d.ts :: onStateChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
+triiiceratops :: dist/vue/viewer.d.ts :: onViewerError?: ((error: ViewerError) => any) | undefined;
+triiiceratops :: dist/vue/viewer.d.ts :: readonly type: PropType<string | Record<string, any>>;
+triiiceratops :: dist/vue/viewer.d.ts :: }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

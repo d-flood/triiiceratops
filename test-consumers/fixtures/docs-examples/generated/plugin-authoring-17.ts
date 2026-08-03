@@ -1,11 +1,9 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import type { PluginContext } from 'triiiceratops';
+import { definePluginStyles } from '@triiiceratops/plugin-sdk';
 
-function installStyles(context: PluginContext) {
-    const uninstall = context.styles.install(
-        '.my-plugin-panel { padding: 1rem; }',
-        'panel',
-    );
-    return uninstall; // release one reference
-}
+// Conventionally in its own styles.ts, imported by name wherever installed.
+export const { STYLES, STYLE_ID } = definePluginStyles(
+    '.my-plugin-panel { padding: 1rem; }',
+    'panel',
+);

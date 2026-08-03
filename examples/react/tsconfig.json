@@ -1,0 +1,21 @@
+{
+    // `skipLibCheck: false` is deliberate: it type-checks every `.d.ts` in the
+    // program, including the whole reachable declaration graph of
+    // `triiiceratops/react`. Since this app installs no `svelte` package, a Svelte
+    // type reaching the React wrapper's declarations would fail `npm run check`
+    // here — in a plain consumer project, against the published package.
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "jsx": "react-jsx",
+        "strict": true,
+        "noEmit": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": false,
+        "types": []
+    },
+    "include": ["src"]
+}

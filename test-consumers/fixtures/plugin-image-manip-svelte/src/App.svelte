@@ -3,7 +3,7 @@
     // `triiiceratops`, and the migrated plugin from its own scoped package
     // (`@triiiceratops/plugin-image-manipulation`, ESM entry). The plugin is
     // activated explicitly by passing it to the viewer's `plugins` prop.
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import 'triiiceratops/style.css';
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 </script>

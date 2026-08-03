@@ -16,6 +16,9 @@ because any internal write path that forgot to route through a command would sil
 skip plugin subscribers — a discipline bug we'd re-buy with every future `bind:`.
 Guard rails that keep this performant: member-level granularity (commands replace
 members or bump collections, never deep-mutate), per-frame values are query-only or
-throttled by explicit inventory decision, and SDK selectors are memoized by state
-version with equality gating. Each listener call is individually guarded, so a throwing
-plugin listener is isolated and reported as a `subscription`-phase `pluginerror`.
+throttled by explicit inventory decision, and framework-neutral selectors are memoized
+by state version with equality gating. Plugin activations and framework wrappers own
+isolated selector runtimes over the same subscription contract. Each listener call is
+individually guarded, so a throwing plugin listener is isolated and reported as a
+`subscription`-phase `pluginerror`; consumer selector failures instead surface through
+their framework's native error handling.

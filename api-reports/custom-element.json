@@ -33,6 +33,22 @@
             "reflect": false
         },
         {
+            "property": "plugins",
+            "attribute": "plugins",
+            "type": "String",
+            "reflect": false,
+            "attributeSupported": false,
+            "attributeNote": "INERT. Svelte derives an observed attribute from every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
+        },
+        {
+            "property": "searchProvider",
+            "attribute": "searchprovider",
+            "type": "String",
+            "reflect": false,
+            "attributeSupported": false,
+            "attributeNote": "INERT. Svelte derives an observed attribute from every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
+        },
+        {
             "property": "theme",
             "attribute": "theme",
             "type": "String",
@@ -48,6 +64,9 @@
     "callbackProperties": [
         "onpluginerror",
         "onviewererror"
+    ],
+    "readonlyProperties": [
+        "viewerState"
     ],
     "methods": [],
     "events": [
@@ -84,6 +103,12 @@
         {
             "name": "viewererror",
             "detail": "ViewerError",
+            "bubbles": true,
+            "composed": true
+        },
+        {
+            "name": "viewerstateavailable",
+            "detail": "ViewerState",
             "bubbles": true,
             "composed": true
         }

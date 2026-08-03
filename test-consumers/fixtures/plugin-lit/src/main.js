@@ -11,7 +11,7 @@ import {
     CORE_VERSION,
     pluginApiVersion,
     capabilities,
-} from 'triiiceratops';
+} from 'triiiceratops/svelte';
 import {
     definePlugin,
     activatePlugin,

@@ -17,6 +17,17 @@ while keeping `dark`'s other tokens as-is), or skip built-in themes entirely
 and build a fully custom theme from scratch by setting the CSS variables
 yourself.
 
+These three are the **whole** styling surface. The viewer's shadow-DOM internals
+are not reachable from the outside: there is no `::part()` surface, no way to
+inject a consumer stylesheet into the shadow root, and no light-DOM styling hook
+for internal elements. Everything about the **host** element — layout, size,
+borders, and any CSS that treats it as a box in your page — is yours as usual.
+
+Every host takes the same inputs. React passes `theme` and `themeConfig` props
+([React guide](react.md)); Vue passes `theme` and `:theme-config`
+([Vue guide](vue.md)); Svelte passes the props directly; the custom element takes
+a `theme` attribute and a `themeConfig` property.
+
 All three compose, but they do not have equal precedence. From lowest to highest:
 OS-aware default tokens, CSS variables inherited from the host/page, an explicit
 built-in `theme`, then `themeConfig` inline styles. If you set `theme`, that
@@ -40,7 +51,7 @@ variables from the host/page.
 
     ```html
     <script>
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         // Import the library styles once in your app:
         import 'triiiceratops/style.css';
     </script>
@@ -283,7 +294,7 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
 
     ```html
     <script lang="ts">
-        import { TriiiceratopsViewer } from 'triiiceratops';
+        import { TriiiceratopsViewer } from 'triiiceratops/svelte';
         import 'triiiceratops/style.css';
         import type { ThemeConfig } from 'triiiceratops';
 

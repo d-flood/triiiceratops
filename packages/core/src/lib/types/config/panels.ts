@@ -83,7 +83,7 @@ export interface PluginUiConfig {
 
     /**
      * Where the plugin renders its UI — overriding the target the plugin was
-     * authored with (`PluginDef.target` / SDK `meta.target`). Set it here (or
+     * authored with (SDK `meta.target`). Set it here (or
      * imperatively via {@link ViewerState.setPluginTarget}) and, like `open` and
      * `visible`, it applies reactively after mount — e.g. a `matchMedia`
      * listener can flip a plugin to `'flyout'` on narrow viewports and back to
@@ -99,8 +99,8 @@ export interface PluginUiConfig {
     target?: PluginUiTarget;
 
     /**
-     * Where the plugin's panel is docked — overriding the position the plugin
-     * was authored with (`PluginDef.position`). Like `target`, it applies
+     * Where the plugin's panel is docked — overriding the plugin's default
+     * position. Like `target`, it applies
      * reactively after mount (or imperatively via
      * {@link ViewerState.setPluginPosition}) without re-registering the
      * plugin.

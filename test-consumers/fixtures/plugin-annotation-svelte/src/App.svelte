@@ -4,7 +4,7 @@
     // package (`@triiiceratops/plugin-annotation-editor`, ESM entry). The plugin
     // is activated explicitly through the viewer's `plugins` prop and uses its
     // built-in `LocalStorageAdapter` (the packed default).
-    import { TriiiceratopsViewer } from 'triiiceratops';
+    import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import 'triiiceratops/style.css';
     import { createAnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';
 

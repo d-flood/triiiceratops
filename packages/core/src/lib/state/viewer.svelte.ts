@@ -1,3 +1,14 @@
+// `SvelteSet`/`SvelteMap` are the runtime collections behind the four public
+// collection members below, but those members are ANNOTATED with the plain
+// built-ins (`Set`/`Map`, which `SvelteSet`/`SvelteMap` extend) so that
+// `svelte/reactivity` never reaches the published declaration graph. Svelte must
+// not be a type-time requirement for a React or Vue framework wrapper consumer
+// (SPEC.md — "Core corrections this work depends on"). The invariant that these
+// members must HOLD reactive collections is enforced by the state inventory and
+// its capability tests (`state-inventory.ts`, `state-inventory.test.ts`) rather
+// than by the type system; ADR 0007 already documents direct assignment onto
+// `ViewerState` as an unsupported escape hatch. `src/packaging/dtsSvelteImports.ts`
+// fails `build:lib` if a Svelte type import reappears in the public declarations.
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
 // Import the OpenSeadragon types as a MODULE (not the ambient UMD global) so the
@@ -23,7 +34,6 @@ import type {
     PluginMenuButton,
     PluginPanel,
     PluginFlyout,
-    PluginDef,
     PluginMountThunk,
     PluginUiTarget,
     IconDescriptor,
@@ -45,7 +55,6 @@ import {
     getReferenceId,
 } from '../utils/iiifIds';
 import { normalizeIiifTargets } from '../utils/iiifTargets';
-import { createPluginId } from '../utils/pluginId';
 import {
     getPagedCanvasGroups,
     getVisibleCanvasEntries,
@@ -101,7 +110,8 @@ export class ViewerState {
     showStructuresPanel = $state(false);
     initialCanvasRegion = $state<CanvasRegion | null>(null);
     dockSide = $state('bottom');
-    visibleAnnotationIds = new SvelteSet<string>();
+    /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
+    visibleAnnotationIds: Set<string> = new SvelteSet<string>();
     annotationVisibilityTouched = $state(false);
     hoveredAnnotationId = $state<string | null>(null);
 
@@ -112,15 +122,21 @@ export class ViewerState {
      * page. Plugins write it only through {@link setUserAnnotations} /
      * {@link clearUserAnnotations}; core merges it on top of manifest annotations
      * in {@link getAnnotations}. Its changes notify subscribers (command state).
+     *
+     * Reactive collection declared as a plain `Map` — see the note on the
+     * `svelte/reactivity` import.
      */
-    userAnnotations = new SvelteMap<string, any[]>();
+    userAnnotations: Map<string, any[]> = new SvelteMap<string, any[]>();
 
     /**
      * Manifest ids this viewer has finished loading/registering. Observable: core
      * adds to it when a manifest becomes ready, giving subscribers a
      * manifest-readiness notification (queryable via {@link isManifestReady}).
+     *
+     * Reactive collection declared as a plain `Set` — see the note on the
+     * `svelte/reactivity` import.
      */
-    loadedManifestIds = new SvelteSet<string>();
+    loadedManifestIds: Set<string> = new SvelteSet<string>();
 
     private userAnnotationKey(manifestId: string, canvasId: string): string {
         return `${manifestId}::${canvasId}`;
@@ -269,8 +285,10 @@ export class ViewerState {
         | { type: 'load'; message?: string; details?: string }
         | null = $state(null);
 
-    // Map of canvasId -> selected choiceId (Content State)
-    selectedChoices = new SvelteMap<string, string>();
+    // Map of canvasId -> selected choiceId (Content State).
+    // Reactive collection declared as a plain `Map` — see the note on the
+    // `svelte/reactivity` import.
+    selectedChoices: Map<string, string> = new SvelteMap<string, string>();
     selectedSequenceIndex = $state(0);
 
     // Collection state
@@ -480,7 +498,6 @@ export class ViewerState {
     constructor(
         initialManifestId: string | null = null,
         initialCanvasId: string | null = null,
-        initialPlugins: PluginDef[] = [],
     ) {
         this.manifestId = initialManifestId || null;
         this.canvasId = initialCanvasId || null;
@@ -490,11 +507,6 @@ export class ViewerState {
                 this.manifestId,
                 this.manifestRequestConfig,
             );
-        }
-
-        // Register initial plugins
-        for (const initialPlugin of initialPlugins) {
-            this.registerPlugin(initialPlugin);
         }
     }
 
@@ -2144,101 +2156,18 @@ export class ViewerState {
     // ==================== PLUGIN METHODS ====================
 
     /**
-     * Register a plugin with this viewer instance.
-     * Accepts a simple PluginDef object.
-     */
-    registerPlugin(def: PluginDef): void {
-        const id = def.id || createPluginId();
-        const defaultTarget = def.target ?? 'panel';
-        // A plugin may supply a component under `panel`, `flyout`, or both.
-        // Resolve one for each container, falling back to the other so a single
-        // component can serve either target. Both a panel and a flyout entry are
-        // always registered; the effective target (getPluginTarget) decides
-        // which one renders, so the target can change reactively after mount
-        // without re-registering (like `open`/`visible`).
-        const panelContent = def.panel ?? def.flyout;
-        const flyoutContent = def.flyout ?? def.panel;
-
-        this.ensurePluginUiState(id, defaultTarget, def.position || 'left');
-
-        const domId = `tri-flyout-${id}`;
-        const close = () => {
-            this.setPluginOpen(id, false);
-        };
-
-        // Register Menu Button. It always carries `flyoutDomId` so the toolbar
-        // can anchor the flyout when the effective target is 'flyout'; when it
-        // is 'panel' the toolbar renders a plain toggle instead (it consults
-        // getPluginTarget).
-        const button: PluginMenuButton = {
-            id: `${id}:toggle`,
-            pluginId: id,
-            icon: def.icon,
-            tooltip: def.name,
-            flyoutDomId: domId,
-            onClick: () => {
-                this.togglePluginOpen(id);
-            },
-            isActive: () => this.isPluginOpen(id),
-            isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
-            order: 200, // Default order for simple plugins
-        };
-
-        const flyout: PluginFlyout = {
-            id: `${id}:flyout`,
-            domId,
-            pluginId: id,
-            name: def.name,
-            icon: def.icon,
-            component: flyoutContent as PluginFlyout['component'],
-            props: {
-                ...def.props,
-                // Pass a closer to the component.
-                close,
-            },
-        };
-
-        const panel: PluginPanel = {
-            id: `${id}:panel`,
-            pluginId: id,
-            name: def.name,
-            icon: def.icon,
-            component: panelContent as PluginPanel['component'],
-            // Live only while the effective target is 'panel' AND open; the
-            // flyout entry covers the 'flyout' target.
-            isVisible: () =>
-                this.getPluginTarget(id) === 'panel' && this.isPluginOpen(id),
-            props: {
-                ...def.props,
-                // Pass closer to component
-                close,
-            },
-        };
-
-        this.pluginMenuButtons = [...this.pluginMenuButtons, button];
-        this.pluginPanels = [...this.pluginPanels, panel];
-        this.pluginFlyouts = [...this.pluginFlyouts, flyout];
-
-        // Execute lifecycle hook if present
-        if (def.onInit) {
-            def.onInit(this);
-        }
-    }
-
-    /**
      * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path
      * (epic restore-plugin-toolbar-chrome, ticket 02). Core renders the button
      * from the plugin's {@link IconDescriptor} and {@link PluginUiTarget}, and the
      * anchored flyout / docked panel container hosts the plugin content via the
-     * DOM-mount `mount` thunk. This reuses the SAME `pluginMenuButtons` +
-     * `pluginFlyouts`/`pluginPanels` rendering path as the legacy `PluginDef`
-     * plugins — the entries carry a mount thunk instead of a Svelte component.
+     * DOM-mount `mount` thunk. `pluginMenuButtons` +
+     * `pluginFlyouts`/`pluginPanels` are the one plugin-chrome rendering path.
      *
      * `id` is the caller-owned plugin id (used for open-state + unregister); it
      * must be passed to {@link unregisterPlugin} on deactivation.
      *
      * `name` is the plugin's package-qualified IDENTITY, kept on the records for
-     * diagnostics and as the legacy fallback. `label` — when the caller supplies
+     * diagnostics and as the fallback. `label` — when the caller supplies
      * it — is the DISPLAY COPY: a thunk the render sites call so the label
      * re-resolves on an active-locale change. Chrome with no `label` renders
      * `name` exactly as it did before `label` existed.
@@ -2260,7 +2189,9 @@ export class ViewerState {
         const domId = `tri-flyout-${id}`;
 
         // Always carries `flyoutDomId`; the toolbar anchors the flyout only when
-        // the effective target is 'flyout' (see registerPlugin).
+        // the effective target is 'flyout'. Both a panel and a flyout entry are
+        // always registered, so the effective target can change reactively after
+        // mount without re-registering (like `open`/`visible`).
         const button: PluginMenuButton = {
             id: `${id}:toggle`,
             pluginId: id,
@@ -2309,9 +2240,9 @@ export class ViewerState {
 
     /**
      * Unregister a plugin's UI components by ID prefix.
-     * Note: This cleans up the menu button and panel, but doesn't remove listeners attached by the plugin itself
-     * since we don't have a handle on the plugin instance or its cleanup function anymore.
-     * Plugins should manage their own cleanup via component lifecycle (onDestroy) if possible.
+     * Note: This cleans up the menu button, panel, and flyout records, but does
+     * not run the plugin's own teardown — the plugin's `PluginActivation`
+     * (`deactivate()`) owns that.
      */
     unregisterPlugin(pluginId: string): void {
         this.pluginMenuButtons = this.pluginMenuButtons.filter(

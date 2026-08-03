@@ -14,12 +14,29 @@
             ".": {
                 "types": "./dist/index.d.ts",
                 "style": "./dist/triiiceratops.css",
-                "svelte": "./dist/index.js",
                 "import": "./dist/index.js"
+            },
+            "./svelte": {
+                "types": "./dist/svelte.d.ts",
+                "style": "./dist/triiiceratops.css",
+                "svelte": "./dist/svelte.js",
+                "import": "./dist/svelte.js"
+            },
+            "./react": {
+                "types": "./dist/react.d.ts",
+                "import": "./dist/react.js"
+            },
+            "./selectors": {
+                "types": "./dist/state/selectors/index.d.ts",
+                "import": "./dist/state/selectors/index.js"
             },
             "./testing": {
                 "types": "./dist/testing/index.d.ts",
                 "import": "./dist/testing/index.js"
+            },
+            "./vue": {
+                "types": "./dist/vue.d.ts",
+                "import": "./dist/vue.js"
             },
             "./image-export": {
                 "types": "./dist/image-export.d.ts",

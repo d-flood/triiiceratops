@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ViewerState } from './viewer.svelte';
-import type { PluginDef } from '../types/plugin';
+import type { IconDescriptor } from '../types/plugin';
 
 vi.mock('./manifests.svelte', () => ({
     manifestsState: {
@@ -26,15 +26,24 @@ vi.mock('./manifests.svelte', () => ({
     },
 }));
 
-// A minimal legacy PluginDef — the position machinery is component-agnostic,
-// so a placeholder icon/component suffices for state-level assertions.
-function def(overrides: Partial<PluginDef> = {}): PluginDef {
+type SdkChromeConfig = Parameters<ViewerState['registerSdkChrome']>[0];
+
+const ICON: IconDescriptor = {
+    kind: 'svg',
+    inner: '<path d="M0 0h1v1H0z" />',
+    viewBox: '0 0 1 1',
+};
+
+// Minimal plugin chrome — the position machinery is content-agnostic, so a
+// placeholder icon and mount thunk suffice for state-level assertions.
+function chrome(overrides: Partial<SdkChromeConfig> = {}): SdkChromeConfig {
     return {
         id: 'p1',
         name: 'Plugin One',
-        icon: (() => {}) as unknown as PluginDef['icon'],
-        panel: (() => {}) as unknown as PluginDef['panel'],
-        flyout: (() => {}) as unknown as PluginDef['flyout'],
+        icon: ICON,
+        target: 'panel',
+        dismiss: 'light',
+        mount: () => () => {},
         ...overrides,
     };
 }
@@ -52,19 +61,19 @@ describe('ViewerState plugin panel position (updatable)', () => {
     });
 
     it("defaults the effective position to 'left' when the plugin declares none", () => {
-        state.registerPlugin(def({ id: 'p1' }));
+        state.registerSdkChrome(chrome({ id: 'p1' }));
         expect(state.getPluginPosition('p1')).toBe('left');
         // Unknown plugin also falls back to 'left'.
         expect(state.getPluginPosition('nope')).toBe('left');
     });
 
     it('defaults the effective position to the authored position', () => {
-        state.registerPlugin(def({ id: 'p1', position: 'right' }));
+        state.registerSdkChrome(chrome({ id: 'p1', position: 'right' }));
         expect(state.getPluginPosition('p1')).toBe('right');
     });
 
     it("setPluginPosition moves the panel to 'bottom'/'overlay' and is a no-op when unchanged", () => {
-        state.registerPlugin(def({ id: 'p1' }));
+        state.registerSdkChrome(chrome({ id: 'p1' }));
         const spy = vi.spyOn(
             state as unknown as { dispatchStateChange: () => void },
             'dispatchStateChange',
@@ -87,7 +96,7 @@ describe('ViewerState plugin panel position (updatable)', () => {
     });
 
     it('applies config.plugins[id].position on updateConfig, after registration', () => {
-        state.registerPlugin(def({ id: 'p1', position: 'left' }));
+        state.registerSdkChrome(chrome({ id: 'p1', position: 'left' }));
         expect(state.getPluginPosition('p1')).toBe('left');
 
         state.updateConfig({ plugins: { p1: { position: 'overlay' } } });
@@ -102,13 +111,13 @@ describe('ViewerState plugin panel position (updatable)', () => {
     it('seeds the effective position from config at registration time', () => {
         state.updateConfig({ plugins: { late: { position: 'bottom' } } });
         // Authored as 'left' (the default), but config already asks for 'bottom'.
-        state.registerPlugin(def({ id: 'late' }));
+        state.registerSdkChrome(chrome({ id: 'late' }));
         expect(state.getPluginPosition('late')).toBe('bottom');
     });
 
     it('is independent of target: switching to flyout leaves the stored position untouched', () => {
-        state.registerPlugin(
-            def({ id: 'p1', position: 'right', target: 'panel' }),
+        state.registerSdkChrome(
+            chrome({ id: 'p1', position: 'right', target: 'panel' }),
         );
         expect(state.getPluginPosition('p1')).toBe('right');
 

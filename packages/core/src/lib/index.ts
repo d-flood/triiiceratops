@@ -1,12 +1,14 @@
-// Main Svelte component export
-
-export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';
-
-// Type exports for TypeScript users
-export { ViewerState, VIEWER_STATE_KEY } from './state/viewer.svelte';
-export type { ViewerStateSnapshot } from './state/viewer.svelte';
-export { ManifestsState } from './state/manifests.svelte';
-export { manifestsState } from './state/manifests.svelte';
+// This entry is FRAMEWORK-NEUTRAL: nothing reachable from here requires the
+// optional `svelte` peer, at runtime or at type-check time. The Svelte component
+// and the constructible rune-backed state classes live in `./svelte.ts`
+// (`triiiceratops/svelte`), which re-exports everything below as a superset.
+//
+// `ViewerState` stays here as a TYPE — its declaration is Svelte-free by
+// construction, and `@triiiceratops/plugin-sdk` imports it from this entry — but
+// the constructible class needs `svelte/reactivity` at runtime, so it is only
+// exported from `triiiceratops/svelte`. For a constructible state with no Svelte
+// installed, use `triiiceratops/testing`.
+export type { ViewerState, ViewerStateSnapshot } from './state/viewer.svelte';
 export type {
     SearchHit,
     SearchProvider,
@@ -14,23 +16,18 @@ export type {
     SearchResultGroup,
 } from './types/config';
 
-// Plugin system exports (legacy PluginDef path)
+// Plugin chrome records — the panel, flyout, and toolbar-button entries core
+// registers for a plugin and renders from.
 export type {
-    PluginDef,
     PluginMenuButton,
     PluginPanel,
     PluginFlyout,
     PluginUiTarget,
 } from './types/plugin';
-export {
-    definePlugin,
-    createPanelPlugin,
-    createFlyoutPlugin,
-} from './types/plugin';
 
 // SDK plugin seam (ticket 07) — the framework-neutral authoring contract that
-// `@triiiceratops/plugin-sdk` implements against. Core owns the types and can
-// mount SDK-style plugins beside the legacy path above.
+// `@triiiceratops/plugin-sdk` implements against, and the ONE plugin path in
+// 1.0. Core owns the types and mounts SDK plugins through this structural seam.
 export type {
     Selector,
     ViewerSelectors,
@@ -68,6 +65,13 @@ export type {
     ViewerErrorReporter,
 } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
+
+// The custom element's state bridge (framework-wrappers ticket 02): the
+// getter-only `viewerState` property paired with the `viewerstateavailable`
+// lifecycle event. This is how a Web Component host binds to the live
+// `ViewerState` a given element owns.
+export type { TriiiceratopsViewerElement } from './types/viewerElement';
+export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
 
 // Opt-in developer diagnostics (ticket 18). Production is quiet by default;
 // consumers enable logging through `ViewerConfig.debug`. `configureLogging`

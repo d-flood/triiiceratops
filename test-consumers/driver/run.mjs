@@ -34,8 +34,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assertTarballCss } from './assert-tarball-css.mjs';
 import {
+    assertCoreExportTargets,
+    assertCoreOptionalPeers,
     assertTarballContents,
     assertTarballPeerRanges,
+    selfCheckFrameworkSubpathAssertions,
     selfCheckPeerRangeRejectsPin,
     selfCheckPlantedTest,
 } from './assert-tarball-contents.mjs';
@@ -184,6 +187,16 @@ export const FIXTURES = [
     'csp-svelte',
     'csp-wc-iife',
     'csp-trusted-types',
+    // Ticket 09 (framework-wrappers epic): the framework-wrapper release seam.
+    // Each is a plain Vite app whose ONLY package dependency is the packed core
+    // tarball plus its own framework — no Svelte, no Svelte Vite plugin, no
+    // plugin SDK — and each serves three routes driven by one Playwright pass:
+    // the full client contract, a server-rendered route that hydrates with zero
+    // mismatch diagnostics, and a route that pre-registers a foreign
+    // `<triiiceratops-viewer>` and must fail fast with a version-conflict
+    // diagnostic. They share one journey (`framework-consumer-assert.mjs`).
+    'framework-react',
+    'framework-vue',
 ];
 
 const PACKAGE_MANAGERS = ['npm', 'pnpm'];
@@ -280,6 +293,17 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-peer-range-self', ok: peerSelf.ok });
     ok = ok && peerSelf.ok;
 
+    // Framework-wrappers ticket 10: one-time guard that the framework-subpath
+    // assertions below reject a missing `dist/react.js` and a `./vue` subpath
+    // that lost its `types` condition.
+    const subpathSelf = selfCheckFrameworkSubpathAssertions();
+    (subpathSelf.ok ? pass : fail)(
+        'contract: framework-subpath checks reject a missing wrapper artifact',
+        subpathSelf.detail,
+    );
+    results.push({ label: 'tarball-subpath-self', ok: subpathSelf.ok });
+    ok = ok && subpathSelf.ok;
+
     for (const pkg of PACKAGES_TO_PACK) {
         const tarball = tarballs[pkg.filter];
         const { ok: pkgOk, checks } = assertTarballContents(
@@ -303,6 +327,36 @@ async function assertContentsFromTarballs(tarballs) {
         }
         results.push({ label: `tarball-peers:${pkg.filter}`, ok: peerOk });
         ok = ok && peerOk;
+
+        // Framework-wrappers ticket 10 — core only: the export map must be
+        // backed by real files (the framework wrappers among them) and the
+        // framework peers must be optional, ranged, and absent from
+        // `dependencies`.
+        if (pkg.filter !== 'triiiceratops') continue;
+
+        const { ok: targetsOk, checks: targetChecks } = assertCoreExportTargets(
+            tarball,
+            pkg.filter,
+        );
+        for (const chk of targetChecks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({
+            label: `tarball-export-targets:${pkg.filter}`,
+            ok: targetsOk,
+        });
+        ok = ok && targetsOk;
+
+        const { ok: optionalOk, checks: optionalChecks } =
+            assertCoreOptionalPeers(tarball, pkg.filter);
+        for (const chk of optionalChecks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({
+            label: `tarball-optional-peers:${pkg.filter}`,
+            ok: optionalOk,
+        });
+        ok = ok && optionalOk;
     }
     return ok;
 }
@@ -430,6 +484,111 @@ const LAUNCH_OPTIONS = {
     webkit: {},
 };
 
+/**
+ * Ticket 09: the one genuinely DOM-free case. Import both packed framework
+ * subpaths in plain Node — no `window`, no `document`, no `customElements` —
+ * and assert evaluation succeeds with no registration side effect. It needs the
+ * optional `react` and `vue` peers resolvable, but no fixture: the whole
+ * assertion is a single Node script.
+ */
+async function assertFrameworkNodeImport(coreTarball, workRoot) {
+    heading('Framework subpaths import in Node with no browser globals');
+    const dir = join(workRoot, 'framework-node-import');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify(
+            {
+                name: 'framework-node-import',
+                version: '0.0.0',
+                private: true,
+                type: 'module',
+                dependencies: {
+                    react: '19.2.7',
+                    triiiceratops: `file:${coreTarball}`,
+                    vue: '3.5.40',
+                },
+            },
+            null,
+            2,
+        ) + '\n',
+    );
+    writeFileSync(
+        join(dir, 'probe.mjs'),
+        `
+for (const name of ['window', 'document', 'customElements']) {
+    if (typeof globalThis[name] !== 'undefined') {
+        throw new Error('probe started with a browser \`' + name + '\` global');
+    }
+}
+
+const react = await import('triiiceratops/react');
+const vue = await import('triiiceratops/vue');
+
+const reactExports = [
+    'TriiiceratopsViewer',
+    'useViewer',
+    'useViewerHandle',
+    'useViewerSelector',
+    'ViewerProvider',
+    'TriiiceratopsElementVersionError',
+    'VIEWER_ELEMENT_TAG',
+];
+const vueExports = [
+    'TriiiceratopsViewer',
+    'provideViewer',
+    'useViewer',
+    'useViewerSelector',
+    'ViewerProvider',
+    'TriiiceratopsElementVersionError',
+    'VIEWER_ELEMENT_TAG',
+];
+for (const name of reactExports) {
+    if (react[name] === undefined) throw new Error('triiiceratops/react is missing ' + name);
+}
+for (const name of vueExports) {
+    if (vue[name] === undefined) throw new Error('triiiceratops/vue is missing ' + name);
+}
+if (react.default !== undefined) throw new Error('triiiceratops/react has a default export');
+if (vue.default !== undefined) throw new Error('triiiceratops/vue has a default export');
+
+// No registration side effect: no registry was created, and the browser
+// runtime namespace the element bundle installs was never bootstrapped.
+for (const name of ['window', 'document', 'customElements']) {
+    if (typeof globalThis[name] !== 'undefined') {
+        throw new Error('importing a framework subpath created a \`' + name + '\` global');
+    }
+}
+if (globalThis.Triiiceratops !== undefined) {
+    throw new Error('importing a framework subpath bootstrapped the browser runtime');
+}
+console.log('framework subpaths import cleanly in Node');
+`.trimStart(),
+    );
+
+    let ok = true;
+    let detail = '';
+    try {
+        step('framework-node-import: npm install (tarball + react + vue)');
+        await run(
+            'npm',
+            ['install', '--no-audit', '--no-fund', '--loglevel=error'],
+            { cwd: dir, timeout: 300_000 },
+        );
+        step('framework-node-import: node probe.mjs');
+        await run('node', ['probe.mjs'], { cwd: dir, timeout: 120_000 });
+    } catch (err) {
+        ok = false;
+        detail = err.message.split('\n').slice(0, 6).join(' | ');
+    }
+    (ok ? pass : fail)(
+        'node-import: triiiceratops/react + /vue evaluate with no browser globals',
+        detail,
+    );
+    results.push({ label: 'framework-node-import', ok, detail });
+    return ok;
+}
+
 async function withBrowser(rootDir, fn, browserName = 'chromium') {
     const server = await serveDir(rootDir);
     const browserType = BROWSER_TYPES[browserName];
@@ -484,6 +643,20 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
     step(`${fixtureName} [${pm}]: install`);
     await installFixture(pm, fixtureDir);
 
+    // An optional type-check step, run BEFORE the build and reported as its own
+    // step so a compile failure is not mistaken for a bundler failure. The
+    // framework fixtures use it for the epic's headline promise: `tsc` with
+    // `skipLibCheck: false` and no Svelte installed, so a Svelte type leaking
+    // into `triiiceratops/react` / `/vue` / `/selectors` / `/testing` fails the
+    // packed run rather than waiting for a human to notice.
+    if (cfg.checkScript) {
+        step(`${fixtureName} [${pm}]: ${pm} run ${cfg.checkScript}`);
+        await run(pm, ['run', cfg.checkScript], {
+            cwd: fixtureDir,
+            timeout: 300_000,
+        });
+    }
+
     if (cfg.buildScript) {
         step(`${fixtureName} [${pm}]: ${pm} run ${cfg.buildScript}`);
         await run(pm, ['run', cfg.buildScript], {
@@ -499,7 +672,14 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
         const browsers = cfg.browsers ?? ['chromium'];
         for (const browserName of browsers) {
             step(`${fixtureName} [${pm}] (${browserName}): serve + assert`);
-            await withBrowser(serveRoot, (ctx) => cfg.assert(ctx), browserName);
+            await withBrowser(
+                serveRoot,
+                // `fixtureDir` lets a browser fixture also assert on what the
+                // package manager actually installed (ticket 09: no Svelte
+                // package, no Svelte Vite plugin, no plugin SDK).
+                (ctx) => cfg.assert({ ...ctx, fixtureDir, serveRoot }),
+                browserName,
+            );
         }
     } else {
         step(`${fixtureName} [${pm}]: serve + assert`);
@@ -527,6 +707,12 @@ async function main() {
             workRoot,
         );
         allOk = allOk && coreDepsOk;
+
+        const nodeImportOk = await assertFrameworkNodeImport(
+            tarballs.triiiceratops,
+            workRoot,
+        );
+        allOk = allOk && nodeImportOk;
 
         // Optional local dev filter: `PACKED_ONLY=csp-svelte,csp-wc-iife` runs a
         // subset. Unset in CI, so the full suite always runs there.
