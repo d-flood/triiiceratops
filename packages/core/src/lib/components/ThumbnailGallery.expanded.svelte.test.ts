@@ -12,6 +12,7 @@ import { mount, unmount, tick } from 'svelte';
 import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
 import {
     getGalleryBandHeight,
+    getGalleryPairFrame,
     getGalleryRailWidth,
     getGalleryThumbItemHeight,
 } from './galleryGeometry';
@@ -269,29 +270,72 @@ describe('expanded thumbnail gallery', () => {
     });
 
     /**
-     * The tab needs a gutter to sit in, and on a docked strip it is reserved as
-     * padding on the gallery ROOT — not on the scrolling content, whose padding
-     * would scroll away and let rows pass back under the tab. Asserted through the
-     * wiring rather than a computed pixel: the root publishes the tab's width as the
-     * custom property its own CSS reserves from, and `galleryGeometry.test.ts` pins
-     * that the band leaves at least that much over after a row.
+     * A docked strip spends nothing on the tab: it overlays whichever thumbnail is
+     * under the middle of the canvas-facing edge, so the band is exactly one row deep
+     * and the row sits centred in it. A 24px gutter there is a large fraction of a
+     * band this thin — it fattened the strip and shoved its thumbnails off-centre.
+     *
+     * The tab itself is still 24px (WCAG 2.5.8 on size), which is what the root
+     * publishes as `--ui-caret-tab` for its own CSS to draw from. Only the expanded
+     * overlay, which can afford it, turns that into root padding.
      */
-    it('reserves the expand tab a gutter on the docked strip', async () => {
+    it('overlays the expand tab on the docked strip rather than reserving a gutter', async () => {
         await mountViewer({ dockPosition: 'bottom' });
 
         const root = target.querySelector('.gallery-root') as HTMLElement;
-        // Bottom-docked, so the canvas-facing edge — and the gutter — is the top.
+        // Bottom-docked, so the canvas-facing edge — and the tab — is the top.
         expect(root.classList.contains('caret-top')).toBe(true);
+        expect(root.classList.contains('expanded')).toBe(false);
 
-        // Read rather than hardcoded, so this tracks the geometry module. It has to
-        // be the gutter the band was sized around, and at least WCAG 2.5.8's 24px.
-        const gutter = Number.parseFloat(
+        // The tab keeps its full target size...
+        const tab = Number.parseFloat(
             root.style.getPropertyValue('--ui-caret-tab'),
         );
-        const bandGutter =
-            getGalleryBandHeight(75) - getGalleryThumbItemHeight(75) - 8 - 2;
-        expect(gutter).toBe(bandGutter);
-        expect(gutter).toBeGreaterThanOrEqual(24);
+        expect(tab).toBeGreaterThanOrEqual(24);
+
+        // ...but the band is sized to the row alone, with no room set aside for it.
+        const slack =
+            getGalleryBandHeight(115) - getGalleryThumbItemHeight(115) - 8;
+        expect(slack).toBeLessThan(tab);
+    });
+
+    /**
+     * The rail is one page wide, so a paged pair cannot show both pages there at
+     * full height — and the frame clips rather than scales, which cropped each page
+     * to roughly half of itself. The pair shrinks instead: same two sizing
+     * properties every thumbnail uses, re-declared on the pair's frame.
+     *
+     * Asserted through the wiring (the pair's frame carries the marker class, and
+     * the root publishes the shrunken size) because happy-dom has no layout to
+     * measure; `galleryGeometry.test.ts` pins that the size actually fits the rail.
+     */
+    it('shrinks a paged pair to fit the docked rail', async () => {
+        const props = await mountViewer({ dockPosition: 'right' });
+        props.viewerState.viewingMode = 'paged';
+        await settle();
+
+        const root = target.querySelector('.gallery-root') as HTMLElement;
+        expect(root.classList.contains('dock-vertical')).toBe(true);
+
+        // Three canvases pair as [1+2], [3] — so both shapes are on screen, and
+        // only the pair is marked.
+        const frames = [...target.querySelectorAll('.thumb-frame')];
+        const paged = frames.filter((f) => f.classList.contains('frame-paged'));
+        expect(paged).toHaveLength(1);
+        expect(frames).toHaveLength(2);
+        expect(paged[0].querySelectorAll('.thumb-pane')).toHaveLength(2);
+
+        const pair = getGalleryPairFrame(115);
+        expect(root.style.getPropertyValue('--ui-thumb-pair-h').trim()).toBe(
+            `${pair.frameHeight}px`,
+        );
+        expect(
+            root.style.getPropertyValue('--ui-thumb-pair-floor').trim(),
+        ).toBe(`${pair.paneWidth}px`);
+        // A single page in the same rail is unaffected — only the pair shrinks.
+        expect(root.style.getPropertyValue('--ui-thumb-h').trim()).toBe(
+            '115px',
+        );
     });
 
     /**
@@ -308,7 +352,7 @@ describe('expanded thumbnail gallery', () => {
             [...target.querySelectorAll('.thumb-item')].map(
                 (item) => (item as HTMLElement).style.height,
             );
-        const expected = `${getGalleryThumbItemHeight(75)}px`;
+        const expected = `${getGalleryThumbItemHeight(115)}px`;
 
         expect(rowHeights().length).toBeGreaterThan(0);
         expect(new Set(rowHeights())).toEqual(new Set([expected]));

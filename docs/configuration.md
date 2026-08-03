@@ -89,7 +89,7 @@ interface ViewerConfig {
         showCloseButton?: boolean; // Default: true
         dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none'; // Default: 'bottom'
         expanded?: boolean; // Default: false (fills the center column as a grid; implies open)
-        fixedHeight?: number; // Default: 75 (thumbnail image height, in every view)
+        fixedHeight?: number; // Default: 115 (thumbnail image height, in every view)
         width?: number; // Floating window width
         height?: number; // Floating window height
         x?: number; // Floating window X position

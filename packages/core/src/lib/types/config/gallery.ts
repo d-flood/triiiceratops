@@ -26,11 +26,11 @@ export interface GalleryConfig {
      * all render a thumbnail at this height and at the image's own aspect ratio,
      * so the same canvas looks the same wherever you see it.
      *
-     * The grid views lay those thumbnails out in cells wide enough for a 4:3
-     * landscape page; cells do not flex, so a portrait thumbnail leaves slack
-     * either side rather than stretching. An image wider than 4:3 keeps this
-     * height and crops to the cell. The docked rail sizes itself to one cell.
-     * @default 75
+     * The grid views wrap those thumbnails, so each one is exactly as wide as its
+     * own image at this height rather than sitting in a fixed cell. The docked band
+     * and side rail size themselves from this number — the rail to one portrait
+     * page's width, which is the one place an image wider than portrait crops.
+     * @default 115
      */
     fixedHeight?: number;
     /**

@@ -10,6 +10,7 @@
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
     import {
         GALLERY_THUMB_VARS,
+        getGalleryPairFrame,
         getGalleryThumbFloorWidth,
         getGalleryThumbItemHeight,
     } from './galleryGeometry';
@@ -374,6 +375,15 @@
      * its width from this same number (see `getGalleryRailWidth`).
      */
     let thumbFloorWidth = $derived(getGalleryThumbFloorWidth(fixedHeight));
+
+    /**
+     * The size a paged PAIR falls back to, for the one view too narrow to show two
+     * pages at `fixedHeight`: the docked side rail. Published to the CSS below, which
+     * applies it by re-declaring `--ui-thumb-h` / `--ui-thumb-floor` on a pair's frame
+     * — so the pair shrinks through the same two properties every other thumbnail is
+     * sized by, rather than through a second sizing path of its own.
+     */
+    let pairFrame = $derived(getGalleryPairFrame(fixedHeight));
     let isRTL = $derived(viewerState.viewingDirection === 'right-to-left');
 
     // The glyph points the way the gallery will travel: away from its dock edge
@@ -599,7 +609,10 @@
             viewerState.isGalleryDragging && 'dragging',
         ]}
         style="{GALLERY_THUMB_VARS}; --ui-thumb-h: {fixedHeight}px;
-        --ui-thumb-floor: {thumbFloorWidth}px; {expanded || dockSide !== 'none'
+        --ui-thumb-floor: {thumbFloorWidth}px;
+        --ui-thumb-pair-h: {pairFrame.frameHeight}px;
+        --ui-thumb-pair-floor: {pairFrame.paneWidth}px; {expanded ||
+        dockSide !== 'none'
             ? ''
             : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}"
     >
@@ -729,7 +742,13 @@
                                 ' / ',
                             )}"
                         >
-                            <div class={['thumb-frame', isRTL && 'frame-rtl']}>
+                            <div
+                                class={[
+                                    'thumb-frame',
+                                    isRTL && 'frame-rtl',
+                                    thumbGroup.srcs.length > 1 && 'frame-paged',
+                                ]}
+                            >
                                 <div class="thumb-pane">
                                     {#if thumbGroup.srcs[0]}
                                         <img
@@ -944,9 +963,9 @@
         user-select: none;
         background-color: var(--tri-gallery-bg);
         color: var(--tri-gallery-content);
-        /* The caret gutter below is root padding, and every sizing rule here
-           (100% when docked, an explicit pixel size when floating) means the
-           gallery's OUTER box. */
+        /* The expanded overlay's caret gutter is root padding, and every sizing
+           rule here (100% when docked, an explicit pixel size when floating) means
+           the gallery's OUTER box. */
         box-sizing: border-box;
     }
     .gallery-root.docked {
@@ -958,10 +977,10 @@
             0 20px 25px -5px #0000001a,
             0 8px 10px -6px #0000001a;
         border-color: var(--tri-surface-border);
-        /* Named rather than `all`: the caret gutter is root padding now, and `all`
-           made the gutter itself animate — it opened from zero on every dock
-           change, so the tab sat over a thumbnail until the transition caught up.
-           Only the colours and shadow were ever meant to move. */
+        /* Named rather than `all`: `all` animated the root's padding too, which
+           opened from zero on every dock change and shifted the whole strip while
+           the transition caught up. Only the colours and shadow were ever meant to
+           move. */
         transition-property: background-color, border-color, box-shadow;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.2s;
@@ -1078,14 +1097,14 @@
 
     /* ===== Expand / collapse control =====
        `toggle-edge` is a small tab centred on whichever gallery edge faces the
-       canvas (see `caretEdge`), sitting in a gutter reserved for it there.
+       canvas (see `caretEdge`) — in a gutter of its own when expanded, over the
+       middle thumbnail when docked (see the padding rules below).
 
        It is chrome, not gallery content, so it borrows the toolbar's button look
        verbatim — translucent toolbar fill over a blur, a hairline border, and the
-       same `--tri-surface-border` hover. That is what makes a 12px control read as
-       a control: the fill and border give it an edge against the gallery behind
-       it, where the old fully-transparent treatment left a bare glyph that looked
-       like a stray mark.
+       same `--tri-surface-border` hover. That treatment is what makes it read as a
+       control rather than a stray mark, and it is doubly load-bearing docked, where
+       what sits behind the tab is a thumbnail rather than the gallery's own fill.
 
        Each button is wrapped in a `<Tooltip>`, and the WRAPPER is what gets
        positioned — the tooltip's bubble is a pseudo-element of that span, so it
@@ -1126,21 +1145,21 @@
         background-color: var(--tri-surface-border);
     }
 
-    /* Reserve the tab's width as root padding, so it sits in a gutter beside the
-       thumbnails rather than over one. It must be padding on the ROOT, not on
-       `.gallery-content`: padding on a scroll box scrolls away with its content,
-       and rows would pass back underneath the tab.
+    /* Only the EXPANDED overlay reserves the tab a gutter of its own, as root
+       padding — never on `.gallery-content`, because padding on a scroll box
+       scrolls away with its content and rows would pass back underneath the tab.
+       The overlay is the whole viewer, so 24px of edge costs it nothing anyone
+       notices.
 
-       Every view reserves it, including the horizontal strip. The strip used to
-       lean on the slack a short row left in the band instead, which held only
-       while every row was short — a paged pair, with a label line per canvas, ate
-       that slack and took the tab with it. Its label rides over the frame as an
-       overlay now (see `.label-overlay`), so all rows are one height and the band
-       can reserve this gutter honestly while still coming out slightly shorter
-       than it was before (see `getGalleryBandHeight`).
+       A DOCKED gallery reserves nothing: a strip is barely thicker than one
+       thumbnail, so a 24px gutter there both fattened the band and pushed its
+       thumbnails off-centre — the tab overlays the middle thumbnail instead
+       (`z-index: 60` on `.toggle-anchor` puts it above the track), which leaves
+       equal padding on either side of the row. `getGalleryBandHeight` /
+       `getGalleryRailWidth` budget to match.
 
-       `--ui-caret-tab` comes from `galleryGeometry`, which is also what the band
-       and rail budget from — the value is never restated here. */
+       `--ui-caret-tab` comes from `galleryGeometry` — the value is never restated
+       here. */
     .gallery-root.expanded.caret-top {
         padding-top: var(--ui-caret-tab);
     }
@@ -1153,26 +1172,9 @@
     .gallery-root.expanded.caret-right {
         padding-right: var(--ui-caret-tab);
     }
-    /* A docked tab sits ON the gallery's border where there is one (see the
-       negative offset below), so the room it needs there is its own width LESS
-       that border — otherwise the leftover pixel shows as a gap on the thumbnail
-       side. Only the edges that actually carry a border subtract it: the strip's
-       top and both of the rail's sides. */
-    .gallery-root.dock-horizontal.caret-top {
-        padding-top: calc(var(--ui-caret-tab) - var(--tri-border));
-    }
-    .gallery-root.dock-horizontal.caret-bottom {
-        padding-bottom: var(--ui-caret-tab);
-    }
-    .gallery-root.dock-vertical.caret-left {
-        padding-left: calc(var(--ui-caret-tab) - var(--tri-border));
-    }
-    .gallery-root.dock-vertical.caret-right {
-        padding-right: calc(var(--ui-caret-tab) - var(--tri-border));
-    }
 
     /* Narrow on its long axis, so it reads as a handle on the edge rather than a
-       bar across it. Its short axis is the gutter reserved above. */
+       bar across it. Its short axis is the tab width above. */
     .caret-top > :global(.toggle-anchor),
     .caret-bottom > :global(.toggle-anchor) {
         width: 1.75rem;
@@ -1186,7 +1188,11 @@
     /* Flush against the canvas-facing edge, in the same idiom as the toolbar's
        open handle: the border touching that edge is dropped and those corners are
        square, so the tab reads as part of the edge rather than a chip floating
-       beside it. Only the two inboard corners round, into the gallery. */
+       beside it. Only the two inboard corners round, into the gallery.
+
+       That rounding is `--tri-radius-buttons`, the same token every other button
+       in the viewer takes its corners from — a theme that squares its buttons
+       squares this tab too, and one that rounds them rounds it. */
     .caret-top > :global(.toggle-anchor) {
         top: 0;
         left: 50%;
@@ -1194,7 +1200,7 @@
     }
     .caret-top .toggle-edge {
         border-top-width: 0;
-        border-radius: 0 0 0.25rem 0.25rem;
+        border-radius: 0 0 var(--tri-radius-buttons) var(--tri-radius-buttons);
     }
     .caret-bottom > :global(.toggle-anchor) {
         bottom: 0;
@@ -1203,7 +1209,7 @@
     }
     .caret-bottom .toggle-edge {
         border-bottom-width: 0;
-        border-radius: 0.25rem 0.25rem 0 0;
+        border-radius: var(--tri-radius-buttons) var(--tri-radius-buttons) 0 0;
     }
     .caret-left > :global(.toggle-anchor) {
         left: 0;
@@ -1212,7 +1218,7 @@
     }
     .caret-left .toggle-edge {
         border-left-width: 0;
-        border-radius: 0 0.25rem 0.25rem 0;
+        border-radius: 0 var(--tri-radius-buttons) var(--tri-radius-buttons) 0;
     }
     .caret-right > :global(.toggle-anchor) {
         right: 0;
@@ -1221,7 +1227,7 @@
     }
     .caret-right .toggle-edge {
         border-right-width: 0;
-        border-radius: 0.25rem 0 0 0.25rem;
+        border-radius: var(--tri-radius-buttons) 0 0 var(--tri-radius-buttons);
     }
 
     /* An absolutely positioned child is offset from the padding box, so `right: 0`
@@ -1254,7 +1260,7 @@
         height: 1.25rem;
     }
     .toggle-inline {
-        border-radius: 0.25rem;
+        border-radius: var(--tri-radius-buttons);
     }
 
     /* ===== Content scroll area ===== */
@@ -1327,8 +1333,8 @@
     /* The rail is one thumbnail wide, so a thumbnail wider than the width it
        committed to has to be clamped rather than allowed to overflow: the track
        centres its items, so an over-wide one spills equally out of BOTH sides and
-       the leading side is the tab's gutter. Clamped, it crops instead — which is
-       the concession the rail's width already documents. */
+       past the rail's edges. Clamped, it crops instead — which is the concession
+       the rail's width already documents. */
     .track-vertical .thumb-item {
         max-width: 100%;
     }
@@ -1359,12 +1365,31 @@
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        gap: 1px;
+        gap: var(--ui-thumb-pane-gap);
         width: auto;
         max-width: 100%;
     }
     .thumb-frame.frame-rtl {
         flex-direction: row-reverse;
+    }
+
+    /* A paged pair in the docked RAIL is the one case where two pages will not fit
+       the width the view committed to, and `max-width` above clips rather than
+       scales — so each page came out cropped to about half of itself and neither
+       was readable.
+
+       Shrink the pair instead, by re-declaring the two properties every thumbnail
+       is already sized by: the frame's height and the image's width floor. Both
+       pages then render whole at a smaller size, which is a trade the rail can
+       make and the crop was not. `getGalleryPairFrame` derives the pair from the
+       rail's own width, so it fits by construction rather than by measurement.
+
+       Only the rail: every other view lays the track out wide enough for a pair at
+       full height, and shrinking there would make a paged manifest's thumbnails
+       gratuitously smaller than a single-page one's. */
+    .gallery-root.dock-vertical .thumb-frame.frame-paged {
+        --ui-thumb-h: var(--ui-thumb-pair-h);
+        --ui-thumb-floor: var(--ui-thumb-pair-floor);
     }
 
     /* ===== Pane (single image slot inside a frame) ===== */
@@ -1410,8 +1435,8 @@
 
     /* ===== Thumbnail label =====
        The row reserves exactly ONE line's height in every view and viewing mode —
-       that uniformity is what lets the band reserve the expand tab's gutter
-       without growing (see the caret gutter rules above).
+       that uniformity is what lets the docked band be sized to a single row
+       (`getGalleryBandHeight`), whatever the viewing mode.
 
        The lines themselves are stacked upward from that row's bottom edge, so a
        paged pair's second canvas gets a line without asking for more room: it
