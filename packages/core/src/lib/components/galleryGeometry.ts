@@ -1,19 +1,40 @@
 /**
  * Gallery thumbnail geometry.
  *
- * `gallery.fixedHeight` is the height of a thumbnail's image frame, and it means
- * exactly that in every gallery view. A thumbnail renders the same way wherever it
- * appears: the frame is `fixedHeight` tall and as wide as the image itself at that
- * height, so nothing is letterboxed or cropped to fit a slot. The horizontal strip
- * flows those frames along a row; every other view (floating window, docked side
- * rail, expanded overlay) is that same row, wrapped.
+ * `gallery.size` is how much of the viewer the gallery takes: the docked band's
+ * HEIGHT when it sits at the top or bottom, and the docked rail's WIDTH when it sits
+ * at the left or right. One knob, applied to whichever axis the dock commits to.
  *
- * So there is no cell size here, deliberately. A fixed-width grid has to reserve its
- * cell for the widest thumbnail it might hold, which leaves a portrait page — most
- * pages — sitting in a box of empty space, and a paged pair in twice that. Only two
- * things below commit to a size at all: the docked band's height and the docked
- * rail's width, because their host has to be given a number before it knows what is
- * going in it.
+ * Everything about a thumbnail is derived from it, in that same direction. The
+ * gallery is given the number; the thumbnail gets what is left over once the track's
+ * padding, the button's padding, and its label line are paid for. So a band 150px
+ * tall holds a 112px-tall thumbnail, and a rail 150px wide holds a 134px-wide one.
+ *
+ * Deriving in that direction is the whole point. A gallery that instead guessed its
+ * committed axis from a thumbnail — a rail whose width was a portrait 3:4 of the
+ * thumbnail height — has no width to offer a landscape page: at full height it wants
+ * nearly double what the rail committed to, and `object-fit: contain` answers that by
+ * shrinking the image to a sliver inside a full-height frame. A rail that owns its
+ * width and lets the thumbnail's height fall out of it cannot have that problem,
+ * whatever shape the image is.
+ *
+ * ## The constrained axis
+ *
+ * A thumbnail is fixed on the axis its gallery committed to and free on the other:
+ *
+ * - Band (top/bottom) and floating window: fixed HEIGHT, width from the image.
+ * - Rail (left/right): fixed WIDTH, height from the image.
+ *
+ * The EXPANDED overlay takes its constrained axis from the dock side too, not from
+ * its own layout — which is what makes a thumbnail exactly the same size expanded as
+ * collapsed. An overlay that constrained height while the rail beneath it constrained
+ * width would render the same canvas as a tall sliver in one and a short wide card in
+ * the other.
+ *
+ * Nothing here crops, and nothing is letterboxed into a slot: an image grows to fill
+ * the constrained axis and is whatever it is on the other. The cost is a ragged
+ * track — a rail of mixed portrait and landscape pages has rows of differing heights
+ * — which is the honest rendering of a manifest whose canvases are different shapes.
  *
  * These numbers are the single source of truth for the pixels a thumbnail button
  * spends around its frame. `ThumbnailGallery` publishes them to its own scoped CSS
@@ -49,21 +70,23 @@ const ITEM_GAP = 4;
 const LABEL_LINE = 16;
 
 /**
- * The width a frame falls back to when there is nothing to measure, as a multiple of
- * `fixedHeight`: a portrait 3:4 page, which is what the overwhelming majority of
- * IIIF canvases are.
+ * The aspect ratio a frame stands in at when there is nothing to measure: a portrait
+ * 3:4 page, which is what the overwhelming majority of IIIF canvases are.
  *
- * Two things need that fallback. The frame itself, before a lazy thumbnail has
- * loaded or when a canvas offers none — see `.thumb-img`'s `min-width`, which reads
- * this as `--ui-thumb-floor`. And the docked rail, which has to commit to a width
- * before it knows what is in it.
+ * Published to the CSS as `--ui-thumb-floor-aspect` and applied as
+ * `aspect-ratio: auto <this>` — a fallback ratio that a replaced element uses only
+ * until it has a natural one of its own. It is load-bearing rather than cosmetic: an
+ * image sized on one axis with `auto` on the other has NO size on the free axis
+ * before it loads, a zero-area box never intersects the viewport, and so a lazy
+ * image is never loaded — leaving it permanently sizeless. The fallback ratio breaks
+ * that deadlock on whichever axis is the free one, and incidentally keeps a track of
+ * loading thumbnails at roughly its final shape instead of popping open row by row.
  *
- * Only the rail is a commitment: everything else lays thumbnails out at whatever
- * width they turn out to be. A rail holding wider thumbnails than this crops them,
- * which is the price of a rail that fits its content instead of standing a band of
- * empty space either side of every portrait page.
+ * `auto` first is what keeps this a fallback: once the image has loaded, its own
+ * ratio wins and the thumbnail renders at its true shape. A bare ratio would override
+ * the natural one and letterbox every non-portrait canvas forever.
  */
-const FRAME_FLOOR_ASPECT = 3 / 4;
+const FRAME_FLOOR_ASPECT = '3 / 4';
 
 /**
  * `--ui-gallery-pad` from `styles/layout.css`, per side — the padding
@@ -94,8 +117,22 @@ const TRACK_PAD = 4;
  */
 const CARET_TAB = 24;
 
-/** A pixel or two so a row whose height rounds up is never clipped by the band. */
+/**
+ * A pixel or two the band keeps back so a row whose height rounds up is never clipped
+ * by it. It comes out of the thumbnail: the band's height is the number the host asked
+ * for, so slack cannot be added on top of it.
+ */
 const BAND_SLACK = 2;
+
+/**
+ * The smallest frame a thumbnail is allowed, on either axis.
+ *
+ * The chrome around a frame is a fixed cost (38px on the constrained axis in a band,
+ * 16px in a rail), so a small enough `gallery.size` would otherwise derive a zero or
+ * negative frame and render a row of labels with nothing above them. The settings
+ * slider does not go low enough to reach it; a host writing the config directly can.
+ */
+const MIN_FRAME = 24;
 
 /**
  * The geometry above, as the custom properties `ThumbnailGallery`'s CSS reads. Set
@@ -106,96 +143,62 @@ export const GALLERY_THUMB_VARS = [
     `--ui-thumb-gap: ${ITEM_GAP}px`,
     `--ui-thumb-pane-gap: ${PANE_GAP}px`,
     `--ui-thumb-label-line: ${LABEL_LINE}px`,
+    `--ui-thumb-floor-aspect: ${FRAME_FLOOR_ASPECT}`,
     `--ui-caret-tab: ${CARET_TAB}px`,
 ].join('; ');
 
 /**
- * Height of one thumbnail button: the frame, plus the button's own padding, the gap
- * below the frame, and the single label line it reserves. The same in every view and
- * every viewing mode — the strip sets it explicitly so the band below can be sized
- * from this exact number.
+ * The chrome a thumbnail button spends on its CONSTRAINED axis when that axis is the
+ * height: its own padding, the gap under the frame, and the single label line.
  */
-export function getGalleryThumbItemHeight(fixedHeight: number) {
-    return fixedHeight + ITEM_PAD * 2 + ITEM_GAP + LABEL_LINE;
-}
+const ITEM_CHROME_H = ITEM_PAD * 2 + ITEM_GAP + LABEL_LINE;
 
 /**
- * Width a frame falls back to with nothing to measure — see `FRAME_FLOOR_ASPECT`.
- * Ceiling, not rounding: a floor a fraction of a pixel under the frame it stands in
- * for would crop it.
+ * Height of one thumbnail button in a horizontal strip — the band's height, less the
+ * track's padding and the slack the band keeps back. The strip sets it explicitly
+ * rather than leaving it intrinsic, so a row is exactly the height the band was
+ * given room for instead of a number the two components arrived at separately.
  */
-export function getGalleryThumbFloorWidth(fixedHeight: number) {
-    return Math.ceil(fixedHeight * FRAME_FLOOR_ASPECT);
-}
-
-/** …and the whole thumbnail button at that width, its padding included. */
-export function getGalleryThumbFloorItemWidth(fixedHeight: number) {
-    return getGalleryThumbFloorWidth(fixedHeight) + ITEM_PAD * 2;
-}
-
-/**
- * Docked band height (top/bottom), EXCLUDING the root's border — the caller adds
- * `var(--tri-border)` in CSS so a themed border width stays in step with the
- * padding math instead of being baked in here at its default.
- *
- * Sized as: the track's padding, one thumbnail button, and a pixel or two of slack.
- * Every strip row is the same height now, whatever the viewing mode, so one row's
- * worth is all the band ever needs.
- *
- * Nothing is reserved for the expand tab — it overlays the middle thumbnail rather
- * than sitting in a gutter of its own (see `CARET_TAB`), which is what keeps the band
- * exactly as tall as the row it holds.
- */
-export function getGalleryBandHeight(fixedHeight: number) {
-    return TRACK_PAD * 2 + getGalleryThumbItemHeight(fixedHeight) + BAND_SLACK;
-}
-
-/**
- * Docked side-rail width, EXCLUDING the root's border (see `getGalleryBandHeight`).
- *
- * Accounted from the canvas-facing edge inward: the track's padding, one thumbnail at
- * the floor width, and the track's padding again. Nothing for the expand tab, which
- * overlays the middle thumbnail instead of taking a gutter (see `CARET_TAB`) — so the
- * thumbnail sits centred in the rail, with the same padding either side of it.
- *
- * A thumbnail wider than the floor is clamped to the track rather than allowed to
- * overflow it — see `.thumb-item`'s `max-width`.
- *
- * It reserves no width for the rail's scrollbar. Most platforms overlay it, so a
- * reservation would show up as dead space beside the thumbnail rather than as a
- * scrollbar; where the platform does take width, the clamp above absorbs it and the
- * rail asks for a thin scrollbar to keep that small.
- */
-export function getGalleryRailWidth(fixedHeight: number) {
-    return TRACK_PAD * 2 + getGalleryThumbFloorItemWidth(fixedHeight);
-}
-
-/**
- * The frame height a paged PAIR falls back to in the docked rail, and the pane width
- * that goes with it.
- *
- * The rail commits to one portrait page's width (see `getGalleryRailWidth`), and two
- * pages cannot both be shown at that width and full height. At `fixedHeight` the pair
- * overflowed the frame, which clips — so each page was cropped to roughly half of
- * itself and neither was legible. Shrinking the pair is the honest trade: both pages
- * stay whole, just smaller than a single page in the same rail.
- *
- * Derived by inverting the rail's own arithmetic rather than measuring: the frame gets
- * the floor width, the two panes split it with `PANE_GAP` between them, and the height
- * is whatever a portrait page is at that pane width. So a pair fits the rail by
- * construction, at every `fixedHeight`, before anything has loaded.
- *
- * A page wider than portrait still crops here, exactly as a single page does at the
- * rail's committed width — that concession is the rail's, not this function's.
- */
-export function getGalleryPairFrame(fixedHeight: number) {
-    const paneWidth = Math.floor(
-        (getGalleryThumbFloorWidth(fixedHeight) - PANE_GAP) / 2,
+export function getGalleryThumbItemHeight(size: number) {
+    return Math.max(
+        MIN_FRAME + ITEM_CHROME_H,
+        size - TRACK_PAD * 2 - BAND_SLACK,
     );
-    return {
-        paneWidth,
-        // Ceiling for the same reason `getGalleryThumbFloorWidth` uses one: a height
-        // a fraction of a pixel short of the page it stands in for would crop it.
-        frameHeight: Math.ceil(paneWidth / FRAME_FLOOR_ASPECT),
-    };
+}
+
+/**
+ * Frame height for a HEIGHT-constrained thumbnail — the band, the floating window,
+ * and an expanded overlay belonging to either. The button's chrome comes out of the
+ * band's height, which is the number the host asked for; the frame gets the rest and
+ * is as wide as the image itself at that height.
+ */
+export function getGalleryThumbFrameHeight(size: number) {
+    return getGalleryThumbItemHeight(size) - ITEM_CHROME_H;
+}
+
+/**
+ * Width of one thumbnail button in a vertical track — the rail's width, less the
+ * track's padding. No slack: the rail's free axis is the one that scrolls, so a row
+ * that rounds up costs a pixel of scroll rather than being clipped.
+ *
+ * Set explicitly, and on the button rather than the frame, because it has to hold in
+ * the EXPANDED overlay too: the items there sit in a track far wider than the rail,
+ * and a width of `100%` would let each one grow to it. Stating the rail's width
+ * outright is what makes an expanded thumbnail the same size as the collapsed one.
+ */
+export function getGalleryThumbItemWidth(size: number) {
+    return Math.max(MIN_FRAME + ITEM_PAD * 2, size - TRACK_PAD * 2);
+}
+
+/**
+ * Frame width for a WIDTH-constrained thumbnail — the docked rail and an expanded
+ * overlay belonging to it. The frame fills the button, and its height is whatever
+ * the image is at that width.
+ *
+ * A paged pair splits this between its two panes (`PANE_GAP` between them) and comes
+ * out shorter than a single page rather than cropped in half — no special case
+ * needed, because a pair constrained on width is just two half-width thumbnails.
+ */
+export function getGalleryThumbFrameWidth(size: number) {
+    return getGalleryThumbItemWidth(size) - ITEM_PAD * 2;
 }

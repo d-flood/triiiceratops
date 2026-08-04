@@ -27,6 +27,14 @@ generated/
 # Generated API snapshots (scripts/api-report.ts) — regenerated & checked in CI.
 api-reports/
 
+# Vendored theme partials: overrides/partials/* are verbatim copies of
+# Zensical's own templates carrying one local hunk each, so they fall under the
+# vendored-output rule above — reflowing them destroys the diff against
+# upstream. Prettier also misreads Jinja `{#- ... -#}` comments as markup and
+# has emitted stray closing tags into them. `overrides/main.html` is genuinely
+# ours (not a copy) and stays formatted.
+overrides/partials/
+
 # Docs prose and docs build artifacts (docs/viewer, docs/demo, docs/svelte);
 # eslint ignores docs/ as well. Not source files this gate should reflow.
 docs/

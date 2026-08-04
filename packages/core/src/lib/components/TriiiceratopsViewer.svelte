@@ -74,10 +74,6 @@
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
-    import {
-        getGalleryBandHeight,
-        getGalleryRailWidth,
-    } from './galleryGeometry';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
@@ -1084,23 +1080,17 @@
     );
 
     /**
-     * Docked gallery band height (top/bottom) and rail width (left/right). Both
-     * measure the thumbnail rather than the reverse: the band fits a strip row,
-     * the rail fits one grid cell, and each reserves the gutter the expand tab
-     * sits in. See `galleryGeometry`.
+     * Docked gallery band height (top/bottom) and rail width (left/right): both are
+     * `gallery.size` itself, which is what that config value means. The gallery is
+     * given the number and derives its thumbnails from what is left of it — see
+     * `galleryGeometry`.
      *
-     * Both stop short of the gallery's own border. It is added back in `calc()` by
-     * the `.gallery-band` / `.gallery-host` rules below, which read these as custom
-     * properties — so a host that themes `--tri-border` gets a band that still
-     * agrees with the padding math, instead of these helpers baking in the token's
-     * default width.
+     * It stops short of the gallery's own border, which is added back in `calc()` by
+     * the `.gallery-band` / `.gallery-host` rules below. Those read this as a custom
+     * property, so a host that themes `--tri-border` gets a band that still agrees
+     * with the padding math instead of one baking in the token's default width.
      */
-    let galleryBandHeight = $derived(
-        getGalleryBandHeight(internalViewerState.galleryFixedHeight),
-    );
-    let galleryRailWidth = $derived(
-        getGalleryRailWidth(internalViewerState.galleryFixedHeight),
-    );
+    let galleryExtent = $derived(internalViewerState.galleryExtent);
 
     /**
      * The docked footprint the expand animation starts from, and the edge it
@@ -1115,11 +1105,9 @@
             | 'left'
             | 'right'
             | 'none',
-        from:
-            internalViewerState.dockSide === 'left' ||
-            internalViewerState.dockSide === 'right'
-                ? galleryRailWidth
-                : galleryBandHeight,
+        // The band's height or the rail's width, whichever edge it slides out of —
+        // one number either way, since that is what `gallery.size` is.
+        from: galleryExtent,
     });
 
     let isLeftSidebarVisible = $derived(
@@ -1357,7 +1345,7 @@
             {#if galleryDocked && internalViewerState.dockSide === 'left'}
                 <div
                     class="gallery-host"
-                    style="--ui-gallery-rail: {galleryRailWidth}px"
+                    style="--ui-gallery-rail: {galleryExtent}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
@@ -1372,7 +1360,7 @@
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
             <div
                 class="gallery-band"
-                style="--ui-gallery-band: {galleryBandHeight}px"
+                style="--ui-gallery-band: {galleryExtent}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -1526,7 +1514,7 @@
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
             <div
                 class="gallery-band"
-                style="--ui-gallery-band: {galleryBandHeight}px"
+                style="--ui-gallery-band: {galleryExtent}px"
             >
                 <ThumbnailGallery {canvases} />
             </div>
@@ -1584,7 +1572,7 @@
             {#if galleryDocked && internalViewerState.dockSide === 'right'}
                 <div
                     class="gallery-host"
-                    style="--ui-gallery-rail: {galleryRailWidth}px"
+                    style="--ui-gallery-rail: {galleryExtent}px"
                     transition:slideWidth|global
                 >
                     <ThumbnailGallery {canvases} />
@@ -1667,9 +1655,8 @@
         isolation: isolate;
         pointer-events: auto;
     }
-    /* Only the docked gallery rail uses this host, and its width is
-       `getGalleryRailWidth` (published as `--ui-gallery-rail`) plus the gallery's
-       own themeable border. */
+    /* Only the docked gallery rail uses this host, and its width is `gallery.size`
+       (published as `--ui-gallery-rail`) plus the gallery's own themeable border. */
     .gallery-host {
         width: calc(var(--ui-gallery-rail) + var(--tri-border));
         height: 100%;
@@ -1687,8 +1674,8 @@
         flex-direction: column;
     }
 
-    /* `getGalleryBandHeight` (published as `--ui-gallery-band`) plus the gallery's
-       own themeable border — see `.gallery-host` above. */
+    /* `gallery.size` (published as `--ui-gallery-band`) plus the gallery's own
+       themeable border — see `.gallery-host` above. */
     .gallery-band {
         flex: none;
         height: calc(var(--ui-gallery-band) + var(--tri-border));

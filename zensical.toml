@@ -29,6 +29,15 @@ site_author = "David Flood"
 # Read more: https://zensical.org/docs/setup/basics/#site_url
 site_url = "https://d-flood.github.io/triiiceratops/"
 
+# The live demo, linked from the header (overrides/partials/header.html) and
+# from the home page. Absolute, not relative: the demo is published once at a
+# stable unversioned path (see docs-publish.mjs) while these pages are served
+# out of a per-version subdirectory, so a relative link would resolve inside
+# /<version>/ and 404. Declared as a dotted key in [project] rather than under
+# a [project.extra] header because scripts/docs-build.mjs injects the version
+# keys the same way, and a table can't be defined both ways.
+extra.demo_url = "https://d-flood.github.io/triiiceratops/viewer/"
+
 # The copyright notice appears in the page footer and can contain an HTML
 # fragment.
 #

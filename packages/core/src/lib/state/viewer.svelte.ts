@@ -350,8 +350,15 @@ export class ViewerState {
         return this.config.preserveCanvasScale ?? false;
     }
 
-    get galleryFixedHeight() {
-        return this.config.gallery?.fixedHeight ?? 115;
+    /**
+     * `gallery.size` — the docked band's height or the docked rail's width, and the
+     * knob every thumbnail dimension is derived from. See `galleryGeometry`.
+     *
+     * Not named `gallerySize`: that is already the floating window's width and
+     * height, which is a different thing entirely.
+     */
+    get galleryExtent() {
+        return this.config.gallery?.size ?? 100;
     }
 
     // Dedicated reactive state for viewingMode to ensure proper reactivity

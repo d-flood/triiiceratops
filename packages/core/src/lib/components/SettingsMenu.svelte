@@ -912,25 +912,30 @@
                                 <label
                                     class="settings-label settings-label--gap2"
                                 >
-                                    <span>{m.settings_thumbnail_height()}</span>
+                                    <span>{m.settings_gallery_size()}</span>
+                                    <!-- The gallery's own thickness: the band's
+                                         height or the rail's width, whichever axis
+                                         its position commits to. A thumbnail's
+                                         chrome is paid for out of this number, so
+                                         the floor leaves room for one — see
+                                         `galleryGeometry`. -->
                                     <Range
                                         size="xs"
                                         color="primary"
                                         style="width:6rem"
-                                        min="50"
-                                        max="300"
-                                        value={config.gallery?.fixedHeight ??
-                                            115}
+                                        min="90"
+                                        max="340"
+                                        value={config.gallery?.size ?? 100}
                                         oninput={(e) => {
                                             if (!config.gallery)
                                                 config.gallery = {};
-                                            config.gallery.fixedHeight =
-                                                parseInt(e.currentTarget.value);
+                                            config.gallery.size = parseInt(
+                                                e.currentTarget.value,
+                                            );
                                         }}
                                     />
                                     <span class="value-readout"
-                                        >{config.gallery?.fixedHeight ??
-                                            115}px</span
+                                        >{config.gallery?.size ?? 100}px</span
                                     >
                                 </label>
                             </li>
