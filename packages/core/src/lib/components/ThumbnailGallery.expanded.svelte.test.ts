@@ -11,10 +11,10 @@ import { mount, unmount, tick } from 'svelte';
 
 import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
 import {
-    getGalleryBandHeight,
-    getGalleryPairFrame,
-    getGalleryRailWidth,
+    getGalleryThumbFrameHeight,
+    getGalleryThumbFrameWidth,
     getGalleryThumbItemHeight,
+    getGalleryThumbItemWidth,
 } from './galleryGeometry';
 
 /**
@@ -254,18 +254,22 @@ describe('expanded thumbnail gallery', () => {
     });
 
     /**
-     * The rail is the one view that must commit to a width before it knows what is
-     * in it: one portrait thumbnail plus the expand tab's gutter. Pinned end-to-end
-     * because the arithmetic lives in `galleryGeometry` while the two consumers are
-     * separate components; the border comes from `--tri-border` in `calc()` rather
-     * than being baked into the number.
+     * `gallery.size` IS the rail's width — the gallery is given the number and its
+     * thumbnails come out of it, rather than the rail guessing a width from a
+     * thumbnail. Pinned end-to-end because the two consumers are separate
+     * components; the border comes from `--tri-border` in `calc()` rather than being
+     * baked into the number.
      */
-    it('sizes the docked rail to one portrait thumbnail', async () => {
-        await mountViewer({ dockPosition: 'left', fixedHeight: 120 });
+    it('sizes the docked rail to gallery.size', async () => {
+        await mountViewer({ dockPosition: 'left', size: 120 });
 
         const host = target.querySelector('.gallery-host') as HTMLElement;
-        expect(host.style.getPropertyValue('--ui-gallery-rail')).toBe(
-            `${getGalleryRailWidth(120)}px`,
+        expect(host.style.getPropertyValue('--ui-gallery-rail')).toBe('120px');
+
+        // ...and the thumbnail is what fits inside it.
+        const root = target.querySelector('.gallery-root') as HTMLElement;
+        expect(root.style.getPropertyValue('--ui-thumb-item-w').trim()).toBe(
+            `${getGalleryThumbItemWidth(120)}px`,
         );
     });
 
@@ -293,29 +297,31 @@ describe('expanded thumbnail gallery', () => {
         );
         expect(tab).toBeGreaterThanOrEqual(24);
 
-        // ...but the band is sized to the row alone, with no room set aside for it.
-        const slack =
-            getGalleryBandHeight(115) - getGalleryThumbItemHeight(115) - 8;
+        // ...but the band's height goes to the row alone, with no room set aside
+        // for the tab: the track's padding and a pixel or two of slack is all that
+        // separates the row from the band's edges.
+        const slack = 100 - getGalleryThumbItemHeight(100) - 8;
         expect(slack).toBeLessThan(tab);
     });
 
     /**
-     * The rail is one page wide, so a paged pair cannot show both pages there at
-     * full height — and the frame clips rather than scales, which cropped each page
-     * to roughly half of itself. The pair shrinks instead: same two sizing
-     * properties every thumbnail uses, re-declared on the pair's frame.
+     * A paged pair in the rail needs no sizing path of its own. The rail constrains
+     * WIDTH, so a pair is two half-width panes inside the one width every thumbnail
+     * there gets: both pages come out whole and shorter than a single page, instead
+     * of being cropped in half to fit a frame committed to a full-height page.
      *
-     * Asserted through the wiring (the pair's frame carries the marker class, and
-     * the root publishes the shrunken size) because happy-dom has no layout to
-     * measure; `galleryGeometry.test.ts` pins that the size actually fits the rail.
+     * Asserted through the wiring — the pair's frame carries two panes inside the
+     * same committed width, and the root publishes no pair-specific size — because
+     * happy-dom has no layout to measure.
      */
-    it('shrinks a paged pair to fit the docked rail', async () => {
+    it("splits the rail's committed width between a paged pair's two panes", async () => {
         const props = await mountViewer({ dockPosition: 'right' });
         props.viewerState.viewingMode = 'paged';
         await settle();
 
         const root = target.querySelector('.gallery-root') as HTMLElement;
         expect(root.classList.contains('dock-vertical')).toBe(true);
+        expect(root.classList.contains('constrain-width')).toBe(true);
 
         // Three canvases pair as [1+2], [3] — so both shapes are on screen, and
         // only the pair is marked.
@@ -325,17 +331,11 @@ describe('expanded thumbnail gallery', () => {
         expect(frames).toHaveLength(2);
         expect(paged[0].querySelectorAll('.thumb-pane')).toHaveLength(2);
 
-        const pair = getGalleryPairFrame(115);
-        expect(root.style.getPropertyValue('--ui-thumb-pair-h').trim()).toBe(
-            `${pair.frameHeight}px`,
+        // One committed width, whatever is in the frame — the pair divides it.
+        expect(root.style.getPropertyValue('--ui-thumb-item-w').trim()).toBe(
+            `${getGalleryThumbItemWidth(100)}px`,
         );
-        expect(
-            root.style.getPropertyValue('--ui-thumb-pair-floor').trim(),
-        ).toBe(`${pair.paneWidth}px`);
-        // A single page in the same rail is unaffected — only the pair shrinks.
-        expect(root.style.getPropertyValue('--ui-thumb-h').trim()).toBe(
-            '115px',
-        );
+        expect(getGalleryThumbFrameWidth(100)).toBe(84);
     });
 
     /**
@@ -352,7 +352,7 @@ describe('expanded thumbnail gallery', () => {
             [...target.querySelectorAll('.thumb-item')].map(
                 (item) => (item as HTMLElement).style.height,
             );
-        const expected = `${getGalleryThumbItemHeight(115)}px`;
+        const expected = `${getGalleryThumbItemHeight(100)}px`;
 
         expect(rowHeights().length).toBeGreaterThan(0);
         expect(new Set(rowHeights())).toEqual(new Set([expected]));
@@ -480,22 +480,62 @@ describe('expanded thumbnail gallery', () => {
     });
 
     /**
-     * `fixedHeight` is a thumbnail HEIGHT, and it is the only knob that changes a
-     * thumbnail's size — in the expanded view exactly as in the strip. Widths follow
-     * from the images, so the expanded thumbnail's HEIGHT is what pins the two views
-     * together.
+     * `gallery.size` is the only knob that changes a thumbnail's size, in the
+     * expanded view exactly as in the strip. Expanded out of a bottom dock, the
+     * constrained axis is still the HEIGHT, and widths follow from the images — so
+     * the frame height is what pins the two views together.
      */
-    it('sizes the expanded thumbnail from gallery.fixedHeight', async () => {
+    it('sizes the expanded thumbnail from gallery.size', async () => {
         await mountViewer({
             dockPosition: 'bottom',
             expanded: true,
-            fixedHeight: 120,
+            size: 120,
         });
 
+        const root = target.querySelector('.gallery-root') as HTMLElement;
+        expect(root.classList.contains('constrain-width')).toBe(false);
+
         const frame = target.querySelector('.thumb-frame') as HTMLElement;
-        expect(getComputedStyle(frame).height).toBe('120px');
-        // The same height a strip row is built around.
-        expect(getGalleryThumbItemHeight(120)).toBe(148);
+        expect(getComputedStyle(frame).height).toBe(
+            `${getGalleryThumbFrameHeight(120)}px`,
+        );
+        // The same row the collapsed strip is built around.
+        expect(getGalleryThumbItemHeight(120)).toBe(110);
+    });
+
+    /**
+     * The point of taking the constrained axis from the dock side rather than from
+     * the layout: expanded out of a side rail, a thumbnail keeps the rail's WIDTH,
+     * so it is exactly the size the rail showed it at. Constraining height here
+     * instead would render the same canvas at two different sizes — and a landscape
+     * page, which cannot be full height and fit a rail's width at once, at wildly
+     * different ones.
+     */
+    it("keeps a side dock's width constraint when expanded", async () => {
+        const props = await mountViewer({ dockPosition: 'left', size: 120 });
+
+        const collapsed = target.querySelector('.gallery-root') as HTMLElement;
+        expect(collapsed.classList.contains('constrain-width')).toBe(true);
+        const committed = collapsed.style
+            .getPropertyValue('--ui-thumb-item-w')
+            .trim();
+        expect(committed).toBe(`${getGalleryThumbItemWidth(120)}px`);
+
+        props.viewerState?.setGalleryExpanded(true);
+        await settle();
+
+        const root = target.querySelector('.gallery-root') as HTMLElement;
+        expect(root.classList.contains('expanded')).toBe(true);
+        // Same constraint, same width — the overlay is wider, the thumbnail is not.
+        expect(root.classList.contains('constrain-width')).toBe(true);
+        expect(root.style.getPropertyValue('--ui-thumb-item-w').trim()).toBe(
+            committed,
+        );
+
+        const item = target.querySelector('.thumb-item') as HTMLElement;
+        expect(getComputedStyle(item).width).toBe(
+            `${getGalleryThumbItemWidth(120)}px`,
+        );
     });
 
     it('keeps the caret on the same edge across expand, flipping only the glyph', async () => {

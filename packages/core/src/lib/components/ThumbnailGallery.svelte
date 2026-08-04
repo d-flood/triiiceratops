@@ -10,9 +10,9 @@
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
     import {
         GALLERY_THUMB_VARS,
-        getGalleryPairFrame,
-        getGalleryThumbFloorWidth,
+        getGalleryThumbFrameHeight,
         getGalleryThumbItemHeight,
+        getGalleryThumbItemWidth,
     } from './galleryGeometry';
 
     // Minimal canvas/annotation types covering methods used here
@@ -359,31 +359,38 @@
                 (dockSide === 'none' && viewerState.gallerySize.height < 320)),
     );
 
-    let fixedHeight = $derived(viewerState.galleryFixedHeight);
+    let galleryExtent = $derived(viewerState.galleryExtent);
+
+    /**
+     * Which axis a thumbnail is fixed on — the one the gallery's position commits
+     * to. A side dock commits to a width; everything else commits to a height.
+     *
+     * Read from `dockSide` rather than from `isHorizontal`, so it holds while
+     * EXPANDED too: an overlay expanded out of a rail keeps the rail's width
+     * constraint and so shows a thumbnail at exactly the size the rail did. This
+     * is the one sizing decision the expanded view does not take from its own
+     * layout. See `galleryGeometry`.
+     */
+    let constrainWidth = $derived(dockSide === 'left' || dockSide === 'right');
 
     /**
      * Height of every thumbnail button in the strip. Set explicitly rather than
-     * left intrinsic so the row is literally the number the docked band was
-     * sized from (see `getGalleryBandHeight`) — the two are computed in separate
-     * components and only line up if the strip states the one it was promised.
+     * left intrinsic so the row is literally the number the docked band was sized
+     * from — the two are computed in separate components and only line up if the
+     * strip states the one it was promised.
      */
-    let thumbItemHeight = $derived(getGalleryThumbItemHeight(fixedHeight));
+    let thumbItemHeight = $derived(getGalleryThumbItemHeight(galleryExtent));
+
+    /** Frame height when the constrained axis is the height. */
+    let thumbFrameHeight = $derived(getGalleryThumbFrameHeight(galleryExtent));
 
     /**
-     * Width a frame falls back to when there is nothing to measure. Published to
-     * the CSS below rather than restated there, because the docked rail commits to
-     * its width from this same number (see `getGalleryRailWidth`).
+     * Width of every thumbnail button in a vertical track. Stated outright rather
+     * than left to fill its track, because the expanded overlay's track is far
+     * wider than the rail's and a thumbnail has to be the same size in both.
      */
-    let thumbFloorWidth = $derived(getGalleryThumbFloorWidth(fixedHeight));
+    let thumbItemWidth = $derived(getGalleryThumbItemWidth(galleryExtent));
 
-    /**
-     * The size a paged PAIR falls back to, for the one view too narrow to show two
-     * pages at `fixedHeight`: the docked side rail. Published to the CSS below, which
-     * applies it by re-declaring `--ui-thumb-h` / `--ui-thumb-floor` on a pair's frame
-     * — so the pair shrinks through the same two properties every other thumbnail is
-     * sized by, rather than through a second sizing path of its own.
-     */
-    let pairFrame = $derived(getGalleryPairFrame(fixedHeight));
     let isRTL = $derived(viewerState.viewingDirection === 'right-to-left');
 
     // The glyph points the way the gallery will travel: away from its dock edge
@@ -607,12 +614,12 @@
             caretEdge === 'left' && 'caret-left',
             caretEdge === 'right' && 'caret-right',
             viewerState.isGalleryDragging && 'dragging',
+            // Which axis a thumbnail is fixed on. Not tied to `dock-vertical`,
+            // because it has to survive expanding: see `constrainWidth`.
+            constrainWidth && 'constrain-width',
         ]}
-        style="{GALLERY_THUMB_VARS}; --ui-thumb-h: {fixedHeight}px;
-        --ui-thumb-floor: {thumbFloorWidth}px;
-        --ui-thumb-pair-h: {pairFrame.frameHeight}px;
-        --ui-thumb-pair-floor: {pairFrame.paneWidth}px; {expanded ||
-        dockSide !== 'none'
+        style="{GALLERY_THUMB_VARS}; --ui-thumb-h: {thumbFrameHeight}px;
+        --ui-thumb-item-w: {thumbItemWidth}px; {expanded || dockSide !== 'none'
             ? ''
             : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}"
     >
@@ -1155,8 +1162,8 @@
        thumbnail, so a 24px gutter there both fattened the band and pushed its
        thumbnails off-centre — the tab overlays the middle thumbnail instead
        (`z-index: 60` on `.toggle-anchor` puts it above the track), which leaves
-       equal padding on either side of the row. `getGalleryBandHeight` /
-       `getGalleryRailWidth` budget to match.
+       equal padding on either side of the row. `gallery.size` is spent entirely on
+       the track and the thumbnail, with nothing set aside for the tab.
 
        `--ui-caret-tab` comes from `galleryGeometry` — the value is never restated
        here. */
@@ -1278,9 +1285,9 @@
         overflow-y: auto;
         overflow-x: hidden;
     }
-    /* The rail is exactly one cell wide (`getGalleryRailWidth`), so on the
-       platforms that give a scrollbar real width it comes out of the thumbnail.
-       Ask for the thin one to keep that as small as possible. */
+    /* The rail is exactly one thumbnail wide, so on the platforms that give a
+       scrollbar real width it comes out of the thumbnail. Ask for the thin one to
+       keep that as small as possible. */
     .dock-vertical .gallery-content {
         scrollbar-width: thin;
     }
@@ -1305,6 +1312,11 @@
         gap: var(--ui-gallery-gap, 0.5rem);
         justify-content: center;
         align-content: flex-start;
+        /* Each item keeps its own height rather than being stretched to the
+           tallest in its row. Width-constrained, a row mixes a portrait page with
+           a landscape one, and stretching leaves the short one's label stranded at
+           the bottom of a box of empty space instead of under its image. */
+        align-items: flex-start;
     }
 
     /* ===== Thumbnail item (button) =====
@@ -1330,13 +1342,13 @@
     .thumb-item:hover {
         background-color: var(--tri-surface-border);
     }
-    /* The rail is one thumbnail wide, so a thumbnail wider than the width it
-       committed to has to be clamped rather than allowed to overflow: the track
-       centres its items, so an over-wide one spills equally out of BOTH sides and
-       past the rail's edges. Clamped, it crops instead — which is the concession
-       the rail's width already documents. */
-    .track-vertical .thumb-item {
-        max-width: 100%;
+    /* Width-constrained: every thumbnail button is exactly the width its gallery
+       committed to (`getGalleryThumbItemWidth`). Stated in pixels rather than as
+       `100%` because the expanded overlay's track is far wider than the rail's, and
+       a percentage would let a thumbnail there grow past the size the rail shows the
+       same canvas at. */
+    .constrain-width .thumb-item {
+        width: var(--ui-thumb-item-w);
     }
     .thumb-item.selected {
         background-color: color-mix(
@@ -1347,14 +1359,14 @@
     }
 
     /* ===== Thumbnail frame (image container) =====
-       `fixedHeight` tall (set inline, since it is a config value) and as wide as
-       the image itself at that height — so a canvas renders at its own shape,
-       identically in every view, instead of being letterboxed into a slot.
+       Fixed on the axis the gallery committed to and free on the other, so a canvas
+       renders at its own shape rather than being letterboxed into a slot: the frame
+       is `--ui-thumb-h` tall and as wide as the image is at that height, or as wide
+       as `--ui-thumb-item-w` leaves it and as tall as the image is at that width.
+       Both come from `galleryGeometry`; which one applies is `.constrain-width`.
 
-       `max-width` is the one concession to the grid: an image wider than the cell
-       reserves room for keeps its height and centre-crops, which at least holds
-       the height the strip shows it at. The frame's own width is just the sum of
-       its panes. */
+       Nothing here crops. `overflow: hidden` is for the label overlay riding up over
+       the frame's bottom edge and for the border radius, not for the image. */
     .thumb-frame {
         height: var(--ui-thumb-h);
         background-color: var(--tri-surface-border);
@@ -1367,29 +1379,17 @@
         justify-content: center;
         gap: var(--ui-thumb-pane-gap);
         width: auto;
-        max-width: 100%;
     }
     .thumb-frame.frame-rtl {
         flex-direction: row-reverse;
     }
-
-    /* A paged pair in the docked RAIL is the one case where two pages will not fit
-       the width the view committed to, and `max-width` above clips rather than
-       scales — so each page came out cropped to about half of itself and neither
-       was readable.
-
-       Shrink the pair instead, by re-declaring the two properties every thumbnail
-       is already sized by: the frame's height and the image's width floor. Both
-       pages then render whole at a smaller size, which is a trade the rail can
-       make and the crop was not. `getGalleryPairFrame` derives the pair from the
-       rail's own width, so it fits by construction rather than by measurement.
-
-       Only the rail: every other view lays the track out wide enough for a pair at
-       full height, and shrinking there would make a paged manifest's thumbnails
-       gratuitously smaller than a single-page one's. */
-    .gallery-root.dock-vertical .thumb-frame.frame-paged {
-        --ui-thumb-h: var(--ui-thumb-pair-h);
-        --ui-thumb-floor: var(--ui-thumb-pair-floor);
+    /* The button already carries the committed width, so the frame just fills it and
+       lets its height follow the image. A paged pair needs no special case: its two
+       panes split that width between them and the pair comes out shorter than a
+       single page rather than cropped in half. */
+    .constrain-width .thumb-frame {
+        width: 100%;
+        height: auto;
     }
 
     /* ===== Pane (single image slot inside a frame) ===== */
@@ -1401,29 +1401,42 @@
         height: 100%;
         width: auto;
     }
+    /* `flex: 1` rather than a computed half-width: one pane takes the frame, two
+       panes split it, and the gap between them is subtracted by flex itself.
+       `min-width: 0` because a flex item will not shrink below its content
+       otherwise, and the content here is an image that wants its natural width. */
+    .constrain-width .thumb-pane {
+        flex: 1 1 0;
+        min-width: 0;
+        height: auto;
+    }
 
     /* ===== Thumbnail image =====
-       `fixedHeight` tall and as wide as the image is at that height.
+       Fills the frame on the constrained axis and takes its natural size on the
+       other. `object-fit: contain` never has anything to do once loaded — the box it
+       is given already has the image's own ratio — but it keeps a mid-load or
+       mis-sized image whole instead of stretched.
 
-       `min-width` is a floor for the case where there is nothing to measure yet,
-       and it is load-bearing rather than cosmetic: a lazy image with no intrinsic
-       size has an auto width of ZERO, a zero-area box never intersects the
-       viewport, and so Chrome never loads it — leaving it permanently sizeless. The
-       floor breaks that deadlock, and incidentally keeps a grid of loading
-       thumbnails at its final size instead of popping open row by row.
-
-       `--ui-thumb-floor` is a portrait 3:4 of the thumbnail height, from
-       `galleryGeometry` — the same number the docked rail commits its width to. An
-       image narrower than that letterboxes into it; that is the one shape these
-       views do not render exactly, and the alternative is not rendering it at all. */
+       `aspect-ratio: auto <floor>` is the fallback shape for an image with nothing
+       to measure yet, and it is load-bearing rather than cosmetic: with one axis
+       `auto` and no natural ratio, that axis computes to ZERO, a zero-area box never
+       intersects the viewport, and so Chrome never loads a lazy image — leaving it
+       permanently sizeless. The fallback breaks that deadlock on whichever axis is
+       the free one, and incidentally keeps a track of loading thumbnails at roughly
+       its final shape instead of popping open row by row. `auto` first means a loaded
+       image's own ratio wins, so this shapes nothing that has a shape of its own. */
     .thumb-img,
     .thumb-placeholder {
-        min-width: var(--ui-thumb-floor);
+        aspect-ratio: auto var(--ui-thumb-floor-aspect);
     }
     .thumb-img {
         object-fit: contain;
         height: 100%;
         width: auto;
+    }
+    .constrain-width .thumb-img {
+        width: 100%;
+        height: auto;
     }
 
     .thumb-placeholder {
@@ -1431,12 +1444,18 @@
         text-align: center;
         font-size: 2.25rem;
         line-height: 2.5rem;
+        height: 100%;
+        width: auto;
+    }
+    .constrain-width .thumb-placeholder {
+        width: 100%;
+        height: auto;
     }
 
     /* ===== Thumbnail label =====
        The row reserves exactly ONE line's height in every view and viewing mode —
-       that uniformity is what lets the docked band be sized to a single row
-       (`getGalleryBandHeight`), whatever the viewing mode.
+       that uniformity is what lets the docked band hold a single row whatever the
+       viewing mode, since `gallery.size` fixes the band's height up front.
 
        The lines themselves are stacked upward from that row's bottom edge, so a
        paged pair's second canvas gets a line without asking for more room: it

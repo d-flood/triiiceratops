@@ -99,3 +99,45 @@ body[data-md-color-scheme] {
 .md-search__input {
     border-radius: var(--tri-radius-buttons);
 }
+
+/* Live-demo link in the header (overrides/partials/header.html). It rides in the
+   row of icon buttons, so the theme covers color and spacing; these rules only
+   turn the icon-sized box into an icon+label one. The `.md-header__button`
+   qualifier is load-bearing: the theme's own `display`/`opacity` rules are
+   two-class selectors, so a bare `.tri-header-demo` would lose to them. */
+.md-header__button.tri-header-demo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--tri-radius-buttons);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* The inlined lucide icon carries its own fill/stroke attributes but no
+   intrinsic size — without this it lays out at the SVG default 300x150. */
+.md-header__button.tri-header-demo svg {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.md-header__button.tri-header-demo:hover,
+.md-header__button.tri-header-demo:focus-visible {
+    background-color: var(--md-accent-fg-color--transparent);
+    opacity: 1;
+}
+
+/* Phone widths run out of header room once the hamburger, title and search
+   button are in — keep the icon, drop the word. */
+@media screen and (max-width: 44.9375em) {
+    .md-header__button.tri-header-demo {
+        padding: 0.4rem;
+    }
+
+    .tri-header-demo__label {
+        display: none;
+    }
+}

@@ -9,10 +9,13 @@ documentation version is being viewed and links to the other published versions.
 `docs_version` / `docs_full_version` / `docs_versions_url` are injected into
 `[project.extra]` at build time from the core package.json version by
 scripts/docs-build.mjs — they are never hand-maintained. On an unversioned
-developer build the keys are absent and this banner renders nothing. #} {% block
-announce %} {% if config.extra.docs_version %} You are viewing the documentation
-for
-<strong>Triiiceratops&nbsp;v{{ config.extra.docs_version }}</strong>. {% if
+developer build the keys are absent and this banner renders nothing. The `{%-
+-%}` trims are load-bearing: base.html decides whether to draw the banner at all
+with `{% if self.announce() %}`, and whitespace is truthy in Jinja. Without the
+trims an unversioned build renders an empty banner bar (a blank stripe with a
+dismiss button and no text). #} {% block announce %}{%- if
+config.extra.docs_version -%} You are viewing the documentation for
+<strong>Triiiceratops&nbsp;v{{ config.extra.docs_version }}</strong>.{% if
 config.extra.docs_versions_url %}
-<a href="{{ config.extra.docs_versions_url }}">View other versions</a>. {% endif
-%} {% endif %} {% endblock %}
+<a href="{{ config.extra.docs_versions_url }}">View other versions</a>.{% endif
+%}{%- endif -%}{% endblock %}
