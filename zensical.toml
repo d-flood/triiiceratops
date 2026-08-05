@@ -38,6 +38,56 @@ site_url = "https://d-flood.github.io/triiiceratops/"
 # keys the same way, and a table can't be defined both ways.
 extra.demo_url = "https://d-flood.github.io/triiiceratops/viewer/"
 
+# ----------------------------------------------------------------------------
+# Social preview cards (Open Graph / X / Facebook / LinkedIn / Slack / Discord).
+#
+# Consumed by overrides/partials/social-meta.html, which emits the tag set for
+# every page Zensical renders. Read that file first — it explains why the values
+# have to look like this. The two rules that matter here:
+#
+#   * ABSOLUTE URLs. A relative og:image is the usual cause of a blank card.
+#   * UNVERSIONED image path. `site_url` gains a /<version>/ suffix on a
+#     versioned build (docs-build.mjs), but the card image must not: scrapers
+#     cache preview images by URL for days-to-weeks, so every release should
+#     resolve to the same cached file. scripts/docs-publish.mjs copies
+#     docs/media/social/*.png to <publish root>/social/ to give it that stable
+#     home.
+#
+# The `-v1` in the filename is a cache-busting handle, not decoration. Facebook
+# and LinkedIn offer no reliable way to purge a cached preview image, so changing
+# a card means publishing it under a NEW name. To swap a card: re-render it with
+# `node scripts/social-cards.mjs`, rename to -v2, and update every reference
+# listed in scripts/social-cards.README.md.
+# ----------------------------------------------------------------------------
+extra.og_image = "https://d-flood.github.io/triiiceratops/social/og-docs-v1.png"
+extra.og_image_alt = "Triiiceratops: an IIIF viewer with first-class React, Vue and Svelte components, plus a web component for Django, WordPress or plain HTML."
+extra.og_image_width = "1200"
+extra.og_image_height = "630"
+
+# Author attribution. `twitter_handle` renders the byline on an X card;
+# `fediverse_creator` does the same on Mastodon 4.3+; `facebook_profile` fills
+# `article:author`. The rest have no social-card tag of their own and are emitted
+# as schema.org `sameAs` on the home page instead.
+extra.twitter_handle = "@FloodDavid"
+extra.fediverse_creator = "@davidflood@fosstodon.org"
+extra.facebook_profile = "https://www.facebook.com/DavidFloodII/"
+extra.author_url = "https://davidaflood.com"
+extra.author_same_as = [
+    "https://github.com/d-flood",
+    "https://davidaflood.com",
+    "https://x.com/FloodDavid",
+    "https://www.linkedin.com/in/d-flood/",
+    "https://bsky.app/profile/davidaflood.com",
+    "https://fosstodon.org/@davidflood",
+    "https://www.facebook.com/DavidFloodII/",
+]
+
+# Discord tints an embed's left border with this; mobile browsers use it for
+# their own chrome. The brand amber (--tri-primary in
+# docs/stylesheets/triiiceratops.css) as sRGB, since a meta tag cannot carry
+# oklch() and cannot follow the reader's light/dark choice either.
+extra.theme_color = "#e9ab2b"
+
 # The copyright notice appears in the page footer and can contain an HTML
 # fragment.
 #

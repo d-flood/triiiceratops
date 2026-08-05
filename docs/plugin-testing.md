@@ -1,5 +1,6 @@
 ---
 icon: lucide/flask-conical
+description: "Validate a plugin without a full application using @triiiceratops/plugin-sdk/testing and its real test viewer context."
 ---
 
 # Testing a plugin

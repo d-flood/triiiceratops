@@ -1,5 +1,6 @@
 ---
 icon: lucide/sliders-horizontal
+description: "Brightness, contrast, saturation, invert and grayscale controls for the displayed IIIF image, as a compact flyout over the canvas."
 ---
 
 # Image Manipulation

@@ -1,0 +1,145 @@
+{#-
+  Social-preview metadata (Open Graph + X/Twitter cards), included from the
+  `extrahead` block in overrides/main.html.
+
+  Zensical has no social/Open Graph plugin — nothing in the theme emits these
+  tags — so the whole set is hand-rolled here. Everything below is plain static
+  HTML on purpose: every scraper that matters (Facebook, X, LinkedIn, Slack,
+  Discord, iMessage, Bluesky, Mastodon, WhatsApp) fetches the document and reads
+  the markup WITHOUT running JavaScript, so a tag injected at runtime is a tag no
+  crawler will ever see.
+
+  Two rules govern the values:
+
+  1. Absolute URLs only. A relative `og:image` or `og:url` is the single most
+     common reason a card renders blank. `page.canonical_url` is already absolute
+     (Zensical builds it from `site_url`, which docs-build.mjs suffixes with the
+     version directory on a versioned build). The image URLs come from
+     `extra.og_image*` in zensical.toml and are absolute there.
+
+  2. The image lives at an UNVERSIONED, root-level path, not inside
+     /<version>/media/. Scrapers cache preview images by URL for days-to-weeks,
+     so every version of the docs should resolve to the same cached image rather
+     than one copy per release. scripts/docs-publish.mjs copies the files to
+     <publish root>/social/ for exactly this reason.
+
+  Pages can override any of it from front matter: `description`, `og_image`,
+  `og_image_alt`, `title`.
+
+  Sibling coverage — pages that are NOT rendered by this template and therefore
+  carry their own hand-written copy of these tags:
+    - packages/core/src/demo/index.html  -> the /viewer/ live demo
+    - scripts/docs-publish.mjs           -> the root, /latest/ and /versions/ pages
+  Change the card image or the copy here, and change it there too.
+-#}
+{#- Fall back to the site root: the 404 page has no canonical URL. -#}
+{% set og_url = page.canonical_url if page and page.canonical_url else config.site_url %}
+{#- NOT `page.is_homepage`. Zensical 0.0.52 leaves that attribute unpopulated on
+    every page, home page included — which is also why base.html's own
+    `htmltitle` block renders the home page as "<site_name> - <site_name>" (see
+    the htmltitle override in overrides/main.html). Comparing the canonical URL
+    to the site root is equivalent and actually works. Both are absolute and both
+    are built from `site_url`, so this stays correct on a versioned build, where
+    the root is /<version>/. -#}
+{% set is_home = og_url == config.site_url %}
+{#- A stricter test, for the site-graph JSON-LD below. `is_home` is true on the
+    404 page too, because that page has no canonical URL and so falls back to the
+    site root — which is what we want for its CARD (a dead link previews as the
+    site rather than as nothing), but not for structured data: emitting the
+    WebSite graph from two URLs would have search engines see it twice. -#}
+{% set is_canonical_home = page and page.canonical_url and page.canonical_url == config.site_url %}
+{#- The site name is carried by `og:site_name`, so the title stays the page's own
+    name rather than repeating "- Triiiceratops IIIF Viewer" inside the card. -#}
+{% if page and page.meta and page.meta.title %}
+  {% set og_title = page.meta.title %}
+{% elif page and page.title and not is_home %}
+  {% set og_title = page.title | striptags %}
+{% else %}
+  {% set og_title = config.site_name %}
+{% endif %}
+{% if page and page.meta and page.meta.description %}
+  {% set og_description = page.meta.description %}
+{% else %}
+  {% set og_description = config.site_description %}
+{% endif %}
+{% if page and page.meta and page.meta.og_image %}
+  {% set og_image = page.meta.og_image %}
+  {% set og_image_alt = page.meta.og_image_alt | d(config.extra.og_image_alt, true) %}
+{% else %}
+  {% set og_image = config.extra.og_image %}
+  {% set og_image_alt = config.extra.og_image_alt %}
+{% endif %}
+
+<!-- Open Graph: Facebook, LinkedIn, Slack, Discord, iMessage, Bluesky, WhatsApp -->
+<meta property="og:type" content="{{ 'website' if is_home else 'article' }}">
+<meta property="og:site_name" content="{{ config.site_name }}">
+<meta property="og:locale" content="{{ config.extra.og_locale | d('en_US', true) }}">
+<meta property="og:title" content="{{ og_title }}">
+<meta property="og:description" content="{{ og_description }}">
+<meta property="og:url" content="{{ og_url }}">
+{%- if og_image %}
+<meta property="og:image" content="{{ og_image }}">
+<meta property="og:image:secure_url" content="{{ og_image }}">
+<meta property="og:image:type" content="image/png">
+{#- Declaring the dimensions lets Facebook and LinkedIn lay out the large-image
+    card on the FIRST scrape, before they have downloaded the file. Without them
+    the first share of a URL often renders as a small thumbnail. -#}
+<meta property="og:image:width" content="{{ config.extra.og_image_width | d('1200', true) }}">
+<meta property="og:image:height" content="{{ config.extra.og_image_height | d('630', true) }}">
+{%- if og_image_alt %}
+<meta property="og:image:alt" content="{{ og_image_alt }}">
+{%- endif %}
+{%- endif %}
+{%- if config.extra.facebook_profile and not is_home %}
+{#- `article:author` is only meaningful for og:type=article, which is what every
+    page except the home page uses. Facebook resolves a profile URL here. -#}
+<meta property="article:author" content="{{ config.extra.facebook_profile }}">
+{%- endif %}
+
+<!-- X (Twitter) cards. X falls back to the og:* tags above, but Slack and a few
+     other scrapers prefer the twitter:* names when both are present. -->
+<meta name="twitter:card" content="summary_large_image">
+{%- if config.extra.twitter_handle %}
+<meta name="twitter:site" content="{{ config.extra.twitter_handle }}">
+<meta name="twitter:creator" content="{{ config.extra.twitter_handle }}">
+{%- endif %}
+<meta name="twitter:title" content="{{ og_title }}">
+<meta name="twitter:description" content="{{ og_description }}">
+{%- if og_image %}
+<meta name="twitter:image" content="{{ og_image }}">
+{%- if og_image_alt %}
+<meta name="twitter:image:alt" content="{{ og_image_alt }}">
+{%- endif %}
+{%- endif %}
+
+{%- if config.extra.fediverse_creator %}
+<!-- Mastodon 4.3+ shows author attribution on a link preview from this tag. -->
+<meta name="fediverse:creator" content="{{ config.extra.fediverse_creator }}">
+{%- endif %}
+
+{#- Discord tints an embed's left border with theme-color; mobile browsers use it
+    for their own chrome. The brand amber, not a palette-dependent value: this is
+    baked into static HTML and cannot follow the reader's light/dark choice. -#}
+<meta name="theme-color" content="{{ config.extra.theme_color | d('#e9ab2b', true) }}">
+
+{#- Author attribution that no og:* tag has a slot for. LinkedIn, Facebook,
+    Bluesky and a personal site are not social-card tags, but `sameAs` is where
+    search engines and rich-result consumers expect to find them. Emitted once,
+    on the home page only, so every docs page is not repeating the site graph. -#}
+{%- if is_canonical_home %}
+<script type="application/ld+json">{{
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": config.site_name,
+    "url": config.site_url,
+    "description": config.site_description,
+    "author": {
+      "@type": "Person",
+      "name": config.site_author,
+      "url": config.extra.author_url,
+      "sameAs": config.extra.author_same_as,
+    },
+  } | tojson
+}}</script>
+{%- endif %}

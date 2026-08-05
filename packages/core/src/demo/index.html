@@ -4,7 +4,91 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="./favicon.ico" />
-        <title>Triiiceratops IIIF Viewer</title>
+        <title>Live demo — Triiiceratops IIIF Viewer</title>
+
+        <!--
+          Social-preview metadata for the /viewer/ live demo.
+
+          This page is NOT rendered by Zensical, so it cannot use
+          overrides/partials/social-meta.html — the tags are hand-written here
+          instead. Keep the two in sync; that partial's header comment lists every
+          page in this situation.
+
+          The URLs are absolute and hard-coded rather than relative, for two
+          reasons. The demo is a Vite build with no templating, and — more
+          importantly — social scrapers do not resolve relative URLs the way a
+          browser does, so a relative og:image is the usual cause of a card that
+          renders blank. This page is published at exactly one stable, unversioned
+          URL (see scripts/docs-publish.mjs), so hard-coding it is safe.
+
+          This page gets its OWN card image, not the docs one: the two links
+          promise different things. /viewer/ says "click and it runs", so the card
+          shows the viewer actually running. See scripts/social-cards.mjs.
+        -->
+        <meta
+            name="description"
+            content="Open any IIIF manifest in the Triiiceratops live demo: panels, image tools, PDF and image export, and annotations."
+        />
+        <link
+            rel="canonical"
+            href="https://d-flood.github.io/triiiceratops/viewer/"
+        />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Triiiceratops IIIF Viewer" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:title" content="Triiiceratops — live demo" />
+        <meta
+            property="og:description"
+            content="Open any IIIF manifest in the browser: panels, image tools, PDF and image export, and annotations."
+        />
+        <meta
+            property="og:url"
+            content="https://d-flood.github.io/triiiceratops/viewer/"
+        />
+        <meta
+            property="og:image"
+            content="https://d-flood.github.io/triiiceratops/social/og-viewer-v1.png"
+        />
+        <meta
+            property="og:image:secure_url"
+            content="https://d-flood.github.io/triiiceratops/social/og-viewer-v1.png"
+        />
+        <meta property="og:image:type" content="image/png" />
+        <!-- Declaring the dimensions lets Facebook and LinkedIn lay out the
+             large-image card on their FIRST scrape, before they have downloaded
+             the file. Without them the first share often renders as a small
+             thumbnail. -->
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta
+            property="og:image:alt"
+            content="The Triiiceratops viewer displaying a Greek New Testament papyrus fragment, with the live demo's URL."
+        />
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@FloodDavid" />
+        <meta name="twitter:creator" content="@FloodDavid" />
+        <meta name="twitter:title" content="Triiiceratops — live demo" />
+        <meta
+            name="twitter:description"
+            content="Open any IIIF manifest in the browser: panels, image tools, PDF and image export, and annotations."
+        />
+        <meta
+            name="twitter:image"
+            content="https://d-flood.github.io/triiiceratops/social/og-viewer-v1.png"
+        />
+        <meta
+            name="twitter:image:alt"
+            content="The Triiiceratops viewer displaying a Greek New Testament papyrus fragment, with the live demo's URL."
+        />
+
+        <!-- Mastodon 4.3+ renders author attribution on a link preview from this. -->
+        <meta name="fediverse:creator" content="@davidflood@fosstodon.org" />
+        <!-- Discord tints an embed's left border with this. Brand amber
+             (--tri-primary) as sRGB. -->
+        <meta name="theme-color" content="#e9ab2b" />
+
         <script type="module" src="./main.ts"></script>
         <script
             defer

@@ -1,5 +1,6 @@
 ---
 icon: lucide/pen-tool
+description: "Add annotation authoring to the read-only viewer: rectangle, polygon and point tools, pluggable persistence, and host extension hooks."
 ---
 
 # Annotation Editor

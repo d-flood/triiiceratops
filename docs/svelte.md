@@ -1,5 +1,6 @@
 ---
 icon: simple/svelte
+description: "Use Triiiceratops in Svelte 5 as a native component \u2014 no custom element and no wrapper layer, source-distributed and driven by runes."
 ---
 
 # Svelte

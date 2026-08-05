@@ -1,5 +1,6 @@
 ---
 icon: lucide/plug-2
+description: "The Triiiceratops plugin system: component-based extensions that render as docked sidebar panels or as flyouts over the canvas."
 ---
 
 # Plugin System

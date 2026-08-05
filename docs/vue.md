@@ -1,5 +1,6 @@
 ---
 icon: simple/vuedotjs
+description: "Use Triiiceratops in Vue 3.5: a typed component that hosts the viewer's custom element and maps its lifecycle, props and events to Vue idioms."
 ---
 
 # Vue

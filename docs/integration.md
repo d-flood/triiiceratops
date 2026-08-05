@@ -1,5 +1,6 @@
 ---
 icon: lucide/code-xml
+description: "Drop the <triiiceratops-viewer> custom element into plain HTML, a Django or WordPress template, or any framework that can render a tag."
 ---
 
 # Any framework (web component)

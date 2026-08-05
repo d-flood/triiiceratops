@@ -72,17 +72,76 @@ function publishedVersions(dest) {
         .sort((a, b) => versionKey(b) - versionKey(a));
 }
 
-function redirectHtml(target, title) {
+// ---------------------------------------------------------------------------
+// Social-preview metadata for the pages generated below.
+//
+// These pages are NOT rendered by Zensical, so they cannot use
+// overrides/partials/social-meta.html — see that file's header, which lists every
+// page that has to carry its own copy.
+//
+// This matters most for the publish ROOT. `https://d-flood.github.io/triiiceratops/`
+// is the URL people actually paste into a post, and it is a redirect stub. Most
+// social scrapers follow HTTP 3xx redirects but NOT `<meta http-equiv="refresh">`
+// — Facebook's crawler in particular — so they scrape THIS document and never see
+// the versioned page it forwards to. Without the tags below, the most-shared URL
+// on the site previews as a bare title and no image.
+// ---------------------------------------------------------------------------
+const SITE_ROOT = 'https://d-flood.github.io/triiiceratops/';
+const SITE_NAME = 'Triiiceratops IIIF Viewer';
+// Absolute, and outside any version directory: scrapers cache preview images by
+// URL for days-to-weeks, so every release resolves to the same cached file. The
+// `-v1` suffix is the only way to invalidate that cache — see
+// scripts/social-cards.README.md before renaming it.
+const OG_IMAGE = `${SITE_ROOT}social/og-docs-v1.png`;
+const OG_IMAGE_ALT =
+    'Triiiceratops: an IIIF viewer with first-class React, Vue and Svelte components, plus a web component for Django, WordPress or plain HTML.';
+const TWITTER_HANDLE = '@FloodDavid';
+const FEDIVERSE_CREATOR = '@davidflood@fosstodon.org';
+const THEME_COLOR = '#e9ab2b';
+
+/** The shared Open Graph / X card block, absolute URLs throughout. */
+function socialMeta({ url, title, description }) {
+    return `    <meta name="description" content="${description}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="${SITE_NAME}" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:image" content="${OG_IMAGE}" />
+    <meta property="og:image:secure_url" content="${OG_IMAGE}" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="${OG_IMAGE_ALT}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="${TWITTER_HANDLE}" />
+    <meta name="twitter:creator" content="${TWITTER_HANDLE}" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:image" content="${OG_IMAGE}" />
+    <meta name="twitter:image:alt" content="${OG_IMAGE_ALT}" />
+    <meta name="fediverse:creator" content="${FEDIVERSE_CREATOR}" />
+    <meta name="theme-color" content="${THEME_COLOR}" />`;
+}
+
+function redirectHtml(target, title, { url, description }) {
     // Standards-compliant client redirect: HTTP-equiv refresh + canonical +
     // a manual link fallback. Kept dependency-free and self-contained.
+    //
+    // `robots: noindex` keeps the stub itself out of search results; `canonical`
+    // is what consolidates ranking onto the versioned page. Social scrapers build
+    // previews regardless of `noindex`, so the card below still renders.
     return `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
     <link rel="canonical" href="${target}" />
     <meta http-equiv="refresh" content="0; url=${target}" />
     <meta name="robots" content="noindex" />
+${socialMeta({ url, title, description })}
     <script>window.location.replace(${JSON.stringify(target)});</script>
   </head>
   <body>
@@ -122,6 +181,13 @@ function writeVersionsIndex(dest, versions, latest) {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Triiiceratops documentation versions</title>
+    <link rel="canonical" href="${SITE_ROOT}versions/" />
+${socialMeta({
+    url: `${SITE_ROOT}versions/`,
+    title: 'Triiiceratops documentation versions',
+    description:
+        'Every published version of the Triiiceratops IIIF viewer documentation.',
+})}
     <style>
       body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; line-height: 1.6; }
       h1 { font-size: 1.5rem; }
@@ -204,16 +270,50 @@ function main() {
     writeVersionsIndex(args.dest, versions, latest);
     writeFileSync(
         join(args.dest, 'index.html'),
-        redirectHtml(`./${latest}/`, 'Triiiceratops documentation'),
+        redirectHtml(`./${latest}/`, SITE_NAME, {
+            url: SITE_ROOT,
+            description:
+                'A modern, lightweight IIIF viewer: first-class React, Vue and Svelte components, a web component for everywhere else, and a versioned plugin SDK.',
+        }),
         'utf8',
     );
     const latestDir = join(args.dest, 'latest');
     mkdirSync(latestDir, { recursive: true });
     writeFileSync(
         join(latestDir, 'index.html'),
-        redirectHtml(`../${latest}/`, 'Triiiceratops documentation (latest)'),
+        redirectHtml(`../${latest}/`, `${SITE_NAME} (latest)`, {
+            url: `${SITE_ROOT}latest/`,
+            description:
+                'The latest Triiiceratops IIIF viewer documentation: React, Vue and Svelte components, the web component, theming, and the plugin SDK.',
+        }),
         'utf8',
     );
+
+    // 5. The social card images, at an unversioned top-level path. They must NOT
+    //    live inside a version directory: scrapers cache preview images by URL for
+    //    days-to-weeks, so a per-release path would mean a fresh cache miss (and a
+    //    briefly imageless card) on every publish. Every page's og:image points
+    //    here — see overrides/partials/social-meta.html.
+    const socialSrc = join(args.site, 'media', 'social');
+    if (existsSync(socialSrc)) {
+        const socialDest = join(args.dest, 'social');
+        rmSync(socialDest, { recursive: true, force: true });
+        cpSync(socialSrc, socialDest, {
+            recursive: true,
+            // Allowlist, not denylist: copy the directory itself and the card
+            // PNGs, nothing else. `src/` holds the raw viewer screenshot the
+            // cards are composed from (build input, not a card), and anything
+            // else that lands in docs/media/social/ later — a stray Markdown
+            // file, say, which Zensical would also render into the site — should
+            // not silently become a public /social/ URL.
+            filter: (src) => src === socialSrc || src.endsWith('.png'),
+        });
+    } else {
+        console.warn(
+            `docs-publish: WARNING no social cards at ${socialSrc} — ` +
+                'shared links will preview without an image',
+        );
+    }
 
     console.log(
         `docs-publish: published v${version} to ${versionDest}\n` +

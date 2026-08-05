@@ -1,5 +1,6 @@
 ---
 icon: simple/react
+description: "Use Triiiceratops in React 19: a typed component that hosts the viewer's custom element and maps its lifecycle, props and events to React idioms."
 ---
 
 # React

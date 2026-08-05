@@ -1,5 +1,6 @@
 ---
 icon: lucide/shield-check
+description: "Triiiceratops under a strict Content Security Policy: no unsafe-eval, no unsafe-inline for scripts, and what your policy does need to allow."
 ---
 
 # Content Security Policy

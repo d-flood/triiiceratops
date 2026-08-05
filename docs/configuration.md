@@ -1,5 +1,6 @@
 ---
 icon: lucide/wrench
+description: "How Triiiceratops configuration and state management work, with the same model across React, Vue, Svelte and plain-HTML hosts."
 ---
 
 # Configuration & State Management

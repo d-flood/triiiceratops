@@ -1,5 +1,6 @@
 ---
 icon: lucide/download
+description: "Download the current IIIF canvas as a raster image, handling canvases painted with more than one image correctly."
 ---
 
 # Image Download

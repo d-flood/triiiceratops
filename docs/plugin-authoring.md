@@ -1,5 +1,6 @@
 ---
 icon: lucide/puzzle
+description: "Write Triiiceratops plugins with @triiiceratops/plugin-sdk: framework-neutral, dependency-light, and mounted into a plain HTMLElement."
 ---
 
 # Authoring a plugin (the SDK)

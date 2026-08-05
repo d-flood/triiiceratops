@@ -1,5 +1,6 @@
 ---
 icon: lucide/file-down
+description: "Export a flat range of IIIF canvases as a browser-generated PDF, one PDF page per selected canvas."
 ---
 
 # PDF Export

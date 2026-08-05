@@ -1,5 +1,6 @@
 ---
 icon: lucide/palette
+description: "Style Triiiceratops with vanilla-CSS design tokens: three approaches, from swapping a built-in theme to overriding individual tokens."
 ---
 
 # Theming and Styling
