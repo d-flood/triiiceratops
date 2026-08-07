@@ -4094,6 +4094,10 @@ export declare function findCanvasById(canvases: any[], canvasId: string | null)
  * a manifest — a Collection, `null`, a string — has none.
  *
  * **Total.** Never throws.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function getSequenceCount(manifest: any): number;
 /**
@@ -4108,6 +4112,10 @@ export declare function getSequenceCount(manifest: any): number;
  * its `Canvas` constructor; a total function cannot.
  *
  * **Total.** Never throws, always returns an array.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function getCanvasesForSequence(manifest: any, index: number): any[];
 /**
@@ -4170,6 +4178,10 @@ export declare function getPaintingAnnotations(canvas: any): any[];
  * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *
  * Returns `null` when the annotation carries neither spelling.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function getPaintingBody(annotation: any): any;
 /**
@@ -4178,6 +4190,10 @@ export declare function getPaintingBody(annotation: any): any;
  *
  * Both spellings are recognized: IIIF v3's `"type": "Choice"` and IIIF v2's
  * `"@type": "oa:Choice"`. The v2 one had no reader at all before this.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function isChoiceBody(body: any): boolean;
 /**
@@ -4194,6 +4210,10 @@ export declare function isChoiceBody(body: any): boolean;
  * path.
  *
  * Returns `[]` for anything that is not a Choice-shaped object.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function getChoiceAlternatives(body: any): any[];
 
@@ -4293,6 +4313,10 @@ export declare function resolveLanguageValue(value: unknown, preferredLocale?: s
  * Resolve a IIIF language-mapped value to all display strings
  * (for multi-value properties like metadata values with multiple entries
  * in a single language).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function resolveAllLanguageValues(value: unknown, preferredLocale?: string): string[];
 

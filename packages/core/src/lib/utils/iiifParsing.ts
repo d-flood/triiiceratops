@@ -16,6 +16,8 @@
  * model this epic removes (SPEC → "The parsing surface").
  */
 
+import { logger } from '../logging/logger';
+
 /**
  * Coerce a field that should be an array into one.
  *
@@ -27,6 +29,53 @@
 function asArray(value: unknown): any[] {
     if (Array.isArray(value)) return value;
     return value === null || value === undefined ? [] : [value];
+}
+
+/**
+ * Canvases already warned about, so the cap below is one warning per manifest
+ * rather than one per canvas. A 3,000-canvas book with a systemic authoring
+ * quirk would otherwise emit 3,000 identical lines and bury the signal it
+ * exists to provide.
+ *
+ * Keyed by canvas identity rather than by manifest because the enumerators are
+ * pure functions over a canvas and never see the manifest. A `WeakSet` lets the
+ * entry go when the canvas JSON does, so this cannot grow without bound across
+ * manifest loads.
+ */
+const warnedCanvases = new WeakSet<object>();
+
+/**
+ * Warn once when a canvas is recognized as a canvas but yields no painting
+ * annotations.
+ *
+ * This is the epic's signature failure mode made audible. When enumeration
+ * returns nothing the viewer renders a blank canvas and logs at debug level, so
+ * the loss looks like the manifest rather than like a bug — which is exactly
+ * how a v2-blind read survived in this codebase for as long as it did.
+ *
+ * Deliberately a developer warning and **not** an observable viewer error: a
+ * degraded render should stay degraded rather than become a surfaced failure
+ * (SPEC → "Failure contract"). A canvas that legitimately paints nothing —
+ * IIIF Cookbook recipe 0283, or an IxIF element whose media hangs off
+ * `rendering` — will trip this, which is why it is a warning and not an error.
+ */
+function warnUnreadableCanvas(canvas: any): void {
+    if (!canvas || typeof canvas !== 'object') return;
+    if (warnedCanvases.has(canvas)) return;
+    warnedCanvases.add(canvas);
+
+    const id = canvas.id ?? canvas['@id'] ?? '(no id)';
+    const spellings = ['images', 'items', 'content'].filter(
+        (key) => canvas[key] !== undefined,
+    );
+
+    logger.warn(
+        `[triiiceratops] Canvas ${id} yielded no painting annotations, so it will render blank. ` +
+            (spellings.length
+                ? `It declares ${spellings.map((s) => `\`${s}\``).join(' and ')}, but nothing readable inside. ` +
+                  `IIIF v2 puts painting annotations in \`images[]\`; v3 puts them in AnnotationPages under \`items[]\`.`
+                : `It declares none of \`images\`, \`items\` or \`content\`.`),
+    );
 }
 
 /**
@@ -114,6 +163,10 @@ function canvasesOfRawSequence(sequence: any): any[] {
  * a manifest — a Collection, `null`, a string — has none.
  *
  * **Total.** Never throws.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function getSequenceCount(manifest: any): number {
     return rawSequences(manifest).length;
@@ -131,6 +184,10 @@ export function getSequenceCount(manifest: any): number {
  * its `Canvas` constructor; a total function cannot.
  *
  * **Total.** Never throws, always returns an array.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function getCanvasesForSequence(manifest: any, index: number): any[] {
     const sequences = rawSequences(manifest);
@@ -200,9 +257,13 @@ export function getPaintingAnnotations(canvas: any): any[] {
     // it, so dropping it would silently regress beta-era manifests.
     const pages = asArray(canvas.items ?? canvas.content);
 
-    return pages.flatMap((page) =>
+    const annotations = pages.flatMap((page) =>
         asArray(page?.items).filter((annotation) => !!annotation),
     );
+
+    if (annotations.length === 0) warnUnreadableCanvas(canvas);
+
+    return annotations;
 }
 
 /**
@@ -217,6 +278,10 @@ export function getPaintingAnnotations(canvas: any): any[] {
  * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *
  * Returns `null` when the annotation carries neither spelling.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function getPaintingBody(annotation: any): any {
     return annotation?.body || annotation?.resource || null;
@@ -228,6 +293,10 @@ export function getPaintingBody(annotation: any): any {
  *
  * Both spellings are recognized: IIIF v3's `"type": "Choice"` and IIIF v2's
  * `"@type": "oa:Choice"`. The v2 one had no reader at all before this.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function isChoiceBody(body: any): boolean {
     if (!body || Array.isArray(body)) return false;
@@ -249,6 +318,10 @@ export function isChoiceBody(body: any): boolean {
  * path.
  *
  * Returns `[]` for anything that is not a Choice-shaped object.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function getChoiceAlternatives(body: any): any[] {
     if (!body) return [];

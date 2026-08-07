@@ -29,7 +29,7 @@ Canvases handed out by viewer state and passed to plugins are **raw IIIF Canvas 
 
 ## Everything else
 
-- **Smaller download and a quieter audit.** Roughly 17.5 KB gzip of Presentation-API parsing leaves the bundle, along with the library's transitive dependency tail.
+- **Smaller download and a quieter audit.** 15.3 KB gzip of Presentation-API parsing leaves the bundle (measured: -15,643 B gzipped, -6.7%, on the IIFE element build), along with the library's transitive dependency tail.
 - **SSR builds get simpler.** `state/manifestoRuntime.ts` and `state/manifestoRuntime.browser.ts` are gone, and so is the separate `state/manifestoRuntime.browser` bundle entry. There is no browser-versus-server module shim left in core.
 - **The metadata panel reads both IIIF versions.** Its title, description, attribution, and rights/license reads reached the library's accessors, which were the only reader of the IIIF v2 spelling for four of them. They now read `label`, `description`, `attribution`, and `license` directly, alongside the v3 `summary`, `requiredStatement`, and `rights`.
 - The PDF-export plugin reads its manifest label from raw JSON. No consumer-visible change.

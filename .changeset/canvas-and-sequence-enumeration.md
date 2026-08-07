@@ -1,5 +1,5 @@
 ---
-'triiiceratops': patch
+'triiiceratops': minor
 ---
 
 fix: enumerate sequences and canvases first-party, and hand out canvases as raw IIIF Canvas JSON.

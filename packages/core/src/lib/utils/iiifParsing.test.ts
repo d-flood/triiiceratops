@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { logger } from '../logging/logger';
 import { syntheticV3SplitAnnotationPages } from '../test/fixtures/syntheticManifests';
 import {
     getCanvasesForSequence,
@@ -615,5 +616,83 @@ describe('getChoiceAlternatives', () => {
     it('returns an empty array for anything that is not a Choice', () => {
         expect(getChoiceAlternatives({ id: 'image' })).toEqual([]);
         expect(getChoiceAlternatives(null)).toEqual([]);
+    });
+});
+
+describe('the unreadable-canvas warning', () => {
+    // SPEC -> "Failure contract": a canvas that is recognized but cannot be
+    // read emits a developer warning rather than failing silently. Without
+    // this, enumeration returning nothing renders a blank canvas and logs at
+    // debug level -- which is how a v2-blind read survived in this codebase
+    // long enough to become a ten-ticket epic.
+
+    let warn: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        warn.mockRestore();
+    });
+
+    it('warns when a canvas declaring items yields nothing', () => {
+        getPaintingAnnotations({
+            id: 'http://example.org/canvas/blank',
+            type: 'Canvas',
+            items: [{ type: 'AnnotationPage', items: [] }],
+        });
+
+        expect(warn).toHaveBeenCalledOnce();
+        const message = String(warn.mock.calls[0][0]);
+        // The id is what makes the warning actionable -- a warning that does
+        // not say WHICH canvas sends the reader back to the manifest.
+        expect(message).toContain('http://example.org/canvas/blank');
+        expect(message).toContain('`items`');
+    });
+
+    it('warns at most once per canvas', () => {
+        // Capped per manifest, not per canvas render. `getPaintingAnnotations`
+        // is called from the tile source path, the thumbnail path and the
+        // choice path, so an uncapped warning fires several times for a single
+        // blank canvas and dozens of times for a long book.
+        const canvas = { id: 'http://example.org/canvas/1', items: [] };
+
+        getPaintingAnnotations(canvas);
+        getPaintingAnnotations(canvas);
+        getPaintingAnnotations(canvas);
+
+        expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it('does not warn for a canvas that enumerates', () => {
+        getPaintingAnnotations({
+            id: 'http://example.org/canvas/1',
+            items: [
+                {
+                    type: 'AnnotationPage',
+                    items: [{ id: 'anno', body: { id: 'image' } }],
+                },
+            ],
+        });
+
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('does not warn for a v2 canvas that enumerates', () => {
+        // The v2 branch returns before the warning is reachable. A regression
+        // that made `images[]` unreadable would both blank the canvas AND
+        // start warning, which is the pairing this asserts.
+        getPaintingAnnotations({
+            '@id': 'http://example.org/v2/canvas/1',
+            images: [{ '@id': 'anno', resource: { '@id': 'image' } }],
+        });
+
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('is total on a canvas that is not an object', () => {
+        expect(() => getPaintingAnnotations('nonsense' as any)).not.toThrow();
+        expect(warn).not.toHaveBeenCalled();
     });
 });
