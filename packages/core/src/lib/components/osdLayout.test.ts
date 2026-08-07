@@ -10,7 +10,9 @@ function source(canvasId: string, width: number, height: number) {
         x: 0,
         y: 0,
         width: 1,
-        tileSource: { width, height },
+        canvasWidth: width,
+        canvasHeight: height,
+        tileSource: `${canvasId}-source`,
     };
 }
 
@@ -27,12 +29,36 @@ describe('getCanvasDisplayLayouts', () => {
 
         expect(result.sources).toEqual([
             {
-                tileSource: { width: 1000, height: 2000 },
+                tileSource: 'a-source',
                 x: 0.2,
                 y: 0.3,
                 width: 0.5,
                 canvasId: 'a',
             },
+        ]);
+    });
+
+    it('lays out from the dimensions passed in, not from the tile source', () => {
+        const result = getCanvasDisplayLayouts(
+            [
+                {
+                    ...source('a', 1000, 1000),
+                    tileSource: { width: 9, height: 1 },
+                },
+                {
+                    ...source('b', 1000, 4000),
+                    tileSource: { width: 9, height: 1 },
+                },
+            ],
+            {
+                mode: 'continuous',
+                direction: 'left-to-right',
+                gap,
+            },
+        );
+
+        expect(result.layouts.map((layout) => layout.height)).toEqual([
+            2.5, 2.5,
         ]);
     });
 
@@ -112,7 +138,13 @@ describe('getCanvasDisplayLayouts', () => {
         const result = getCanvasDisplayLayouts(
             [
                 source('a', 1000, 1000),
-                { canvasId: 'b', tileSource: {}, x: 0, y: 0, width: 1 },
+                {
+                    canvasId: 'b',
+                    tileSource: 'b-source',
+                    x: 0,
+                    y: 0,
+                    width: 1,
+                },
             ],
             {
                 mode: 'continuous',
@@ -140,5 +172,18 @@ describe('getCanvasDisplayLayouts', () => {
 
         expect(result.sources[0]).toMatchObject({ width: 4 });
         expect(result.sources[2]).toMatchObject({ width: 0.25 });
+    });
+
+    it('uses the gap the caller passes', () => {
+        const result = getCanvasDisplayLayouts(
+            [source('a', 1000, 1000), source('b', 1000, 1000)],
+            {
+                mode: 'continuous',
+                direction: 'left-to-right',
+                gap: 0.5,
+            },
+        );
+
+        expect(result.layouts[1].x).toBeCloseTo(1.5);
     });
 });

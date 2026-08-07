@@ -180,13 +180,40 @@ export default TriiiceratopsViewer;
 export declare const MULTI_CANVAS_GAP = 0.0125;
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
 export type ViewingDirection = 'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top';
-export interface PositionedTileSource {
+/**
+ * The geometry of one source, as its caller knows it.
+ *
+ * `canvasWidth`/`canvasHeight` are the dimensions of the thing being laid out,
+ * in whatever space the caller works in — only their ratio is used, to give the
+ * canvas a height. They are passed in rather than read off a tile source so
+ * that layout can run before (or entirely without) any image service being
+ * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
+ * because that is what it has to hand; manifest Canvas dimensions are the
+ * authoritative geometry everywhere else.
+ */
+export interface CanvasGeometry {
     canvasId?: string;
+    /** Position and extent of this source within its canvas, in world units. */
     x?: number;
     y?: number;
     width?: number;
-    tileSource?: unknown;
+    canvasWidth?: number | null;
+    canvasHeight?: number | null;
 }
+/** Where layout placed one source, in world units. */
+interface PlacedRect {
+    canvasId: string;
+    x: number;
+    y: number;
+    width: number;
+}
+/** A layout input: geometry plus a payload layout returns untouched. */
+export type PositionedTileSource = CanvasGeometry & {
+    tileSource: unknown;
+};
+export type DisplayPositionedTileSource = PlacedRect & {
+    tileSource: unknown;
+};
 export interface CanvasDisplayLayout {
     canvasId: string;
     x: number;
@@ -194,18 +221,11 @@ export interface CanvasDisplayLayout {
     width: number;
     height: number;
 }
-export interface DisplayPositionedTileSource {
-    tileSource: unknown;
-    x: number;
-    y: number;
-    width: number;
-    canvasId: string;
-}
 interface CanvasLayoutResult {
     sources: DisplayPositionedTileSource[];
     layouts: CanvasDisplayLayout[];
 }
-export declare function getCanvasDisplayLayouts(sources: unknown[], options: {
+export declare function getCanvasDisplayLayouts(sources: PositionedTileSource[], options: {
     mode: ViewingMode;
     direction: ViewingDirection;
     preserveCanvasScale?: boolean;

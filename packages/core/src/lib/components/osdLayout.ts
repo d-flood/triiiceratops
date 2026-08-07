@@ -12,13 +12,42 @@ export type ViewingDirection =
     | 'top-to-bottom'
     | 'bottom-to-top';
 
-export interface PositionedTileSource {
+/**
+ * The geometry of one source, as its caller knows it.
+ *
+ * `canvasWidth`/`canvasHeight` are the dimensions of the thing being laid out,
+ * in whatever space the caller works in — only their ratio is used, to give the
+ * canvas a height. They are passed in rather than read off a tile source so
+ * that layout can run before (or entirely without) any image service being
+ * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
+ * because that is what it has to hand; manifest Canvas dimensions are the
+ * authoritative geometry everywhere else.
+ */
+export interface CanvasGeometry {
     canvasId?: string;
+    /** Position and extent of this source within its canvas, in world units. */
     x?: number;
     y?: number;
     width?: number;
-    tileSource?: unknown;
+    canvasWidth?: number | null;
+    canvasHeight?: number | null;
 }
+
+/** Where layout placed one source, in world units. */
+interface PlacedRect {
+    canvasId: string;
+    x: number;
+    y: number;
+    width: number;
+}
+
+/** A layout input: geometry plus a payload layout returns untouched. */
+export type PositionedTileSource = CanvasGeometry & { tileSource: unknown };
+
+export type DisplayPositionedTileSource = PlacedRect & { tileSource: unknown };
+
+/** The caller's payload for one source, carried through layout unread. */
+type SourcePayload = Pick<PositionedTileSource, 'tileSource'>;
 
 export interface CanvasDisplayLayout {
     canvasId: string;
@@ -28,24 +57,17 @@ export interface CanvasDisplayLayout {
     height: number;
 }
 
-export interface DisplayPositionedTileSource {
-    tileSource: unknown;
-    x: number;
-    y: number;
-    width: number;
-    canvasId: string;
+interface GroupedSource {
+    payload: SourcePayload;
+    localX: number;
+    localY: number;
+    localWidth: number;
+    localHeight: number | null;
 }
 
 interface CanvasGroup {
     canvasId: string;
-    sources: Array<{
-        source: PositionedTileSource | unknown;
-        tileSource: unknown;
-        localX: number;
-        localY: number;
-        localWidth: number;
-        localHeight: number | null;
-    }>;
+    sources: GroupedSource[];
     width: number;
     height: number | null;
 }
@@ -55,13 +77,7 @@ interface CanvasLayoutResult {
     layouts: CanvasDisplayLayout[];
 }
 
-function isPositionedSource(source: unknown): source is PositionedTileSource {
-    return !!source && typeof source === 'object' && 'tileSource' in source;
-}
-
-function getDimension(tileSource: unknown, key: 'width' | 'height') {
-    if (!tileSource || typeof tileSource !== 'object') return null;
-    const value = (tileSource as Record<string, unknown>)[key];
+function getDimension(value: number | null | undefined) {
     return typeof value === 'number' && Number.isFinite(value) && value > 0
         ? value
         : null;
@@ -79,20 +95,21 @@ function median(values: number[]) {
         : sorted[middle];
 }
 
-function groupSources(sources: unknown[]): CanvasGroup[] {
+function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
     const groups = new Map<string, CanvasGroup>();
 
     sources.forEach((source, index) => {
-        const positioned = isPositionedSource(source);
-        const tileSource = positioned ? source.tileSource : source;
-        const canvasId = positioned
-            ? (source.canvasId ?? `canvas-${index}`)
-            : `canvas-${index}`;
-        const localX = positioned ? (source.x ?? 0) : 0;
-        const localY = positioned ? (source.y ?? 0) : 0;
-        const localWidth = positioned ? (source.width ?? 1) : 1;
-        const imageWidth = getDimension(tileSource, 'width');
-        const imageHeight = getDimension(tileSource, 'height');
+        const {
+            canvasId = `canvas-${index}`,
+            x: localX = 0,
+            y: localY = 0,
+            width: localWidth = 1,
+            canvasWidth,
+            canvasHeight,
+            ...payload
+        } = source;
+        const imageWidth = getDimension(canvasWidth);
+        const imageHeight = getDimension(canvasHeight);
         const localHeight =
             imageWidth && imageHeight
                 ? (localWidth * imageHeight) / imageWidth
@@ -105,8 +122,7 @@ function groupSources(sources: unknown[]): CanvasGroup[] {
         }
 
         group.sources.push({
-            source,
-            tileSource,
+            payload,
             localX,
             localY,
             localWidth,
@@ -132,8 +148,8 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
             height: group.height ?? 1,
         })),
         sources: groups.flatMap((group) =>
-            group.sources.map(({ tileSource, localX, localY, localWidth }) => ({
-                tileSource,
+            group.sources.map(({ payload, localX, localY, localWidth }) => ({
+                ...payload,
                 x: localX,
                 y: localY,
                 width: localWidth,
@@ -144,7 +160,7 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
 }
 
 export function getCanvasDisplayLayouts(
-    sources: unknown[],
+    sources: PositionedTileSource[],
     options: {
         mode: ViewingMode;
         direction: ViewingDirection;
@@ -223,8 +239,8 @@ export function getCanvasDisplayLayouts(
         })),
         sources: scaled.flatMap((layout) =>
             layout.group.sources.map(
-                ({ tileSource, localX, localY, localWidth }) => ({
-                    tileSource,
+                ({ payload, localX, localY, localWidth }) => ({
+                    ...payload,
                     x: layout.x + localX * layout.scale,
                     y: layout.y + localY * layout.scale,
                     width: localWidth * layout.scale,
