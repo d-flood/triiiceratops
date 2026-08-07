@@ -233,6 +233,18 @@ describe('getCanvasDisplayLayouts', () => {
         });
     });
 
+    it('falls back to the viewer spacing when no gap is passed', () => {
+        const result = getCanvasDisplayLayouts(
+            [source('a', 1000, 1000), source('b', 1000, 1000)],
+            {
+                mode: 'continuous',
+                direction: 'left-to-right',
+            },
+        );
+
+        expect(result.layouts[1].x).toBeCloseTo(1 + gap);
+    });
+
     it('uses the gap the caller passes', () => {
         const result = getCanvasDisplayLayouts(
             [source('a', 1000, 1000), source('b', 1000, 1000)],

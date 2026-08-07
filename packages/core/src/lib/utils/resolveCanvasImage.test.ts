@@ -364,6 +364,27 @@ describe('resolveCanvasImage', () => {
         );
     });
 
+    it('gives a canvas-filling image the manifest canvas box, not the image one', () => {
+        const canvas = {
+            id: 'canvas-mismatched',
+            width: 1000,
+            height: 2000,
+            items: annotationPages({
+                body: {
+                    id: 'https://example.org/image/mismatched.jpg',
+                    // Deliberately a different aspect ratio from the canvas:
+                    // manifest Canvas dimensions are the placement geometry.
+                    width: 800,
+                    height: 800,
+                },
+            }),
+        };
+
+        expect(resolveCanvasImage(canvas)).toEqual(
+            expect.objectContaining({ x: 0, y: 0, width: 1, height: 2 }),
+        );
+    });
+
     it('preserves crop positioning alongside export dimensions', () => {
         const canvas = {
             id: 'canvas-5',
@@ -390,6 +411,8 @@ describe('resolveCanvasImage', () => {
                 x: 0.1,
                 y: 0.25,
                 width: 0.4,
+                // Both axes normalize by canvas width, like x/y/width.
+                height: 0.8,
             }),
         );
 

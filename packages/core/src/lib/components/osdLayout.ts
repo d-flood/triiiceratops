@@ -1,8 +1,11 @@
-// Gap (in normalized OSD world units) inserted between adjacent canvases in
-// paged/continuous layouts. Exported so anything reconstructing this layout
-// outside the live viewer (e.g. an export/download plugin) uses the same
-// spacing as what's actually on screen.
-export const MULTI_CANVAS_GAP = 0.0125;
+// Gap (in normalized world units) inserted between adjacent canvases in
+// paged/continuous layouts. Deliberately *not* exported: this module is the one
+// layout implementation in the repository, so a caller that wants the spacing
+// that is actually on screen — the live viewer and the export path alike — gets
+// it by omitting the `gap` option rather than by importing the number and
+// reconstructing the layout itself. It stays an option so a caller with its own
+// spacing (and, later, a configured one) can pass it.
+const DEFAULT_MULTI_CANVAS_GAP = 0.0125;
 
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
 
@@ -162,9 +165,11 @@ export function getCanvasDisplayLayouts(
         mode: ViewingMode;
         direction: ViewingDirection;
         preserveCanvasScale?: boolean;
-        gap: number;
+        /** Defaults to the spacing the viewer itself lays out with. */
+        gap?: number;
     },
 ): CanvasLayoutResult {
+    const gap = options.gap ?? DEFAULT_MULTI_CANVAS_GAP;
     const groups = groupSources(sources);
 
     if (options.mode === 'individuals' || groups.length <= 1) {
@@ -203,10 +208,10 @@ export function getCanvasDisplayLayouts(
         for (const layout of scaled) {
             if (isVertical) {
                 layout.y = isReverse ? -offset : offset;
-                offset += (canNormalize ? layout.height : 1) + options.gap;
+                offset += (canNormalize ? layout.height : 1) + gap;
             } else {
                 layout.x = isReverse ? -offset : offset;
-                offset += (canNormalize ? layout.width : 1) + options.gap;
+                offset += (canNormalize ? layout.width : 1) + gap;
             }
         }
     } else if (options.mode === 'paged') {
@@ -219,7 +224,7 @@ export function getCanvasDisplayLayouts(
                 : scaled.slice(0, index);
             layout.x = previous.reduce(
                 (offset, item) =>
-                    offset + (canNormalize ? item.width : 1) + options.gap,
+                    offset + (canNormalize ? item.width : 1) + gap,
                 0,
             );
             layout.y = (spreadHeight - layout.height) / 2;

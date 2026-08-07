@@ -177,7 +177,6 @@ export default TriiiceratopsViewer;
 // ======================================================================
 // FILE: dist/components/osdLayout.d.ts
 // ======================================================================
-export declare const MULTI_CANVAS_GAP = 0.0125;
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
 export type ViewingDirection = 'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top';
 /**
@@ -232,7 +231,8 @@ export declare function getCanvasDisplayLayouts(sources: PositionedTileSource[],
     mode: ViewingMode;
     direction: ViewingDirection;
     preserveCanvasScale?: boolean;
-    gap: number;
+    /** Defaults to the spacing the viewer itself lays out with. */
+    gap?: number;
 }): CanvasLayoutResult;
 export declare function getContinuousTargetPosition(indexOrCanvasId: number | string, layouts: CanvasDisplayLayout[], direction: ViewingDirection): number | null;
 export {};
@@ -942,7 +942,7 @@ export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvas
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
 export { DEFAULT_POINT_RADIUS, resolvePointRadius, type PointStyle, } from './utils/pointMarker';
-export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP, } from './components/osdLayout';
+export { getCanvasDisplayLayouts } from './components/osdLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
@@ -4431,9 +4431,19 @@ export type ResolvedCanvasImage = {
     serviceId: string | null;
     serviceProfile: string | null;
     imageApiRegion: RegionRect | null;
+    /**
+     * The box this image paints on its canvas, in manifest Canvas coordinates
+     * normalized by the canvas's *width* on both axes — the vertical axis
+     * included, so that one vertical unit equals one horizontal unit. A
+     * canvas-filling image is `x: 0, y: 0, width: 1`, making `height` the
+     * canvas's aspect ratio; a region-targeted image gets its target's own box.
+     * This is the authoritative geometry for laying the image out — the image
+     * service's own dimensions describe the pixels, not the placement.
+     */
     x: number;
     y: number;
     width: number;
+    height: number;
 };
 export declare function getRegionString(region: RegionRect): string;
 export { getCanvasLabel, getCanvasId };

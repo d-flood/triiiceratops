@@ -10,7 +10,6 @@
     import {
         getCanvasDisplayLayouts,
         getContinuousTargetPosition,
-        MULTI_CANVAS_GAP,
         type CanvasDisplayLayout,
     } from './osdLayout';
     import { resolveTileSources, toLayoutSource } from './osdTileSources';
@@ -709,7 +708,6 @@
                         mode,
                         direction,
                         preserveCanvasScale: viewerState.preserveCanvasScale,
-                        gap: MULTI_CANVAS_GAP,
                     },
                 );
                 continuousLayouts = layoutResult.layouts;
@@ -830,7 +828,6 @@
                             ? 'right-to-left'
                             : 'left-to-right',
                         preserveCanvasScale: viewerState.preserveCanvasScale,
-                        gap: MULTI_CANVAS_GAP,
                     },
                 ).sources;
 

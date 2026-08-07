@@ -281,6 +281,53 @@ describe('current world (paged mode)', () => {
         expect(second.x).toBeGreaterThanOrEqual(first.x + first.width);
     });
 
+    it('keeps a composite canvas at its full manifest height', () => {
+        // Two half-width images side by side on an 800x1000 canvas. The world
+        // is one canvas tall, so the ladder must offer the canvas's own 0.8
+        // aspect ratio — laying each image out from its own half-width box is
+        // what keeps the second image from being clipped away.
+        const viewerState = createViewerState({
+            canvases: [createCompositeCanvas()],
+            canvasId: 'canvas-1',
+            currentCanvasIndex: 0,
+            viewingMode: 'individuals',
+        });
+
+        const original = resolveWorldSizeOptions(viewerState)[0]!;
+        expect(original.width / original.height).toBeCloseTo(800 / 1000, 5);
+    });
+
+    it('lays out from the manifest canvas box when the image disagrees', () => {
+        // A canvas declaring a 1000x1000 box painted by a 1000x2000 image: the
+        // manifest's dimensions are the geometry, so the world is square.
+        const canvas = {
+            id: 'mismatched',
+            width: 1000,
+            height: 1000,
+            items: annotationPages({
+                body: {
+                    id: 'https://example.org/image/mismatched.jpg',
+                    width: 1000,
+                    height: 2000,
+                    service: {
+                        id: 'https://example.org/iiif/mismatched',
+                        type: 'ImageService2',
+                        profile: 'http://iiif.io/api/image/2/level1.json',
+                    },
+                },
+            }),
+        };
+        const viewerState = createViewerState({
+            canvases: [canvas],
+            canvasId: 'mismatched',
+            currentCanvasIndex: 0,
+            viewingMode: 'individuals',
+        });
+
+        const original = resolveWorldSizeOptions(viewerState)[0]!;
+        expect(original.width / original.height).toBeCloseTo(1, 5);
+    });
+
     it('throws when nothing is visible in the viewer', async () => {
         const viewerState = createViewerState();
         await expect(
