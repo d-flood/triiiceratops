@@ -190,21 +190,15 @@ export function getCanvasesForSequence(manifest: any, index: number): any[] {
 export function getPaintingAnnotations(canvas: any): any[] {
     if (!canvas) return [];
 
-    // Transitional dual-read: at this point in the removal a canvas may still
-    // be a library object wrapping its JSON, or already be the raw JSON. This
-    // is deliberate and temporary; the `__jsonld` half comes out once canvases
-    // are always raw JSON (`.tracker/remove-manifesto`, tickets 07 → 10).
-    const json = canvas.__jsonld ?? canvas;
-
     // IIIF v2 — `canvas.images[]`, read first-party.
-    const images = asArray(json?.images).filter((annotation) => !!annotation);
+    const images = asArray(canvas.images).filter((annotation) => !!annotation);
     if (images.length > 0) return images;
 
     // IIIF v3 — the annotations inside every AnnotationPage of the canvas.
     //
     // `content` was the IIIF 3.0-beta spelling of `items`; the library accepted
     // it, so dropping it would silently regress beta-era manifests.
-    const pages = asArray(json?.items ?? json?.content);
+    const pages = asArray(canvas.items ?? canvas.content);
 
     return pages.flatMap((page) =>
         asArray(page?.items).filter((annotation) => !!annotation),
@@ -220,14 +214,12 @@ export function getPaintingAnnotations(canvas: any): any[] {
  * nothing, and the viewer renders a blank canvas with a `logger.debug` line and
  * no other signal (SPEC → "The governing rule for the whole epic").
  *
- * Reads through the transitional `__jsonld` accessor for the same reason
- * `getPaintingAnnotations` does.
+ * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *
  * Returns `null` when the annotation carries neither spelling.
  */
 export function getPaintingBody(annotation: any): any {
-    const json = annotation?.__jsonld || annotation;
-    return json?.body || json?.resource || null;
+    return annotation?.body || annotation?.resource || null;
 }
 
 /**

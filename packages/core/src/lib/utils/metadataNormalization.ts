@@ -53,19 +53,13 @@ export function normalizeMetadataEntries(
     }
 
     return rawMetadata.map((item: any) => {
-        const source = item?.__jsonld || item;
+        // `metadata` entries are `{label, value}` in both IIIF v2 and v3, so
+        // these two raw reads cover both versions.
+        const label = item.label
+            ? resolveLanguageValue(item.label, locale)
+            : '';
 
-        const label = source.label
-            ? resolveLanguageValue(source.label, locale)
-            : item.getLabel
-              ? resolveLanguageValue(item.getLabel(), locale)
-              : '';
-
-        const value = source.value
-            ? resolveHtmlValues(source.value, locale)
-            : item.getValue
-              ? resolveHtmlValues(item.getValue(), locale)
-              : '';
+        const value = item.value ? resolveHtmlValues(item.value, locale) : '';
 
         return { label, value };
     });

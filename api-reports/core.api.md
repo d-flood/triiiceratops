@@ -3918,7 +3918,7 @@ export declare function extractBody(annotation: any): {
     format?: string;
 }[];
 /**
- * Parse Manifesto/IIIF annotation to internal format
+ * Parse a raw JSON IIIF annotation to internal format
  */
 export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean): ParsedAnnotation | null;
 /**
@@ -3966,10 +3966,9 @@ export {};
 /**
  * A canvas's display label, version-neutral.
  *
- * Reads the raw JSON first — `label` is a bare string or a `[{"@value"}]` array
- * in IIIF v2 and a language map in v3, and `resolveLanguageValue` handles all
- * three. The `getLabel()` accessor is the last rung and goes away with
- * `manifesto.js` (`.tracker/remove-manifesto`, ticket 10).
+ * `label` is a bare string or a `[{"@value"}]` array in IIIF v2 and a language
+ * map in v3, and `resolveLanguageValue` handles all three — so the single raw
+ * read below covers both versions.
  *
  * @param preferredLocale BCP-47 tag to prefer when the label is localized.
  *   Falls back to `en`, then to an unlocalized entry, then to the first.
@@ -4168,8 +4167,7 @@ export declare function getPaintingAnnotations(canvas: any): any[];
  * nothing, and the viewer renders a blank canvas with a `logger.debug` line and
  * no other signal (SPEC → "The governing rule for the whole epic").
  *
- * Reads through the transitional `__jsonld` accessor for the same reason
- * `getPaintingAnnotations` does.
+ * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *
  * Returns `null` when the annotation carries neither spelling.
  */
@@ -4427,8 +4425,7 @@ export interface StructureNode {
  * Parse a manifest's `structures` into the TOC tree.
  *
  * Takes **raw IIIF Manifest JSON**, v2 or v3 as authored; both Range spellings
- * are handled below. (The `__jsonld` unwrap is a dead rung left for ticket 10.)
- * Returns an array of top-level StructureNodes.
+ * are handled below. Returns an array of top-level StructureNodes.
  */
 export declare function parseStructures(manifest: any): StructureNode[];
 /**

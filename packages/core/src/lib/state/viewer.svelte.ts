@@ -858,15 +858,11 @@ export class ViewerState {
      * Apply manifest-level settings (start canvas, viewing direction, behavior).
      */
     private _applyManifestSettings(manifestId: string) {
-        // `manifesto.js` is gone, so every `manifest?.…` rung below is dead.
-        // They are left standing on purpose: this ticket removes the library and
-        // its two public members (behavior), and ticket 10 deletes the ~98 dead
-        // branches (cleanup). Keeping them apart keeps both diffs readable, and
-        // the reduction is not mechanical — see
-        // `.tracker/remove-manifesto`, ticket 09 → "Out of scope".
-        const manifest: any = undefined;
+        // Raw IIIF Manifest JSON, v2 or v3 as authored. Each of the three
+        // scalars below reads BOTH versions' spellings first-party; the
+        // `manifesto.js` fallback ladders that used to sit under them are gone.
         const rawManifest = manifestsState.getManifestEntry(manifestId)?.json;
-        if (!manifest && !rawManifest) return;
+        if (!rawManifest) return;
 
         // IIIF Presentation 2.x hangs three of these four scalars off the first
         // sequence rather than off the manifest. Presentation 3.0 has no
@@ -891,24 +887,6 @@ export class ViewerState {
             // IIIF v2 — the start canvas hangs off the sequence.
             if (!startId) {
                 startId = getReferenceId(rawSequence?.startCanvas);
-            }
-
-            // Library fallbacks. The raw reads above are sufficient on their
-            // own for both versions; these go away with `manifesto.js`.
-            if (!startId && manifest?.__jsonld?.start) {
-                startId = getReferenceId(manifest.__jsonld.start);
-            }
-            if (!startId && manifest?.getStartCanvas) {
-                startId = getReferenceId(manifest.getStartCanvas());
-            }
-            if (!startId) {
-                const sequence = manifest?.getSequences?.()?.[0];
-                if (sequence) {
-                    startId = getReferenceId(sequence.__jsonld?.startCanvas);
-                    if (!startId && sequence.getStartCanvas) {
-                        startId = getReferenceId(sequence.getStartCanvas());
-                    }
-                }
             }
 
             if (startId) {
@@ -945,27 +923,6 @@ export class ViewerState {
             // this is the only read that fires for v3.
             if (!direction && rawManifest?.viewingDirection) {
                 direction = rawManifest.viewingDirection;
-            }
-            // Library fallbacks. The raw reads above are sufficient on their
-            // own for both versions; these go away with `manifesto.js`.
-            if (!direction && manifest?.__jsonld) {
-                direction = manifest.__jsonld.viewingDirection;
-            }
-            if (!direction && manifest?.getViewingDirection) {
-                const d = manifest.getViewingDirection();
-                if (d) direction = String(d);
-            }
-            if (!direction) {
-                const seq = manifest?.getSequences?.()?.[0];
-                if (seq) {
-                    if (seq.__jsonld) {
-                        direction = seq.__jsonld.viewingDirection;
-                    }
-                    if (!direction && seq.getViewingDirection) {
-                        const d = seq.getViewingDirection();
-                        if (d) direction = String(d);
-                    }
-                }
             }
         } catch (e) {
             logger.warn('Error parsing viewing direction', e);
@@ -1008,43 +965,6 @@ export class ViewerState {
                 }
                 if (behaviors.length === 0) {
                     behaviors = asBehaviorList(rawManifest?.viewingHint);
-                }
-
-                // Library fallbacks. The raw reads above are sufficient on
-                // their own; these go away with `manifesto.js`.
-                if (
-                    behaviors.length === 0 &&
-                    manifest?.__jsonld &&
-                    manifest.__jsonld.behavior
-                ) {
-                    const b = manifest.__jsonld.behavior;
-                    behaviors = Array.isArray(b) ? b : [b];
-                }
-
-                if (behaviors.length === 0 && manifest?.getBehavior) {
-                    const b = manifest.getBehavior();
-                    if (b) {
-                        behaviors = Array.isArray(b) ? b : [b];
-                    }
-                }
-
-                const seq = manifest?.getSequences?.()?.[0];
-                if (seq) {
-                    if (seq.getBehavior) {
-                        const b = seq.getBehavior();
-                        if (b) {
-                            behaviors = behaviors.concat(
-                                Array.isArray(b) ? b : [b],
-                            );
-                        }
-                    }
-
-                    if (seq.__jsonld && seq.__jsonld.behavior) {
-                        const b = seq.__jsonld.behavior;
-                        behaviors = behaviors.concat(
-                            Array.isArray(b) ? b : [b],
-                        );
-                    }
                 }
 
                 behaviors = behaviors.map(normalizeIiifBehavior);
@@ -1301,11 +1221,9 @@ export class ViewerState {
 
         const nextCanvases = this.canvases;
         const firstCanvas = nextCanvases[0];
+        // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
         this.canvasId = firstCanvas
-            ? firstCanvas.id ||
-              firstCanvas['@id'] ||
-              (firstCanvas.getCanvasId ? firstCanvas.getCanvasId() : null) ||
-              (firstCanvas.getId ? firstCanvas.getId() : null)
+            ? firstCanvas.id || firstCanvas['@id'] || null
             : null;
         this.startCanvasId = null;
         this.dispatchStateChange();
@@ -1425,10 +1343,7 @@ export class ViewerState {
                 // Raw IIIF Canvas JSON spells this `width` in both v2 and v3.
                 // This read used to be `canvas.getWidth()` with no fallback,
                 // which is a TypeError now that canvases are raw JSON.
-                const canvasWidth =
-                    firstEntry.canvas?.width ??
-                    firstEntry.canvas?.__jsonld?.width ??
-                    0;
+                const canvasWidth = firstEntry.canvas?.width ?? 0;
                 const annoOffset = canvasWidth * xOffset;
                 const nextAnnotations = this.searchAnnotations.filter(
                     (a) => a.canvasId === secondEntry.canvasId,

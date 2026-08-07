@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+    extractBody,
     isFullCanvasAnnotation,
     parseAnnotation,
     parseAnnotations,
@@ -82,7 +83,9 @@ describe('annotationAdapter', () => {
          * response, or from a plugin — raw JSON in all three cases. The test
          * asserted on the abstraction the `remove-manifesto` epic removes and
          * could not survive it, so it was dropped rather than migrated
-         * (ticket 08); the branches themselves are ticket 10's to delete.
+         * (ticket 08). Ticket 10 deleted those branches; `extractBody` below
+         * covers what replaced them, since this module is public API through
+         * `triiiceratops/image-export`.
          */
 
         it('should return null for invalid annotations with no geometry', () => {
@@ -329,6 +332,80 @@ describe('annotationAdapter', () => {
                     w: 12,
                     h: 13,
                 },
+            ]);
+        });
+    });
+
+    /**
+     * `extractBody` is exported, and reaches consumers through
+     * `triiiceratops/image-export`. Its `manifesto.js` half — an
+     * `if (typeof annotation.getBody === 'function')` whose `else` held the
+     * raw-JSON reads — was deleted in ticket 10, which promoted that `else`
+     * to the whole function. These pin what a real annotation now produces.
+     */
+    describe('extractBody', () => {
+        it('reads a IIIF v3 `body`', () => {
+            expect(
+                extractBody({
+                    id: 'anno-v3',
+                    body: {
+                        type: 'TextualBody',
+                        value: '<p>Hello</p>',
+                        format: 'text/html',
+                        purpose: 'commenting',
+                    },
+                }),
+            ).toEqual([
+                {
+                    value: '<p>Hello</p>',
+                    isHtml: true,
+                    purpose: 'commenting',
+                    format: 'text/html',
+                },
+            ]);
+        });
+
+        it('reads a IIIF v2 `resource`, including the `cnt:chars` spelling', () => {
+            expect(
+                extractBody({
+                    '@id': 'anno-v2',
+                    resource: {
+                        '@type': 'cnt:ContentAsText',
+                        'cnt:chars': 'Marginal note',
+                        format: 'text/plain',
+                    },
+                }),
+            ).toEqual([
+                {
+                    value: 'Marginal note',
+                    isHtml: false,
+                    purpose: undefined,
+                    format: 'text/plain',
+                },
+            ]);
+        });
+
+        it('reads every entry of a multi-body annotation', () => {
+            expect(
+                extractBody({
+                    id: 'anno-multi',
+                    body: [
+                        { type: 'TextualBody', value: 'one' },
+                        { type: 'TextualBody', value: 'two' },
+                    ],
+                }).map((body) => body.value),
+            ).toEqual(['one', 'two']);
+        });
+
+        it('falls back to the annotation label, then to a placeholder', () => {
+            expect(
+                extractBody({ id: 'anno-label', label: 'Just a label' }),
+            ).toEqual([
+                { value: 'Just a label', isHtml: false, purpose: 'commenting' },
+            ]);
+
+            expect(extractBody({ id: 'anno-empty' })).toEqual([
+                { value: 'Annotation', isHtml: false, purpose: 'commenting' },
             ]);
         });
     });

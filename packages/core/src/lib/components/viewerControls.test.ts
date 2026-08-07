@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+    getCanvasBehaviors,
     getCanvasNavLayout,
     getCanvasChoices,
     getPagedCanvasGroups,
@@ -590,6 +591,40 @@ describe('viewerControls helpers', () => {
             expect(
                 shouldUseAbbreviatedChoiceLabels('individuals', pagedGroups),
             ).toBe(false);
+        });
+    });
+
+    describe('getCanvasBehaviors', () => {
+        it('reads the IIIF v3 `behavior` spelling, as a string or a list', () => {
+            expect(getCanvasBehaviors({ behavior: 'non-paged' })).toEqual([
+                'non-paged',
+            ]);
+            expect(
+                getCanvasBehaviors({ behavior: ['facing-pages', 'hidden'] }),
+            ).toEqual(['facing-pages', 'hidden']);
+            expect(
+                getCanvasBehaviors({
+                    behavior: 'http://iiif.io/api/presentation/2#non-paged',
+                }),
+            ).toEqual(['non-paged']);
+        });
+
+        it('is total, and reads NOTHING for the IIIF v2 `viewingHint` spelling', () => {
+            expect(getCanvasBehaviors(null)).toEqual([]);
+            expect(getCanvasBehaviors({})).toEqual([]);
+
+            // A KNOWN GAP, deliberately left as-is and pinned here so it is a
+            // recorded fact rather than an assumption. The deleted rung was
+            // `canvas.getBehavior()`, which `manifesto.js` defined on Range,
+            // Collection and Manifest but NEVER on Canvas — so it was dead the
+            // day it was written, and its removal is not evidence that the v2
+            // case is covered. `isSinglePageCanvas` looks for exactly these
+            // values, so a v2 canvas declaring `"viewingHint": "non-paged"` is
+            // still paired into a spread. Fixing it is a behavior change and
+            // out of scope for a cleanup ticket.
+            expect(getCanvasBehaviors({ viewingHint: 'non-paged' })).toEqual(
+                [],
+            );
         });
     });
 

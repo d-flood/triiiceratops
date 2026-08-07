@@ -553,12 +553,6 @@ describe('getPaintingBody', () => {
         });
     });
 
-    it('reads through the transitional __jsonld accessor', () => {
-        expect(
-            getPaintingBody({ __jsonld: { resource: { '@id': 'v2-image' } } }),
-        ).toEqual({ '@id': 'v2-image' });
-    });
-
     it('returns null when the annotation carries neither spelling', () => {
         expect(getPaintingBody({})).toBeNull();
         expect(getPaintingBody(null)).toBeNull();

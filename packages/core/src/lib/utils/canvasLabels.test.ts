@@ -3,14 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { getCanvasLabel } from './canvasLabels';
 
 describe('getCanvasLabel', () => {
-    it('reads a Manifesto label when there is no raw label', () => {
-        const canvas = {
-            getLabel: () => [{ value: 'Cover' }],
-        };
-
-        expect(getCanvasLabel(canvas, 0)).toBe('Cover');
-    });
-
     it('reads a v2 JSON-LD `@value` label array', () => {
         // The IIIF Presentation 2 spelling, and the shape real manifests use —
         // `vendored/riksarkivetscblarge.json` labels every canvas this way.
@@ -40,16 +32,6 @@ describe('getCanvasLabel', () => {
 
     it('reads a bare v2 string label', () => {
         expect(getCanvasLabel({ label: 'Page 1' }, 0)).toBe('Page 1');
-    });
-
-    it('prefers the raw label over a stale accessor', () => {
-        // Raw-first is what keeps this working once `manifesto.js` is gone.
-        const canvas = {
-            label: 'Raw',
-            getLabel: () => [{ value: 'Accessor' }],
-        };
-
-        expect(getCanvasLabel(canvas, 0)).toBe('Raw');
     });
 
     it('is total on a null canvas', () => {

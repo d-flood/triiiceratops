@@ -5,10 +5,7 @@ import {
     getChoiceAlternatives,
     getPaintingAnnotations,
     getPaintingBody,
-    // The file already has a two-argument `isChoiceBody` for the library-shaped
-    // path below. Aliased rather than merged: that one is dead once every
-    // annotation is raw JSON, and ticket 10 deletes it.
-    isChoiceBody as isRawChoiceBody,
+    isChoiceBody,
 } from './iiifParsing';
 import { normalizeIiifTargets } from './iiifTargets';
 import { resolveLanguageValue } from './languageMap';
@@ -83,100 +80,27 @@ function getResourceDimensions(resource: any): {
     width: number | null;
     height: number | null;
 } {
-    const resourceJson = resource?.__jsonld || resource;
-
+    // `width`/`height` are spelled the same on a IIIF v2 and a v3 image
+    // resource, so these two raw reads cover both versions.
     return {
-        width:
-            getNumericDimension(resource?.width) ||
-            getNumericDimension(resourceJson?.width) ||
-            (typeof resource?.getWidth === 'function'
-                ? getNumericDimension(resource.getWidth())
-                : null),
-        height:
-            getNumericDimension(resource?.height) ||
-            getNumericDimension(resourceJson?.height) ||
-            (typeof resource?.getHeight === 'function'
-                ? getNumericDimension(resource.getHeight())
-                : null),
+        width: getNumericDimension(resource?.width),
+        height: getNumericDimension(resource?.height),
     };
 }
 
 function getSpecificResourceSource(resource: any): any | null {
-    const resourceJson = resource?.__jsonld || resource;
-    return resourceJson?.type === 'SpecificResource' && resourceJson?.source
-        ? resourceJson.source
+    return resource?.type === 'SpecificResource' && resource?.source
+        ? resource.source
         : null;
 }
 
-function isChoiceBody(body: any, rawBody: any): boolean {
-    return (
-        rawBody?.type === 'Choice' ||
-        rawBody?.type === 'oa:Choice' ||
-        (!!body &&
-            !Array.isArray(body) &&
-            (body.type === 'Choice' || body.type === 'oa:Choice'))
-    );
-}
-
-function getChoiceItems(body: any, rawBody: any): any[] {
-    if (rawBody && (rawBody.items || rawBody.item)) {
-        return rawBody.items || rawBody.item;
-    }
-
-    if (Array.isArray(body)) {
-        return body;
-    }
-
-    if (body && (body.items || body.item)) {
-        return body.items || body.item;
-    }
-
-    return [];
-}
-
-function getSelectedChoiceResource({
-    body,
-    rawBody,
-    canvasId,
-    getSelectedChoice,
-}: {
-    body: any;
-    rawBody: any;
-    canvasId: string;
-    getSelectedChoice?: (canvasId: string) => string | undefined;
-}): any | null {
-    const bodyItems = Array.isArray(body) ? body : getChoiceItems(body, null);
-    const rawItems = getChoiceItems(null, rawBody);
-    const selectedId = getSelectedChoice?.(canvasId);
-
-    if (selectedId) {
-        const selectedBodyItem = bodyItems.find(
-            (item: any) => getResourceId(item) === selectedId,
-        );
-        if (selectedBodyItem) {
-            return selectedBodyItem;
-        }
-
-        const selectedRawIndex = rawItems.findIndex(
-            (item: any) => getResourceId(item) === selectedId,
-        );
-        if (selectedRawIndex >= 0) {
-            return bodyItems[selectedRawIndex] || rawItems[selectedRawIndex];
-        }
-    }
-
-    return bodyItems[0] || rawItems[0] || null;
-}
-
 function getCanvasDimensions(canvas: any): CanvasDimensions | null {
-    const width =
-        canvas?.width ||
-        canvas?.__jsonld?.width ||
-        (typeof canvas?.getWidth === 'function' ? canvas.getWidth() : null);
-    const height =
-        canvas?.height ||
-        canvas?.__jsonld?.height ||
-        (typeof canvas?.getHeight === 'function' ? canvas.getHeight() : null);
+    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
+    // The trailing `|| null` is what the dead accessor rung evaluated to, and
+    // is load-bearing: a canvas declaring `width: 0` must still fall through to
+    // "no dimensions" rather than become a valid `0`.
+    const width = canvas?.width || null;
+    const height = canvas?.height || null;
 
     if (typeof width !== 'number' || typeof height !== 'number') {
         return null;
@@ -191,9 +115,9 @@ function parseTargetRegion(annotation: any): {
     width: number;
     height: number;
 } | null {
-    const region = normalizeIiifTargets(
-        annotation?.target || annotation?.__jsonld?.target,
-    ).find((target) => target.xywh)?.xywh;
+    const region = normalizeIiifTargets(annotation?.target).find(
+        (target) => target.xywh,
+    )?.xywh;
 
     if (!region) return null;
 
@@ -253,10 +177,9 @@ function parseImageApiSelectorRegion(
     resource: any,
     resourceDimensions: { width: number | null; height: number | null },
 ): RegionRect | null {
-    const resourceJson = resource?.__jsonld || resource;
     return parseImageApiRegionValue(
-        resourceJson?.selector?.type === 'ImageApiSelector'
-            ? resourceJson.selector.region
+        resource?.selector?.type === 'ImageApiSelector'
+            ? resource.selector.region
             : null,
         resourceDimensions,
     );
@@ -268,70 +191,28 @@ export function getRegionString(region: RegionRect): string {
         .join(',');
 }
 
-function hasResourceContent(resource: any): boolean {
-    const resourceJson = resource?.__jsonld || resource;
-    const specificResourceSource = getSpecificResourceSource(resource);
-    return !!(
-        resource &&
-        (resource.id ||
-            resource['@id'] ||
-            resourceJson?.service ||
-            specificResourceSource ||
-            resourceJson?.id ||
-            resourceJson?.['@id'])
-    );
-}
-
 function getAnnotationResource(
     annotation: any,
     canvasId: string,
     getSelectedChoice?: (canvasId: string) => string | undefined,
 ): any | null {
-    let resource = annotation.getResource ? annotation.getResource() : null;
+    let resource: any = null;
 
-    if (!resource && annotation.getBody) {
-        const body = annotation.getBody();
-        const rawBody = annotation.__jsonld?.body || annotation.body;
-
-        if (isChoiceBody(body, rawBody)) {
-            resource = getSelectedChoiceResource({
-                body,
-                rawBody,
-                canvasId,
-                getSelectedChoice,
-            });
-        } else if (Array.isArray(body) && body.length > 0) {
-            resource = body[0];
-        } else if (body) {
-            resource = body;
+    // The raw-JSON path, and now the only one. `getPaintingBody` reads the v2
+    // `resource` spelling as well as the v3 `body` one, and
+    // `getChoiceAlternatives` recognizes the v2 `oa:Choice`/`default`+`item`
+    // spelling as well as v3's `Choice`/`items`, with its array access guarded.
+    let body = getPaintingBody(annotation);
+    if (body) {
+        if (isChoiceBody(body)) {
+            const items = getChoiceAlternatives(body);
+            const selectedId = getSelectedChoice?.(canvasId);
+            const selectedItem = selectedId
+                ? items.find((item: any) => getResourceId(item) === selectedId)
+                : null;
+            body = selectedItem || items[0] || null;
         }
-    }
-
-    if (resource && !hasResourceContent(resource)) {
-        resource = null;
-    }
-
-    if (!resource) {
-        // The raw-JSON path. It read only the v3 `body` spelling and never the
-        // v2 `resource` one, so a v2 annotation resolved to nothing the moment
-        // it arrived as raw JSON — a blank canvas and a `logger.debug` line.
-        // `getPaintingBody` reads both, and `getChoiceAlternatives` recognizes
-        // the v2 `oa:Choice`/`default`+`item` spelling as well as v3's
-        // `Choice`/`items`, with its array access guarded.
-        let body = getPaintingBody(annotation);
-        if (body) {
-            if (isRawChoiceBody(body)) {
-                const items = getChoiceAlternatives(body);
-                const selectedId = getSelectedChoice?.(canvasId);
-                const selectedItem = selectedId
-                    ? items.find(
-                          (item: any) => getResourceId(item) === selectedId,
-                      )
-                    : null;
-                body = selectedItem || items[0] || null;
-            }
-            resource = Array.isArray(body) ? body[0] : body;
-        }
+        resource = Array.isArray(body) ? body[0] : body;
     }
 
     return resource;
@@ -371,16 +252,11 @@ function normalizeProfile(profile: unknown): string | null {
 
 function getImageService(resource: any): any | null {
     let services: any[] = [];
-    const resourceJson = resource?.__jsonld || resource;
 
-    if (resourceJson?.service) {
-        services = Array.isArray(resourceJson.service)
-            ? resourceJson.service
-            : [resourceJson.service];
-    }
-
-    if (!services.length && resource?.getServices) {
-        services = resource.getServices();
+    if (resource?.service) {
+        services = Array.isArray(resource.service)
+            ? resource.service
+            : [resource.service];
     }
 
     if (!services.length) {
@@ -389,12 +265,10 @@ function getImageService(resource: any): any | null {
 
     return (
         services.find((item: any) => {
-            const type = item.getType
-                ? item.getType()
-                : item.type || item['@type'] || '';
-            const profile = item.getProfile
-                ? item.getProfile()
-                : item.profile || '';
+            // v3 spells the service type `type`, v2 `@type`; `profile` is
+            // spelled the same in both.
+            const type = item.type || item['@type'] || '';
+            const profile = item.profile || '';
 
             return (
                 type === 'ImageService1' ||
@@ -410,17 +284,10 @@ function getImageLabel(resource: any, annotation: any): string | null {
     for (const candidate of [resource, annotation]) {
         if (!candidate) continue;
 
-        try {
-            const label = candidate.getLabel?.();
-            if (Array.isArray(label) && label.length > 0) {
-                const resolved = resolveLanguageValue(label);
-                if (resolved) return resolved;
-            }
-        } catch {
-            // ignore malformed labels
-        }
-
-        const rawLabel = candidate.label || candidate.__jsonld?.label;
+        // `label` is spelled the same in v2 and v3; `resolveLanguageValue`
+        // reads the v2 bare string and `[{"@value"}]` array as well as the v3
+        // language map.
+        const rawLabel = candidate.label;
         if (rawLabel) {
             const resolved = resolveLanguageValue(rawLabel);
             if (resolved) return resolved;
@@ -436,11 +303,7 @@ function getImageServiceDetails(resource: any): {
 } {
     const service = getImageService(resource);
     const serviceId = getResourceId(service);
-    const rawProfile = service
-        ? service.getProfile
-            ? service.getProfile()
-            : service.profile || ''
-        : null;
+    const rawProfile = service ? service.profile || '' : null;
 
     return {
         serviceId: serviceId ? normalizeServiceId(serviceId) : null,

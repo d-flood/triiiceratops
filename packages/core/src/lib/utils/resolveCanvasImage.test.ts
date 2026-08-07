@@ -626,6 +626,28 @@ describe('resolveAllCanvasImages', () => {
             }).map((image) => image.resourceId),
         ).toEqual(['https://example.org/image/only.jpg']);
     });
+
+    it('still treats a zero canvas dimension as no dimensions at all', () => {
+        // `getCanvasDimensions` was a three-rung `||` ladder whose last rung
+        // evaluated to `null`, so a `width` of `0` fell through it and the
+        // canvas resolved nothing. Deleting the two dead rungs without keeping
+        // the terminal `|| null` would leave `0` in place, which is a number,
+        // and the canvas would resolve with a zero width instead — a division
+        // by zero in the positioning arithmetic below. `0` is a real IIIF value
+        // and the reason the ticket forbids `||` → `??` here.
+        const canvas = {
+            id: 'canvas-zero-width',
+            type: 'Canvas',
+            width: 0,
+            height: 1000,
+            items: annotationPages({
+                target: 'canvas-zero-width',
+                body: { id: 'https://example.org/image/zero.jpg' },
+            }),
+        };
+
+        expect(resolveAllCanvasImages(canvas)).toEqual([]);
+    });
 });
 
 describe('buildIiifImageRequestUrl', () => {

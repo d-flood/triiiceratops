@@ -20,42 +20,14 @@
         getGalleryThumbItemWidth,
     } from './galleryGeometry';
 
-    // Minimal canvas/annotation types covering methods used here
-    type ManifestService = {
-        id?: string;
-        ['@id']?: string;
-        profile?: unknown;
-        getProfile?: () => unknown;
-    };
-
-    type ManifestResource =
+    // Canvases crossing the viewer boundary are raw IIIF Canvas JSON, v2 or v3
+    // as the manifest authored it — `id` in v3, `@id` in v2. The accessor- and
+    // `__jsonld`-shaped service/resource/annotation types this block used to
+    // declare described the removed library's objects and nothing else.
+    type ManifestCanvas =
         | {
               id?: string;
               ['@id']?: string;
-              __jsonld?: any;
-              getServices?: () => ManifestService[];
-          }
-        | any;
-
-    type ManifestAnnotation =
-        | {
-              __jsonld?: any;
-              getResource?: () => ManifestResource | null;
-              getBody?: () => ManifestResource | ManifestResource[] | null;
-              body?: ManifestResource | ManifestResource[];
-          }
-        | any;
-
-    type ManifestCanvas =
-        | {
-              id: string;
-              getLabel: () => { value: string }[];
-              getThumbnail?: () =>
-                  | string
-                  | { id?: string; ['@id']?: string }
-                  | null;
-              getImages?: () => ManifestAnnotation[];
-              getContent?: () => ManifestAnnotation[];
           }
         | any;
 
@@ -120,19 +92,14 @@
                 const images = getPaintingAnnotations(canvas);
                 if (images && images.length > 0) {
                     const anno = images[0];
-                    const body = anno.getBody
-                        ? anno.getBody()
-                        : getPaintingBody(anno);
 
                     // The painting body is `body` in v3 and `resource` in v2,
                     // and the Choice inside it is `Choice` in v3 and
                     // `oa:Choice` in v2. Only the v3 half was recognized, so a
                     // v2 Choice canvas never showed the badge.
-                    const rawBody = getPaintingBody(anno);
-                    const isChoice =
-                        isChoiceBody(rawBody) || isChoiceBody(body);
+                    const body = getPaintingBody(anno);
 
-                    if (isChoice) {
+                    if (isChoiceBody(body)) {
                         hasChoice = true;
                     }
                 }

@@ -20,7 +20,10 @@
         return viewerState.canvases[idx] ?? null;
     });
 
-    let json = $derived(canvas?.__jsonld ?? canvas);
+    // Raw IIIF Canvas JSON, v2 or v3 as authored. Every read below goes through
+    // `resolveLanguageValue` / `normalizeMetadataEntries`, which handle both
+    // versions' spellings.
+    let json = $derived(canvas);
 
     let label = $derived.by(() => {
         if (!json) return '';

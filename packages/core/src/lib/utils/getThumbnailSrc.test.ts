@@ -119,6 +119,28 @@ describe('getThumbnailSrc', () => {
         );
     });
 
+    it('keeps a IIIF v2 resource that carries only `@id` and no service', () => {
+        // Pins the reduction of `getThumbnailSrc`'s discard guard, which read
+        // `resource && !resource.id && !resource.__jsonld && (!resource.
+        // getServices || resource.getServices().length === 0)`. Two of its
+        // four conjuncts went permanently true on raw JSON, and reducing it
+        // rather than deleting it whole would have left
+        // `if (resource && !resource.id) resource = null` — a check on the v3
+        // id spelling ONLY, which nulls out every valid v2 resource, since a
+        // v2 resource carries `@id` and never `id`. The guard was in fact
+        // unreachable (`resource` was always null when it was reached), so it
+        // is gone entirely and this v2 resource survives (SPEC → "The
+        // governing rule for the whole epic").
+        const canvas = v2Canvas({
+            '@id': 'https://example.org/v2-only-at-id.jpg',
+            '@type': 'dctypes:Image',
+        });
+
+        expect(getThumbnailSrc(canvas)).toBe(
+            'https://example.org/v2-only-at-id.jpg',
+        );
+    });
+
     it('uses the default alternative of a IIIF v2 oa:Choice', () => {
         const canvas = v2Canvas({
             '@type': 'oa:Choice',
