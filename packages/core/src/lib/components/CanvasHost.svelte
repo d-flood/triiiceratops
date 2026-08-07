@@ -29,12 +29,15 @@
     import { onMount } from 'svelte';
 
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
+    import { reconcileImages } from '../renderer/imageRequests';
     import { paintScene } from '../renderer/paintScene';
     import { planScene } from '../renderer/planScene';
     import {
         DEFAULT_BUDGETS,
         MAX_DEVICE_PIXEL_RATIO,
         MAX_ZOOM_FACTOR,
+        WHEEL_LINE_PIXELS,
+        WHEEL_PAGE_PIXELS,
         WHEEL_TIME_CONSTANT,
         WHEEL_ZOOM_RATE,
     } from '../renderer/rendererDefaults';
@@ -50,6 +53,7 @@
         approachScale,
         clamp,
         fitBounds,
+        normalizeWheelDelta,
     } from '../renderer/viewportMath';
     import type { ViewerState } from '../state/viewer.svelte';
 
@@ -87,7 +91,16 @@
     // `SvelteMap`: it is read by the frame loop, never by the reactive graph.
     // `loadedGeneration` below is the one reactive signal that a decode landed.
     const images: Record<string, HTMLImageElement> = Object.create(null);
-    let generation = 0;
+    /**
+     * canvasId → the URL decoded **or in flight** for it.
+     *
+     * The residency key is the resolved URL, not the canvas id: switching a
+     * Choice resolves the same canvas id to a different image, and an id-keyed
+     * cache would paint the superseded one forever. It also stands in for a
+     * request generation — an `onload` whose URL is no longer the one wanted is
+     * simply discarded.
+     */
+    const imageUrls: Record<string, string> = Object.create(null);
     /** Bumped when a decoded image arrives, to re-run the paint effect. */
     let loadedGeneration = $state(0);
 
@@ -173,9 +186,33 @@
         animating = false;
     }
 
+    /**
+     * Ask for a frame from **outside** the frame loop (input, resize, a decode
+     * landing, the test handle).
+     *
+     * This is where the animation clock starts, because `lastFrameTime` is
+     * otherwise whatever the last painted frame left behind — possibly minutes
+     * ago, which would make the first step's elapsed enormous and snap straight
+     * onto the target.
+     */
     function requestFrame() {
         if (frameHandle !== null) return;
         lastFrameTime = performance.now();
+        scheduleFrame();
+    }
+
+    /**
+     * Ask for the next frame from **inside** the frame loop.
+     *
+     * Deliberately does not touch `lastFrameTime`: the frame's own timestamp is
+     * the start of the next interval, so the elapsed time a step is integrated
+     * over includes that frame's paint cost. Restamping the clock after painting
+     * would silently exclude it and make easing speed depend on how expensive
+     * the scene is to draw — the exact frame-rate dependence the elapsed-time
+     * approach exists to remove.
+     */
+    function scheduleFrame() {
+        if (frameHandle !== null) return;
         frameHandle = requestAnimationFrame(runFrame);
     }
 
@@ -188,6 +225,12 @@
     function runFrame(now: number) {
         frameHandle = null;
 
+        // A rAF callback scheduled from an input handler is given the timestamp
+        // of the frame that was already in flight, which can be EARLIER than the
+        // `performance.now()` `requestFrame` just read — so this is routinely
+        // negative on the first step. Clamped to zero it is a no-op step
+        // (`approach` returns `current` unchanged) and the next frame integrates
+        // a proper interval; the animation is a frame late, never skipped.
         const elapsed = Math.max(0, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
 
@@ -236,7 +279,7 @@
         paint();
 
         if (animating) {
-            requestFrame();
+            scheduleFrame();
         } else {
             settlePaintWaiters();
         }
@@ -253,13 +296,19 @@
      * The backing store is capped at `min(devicePixelRatio, 2)`: above 2 the
      * extra pixels cost memory and fill rate out of all proportion to what
      * anyone can see.
+     *
+     * The VIEWPORT keeps the rect's fractional size while only the backing store
+     * is rounded. A CSS box is very often fractional (a flex row, a percentage
+     * width, a fractional `devicePixelRatio`), and rounding the viewport moves
+     * its centre by up to half a pixel — a systematic error the geometric
+     * assertions measure against a ±1 px gate.
      */
     function measure() {
         if (!root || !surface) return;
 
         const rect = root.getBoundingClientRect();
-        const width = Math.max(0, Math.round(rect.width));
-        const height = Math.max(0, Math.round(rect.height));
+        const width = Math.max(0, rect.width);
+        const height = Math.max(0, rect.height);
 
         dpr = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO);
 
@@ -285,6 +334,44 @@
         requestFrame();
     }
 
+    /**
+     * Re-measure when `devicePixelRatio` changes.
+     *
+     * A ResizeObserver is not enough: dragging the window from a 1× display to a
+     * 2× one changes the device-pixel ratio without changing the CSS box at all,
+     * so nothing would re-measure and the backing store would stay at the old
+     * resolution — a visibly soft (or needlessly heavy) canvas until something
+     * else resized it.
+     *
+     * `matchMedia` has no "tell me whenever it changes" form, so the query is a
+     * one-shot: it matches the ratio in force now and fires exactly once, when
+     * that stops being true. Re-armed against the new ratio each time.
+     */
+    let dprQuery: MediaQueryList | null = null;
+
+    function handleDevicePixelRatioChange() {
+        measure();
+        watchDevicePixelRatio();
+    }
+
+    function watchDevicePixelRatio() {
+        dprQuery?.removeEventListener?.('change', handleDevicePixelRatioChange);
+        dprQuery = null;
+
+        if (typeof window.matchMedia !== 'function') return;
+
+        const query = window.matchMedia(
+            `(resolution: ${window.devicePixelRatio || 1}dppx)`,
+        );
+        query.addEventListener?.('change', handleDevicePixelRatioChange);
+        dprQuery = query;
+    }
+
+    function unwatchDevicePixelRatio() {
+        dprQuery?.removeEventListener?.('change', handleDevicePixelRatioChange);
+        dprQuery = null;
+    }
+
     // ── Input ────────────────────────────────────────────────────────────
     //
     // Pointer Events only: one input path, no mouse/touch/legacy branches.
@@ -294,6 +381,11 @@
 
     function handlePointerDown(event: PointerEvent) {
         if (!surface || dragPointerId !== null || !event.isPrimary) return;
+        // Left button (or a touch/pen contact, which also reports 0) only. A
+        // right-button press opens the context menu, and starting a pan under it
+        // leaves the image sliding behind an open menu with no pointer-up to
+        // end the drag.
+        if (event.button !== 0) return;
 
         dragPointerId = event.pointerId;
         lastPointer = { x: event.clientX, y: event.clientY };
@@ -352,8 +444,19 @@
             y: event.clientY - rect.top,
         };
 
+        // `deltaY` is normalized to pixels first: the event declares its own
+        // unit (`deltaMode`), and a line-mode notch is ~3 where a pixel-mode one
+        // is ~100. Consuming it raw would zoom a fortieth as far per notch on a
+        // Firefox mouse wheel. Nothing here looks at the hardware.
+        const deltaY = normalizeWheelDelta(
+            event.deltaY,
+            event.deltaMode,
+            WHEEL_LINE_PIXELS,
+            WHEEL_PAGE_PIXELS,
+        );
+
         const nextScale = clampScale(
-            viewport.scale * Math.exp(-event.deltaY * WHEEL_ZOOM_RATE),
+            viewport.scale * Math.exp(-deltaY * WHEEL_ZOOM_RATE),
         );
 
         targetScale = nextScale;
@@ -364,21 +467,26 @@
 
     // ── Source loading ───────────────────────────────────────────────────
 
+    /**
+     * Bring the decoded images in line with what the viewer is showing.
+     *
+     * What changed is decided by `reconcileImages`, which compares **resolved
+     * URLs** rather than canvas ids — selecting a different Choice keeps the
+     * canvas id and changes only the URL, and an id-keyed cache would go on
+     * painting the superseded image. Load failures and per-canvas error
+     * reporting are ticket 12.
+     */
     function loadStaticImages(canvases: PlannerCanvas[]) {
-        generation += 1;
-        const currentGeneration = generation;
+        const { drop, load } = reconcileImages(imageUrls, canvases);
 
-        const wanted = new Set(canvases.map((canvas) => canvas.id));
-        for (const id of Object.keys(images)) {
-            if (!wanted.has(id)) delete images[id];
+        for (const canvasId of drop) {
+            // Drop the pixels too: a stale image must stop painting the moment
+            // it is superseded, not when its replacement finishes decoding.
+            delete images[canvasId];
+            delete imageUrls[canvasId];
         }
 
-        for (const canvas of canvases) {
-            // Tiled sources are ticket 05; a `service` canvas paints nothing
-            // yet rather than guessing at a URL.
-            if (canvas.source.kind !== 'static') continue;
-            if (images[canvas.id]) continue;
-
+        for (const { canvasId, url } of load) {
             const image = new Image();
             // Decode off the main thread where the browser can.
             image.decoding = 'async';
@@ -388,11 +496,18 @@
             // which only matters to pixel readback — and the geometric e2e
             // fixtures are same-origin.
             image.onload = () => {
-                if (currentGeneration !== generation) return;
-                images[canvas.id] = image;
+                // Still the URL this canvas wants? A Choice switch, a canvas
+                // change, or unmount may have superseded this request while it
+                // was in flight.
+                if (imageUrls[canvasId] !== url) return;
+                images[canvasId] = image;
                 loadedGeneration += 1;
             };
-            image.src = canvas.source.url;
+            // Recorded BEFORE the request starts, so a second reconciliation
+            // for the same URL joins the in-flight request rather than
+            // restarting it.
+            imageUrls[canvasId] = url;
+            image.src = url;
         }
     }
 
@@ -415,6 +530,7 @@
         const observer = new ResizeObserver(() => measure());
         observer.observe(root);
         measure();
+        watchDevicePixelRatio();
 
         /*
          * Internal test handle for the geometric e2e assertions, which need a
@@ -453,10 +569,14 @@
 
         return () => {
             observer.disconnect();
+            unwatchDevicePixelRatio();
             if (frameHandle !== null) cancelAnimationFrame(frameHandle);
             frameHandle = null;
             settlePaintWaiters();
             for (const id of Object.keys(images)) delete images[id];
+            // Also clears the in-flight requests: an `onload` that lands after
+            // unmount finds no wanted URL and discards itself.
+            for (const id of Object.keys(imageUrls)) delete imageUrls[id];
         };
     });
 

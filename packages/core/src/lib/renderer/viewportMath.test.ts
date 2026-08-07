@@ -7,6 +7,7 @@ import {
     approachScale,
     canvasToScreen,
     fitBounds,
+    normalizeWheelDelta,
     screenToCanvas,
 } from './viewportMath';
 
@@ -126,5 +127,60 @@ describe('animation', () => {
         const high = approachScale(8, 16, 0.1, 0.05);
 
         expect(Math.log(low / 1)).toBeCloseTo(Math.log(high / 8), 10);
+    });
+
+    /*
+     * The first frame of a wheel animation routinely arrives with a
+     * non-positive elapsed: the rAF callback is scheduled from the input
+     * handler but is given the timestamp of the frame already in flight, which
+     * can predate the `performance.now()` the handler read. Snapping to the
+     * target there would skip the easing entirely — the animation would be
+     * instant on exactly the input that is supposed to be smoothed.
+     */
+    it('is a no-op when no time has passed', () => {
+        expect(approach(3, 10, 0.1, 0)).toBe(3);
+        expect(approach(3, 10, 0.1, -0.004)).toBe(3);
+        expect(approachScale(0.4, 2, 0.1, 0)).toBeCloseTo(0.4, 12);
+    });
+
+    it('still arrives immediately when there is no smoothing at all', () => {
+        // A zero time constant means "no easing", for which snapping IS the
+        // right answer — the distinction the elapsed guard must not blur.
+        expect(approach(3, 10, 0, 0.016)).toBe(10);
+        expect(approachScale(0.4, 2, 0, 0.016)).toBeCloseTo(2, 12);
+    });
+});
+
+describe('normalizeWheelDelta', () => {
+    // Stand-in units: the shipped ones are provisional, so the conversion is
+    // asserted, never the constants.
+    const LINE = 30;
+    const PAGE = 600;
+
+    it('passes pixel deltas through unchanged', () => {
+        expect(normalizeWheelDelta(-100, 0, LINE, PAGE)).toBe(-100);
+        expect(normalizeWheelDelta(53.5, 0, LINE, PAGE)).toBe(53.5);
+    });
+
+    it('converts line deltas, so a Firefox wheel notch zooms like any other', () => {
+        // The same notch: ~100 px in pixel mode, 3 lines in line mode. Consumed
+        // raw, the line-mode notch would zoom a fortieth as far.
+        expect(normalizeWheelDelta(3, 1, LINE, PAGE)).toBe(90);
+        expect(normalizeWheelDelta(-3, 1, LINE, PAGE)).toBe(-90);
+    });
+
+    it('converts page deltas', () => {
+        expect(normalizeWheelDelta(1, 2, LINE, PAGE)).toBe(600);
+    });
+
+    it('treats an unknown delta mode as pixels', () => {
+        expect(normalizeWheelDelta(120, 7, LINE, PAGE)).toBe(120);
+    });
+
+    it('ignores a non-finite delta rather than producing a NaN scale', () => {
+        expect(normalizeWheelDelta(Number.NaN, 0, LINE, PAGE)).toBe(0);
+        expect(
+            normalizeWheelDelta(Number.POSITIVE_INFINITY, 1, LINE, PAGE),
+        ).toBe(0);
     });
 });

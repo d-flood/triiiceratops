@@ -92,6 +92,17 @@ export function anchoredZoomCentre(
  * `timeConstant` is the time (in the same unit as `elapsed`) in which the
  * remaining distance falls to 1/e. Using elapsed time rather than a per-frame
  * fraction is what keeps the motion identical at 60 and 120 Hz.
+ *
+ * A zero (or negative) `elapsed` is a **no-op**: no time has passed, so nothing
+ * has moved, and `current` is returned unchanged. This is not a pedantic edge
+ * case — a `requestAnimationFrame` callback scheduled from an input handler is
+ * given a timestamp from the frame that was already in flight, which can be
+ * *earlier* than the `performance.now()` the handler read, so the animation's
+ * very first step routinely has a non-positive elapsed. Returning `target`
+ * there would snap instantly and skip the easing altogether.
+ *
+ * A non-positive `timeConstant` is different: it means "no smoothing at all",
+ * for which arriving immediately is the correct answer.
  */
 export function approach(
     current: number,
@@ -99,8 +110,41 @@ export function approach(
     timeConstant: number,
     elapsed: number,
 ): number {
-    if (timeConstant <= 0 || elapsed <= 0) return target;
+    if (timeConstant <= 0) return target;
+    if (elapsed <= 0) return current;
     return target + (current - target) * Math.exp(-elapsed / timeConstant);
+}
+
+/**
+ * `WheelEvent.deltaY` expressed in **pixels**, whatever unit the event used.
+ *
+ * `deltaMode` is part of the wheel event's contract and says what its deltas
+ * count: `0` pixels, `1` lines, `2` pages. Firefox on a mouse wheel reports
+ * lines — roughly 3 per notch, where the pixel mode of the same notch is around
+ * 100 — so consuming `deltaY` raw would zoom about a fortieth as far per notch
+ * there as elsewhere.
+ *
+ * This is a *unit conversion declared by the event*, not the trackpad-versus-
+ * mouse sniffing the spec bans (`rendererDefaults.WHEEL_TIME_CONSTANT`): all
+ * wheel input is still animated by the same constant, and nothing here inspects
+ * the hardware, the platform, or the user agent.
+ *
+ * `linePixels` and `pagePixels` are passed in rather than read from the shipped
+ * defaults so tests never assert against provisional numbers.
+ */
+export function normalizeWheelDelta(
+    delta: number,
+    deltaMode: number,
+    linePixels: number,
+    pagePixels: number,
+): number {
+    if (!Number.isFinite(delta)) return 0;
+    // `1` and `2` are DOM_DELTA_LINE and DOM_DELTA_PAGE. Anything else —
+    // including DOM_DELTA_PIXEL and any future mode — is treated as pixels,
+    // which is the only mode that needs no conversion.
+    if (deltaMode === 1) return delta * linePixels;
+    if (deltaMode === 2) return delta * pagePixels;
+    return delta;
 }
 
 /**

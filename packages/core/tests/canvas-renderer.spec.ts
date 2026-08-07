@@ -32,7 +32,14 @@ test.skip(
     'Canvas2D renderer slice is Chromium-only until it has tiles (ticket 05).',
 );
 
-/** Wait until the wheel animation has settled onto its target. */
+/**
+ * Wait until the wheel animation has settled onto its target.
+ *
+ * This says nothing about HOW it got there — a renderer that snapped straight
+ * onto the target on the first frame would satisfy it immediately. That the
+ * motion is actually eased is asserted separately, below, by sampling the scale
+ * on successive frames.
+ */
 async function settle(page: Page): Promise<void> {
     let previous = -1;
     await expect
@@ -66,18 +73,29 @@ test.describe('Canvas2D renderer — static image', () => {
 
         // The backing store is capped at min(devicePixelRatio, 2).
         expect(view.dpr).toBeLessThanOrEqual(2);
-        const backing = await page.locator(SURFACE).evaluate((element) => ({
-            width: (element as HTMLCanvasElement).width,
-            height: (element as HTMLCanvasElement).height,
-            clientWidth: element.clientWidth,
-            clientHeight: element.clientHeight,
-        }));
+        // Measured from the FRACTIONAL box, not `clientWidth`: the viewport
+        // keeps the rect's real size and only the backing store is rounded, so
+        // `clientWidth` (itself rounded) would be comparing against a different
+        // number whenever the CSS box is fractional.
+        const backing = await page.locator(SURFACE).evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+                width: (element as HTMLCanvasElement).width,
+                height: (element as HTMLCanvasElement).height,
+                cssWidth: rect.width,
+                cssHeight: rect.height,
+            };
+        });
         expect(backing.width).toBe(
-            Math.max(1, Math.round(backing.clientWidth * view.dpr)),
+            Math.max(1, Math.round(backing.cssWidth * view.dpr)),
         );
         expect(backing.height).toBe(
-            Math.max(1, Math.round(backing.clientHeight * view.dpr)),
+            Math.max(1, Math.round(backing.cssHeight * view.dpr)),
         );
+
+        // The viewport is the CSS box exactly, fraction and all.
+        expect(view.width).toBeCloseTo(backing.cssWidth, 6);
+        expect(view.height).toBeCloseTo(backing.cssHeight, 6);
     });
 
     test('drags the image 1:1 with the pointer, with no easing', async ({
@@ -218,6 +236,88 @@ test.describe('Canvas2D renderer — static image', () => {
 
         // The range actually exercised was a real one, not a rounding error.
         expect((await getView(page)).scale).not.toBeCloseTo(scale, 2);
+    });
+
+    test('wheel zoom is eased over several frames, never snapped in one', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 0.4 });
+
+        // The scale is sampled once per animation frame INSIDE the page, and
+        // the wheel is a REAL input event. Both matter:
+        //
+        // - a round-trip per sample takes long enough for the animation to
+        //   finish in between, so a polled test cannot see the trajectory;
+        // - a synthetic `dispatchEvent` runs in an ordinary script task, while
+        //   real input is dispatched against the frame already in flight — which
+        //   is what gives the first `requestAnimationFrame` callback a timestamp
+        //   that can PRECEDE the `performance.now()` the handler read. Snapping
+        //   on that first non-positive step is exactly the regression this
+        //   guards, and a synthetic event would not reproduce it.
+        await page.locator(SURFACE).evaluate((element) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: { getView(): { scale: number } };
+                }
+            ).__triiiceratopsRenderer!;
+            const recorder = window as unknown as {
+                __scaleSamples: number[];
+                __wheelAt: number;
+            };
+
+            recorder.__scaleSamples = [];
+            recorder.__wheelAt = -1;
+            element.addEventListener('wheel', () => {
+                // The index of the first sample taken AFTER the wheel arrived.
+                if (recorder.__wheelAt < 0) {
+                    recorder.__wheelAt = recorder.__scaleSamples.length;
+                }
+            });
+
+            const tick = () => {
+                recorder.__scaleSamples.push(handle.getView().scale);
+                requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        });
+
+        const box = (await page.locator(SURFACE).boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.wheel(0, -240);
+        await settle(page);
+
+        const { samples, wheelAt } = await page.evaluate(() => {
+            const recorder = window as unknown as {
+                __scaleSamples: number[];
+                __wheelAt: number;
+            };
+            return {
+                samples: recorder.__scaleSamples,
+                wheelAt: recorder.__wheelAt,
+            };
+        });
+
+        expect(
+            wheelAt,
+            'the wheel event never reached the renderer',
+        ).toBeGreaterThanOrEqual(0);
+        const during = samples.slice(wheelAt);
+
+        // It moved at all…
+        expect(during[during.length - 1]).toBeGreaterThan(0.4);
+        // …and it did NOT arrive in one frame. An instant snap puts the target
+        // in the first post-wheel sample and every sample after it, so the
+        // trajectory has exactly one distinct value; easing produces a run of
+        // them. This is precisely what `settle()` above cannot see.
+        expect(
+            new Set(during).size,
+            `wheel zoom reached its target in one frame: ${during.slice(0, 6).join(', ')}`,
+        ).toBeGreaterThan(2);
+        // Monotonic towards the target, with no overshoot.
+        for (let i = 1; i < during.length; i += 1) {
+            expect(during[i]).toBeGreaterThanOrEqual(during[i - 1]);
+        }
     });
 
     test('lands a named feature on its predicted screen pixel within 1px at three zoom levels', async ({

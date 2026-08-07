@@ -42,6 +42,22 @@ export const WHEEL_TIME_CONSTANT = 0.09;
 export const WHEEL_ZOOM_RATE = 0.0025;
 
 /**
+ * Pixels one `DOM_DELTA_LINE` unit stands for.
+ *
+ * A mouse-wheel notch is ~100 px in pixel mode and 3 lines in line mode
+ * (Firefox on a classic wheel), so a third of that keeps one notch worth the
+ * same zoom everywhere. See `viewportMath.normalizeWheelDelta` — this is the
+ * unit the event declares, not a guess about the hardware.
+ */
+export const WHEEL_LINE_PIXELS = 100 / 3;
+
+/**
+ * Pixels one `DOM_DELTA_PAGE` unit stands for. Rare (mostly assistive and
+ * remote-desktop stacks); a page is treated as a screenful of lines.
+ */
+export const WHEEL_PAGE_PIXELS = WHEEL_LINE_PIXELS * 24;
+
+/**
  * How far past a whole-canvas fit the viewer may zoom in, as a multiple of the
  * fit scale. Generous: the point of a deep-zoom viewer is to exceed 1:1 on a
  * high-resolution scan.

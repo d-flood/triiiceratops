@@ -15,10 +15,11 @@ export type { ViewingDirection, ViewingMode };
  * Where a canvas's pixels come from.
  *
  * The three source kinds of the spec arrive over several tickets; this ticket
- * implements `static` only. `service` is carried from the first version because
- * the planner must be able to say "this canvas has an image service I have not
- * fetched yet" (a metadata request) rather than pretend such canvases do not
- * exist — tickets 05 and 06 give it tiles and a size ladder.
+ * implements `static` only. `service` is carried in the type from the first
+ * version so canvases backed by an image service are described rather than
+ * discarded, but nothing acts on it yet: the planner emits no metadata request
+ * for one and the host paints nothing for it. Ticket 05 makes a `service`
+ * canvas fetch its `info.json` and tile; ticket 06 adds the size ladder.
  */
 export type SourceDescriptor =
     | { kind: 'static'; url: string }
@@ -137,7 +138,7 @@ export interface ScenePlan {
     /** Ordered by priority, nearest the viewport centre first. */
     tileRequests: TileRequest[];
     thumbnailRequests: ThumbnailRequest[];
-    /** Canvas ids needing an `info.json` fetch now. */
+    /** Canvas ids needing an `info.json` fetch now. Populated from ticket 05. */
     metadataRequests: string[];
     /** Canvas ids droppable under budget pressure. */
     evictable: string[];
