@@ -68,20 +68,31 @@ export function resolveLanguageValue(
         const items = value as Array<{
             value?: string;
             _value?: string;
+            '@value'?: string;
             locale?: string;
             _locale?: string;
             language?: string;
+            '@language'?: string;
         }>;
 
-        const getItemValue = (item?: { value?: string; _value?: string }) =>
-            item?.value ?? item?._value;
+        // `@value` / `@language` is the IIIF Presentation 2 JSON-LD spelling —
+        // e.g. `[{ "@value": "Bild 6", "@language": "sv" }]`. It reaches here
+        // now that canvases are raw JSON; `manifesto.js` used to parse it into
+        // `_value`/`_locale` first, so omitting it returned '' and every such
+        // label silently fell back to "Canvas N".
+        const getItemValue = (item?: {
+            value?: string;
+            _value?: string;
+            '@value'?: string;
+        }) => item?.value ?? item?._value ?? item?.['@value'];
 
         const findByLocale = (locale: string) =>
             items.find(
                 (x) =>
                     x.locale === locale ||
                     x._locale === locale ||
-                    x.language === locale,
+                    x.language === locale ||
+                    x['@language'] === locale,
             );
 
         if (preferredLocale) {
@@ -98,7 +109,7 @@ export function resolveLanguageValue(
 
         // Unset locale
         const noneMatch = items.find(
-            (x) => !x.locale && !x._locale && !x.language,
+            (x) => !x.locale && !x._locale && !x.language && !x['@language'],
         );
         {
             const value = getItemValue(noneMatch);
@@ -167,13 +178,23 @@ export function resolveAllLanguageValues(
         const items = value as Array<{
             value?: string;
             _value?: string;
+            '@value'?: string;
             locale?: string;
             _locale?: string;
             language?: string;
+            '@language'?: string;
         }>;
 
-        const getItemValue = (item: { value?: string; _value?: string }) =>
-            item.value ?? item._value ?? '';
+        // `@value` / `@language` is the IIIF Presentation 2 JSON-LD spelling —
+        // e.g. `[{ "@value": "Bild 6", "@language": "sv" }]`. It reaches here
+        // now that canvases are raw JSON; previously `manifesto.js` parsed it
+        // into `_value`/`_locale` before this function ever saw it, so omitting
+        // it silently returned '' and every such label fell back to "Canvas N".
+        const getItemValue = (item: {
+            value?: string;
+            _value?: string;
+            '@value'?: string;
+        }) => item.value ?? item._value ?? item['@value'] ?? '';
 
         const filterByLocale = (locale: string) =>
             items
@@ -181,7 +202,8 @@ export function resolveAllLanguageValues(
                     (x) =>
                         x.locale === locale ||
                         x._locale === locale ||
-                        x.language === locale,
+                        x.language === locale ||
+                        x['@language'] === locale,
                 )
                 .map(getItemValue);
 
@@ -194,7 +216,10 @@ export function resolveAllLanguageValues(
         if (enResult.length) return enResult;
 
         const noneResult = items
-            .filter((x) => !x.locale && !x._locale && !x.language)
+            .filter(
+                (x) =>
+                    !x.locale && !x._locale && !x.language && !x['@language'],
+            )
             .map(getItemValue);
         if (noneResult.length) return noneResult;
 
