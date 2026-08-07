@@ -32,6 +32,14 @@ export const DEMO_ONLY_COMPONENTS = [
  */
 export const EXCLUDED_DIRS = ['test'] as const;
 
+/*
+ * Directory basenames pruned wherever they appear in the tree. Unlike
+ * EXCLUDED_DIRS (top-level paths), these sit next to the source they back:
+ * `state/__golden__` holds the committed behavioral-golden snapshots, read only
+ * by *.test.* files, which are themselves pruned below.
+ */
+export const EXCLUDED_DIR_NAMES = ['__golden__'] as const;
+
 const DEMO_ONLY_RE = new RegExp(
     `^(${DEMO_ONLY_COMPONENTS.join('|')})\\.svelte(\\.d\\.ts)?$`,
 );
@@ -61,6 +69,11 @@ export function pruneDist(distDir: string): string[] {
         for (const name of readdirSync(dir)) {
             const full = join(dir, name);
             if (statSync(full).isDirectory()) {
+                if ((EXCLUDED_DIR_NAMES as readonly string[]).includes(name)) {
+                    rmSync(full, { recursive: true, force: true });
+                    removed.push(full);
+                    continue;
+                }
                 walk(full);
             } else if (isPackageExcluded(name)) {
                 rmSync(full);

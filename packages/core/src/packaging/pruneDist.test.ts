@@ -13,6 +13,7 @@ import {
     pruneDist,
     DEMO_ONLY_COMPONENTS,
     EXCLUDED_DIRS,
+    EXCLUDED_DIR_NAMES,
 } from './pruneDist';
 
 describe('isPackageExcluded', () => {
@@ -87,6 +88,32 @@ describe('pruneDist', () => {
                 ),
             ).toBe(true);
             expect(removed.length).toBeGreaterThan(0);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('removes nested fixture dirs (__golden__) wherever they appear', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'prune-'));
+        try {
+            for (const name of EXCLUDED_DIR_NAMES) {
+                mkdirSync(join(dir, 'state', name), { recursive: true });
+                writeFileSync(join(dir, 'state', name, 'broad-tier.txt'), '');
+            }
+            // A sibling public module under the same parent must survive.
+            writeFileSync(join(dir, 'state', 'viewer.svelte.js'), '');
+
+            pruneDist(dir);
+
+            for (const name of EXCLUDED_DIR_NAMES) {
+                expect(
+                    existsSync(join(dir, 'state', name)),
+                    `state/${name}/ removed`,
+                ).toBe(false);
+            }
+            expect(existsSync(join(dir, 'state', 'viewer.svelte.js'))).toBe(
+                true,
+            );
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }
