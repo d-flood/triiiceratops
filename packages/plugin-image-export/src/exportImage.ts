@@ -218,6 +218,16 @@ function buildWorldLayout(
                 // height gives each source exactly the extent the manifest
                 // declares for it. The image service's dimensions are image
                 // space and are deliberately not used as canvas geometry.
+                //
+                // Interim divergence: the current OSD viewer still feeds
+                // layout the image service's dimensions (see
+                // `toLayoutSource` in core's `osdTileSources.ts`), so for a
+                // manifest whose Canvas dimensions disagree with its image,
+                // a "current view" export is laid out from the manifest box
+                // while the live viewer is not. Export is the correct one
+                // per SPEC ("manifest dimensions win permanently for
+                // geometry"); the divergence closes when the new renderer
+                // replaces that viewer path.
                 sourceWidth: resolved.width,
                 sourceHeight: resolved.height,
                 tileSource: { resolved },
@@ -298,9 +308,14 @@ export async function exportCurrentWorld(
     const entries = await Promise.all(
         layout.entries.map(async ({ resolved, x, y, width }) => {
             const pixelWidth = Math.max(1, Math.round(width * scale));
+            // The image is drawn into the box the manifest declares for it,
+            // which is exactly the box layout was given and sized the world
+            // from. Deriving this from the image service's own dimensions
+            // instead would overflow the world whenever a Canvas and its
+            // image disagree, and composeImages would clip the overflow.
             const aspect =
-                resolved.resourceWidth && resolved.resourceHeight
-                    ? resolved.resourceHeight / resolved.resourceWidth
+                resolved.width > 0 && resolved.height > 0
+                    ? resolved.height / resolved.width
                     : 1;
             const pixelHeight = Math.max(1, Math.round(pixelWidth * aspect));
             const url = getResolvedImageExportUrl(resolved, {
