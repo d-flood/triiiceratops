@@ -51,8 +51,9 @@ all annotation geometry.
 **Image space**:
 Coordinates expressed in the underlying image's pixel dimensions — the space the tile
 pyramid is addressed in. Core-internal: the canvas-space/image-space conversion happens
-inside core, so the coordinate helpers at the plugin boundary are canvas-space on both
-sides and no plugin has to know an image's pixel dimensions.
+inside core, so image space never appears at the plugin boundary — the coordinate helpers
+there convert between canvas space and screen space, and no plugin has to know an image's
+pixel dimensions.
 _Avoid_: pixel space, screen space (screen space is the viewport's own coordinates, a
 third thing)
 
@@ -231,7 +232,8 @@ _Avoid_: overlay (an overlay is DOM alongside the canvas; a paint hook draws int
 
 **Input claim**:
 A consumer temporarily owning pointer input, suppressing pan and zoom gestures for its
-duration. Granted at the gesture recogniser's single arbitration point. The term is fixed
+duration. The gesture recogniser is built with a single arbitration point that decides
+which consumer owns a gesture, which is where a claim would be granted. The term is fixed
 now; the API ships in phase 2.
 _Avoid_: capture (that is the DOM pointer-capture mechanism, one implementation detail of
 honoring a claim)
