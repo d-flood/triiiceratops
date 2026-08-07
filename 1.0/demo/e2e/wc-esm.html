@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops WC ESM parity fixture</title>
+        <!--
+            Standards-based ESM registration entry (ticket 10). Loaded as a
+            module from the built dist/ artifact; requires `pnpm build:element`
+            (or build:all) to have run. Must register the same tag with the same
+            behavior as the IIFE fixture.
+        -->
+        <script type="module" src="/dist/triiiceratops-element.js"></script>
+        <script>
+            // The state bridge (ticket 02), recorded from the document exactly
+            // as in the IIFE fixture so the two entries are compared on the
+            // same observation. A composed event retargets to the host, so
+            // `event.target` is the custom element itself.
+            window.__viewerStateEvents = [];
+            document.addEventListener('viewerstateavailable', (event) => {
+                const host = event.target;
+                window.__viewerStateEvents.push({
+                    targetIsHost: host === document.getElementById('v'),
+                    detailIsProperty: event.detail === host.viewerState,
+                    bubbles: event.bubbles,
+                    composed: event.composed,
+                });
+            });
+        </script>
+        <style>
+            #v {
+                display: block;
+                width: 600px;
+                height: 400px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/demo-manifests/e2e/manifest.json"
+            theme="dark"
+        ></triiiceratops-viewer>
+        <script>
+            // Record documented Web Component behavior so the parity spec can
+            // compare the IIFE and ESM entries head-to-head. This classic script
+            // runs before the deferred module above; the listener is attached to
+            // the element instance and survives its custom-element upgrade.
+            window.__wcEntry = 'esm';
+            window.__statechangeCount = 0;
+            const v = document.getElementById('v');
+            for (const name of [
+                'manifestchange',
+                'canvaschange',
+                'choicechange',
+                'statechange',
+            ]) {
+                v.addEventListener(name, () => {
+                    window.__statechangeCount += 1;
+                });
+            }
+
+            // Custom search as a property-only input, assigned here — with the
+            // tag not yet defined, so the element must carry the value across
+            // its custom-element upgrade.
+            window.__searchCalls = [];
+            v.searchProvider = async (query, context) => {
+                window.__searchCalls.push({
+                    query,
+                    manifestId: context.manifestId,
+                });
+                return [
+                    {
+                        canvasIndex: 0,
+                        canvasLabel: 'parity',
+                        hits: [{ type: 'hit', match: query }],
+                    },
+                ];
+            };
+        </script>
+    </body>
+</html>

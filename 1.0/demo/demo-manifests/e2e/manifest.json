@@ -1,0 +1,37 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/demo-manifests/e2e/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["E2E smoke test manifest"]
+    },
+    "items": [
+        {
+            "id": "/demo-manifests/e2e/canvas/p1",
+            "type": "Canvas",
+            "height": 100,
+            "width": 100,
+            "items": [
+                {
+                    "id": "/demo-manifests/e2e/page/p1/1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/e2e/annotation/p1-image",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f8fafc'/%3E%3Ccircle cx='50' cy='50' r='34' fill='%232563eb'/%3E%3C/svg%3E",
+                                "type": "Image",
+                                "format": "image/svg+xml",
+                                "height": 100,
+                                "width": 100
+                            },
+                            "target": "/demo-manifests/e2e/canvas/p1"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

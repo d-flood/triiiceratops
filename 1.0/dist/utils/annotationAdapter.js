@@ -1,0 +1,370 @@
+import { extractIiifTargetId, getIiifCanvasId, normalizeIiifTargets, } from './iiifTargets';
+import { logger } from '../logging/logger';
+/**
+ * Helper to extract ID from a raw JSON annotation — `id` in IIIF v3, `@id` in
+ * v2.
+ */
+function getAnnotationId(anno) {
+    return anno.id || anno['@id'] || '';
+}
+/**
+ * Extract target geometry from various annotation formats
+ */
+function extractGeometries(annotation) {
+    const target = getAnnotationTarget(annotation);
+    const geometries = [];
+    for (const normalizedTarget of normalizeIiifTargets(target)) {
+        for (const selector of normalizedTarget.selectors) {
+            const svgSelector = extractSvgValue(selector);
+            if (svgSelector) {
+                const polygon = convertSvgToPolygon(svgSelector);
+                if (polygon) {
+                    geometries.push(polygon);
+                }
+            }
+            const point = extractPointFromSelector(selector);
+            if (point) {
+                geometries.push(point);
+            }
+        }
+        if (normalizedTarget.xywh) {
+            geometries.push({
+                type: 'RECTANGLE',
+                x: normalizedTarget.xywh[0],
+                y: normalizedTarget.xywh[1],
+                w: normalizedTarget.xywh[2],
+                h: normalizedTarget.xywh[3],
+            });
+        }
+    }
+    if (geometries.length > 0) {
+        return geometries;
+    }
+    const canvasRect = extractWholeCanvasGeometry(annotation);
+    if (canvasRect) {
+        return [canvasRect];
+    }
+    return [];
+}
+function extractPointFromSelector(selector) {
+    const item = selector?.item || selector;
+    if (item?.type !== 'PointSelector') {
+        return null;
+    }
+    const x = Number(item.x);
+    const y = Number(item.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+    }
+    return {
+        type: 'POINT',
+        x,
+        y,
+    };
+}
+function getCanvasContext(annotation) {
+    const canvas = annotation?.__triiiceratopsCanvas;
+    if (!canvas || typeof canvas !== 'object') {
+        return null;
+    }
+    return canvas;
+}
+function getAnnotationTarget(annotation) {
+    // IIIF v3 spells it `target`, v2 `on`; both are read.
+    return annotation?.target || annotation?.on || null;
+}
+function getTargetId(target) {
+    const targetId = extractIiifTargetId(target);
+    if (!targetId) {
+        return null;
+    }
+    return getIiifCanvasId(targetId) || targetId;
+}
+function hasTargetSelector(target) {
+    if (!target)
+        return false;
+    if (Array.isArray(target)) {
+        return target.some(hasTargetSelector);
+    }
+    if (typeof target === 'string') {
+        return target.includes('#');
+    }
+    if (target.selector) {
+        return true;
+    }
+    return Boolean(target.source && hasTargetSelector(target.source));
+}
+function extractWholeCanvasGeometry(annotation) {
+    const canvas = getCanvasContext(annotation);
+    if (!canvas?.id || !canvas.width || !canvas.height) {
+        return null;
+    }
+    const target = annotation.target || annotation.on;
+    if (hasTargetSelector(target)) {
+        return null;
+    }
+    if (getTargetId(target) !== canvas.id) {
+        return null;
+    }
+    return {
+        type: 'RECTANGLE',
+        x: 0,
+        y: 0,
+        w: canvas.width,
+        h: canvas.height,
+    };
+}
+export function isFullCanvasAnnotation(annotation) {
+    return extractWholeCanvasGeometry(annotation) !== null;
+}
+function resolveCoordinateSpace(annotation, isFullCanvasTarget) {
+    if (isFullCanvasTarget) {
+        return 'canvas';
+    }
+    const origin = annotation?.__triiiceratopsAnnotationOrigin;
+    if (origin === 'user') {
+        return 'canvas';
+    }
+    if (origin === 'manifest') {
+        return 'image';
+    }
+    const canvas = getCanvasContext(annotation);
+    const targetId = getTargetId(getAnnotationTarget(annotation));
+    if (canvas?.id && targetId === canvas.id) {
+        return 'canvas';
+    }
+    return 'image';
+}
+/**
+ * Extract SVG value from single target object
+ */
+function extractSvgValue(target) {
+    if (!target)
+        return null;
+    // Check for selector property or use target itself
+    const selector = target.selector || target;
+    // Handle array of selectors
+    if (Array.isArray(selector)) {
+        // Determine which selector to use?
+        // Usually SvgSelector is preferred if present
+        const svgSel = selector.find((s) => s.type === 'SvgSelector');
+        if (svgSel && svgSel.value)
+            return svgSel.value;
+        // Or just look for any with value?
+        return null;
+    }
+    // Check for SvgSelector
+    if (selector?.type === 'SvgSelector' && selector.value) {
+        return selector.value;
+    }
+    // Check item (sometimes nested)
+    if (selector?.item?.type === 'SvgSelector' && selector.item.value) {
+        return selector.item.value;
+    }
+    return null;
+}
+/**
+ * Convert SVG string to POLYGON geometry
+ * Parses points from SVG path or polygon element
+ */
+function convertSvgToPolygon(svgString) {
+    try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svgString, 'image/svg+xml');
+        if (doc.documentElement.nodeName === 'parsererror') {
+            logger.warn('Failed to parse SVG selector:', svgString);
+            return null;
+        }
+        const points = [];
+        // Extract points from polygon elements
+        const polygons = doc.querySelectorAll('polygon');
+        for (const poly of polygons) {
+            const pointsAttr = poly.getAttribute('points');
+            if (pointsAttr) {
+                const polyPoints = parsePolygonPoints(pointsAttr);
+                points.push(...polyPoints);
+            }
+        }
+        // Extract points from path elements (simple conversion, doesn't handle curves)
+        const paths = doc.querySelectorAll('path');
+        for (const path of paths) {
+            const d = path.getAttribute('d');
+            if (d) {
+                const pathPoints = parsePathData(d);
+                points.push(...pathPoints);
+            }
+        }
+        // Extract points from circle/ellipse (approximate as polygon)
+        const circles = doc.querySelectorAll('circle');
+        for (const circle of circles) {
+            const cx = parseFloat(circle.getAttribute('cx') || '0');
+            const cy = parseFloat(circle.getAttribute('cy') || '0');
+            const r = parseFloat(circle.getAttribute('r') || '0');
+            const circlePoints = generateCirclePoints(cx, cy, r);
+            points.push(...circlePoints);
+        }
+        // Extract points from rect elements
+        const rects = doc.querySelectorAll('rect');
+        for (const rect of rects) {
+            const x = parseFloat(rect.getAttribute('x') || '0');
+            const y = parseFloat(rect.getAttribute('y') || '0');
+            const w = parseFloat(rect.getAttribute('width') || '0');
+            const h = parseFloat(rect.getAttribute('height') || '0');
+            points.push([x, y], [x + w, y], [x + w, y + h], [x, y + h]);
+        }
+        if (points.length === 0) {
+            return null;
+        }
+        return {
+            type: 'POLYGON',
+            points,
+        };
+    }
+    catch (e) {
+        logger.warn('Failed to convert SVG to polygon:', e);
+        return null;
+    }
+}
+/**
+ * Parse polygon points attribute
+ * Format: "x1,y1 x2,y2 x3,y3"
+ */
+function parsePolygonPoints(pointsStr) {
+    const points = [];
+    const pairs = pointsStr.trim().split(/\s+/);
+    for (const pair of pairs) {
+        const [x, y] = pair.split(',').map((v) => parseFloat(v));
+        if (!isNaN(x) && !isNaN(y)) {
+            points.push([x, y]);
+        }
+    }
+    return points;
+}
+/**
+ * Parse SVG path data (simplified)
+ * Extracts M (moveto) and L (lineto) commands
+ */
+function parsePathData(d) {
+    const points = [];
+    // Simple regex: match M and L commands followed by coordinates
+    const commandRegex = /[ML]\s*([\d.]+)[,\s]+([\d.]+)/g;
+    let match;
+    while ((match = commandRegex.exec(d)) !== null) {
+        const x = parseFloat(match[1]);
+        const y = parseFloat(match[2]);
+        if (!isNaN(x) && !isNaN(y)) {
+            points.push([x, y]);
+        }
+    }
+    return points;
+}
+/**
+ * Generate polygon points approximating a circle
+ */
+function generateCirclePoints(cx, cy, r, numPoints = 8) {
+    const points = [];
+    for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * Math.PI * 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        points.push([x, y]);
+    }
+    return points;
+}
+/**
+ * Extract xywh from annotation target (multiple formats)
+ */
+/**
+ * Extract annotation body content (text, label, etc)
+ */
+export function extractBody(annotation) {
+    const bodies = [];
+    // Raw JSON body/resource — `resource` is the IIIF v2 spelling, `body` the
+    // v3 one, and both are read.
+    const processResource = (r) => {
+        const val = r.chars || r.value || r['cnt:chars'] || '';
+        if (val) {
+            const isHtml = r.format === 'text/html' || r.type === 'TextualBody';
+            bodies.push({
+                value: val,
+                isHtml,
+                purpose: r.purpose,
+                format: r.format,
+            });
+        }
+    };
+    if (annotation.resource) {
+        const resources = Array.isArray(annotation.resource)
+            ? annotation.resource
+            : [annotation.resource];
+        resources.forEach(processResource);
+    }
+    else if (annotation.body) {
+        const bodyArr = Array.isArray(annotation.body)
+            ? annotation.body
+            : [annotation.body];
+        bodyArr.forEach(processResource);
+    }
+    // fallback for label if no bodies found
+    if (bodies.length === 0) {
+        let value = '';
+        if (annotation.label) {
+            value = Array.isArray(annotation.label)
+                ? annotation.label.join(' ')
+                : annotation.label;
+        }
+        if (value) {
+            bodies.push({ value, isHtml: false, purpose: 'commenting' });
+        }
+    }
+    // Default if still nothing
+    if (bodies.length === 0) {
+        bodies.push({
+            value: 'Annotation',
+            isHtml: false,
+            purpose: 'commenting',
+        });
+    }
+    return bodies;
+}
+function createRenderId(annotationId, geometryIndex) {
+    return `${annotationId}::${geometryIndex}`;
+}
+function buildParsedAnnotations(annotation, index, isSearchHit) {
+    const id = getAnnotationId(annotation) || `anno-${index}`;
+    const geometries = extractGeometries(annotation);
+    const isFullCanvasTarget = isFullCanvasAnnotation(annotation);
+    const coordinateSpace = resolveCoordinateSpace(annotation, isFullCanvasTarget);
+    if (!geometries.length) {
+        return [];
+    }
+    const body = extractBody(annotation);
+    return geometries.map((geometry, geometryIndex) => ({
+        id,
+        renderId: createRenderId(id, geometryIndex),
+        sourceAnnotationId: id,
+        geometryIndex,
+        geometry,
+        coordinateSpace,
+        isFullCanvasTarget,
+        body,
+        isSearchHit,
+    }));
+}
+/**
+ * Parse a raw JSON IIIF annotation to internal format
+ */
+export function parseAnnotation(annotation, index, isSearchHit = false) {
+    return buildParsedAnnotations(annotation, index, isSearchHit)[0] ?? null;
+}
+/**
+ * Batch parse annotations
+ */
+export function parseAnnotations(annotations, searchHitIds = new Set()) {
+    return annotations
+        .flatMap((anno, idx) => {
+        const isSearchHit = searchHitIds.has(getAnnotationId(anno));
+        return buildParsedAnnotations(anno, idx, isSearchHit);
+    })
+        .filter((anno) => anno !== null);
+}

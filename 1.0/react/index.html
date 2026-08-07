@@ -1,0 +1,2449 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Use Triiiceratops in React 19: a typed component that hosts the viewer's custom element and maps its lifecycle, props and events to React idioms.">
+      
+      
+        <meta name="author" content="David Flood">
+      
+      
+        <link rel="canonical" href="https://d-flood.github.io/triiiceratops/1.0/react/">
+      
+      
+        <link rel="prev" href="./..">
+      
+      
+        <link rel="next" href="../vue/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../media/favicon.ico">
+      <meta name="generator" content="zensical-0.0.53">
+    
+    
+<title>React - Triiiceratops IIIF Viewer</title>
+
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.20815dad.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/triiiceratops.css">
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+<script
+    defer
+    src="https://stats.dflood.org/script.js"
+    data-website-id="014602e8-8f96-4f61-8fd7-02f323a5dfe7"
+></script>
+
+  
+
+
+  
+
+
+  
+  
+
+
+<!-- Open Graph: Facebook, LinkedIn, Slack, Discord, iMessage, Bluesky, WhatsApp -->
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Triiiceratops IIIF Viewer">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="React">
+<meta property="og:description" content="Use Triiiceratops in React 19: a typed component that hosts the viewer's custom element and maps its lifecycle, props and events to React idioms.">
+<meta property="og:url" content="https://d-flood.github.io/triiiceratops/1.0/react/">
+<meta property="og:image" content="https://d-flood.github.io/triiiceratops/social/og-docs-v1.png">
+<meta property="og:image:secure_url" content="https://d-flood.github.io/triiiceratops/social/og-docs-v1.png">
+<meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Triiiceratops: an IIIF viewer with first-class React, Vue and Svelte components, plus a web component for Django, WordPress or plain HTML."><meta property="article:author" content="https://www.facebook.com/DavidFloodII/">
+
+<!-- X (Twitter) cards. X falls back to the og:* tags above, but Slack and a few
+     other scrapers prefer the twitter:* names when both are present. -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@FloodDavid">
+<meta name="twitter:creator" content="@FloodDavid">
+<meta name="twitter:title" content="React">
+<meta name="twitter:description" content="Use Triiiceratops in React 19: a typed component that hosts the viewer's custom element and maps its lifecycle, props and events to React idioms.">
+<meta name="twitter:image" content="https://d-flood.github.io/triiiceratops/social/og-docs-v1.png">
+<meta name="twitter:image:alt" content="Triiiceratops: an IIIF viewer with first-class React, Vue and Svelte components, plus a web component for Django, WordPress or plain HTML.">
+<!-- Mastodon 4.3+ shows author attribution on a link preview from this tag. -->
+<meta name="fediverse:creator" content="@davidflood@fosstodon.org"><meta name="theme-color" content="#e9ab2b">  
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#react" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            
+            You are viewing the documentation for
+<strong>Triiiceratops&nbsp;v1.0</strong>.
+<a href="../versions/">View other versions</a>.
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Triiiceratops IIIF Viewer" class="md-header__button md-logo" aria-label="Triiiceratops IIIF Viewer" data-md-component="logo">
+      
+  <img src="../media/logo.png" alt="Triiiceratops IIIF Viewer">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Triiiceratops IIIF Viewer
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              React
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    <!-- triiiceratops: demo link -->
+    <a href="https://d-flood.github.io/triiiceratops/viewer/" class="md-header__button tri-header-demo" title="Open the live demo viewer" aria-label="Live demo">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>
+        <span class="tri-header-demo__label">Demo</span>
+      </a>
+    
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Triiiceratops IIIF Viewer" class="md-nav__button md-logo" aria-label="Triiiceratops IIIF Viewer" data-md-component="logo">
+      
+  <img src="../media/logo.png" alt="Triiiceratops IIIF Viewer">
+
+    </a>
+    Triiiceratops IIIF Viewer
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-rocket" viewBox="0 0 24 24"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get started
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Get started
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>React</title><path d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236m2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38a2.17 2.17 0 0 0-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44a23.5 23.5 0 0 0-3.107-.534A24 24 0 0 0 12.769 4.7c1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442a23 23 0 0 0-3.113.538 15 15 0 0 1-.254-1.42c-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05q.684.704 1.36 1.564c-.44-.02-.89-.034-1.345-.034q-.691-.001-1.36.034c.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093q.61.874 1.183 1.86.557.961 1.018 1.946c-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87a25.6 25.6 0 0 1-4.412.005 27 27 0 0 1-1.183-1.86q-.557-.961-1.018-1.946a25 25 0 0 1 1.013-1.954c.38-.66.773-1.286 1.18-1.868A25 25 0 0 1 12 8.098zm-3.635.254c-.24.377-.48.763-.704 1.16q-.336.585-.635 1.174c-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0q1.044.153 2.006.387c-.18.632-.405 1.282-.66 1.933a25.952 25.952 0 0 0-1.345-2.32zm3.063.675q.727.226 1.375.498c1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493a24 24 0 0 0-1.1-2.98c.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98a23 23 0 0 0-1.086 2.964c-.484-.15-.944-.318-1.37-.5-1.732-.737-2.852-1.706-2.852-2.474s1.12-1.742 2.852-2.476c.42-.18.88-.342 1.356-.494m11.678 4.28c.265.657.49 1.312.676 1.948-.64.157-1.316.29-2.016.39a26 26 0 0 0 1.341-2.338zm-9.945.02c.2.392.41.783.64 1.175q.345.586.705 1.143a22 22 0 0 1-2.006-.386c.18-.63.406-1.282.66-1.933zM17.92 16.32c.112.493.2.968.254 1.423.23 1.868-.054 3.32-.714 3.708-.147.09-.338.128-.563.128-1.012 0-2.514-.807-4.11-2.28.686-.72 1.37-1.536 2.02-2.44 1.107-.118 2.154-.3 3.113-.54zm-11.83.01c.96.234 2.006.415 3.107.532.66.905 1.345 1.727 2.035 2.446-1.595 1.483-3.092 2.295-4.11 2.295a1.2 1.2 0 0 1-.553-.132c-.666-.38-.955-1.834-.73-3.703.054-.46.142-.944.25-1.438zm4.56.64q.661.032 1.345.034.691.001 1.36-.034c-.44.572-.895 1.095-1.345 1.565q-.684-.706-1.36-1.565"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  React
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>React</title><path d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236m2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38a2.17 2.17 0 0 0-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44a23.5 23.5 0 0 0-3.107-.534A24 24 0 0 0 12.769 4.7c1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442a23 23 0 0 0-3.113.538 15 15 0 0 1-.254-1.42c-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05q.684.704 1.36 1.564c-.44-.02-.89-.034-1.345-.034q-.691-.001-1.36.034c.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093q.61.874 1.183 1.86.557.961 1.018 1.946c-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87a25.6 25.6 0 0 1-4.412.005 27 27 0 0 1-1.183-1.86q-.557-.961-1.018-1.946a25 25 0 0 1 1.013-1.954c.38-.66.773-1.286 1.18-1.868A25 25 0 0 1 12 8.098zm-3.635.254c-.24.377-.48.763-.704 1.16q-.336.585-.635 1.174c-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0q1.044.153 2.006.387c-.18.632-.405 1.282-.66 1.933a25.952 25.952 0 0 0-1.345-2.32zm3.063.675q.727.226 1.375.498c1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493a24 24 0 0 0-1.1-2.98c.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98a23 23 0 0 0-1.086 2.964c-.484-.15-.944-.318-1.37-.5-1.732-.737-2.852-1.706-2.852-2.474s1.12-1.742 2.852-2.476c.42-.18.88-.342 1.356-.494m11.678 4.28c.265.657.49 1.312.676 1.948-.64.157-1.316.29-2.016.39a26 26 0 0 0 1.341-2.338zm-9.945.02c.2.392.41.783.64 1.175q.345.586.705 1.143a22 22 0 0 1-2.006-.386c.18-.63.406-1.282.66-1.933zM17.92 16.32c.112.493.2.968.254 1.423.23 1.868-.054 3.32-.714 3.708-.147.09-.338.128-.563.128-1.012 0-2.514-.807-4.11-2.28.686-.72 1.37-1.536 2.02-2.44 1.107-.118 2.154-.3 3.113-.54zm-11.83.01c.96.234 2.006.415 3.107.532.66.905 1.345 1.727 2.035 2.446-1.595 1.483-3.092 2.295-4.11 2.295a1.2 1.2 0 0 1-.553-.132c-.666-.38-.955-1.834-.73-3.703.054-.46.142-.944.25-1.438zm4.56.64q.661.032 1.345.034.691.001 1.36-.034c-.44.572-.895 1.095-1.345 1.565q-.684-.706-1.36-1.565"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  React
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Install
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-first-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Your first viewer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-handle-is-the-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The handle is the store
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The handle is the store">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#useviewer-vs-useviewerselector" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>useViewer()</code> vs <code>useViewerSelector()</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reactive-reads" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reactive reads
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reactive reads">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#equality-gating" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Equality gating
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#selector-cadence" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Selector cadence
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#passing-the-handle-to-a-deep-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Passing the handle to a deep tree
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#props" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Props
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Props">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manifestid-and-canvasid-are-uncontrolled" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>manifestId</code> and <code>canvasId</code> are uncontrolled
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keep-object-props-stable" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Keep object props stable
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Plugins
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#events" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Events
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Custom search
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-imperative-escape-hatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The imperative escape hatch
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Server rendering
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-wiring-goes-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        When wiring goes wrong
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-your-own-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Testing your own components
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-wrapper-does-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        What the wrapper does not do
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vue/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>Vue.js</title><path d="M24 1.61h-9.94L12 5.16 9.94 1.61H0l12 20.78ZM12 14.08 5.16 2.23h4.43L12 6.41l2.41-4.18h4.43Z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Vue
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../svelte/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>Svelte</title><path d="M10.354 21.125a4.44 4.44 0 0 1-4.765-1.767 4.1 4.1 0 0 1-.703-3.107 4 4 0 0 1 .134-.522l.105-.321.287.21a7.2 7.2 0 0 0 2.186 1.092l.208.063-.02.208a1.25 1.25 0 0 0 .226.83 1.34 1.34 0 0 0 1.435.533 1.2 1.2 0 0 0 .343-.15l5.59-3.562a1.16 1.16 0 0 0 .524-.778 1.24 1.24 0 0 0-.211-.937 1.34 1.34 0 0 0-1.435-.533 1.2 1.2 0 0 0-.343.15l-2.133 1.36a4 4 0 0 1-1.135.499 4.44 4.44 0 0 1-4.765-1.766 4.1 4.1 0 0 1-.702-3.108 3.86 3.86 0 0 1 1.742-2.582l5.589-3.563a4 4 0 0 1 1.135-.499 4.44 4.44 0 0 1 4.765 1.767 4.1 4.1 0 0 1 .703 3.107 4 4 0 0 1-.134.522l-.105.321-.286-.21a7.2 7.2 0 0 0-2.187-1.093l-.208-.063.02-.207a1.25 1.25 0 0 0-.226-.831 1.34 1.34 0 0 0-1.435-.532 1.2 1.2 0 0 0-.343.15L8.62 9.368a1.16 1.16 0 0 0-.524.778 1.24 1.24 0 0 0 .211.937 1.34 1.34 0 0 0 1.435.533 1.2 1.2 0 0 0 .344-.151l2.132-1.36a4 4 0 0 1 1.135-.498 4.44 4.44 0 0 1 4.765 1.766 4.1 4.1 0 0 1 .702 3.108 3.86 3.86 0 0 1-1.742 2.583l-5.589 3.562a4 4 0 0 1-1.135.499m10.358-17.95C18.484-.015 14.082-.96 10.9 1.068L5.31 4.63a6.41 6.41 0 0 0-2.896 4.295 6.75 6.75 0 0 0 .666 4.336 6.4 6.4 0 0 0-.96 2.396 6.83 6.83 0 0 0 1.168 5.167c2.229 3.19 6.63 4.135 9.812 2.108l5.59-3.562a6.4 6.4 0 0 0 2.896-4.295 6.76 6.76 0 0 0-.665-4.336 6.4 6.4 0 0 0 .958-2.396 6.83 6.83 0 0 0-1.167-5.168"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Svelte
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-code-xml" viewBox="0 0 24 24"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Any framework (web component)
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Guides
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Guides
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Configuration & State Management
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theming/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-palette" viewBox="0 0 24 24"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Theming and Styling
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Content Security Policy
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Plugins
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Plugins
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-plug-2" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M12 17v5M5 8h14M6 11V8h12v3a6 6 0 1 1-12 0"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Plugin System
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  First-party Plugins
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  First-party Plugins
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-image-manipulation/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sliders-horizontal" viewBox="0 0 24 24"><path d="M10 5H3M12 19H3M14 3v4M16 17v4M21 12h-9M21 19h-5M21 5h-7M8 10v4M8 12H3"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Image Manipulation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-image-export/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-download" viewBox="0 0 24 24"><path d="M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Image Download
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-pdf-export/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-file-down" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5M12 18v-6M9 15l3 3 3-3"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  PDF Export
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-annotation-editor/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-pen-tool" viewBox="0 0 24 24"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18M2.3 2.3l7.286 7.286"/><circle cx="11" cy="11" r="2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Annotation Editor
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Authoring & Testing
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Authoring & Testing
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-authoring/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-puzzle" viewBox="0 0 24 24"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Authoring a plugin (the SDK)
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-testing/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-flask-conical" viewBox="0 0 24 24"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Testing a plugin
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Install
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-first-viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Your first viewer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-handle-is-the-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The handle is the store
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The handle is the store">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#useviewer-vs-useviewerselector" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>useViewer()</code> vs <code>useViewerSelector()</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reactive-reads" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reactive reads
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reactive reads">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#equality-gating" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Equality gating
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#selector-cadence" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Selector cadence
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#passing-the-handle-to-a-deep-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Passing the handle to a deep tree
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#props" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Props
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Props">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manifestid-and-canvasid-are-uncontrolled" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        <code>manifestId</code> and <code>canvasId</code> are uncontrolled
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keep-object-props-stable" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Keep object props stable
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Plugins
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#events" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Events
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Custom search
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-imperative-escape-hatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The imperative escape hatch
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Server rendering
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-wiring-goes-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        When wiring goes wrong
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-your-own-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Testing your own components
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-wrapper-does-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        What the wrapper does not do
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="./.." class="md-path__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      <li class="md-path__item">
+        <a href="././" class="md-path__link">
+          
+  
+  <span class="md-ellipsis">
+    Get started
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="react">React</h1>
+<p><code>triiiceratops/react</code> is a <strong>framework wrapper</strong>: a real React 19 component that
+hosts the Triiiceratops custom element and translates its lifecycle, properties,
+events, and viewer state into React idioms. It does not implement or own a
+second viewer — there is exactly one viewer implementation, behind the
+custom-element boundary.</p>
+<p>That boundary is also where Svelte stays. You do <strong>not</strong> install Svelte, add a
+Svelte plugin to Vite, declare a custom-element tag, register anything, or write
+<code>useEffect</code> blocks that assign properties to a ref. <code>triiiceratops/react</code> is
+precompiled JavaScript plus declarations that resolve with <strong>no <code>svelte</code>
+package installed</strong>.</p>
+<h2 id="install">Install</h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">pnpm</label><label for="__tabbed_1_2">npm</label><label for="__tabbed_1_3">bun</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pnpm<span class="w"> </span>add<span class="w"> </span>triiiceratops
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>npm<span class="w"> </span>install<span class="w"> </span>triiiceratops
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bun<span class="w"> </span>add<span class="w"> </span>triiiceratops
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<p>React 19 is an <strong>optional peer dependency</strong> — installing Triiiceratops for a
+different integration never pulls React in, and React is never bundled into the
+package.</p>
+<h2 id="your-first-viewer">Your first viewer</h2>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TriiiceratopsViewer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Reader</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewer</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">            </span><span class="na">manifestId</span><span class="o">=</span><span class="s">&quot;https://example.org/manifest.json&quot;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">            </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;block&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;600px&#39;</span><span class="w"> </span><span class="p">}}</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="p">/&gt;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>That is the whole integration. Some things worth knowing right away:</p>
+<ul>
+<li><strong>Registration is automatic.</strong> The first <code>&lt;TriiiceratopsViewer&gt;</code> to mount in
+  the browser lazily imports and registers the self-contained custom element.
+  The work is memoized and shared, so a hundred viewers do it once. There is no
+  side-effect import to remember and no <code>element/register</code> in a React app.</li>
+<li><strong>The wrapper renders exactly one element</strong> — the <code>&lt;triiiceratops-viewer&gt;</code>
+  host, and nothing else. No layout <code>&lt;div&gt;</code> wraps it, so adopting the wrapper
+  changes no sizing or CSS. Give the host a height, as above.</li>
+<li><strong>It takes no children.</strong> <code>children</code> is typed <code>never</code>; the viewer's chrome is
+  not composable from React elements. See
+  <a href="#what-the-wrapper-does-not-do">what the wrapper does not do</a>.</li>
+<li><strong>Styles are bundled inside the element's shadow root.</strong> There is no
+  stylesheet to import.</li>
+</ul>
+<h2 id="the-handle-is-the-store">The handle is the store</h2>
+<p>Everything that reads or commands the viewer goes through a <strong>handle</strong>. Create
+it with <code>useViewerHandle()</code>, pass it to the component's <code>handle</code> prop, and read
+through it:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nx">TriiiceratopsViewer</span><span class="p">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nx">useViewer</span><span class="p">,</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nx">useViewerHandle</span><span class="p">,</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nx">useViewerSelector</span><span class="p">,</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Reader</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerHandle</span><span class="p">();</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="c1">// Reactive read: re-renders only when the selected value changes.</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">canvasId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="p">(</span><span class="nx">handle</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">canvasId</span><span class="p">);</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="c1">// The live state object: commands and on-demand reads, no subscription.</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">viewer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewer</span><span class="p">(</span><span class="nx">handle</span><span class="p">);</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">        </span><span class="p">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="na">className</span><span class="o">=</span><span class="s">&quot;reader&quot;</span><span class="p">&gt;</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;{</span><span class="nx">canvasId</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s1">&#39;No canvas yet&#39;</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">viewer</span><span class="o">?</span><span class="p">.</span><span class="nx">nextCanvas</span><span class="p">()}&gt;</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">                </span><span class="nx">Next</span><span class="w"> </span><span class="nx">canvas</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">            </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewer</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">                </span><span class="na">handle</span><span class="o">=</span><span class="p">{</span><span class="nx">handle</span><span class="p">}</span>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">                </span><span class="na">manifestId</span><span class="o">=</span><span class="s">&quot;https://example.org/manifest.json&quot;</span>
+</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">                </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;block&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;600px&#39;</span><span class="w"> </span><span class="p">}}</span>
+</span><span id="__span-4-26"><a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">            </span><span class="p">/&gt;</span>
+</span><span id="__span-4-27"><a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">        </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span id="__span-4-28"><a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-4-29"><a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>If you already reach for <code>useForm</code>-style APIs, the shape is familiar: the hook
+returns a stable box, the component fills it in, and helpers take the box.</p>
+<p><strong>The handle is a stable box, not the state.</strong> <code>useViewerHandle()</code> returns the
+same object for the component's whole lifetime. What changes is the value inside
+it — <code>null</code> until the element publishes its viewer state, a new binding after a
+detach/reattach, <code>null</code> again on unmount. That is why the box is what you pass
+around.</p>
+<p><strong>Reads are <code>undefined</code> until the viewer's state exists.</strong> Nothing is gated or
+withheld to manufacture a non-nullable value; <code>undefined</code> is the honest state of
+the world in the window between "React mounted the host" and "the custom element
+finished mounting its viewer". Handle it the way you handle any other
+asynchronous resource — the <code>??</code> and the optional call above are the whole
+pattern.</p>
+<p><strong>Your UI can live anywhere.</strong> The examples put controls before the viewer, but
+nothing about the wrapper constrains your markup: the handle is a value, so
+controls can be siblings, ancestors, nested inside your own layout boxes, or in
+a completely different part of the tree.</p>
+<p><strong>The handle is optional.</strong> A viewer that nothing reads from needs no handle at
+all — the first example above passes none.</p>
+<p><strong>One handle per viewer.</strong> Passing the same handle to a second
+<code>&lt;TriiiceratopsViewer&gt;</code> throws <code>TriiiceratopsHandleConflictError</code> naming both
+elements, because ambiguous ownership would silently break per-viewer isolation.
+Two viewers on a page means two <code>useViewerHandle()</code> calls.</p>
+<h3 id="useviewer-vs-useviewerselector"><code>useViewer()</code> vs <code>useViewerSelector()</code></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"></th>
+<th style="text-align: left;"><code>useViewer(handle)</code></th>
+<th style="text-align: left;"><code>useViewerSelector(handle, projection, options?)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Returns</td>
+<td style="text-align: left;"><code>ReadonlyViewerState \| undefined</code></td>
+<td style="text-align: left;">the projected value, or <code>undefined</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Subscribes to state</td>
+<td style="text-align: left;"><strong>No</strong></td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: left;">Re-renders when</td>
+<td style="text-align: left;">the viewer binds, rebinds, or unmounts</td>
+<td style="text-align: left;">the selected value changes</td>
+</tr>
+<tr>
+<td style="text-align: left;">Use it for</td>
+<td style="text-align: left;">commands, one-shot reads inside handlers</td>
+<td style="text-align: left;">anything you render</td>
+</tr>
+</tbody>
+</table>
+<p>Both also have a context form that omits the handle — see
+<a href="#passing-the-handle-to-a-deep-tree">passing the handle to a deep tree</a>.</p>
+<p><code>useViewer()</code> returns a typed, readonly view of the very same live <code>ViewerState</code>
+object the element owns — no facade, no <code>Proxy</code>, no copy — with the four
+lifecycle-plumbing methods (<code>setEventTarget</code>, <code>setViewerElement</code>, <code>destroy</code>,
+<code>destroyAllPlugins</code>) hidden so autocomplete offers only supported operations.
+Identity comparisons hold: the object is reference-equal to
+<code>handle.get()?.state</code> and to the element's own <code>viewerState</code>.</p>
+<p>Reading a notifying member off that object does <strong>not</strong> subscribe to it. Reading
+<code>viewer.canvasId</code> during render gives you the value at render time and no
+re-render when it changes — that is what <code>useViewerSelector()</code> is for.</p>
+<h2 id="reactive-reads">Reactive reads</h2>
+<p><code>useViewerSelector()</code> is one generic, memoized, equality-gated projection. <code>T</code>
+is inferred from the projection, so reactive state access stays concise and type
+safe:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ViewerHandleSlot</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">GalleryBadge</span><span class="p">({</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">handle</span><span class="o">:</span><span class="w"> </span><span class="kt">ViewerHandleSlot</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="c1">// `boolean | undefined`, inferred.</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">open</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="p">(</span><span class="nx">handle</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">showThumbnailGallery</span><span class="p">);</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;{</span><span class="nx">open</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;Gallery open&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;Gallery closed&#39;</span><span class="p">}&lt;/</span><span class="nt">span</span><span class="p">&gt;;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="equality-gating">Equality gating</h3>
+<p>A projection is memoized twice over. Within one notification it is computed once
+and repeated reads return the same reference — which is what makes an inline
+projection a valid React external-store snapshot with no extra machinery. Across
+notifications, the equality gate decides: when a recompute produces a value that
+satisfies <code>equals</code>, the projection keeps returning the <strong>previous reference</strong>, so
+React does not re-render.</p>
+<p><code>equals</code> defaults to <code>Object.is</code>, which is right for the primitives above. A
+projection that builds a fresh object or array on every run is never
+<code>Object.is</code>-equal to its predecessor, so it would re-render on every viewer
+notification — give those an <code>equals</code>:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ViewerHandleSlot</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">CanvasCounter</span><span class="p">({</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">handle</span><span class="o">:</span><span class="w"> </span><span class="kt">ViewerHandleSlot</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="p">(</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="nx">handle</span><span class="p">,</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="p">(</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">            </span><span class="nx">index</span><span class="o">:</span><span class="w"> </span><span class="kt">state.currentCanvasIndex</span><span class="p">,</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">            </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">state.canvases.length</span><span class="p">,</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">        </span><span class="p">}),</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">equals</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">a</span><span class="p">.</span><span class="nx">index</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">index</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">a</span><span class="p">.</span><span class="nx">total</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">total</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">position</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">        </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">            </span><span class="p">{</span><span class="nx">position</span><span class="p">.</span><span class="nx">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="p">}</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">{</span><span class="nx">position</span><span class="p">.</span><span class="nx">total</span><span class="p">}</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">        </span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><strong>No <code>useCallback</code> or <code>useMemo</code> is needed</strong> on either the projection or the
+equality function. Inline arrows whose closures change between renders read
+current values, which is what makes the helper idiomatic under React 19 and the
+React Compiler. Reads are correct under concurrent rendering and Strict Mode:
+the helper is built on React's own <code>useSyncExternalStore</code>, and it never mutates a
+shared projection during a render pass.</p>
+<p><strong>All selectors for one viewer share one underlying subscription.</strong> Adding
+selector components does not multiply <code>ViewerState.subscribe</code> registrations.</p>
+<p><strong>Projection failures reach your error boundary.</strong> If a projection or equality
+function throws, the failure is retained and rethrown from your component's own
+read. It is never swallowed, never converted into a <code>viewererror</code> or
+<code>pluginerror</code>, and never served as a stale selected value.</p>
+<h3 id="selector-cadence">Selector cadence</h3>
+<p>The <code>cadence</code> option chooses which notification wakes a projection: the default
+<code>state</code> for anything in the viewer's state inventory, and <code>frame</code> for continuous
+OpenSeadragon viewport values (zoom, pan, rotation, bounds) that are deliberately
+not mirrored into viewer state. <a href="../configuration/#selector-cadence">Selector cadence</a>
+explains the split and why it exists; the React call is one option:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ViewerHandleSlot</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ZoomReadout</span><span class="p">({</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">handle</span><span class="o">:</span><span class="w"> </span><span class="kt">ViewerHandleSlot</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">zoom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="p">(</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="nx">handle</span><span class="p">,</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">        </span><span class="p">(</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">osdViewer</span><span class="o">?</span><span class="p">.</span><span class="nx">viewport</span><span class="p">.</span><span class="nx">getZoom</span><span class="p">()</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">1</span><span class="p">,</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">cadence</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;frame&#39;</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">zoom</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">undefined</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;{</span><span class="nb">Math</span><span class="p">.</span><span class="nx">round</span><span class="p">(</span><span class="nx">zoom</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100</span><span class="p">)}</span><span class="o">%</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;;</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Reading <em>through</em> <code>state.osdViewer</code> at the default <code>state</code> cadence is the one
+selector mistake that fails silently — the projection simply appears frozen. See
+<a href="../configuration/#what-notifies">what notifies</a> for the inventory that decides
+which members a <code>state</code>-cadence projection may read.</p>
+<h2 id="passing-the-handle-to-a-deep-tree">Passing the handle to a deep tree</h2>
+<p>Threading the handle through every intermediate component gets old.
+<code>&lt;ViewerProvider value={handle}&gt;</code> publishes it to a subtree, and both hooks have
+a context form that omits the handle argument:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="nx">TriiiceratopsViewer</span><span class="p">,</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nx">useViewer</span><span class="p">,</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="nx">useViewerHandle</span><span class="p">,</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nx">useViewerSelector</span><span class="p">,</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="nx">ViewerProvider</span><span class="p">,</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="kd">function</span><span class="w"> </span><span class="nx">CanvasLabel</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">canvasId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="p">((</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">canvasId</span><span class="p">);</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;{</span><span class="nx">canvasId</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s1">&#39;No canvas yet&#39;</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;;</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="p">}</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="kd">function</span><span class="w"> </span><span class="nx">ZoomButtons</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">viewer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewer</span><span class="p">();</span>
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">        </span><span class="p">&lt;&gt;</span>
+</span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">viewer</span><span class="o">?</span><span class="p">.</span><span class="nx">zoomOut</span><span class="p">()}&gt;</span>
+</span><span id="__span-8-19"><a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="w">                </span><span class="err">−</span>
+</span><span id="__span-8-20"><a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">            </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+</span><span id="__span-8-21"><a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">viewer</span><span class="o">?</span><span class="p">.</span><span class="nx">zoomIn</span><span class="p">()}&gt;</span>
+</span><span id="__span-8-22"><a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="w">                </span><span class="o">+</span>
+</span><span id="__span-8-23"><a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a><span class="w">            </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+</span><span id="__span-8-24"><a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a><span class="w">        </span><span class="p">&lt;/&gt;</span>
+</span><span id="__span-8-25"><a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-8-26"><a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a><span class="p">}</span>
+</span><span id="__span-8-27"><a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a>
+</span><span id="__span-8-28"><a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Reader</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-8-29"><a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerHandle</span><span class="p">();</span>
+</span><span id="__span-8-30"><a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-8-31"><a id="__codelineno-8-31" name="__codelineno-8-31" href="#__codelineno-8-31"></a><span class="w">        </span><span class="p">&lt;</span><span class="nt">ViewerProvider</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">handle</span><span class="p">}&gt;</span>
+</span><span id="__span-8-32"><a id="__codelineno-8-32" name="__codelineno-8-32" href="#__codelineno-8-32"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">header</span><span class="p">&gt;</span>
+</span><span id="__span-8-33"><a id="__codelineno-8-33" name="__codelineno-8-33" href="#__codelineno-8-33"></a><span class="w">                </span><span class="p">&lt;</span><span class="nt">CanvasLabel</span><span class="w"> </span><span class="p">/&gt;</span>
+</span><span id="__span-8-34"><a id="__codelineno-8-34" name="__codelineno-8-34" href="#__codelineno-8-34"></a><span class="w">                </span><span class="p">&lt;</span><span class="nt">ZoomButtons</span><span class="w"> </span><span class="p">/&gt;</span>
+</span><span id="__span-8-35"><a id="__codelineno-8-35" name="__codelineno-8-35" href="#__codelineno-8-35"></a><span class="w">            </span><span class="p">&lt;/</span><span class="nt">header</span><span class="p">&gt;</span>
+</span><span id="__span-8-36"><a id="__codelineno-8-36" name="__codelineno-8-36" href="#__codelineno-8-36"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewer</span>
+</span><span id="__span-8-37"><a id="__codelineno-8-37" name="__codelineno-8-37" href="#__codelineno-8-37"></a><span class="w">                </span><span class="na">handle</span><span class="o">=</span><span class="p">{</span><span class="nx">handle</span><span class="p">}</span>
+</span><span id="__span-8-38"><a id="__codelineno-8-38" name="__codelineno-8-38" href="#__codelineno-8-38"></a><span class="w">                </span><span class="na">manifestId</span><span class="o">=</span><span class="s">&quot;https://example.org/manifest.json&quot;</span>
+</span><span id="__span-8-39"><a id="__codelineno-8-39" name="__codelineno-8-39" href="#__codelineno-8-39"></a><span class="w">                </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;block&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;600px&#39;</span><span class="w"> </span><span class="p">}}</span>
+</span><span id="__span-8-40"><a id="__codelineno-8-40" name="__codelineno-8-40" href="#__codelineno-8-40"></a><span class="w">            </span><span class="p">/&gt;</span>
+</span><span id="__span-8-41"><a id="__codelineno-8-41" name="__codelineno-8-41" href="#__codelineno-8-41"></a><span class="w">        </span><span class="p">&lt;/</span><span class="nt">ViewerProvider</span><span class="p">&gt;</span>
+</span><span id="__span-8-42"><a id="__codelineno-8-42" name="__codelineno-8-42" href="#__codelineno-8-42"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-8-43"><a id="__codelineno-8-43" name="__codelineno-8-43" href="#__codelineno-8-43"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>&lt;ViewerProvider&gt;</code> is a trivial value provider — ordinary React context. It gates
+nothing, renders its children unconditionally, and has no fallback; reads through
+the handle stay nullable. Nest a second provider to scope a second viewer, and
+the nearest one wins.</p>
+<p>Calling a hook with neither an explicit handle nor a provider above it throws
+immediately with a message naming the fix, rather than returning <code>undefined</code>
+forever.</p>
+<h2 id="props">Props</h2>
+<p>Every viewer input is a typed prop. Which mechanism carries it to the element is
+an implementation detail you never have to manage, but it explains the
+server-rendering behavior below.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Prop</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Carried as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>manifestId</code></td>
+<td style="text-align: left;"><code>string</code></td>
+<td style="text-align: left;">attribute (<code>manifest-id</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>canvasId</code></td>
+<td style="text-align: left;"><code>string</code></td>
+<td style="text-align: left;">attribute (<code>canvas-id</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>theme</code></td>
+<td style="text-align: left;"><code>string</code></td>
+<td style="text-align: left;">attribute (<code>theme</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>manifestJson</code></td>
+<td style="text-align: left;"><code>string \| Record&lt;string, any&gt;</code></td>
+<td style="text-align: left;">property</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>themeConfig</code></td>
+<td style="text-align: left;"><code>string \| ThemeConfig</code></td>
+<td style="text-align: left;">property</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>config</code></td>
+<td style="text-align: left;"><code>string \| ViewerConfig</code></td>
+<td style="text-align: left;">property</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>initialCanvasRegion</code></td>
+<td style="text-align: left;"><code>string \| CanvasRegion</code></td>
+<td style="text-align: left;">property</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>plugins</code></td>
+<td style="text-align: left;"><code>readonly SdkPlugin[]</code></td>
+<td style="text-align: left;">property</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>searchProvider</code></td>
+<td style="text-align: left;"><code>SearchProvider \| null</code></td>
+<td style="text-align: left;">property</td>
+</tr>
+</tbody>
+</table>
+<p>Everything else you pass — <code>className</code>, <code>style</code>, <code>id</code>, <code>data-*</code>, <code>aria-*</code>,
+ordinary DOM attributes and DOM event handlers — is forwarded to the host
+element by React, unchanged. Object- and function-valued inputs always reach the
+element as JavaScript <strong>properties</strong>, never stringified into attributes, whether
+or not the lazy registration has finished.</p>
+<p>All tiers are <strong>edge-triggered</strong>: a write happens only when the prop value
+differs from the value the wrapper last applied. A parent re-render with equal
+props writes nothing, so it never reloads your manifest, snaps the viewport, or
+restarts your plugins.</p>
+<h3 id="manifestid-and-canvasid-are-uncontrolled"><code>manifestId</code> and <code>canvasId</code> are uncontrolled</h3>
+<p>They are one-way instructions to the viewer, not continuously enforced bindings
+— <code>defaultValue</code> + <code>onChange</code>, never <code>value</code> + <code>onChange</code>. After the user
+navigates internally, re-asserting the same <code>canvasId</code> writes nothing, so the
+wrapper never fights the user. There is no controlled mode.</p>
+<p>To follow where the viewer actually is, observe it — with a selector, or with
+the <code>onCanvasChange</code> / <code>onManifestChange</code> callbacks when you want to sync
+something outside React state (a URL, say):</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react&#39;</span><span class="p">;</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TriiiceratopsViewer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Reader</span><span class="p">({</span><span class="w"> </span><span class="nx">initialCanvasId</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">initialCanvasId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">currentCanvasId</span><span class="p">,</span><span class="w"> </span><span class="nx">setCurrentCanvasId</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="nx">initialCanvasId</span><span class="p">);</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">        </span><span class="p">&lt;&gt;</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">Showing</span><span class="w"> </span><span class="p">{</span><span class="nx">currentCanvasId</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewer</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">                </span><span class="na">manifestId</span><span class="o">=</span><span class="s">&quot;https://example.org/manifest.json&quot;</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">                </span><span class="err">//</span><span class="w"> </span><span class="na">An</span><span class="w"> </span><span class="na">instruction</span><span class="err">,</span><span class="w"> </span><span class="na">not</span><span class="w"> </span><span class="na">a</span><span class="w"> </span><span class="na">binding</span><span class="err">:</span><span class="w"> </span><span class="na">this</span><span class="w"> </span><span class="na">value</span><span class="w"> </span><span class="na">is</span><span class="w"> </span><span class="na">applied</span><span class="w"> </span><span class="na">when</span><span class="w"> </span><span class="na">it</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">                </span><span class="err">//</span><span class="w"> </span><span class="na">changes</span><span class="err">,</span><span class="w"> </span><span class="na">and</span><span class="w"> </span><span class="na">internal</span><span class="w"> </span><span class="na">navigation</span><span class="w"> </span><span class="na">is</span><span class="w"> </span><span class="na">never</span><span class="w"> </span><span class="na">overwritten</span><span class="w"> </span><span class="na">by</span><span class="w"> </span><span class="na">it.</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">                </span><span class="na">canvasId</span><span class="o">=</span><span class="p">{</span><span class="nx">initialCanvasId</span><span class="p">}</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">                </span><span class="na">onCanvasChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">snapshot</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">snapshot</span><span class="p">.</span><span class="nx">canvasId</span><span class="p">)</span><span class="w"> </span><span class="nx">setCurrentCanvasId</span><span class="p">(</span><span class="nx">snapshot</span><span class="p">.</span><span class="nx">canvasId</span><span class="p">);</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">                </span><span class="p">}}</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">                </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;block&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;600px&#39;</span><span class="w"> </span><span class="p">}}</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">            </span><span class="p">/&gt;</span>
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">        </span><span class="p">&lt;/&gt;</span>
+</span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="keep-object-props-stable">Keep object props stable</h3>
+<p>Property-tier inputs are compared with one uniform, one-level shallow equality:
+identical by <code>Object.is</code>; or both arrays of equal length with identical elements;
+or both plain objects with equal own-key sets and identical values. Deep equality
+is deliberately not used, because it would make write suppression depend on the
+shape of your data.</p>
+<p>So a <strong>nested</strong> object rebuilt on every render is written on every render — and
+writing <code>config</code> or <code>manifestJson</code> is not free. Hoist it, or memoize it:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMemo</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react&#39;</span><span class="p">;</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TriiiceratopsViewer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ThemeConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">ViewerConfig</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1">// Hoisted: one object for the module&#39;s lifetime.</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="kd">const</span><span class="w"> </span><span class="nx">THEME_CONFIG</span><span class="o">:</span><span class="w"> </span><span class="kt">ThemeConfig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">panelBg</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;#101014&#39;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Reader</span><span class="p">({</span><span class="w"> </span><span class="nx">side</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">side</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;left&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;right&#39;</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="c1">// Memoized: a new object only when what it depends on changes.</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMemo</span><span class="p">&lt;</span><span class="nt">ViewerConfig</span><span class="p">&gt;(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">toolbar</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">side</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}),</span><span class="w"> </span><span class="p">[</span><span class="nx">side</span><span class="p">]);</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">        </span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewer</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">            </span><span class="na">manifestId</span><span class="o">=</span><span class="s">&quot;https://example.org/manifest.json&quot;</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="w">            </span><span class="na">config</span><span class="o">=</span><span class="p">{</span><span class="nx">config</span><span class="p">}</span>
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="w">            </span><span class="na">themeConfig</span><span class="o">=</span><span class="p">{</span><span class="nx">THEME_CONFIG</span><span class="p">}</span>
+</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="w">            </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;block&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;600px&#39;</span><span class="w"> </span><span class="p">}}</span>
+</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="w">        </span><span class="p">/&gt;</span>
+</span><span id="__span-10-18"><a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-10-19"><a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>With <code>config: { debug: true }</code> the wrapper warns once, naming the prop, after one
+property-tier input has been re-assigned an implausible number of times on one
+element — so an unmemoized object prop is diagnosable instead of mysterious.</p>
+<h3 id="plugins">Plugins</h3>
+<p><code>plugins</code> takes framework-neutral <a href="../plugins/">SDK plugins</a> — <code>readonly
+SdkPlugin[]</code>, with no Svelte types or Svelte runtime involved. The
+<a href="../plugins/#adding-a-plugin-to-your-viewer">plugins guide</a> has the React example.</p>
+<p>Activation lifetime is keyed to <strong>plugin identity</strong>, not to the identity of the
+list: re-supplying an equal list leaves running plugins completely untouched — no
+teardown, no restart, no re-injected styles. Hoist the list anyway, since a fresh
+<code>createPdfExportPlugin()</code> call per render would produce a genuinely different
+plugin each time.</p>
+<h2 id="events">Events</h2>
+<p>The custom element's channels are typed callback props. Each receives the event
+<strong>detail</strong> directly — never a <code>CustomEvent</code> — so your code is independent of the
+DOM event envelope.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Prop</th>
+<th style="text-align: left;">Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>onStateChange</code></td>
+<td style="text-align: left;"><code>ViewerStateSnapshot</code> (any inventoried change, batched)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>onCanvasChange</code></td>
+<td style="text-align: left;"><code>ViewerStateSnapshot</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>onManifestChange</code></td>
+<td style="text-align: left;"><code>ViewerStateSnapshot</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>onChoiceChange</code></td>
+<td style="text-align: left;"><code>ViewerStateSnapshot</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>onPluginError</code></td>
+<td style="text-align: left;">the exact <code>PluginError</code>, with a callable <code>retry()</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>onViewerError</code></td>
+<td style="text-align: left;">the exact typed <code>ViewerError</code></td>
+</tr>
+</tbody>
+</table>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TriiiceratopsViewer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Reader</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">        </span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewer</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">            </span><span class="na">manifestId</span><span class="o">=</span><span class="s">&quot;https://example.org/manifest.json&quot;</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">            </span><span class="na">onCanvasChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">snapshot</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">history</span><span class="p">.</span><span class="nx">replaceState</span><span class="p">(</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">                </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">                </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">                </span><span class="sb">`?canvas=</span><span class="si">${</span><span class="nb">encodeURIComponent</span><span class="p">(</span><span class="nx">snapshot</span><span class="p">.</span><span class="nx">canvasId</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">            </span><span class="p">)}</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">            </span><span class="err">//</span><span class="w"> </span><span class="na">The</span><span class="w"> </span><span class="na">original</span><span class="w"> </span><span class="na">PluginError</span><span class="w"> </span><span class="na">object</span><span class="err">,</span><span class="w"> </span><span class="na">recovery</span><span class="w"> </span><span class="na">behavior</span><span class="w"> </span><span class="na">intact.</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="w">            </span><span class="na">onPluginError</span><span class="o">=</span><span class="p">{(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">retry</span><span class="p">()}</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">            </span><span class="na">onViewerError</span><span class="o">=</span><span class="p">{(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">)}</span>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="w">            </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;block&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;600px&#39;</span><span class="w"> </span><span class="p">}}</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="w">        </span><span class="p">/&gt;</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Changing a callback prop between renders neither leaks nor duplicates a DOM
+listener: one listener per channel is installed for the element's lifetime and
+always calls the current callback.</p>
+<h2 id="custom-search">Custom search</h2>
+<p>The <code>searchProvider</code> prop supplies search results from your own application code
+instead of a manifest-declared IIIF Content Search service. It behaves the same
+in every host, so it is documented once with a React tab in
+<a href="../configuration/#custom-search-providers">custom search providers</a>.</p>
+<h2 id="the-imperative-escape-hatch">The imperative escape hatch</h2>
+<p>When a hook is unsuitable — a test, an integration with imperative code — a
+forwarded <code>ref</code> yields the same two-member <code>ViewerHandle</code> the handle publishes:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useRef</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react&#39;</span><span class="p">;</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TriiiceratopsViewer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TriiiceratopsViewerRef</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Reader</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useRef</span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewerRef</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">        </span><span class="p">&lt;&gt;</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">button</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">                </span><span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">                </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">ref</span><span class="p">.</span><span class="nx">current</span><span class="o">?</span><span class="p">.</span><span class="nx">element</span><span class="p">.</span><span class="nx">scrollIntoView</span><span class="p">()}</span>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="w">            </span><span class="p">&gt;</span>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="w">                </span><span class="nx">Scroll</span><span class="w"> </span><span class="nx">to</span><span class="w"> </span><span class="nx">viewer</span>
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">            </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="w">            </span><span class="p">&lt;</span><span class="nt">TriiiceratopsViewer</span>
+</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="w">                </span><span class="na">ref</span><span class="o">=</span><span class="p">{</span><span class="nx">ref</span><span class="p">}</span>
+</span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="w">                </span><span class="na">manifestId</span><span class="o">=</span><span class="s">&quot;https://example.org/manifest.json&quot;</span>
+</span><span id="__span-12-18"><a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a><span class="w">                </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;block&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;600px&#39;</span><span class="w"> </span><span class="p">}}</span>
+</span><span id="__span-12-19"><a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="w">            </span><span class="p">/&gt;</span>
+</span><span id="__span-12-20"><a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="w">        </span><span class="p">&lt;/&gt;</span>
+</span><span id="__span-12-21"><a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a><span class="w">    </span><span class="p">);</span>
+</span><span id="__span-12-22"><a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>ref.current</code> is <code>null</code> until the viewer publishes its state and again after
+unmount. It has exactly two members — <code>element</code> (the <code>&lt;triiiceratops-viewer&gt;</code>
+host) and <code>state</code> (the readonly viewer state) — so the escape hatch stays small
+and discoverable. <code>ref.current.state</code> is reference-equal to what <code>useViewer()</code>
+returns.</p>
+<h2 id="server-rendering">Server rendering</h2>
+<p>Importing <code>triiiceratops/react</code> is safe where <code>window</code>, <code>document</code>, and
+<code>customElements</code> do not exist: nothing browser-only runs at module evaluation and
+nothing is registered.</p>
+<p>On the server, <code>&lt;TriiiceratopsViewer&gt;</code> renders an <strong>inert host</strong> — the
+<code>&lt;triiiceratops-viewer&gt;</code> tag carrying the attribute tier (<code>manifest-id</code>,
+<code>canvas-id</code>, <code>theme</code>) and your forwarded host attributes, and nothing else. No
+shadow-DOM internals, no property-tier values, no OpenSeadragon. The client's
+first render emits the identical attribute set, so hydration reuses and upgrades
+the same host with no mismatch, and viewer internals initialize only in the
+browser.</p>
+<div class="admonition warning">
+<p class="admonition-title">State-reading components must not render on the server</p>
+<p><code>useViewer()</code> and <code>useViewerSelector()</code> deliberately ship <strong>no</strong>
+<code>getServerSnapshot</code>, so React fails loudly (<code>Missing getServerSnapshot</code>)
+rather than inventing a server-side readiness value. There is no viewer, and
+therefore no viewer state, during a server render.</p>
+<p>Keep the components that read viewer state on the client — with your
+framework's own client-only boundary — and let <code>&lt;TriiiceratopsViewer&gt;</code> itself
+server-render the inert host. Because reads are nullable rather than gated,
+server and client agree with no special-cased readiness rendering.</p>
+</div>
+<p>Triiiceratops ships no meta-framework-specific components; there is no
+Next.js package or adapter. The wrapper is a plain React component with
+SSR-safe evaluation, and the client-only boundary is yours to place.</p>
+<h2 id="when-wiring-goes-wrong">When wiring goes wrong</h2>
+<p>Failures are thrown so they reach a React error boundary rather than the console.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Error</th>
+<th style="text-align: left;">Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>TriiiceratopsHandleConflictError</code></td>
+<td style="text-align: left;">one handle was passed to two viewers</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TriiiceratopsElementVersionError</code></td>
+<td style="text-align: left;"><code>&lt;triiiceratops-viewer&gt;</code> is already defined by a constructor with no <code>viewerState</code> getter — usually a second, older Triiiceratops core that registered first</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TriiiceratopsCoreConflictError</code></td>
+<td style="text-align: left;">two different Triiiceratops core versions loaded on one page</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TriiiceratopsElementRegistrationError</code></td>
+<td style="text-align: left;">no <code>customElements</code> registry — the mount path ran outside a browser</td>
+</tr>
+</tbody>
+</table>
+<p>Version conflicts are diagnosed <strong>synchronously</strong>, right after registration:
+the wrapper probes the constructor that actually owns the tag for the
+<code>viewerState</code> getter. There is no timeout, deadline, retry, or
+<code>customElements.whenDefined</code> poll anywhere in the path, so an incompatible page
+fails fast instead of hanging.</p>
+<p>Three further failure modes are silent by design and surface only under
+<code>config: { debug: true }</code> — an unmemoized property-tier prop, a handle created and
+never passed to a viewer, and a <code>state</code>-cadence projection reading through
+<code>osdViewer</code>. See <a href="../configuration/#debug-diagnostics">debug diagnostics</a>.</p>
+<h2 id="testing-your-own-components">Testing your own components</h2>
+<p><code>triiiceratops/testing</code> builds a handle backed by a <strong>real</strong> <code>ViewerState</code> — real
+commands, real batched notifications, the real selector runtime <code>useViewerSelector()</code>
+consults — with no DOM viewer, no custom element, no OpenSeadragon, and no
+network. Run it under <code>jsdom</code> or <code>happy-dom</code> — which a React test runner already
+provides — because the published entry bundles a <code>fetch</code> polyfill that reaches for
+a <code>self</code> global, so bare Node fails with <code>ReferenceError: self is not defined</code>
+(or set <code>globalThis.self = globalThis</code> first).</p>
+<p>React consumers pass the test handle straight in wherever a <code>useViewerHandle()</code>
+slot would go — no wrapper, no <code>.get()</code>:</p>
+<div class="language-tsx highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">act</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react&#39;</span><span class="p">;</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createRoot</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;react-dom/client&#39;</span><span class="p">;</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">afterEach</span><span class="p">,</span><span class="w"> </span><span class="nx">expect</span><span class="p">,</span><span class="w"> </span><span class="nx">test</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;vitest&#39;</span><span class="p">;</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createTestViewerHandle</span><span class="p">,</span><span class="w"> </span><span class="nx">flush</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/testing&#39;</span><span class="p">;</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TestViewerHandle</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/testing&#39;</span><span class="p">;</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;triiiceratops/react&#39;</span><span class="p">;</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="c1">// React logs &quot;The current testing environment is not configured to support</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="c1">// act(...)&quot; unless you set this. Most React setups put it in a shared test</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="c1">// setup file; Testing Library sets it for you.</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="p">(</span><span class="nb">globalThis</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">IS_REACT_ACT_ENVIRONMENT?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">}).</span><span class="nx">IS_REACT_ACT_ENVIRONMENT</span><span class="w"> </span><span class="o">=</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">    </span><span class="kc">true</span><span class="p">;</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="kd">function</span><span class="w"> </span><span class="nx">CanvasLabel</span><span class="p">({</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">handle</span><span class="o">:</span><span class="w"> </span><span class="kt">TestViewerHandle</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">canvasId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useViewerSelector</span><span class="p">(</span><span class="nx">handle</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">canvasId</span><span class="p">);</span>
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;{</span><span class="nx">canvasId</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s1">&#39;No canvas yet&#39;</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;;</span>
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="p">}</span>
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="kd">let</span><span class="w"> </span><span class="nx">handle</span><span class="o">:</span><span class="w"> </span><span class="kt">TestViewerHandle</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">undefined</span><span class="p">;</span>
+</span><span id="__span-13-20"><a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a><span class="c1">// `dispose()` drops the underlying subscription. It is idempotent, so an</span>
+</span><span id="__span-13-21"><a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a><span class="c1">// already-disposed handle is fine here.</span>
+</span><span id="__span-13-22"><a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a><span class="nx">afterEach</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">handle</span><span class="o">?</span><span class="p">.</span><span class="nx">dispose</span><span class="p">());</span>
+</span><span id="__span-13-23"><a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a>
+</span><span id="__span-13-24"><a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a><span class="nx">test</span><span class="p">(</span><span class="s1">&#39;follows the viewer to a new canvas&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-13-25"><a id="__codelineno-13-25" name="__codelineno-13-25" href="#__codelineno-13-25"></a><span class="w">    </span><span class="nx">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTestViewerHandle</span><span class="p">();</span>
+</span><span id="__span-13-26"><a id="__codelineno-13-26" name="__codelineno-13-26" href="#__codelineno-13-26"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">container</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">);</span>
+</span><span id="__span-13-27"><a id="__codelineno-13-27" name="__codelineno-13-27" href="#__codelineno-13-27"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">root</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createRoot</span><span class="p">(</span><span class="nx">container</span><span class="p">);</span>
+</span><span id="__span-13-28"><a id="__codelineno-13-28" name="__codelineno-13-28" href="#__codelineno-13-28"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">act</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">root</span><span class="p">.</span><span class="nx">render</span><span class="p">(&lt;</span><span class="nt">CanvasLabel</span><span class="w"> </span><span class="na">handle</span><span class="o">=</span><span class="p">{</span><span class="nx">handle</span><span class="o">!</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;));</span>
+</span><span id="__span-13-29"><a id="__codelineno-13-29" name="__codelineno-13-29" href="#__codelineno-13-29"></a><span class="w">    </span><span class="nx">expect</span><span class="p">(</span><span class="nx">container</span><span class="p">.</span><span class="nx">textContent</span><span class="p">).</span><span class="nx">toBe</span><span class="p">(</span><span class="s1">&#39;No canvas yet&#39;</span><span class="p">);</span>
+</span><span id="__span-13-30"><a id="__codelineno-13-30" name="__codelineno-13-30" href="#__codelineno-13-30"></a>
+</span><span id="__span-13-31"><a id="__codelineno-13-31" name="__codelineno-13-31" href="#__codelineno-13-31"></a><span class="w">    </span><span class="nx">handle</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nx">setCanvas</span><span class="p">(</span><span class="s1">&#39;https://example.org/canvas/2&#39;</span><span class="p">);</span>
+</span><span id="__span-13-32"><a id="__codelineno-13-32" name="__codelineno-13-32" href="#__codelineno-13-32"></a><span class="w">    </span><span class="c1">// Notifications are batched: settle the flush before asserting.</span>
+</span><span id="__span-13-33"><a id="__codelineno-13-33" name="__codelineno-13-33" href="#__codelineno-13-33"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">act</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">flush</span><span class="p">());</span>
+</span><span id="__span-13-34"><a id="__codelineno-13-34" name="__codelineno-13-34" href="#__codelineno-13-34"></a>
+</span><span id="__span-13-35"><a id="__codelineno-13-35" name="__codelineno-13-35" href="#__codelineno-13-35"></a><span class="w">    </span><span class="nx">expect</span><span class="p">(</span><span class="nx">container</span><span class="p">.</span><span class="nx">textContent</span><span class="p">).</span><span class="nx">toBe</span><span class="p">(</span><span class="s1">&#39;https://example.org/canvas/2&#39;</span><span class="p">);</span>
+</span><span id="__span-13-36"><a id="__codelineno-13-36" name="__codelineno-13-36" href="#__codelineno-13-36"></a><span class="w">    </span><span class="c1">// Unmounting is a React update too, so it belongs inside `act` as well.</span>
+</span><span id="__span-13-37"><a id="__codelineno-13-37" name="__codelineno-13-37" href="#__codelineno-13-37"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">act</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">root</span><span class="p">.</span><span class="nx">unmount</span><span class="p">());</span>
+</span><span id="__span-13-38"><a id="__codelineno-13-38" name="__codelineno-13-38" href="#__codelineno-13-38"></a><span class="p">});</span>
+</span></code></pre></div>
+<p>Swap <code>react-dom/client</code> for your own render helper or Testing Library if you
+have one — the part that matters is that the handle is real state, and that a
+command plus <code>await flush()</code> is how you drive it.</p>
+<p><code>createTestViewerHandle()</code> accepts <code>{ fixtures }</code> to seed a config, an active
+locale, or already-parsed manifest JSON (through the real <code>setManifestData</code>
+command — still no network). <code>handle.setOsdViewer(stub)</code> injects your own
+OpenSeadragon stand-in and fires the real readiness path, which is how a
+<code>cadence: 'frame'</code> projection is exercised headlessly; no OSD fake ships with it.</p>
+<h2 id="what-the-wrapper-does-not-do">What the wrapper does not do</h2>
+<p>The promise of this wrapper is <strong>idiomatic access</strong> to the viewer. Two limits are
+deliberately outside it, and both are shared by every host rather than being
+React-specific:</p>
+<ul>
+<li><strong>Styling stops at theme tokens.</strong> <code>theme</code>, <code>themeConfig</code>, and the <code>--tri-*</code>
+  custom properties are the whole surface; the shadow-DOM internals are not
+  reachable. Everything about the <em>host</em> element — <code>className</code>, <code>style</code>, layout,
+  size, borders — is yours as usual. See <a href="../theming/">theming</a>.</li>
+<li><strong>Viewer chrome is not composable.</strong> You cannot supply React components for the
+  toolbar, panels, or navigation, and the component accepts no children or slot
+  content. <a href="../configuration/#building-your-own-chrome">Building your own chrome</a>
+  covers the three supported answers, with a React custom-toolbar example.</li>
+</ul>
+<p>Direct custom-element integration also remains fully supported for hosts that
+want it — see <a href="../integration/#driving-the-element-directly">driving the element directly</a>.
+Adopting the wrapper is not required.</p>
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="./.." class="md-footer__link md-footer__link--prev" aria-label="Previous: Home">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Home
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../vue/" class="md-footer__link md-footer__link--next" aria-label="Next: Vue">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Vue
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 David Flood
+
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/d-flood/triiiceratops" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M216.5 362.5c-66-8-112.5-55.5-112.5-117 0-25 9-52 24-70-6.5-16.5-5.5-51.5 2-66 20-2.5 47 8 63 22.5 19-6 39-9 63.5-9s44.5 3 62.5 8.5c15.5-14 43-24.5 63-22 7 13.5 8 48.5 1.5 65.5 16 19 24.5 44.5 24.5 70.5 0 61.5-46.5 108-113.5 116.5 17 11 28.5 35 28.5 62.5v52c0 15 12.5 23.5 27.5 17.5C441 459.5 512 369 512 257 512 115.5 397 0 255.5 0S0 115.5 0 257c0 111 70.5 203 165.5 237.5 13.5 5 26.5-4 26.5-17.5v-40c-7 3-16 5-24 5-33 0-52.5-18-66.5-51.5-5.5-13.5-11.5-21.5-23-23-6-.5-8-3-8-6 0-6 10-10.5 20-10.5 14.5 0 27 9 40 27.5 10 14.5 20.5 21 33 21s20.5-4.5 32-16c8.5-8.5 15-16 21-21"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["announce.dismiss","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.indexes","navigation.instant","navigation.instant.prefetch","navigation.path","navigation.sections","navigation.top","navigation.tracking","search.highlight"],"search":"../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.69c251d7.min.js"></script>
+      
+    
+  </body>
+</html>
