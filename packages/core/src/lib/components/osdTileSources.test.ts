@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resolveTileSources } from './osdTileSources';
+import { resolveTileSources, toLayoutSource } from './osdTileSources';
 
 class FakeIIIFTileSource {
     width: number;
@@ -185,5 +185,69 @@ describe('resolveTileSources', () => {
         const result = await resolveTileSources({ sources: [source] });
 
         expect(result).toEqual({ ok: true, resolved: [source] });
+    });
+});
+
+describe('toLayoutSource', () => {
+    it("keeps a positioned wrapper's placement and reads dimensions off its tile source", () => {
+        const tileSource = { width: 4000, height: 3000 };
+
+        expect(
+            toLayoutSource({
+                canvasId: 'canvas-1',
+                x: 0.25,
+                y: 0.5,
+                width: 0.75,
+                tileSource,
+            }),
+        ).toEqual({
+            tileSource,
+            canvasId: 'canvas-1',
+            x: 0.25,
+            y: 0.5,
+            width: 0.75,
+            sourceWidth: 4000,
+            sourceHeight: 3000,
+        });
+    });
+
+    it('treats a bare tile source as filling its own canvas', () => {
+        const tileSource = { width: 1000, height: 2000 };
+
+        expect(toLayoutSource(tileSource)).toEqual({
+            tileSource,
+            canvasId: undefined,
+            x: 0,
+            y: 0,
+            width: 1,
+            sourceWidth: 1000,
+            sourceHeight: 2000,
+        });
+    });
+
+    it('leaves dimensions undefined for a source that reports none', () => {
+        const source = 'https://example.org/iiif/image/info.json';
+
+        expect(toLayoutSource(source)).toEqual({
+            tileSource: source,
+            canvasId: undefined,
+            x: 0,
+            y: 0,
+            width: 1,
+            sourceWidth: undefined,
+            sourceHeight: undefined,
+        });
+    });
+
+    it("passes a positioned wrapper's missing placement through for layout to default", () => {
+        const tileSource = { width: 10, height: 10 };
+
+        expect(toLayoutSource({ tileSource })).toMatchObject({
+            tileSource,
+            canvasId: undefined,
+            x: undefined,
+            y: undefined,
+            width: undefined,
+        });
     });
 });

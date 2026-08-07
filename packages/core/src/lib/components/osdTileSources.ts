@@ -1,3 +1,5 @@
+import type { PositionedTileSource } from './osdLayout';
+
 export type TileSourceResolutionResult =
     | { ok: true; resolved: any[] }
     | { ok: false; error: { type: 'auth' } };
@@ -283,6 +285,30 @@ export function getFullImageUrlForLevel(
 
     const quality = isVersion3 ? 'default' : 'native';
     return `${tileSource._id}/full/${size}/0/${quality}.${tileSource.tileFormat}`;
+}
+
+/**
+ * Turn one source resolved by {@link resolveTileSources} into a layout input.
+ *
+ * Layout takes each source's dimensions explicitly rather than digging them out
+ * of a tile source, so the OpenSeadragon renderer supplies the dimensions of
+ * the *resolved image service* — the only ones it has to hand once
+ * `resolveTileSources` has run. A bare (unpositioned) tile source is treated as
+ * filling its own canvas: x/y of 0 and a width of 1.
+ */
+export function toLayoutSource(source: any): PositionedTileSource {
+    const positioned = isPositionedSource(source);
+    const tileSource = positioned ? source.tileSource : source;
+
+    return {
+        tileSource,
+        canvasId: positioned ? source.canvasId : undefined,
+        x: positioned ? source.x : 0,
+        y: positioned ? source.y : 0,
+        width: positioned ? source.width : 1,
+        sourceWidth: tileSource?.width,
+        sourceHeight: tileSource?.height,
+    };
 }
 
 // Fetch string info.json URLs once to detect auth errors and build prepared

@@ -12,9 +12,8 @@
         getContinuousTargetPosition,
         MULTI_CANVAS_GAP,
         type CanvasDisplayLayout,
-        type PositionedTileSource,
     } from './osdLayout';
-    import { resolveTileSources } from './osdTileSources';
+    import { resolveTileSources, toLayoutSource } from './osdTileSources';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import {
         canvasPointToImagePoint,
@@ -659,25 +658,6 @@
 
         const isPositionedSource = (source: any) =>
             !!source && typeof source === 'object' && 'tileSource' in source;
-
-        // Layout takes canvas dimensions explicitly rather than digging them
-        // out of a tile source. This renderer lays out from the dimensions of
-        // the *resolved* image service, which is what it has to hand once
-        // `resolveTileSources` has run.
-        const toLayoutSource = (source: any): PositionedTileSource => {
-            const positioned = isPositionedSource(source);
-            const tileSource = positioned ? source.tileSource : source;
-
-            return {
-                tileSource,
-                canvasId: positioned ? source.canvasId : undefined,
-                x: positioned ? source.x : 0,
-                y: positioned ? source.y : 0,
-                width: positioned ? source.width : 1,
-                canvasWidth: tileSource?.width,
-                canvasHeight: tileSource?.height,
-            };
-        };
 
         if (sources.length === 0) {
             viewer.close();

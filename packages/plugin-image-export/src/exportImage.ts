@@ -214,8 +214,8 @@ function buildWorldLayout(
                 x: resolved.x,
                 y: resolved.y,
                 width: resolved.width,
-                canvasWidth: resolved.resourceWidth || resolved.canvasWidth,
-                canvasHeight: resolved.resourceHeight || resolved.canvasHeight,
+                sourceWidth: resolved.resourceWidth || resolved.canvasWidth,
+                sourceHeight: resolved.resourceHeight || resolved.canvasHeight,
                 tileSource: { resolved },
             }),
         );

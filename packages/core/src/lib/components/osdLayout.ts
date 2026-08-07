@@ -15,22 +15,25 @@ export type ViewingDirection =
 /**
  * The geometry of one source, as its caller knows it.
  *
- * `canvasWidth`/`canvasHeight` are the dimensions of the thing being laid out,
+ * `sourceWidth`/`sourceHeight` are the dimensions of the thing being laid out,
  * in whatever space the caller works in — only their ratio is used, to give the
- * canvas a height. They are passed in rather than read off a tile source so
- * that layout can run before (or entirely without) any image service being
+ * canvas a height. They are deliberately *not* called `canvasWidth`/
+ * `canvasHeight`: those names mean manifest Canvas dimensions elsewhere in this
+ * codebase (see `ResolvedCanvasImage`), and a caller may legitimately lay out
+ * from a different space. They are passed in rather than read off a tile source
+ * so that layout can run before (or entirely without) any image service being
  * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
  * because that is what it has to hand; manifest Canvas dimensions are the
  * authoritative geometry everywhere else.
  */
 export interface CanvasGeometry {
-    canvasId?: string;
+    canvasId?: string | null;
     /** Position and extent of this source within its canvas, in world units. */
-    x?: number;
-    y?: number;
-    width?: number;
-    canvasWidth?: number | null;
-    canvasHeight?: number | null;
+    x?: number | null;
+    y?: number | null;
+    width?: number | null;
+    sourceWidth?: number | null;
+    sourceHeight?: number | null;
 }
 
 /** Where layout placed one source, in world units. */
@@ -46,9 +49,6 @@ export type PositionedTileSource = CanvasGeometry & { tileSource: unknown };
 
 export type DisplayPositionedTileSource = PlacedRect & { tileSource: unknown };
 
-/** The caller's payload for one source, carried through layout unread. */
-type SourcePayload = Pick<PositionedTileSource, 'tileSource'>;
-
 export interface CanvasDisplayLayout {
     canvasId: string;
     x: number;
@@ -57,8 +57,10 @@ export interface CanvasDisplayLayout {
     height: number;
 }
 
-interface GroupedSource {
-    payload: SourcePayload;
+/** The caller's payload for one source, carried through layout unread. */
+type SourcePayload = Pick<PositionedTileSource, 'tileSource'>;
+
+interface GroupedSource extends SourcePayload {
     localX: number;
     localY: number;
     localWidth: number;
@@ -99,17 +101,12 @@ function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
     const groups = new Map<string, CanvasGroup>();
 
     sources.forEach((source, index) => {
-        const {
-            canvasId = `canvas-${index}`,
-            x: localX = 0,
-            y: localY = 0,
-            width: localWidth = 1,
-            canvasWidth,
-            canvasHeight,
-            ...payload
-        } = source;
-        const imageWidth = getDimension(canvasWidth);
-        const imageHeight = getDimension(canvasHeight);
+        const canvasId = source.canvasId ?? `canvas-${index}`;
+        const localX = source.x ?? 0;
+        const localY = source.y ?? 0;
+        const localWidth = source.width ?? 1;
+        const imageWidth = getDimension(source.sourceWidth);
+        const imageHeight = getDimension(source.sourceHeight);
         const localHeight =
             imageWidth && imageHeight
                 ? (localWidth * imageHeight) / imageWidth
@@ -122,7 +119,7 @@ function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
         }
 
         group.sources.push({
-            payload,
+            tileSource: source.tileSource,
             localX,
             localY,
             localWidth,
@@ -148,11 +145,11 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
             height: group.height ?? 1,
         })),
         sources: groups.flatMap((group) =>
-            group.sources.map(({ payload, localX, localY, localWidth }) => ({
-                ...payload,
-                x: localX,
-                y: localY,
-                width: localWidth,
+            group.sources.map((placed) => ({
+                tileSource: placed.tileSource,
+                x: placed.localX,
+                y: placed.localY,
+                width: placed.localWidth,
                 canvasId: group.canvasId,
             })),
         ),
@@ -238,15 +235,13 @@ export function getCanvasDisplayLayouts(
             height: layout.height,
         })),
         sources: scaled.flatMap((layout) =>
-            layout.group.sources.map(
-                ({ payload, localX, localY, localWidth }) => ({
-                    ...payload,
-                    x: layout.x + localX * layout.scale,
-                    y: layout.y + localY * layout.scale,
-                    width: localWidth * layout.scale,
-                    canvasId: layout.group.canvasId,
-                }),
-            ),
+            layout.group.sources.map((placed) => ({
+                tileSource: placed.tileSource,
+                x: layout.x + placed.localX * layout.scale,
+                y: layout.y + placed.localY * layout.scale,
+                width: placed.localWidth * layout.scale,
+                canvasId: layout.group.canvasId,
+            })),
         ),
     };
 }

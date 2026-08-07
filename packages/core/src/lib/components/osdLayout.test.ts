@@ -10,8 +10,8 @@ function source(canvasId: string, width: number, height: number) {
         x: 0,
         y: 0,
         width: 1,
-        canvasWidth: width,
-        canvasHeight: height,
+        sourceWidth: width,
+        sourceHeight: height,
         tileSource: `${canvasId}-source`,
     };
 }
@@ -172,6 +172,65 @@ describe('getCanvasDisplayLayouts', () => {
 
         expect(result.sources[0]).toMatchObject({ width: 4 });
         expect(result.sources[2]).toMatchObject({ width: 0.25 });
+    });
+
+    it('falls back to the defaults when geometry is null', () => {
+        const result = getCanvasDisplayLayouts(
+            [
+                {
+                    canvasId: null,
+                    x: null,
+                    y: null,
+                    width: null,
+                    sourceWidth: null,
+                    sourceHeight: null,
+                    tileSource: 'a-source',
+                },
+            ],
+            {
+                mode: 'individuals',
+                direction: 'left-to-right',
+                gap,
+            },
+        );
+
+        expect(result.sources).toEqual([
+            {
+                tileSource: 'a-source',
+                x: 0,
+                y: 0,
+                width: 1,
+                canvasId: 'canvas-0',
+            },
+        ]);
+        expect(result.layouts).toEqual([
+            { canvasId: 'canvas-0', x: 0, y: 0, width: 1, height: 1 },
+        ]);
+    });
+
+    it('carries the tile source through without leaking other caller keys', () => {
+        const result = getCanvasDisplayLayouts(
+            [
+                {
+                    ...source('a', 1000, 1000),
+                    secret: 'do-not-leak',
+                } as never,
+                source('b', 1000, 1000),
+            ],
+            {
+                mode: 'continuous',
+                direction: 'left-to-right',
+                gap,
+            },
+        );
+
+        expect(result.sources[0]).toEqual({
+            tileSource: 'a-source',
+            canvasId: 'a',
+            x: 0,
+            y: 0,
+            width: 1,
+        });
     });
 
     it('uses the gap the caller passes', () => {

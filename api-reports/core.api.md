@@ -183,22 +183,25 @@ export type ViewingDirection = 'left-to-right' | 'right-to-left' | 'top-to-botto
 /**
  * The geometry of one source, as its caller knows it.
  *
- * `canvasWidth`/`canvasHeight` are the dimensions of the thing being laid out,
+ * `sourceWidth`/`sourceHeight` are the dimensions of the thing being laid out,
  * in whatever space the caller works in — only their ratio is used, to give the
- * canvas a height. They are passed in rather than read off a tile source so
- * that layout can run before (or entirely without) any image service being
+ * canvas a height. They are deliberately *not* called `canvasWidth`/
+ * `canvasHeight`: those names mean manifest Canvas dimensions elsewhere in this
+ * codebase (see `ResolvedCanvasImage`), and a caller may legitimately lay out
+ * from a different space. They are passed in rather than read off a tile source
+ * so that layout can run before (or entirely without) any image service being
  * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
  * because that is what it has to hand; manifest Canvas dimensions are the
  * authoritative geometry everywhere else.
  */
 export interface CanvasGeometry {
-    canvasId?: string;
+    canvasId?: string | null;
     /** Position and extent of this source within its canvas, in world units. */
-    x?: number;
-    y?: number;
-    width?: number;
-    canvasWidth?: number | null;
-    canvasHeight?: number | null;
+    x?: number | null;
+    y?: number | null;
+    width?: number | null;
+    sourceWidth?: number | null;
+    sourceHeight?: number | null;
 }
 /** Where layout placed one source, in world units. */
 interface PlacedRect {
