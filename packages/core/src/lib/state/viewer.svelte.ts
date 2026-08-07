@@ -47,6 +47,7 @@ import {
     sortCollectionItems,
     type CollectionItem,
 } from '../utils/collections';
+import { getCanvasLabel } from '../utils/canvasLabels';
 import type { CanvasRegion } from '../utils/contentState';
 import {
     findCanvasIndexById,
@@ -60,6 +61,19 @@ import {
     getVisibleCanvasEntries,
 } from '../components/viewerControls';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
+
+/** IIIF Content Search API profiles, as declared on a search service. */
+const SEARCH_1_PROFILE = 'http://iiif.io/api/search/1/search';
+const SEARCH_0_PROFILE = 'http://iiif.io/api/search/0/search';
+
+/**
+ * `behavior` (IIIF v3) and `viewingHint` (IIIF v2) may each be a bare string or
+ * an array of them. Absent reads as no behaviors at all.
+ */
+function asBehaviorList(value: unknown): string[] {
+    if (value === null || value === undefined || value === '') return [];
+    return (Array.isArray(value) ? [...value] : [value]) as string[];
+}
 
 function normalizeIiifBehavior(value: unknown): string {
     const normalized = String(value).trim().toLowerCase();
@@ -841,8 +855,17 @@ export class ViewerState {
      */
     private _applyManifestSettings(manifestId: string) {
         const manifest = manifestsState.getManifest(manifestId);
-        if (!manifest) return;
         const rawManifest = manifestsState.getManifestEntry(manifestId)?.json;
+        if (!manifest && !rawManifest) return;
+
+        // IIIF Presentation 2.x hangs three of these four scalars off the first
+        // sequence rather than off the manifest. Presentation 3.0 has no
+        // `sequences` at all, so this is `undefined` there and every v2 read
+        // below is a no-op. A `sequences` that is a bare object rather than an
+        // array occurs in the wild, hence the `Array.isArray` guard.
+        const rawSequence = Array.isArray(rawManifest?.sequences)
+            ? rawManifest.sequences[0]
+            : undefined;
 
         // 0. Start Canvas: the manifest-level `start` property (IIIF
         // Presentation 3.0) or the sequence-level `startCanvas` (IIIF
@@ -850,24 +873,26 @@ export class ViewerState {
         try {
             let startId: string | null = null;
 
-            // Check raw JSON first (most reliable for IIIF v3)
-            if (manifest.__jsonld?.start) {
+            // IIIF v3 — `start` on the manifest itself.
+            if (rawManifest?.start) {
+                startId = getReferenceId(rawManifest.start);
+            }
+
+            // IIIF v2 — the start canvas hangs off the sequence.
+            if (!startId) {
+                startId = getReferenceId(rawSequence?.startCanvas);
+            }
+
+            // Library fallbacks. The raw reads above are sufficient on their
+            // own for both versions; these go away with `manifesto.js`.
+            if (!startId && manifest?.__jsonld?.start) {
                 startId = getReferenceId(manifest.__jsonld.start);
             }
-
-            // Fallback: check manifesto accessor
-            if (!startId && manifest.getStartCanvas) {
+            if (!startId && manifest?.getStartCanvas) {
                 startId = getReferenceId(manifest.getStartCanvas());
             }
-
-            // IIIF v2 hangs the start canvas off the sequence, not the manifest.
             if (!startId) {
-                startId = getReferenceId(
-                    rawManifest?.sequences?.[0]?.startCanvas,
-                );
-            }
-            if (!startId) {
-                const sequence = manifest.getSequences?.()?.[0];
+                const sequence = manifest?.getSequences?.()?.[0];
                 if (sequence) {
                     startId = getReferenceId(sequence.__jsonld?.startCanvas);
                     if (!startId && sequence.getStartCanvas) {
@@ -896,21 +921,32 @@ export class ViewerState {
         // 1. Viewing Direction
         let direction: string | null = null;
         try {
-            // Check raw JSON first (most reliable for IIIF v3)
-            if (rawManifest?.viewingDirection) {
+            // IIIF v2 — the sequence carries the direction, and it WINS over
+            // the manifest root. Presentation 2.1 is explicit: a manifest's
+            // direction "applies to all of its sequences unless the sequence
+            // specifies its own viewing direction". `manifesto.js` implemented
+            // this cascade correctly in `Sequence.getViewingDirection`; this
+            // call site used to override it by asking the manifest first.
+            if (rawSequence?.viewingDirection) {
+                direction = rawSequence.viewingDirection;
+            }
+            // IIIF v3 root — and IIIF v2 manifests that declare it at the root,
+            // which is legal in Presentation 2.x too. v3 has no sequences, so
+            // this is the only read that fires for v3.
+            if (!direction && rawManifest?.viewingDirection) {
                 direction = rawManifest.viewingDirection;
             }
-            if (!direction && manifest.__jsonld) {
+            // Library fallbacks. The raw reads above are sufficient on their
+            // own for both versions; these go away with `manifesto.js`.
+            if (!direction && manifest?.__jsonld) {
                 direction = manifest.__jsonld.viewingDirection;
             }
-            // Fallback to manifesto accessor
-            if (!direction && manifest.getViewingDirection) {
+            if (!direction && manifest?.getViewingDirection) {
                 const d = manifest.getViewingDirection();
                 if (d) direction = String(d);
             }
-            // Check sequence if not found (IIIF v2)
             if (!direction) {
-                const seq = manifest.getSequences()?.[0];
+                const seq = manifest?.getSequences?.()?.[0];
                 if (seq) {
                     if (seq.__jsonld) {
                         direction = seq.__jsonld.viewingDirection;
@@ -944,22 +980,45 @@ export class ViewerState {
         if (!this._viewingModeUserConfigured) {
             let behaviors: string[] = [];
             try {
-                // Check manifest root
-                if (manifest.__jsonld && manifest.__jsonld.behavior) {
+                // IIIF v3 — `behavior`, on the manifest root and on the
+                // sequence.
+                behaviors = [
+                    ...asBehaviorList(rawManifest?.behavior),
+                    ...asBehaviorList(rawSequence?.behavior),
+                ];
+
+                // IIIF v2 — `viewingHint` is the v2 spelling of the same idea.
+                // Sequence first, then the root, matching how viewing direction
+                // resolves above. Presentation 2.1 states no precedence for
+                // `viewingHint`, so this follows the cascade it *does* state
+                // for `viewingDirection` rather than inventing a second rule:
+                // the more specific declaration wins.
+                if (behaviors.length === 0) {
+                    behaviors = asBehaviorList(rawSequence?.viewingHint);
+                }
+                if (behaviors.length === 0) {
+                    behaviors = asBehaviorList(rawManifest?.viewingHint);
+                }
+
+                // Library fallbacks. The raw reads above are sufficient on
+                // their own; these go away with `manifesto.js`.
+                if (
+                    behaviors.length === 0 &&
+                    manifest?.__jsonld &&
+                    manifest.__jsonld.behavior
+                ) {
                     const b = manifest.__jsonld.behavior;
                     behaviors = Array.isArray(b) ? b : [b];
                 }
 
-                // Manifesto accessor
-                if (behaviors.length === 0 && manifest.getBehavior) {
+                if (behaviors.length === 0 && manifest?.getBehavior) {
                     const b = manifest.getBehavior();
                     if (b) {
                         behaviors = Array.isArray(b) ? b : [b];
                     }
                 }
 
-                // Check sequence behavior
-                const seq = manifest.getSequences()?.[0];
+                const seq = manifest?.getSequences?.()?.[0];
                 if (seq) {
                     if (seq.getBehavior) {
                         const b = seq.getBehavior();
@@ -1348,7 +1407,14 @@ export class ViewerState {
 
             if (secondEntry) {
                 const xOffset = 1.025; // account for small gap between pages
-                const annoOffset = firstEntry.canvas.getWidth() * xOffset;
+                // Raw IIIF Canvas JSON spells this `width` in both v2 and v3.
+                // This read used to be `canvas.getWidth()` with no fallback,
+                // which is a TypeError now that canvases are raw JSON.
+                const canvasWidth =
+                    firstEntry.canvas?.width ??
+                    firstEntry.canvas?.__jsonld?.width ??
+                    0;
+                const annoOffset = canvasWidth * xOffset;
                 const nextAnnotations = this.searchAnnotations.filter(
                     (a) => a.canvasId === secondEntry.canvasId,
                 );
@@ -1386,7 +1452,8 @@ export class ViewerState {
 
         try {
             const manifest = this.manifest;
-            if (!manifest) {
+            const manifestJson = this.manifestEntry?.json;
+            if (!manifest && !manifestJson) {
                 // Defer search until manifest is loaded
                 logger.debug('Manifest not loaded, deferring search:', query);
                 this.pendingSearchQuery = query;
@@ -1406,7 +1473,7 @@ export class ViewerState {
                 return;
             }
 
-            const service = this.discoverSearchService(manifest);
+            const service = this.discoverSearchService(manifestJson);
 
             if (!service) {
                 logger.warn('No IIIF search service found in manifest');
@@ -1457,63 +1524,79 @@ export class ViewerState {
     }
 
     /**
-     * Discover a IIIF Content Search service from the manifest.
-     * Supports v0, v1, and v2 services. Prefers v2 when multiple are present.
+     * Discover a IIIF Content Search service from raw manifest JSON.
+     *
+     * Reads `service` and `services` — either may be a bare object rather than
+     * an array — and matches search v0, v1 and v2 on `profile` or
+     * `type`/`@type`. The same JSON serves IIIF Presentation 2.x (`@type`,
+     * `@id`) and 3.0 (`type`, `id`). v2 is preferred when several are present.
+     *
+     * Total: every access is guarded, so no manifest shape makes this throw.
      */
     private discoverSearchService(
-        manifest: any,
+        manifestJson: any,
     ): { version: 0 | 1 | 2; serviceId: string } | null {
-        // First try manifesto's getService for v1/v0
-        const v1Service =
-            manifest.getService('http://iiif.io/api/search/1/search') ||
-            manifest.getService('http://iiif.io/api/search/0/search');
+        const toArray = (value: any): any[] =>
+            Array.isArray(value) ? value : value ? [value] : [];
 
-        // Check raw JSON for v2 (and v1/v0 fallback)
+        const services = [
+            ...toArray(manifestJson?.service),
+            ...toArray(manifestJson?.services),
+        ];
+
         let v2Service: any = null;
-        let rawV1Service: any = null;
+        let v1Service: any = null;
+        let v0Service: any = null;
+        let typedV1Service: any = null;
 
-        if (manifest.__jsonld && manifest.__jsonld.service) {
-            const services = Array.isArray(manifest.__jsonld.service)
-                ? manifest.__jsonld.service
-                : [manifest.__jsonld.service];
+        for (const service of services) {
+            // A service may be a bare id string referencing a definition
+            // elsewhere; there is nothing to match on, so skip it.
+            if (!service || typeof service !== 'object') continue;
 
-            for (const s of services) {
-                const sType = s.type || s['@type'];
-                if (sType === 'SearchService2') {
-                    v2Service = s;
-                } else if (
-                    !rawV1Service &&
-                    (s.profile === 'http://iiif.io/api/search/1/search' ||
-                        sType === 'SearchService1' ||
-                        s.profile === 'http://iiif.io/api/search/0/search')
-                ) {
-                    rawV1Service = s;
-                }
+            const type = service.type || service['@type'];
+            // `profile` may be an array, and some services spell it
+            // `dcterms:conformsTo`.
+            const rawProfile = service.profile ?? service['dcterms:conformsTo'];
+            const profile = Array.isArray(rawProfile)
+                ? rawProfile[0]
+                : rawProfile;
+
+            if (type === 'SearchService2') {
+                v2Service = service;
+            } else if (!v1Service && profile === SEARCH_1_PROFILE) {
+                v1Service = service;
+            } else if (!v0Service && profile === SEARCH_0_PROFILE) {
+                v0Service = service;
+            } else if (!typedV1Service && type === 'SearchService1') {
+                typedV1Service = service;
             }
         }
 
-        // Prefer v2 over v1/v0
+        // Prefer v2 over v1 over v0.
         if (v2Service) {
             return {
                 version: 2,
                 serviceId: v2Service.id || v2Service['@id'],
             };
         }
-
         if (v1Service) {
-            const serviceId = v1Service.id || v1Service['@id'];
-            const profile = v1Service.profile || '';
-            const version: 0 | 1 =
-                profile === 'http://iiif.io/api/search/0/search' ? 0 : 1;
-            return { version, serviceId };
+            return {
+                version: 1,
+                serviceId: v1Service.id || v1Service['@id'],
+            };
         }
-
-        if (rawV1Service) {
-            const serviceId = rawV1Service.id || rawV1Service['@id'];
-            const profile = rawV1Service.profile || '';
-            const version: 0 | 1 =
-                profile === 'http://iiif.io/api/search/0/search' ? 0 : 1;
-            return { version, serviceId };
+        if (v0Service) {
+            return {
+                version: 0,
+                serviceId: v0Service.id || v0Service['@id'],
+            };
+        }
+        if (typedV1Service) {
+            return {
+                version: 1,
+                serviceId: typedV1Service.id || typedV1Service['@id'],
+            };
         }
 
         return null;
@@ -1527,23 +1610,17 @@ export class ViewerState {
             .replace(/&lt;\/mark&gt;/g, '</mark>');
     }
 
-    /** Helper to resolve canvas label from a manifesto canvas object */
+    /**
+     * The display label for a canvas in a search-result group.
+     *
+     * Delegates to the shared helper rather than repeating the chain. The
+     * private copy this replaced read `getLabel()` first and, failing that,
+     * only a string or a `[{value}]` array — so a raw IIIF v3 canvas, whose
+     * `label` is a language map, fell through to "Canvas N" once canvases
+     * stopped being library objects.
+     */
     private resolveCanvasLabel(canvas: any, canvasIndex: number): string {
-        let label = 'Canvas ' + (canvasIndex + 1);
-        try {
-            if (canvas.getLabel) {
-                const l = canvas.getLabel();
-                if (Array.isArray(l) && l.length > 0) label = l[0].value;
-                else if (typeof l === 'string') label = l;
-            } else if (canvas.label) {
-                if (typeof canvas.label === 'string') label = canvas.label;
-                else if (Array.isArray(canvas.label))
-                    label = canvas.label[0]?.value;
-            }
-        } catch (_e) {
-            /* ignore */
-        }
-        return String(label);
+        return getCanvasLabel(canvas, canvasIndex);
     }
 
     /** Ensure a canvas group exists in the map and return it */
@@ -1568,7 +1645,11 @@ export class ViewerState {
     private getSearchCanvasIndexes(): SvelteMap<string, number> {
         const indexes = new SvelteMap<string, number>();
         this.canvases.forEach((canvas: any, index: number) => {
-            if (!indexes.has(canvas.id)) indexes.set(canvas.id, index);
+            // `getCanvasId`, not `canvas.id`: a raw IIIF v2 canvas spells its
+            // identifier `@id`, and every v2 search hit targets that spelling.
+            const canvasId = getCanvasId(canvas);
+            if (canvasId && !indexes.has(canvasId))
+                indexes.set(canvasId, index);
         });
         return indexes;
     }
@@ -1806,7 +1887,10 @@ export class ViewerState {
         let annotationIndex = 0;
         return searchResults.flatMap((group) => {
             const canvas = this.canvases[group.canvasIndex];
-            if (!canvas?.id) return [];
+            // Both IIIF versions, for the reason given in
+            // `getSearchCanvasIndexes`.
+            const canvasId = getCanvasId(canvas);
+            if (!canvasId) return [];
             return group.hits.flatMap((hit) => {
                 const boundsArray =
                     hit.allBounds && hit.allBounds.length > 0
@@ -1819,8 +1903,8 @@ export class ViewerState {
                     '@id': `urn:search-hit:${annotationIndex++}`,
                     '@type': 'oa:Annotation',
                     motivation: 'sc:painting',
-                    on: `${canvas.id}#xywh=${bounds.join(',')}`,
-                    canvasId: canvas.id,
+                    on: `${canvasId}#xywh=${bounds.join(',')}`,
+                    canvasId,
                     resource: {
                         '@type': 'cnt:ContentAsText',
                         chars: hit.match,
