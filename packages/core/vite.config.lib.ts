@@ -5,9 +5,14 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 // import dts from 'vite-plugin-dts';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
+import { rendererFlagDefine } from './rendererFlag.build';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+    // Pin the development-only renderer flag to a literal so the unselected
+    // renderer is tree-shaken out of this artifact entirely (spec §Rollout).
+    define: rendererFlagDefine(),
     // Never copy the demo dev-server's static assets (favicon, demo manifests,
     // e2e host pages) into the published dist — those are not part of the package.
     publicDir: false,

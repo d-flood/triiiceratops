@@ -74,7 +74,9 @@
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
+    import { CANVAS_RENDERER } from '../renderer/rendererFlag';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
+    import CanvasHost from './CanvasHost.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
     import MetadataPanel from './MetadataPanel.svelte';
@@ -1442,6 +1444,21 @@
                             {/if}
                         </div>
                     </div>
+                {:else if CANVAS_RENDERER}
+                    <!--
+                        The development-only build flag (spec §Rollout). In a
+                        published build `CANVAS_RENDERER` is a compile-time
+                        literal, so exactly one of these two branches survives
+                        tree-shaking and the other renderer costs no bytes. On
+                        the dev server and under vitest it is a real global,
+                        which is what lets the two run side by side and be
+                        compared directly. Ticket 18 deletes the flag and the
+                        OpenSeadragon branch together.
+                    -->
+                    <CanvasHost
+                        {tileSources}
+                        viewerState={internalViewerState}
+                    />
                 {:else}
                     <OSDViewer
                         {tileSources}
