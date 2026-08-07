@@ -88,17 +88,16 @@ function createCanvas(id: string, label = id) {
         label,
         width: 1000,
         height: 500,
-        getImages: () => [
-            {
-                body: {
-                    id: `https://example.org/${encodeURIComponent(id)}.png`,
-                    type: 'Image',
-                    format: 'image/png',
-                    width: 1000,
-                    height: 500,
-                },
+        items: annotationPages({
+            target: id,
+            body: {
+                id: `https://example.org/${encodeURIComponent(id)}.png`,
+                type: 'Image',
+                format: 'image/png',
+                width: 1000,
+                height: 500,
             },
-        ],
+        }),
     };
 }
 
@@ -112,17 +111,37 @@ function createCanvasWithImage(
         label: id,
         width: canvasDimensions.width,
         height: canvasDimensions.height,
-        getImages: () => [
-            {
-                body: {
-                    id: `https://example.org/${encodeURIComponent(id)}.png`,
-                    type: 'Image',
-                    format: 'image/png',
-                    ...(imageDimensions || {}),
-                },
+        items: annotationPages({
+            target: id,
+            body: {
+                id: `https://example.org/${encodeURIComponent(id)}.png`,
+                type: 'Image',
+                format: 'image/png',
+                ...(imageDimensions || {}),
             },
-        ],
+        }),
     };
+}
+
+/**
+ * Wrap painting annotations in an `AnnotationPage`, the way a IIIF v3 canvas
+ * carries them.
+ *
+ * These canvases used to be `manifesto.js`-shaped doubles — a `getContent()` or
+ * `getImages()` accessor over annotations with a `getBody()` accessor. Core's
+ * painting-annotation enumeration is first-party as of the `remove-manifesto`
+ * epic (ticket 03 for v3, ticket 06 for v2) and reads `canvas.items[].items[]`
+ * or `canvas.images[]` directly, so they now carry the JSON the accessors used
+ * to wrap.
+ */
+function annotationPages(...annotations: unknown[]) {
+    return [
+        {
+            id: 'https://example.org/annotation-page/1',
+            type: 'AnnotationPage',
+            items: annotations,
+        },
+    ];
 }
 
 function createIiifCanvas(
@@ -133,18 +152,16 @@ function createIiifCanvas(
         id,
         width: dimensions.width,
         height: dimensions.height,
-        getContent: () => [
-            {
-                getBody: () => ({
-                    id: `https://example.org/static/${encodeURIComponent(id)}.jpg`,
-                    type: 'Image',
-                    service: {
-                        id: `https://example.org/iiif/${encodeURIComponent(id)}`,
-                        type: 'ImageService3',
-                    },
-                }),
+        items: annotationPages({
+            body: {
+                id: `https://example.org/static/${encodeURIComponent(id)}.jpg`,
+                type: 'Image',
+                service: {
+                    id: `https://example.org/iiif/${encodeURIComponent(id)}`,
+                    type: 'ImageService3',
+                },
             },
-        ],
+        }),
     };
 }
 
@@ -725,10 +742,10 @@ describe('exportCanvasRangeAsPdf', () => {
             id: 'composite-canvas',
             width: 800,
             height: 1000,
-            getContent: () => [
+            items: annotationPages(
                 {
                     target: 'http://example.org/canvas/1#xywh=0,0,400,1000',
-                    getBody: () => ({
+                    body: {
                         id: 'http://example.org/image/1a',
                         width: 400,
                         height: 1000,
@@ -737,11 +754,11 @@ describe('exportCanvasRangeAsPdf', () => {
                             type: 'ImageService2',
                             profile: 'http://iiif.io/api/image/2/level1.json',
                         },
-                    }),
+                    },
                 },
                 {
                     target: 'http://example.org/canvas/1#xywh=400,0,400,1000',
-                    getBody: () => ({
+                    body: {
                         id: 'http://example.org/image/1b',
                         width: 400,
                         height: 1000,
@@ -750,9 +767,9 @@ describe('exportCanvasRangeAsPdf', () => {
                             type: 'ImageService2',
                             profile: 'http://iiif.io/api/image/2/level1.json',
                         },
-                    }),
+                    },
                 },
-            ],
+            ),
         };
 
         const result = await exportCanvasRangeAsPdf({

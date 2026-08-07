@@ -96,7 +96,7 @@ Rules:
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-19 · **Review by:** 2027-01-19
 
-### 4. Public-declaration `any` — IIIF resources crossing the `manifesto.js` boundary
+### 4. Public-declaration `any` — IIIF resources crossing the raw-JSON boundary
 
 - **Code:** public-`any` in emitted `.d.ts` (guarded by `scripts/check-public-api.mjs`)
 - **File / target:** `api-reports/dts-any-allowlist.txt` — the machine-readable
@@ -107,11 +107,12 @@ Rules:
 - **Mechanism:** a single documented boundary, allowlisted per-line in the txt
   file rather than suppressed inline. The gate FAILS on any NEW public `any` that
   is not listed there.
-- **Rationale:** the viewer models fetched IIIF resources (manifest / canvas /
-  annotation) as `any` because its `manifesto.js` boundary is untyped. These are
-  PRE-EXISTING, STRUCTURAL exceptions at one boundary, not accidental leakage;
-  narrowing them is a deliberate, recorded out-of-scope decision. The SDK ABI
-  itself is `any`-clean. **Update protocol:** adding or removing a line requires
+- **Rationale:** the viewer hands out fetched IIIF resources (manifest / canvas /
+  annotation) as the **raw JSON the publisher authored** — IIIF Presentation 2 or
+  3 — and models that as `any`. These are STRUCTURAL exceptions at one boundary,
+  not accidental leakage; narrowing them is a deliberate, recorded out-of-scope
+  decision. The SDK ABI itself is `any`-clean. **Update protocol:** adding or
+  removing a line requires
   regenerating the txt via `node scripts/check-public-api.mjs --write-allowlist`
   AND updating this entry's rationale/date in the same commit.
   **2026-07-31:** five lines were REMOVED (`dist/types/plugin.d.ts`'s
@@ -132,11 +133,31 @@ Rules:
   prop declaration (including `manifestJson`'s `PropType`) into the emitted
   component type. The other eight lines that ticket added are NOT this boundary
   and are recorded separately in entry 6.
+  **2026-08-07 (`remove-manifesto` ticket 09):** the boundary's ORIGINAL
+  justification — "`manifesto.js` is untyped" — is retired with the dependency.
+  The entry is **not** retired with it: the same `any`s remain, for a different
+  and now first-party reason. Canvases, manifests and annotations crossing the
+  public boundary are raw IIIF JSON in **either** Presentation version, and a v2
+  resource and a v3 resource do not share a declarable shape (`@id`/`images[]`
+  versus `id`/`items[]`). A typed `Canvas` interface is explicitly out of scope
+  for this epic; when one lands, this entry shrinks. Net line changes:
+  FOUR REMOVED — `manifests.svelte.d.ts :: manifesto?: any` and
+  `getManifest(manifestId: string): any`, `viewer.svelte.d.ts :: get manifest():
+any`, and `types/config/search.d.ts :: manifest: any` — all four being members
+  that returned the removed library object. SIX ADDED, all in the new
+  `dist/utils/iiifParsing.d.ts`: exporting `getPaintingAnnotations` from a public
+  entry point makes its whole module reachable, and the declaration report is a
+  file-level rollup, so its five module siblings are listed too even though no
+  `exports` path imports them. FOUR REWRITTEN in place, all pre-existing lines
+  whose signatures tightened in tickets 05–07 (`getCanvasChoices` and
+  `getCanvases` now return `any[]` rather than `any`; `getCanvasLabel` gained
+  `preferredLocale`) and one renamed (`search.d.ts :: manifest` →
+  `manifestJson`).
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
   `pnpm api:check` in required CI) — fails the build on any non-allowlisted
   public `any`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
-- **Recorded:** 2026-07-19 · **Updated:** 2026-07-31 · **Review by:** 2027-01-19
+- **Recorded:** 2026-07-19 · **Updated:** 2026-08-07 · **Review by:** 2027-01-19
 
 ### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
 
@@ -193,7 +214,7 @@ Rules:
   or abandoning `defineComponent`, which the ticket's authoring constraint
   (plain `.ts`, `h()` + `defineComponent`, no `.vue` files) rules out. They are
   a single documented boundary at the Vue seam, exactly parallel to the
-  `manifesto.js` boundary in entry 4. **Update protocol:** same as entry 4 —
+  raw-IIIF-JSON boundary in entry 4. **Update protocol:** same as entry 4 —
   regenerate the txt via `node scripts/check-public-api.mjs --write-allowlist`
   AND update this entry in the same commit.
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via

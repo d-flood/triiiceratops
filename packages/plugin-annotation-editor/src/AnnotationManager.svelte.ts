@@ -684,13 +684,8 @@ export class AnnotationManager {
         const canvas = (
             this.viewerState?.getCanvases(this.currentManifestId) ?? []
         ).find((entry: any) => {
-            const id =
-                entry?.id ||
-                entry?.['@id'] ||
-                entry?.__jsonld?.id ||
-                entry?.__jsonld?.['@id'] ||
-                entry?.getCanvasId?.() ||
-                entry?.getId?.();
+            // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
+            const id = entry?.id || entry?.['@id'];
             return id === this.currentCanvasId;
         });
 

@@ -1,4 +1,5 @@
 import { getCanvasId } from '../utils/iiifIds';
+import { getCanvasBehaviors, getCanvasChoices } from '../utils/iiifParsing';
 
 export type ChoiceGroup = {
     canvasId: string;
@@ -92,64 +93,6 @@ type VisibleChoiceGroupArgs = {
 };
 
 export { getCanvasId };
-
-export function getCanvasChoices(canvas: any) {
-    if (!canvas) return [];
-
-    let images = canvas.getImages?.() || [];
-    if ((!images || !images.length) && canvas.getContent) {
-        images = canvas.getContent();
-    }
-
-    if (!images || !images.length) return [];
-
-    for (const paintingAnno of images) {
-        if (!paintingAnno) continue;
-
-        const body = paintingAnno.getBody
-            ? paintingAnno.getBody()
-            : paintingAnno.body || paintingAnno.resource;
-
-        const rawBody = paintingAnno.__jsonld?.body || paintingAnno.body;
-        const isChoice =
-            rawBody?.type === 'Choice' ||
-            rawBody?.type === 'oa:Choice' ||
-            (body &&
-                !Array.isArray(body) &&
-                (body.type === 'Choice' || body.type === 'oa:Choice'));
-
-        if (!isChoice) continue;
-
-        if (Array.isArray(body)) {
-            return body;
-        }
-
-        if (body && (body.items || body.item)) {
-            return body.items || body.item;
-        }
-
-        if (rawBody && (rawBody.items || rawBody.item)) {
-            return rawBody.items || rawBody.item;
-        }
-    }
-
-    return [];
-}
-
-export function getCanvasBehaviors(canvas: any): string[] {
-    const raw =
-        canvas?.behavior ||
-        canvas?.__jsonld?.behavior ||
-        (typeof canvas?.getBehavior === 'function' ? canvas.getBehavior() : []);
-
-    if (!raw) return [];
-    const behaviors = Array.isArray(raw) ? raw : [raw];
-    return behaviors.map((value) => {
-        const normalized = String(value).trim().toLowerCase();
-        const segments = normalized.split(/[#/:]/);
-        return segments[segments.length - 1] || normalized;
-    });
-}
 
 function isSinglePageCanvas(canvas: any): boolean {
     const behaviors = getCanvasBehaviors(canvas);

@@ -396,6 +396,56 @@ function example(context: PluginContext) {
 }
 ```
 
+### The canvas contract
+
+Every canvas the viewer hands you — `viewerState.canvases`,
+`viewerState.getCanvases(manifestId, sequenceIndex)`, and every canvas passed
+into a plugin — is **raw IIIF Canvas JSON, IIIF Presentation 2 or 3 exactly as
+the manifest authored it**. There is no wrapper object and there are no accessor
+methods. The active manifest is likewise raw JSON, at
+`viewerState.manifestEntry?.json`.
+
+The two versions spell the same things differently — a v2 canvas uses `@id` and
+`images[]`, a v3 canvas uses `id` and `items[]` — and every one of these values
+is typed `any`, so TypeScript will not tell you which one you are holding.
+Rather than branch on version yourself, read them with core's version-neutral
+helpers:
+
+| Helper                                                  | From                          | Reads                                    |
+| ------------------------------------------------------- | ----------------------------- | ---------------------------------------- |
+| `getPaintingAnnotations(canvas)`                        | `triiiceratops`, `triiiceratops/image-export` | the canvas's image-bearing annotations |
+| `getCanvasId(canvas)`                                   | `triiiceratops/image-export`  | `id` / `@id`                             |
+| `getCanvasLabel(canvas, fallbackIndex?, locale?)`       | `triiiceratops/image-export`  | `label`, in any of its shapes            |
+| `getThumbnailSrc(canvas)`                               | `triiiceratops/image-export`  | a thumbnail URL, with fallbacks          |
+| `resolveCanvasImage(canvas)` / `resolveAllCanvasImages` | `triiiceratops/image-export`  | resolved image URLs and Choices          |
+| `resolveLanguageValue(value, locale?)`                  | `triiiceratops/image-export`  | any IIIF language-mapped value           |
+
+```ts
+import { getPaintingAnnotations } from 'triiiceratops';
+import { getCanvasId, resolveAllCanvasImages } from 'triiiceratops/image-export';
+import type { PluginContext } from 'triiiceratops';
+
+function imagesOnCurrentCanvas(context: PluginContext) {
+    const { viewerState } = context;
+    const canvas = viewerState.canvases.find(
+        (c: any) => getCanvasId(c) === viewerState.canvasId,
+    );
+
+    // Annotation-level view: what the manifest says paints this canvas.
+    const painting = getPaintingAnnotations(canvas);
+    // A v2 annotation carries its image under `resource`, a v3 one under `body`.
+
+    // Or go straight to resolved image URLs, Choices included.
+    return resolveAllCanvasImages(canvas);
+}
+```
+
+`getPaintingAnnotations` is **total**: it never throws and always returns an
+array, including for `null`, a non-canvas, or a canvas whose `items`/`images` is
+a bare object rather than an array. Do not reimplement it — enumerating a canvas
+by hand is the one mistake here that fails silently, as a blank canvas with no
+error.
+
 ### Selectors
 
 `context.selectors.select(fn)` returns a memoized `{ get(), subscribe() }`

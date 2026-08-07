@@ -124,3 +124,4 @@ docs/viewer*
 # Built Svelte-consumer demo output only. NOT `docs/svelte*` — that pattern also
 # swallowed the authored `docs/svelte.md` guide, which owns the /svelte/ URL.
 docs/svelte-demo/
+.tracker/

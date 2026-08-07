@@ -12,13 +12,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * if a future change did pull one in, it would still resolve from the
  * `triiiceratops` tarball's own `dependencies`.
  *
- * Everything ELSE is BUNDLED, including:
- * - Svelte and its transitive deps (`esm-env`, `clsx`) and `#client/*` internal
- *   imports, so no Svelte tooling/runtime is required; and
- * - `manifesto.js`, whose published ESM uses extensionless directory imports
- *   (e.g. `./internal`) that plain Node/vitest resolution cannot follow — vite's
- *   bundler resolves them at build time, so the chunk is self-contained and runs
- *   in a project that installed only the tarball + vitest.
+ * Everything ELSE is BUNDLED — notably Svelte and its transitive deps
+ * (`esm-env`, `clsx`) and `#client/*` internal imports, so the chunk is
+ * self-contained and runs in a project that installed only the tarball +
+ * vitest, with no Svelte tooling or runtime required.
  */
 const EXTERNAL = [/^openseadragon(\/|$)/, /^@annotorious\//];
 
@@ -78,10 +75,10 @@ const SHARED_SPECIFIERS: readonly string[] = SHARED_MODULE_IDENTITY.map(
  * Svelte-compiled, self-contained chunk while leaving `svelte-package`'s
  * `dist/testing/index.d.ts` (the correct types) in place.
  *
- * Dependency policy: see {@link EXTERNAL}. In short, Svelte and `manifesto.js`
- * are bundled so the entry runs in a plain vitest project that installed ONLY
- * the tarball; the heavy browser-only deps that are never in the headless graph
- * stay external. This is what the packed `vitest-kit` fixture verifies.
+ * Dependency policy: see {@link EXTERNAL}. In short, Svelte is bundled so the
+ * entry runs in a plain vitest project that installed ONLY the tarball; the
+ * heavy browser-only deps that are never in the headless graph stay external.
+ * This is what the packed `vitest-kit` fixture verifies.
  */
 export default defineConfig({
     // Never copy demo dev-server static assets into the published dist.
@@ -132,8 +129,8 @@ export default defineConfig({
                 EXTERNAL.some((re) => re.test(id)) ||
                 SHARED_SPECIFIERS.includes(id),
             output: {
-                // Single self-contained file: the lazy manifesto import folds
-                // inline rather than emitting a sibling chunk.
+                // Single self-contained file: any lazy import in the headless
+                // graph folds inline rather than emitting a sibling chunk.
                 inlineDynamicImports: true,
             },
         },

@@ -1,3 +1,10 @@
+import {
+    getChoiceAlternatives,
+    getPaintingAnnotations,
+    getPaintingBody,
+    isChoiceBody,
+} from './iiifParsing';
+
 function normalizeServiceId(serviceId: string): string {
     return serviceId.endsWith('/info.json')
         ? serviceId.slice(0, -'/info.json'.length)
@@ -7,9 +14,7 @@ function normalizeServiceId(serviceId: string): string {
 function getThumbnailServiceUrl(service: any, size: number): string {
     let profile: unknown = '';
     try {
-        profile = service?.getProfile
-            ? service.getProfile()
-            : (service?.profile as unknown) || '';
+        profile = (service?.profile as unknown) || '';
         if (typeof profile === 'object' && profile) {
             const pObj = profile as Record<string, unknown>;
             profile =
@@ -41,39 +46,44 @@ export function resolveThumbnailResourceSrc(
     if (!resource) return '';
     if (typeof resource === 'string') return resource;
 
-    const resourceJson = resource.__jsonld || resource;
-    const services = resourceJson?.service
-        ? Array.isArray(resourceJson.service)
-            ? resourceJson.service
-            : [resourceJson.service]
-        : resource?.getServices?.() || [];
+    const services = resource?.service
+        ? Array.isArray(resource.service)
+            ? resource.service
+            : [resource.service]
+        : [];
 
     for (const service of services) {
         const url = getThumbnailServiceUrl(service, size);
         if (url) return url;
     }
 
-    return resourceJson?.id || resourceJson?.['@id'] || '';
+    // v3 spells the id `id`, v2 `@id`; both are read.
+    return resource?.id || resource?.['@id'] || '';
 }
 
 /**
- * Extract a thumbnail URL from a Manifesto canvas object.
+ * Extract a thumbnail URL from a IIIF Canvas.
  *
  * Follows the same fallback chain used by ThumbnailGallery:
- *   1. canvas.getThumbnail()
+ *   1. The canvas's own `thumbnail` property
  *   2. First image annotation → IIIF service → {serviceId}/full/{size},/0/default.jpg
  *   3. Raw resource / body ID
  */
 export function getThumbnailSrc(canvas: any, size = 200): string {
     let src = '';
 
-    // 1. Manifesto getThumbnail
+    // 1. The canvas's declared thumbnail.
+    //
+    // `thumbnail` is spelled the same in IIIF v2 and v3, and
+    // `resolveThumbnailResourceSrc` already accepts the array form, a bare
+    // string, and a resource with an image service. This branch was
+    // `canvas.getThumbnail()` alone: with canvases now raw JSON that accessor
+    // is gone, and every canvas declaring an explicit thumbnail would have
+    // silently fallen through to its first painting annotation instead.
     try {
-        if (canvas.getThumbnail) {
-            const thumb = canvas.getThumbnail();
-            if (thumb) {
-                src = resolveThumbnailResourceSrc(thumb, size);
-            }
+        const thumb = canvas?.thumbnail;
+        if (thumb) {
+            src = resolveThumbnailResourceSrc(thumb, size);
         }
     } catch {
         // ignore
@@ -83,82 +93,41 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
 
     // 2. Fallback: first image annotation
     try {
-        let images = canvas.getImages?.() || [];
-        if ((!images || !images.length) && canvas.getContent) {
-            images = canvas.getContent();
-        }
+        const images = getPaintingAnnotations(canvas);
 
         if (images && images.length > 0) {
             const annotation = images[0];
-            let resource = annotation.getResource
-                ? annotation.getResource()
-                : null;
 
-            // v3 fallback: getBody
-            if (!resource && annotation.getBody) {
-                const body = annotation.getBody();
-                const rawBody = annotation.__jsonld?.body || annotation.body;
-                const isChoiceBody =
-                    rawBody?.type === 'Choice' ||
-                    rawBody?.type === 'oa:Choice' ||
-                    (body &&
-                        !Array.isArray(body) &&
-                        (body.type === 'Choice' || body.type === 'oa:Choice'));
-
-                if (isChoiceBody) {
-                    let items: any[] = [];
-                    if (Array.isArray(body)) {
-                        items = body;
-                    } else if (body && (body.items || body.item)) {
-                        items = body.items || body.item;
-                    } else if (rawBody && (rawBody.items || rawBody.item)) {
-                        items = rawBody.items || rawBody.item;
-                    }
-                    if (items.length > 0) {
-                        resource = items[0];
-                    }
-                } else if (Array.isArray(body) && body.length > 0) {
-                    resource = body[0];
-                } else if (body) {
-                    resource = body;
+            // The raw-JSON path, and now the only one. `getPaintingBody` reads
+            // the v2 `resource` spelling as well as the v3 `body` one.
+            //
+            // What stood above this was a library-shaped resolution followed by
+            // a discard guard (`!resource.id && !resource.__jsonld && …`).
+            // Neither could ever fire once annotations are raw JSON: the
+            // resolution needed `annotation.getResource`/`getBody`, so
+            // `resource` was always `null` when the guard was reached. The
+            // guard is therefore deleted whole rather than reduced — reducing
+            // it would have left `if (resource && !resource.id)`, which reads
+            // only the v3 id spelling and would have discarded valid v2
+            // resources carrying `@id` (SPEC → "The governing rule for the
+            // whole epic").
+            let resource: any = null;
+            let body = getPaintingBody(annotation);
+            if (body) {
+                if (isChoiceBody(body)) {
+                    body = getChoiceAlternatives(body)[0] || null;
                 }
-            }
-
-            if (
-                resource &&
-                !resource.id &&
-                !resource.__jsonld &&
-                (!resource.getServices || resource.getServices().length === 0)
-            ) {
-                resource = null;
-            }
-
-            if (!resource) {
-                const json = annotation.__jsonld || annotation;
-                if (json.body) {
-                    let body = json.body;
-                    if (body.type === 'Choice' || body.type === 'oa:Choice') {
-                        const items = body.items || body.item || [];
-                        body = items[0] || null;
-                    }
-                    resource = Array.isArray(body) ? body[0] : body;
-                }
+                resource = Array.isArray(body) ? body[0] : body;
             }
 
             if (resource) {
                 // Try IIIF image service
                 const getServices = () => {
                     let s: any[] = [];
-                    if (resource.getServices) {
-                        s = resource.getServices();
-                    }
-                    if (!s || s.length === 0) {
-                        const rJson = resource.__jsonld || resource;
-                        if (rJson.service) {
-                            s = Array.isArray(rJson.service)
-                                ? rJson.service
-                                : [rJson.service];
-                        }
+                    if (resource.service) {
+                        s = Array.isArray(resource.service)
+                            ? resource.service
+                            : [resource.service];
                     }
                     return s;
                 };
@@ -171,31 +140,20 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
                     }
                 }
 
-                // Fallback: raw resource ID
-                src =
-                    resource.id ||
-                    resource['@id'] ||
-                    (resource.__jsonld &&
-                        (resource.__jsonld.id || resource.__jsonld['@id'])) ||
-                    '';
+                // Fallback: raw resource ID — `id` in v3, `@id` in v2.
+                src = resource.id || resource['@id'] || '';
 
                 if (!src) {
-                    let rawBody: any = null;
-                    if (annotation.__jsonld && annotation.__jsonld.body) {
-                        rawBody = annotation.__jsonld.body;
-                    } else if (annotation.body) {
-                        rawBody = annotation.body;
-                    }
+                    // Same v2 blindness as above, one rung further down the
+                    // ladder: this re-read the annotation for a `body` only.
+                    const rawBody = getPaintingBody(annotation);
                     if (rawBody) {
                         let bodyObj = Array.isArray(rawBody)
                             ? rawBody[0]
                             : rawBody;
-                        if (
-                            bodyObj.type === 'Choice' ||
-                            bodyObj.type === 'oa:Choice'
-                        ) {
-                            const items = bodyObj.items || bodyObj.item || [];
-                            bodyObj = items[0] || bodyObj;
+                        if (isChoiceBody(bodyObj)) {
+                            bodyObj =
+                                getChoiceAlternatives(bodyObj)[0] || bodyObj;
                         }
                         src = bodyObj.id || bodyObj['@id'] || '';
                     }

@@ -53,15 +53,11 @@ interface CanvasContext {
 type AnnotationOrigin = 'manifest' | 'user';
 
 /**
- * Helper to extract ID from annotation object
- * Handles Manifesto objects and raw JSON
+ * Helper to extract ID from a raw JSON annotation — `id` in IIIF v3, `@id` in
+ * v2.
  */
 function getAnnotationId(anno: any): string {
-    return (
-        anno.id ||
-        anno['@id'] ||
-        (typeof anno.getId === 'function' ? anno.getId() : '')
-    );
+    return anno.id || anno['@id'] || '';
 }
 
 /**
@@ -143,15 +139,8 @@ function getCanvasContext(annotation: any): CanvasContext | null {
 }
 
 function getAnnotationTarget(annotation: any): any {
-    return (
-        annotation?.__jsonld?.on ||
-        annotation?.__jsonld?.target ||
-        annotation?.target ||
-        annotation?.on ||
-        (typeof annotation?.getTarget === 'function'
-            ? annotation.getTarget()
-            : null)
-    );
+    // IIIF v3 spells it `target`, v2 `on`; both are read.
+    return annotation?.target || annotation?.on || null;
 }
 
 function getTargetId(target: any): string | null {
@@ -419,62 +408,37 @@ export function extractBody(annotation: any): {
         format?: string;
     }[] = [];
 
-    // Try Manifesto getBody method
-    if (typeof annotation.getBody === 'function') {
-        const body = annotation.getBody();
-        if (body) {
-            const bodyArr = Array.isArray(body) ? body : [body];
-            for (const b of bodyArr) {
-                const val = b.getValue ? b.getValue() : '';
-                if (val) {
-                    const format = b.getFormat ? b.getFormat() : '';
-                    const purpose = b.getPurpose ? b.getPurpose() : undefined;
-                    bodies.push({
-                        value: val,
-                        isHtml:
-                            format === 'text/html' ||
-                            format === 'application/html',
-                        purpose: purpose,
-                        format: format,
-                    });
-                }
-            }
+    // Raw JSON body/resource — `resource` is the IIIF v2 spelling, `body` the
+    // v3 one, and both are read.
+    const processResource = (r: any) => {
+        const val = r.chars || r.value || r['cnt:chars'] || '';
+        if (val) {
+            const isHtml = r.format === 'text/html' || r.type === 'TextualBody';
+            bodies.push({
+                value: val,
+                isHtml,
+                purpose: r.purpose,
+                format: r.format,
+            });
         }
-    } else {
-        // Handle raw JSON body/resource
-        const processResource = (r: any) => {
-            const val = r.chars || r.value || r['cnt:chars'] || '';
-            if (val) {
-                const isHtml =
-                    r.format === 'text/html' || r.type === 'TextualBody';
-                bodies.push({
-                    value: val,
-                    isHtml,
-                    purpose: r.purpose,
-                    format: r.format,
-                });
-            }
-        };
+    };
 
-        if (annotation.resource) {
-            const resources = Array.isArray(annotation.resource)
-                ? annotation.resource
-                : [annotation.resource];
-            resources.forEach(processResource);
-        } else if (annotation.body) {
-            const bodyArr = Array.isArray(annotation.body)
-                ? annotation.body
-                : [annotation.body];
-            bodyArr.forEach(processResource);
-        }
+    if (annotation.resource) {
+        const resources = Array.isArray(annotation.resource)
+            ? annotation.resource
+            : [annotation.resource];
+        resources.forEach(processResource);
+    } else if (annotation.body) {
+        const bodyArr = Array.isArray(annotation.body)
+            ? annotation.body
+            : [annotation.body];
+        bodyArr.forEach(processResource);
     }
 
     // fallback for label if no bodies found
     if (bodies.length === 0) {
         let value = '';
-        if (typeof annotation.getLabel === 'function') {
-            value = annotation.getLabel() || '';
-        } else if (annotation.label) {
+        if (annotation.label) {
             value = Array.isArray(annotation.label)
                 ? annotation.label.join(' ')
                 : annotation.label;
@@ -534,7 +498,7 @@ function buildParsedAnnotations(
 }
 
 /**
- * Parse Manifesto/IIIF annotation to internal format
+ * Parse a raw JSON IIIF annotation to internal format
  */
 export function parseAnnotation(
     annotation: any,

@@ -9,6 +9,8 @@
     import { manifestsState } from '../state/manifests.svelte';
     import { locales, setLocale } from '../paraglide/runtime.js';
     import { getCanvasLabel } from '../utils/canvasLabels';
+    // Canvases are raw IIIF JSON: `id` in v3, `@id` in v2.
+    import { getCanvasId } from '../utils/iiifIds';
 
     import { onMount } from 'svelte';
 
@@ -426,8 +428,8 @@
                 {#if canvases.length === 0}
                     <option value="" disabled>{m.no_canvases_loaded()}</option>
                 {:else}
-                    {#each canvases as canvas, i (canvas.id)}
-                        <option value={canvas.id}>
+                    {#each canvases as canvas, i (getCanvasId(canvas))}
+                        <option value={getCanvasId(canvas)}>
                             {getCanvasLabel(canvas, i)}
                         </option>
                     {/each}

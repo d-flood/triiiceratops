@@ -90,7 +90,7 @@
         "predev": "pnpm gen:icons",
         "pretest": "pnpm gen:icons",
         "precheck": "pnpm gen:icons",
-        "build:lib": "pnpm gen:icons && paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && node ./src/packaging/pruneDist.ts && node ./src/packaging/inlineUi.ts && vite build --config vite.config.lib.ts && vite build --config vite.config.styles.ts && rm -f dist/triiiceratops-styles.js && pnpm check:runtime-deps && pnpm check:dts-svelte-types",
+        "build:lib": "pnpm gen:icons && paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && node ./src/packaging/pruneDist.ts && node ./src/packaging/inlineUi.ts && vite build --config vite.config.lib.ts && vite build --config vite.config.styles.ts && rm -f dist/triiiceratops-styles.js && pnpm check:dts-svelte-types",
         "build:testing": "vite build --config vite.config.testing.ts && pnpm check:testing-entry",
         "check:testing-entry": "node ./scripts/check-testing-entry.mjs",
         "build:element": "vite build --config vite.config.element.ts && vite build --config vite.config.element-esm.ts && pnpm check:element-artifact && pnpm check:framework-entries",
@@ -104,7 +104,6 @@
         "preview": "vite preview",
         "dev:consumer": "vite --config vite.config.demo-consumer.ts",
         "check": "svelte-check --tsconfig ./tsconfig.app.json --fail-on-warnings --compiler-warnings \"options_missing_custom_element:ignore\" && tsc -p tsconfig.node.json",
-        "check:runtime-deps": "node ./scripts/check-runtime-deps.mjs",
         "check:dts-svelte-types": "node ./src/packaging/dtsSvelteImports.ts",
         "test": "vitest",
         "test:contrast": "node ./scripts/check-contrast.ts",
@@ -157,7 +156,6 @@
     "dependencies": {
         "@types/openseadragon": "^5.0.1",
         "dompurify": "^3.4.11",
-        "manifesto.js": "^4.3.0",
         "openseadragon": "^5.0.1"
     }
 }

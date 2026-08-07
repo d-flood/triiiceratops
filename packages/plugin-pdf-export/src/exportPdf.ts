@@ -304,12 +304,8 @@ function normalizeCoverSheetFields(fields: unknown): PdfCoverSheetField[] {
 }
 
 function getMotivations(annotation: any): string[] {
-    const raw =
-        annotation?.motivation ||
-        annotation?.__jsonld?.motivation ||
-        (typeof annotation?.getMotivation === 'function'
-            ? annotation.getMotivation()
-            : null);
+    // `motivation` is spelled the same on a raw IIIF v2 and v3 annotation.
+    const raw = annotation?.motivation;
 
     if (!raw) {
         return [];
@@ -319,15 +315,10 @@ function getMotivations(annotation: any): string[] {
 }
 
 function getBodyCandidates(annotation: any): any[] {
-    const rawBody =
-        annotation?.body || annotation?.resource || annotation?.__jsonld?.body;
+    // IIIF v3 spells the body `body`, v2 spells it `resource`; both are read.
+    const rawBody = annotation?.body || annotation?.resource;
     if (rawBody) {
         return Array.isArray(rawBody) ? rawBody : [rawBody];
-    }
-
-    if (typeof annotation?.getBody === 'function') {
-        const body = annotation.getBody();
-        return Array.isArray(body) ? body : body ? [body] : [];
     }
 
     return [];
@@ -336,19 +327,14 @@ function getBodyCandidates(annotation: any): any[] {
 function getTextBodies(annotation: any): TextBody[] {
     return getBodyCandidates(annotation)
         .map((body): TextBody | null => {
-            const value =
-                body?.value ||
-                body?.chars ||
-                (typeof body?.getValue === 'function' ? body.getValue() : null);
+            // v3 `value`, v2 `chars`.
+            const value = body?.value || body?.chars;
             if (typeof value !== 'string' || !value.trim()) {
                 return null;
             }
 
-            const format =
-                body?.format ||
-                (typeof body?.getFormat === 'function'
-                    ? body.getFormat()
-                    : undefined);
+            // `format` is spelled the same in both versions.
+            const format = body?.format;
             const purpose = body?.purpose || body?.motivation;
 
             return {
@@ -386,14 +372,12 @@ function isOcrAnnotation(annotation: any, bodies: TextBody[]): boolean {
 function getCanvasDimensions(
     canvas: any,
 ): { width: number; height: number } | null {
-    const width =
-        canvas?.width ||
-        canvas?.__jsonld?.width ||
-        (typeof canvas?.getWidth === 'function' ? canvas.getWidth() : null);
-    const height =
-        canvas?.height ||
-        canvas?.__jsonld?.height ||
-        (typeof canvas?.getHeight === 'function' ? canvas.getHeight() : null);
+    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
+    // The trailing `|| null` is what the dead accessor rung evaluated to, and
+    // is load-bearing: a canvas declaring `width: 0` must still fall through to
+    // "no dimensions" rather than become a valid `0`.
+    const width = canvas?.width || null;
+    const height = canvas?.height || null;
 
     if (typeof width !== 'number' || typeof height !== 'number') {
         return null;

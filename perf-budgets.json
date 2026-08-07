@@ -58,6 +58,12 @@
             "ceilingBytes": 1079109
         }
     },
+    "acceptedSizeIncreases": {
+        "core:esm-entry-graph": {
+            "headBytes": 45000,
+            "reason": "manifesto.js (an external bare specifier the entry-graph measure never counted) was replaced by first-party utils/iiifParsing.js. The parsing cost moved in-tree rather than growing; remove this entry once main carries iiifParsing.js."
+        }
+    },
     "runtime": {
         "initial_viewer_mount": {
             "medianMs": 30.9,

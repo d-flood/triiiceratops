@@ -30,15 +30,35 @@ import {
     resolveWorldSizeOptions,
 } from './exportImage';
 
+/**
+ * Wrap painting annotations in an `AnnotationPage`, the way a IIIF v3 canvas
+ * carries them.
+ *
+ * These canvases used to be `manifesto.js`-shaped doubles — a `getContent()`
+ * accessor over annotations with a `getBody()` accessor. Core's v3
+ * painting-annotation enumeration is first-party as of the `remove-manifesto`
+ * epic (ticket 03) and reads `canvas.items[].items[]`, so they now carry the
+ * JSON the accessors used to wrap.
+ */
+function annotationPages(...annotations: unknown[]) {
+    return [
+        {
+            id: 'https://example.org/annotation-page/1',
+            type: 'AnnotationPage',
+            items: annotations,
+        },
+    ];
+}
+
 function createCompositeCanvas() {
     return {
         id: 'canvas-1',
         width: 800,
         height: 1000,
-        getContent: () => [
+        items: annotationPages(
             {
                 target: 'https://example.org/canvas/1#xywh=0,0,400,1000',
-                getBody: () => ({
+                body: {
                     id: 'https://example.org/image/1a',
                     width: 400,
                     height: 1000,
@@ -47,11 +67,11 @@ function createCompositeCanvas() {
                         type: 'ImageService2',
                         profile: 'http://iiif.io/api/image/2/level1.json',
                     },
-                }),
+                },
             },
             {
                 target: 'https://example.org/canvas/1#xywh=400,0,400,1000',
-                getBody: () => ({
+                body: {
                     id: 'https://example.org/image/1b',
                     width: 400,
                     height: 1000,
@@ -60,9 +80,9 @@ function createCompositeCanvas() {
                         type: 'ImageService2',
                         profile: 'http://iiif.io/api/image/2/level1.json',
                     },
-                }),
+                },
             },
-        ],
+        ),
     };
 }
 
@@ -71,20 +91,18 @@ function createSingleImageCanvas(id: string) {
         id,
         width: 1000,
         height: 1200,
-        getContent: () => [
-            {
-                getBody: () => ({
-                    id: `https://example.org/image/${id}.jpg`,
-                    width: 1000,
-                    height: 1200,
-                    service: {
-                        id: `https://example.org/iiif/${id}`,
-                        type: 'ImageService2',
-                        profile: 'http://iiif.io/api/image/2/level1.json',
-                    },
-                }),
+        items: annotationPages({
+            body: {
+                id: `https://example.org/image/${id}.jpg`,
+                width: 1000,
+                height: 1200,
+                service: {
+                    id: `https://example.org/iiif/${id}`,
+                    type: 'ImageService2',
+                    profile: 'http://iiif.io/api/image/2/level1.json',
+                },
             },
-        ],
+        }),
     };
 }
 
@@ -130,7 +148,7 @@ describe('resolveCompositeCanvasSizeOptions', () => {
             id: 'empty',
             width: 100,
             height: 100,
-            getContent: () => [],
+            items: [],
         });
         expect(options).toEqual([]);
     });
@@ -198,7 +216,7 @@ describe('exportCompositeCanvas', () => {
     it('throws when the canvas has no exportable images', async () => {
         await expect(
             exportCompositeCanvas(
-                { id: 'empty', width: 100, height: 100, getContent: () => [] },
+                { id: 'empty', width: 100, height: 100, items: [] },
                 { width: 100, height: 100, label: 'Original' },
             ),
         ).rejects.toThrow('No exportable image found for this canvas.');

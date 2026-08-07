@@ -1,75 +1,59 @@
-# Public-declaration `any` allowlist (ticket 21)
-#
-# Each line is a normalized `any`-bearing declaration line reachable from a
-# package's public export entry points. These are PRE-EXISTING, STRUCTURAL
-# exceptions: the viewer models fetched IIIF resources (manifest / canvas /
-# annotation) as `any` because its `manifesto.js` boundary is untyped. They are
-# a single documented boundary, not accidental leakage, so they are accounted for
-# here rather than refactored (out of scope for ticket 21 — "snapshots record
-# what exists"). The SDK ABI itself is `any`-clean.
-#
-# The gate (`scripts/check-public-api.mjs`) FAILS on any NEW public `any` not
-# listed here, so a planted `any` on a public type is caught. This boundary is
-# registered as a single sanctioned exception in `lint-allowlist.md` (section
-# "IIIF resources crossing the manifesto.js boundary are `any`"): that entry
-# carries the human-facing rationale / owner / review-date, and THIS file is the
-# machine-readable line list the gate actually reads.
-#
-# Update protocol: adding or removing an entry here requires regenerating this
-# file via `node scripts/check-public-api.mjs --write-allowlist` AND updating the
-# `lint-allowlist.md` entry's rationale and date in the SAME commit. Regenerate
-# ONLY after a reviewed, intentional change.
-#
-# Blank lines and `#` comments are ignored.
 
-@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function exportCompositeCanvas(canvas: any, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
-@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function getCanvasImageChoices(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ResolvedCanvasImage[];
-@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function getVisibleCanvasesForDownload(viewerState: ViewerState): any[];
-@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function resolveCompositeCanvasSizeOptions(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ExportSizeOption[];
-@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: canvas: any;
-@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: canvases: any[];
-@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: export declare function extractOcrTextOverlays(annotations: any[]): PdfTextOverlay[];
-@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
-@triiiceratops/plugin-pdf-export :: dist/types.d.ts :: endCanvas: any | null;
-@triiiceratops/plugin-pdf-export :: dist/types.d.ts :: startCanvas: any | null;
+#
+#
+#
+#
+# `any` because one declared type cannot describe both versions and the project
+# Blank lines and `#` comments are ignored.
+# boundary, not accidental leakage, so they are accounted for here rather than
+# Each line is a normalized `any`-bearing declaration line reachable from a
+# file via `node scripts/check-public-api.mjs --write-allowlist` AND updating the
+# has not yet committed to a typed IIIF surface. They are a single documented
+# "IIIF resources crossing the raw-JSON boundary are `any`"): that entry carries
+# `lint-allowlist.md` entry's rationale and date in the SAME commit. Regenerate
+# listed here, so a planted `any` on a public type is caught. This boundary is
+# machine-readable line list the gate actually reads.
+# ONLY after a reviewed, intentional change.
+# package's public export entry points. These are STRUCTURAL exceptions: the
+# Public-declaration `any` allowlist (ticket 21)
+# RAW JSON the publisher authored, IIIF Presentation 2 or 3, and models that as
+# refactored. The SDK ABI itself is `any`-clean.
+# registered as a single sanctioned exception in `lint-allowlist.md` (section
+# The gate (`scripts/check-public-api.mjs`) FAILS on any NEW public `any` not
+# the human-facing rationale / owner / review-date, and THIS file is the
 triiiceratops :: dist/components/TriiiceratopsViewer.svelte.d.ts :: manifestJson?: any;
 triiiceratops :: dist/components/viewerControls.d.ts :: canvas: any;
 triiiceratops :: dist/components/viewerControls.d.ts :: canvases: any[];
 triiiceratops :: dist/components/viewerControls.d.ts :: choices: any[];
-triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getCanvasBehaviors(canvas: any): string[];
-triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getCanvasChoices(canvas: any): any;
 triiiceratops :: dist/components/viewerControls.d.ts :: export declare function getPagedCanvasGroups(canvases: any[], pagedOffset: number): PagedCanvasGroup[];
 triiiceratops :: dist/framework/props.d.ts :: manifestJson?: string | Record<string, any>;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: error?: any;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: fetchResource(url: string, requestConfig?: RequestConfig): Promise<any>;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
-triiiceratops :: dist/state/manifests.svelte.d.ts :: getCanvases(manifestId: string, sequenceIndex?: number): any;
-triiiceratops :: dist/state/manifests.svelte.d.ts :: getManifest(manifestId: string): any;
+triiiceratops :: dist/state/manifests.svelte.d.ts :: getCanvases(manifestId: string, sequenceIndex?: number): any[];
 triiiceratops :: dist/state/manifests.svelte.d.ts :: json?: any;
-triiiceratops :: dist/state/manifests.svelte.d.ts :: manifesto?: any;
 triiiceratops :: dist/state/manifests.svelte.d.ts :: manualGetAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 triiiceratops :: dist/state/manifests.svelte.d.ts :: registerManifest(manifestId: string, json: any): Promise<void>;
 triiiceratops :: dist/state/viewer.svelte.d.ts :: ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
-triiiceratops :: dist/state/viewer.svelte.d.ts :: get canvases(): any;
-triiiceratops :: dist/state/viewer.svelte.d.ts :: get currentCanvasSearchAnnotations(): any[];
-triiiceratops :: dist/state/viewer.svelte.d.ts :: get manifest(): any;
 triiiceratops :: dist/state/viewer.svelte.d.ts :: getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
+triiiceratops :: dist/state/viewer.svelte.d.ts :: get canvases(): any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: getCanvases(manifestId: string, sequenceIndex?: number): any[];
+triiiceratops :: dist/state/viewer.svelte.d.ts :: get currentCanvasSearchAnnotations(): any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: getUserAnnotations(manifestId: string, canvasId: string): any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: searchAnnotations: any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: setManifestData(manifestId: string, manifestJson: any, options?: {
 triiiceratops :: dist/state/viewer.svelte.d.ts :: setUserAnnotations(manifestId: string, canvasId: string, annotations: any[]): void;
 triiiceratops :: dist/state/viewer.svelte.d.ts :: userAnnotations: Map<string, any[]>;
 triiiceratops :: dist/types/config/search.d.ts :: canvases: any[];
-triiiceratops :: dist/types/config/search.d.ts :: manifest: any;
+triiiceratops :: dist/types/config/search.d.ts :: manifestJson: any;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function extractBody(annotation: any): {
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function isFullCanvasAnnotation(annotation: any): boolean;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean): ParsedAnnotation | null;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>): ParsedAnnotation[];
 triiiceratops :: dist/utils/canvasImageSpace.d.ts :: on?: any;
 triiiceratops :: dist/utils/canvasImageSpace.d.ts :: target?: any;
-triiiceratops :: dist/utils/canvasLabels.d.ts :: export declare function getCanvasLabel(canvas: any, fallbackIndex?: number): string;
+triiiceratops :: dist/utils/canvasLabels.d.ts :: export declare function getCanvasLabel(canvas: any, fallbackIndex?: number, preferredLocale?: string): string;
 triiiceratops :: dist/utils/collections.d.ts :: export declare function getCollectionLabel(json: any): string;
 triiiceratops :: dist/utils/collections.d.ts :: export declare function getCollectionThumbnail(json: any): string | undefined;
 triiiceratops :: dist/utils/collections.d.ts :: export declare function isCollection(json: any): boolean;
@@ -81,6 +65,14 @@ triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function findCanvasIn
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function getAnnotationId(annotation: any): string;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function getCanvasId(canvas: any): string;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function getResourceId(resource: any): string | null;
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getCanvasBehaviors(canvas: any): string[];
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getCanvasChoices(canvas: any): any[];
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getCanvasesForSequence(manifest: any, index: number): any[];
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getChoiceAlternatives(body: any): any[];
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getPaintingAnnotations(canvas: any): any[];
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getPaintingBody(annotation: any): any;
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getSequenceCount(manifest: any): number;
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function isChoiceBody(body: any): boolean;
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: annotation: any;
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: canvases: any[];
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function getCanvasTileSource(canvas: any, options?: ResolveCanvasImageOptions): TileSource | null;
@@ -98,3 +90,15 @@ triiiceratops :: dist/vue/viewer.d.ts :: onStateChange?: ((snapshot: ViewerState
 triiiceratops :: dist/vue/viewer.d.ts :: onViewerError?: ((error: ViewerError) => any) | undefined;
 triiiceratops :: dist/vue/viewer.d.ts :: readonly type: PropType<string | Record<string, any>>;
 triiiceratops :: dist/vue/viewer.d.ts :: }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function exportCompositeCanvas(canvas: any, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function getCanvasImageChoices(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ResolvedCanvasImage[];
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function getVisibleCanvasesForDownload(viewerState: ViewerState): any[];
+@triiiceratops/plugin-image-export :: dist/exportImage.d.ts :: export declare function resolveCompositeCanvasSizeOptions(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ExportSizeOption[];
+@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: canvas: any;
+@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: canvases: any[];
+@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: export declare function extractOcrTextOverlays(annotations: any[]): PdfTextOverlay[];
+@triiiceratops/plugin-pdf-export :: dist/exportPdf.d.ts :: getCanvasAnnotations?: (canvasId: string) => Promise<any[]> | any[];
+@triiiceratops/plugin-pdf-export :: dist/types.d.ts :: endCanvas: any | null;
+@triiiceratops/plugin-pdf-export :: dist/types.d.ts :: startCanvas: any | null;
+# Update protocol: adding or removing an entry here requires regenerating this
+# viewer hands out fetched IIIF resources (manifest / canvas / annotation) as the

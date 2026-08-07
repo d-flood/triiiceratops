@@ -938,12 +938,16 @@ and the Svelte component's `searchProvider` prop.
 
 `searchProvider` is a callback-based alternate search source. It is not a way to declare a IIIF Search service URI, inject a missing service into a manifest, or override the manifest's service metadata. Use normal manifest `service` declarations for traditional IIIF Content Search endpoints.
 
+The context hands you the manifest and its canvases as **raw IIIF JSON**, v2 or v3 as authored — see [the canvas contract](plugin-authoring.md#the-canvas-contract) for the version-neutral helpers that read them.
+
 ```typescript
 type SearchProvider = (
     query: string,
     context: {
         manifestId: string;
-        manifest: any;
+        /** Raw IIIF Manifest JSON — v2 or v3 as authored. */
+        manifestJson: any;
+        /** The active sequence's canvases, as raw IIIF Canvas JSON. */
         canvases: any[];
         canvasId: string | null;
     },

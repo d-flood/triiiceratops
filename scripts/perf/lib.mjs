@@ -245,8 +245,15 @@ export function collectSizes(root) {
 /**
  * Compare per-artifact sizes. A deterministic increase above 5% is a regression
  * (SPEC). Missing artifacts (0 bytes on head where base had bytes) also fail.
+ *
+ * `accepted` is the optional `acceptedSizeIncreases` map from perf-budgets.json:
+ * a reviewed, committed exemption for an intentional cost shift the base
+ * measurement cannot represent — work moving out of an external dependency (a
+ * bare specifier, never counted in an entry graph) into first-party code. An
+ * exempt artifact is excused from the delta gate only while its head size stays
+ * at or below the accepted `headBytes`, so further growth still fails.
  */
-export function compareSizes(base, head) {
+export function compareSizes(base, head, accepted = {}) {
     const rows = [];
     let regressed = false;
     for (const key of Object.keys(head)) {
@@ -254,9 +261,19 @@ export function compareSizes(base, head) {
         const h = head[key] ?? 0;
         const deltaBytes = h - b;
         const pct = b > 0 ? deltaBytes / b : h > 0 ? Infinity : 0;
-        const fail = pct > THRESHOLDS.sizeRegressionPct;
+        const exemption = accepted[key];
+        const exempt = Boolean(exemption) && h <= exemption.headBytes;
+        const fail = pct > THRESHOLDS.sizeRegressionPct && !exempt;
         if (fail) regressed = true;
-        rows.push({ key, base: b, head: h, deltaBytes, pct, fail });
+        rows.push({
+            key,
+            base: b,
+            head: h,
+            deltaBytes,
+            pct,
+            fail,
+            ...(exempt ? { exempt: true, reason: exemption.reason } : {}),
+        });
     }
     return { rows, regressed };
 }
@@ -297,8 +314,16 @@ export function loadBudgets() {
  * median so ordinary headless-CI timing noise does not flake, while gross
  * regressions still trip the base-vs-head gate. Intentional cost increases are
  * accepted by regenerating this committed file in the PR (reviewed budget bump).
+ *
+ * Any `acceptedSizeIncreases` already committed are carried forward — they
+ * exempt an artifact from the base-vs-head delta gate, which regenerating
+ * absolute ceilings does not address, so a recapture must not silently drop them.
  */
-export function buildBudgets(measurement, baselineRef = '1.0.0-rc.25') {
+export function buildBudgets(
+    measurement,
+    baselineRef = '1.0.0-rc.25',
+    acceptedSizeIncreases = loadBudgets()?.acceptedSizeIncreases,
+) {
     const size = {};
     for (const [key, bytes] of Object.entries(measurement.sizes)) {
         size[key] = {
@@ -328,6 +353,9 @@ export function buildBudgets(measurement, baselineRef = '1.0.0-rc.25') {
             'carry noise headroom over the captured median.',
         thresholds: THRESHOLDS,
         size,
+        ...(acceptedSizeIncreases && Object.keys(acceptedSizeIncreases).length
+            ? { acceptedSizeIncreases }
+            : {}),
         runtime,
     };
 }
@@ -414,7 +442,9 @@ export function formatSizeTable(rows) {
         lines.push(
             `| \`${r.key}\` | ${kib(r.base)} | ${kib(r.head)} | ${
                 r.deltaBytes >= 0 ? '+' : ''
-            }${r.deltaBytes} | ${pct(r.pct)} | ${r.fail ? 'FAIL' : 'ok'} |`,
+            }${r.deltaBytes} | ${pct(r.pct)} | ${
+                r.fail ? 'FAIL' : r.exempt ? 'accepted' : 'ok'
+            } |`,
         );
     }
     return lines.join('\n');

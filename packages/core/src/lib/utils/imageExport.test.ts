@@ -11,23 +11,36 @@ import {
 } from './imageExport';
 import { installCanvasCompositingMocks } from '../test/utils/mockCanvasCompositing';
 
+/**
+ * These were `manifesto.js`-shaped doubles — a `getContent()` accessor over
+ * annotations with a `getBody()` accessor. IIIF v3 painting-annotation
+ * enumeration is first-party as of the `remove-manifesto` epic (ticket 03) and
+ * reads `canvas.items[].items[]`, so they now carry the JSON directly.
+ */
 function createLevel1Canvas() {
     return {
         id: 'canvas-1',
         width: 800,
         height: 1000,
-        getContent: () => [
+        items: [
             {
-                getBody: () => ({
-                    id: 'https://example.org/image/1.jpg',
-                    width: 800,
-                    height: 1000,
-                    service: {
-                        id: 'https://example.org/iiif/image1',
-                        type: 'ImageService2',
-                        profile: 'http://iiif.io/api/image/2/level1.json',
+                id: 'https://example.org/annotation-page/1',
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        body: {
+                            id: 'https://example.org/image/1.jpg',
+                            width: 800,
+                            height: 1000,
+                            service: {
+                                id: 'https://example.org/iiif/image1',
+                                type: 'ImageService2',
+                                profile:
+                                    'http://iiif.io/api/image/2/level1.json',
+                            },
+                        },
                     },
-                }),
+                ],
             },
         ],
     };
@@ -38,18 +51,25 @@ function createLevel0Canvas() {
         id: 'canvas-level0',
         width: 4000,
         height: 3000,
-        getContent: () => [
+        items: [
             {
-                getBody: () => ({
-                    id: 'https://example.org/static/level0.jpg',
-                    width: 4000,
-                    height: 3000,
-                    service: {
-                        id: 'https://example.org/iiif/level0-image',
-                        type: 'ImageService2',
-                        profile: 'http://iiif.io/api/image/2/level0.json',
+                id: 'https://example.org/annotation-page/level0',
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        body: {
+                            id: 'https://example.org/static/level0.jpg',
+                            width: 4000,
+                            height: 3000,
+                            service: {
+                                id: 'https://example.org/iiif/level0-image',
+                                type: 'ImageService2',
+                                profile:
+                                    'http://iiif.io/api/image/2/level0.json',
+                            },
+                        },
                     },
-                }),
+                ],
             },
         ],
     };

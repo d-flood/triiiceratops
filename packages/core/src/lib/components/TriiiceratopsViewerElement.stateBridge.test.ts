@@ -189,10 +189,10 @@ async function connect(el: BridgeElement): Promise<void> {
     await settle();
 }
 
-/** Poll until the inner viewer has parsed the manifest it was handed. */
+/** Poll until the inner viewer has registered the manifest it was handed. */
 async function waitForManifest(el: BridgeElement): Promise<void> {
     for (let i = 0; i < 40; i++) {
-        if (el.viewerState?.manifest) return;
+        if (el.viewerState?.manifestEntry?.json) return;
         await settle(25);
     }
     throw new Error('manifest never became available');

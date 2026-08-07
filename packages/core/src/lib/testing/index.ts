@@ -101,10 +101,11 @@ export interface HeadlessViewerFixtures {
     /** Apply an initial `ViewerConfig` through the real `updateConfig` command. */
     config?: ViewerConfig;
     /**
-     * Pre-load already-parsed IIIF manifest JSON through the real
-     * `setManifestData` command (NO network). Loading is asynchronous
-     * (manifesto parsing): `await flush()` — or await `state.isManifestReady(id)`
-     * via a subscription — before asserting on manifest-derived state.
+     * Pre-load raw IIIF manifest JSON — v2 or v3 as authored — through the real
+     * `setManifestData` command (NO network). Registration is a pure store and
+     * cannot fail, but it is still asynchronous: `await flush()` — or await
+     * `state.isManifestReady(id)` via a subscription — before asserting on
+     * manifest-derived state.
      */
     manifest?: { id: string; json: unknown; canvasId?: string };
 }

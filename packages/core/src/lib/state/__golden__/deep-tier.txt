@@ -1,0 +1,846 @@
+# Behavioral baseline — DEEP TIER
+#
+# Frozen by `remove-manifesto` ticket 04 while `manifesto.js` was still
+# installed, and RE-BASELINED once after tickets 05, 06 and 07 landed — a
+# deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
+# by `src/lib/state/viewer.baseline.test.ts`; do not edit by hand. Same seam as
+# the broad tier: a real `ViewerState`, raw manifest JSON in through
+# `setManifestData`, real manifest cache, no mocks, and every canvas below is
+# one the viewer handed out.
+#
+# The broad tier answers "did anything disappear?". This tier answers "is the
+# VALUE right?" on 20 curated manifests — Choice selection, composite canvases,
+# level-0 URL construction, v2 ranges in all three spellings, right-to-left,
+# multi-sequence v2, and the manifest scalars.
+#
+# MOVES ACCEPTED AT THE RE-BASELINE (this file):
+#   - `vendored/illustrationsofchina.json` and `vendored/qatar-right-to-left.json`
+#     went viewingMode=individuals -> paged. Both declare `viewingHint: "paged"`
+#     at a v2 manifest root, which `_applyManifestSettings` never read — it read
+#     only the v3 `behavior` spellings. `viewingHint` IS the v2 spelling of
+#     viewing behavior, so these are fixes, not drift (ticket 05).
+#   - `vendored/audio.json` canvases [0] and [1] went thumbnail=<none> to a real
+#     URL. Those canvases declare `"thumbnail"` as a BARE STRING;
+#     `manifesto.js` wrapped it in a `Thumbnail` whose `__jsonld` was the string
+#     itself, so reading `id` off it gave `undefined` and the URL was discarded.
+#     The raw path returns the string. Reproducing the old value would mean
+#     deliberately discarding a valid URL (ticket 07).
+#   - `synthetic/v2 oa:Choice painting annotation` canvas [0] gained a
+#     thumbnail, an image, a `choices:` block and an `images per selection:`
+#     block. Ticket 06 taught the enumerator the v2 Choice spelling; the canvas
+#     rendered nothing before.
+#
+# RE-CURATION — three fixtures were swapped in and three out, inside the SPEC's
+# 15-20 budget. The original 20 gave this tier ZERO variance on two of the three
+# manifest scalars it records (`startCanvasId=<none>` and
+# `viewingMode=individuals` on all 20), so "the golden did not move" proved
+# almost nothing about the surfaces ticket 05 rewrites. Added:
+# `cookbook/0202-start-canvas.json` (the corpus's only `start`),
+# `cookbook/0011-book-3-behavior-manifest-continuous.json` (the only
+# viewingMode that is neither individuals nor paged), and
+# `synthetic/v2 viewingHint and viewingDirection at two levels`. Dropped
+# `cookbook/0117-add-image-thumbnail.json` (curated for a canvas-level
+# `thumbnail` it does not have — its thumbnail is on the image resource),
+# `demo/iiif-harvardartmuseums-299843.json` (generic v2, covered elsewhere), and
+# `vendored/4.json` (curated for "v2 sequence with no @id", a property this tier
+# never records — its BROAD record pins it).
+#
+# HOW TO READ A DIFF
+#   Per manifest: three of the four manifest-scalar reads that ticket 05
+#   rewrites — start canvas, viewing direction, viewing mode — plus the structure
+#   tree, then every canvas of every sequence. The FOURTH, search-service
+#   discovery, is not recorded here at all: it is private to `ViewerState` and
+#   only observable by performing a network search, so ticket 05's rewrite of it
+#   has no safety net in this file and brings its own tests.
+#
+#   v2 declares viewing direction and viewing hint at both the manifest root and
+#   the sequence, and the SEQUENCE WINS. IIIF Presentation 2.1 states it for
+#   `viewingDirection`: a manifest's direction "applies to all of its sequences
+#   unless the sequence specifies its own viewing direction". `viewingHint` has
+#   no stated precedence and follows the rule the spec does state.
+#   `synthetic/v2 viewingHint and viewingDirection at two levels` is the fixture
+#   that pins this: its root says left-to-right/paged, its sequence says
+#   right-to-left/individuals, and the record below reads the SEQUENCE's values.
+#
+#   Per canvas: id, label, size, thumbnail URL, the number of painting
+#   annotations enumerated on it, the image URLs the viewer would paint (via the
+#   same `getCanvasTileSources` the viewer calls) each with its position
+#   `at=x,y,width` in viewport units, and the Choice alternatives on offer.
+#   Where a canvas has choices, the resolved images are re-recorded once per
+#   selection, driven through `ViewerState.selectChoice` — so this file pins
+#   choice SELECTION, not just choice presence.
+#
+#   `paintingAnnotations=` is ENUMERATION; `images:` is RESOLUTION. They are
+#   different questions and the broad tier's `withPainting` only answers the
+#   second. A canvas reading `paintingAnnotations=1` with `images: (none)` has an
+#   annotation the viewer cannot paint — correct for time-based media, a blank
+#   page for anything else. A canvas going `paintingAnnotations=1 -> 0` has lost
+#   its annotation entirely, which is the failure this epic exists to prevent,
+#   and on `vendored/audio.json`, `vendored/lunchroom-manners.json` and the
+#   missing-image canvases NOTHING ELSE IN EITHER TIER WOULD SHOW IT: they
+#   resolve no image either way, so `withPainting` reads 0 before and after.
+#
+#   `images: (none)` on a canvas that used to list a URL is the silent blank
+#   render this whole epic is trying not to cause.
+#
+# LEVEL-0 reads in the `thumbnail=` line. A level1/level2 service gets a
+# SYNTHESIZED `.../full/200,/0/default.jpg` — an arbitrary width a level-0
+# server cannot serve. A level-0 service does not: its thumbnail comes from a
+# size the service actually declares, so it reads `.../full/full/0/default.jpg`
+# (v2), `.../full/max/0/default.jpg` (v3), or a literal entry from a `sizes`
+# block (`vendored/auth-clinical.json` → `.../full/64,100/0/default.jpg`). A
+# level-0 line that starts synthesizing `/full/200,/` is a real regression: it
+# would 404 for every tile-limited publisher.
+#
+# DEFECTS THIS FILE ONCE FROZE, AND WHAT BECAME OF THEM:
+#   - FIXED, ticket 06 — IIIF v2 `oa:Choice` was not recognized at all. Canvas
+#     [0] of `synthetic/v2 oa:Choice painting annotation` listed no choices and
+#     no images, because the v2 spelling puts the alternatives in
+#     `resource.default`/`resource.item[]` and nothing read it. It now lists
+#     three alternatives and a resolved image per selection.
+#   - RESOLVED, ticket 07 — `vendored/illustrationsofchina.json` has four
+#     sequences, three of which enumerate zero canvases. The decision was
+#     DEGRADE, DO NOT RESOLVE: those three are `@id`/`@type`/`label` references
+#     to external Sequence documents, and resolving one is an HTTP fetch from a
+#     function that must stay synchronous, total and pure over cached JSON.
+#     Enumerating zero is what happened before, so the record did not move.
+#     Real-world shape, not breakage.
+#
+# NOT EXERCISED BY THE CORPUS — real code paths, but no fixture reaches them, so
+# this file can neither freeze them nor detect a change to them:
+#   - Choice selection keyed per CANVAS rather than per annotation. On a canvas
+#     with two Choice annotations only the first one's alternatives are offered
+#     and the second always resolves to its `items[0]`. Still true in
+#     production; no fixture carries two Choice annotations on one canvas, so no
+#     record below can show it.
+#   - A `Choice` whose `items` is a bare object rather than an array. It used to
+#     throw out of `resolveCanvasImage` with no try/catch on the path to the
+#     viewer, and would have recorded `<THROWS: ...>` in its images. Ticket 06
+#     guarded the access; no record here ever exercised it either way.
+#
+# CANVASES THAT RESOLVE NO IMAGE:
+#   - `vendored/scroll.json` — recorded below as `size="62651"x"1976"`. BOTH
+#     dimensions are strings, not just the height, and `getCanvasDimensions`
+#     requires numbers, so the canvas renders blank.
+#   - `vendored/lunchroom-manners.json` — `paintingAnnotations=1` with
+#     `images: (none)`. Enumeration works; the annotation is a Choice of Video
+#     bodies and there is no image to paint.
+#   - `vendored/audio.json` — `paintingAnnotations=0` on both canvases, and
+#     that is CORRECT, not a loss. An IxIF `element` is a `dctypes:Sound`
+#     resource with no `images`, `items` or `content`: the media is the element
+#     itself, reached through `rendering`. IxIF is preserved for parity (SPEC,
+#     Out of Scope), and this is the only record in either tier that says what
+#     its enumeration is supposed to be. If it ever reads non-zero, something
+#     started treating an IxIF element as a v2 canvas.
+
+
+==============================================================================
+cookbook/0010-book-2-viewing-direction-manifest-rtl.json
+# v3 right-to-left at the manifest root
+
+manifestId=https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/manifest-rtl.json
+startCanvasId=<none>
+viewingDirection=right-to-left
+viewingMode=individuals
+canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 5 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/canvas/p1
+      label=front cover
+      size=3497x4823
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_001/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_001/info.json at=0,0,1
+  [1] id=https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/canvas/p2
+      label=pages 1–2
+      size=6062x4804
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_002/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_002/info.json at=0,0,1
+  [2] id=https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/canvas/p3
+      label=pages 3–4
+      size=6127x4776
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_003/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_003/info.json at=0,0,1
+  [3] id=https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/canvas/p4
+      label=pages 5–6
+      size=6124x4751
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_004/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_004/info.json at=0,0,1
+  [4] id=https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/canvas/p5
+      label=back cover
+      size=3510x4808
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_005/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/4f92cceb12dd53b52433425ce44308c7-ucla_bib1987273_no001_rs_005/info.json at=0,0,1
+
+==============================================================================
+cookbook/0011-book-3-behavior-manifest-continuous.json
+# viewingMode=continuous — the only value in the corpus that is neither individuals nor paged
+
+manifestId=https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/manifest-continuous.json
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=continuous
+canvases=4 withPainting=4 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 4 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/canvas/s1
+      label=Section 1 [Recto]
+      size=11368x1592
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmd9_1300412_master/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmd9_1300412_master/info.json at=0,0,1
+  [1] id=https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/canvas/s2
+      label=Section 2 [Recto]
+      size=11608x1536
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmft_1300418_master/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmft_1300418_master/info.json at=0,0,1
+  [2] id=https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/canvas/s3
+      label=Section 3 [Recto]
+      size=10576x1504
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmgb_1300426_master/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmgb_1300426_master/info.json at=0,0,1
+  [3] id=https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/canvas/s4
+      label=Section 4 [Recto]
+      size=2488x1464
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmhv_1300436_master/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/8c169124171e6b2253b698a22a938f07-21198-zz001hbmhv_1300436_master/info.json at=0,0,1
+
+==============================================================================
+cookbook/0027-alternative-page-order.json
+# v3 ranges with behavior:sequence — the structure-derived multi-sequence path
+
+manifestId=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/manifest.json
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=8 withPainting=8 withoutPainting=0 withChoice=0 sequences=2 structureNodes=2
+structures:
+    - id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/range/r1 label=Physical sequence behaviors=[sequence] canvasIds=4
+    - id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/range/r2 label=Author-intended sequence behaviors=[sequence] canvasIds=4
+
+-- sequence 0 — 4 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p1
+      label=171r (387)
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186r_aVISNK_387/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186r_aVISNK_387/info.json at=0,0,1
+  [1] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p2
+      label=171v (384)
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186v_aVISNK_384/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186v_aVISNK_384/info.json at=0,0,1
+  [2] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p3
+      label=172r (385)
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187r_aVISNK_385/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187r_aVISNK_385/info.json at=0,0,1
+  [3] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p4
+      label=172v [386]
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187v_aVISNK_386/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187v_aVISNK_386/info.json at=0,0,1
+
+-- sequence 1 — 4 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p2
+      label=171v (384)
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186v_aVISNK_384/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186v_aVISNK_384/info.json at=0,0,1
+  [1] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p3
+      label=172r (385)
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187r_aVISNK_385/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187r_aVISNK_385/info.json at=0,0,1
+  [2] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p4
+      label=172v [386]
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187v_aVISNK_386/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0187v_aVISNK_386/info.json at=0,0,1
+  [3] id=https://iiif.io/api/cookbook/recipe/0027-alternative-page-order/canvas/p1
+      label=171r (387)
+      size=2156x3184
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186r_aVISNK_387/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/3ec31f43ce55cfcc076804c88c06aa43-CF-f0186r_aVISNK_387/info.json at=0,0,1
+
+==============================================================================
+cookbook/0033-choice.json
+# v3 Choice painting body — choice selection
+
+manifestId=https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=1 withPainting=1 withoutPainting=0 withChoice=1 sequences=1 structureNodes=0
+
+-- sequence 0 — 1 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0033-choice/canvas/p1
+      label=Canvas 1
+      size=2000x1271
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/info.json at=0,0,1
+      choices:
+        [0] https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/max/0/default.jpg
+        [1] https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/full/max/0/default.jpg
+      images per selection:
+        select https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/full/max/0/default.jpg
+          [0] url=https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-natural/info.json at=0,0,1
+        select https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/full/max/0/default.jpg
+          [0] url=https://iiif.io/api/image/3.0/example/reference/421e65be2ce95439b3ad6ef1f2ab87a9-dee-xray/info.json at=0,0,1
+
+==============================================================================
+cookbook/0036-composition-from-multiple-images.json
+# composite canvas — several painting annotations, each positioned
+
+manifestId=https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 1 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/canvas/p1
+      label=f. 033v-034r [Chilpéric Ier tue Galswinthe, se remarie et est assassiné]
+      size=7216x5412
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/full/200,/0/default.jpg
+      paintingAnnotations=2
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux/info.json at=0,0,1
+        [1] url=https://iiif.io/api/image/3.0/example/reference/899da506920824588764bc12b10fc800-bnf_chateauroux_miniature/info.json at=0.547256,0.137749,0.151192
+
+==============================================================================
+cookbook/0202-start-canvas.json
+# the corpus's only `start` — the sole fixture that can make startCanvasId anything but <none>
+
+manifestId=https://iiif.io/api/cookbook/recipe/0202-start-canvas/manifest.json
+startCanvasId=https://iiif.io/api/cookbook/recipe/0202-start-canvas/canvas/p2
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 5 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0202-start-canvas/canvas/p1
+      label=Blank page
+      size=3204x4613
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f18/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f18/info.json at=0,0,1
+  [1] id=https://iiif.io/api/cookbook/recipe/0202-start-canvas/canvas/p2
+      label=Frontispiece
+      size=3186x4612
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f19/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f19/info.json at=0,0,1
+  [2] id=https://iiif.io/api/cookbook/recipe/0202-start-canvas/canvas/p3
+      label=Title page
+      size=3204x4613
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f20/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f20/info.json at=0,0,1
+  [3] id=https://iiif.io/api/cookbook/recipe/0202-start-canvas/canvas/p4
+      label=Blank page
+      size=3174x4578
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f21/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f21/info.json at=0,0,1
+  [4] id=https://iiif.io/api/cookbook/recipe/0202-start-canvas/canvas/p5
+      label=Bookplate
+      size=3198x4632
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f22/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/59d09e6773341f28ea166e9f3c1e674f-gallica_ark_12148_bpt6k1526005v_f22/info.json at=0,0,1
+
+==============================================================================
+cookbook/0283-missing-image.json
+# a canvas with NO painting annotation — the degradation case
+
+manifestId=https://iiif.io/api/cookbook/recipe/0283-missing-image/manifest.json
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=4 withPainting=3 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 4 canvas(es)
+  [0] id=https://iiif.io/api/cookbook/recipe/0283-missing-image/canvas/p1
+      label=f. 1r
+      size=1768x2504
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/d3bbf5397c6df6b894c5991195c912ab-1-21198-zz001d8m41_774608_master/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/d3bbf5397c6df6b894c5991195c912ab-1-21198-zz001d8m41_774608_master/info.json at=0,0,1
+  [1] id=https://iiif.io/api/cookbook/recipe/0283-missing-image/canvas/p2
+      label=f. 1v — MISSING
+      size=1768x2504
+      thumbnail=<none>
+      paintingAnnotations=0
+      images:
+        (none)
+  [2] id=https://iiif.io/api/cookbook/recipe/0283-missing-image/canvas/p3
+      label=f. 2r
+      size=1792x2456
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/d3bbf5397c6df6b894c5991195c912ab-3-21198-zz001d8tm5_775004_master/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/d3bbf5397c6df6b894c5991195c912ab-3-21198-zz001d8tm5_775004_master/info.json at=0,0,1
+  [3] id=https://iiif.io/api/cookbook/recipe/0283-missing-image/canvas/p4
+      label=f. 2v
+      size=1760x2440
+      thumbnail=https://iiif.io/api/image/3.0/example/reference/d3bbf5397c6df6b894c5991195c912ab-4-21198-zz001d8tnp_775007_master/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://iiif.io/api/image/3.0/example/reference/d3bbf5397c6df6b894c5991195c912ab-4-21198-zz001d8tnp_775007_master/info.json at=0,0,1
+
+==============================================================================
+vendored/audio.json
+# IxIF mediaSequences/elements, and `sequences` as a bare object
+
+manifestId=http://digital.library.villanova.edu/Item/vudl:289359/Manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=2 withPainting=0 withoutPainting=2 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 2 canvas(es)
+  [0] id=http://digital.library.villanova.edu/files/vudl:289361/MP3#element
+      label=Side A
+      size=<none>x<none>
+      thumbnail=http://digital.library.villanova.edu/themes/vudiglib3/images/vudl/audio.png
+      paintingAnnotations=0
+      images:
+        (none)
+  [1] id=http://digital.library.villanova.edu/files/vudl:289362/MP3#element
+      label=Side B
+      size=<none>x<none>
+      thumbnail=http://digital.library.villanova.edu/themes/vudiglib3/images/vudl/audio.png
+      paintingAnnotations=0
+      images:
+        (none)
+
+==============================================================================
+vendored/auth-clinical.json
+# level-0 image service with a sizes block — level-0 URL construction
+
+manifestId=http://wellcomelibrary.org/iiif/b11607798/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 1 canvas(es)
+  [0] id=http://wellcomelibrary.org/iiif/b11607798/canvas/c0
+      label= - 
+      size=2256x3521
+      thumbnail=http://wellcomelibrary.org/iiif-img/b11607798-0/71b3f604-b2d0-4d62-ac48-1d961c44b66f/full/64,100/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://wellcomelibrary.org/iiif-img/b11607798-0/71b3f604-b2d0-4d62-ac48-1d961c44b66f/info.json at=0,0,1
+
+==============================================================================
+vendored/illustrationsofchina.json
+# multi-sequence v2 — 4 sequences, 3 of which enumerate nothing
+
+manifestId=http://beta.wdl.org/en/item/3083/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=paged
+canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=4 structureNodes=0
+
+-- sequence 0 — 5 canvas(es)
+  [0] id=http://beta.wdl.org/en/item/3083/iiif/sequence/1/canvas/1/
+      label=Page 1
+      size=1024x1024
+      thumbnail=http://beta.wdl.org/media/iiif/3083,1,1/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://beta.wdl.org/media/iiif/3083,1,1/info.json at=0,0,1
+  [1] id=http://beta.wdl.org/en/item/3083/iiif/sequence/1/canvas/2/
+      label=Page 2
+      size=1024x1024
+      thumbnail=http://beta.wdl.org/media/iiif/3083,1,2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://beta.wdl.org/media/iiif/3083,1,2/info.json at=0,0,1
+  [2] id=http://beta.wdl.org/en/item/3083/iiif/sequence/1/canvas/3/
+      label=Page 3
+      size=1024x1024
+      thumbnail=http://beta.wdl.org/media/iiif/3083,1,3/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://beta.wdl.org/media/iiif/3083,1,3/info.json at=0,0,1
+  [3] id=http://beta.wdl.org/en/item/3083/iiif/sequence/1/canvas/4/
+      label=Page 4
+      size=1024x1024
+      thumbnail=http://beta.wdl.org/media/iiif/3083,1,4/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://beta.wdl.org/media/iiif/3083,1,4/info.json at=0,0,1
+  [4] id=http://beta.wdl.org/en/item/3083/iiif/sequence/1/canvas/5/
+      label=Page 5
+      size=1024x1024
+      thumbnail=http://beta.wdl.org/media/iiif/3083,1,5/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://beta.wdl.org/media/iiif/3083,1,5/info.json at=0,0,1
+
+-- sequence 1 — 0 canvas(es)
+   (no canvases)
+
+-- sequence 2 — 0 canvas(es)
+   (no canvases)
+
+-- sequence 3 — 0 canvas(es)
+   (no canvases)
+
+==============================================================================
+vendored/lunchroom-manners.json
+# pre-release v3: `content` for `items`, and a Choice of Video bodies
+
+manifestId=http://dlib.indiana.edu/iiif_av/lunchroom_manners
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=2
+structures:
+    - id=http://dlib.indiana.edu/iiif_av/lunchroom_manners/range/1 label=Getting Ready for Lunch behaviors=[] canvasIds=0
+    - id=http://dlib.indiana.edu/iiif_av/lunchroom_manners/range/3 label=In the Lunchroom behaviors=[] canvasIds=0
+
+-- sequence 0 — 1 canvas(es)
+  [0] id=http://dlib.indiana.edu/iiif_av/lunchroom_manners/canvas/1
+      label=Beginning Reponsibility: Lunchroom Manners [motion picture] Coronet Films
+      size=480x360
+      thumbnail=http://dlib.indiana.edu/iiif_av/lunchroom_manners/high/lunchroom_manners_1024kb.mp4
+      paintingAnnotations=1
+      images:
+        (none)
+
+==============================================================================
+vendored/members-ranges.json
+# all three v2 range spellings in one manifest
+
+manifestId=https://hydra-dev.princeton.edu/concern/scanned_resources/jw827b826/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+structures:
+    - id=https://hydra-dev.princeton.edu/concern/scanned_resources/jw827b826/manifest/range/g70275876494200 label=Logical behaviors=[top] canvasIds=2
+      - id=https://hydra-dev.princeton.edu/concern/scanned_resources/jw827b826/manifest/range/g70275876586100 label=Chapter 1 behaviors=[] canvasIds=2
+      - id=https://hydra-dev.princeton.edu/concern/scanned_resources/jw827b826/manifest/range/g70275876586100 label=Chapter 1 behaviors=[] canvasIds=2
+
+-- sequence 0 — 2 canvas(es)
+  [0] id=https://hydra-dev.princeton.edu/concern/scanned_resources/jw827b826/manifest/canvas/n870zr077
+      label=color-landscape copy 497.tif
+      size=287x200
+      thumbnail=https://libimages1.princeton.edu/loris/plum/n8%2F70%2Fzr%2F07%2F7-intermediate_file.jp2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://libimages1.princeton.edu/loris/plum/n8%2F70%2Fzr%2F07%2F7-intermediate_file.jp2/info.json at=0,0,1
+  [1] id=https://hydra-dev.princeton.edu/concern/scanned_resources/jw827b826/manifest/canvas/5t34sj840
+      label=color-landscape copy 498.tif
+      size=287x200
+      thumbnail=https://libimages1.princeton.edu/loris/plum/5t%2F34%2Fsj%2F84%2F0-intermediate_file.jp2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=https://libimages1.princeton.edu/loris/plum/5t%2F34%2Fsj%2F84%2F0-intermediate_file.jp2/info.json at=0,0,1
+
+==============================================================================
+vendored/qatar-right-to-left.json
+# v2 right-to-left with viewingHint
+
+manifestId=http://www.qdl.qa/العربية/iiif/81055/vdc_100000004987.0x000001/manifest
+startCanvasId=<none>
+viewingDirection=right-to-left
+viewingMode=paged
+canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+structures:
+    - id=http://www.qdl.qa/العربية/archive/81055/vdc_100000004987.0x000001-table-of-content label=كتاب بطلميوس في التعليم المعروف بالمجسطي، نقل إسحق بن حنين بطلميوس behaviors=[] canvasIds=5
+
+-- sequence 0 — 5 canvas(es)
+  [0] id=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0001.jp2
+      label=كتاب بطلميوس في التعليم المعروف بالمجسطي، نقل إسحق بن حنين بطلميوس [أمامي‎] (٤٩٨/١)
+      size=5753x8039
+      thumbnail=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0001.jp2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0001.jp2/info.json at=0,0,1
+  [1] id=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0002.jp2
+      label=كتاب بطلميوس في التعليم المعروف بالمجسطي، نقل إسحق بن حنين بطلميوس [خلفي‎] (٤٩٨/٢)
+      size=5753x8039
+      thumbnail=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0002.jp2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0002.jp2/info.json at=0,0,1
+  [2] id=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0003.jp2
+      label=كتاب بطلميوس في التعليم المعروف بالمجسطي، نقل إسحق بن حنين بطلميوس [صلب‎] (٤٩٨/٣)
+      size=1889x6794
+      thumbnail=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0003.jp2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0003.jp2/info.json at=0,0,1
+  [3] id=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0004.jp2
+      label=كتاب بطلميوس في التعليم المعروف بالمجسطي، نقل إسحق بن حنين بطلميوس [حافة‎] (٤٩٨/٤)
+      size=1771x6773
+      thumbnail=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0004.jp2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0004.jp2/info.json at=0,0,1
+  [4] id=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0005.jp2
+      label=كتاب بطلميوس في التعليم المعروف بالمجسطي، نقل إسحق بن حنين بطلميوس [رأس‎] (٤٩٨/٥)
+      size=2717x7914
+      thumbnail=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0005.jp2/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://images.qdl.qa/iiif/images/81055/vdc_100000004987.0x000001/Add MS 7475_0005.jp2/info.json at=0,0,1
+
+==============================================================================
+vendored/scroll.json
+# no IIIF @context, canvas height as a string, Image API 1.1 service
+
+manifestId=http://manifests.ydc2.yale.edu/manifest/Scroll
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 1 canvas(es)
+  [0] id=http://manifests.ydc2.yale.edu/canvas/630f3bf4-13dc-43dc-907f-4d4906bc6e5f
+      label=Scroll
+      size="62651"x"1976"
+      thumbnail=http://scale.ydc2.yale.edu/iiif/630f3bf4-13dc-43dc-907f-4d4906bc6e5f//full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        (none)
+
+==============================================================================
+synthetic/v2 oa:Choice painting annotation
+# v2 Choice selection
+
+manifestId=http://example.org/synthetic/v2-choice/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=2 withPainting=2 withoutPainting=0 withChoice=1 sequences=1 structureNodes=0
+
+-- sequence 0 — 2 canvas(es)
+  [0] id=http://example.org/synthetic/v2-choice/canvas/1
+      label=Recto — three imaging variants
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-choice/image/natural.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-choice/image/natural.jpg at=0,0,1
+      choices:
+        [0] http://example.org/synthetic/v2-choice/image/natural.jpg
+        [1] http://example.org/synthetic/v2-choice/image/x-ray.jpg
+        [2] http://example.org/synthetic/v2-choice/image/uv.jpg
+      images per selection:
+        select http://example.org/synthetic/v2-choice/image/natural.jpg
+          [0] url=http://example.org/synthetic/v2-choice/image/natural.jpg at=0,0,1
+        select http://example.org/synthetic/v2-choice/image/x-ray.jpg
+          [0] url=http://example.org/synthetic/v2-choice/image/x-ray.jpg at=0,0,1
+        select http://example.org/synthetic/v2-choice/image/uv.jpg
+          [0] url=http://example.org/synthetic/v2-choice/image/uv.jpg at=0,0,1
+  [1] id=http://example.org/synthetic/v2-choice/canvas/2
+      label=Verso — single image
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-choice/canvas/2/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-choice/canvas/2/image/info.json at=0,0,1
+
+==============================================================================
+synthetic/v2 level-0 image service
+# level-0 URL construction, v2
+
+manifestId=http://example.org/synthetic/v2-level0/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 2 canvas(es)
+  [0] id=http://example.org/synthetic/v2-level0/canvas/1
+      label=Level 0, profile as a string
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-level0/image/1/full/full/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-level0/image/1/info.json at=0,0,1
+  [1] id=http://example.org/synthetic/v2-level0/canvas/2
+      label=Level 0, profile as an array with a sizes block
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-level0/image/2/full/full/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-level0/image/2/info.json at=0,0,1
+
+==============================================================================
+synthetic/v2 ranges — canvases, members, and ranges spellings
+# v2 ranges in all three spellings, synthetic and exact
+
+manifestId=http://example.org/synthetic/v2-ranges-all-spellings/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=4 withPainting=4 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+structures:
+    - id=http://example.org/synthetic/v2-ranges-all-spellings/range/top label=Table of contents behaviors=[top] canvasIds=0
+      - id=http://example.org/synthetic/v2-ranges-all-spellings/range/by-canvases label=Front matter (canvases spelling) behaviors=[] canvasIds=1
+      - id=http://example.org/synthetic/v2-ranges-all-spellings/range/by-members label=Body (members spelling) behaviors=[] canvasIds=1
+        - id=http://example.org/synthetic/v2-ranges-all-spellings/range/embedded label=Chapter 1 (member range) behaviors=[] canvasIds=1
+          - id=http://example.org/synthetic/v2-ranges-all-spellings/range/inline label=Plate (inline sub-range) behaviors=[] canvasIds=1
+
+-- sequence 0 — 4 canvas(es)
+  [0] id=http://example.org/synthetic/v2-ranges-all-spellings/canvas/1
+      label=Page 1
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-ranges-all-spellings/canvas/1/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-ranges-all-spellings/canvas/1/image/info.json at=0,0,1
+  [1] id=http://example.org/synthetic/v2-ranges-all-spellings/canvas/2
+      label=Page 2
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-ranges-all-spellings/canvas/2/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-ranges-all-spellings/canvas/2/image/info.json at=0,0,1
+  [2] id=http://example.org/synthetic/v2-ranges-all-spellings/canvas/3
+      label=Page 3
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-ranges-all-spellings/canvas/3/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-ranges-all-spellings/canvas/3/image/info.json at=0,0,1
+  [3] id=http://example.org/synthetic/v2-ranges-all-spellings/canvas/4
+      label=Page 4
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-ranges-all-spellings/canvas/4/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-ranges-all-spellings/canvas/4/image/info.json at=0,0,1
+
+==============================================================================
+synthetic/v2 viewingHint and viewingDirection at two levels
+# v2 scalars declared at BOTH root and sequence, disagreeing — pins that the SEQUENCE wins
+
+manifestId=http://example.org/synthetic/v2-viewing-hints/manifest
+startCanvasId=<none>
+viewingDirection=right-to-left
+viewingMode=individuals
+canvases=3 withPainting=3 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 3 canvas(es)
+  [0] id=http://example.org/synthetic/v2-viewing-hints/canvas/1
+      label=Leaf 1
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-viewing-hints/canvas/1/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-viewing-hints/canvas/1/image/info.json at=0,0,1
+  [1] id=http://example.org/synthetic/v2-viewing-hints/canvas/2
+      label=Leaf 2
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-viewing-hints/canvas/2/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-viewing-hints/canvas/2/image/info.json at=0,0,1
+  [2] id=http://example.org/synthetic/v2-viewing-hints/canvas/3
+      label=Leaf 3
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v2-viewing-hints/canvas/3/image/full/200,/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v2-viewing-hints/canvas/3/image/info.json at=0,0,1
+
+==============================================================================
+synthetic/v3 level-0 image service
+# level-0 URL construction, v3
+
+manifestId=http://example.org/synthetic/v3-level0/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 1 canvas(es)
+  [0] id=http://example.org/synthetic/v3-level0/canvas/1
+      label=Canvas 1
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v3-level0/image/1/full/max/0/default.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v3-level0/image/1/info.json at=0,0,1
+
+==============================================================================
+synthetic/v3 painting annotations split across two annotation pages
+# ticket 03's deliberate fix — every annotation page is read, not just the first
+
+manifestId=http://example.org/synthetic/v3-split-annotation-pages/manifest
+startCanvasId=<none>
+viewingDirection=left-to-right
+viewingMode=individuals
+canvases=3 withPainting=3 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+
+-- sequence 0 — 3 canvas(es)
+  [0] id=http://example.org/synthetic/v3-split-annotation-pages/canvas/1
+      label=Two annotation pages, one image each
+      size=1600x1000
+      thumbnail=http://example.org/synthetic/v3-split-annotation-pages/image/left.jpg
+      paintingAnnotations=2
+      images:
+        [0] url=http://example.org/synthetic/v3-split-annotation-pages/image/left.jpg at=0,0,0.5
+        [1] url=http://example.org/synthetic/v3-split-annotation-pages/image/right.jpg at=0.5,0,0.5
+  [1] id=http://example.org/synthetic/v3-split-annotation-pages/canvas/2
+      label=One annotation page, one image — the control
+      size=800x1000
+      thumbnail=http://example.org/synthetic/v3-split-annotation-pages/image/single.jpg
+      paintingAnnotations=1
+      images:
+        [0] url=http://example.org/synthetic/v3-split-annotation-pages/image/single.jpg at=0,0,1
+  [2] id=http://example.org/synthetic/v3-split-annotation-pages/canvas/3
+      label=Two annotation pages under the `content` alias
+      size=1600x1000
+      thumbnail=http://example.org/synthetic/v3-split-annotation-pages/image/content-left.jpg
+      paintingAnnotations=2
+      images:
+        [0] url=http://example.org/synthetic/v3-split-annotation-pages/image/content-left.jpg at=0,0,0.5
+        [1] url=http://example.org/synthetic/v3-split-annotation-pages/image/content-right.jpg at=0.5,0,0.5

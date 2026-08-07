@@ -32,10 +32,6 @@ export default defineConfig({
         lib: {
             entry: {
                 'image-export': resolve(__dirname, 'src/lib/image-export.ts'),
-                'state/manifestoRuntime.browser': resolve(
-                    __dirname,
-                    'src/lib/state/manifestoRuntime.browser.ts',
-                ),
             },
             name: 'Triiiceratops',
 

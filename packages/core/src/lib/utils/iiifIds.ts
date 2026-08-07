@@ -1,12 +1,7 @@
 export function getResourceId(resource: any): string | null {
-    return (
-        resource?.id ||
-        resource?.['@id'] ||
-        resource?.__jsonld?.id ||
-        resource?.__jsonld?.['@id'] ||
-        (typeof resource?.getId === 'function' ? resource.getId() : null) ||
-        null
-    );
+    // IIIF v3 spells it `id`, v2 spells it `@id`; both are read here, so this
+    // is a complete raw-JSON read for either version.
+    return resource?.id || resource?.['@id'] || null;
 }
 
 /**
@@ -22,23 +17,11 @@ export function getReferenceId(reference: unknown): string | null {
 }
 
 export function getCanvasId(canvas: any): string {
-    return (
-        getResourceId(canvas) ||
-        (typeof canvas?.getCanvasId === 'function'
-            ? canvas.getCanvasId()
-            : null) ||
-        (typeof canvas?.getId === 'function' ? canvas.getId() : null) ||
-        ''
-    );
+    return getResourceId(canvas) || '';
 }
 
 export function getAnnotationId(annotation: any): string {
-    return (
-        annotation?.id ||
-        annotation?.['@id'] ||
-        (typeof annotation?.getId === 'function' ? annotation.getId() : '') ||
-        ''
-    );
+    return annotation?.id || annotation?.['@id'] || '';
 }
 
 export function findCanvasIndexById(

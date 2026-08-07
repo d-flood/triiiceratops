@@ -255,8 +255,6 @@ type VisibleChoiceGroupArgs = {
     getSelectedChoice: (canvasId: string) => string | undefined;
 };
 export { getCanvasId };
-export declare function getCanvasChoices(canvas: any): any;
-export declare function getCanvasBehaviors(canvas: any): string[];
 export declare function getPagedCanvasGroups(canvases: any[], pagedOffset: number): PagedCanvasGroup[];
 export declare function getVisibleCanvasEntries({ canvases, currentCanvasId, currentCanvasIndex, viewingMode, pagedOffset, }: Omit<VisibleChoiceGroupArgs, 'viewingDirection' | 'getSelectedChoice'>): VisibleCanvasEntry[];
 export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, currentCanvasIndex, viewingMode, pagedOffset, viewingDirection, getSelectedChoice, }: VisibleChoiceGroupArgs): ChoiceGroup[];
@@ -925,6 +923,8 @@ export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP, } from './components/osdLayo
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
+export { getPaintingAnnotations } from './utils/iiifParsing';
+export { resolveLanguageValue } from './utils/languageMap';
 
 // ======================================================================
 // FILE: dist/index.d.ts
@@ -942,6 +942,7 @@ export type { Logger, LogLevel, LogSink } from './logging/logger';
 export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export { createPluginSurface } from './plugin/surface';
+export { getPaintingAnnotations } from './utils/iiifParsing';
 export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 export type { ThemeConfig, BuiltInTheme } from './theme/types';
@@ -1415,15 +1416,34 @@ export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): Re
 // FILE: dist/state/manifests.svelte.d.ts
 // ======================================================================
 import type { RequestConfig } from '../types/config';
+/**
+ * One manifest's entry in the cache: the **raw JSON as fetched**, the fetch
+ * error if there was one, and whether a fetch is in flight. Nothing here is
+ * parsed or wrapped — the cache holds the document, and the first-party
+ * enumerators in `utils/iiifParsing` read it.
+ */
 export interface ManifestEntry {
     json?: any;
-    manifesto?: any;
     error?: any;
     isFetching?: boolean;
 }
 export declare class ManifestsState {
     manifests: Record<string, ManifestEntry>;
     private pendingFetches;
+    /**
+     * Store a manifest's raw JSON under its id.
+     *
+     * **A pure store.** It does not parse, validate, or walk the document, and
+     * therefore cannot throw. That is a behavior requirement, not an aesthetic
+     * one: this is reached from the public `setManifestData`, which has no
+     * `try`/`catch`, so a throw here would skip the manifest-id assignment, the
+     * ready marking, and the change event — leaving the viewer half-initialized
+     * (SPEC → "Failure contract"). Reading the document is every enumerator's
+     * job, and each of them is total.
+     *
+     * `async` is vestigial — the parse it awaited is gone — but the
+     * `Promise<void>` signature is public and is kept deliberately.
+     */
     registerManifest(manifestId: string, json: any): Promise<void>;
     /**
      * Fetch a IIIF resource by URL and return the raw JSON.
@@ -1432,7 +1452,6 @@ export declare class ManifestsState {
     fetchResource(url: string, requestConfig?: RequestConfig): Promise<any>;
     fetchManifest(manifestId: string, requestConfig?: RequestConfig): Promise<void>;
     clearManifest(manifestId: string): void;
-    getManifest(manifestId: string): any;
     getManifestEntry(manifestId: string): ManifestEntry | undefined;
     fetchAnnotationList(url: string): Promise<void>;
     private getStructureSequences;
@@ -1441,8 +1460,21 @@ export declare class ManifestsState {
     private getCanvasAnnotationListRefs;
     private matchesAnnotationSource;
     ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
+    /**
+     * How many sequences the active manifest offers, as the sequence picker
+     * counts them. Ranges with `behavior: "sequence"` define the sequences when
+     * the manifest has any; the manifest's own sequences are the fallback.
+     */
     getSequenceCount(manifestId: string): number;
-    getCanvases(manifestId: string, sequenceIndex?: number): any;
+    /**
+     * The canvases of one sequence, as **raw IIIF Canvas JSON** — v2 or v3 as
+     * the manifest authored it, never a library object. Read them with core's
+     * version-neutral helpers rather than by branching on IIIF version.
+     *
+     * Structure-derived sequences take priority, as above. `sequenceIndex` is
+     * clamped into range in either case.
+     */
+    getCanvases(manifestId: string, sequenceIndex?: number): any[];
     getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
     manualGetAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 }
@@ -1823,9 +1855,17 @@ export declare class ViewerState {
      */
     private dispatchStateChange;
     constructor(initialManifestId?: string | null, initialCanvasId?: string | null);
-    get manifest(): any;
+    /**
+     * The active manifest's cache entry — `{ json, error, isFetching }`.
+     *
+     * `json` is the **raw IIIF Manifest JSON as fetched**, v2 or v3 as the
+     * publisher authored it. This replaced the removed `manifest` getter, which
+     * handed out a `manifesto.js` object; there is deliberately no same-named
+     * accessor returning raw JSON in its place, so a consumer that used it
+     * fails at build time rather than at runtime.
+     */
     get manifestEntry(): import("./manifests.svelte.js").ManifestEntry | null | undefined;
-    get canvases(): any;
+    get canvases(): any[];
     get sequenceCount(): number;
     get currentCanvasIndex(): number;
     private getCurrentPagedCanvasGroupIndex;
@@ -1918,13 +1958,27 @@ export declare class ViewerState {
     search(query: string): Promise<void>;
     private _performSearch;
     /**
-     * Discover a IIIF Content Search service from the manifest.
-     * Supports v0, v1, and v2 services. Prefers v2 when multiple are present.
+     * Discover a IIIF Content Search service from raw manifest JSON.
+     *
+     * Reads `service` and `services` — either may be a bare object rather than
+     * an array — and matches search v0, v1 and v2 on `profile` or
+     * `type`/`@type`. The same JSON serves IIIF Presentation 2.x (`@type`,
+     * `@id`) and 3.0 (`type`, `id`). v2 is preferred when several are present.
+     *
+     * Total: every access is guarded, so no manifest shape makes this throw.
      */
     private discoverSearchService;
     /** Helper to unescape HTML-encoded mark tags */
     private decodeMark;
-    /** Helper to resolve canvas label from a manifesto canvas object */
+    /**
+     * The display label for a canvas in a search-result group.
+     *
+     * Delegates to the shared helper rather than repeating the chain. The
+     * private copy this replaced read `getLabel()` first and, failing that,
+     * only a string or a `[{value}]` array — so a raw IIIF v3 canvas, whose
+     * `label` is a language map, fell through to "Canvas N" once canvases
+     * stopped being library objects.
+     */
     private resolveCanvasLabel;
     /** Ensure a canvas group exists in the map and return it */
     private getOrCreateCanvasGroup;
@@ -2309,10 +2363,11 @@ export interface HeadlessViewerFixtures {
     /** Apply an initial `ViewerConfig` through the real `updateConfig` command. */
     config?: ViewerConfig;
     /**
-     * Pre-load already-parsed IIIF manifest JSON through the real
-     * `setManifestData` command (NO network). Loading is asynchronous
-     * (manifesto parsing): `await flush()` — or await `state.isManifestReady(id)`
-     * via a subscription — before asserting on manifest-derived state.
+     * Pre-load raw IIIF manifest JSON — v2 or v3 as authored — through the real
+     * `setManifestData` command (NO network). Registration is a pure store and
+     * cannot fail, but it is still asynchronous: `await flush()` — or await
+     * `state.isManifestReady(id)` via a subscription — before asserting on
+     * manifest-derived state.
      */
     manifest?: {
         id: string;
@@ -2870,7 +2925,17 @@ export interface SearchResultGroup {
 }
 export interface SearchProviderContext {
     manifestId: string;
-    manifest: any;
+    /**
+     * The active manifest as **raw IIIF Manifest JSON** — v2 or v3 as the
+     * publisher authored it.
+     *
+     * Renamed from `manifest`, which handed out a `manifesto.js` object. The
+     * name changed with the value on purpose: keeping `manifest` would have
+     * left an identical name and an identical `any` type over a completely
+     * different object, which no compiler, linter or API report can see.
+     */
+    manifestJson: any;
+    /** The active sequence's canvases, as raw IIIF Canvas JSON. */
     canvases: any[];
     canvasId: string | null;
 }
@@ -3851,7 +3916,7 @@ export declare function extractBody(annotation: any): {
     format?: string;
 }[];
 /**
- * Parse Manifesto/IIIF annotation to internal format
+ * Parse a raw JSON IIIF annotation to internal format
  */
 export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean): ParsedAnnotation | null;
 /**
@@ -3896,7 +3961,17 @@ export {};
 // ======================================================================
 // FILE: dist/utils/canvasLabels.d.ts
 // ======================================================================
-export declare function getCanvasLabel(canvas: any, fallbackIndex?: number): string;
+/**
+ * A canvas's display label, version-neutral.
+ *
+ * `label` is a bare string or a `[{"@value"}]` array in IIIF v2 and a language
+ * map in v3, and `resolveLanguageValue` handles all three — so the single raw
+ * read below covers both versions.
+ *
+ * @param preferredLocale BCP-47 tag to prefer when the label is localized.
+ *   Falls back to `en`, then to an unlocalized entry, then to the first.
+ */
+export declare function getCanvasLabel(canvas: any, fallbackIndex?: number, preferredLocale?: string): string;
 
 // ======================================================================
 // FILE: dist/utils/collections.d.ts
@@ -3965,10 +4040,10 @@ export declare function parseContentState(value: string): ContentStateTarget | n
 // ======================================================================
 export declare function resolveThumbnailResourceSrc(thumbnail: any, size?: number): string;
 /**
- * Extract a thumbnail URL from a Manifesto canvas object.
+ * Extract a thumbnail URL from a IIIF Canvas.
  *
  * Follows the same fallback chain used by ThumbnailGallery:
- *   1. canvas.getThumbnail()
+ *   1. The canvas's own `thumbnail` property
  *   2. First image annotation → IIIF service → {serviceId}/full/{size},/0/default.jpg
  *   3. Raw resource / body ID
  */
@@ -3988,6 +4063,169 @@ export declare function getCanvasId(canvas: any): string;
 export declare function getAnnotationId(annotation: any): string;
 export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;
 export declare function findCanvasById(canvases: any[], canvasId: string | null): any;
+
+// ======================================================================
+// FILE: dist/utils/iiifParsing.d.ts
+// ======================================================================
+/**
+ * First-party IIIF Presentation parsing.
+ *
+ * This module is the parsing surface the `remove-manifesto` epic replaces
+ * `manifesto.js` with: how many sequences a manifest has
+ * ({@link getSequenceCount}), which canvases are in a given sequence
+ * ({@link getCanvasesForSequence}), and which painting annotations are on a
+ * given canvas ({@link getPaintingAnnotations}). Three total functions over raw
+ * JSON; both the IIIF v2 and the IIIF v3 branch of each are first-party and
+ * nothing here calls `manifesto.js`.
+ *
+ * There is deliberately **no `Sequence` type** and no intermediate object model
+ * of any kind. A canvas is the Canvas JSON as the manifest authored it. The
+ * Manifest → Sequence → Canvas hierarchy exists in the library only to hide the
+ * version difference, and recreating it is the shortest path back to the object
+ * model this epic removes (SPEC → "The parsing surface").
+ */
+/**
+ * How many sequences a manifest has.
+ *
+ * IIIF v2 manifests may declare several and the viewer surfaces them in a
+ * sequence picker; IIIF v3 has exactly one, from `items`. Anything that is not
+ * a manifest — a Collection, `null`, a string — has none.
+ *
+ * **Total.** Never throws.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getSequenceCount(manifest: any): number;
+/**
+ * The canvases in one of a manifest's sequences, as **raw IIIF Canvas JSON**,
+ * v2 or v3 as the manifest authored it.
+ *
+ * `index` is **clamped** into range rather than returning empty, which is the
+ * existing behavior of the manifest cache: a viewer holding a stale
+ * `selectedSequenceIndex` shows the last sequence, not a blank page.
+ *
+ * A `null` entry in the canvas list is dropped. `manifesto.js` threw on one in
+ * its `Canvas` constructor; a total function cannot.
+ *
+ * **Total.** Never throws, always returns an array.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getCanvasesForSequence(manifest: any, index: number): any[];
+/**
+ * Enumerate a canvas's painting annotations — the annotations that place image
+ * content onto the canvas (IIIF v2 `canvas.images[]`; v3 the annotations inside
+ * the AnnotationPages in `canvas.items[]`).
+ *
+ * These are *not* the commentary annotations returned by
+ * `ensureCanvasAnnotations`; see CONTEXT.md → **Painting annotation**.
+ *
+ * Both branches are first-party and return **raw JSON** annotations. IIIF v2
+ * reads `canvas.images[]` directly rather than through `manifesto.js`'s
+ * `getImages()`. IIIF v3 flattens *every* AnnotationPage in the canvas, in
+ * document order; `manifesto.js`'s `getContent()` read only the first page and
+ * silently discarded the rest, which is a data-loss bug on canvases that split
+ * their painting annotations across pages.
+ *
+ * A v2 annotation carries its image under `resource`, a v3 one under `body`.
+ * Consumers must read **both** spellings — see `getPaintingBody`.
+ *
+ * No motivation filtering is applied: in v3 non-painting content belongs in
+ * `canvas.annotations`, so filtering would only defend against already-malformed
+ * manifests while newly dropping annotations that simply omit `motivation`.
+ *
+ * **Total.** Never throws, always returns an array. Every array access is
+ * guarded, because a field the spec declares as an array turns up in real
+ * manifests as a bare object — `images`, `items` and `content` all degrade to a
+ * one-element list rather than throwing or enumerating nothing.
+ *
+ * A `null` entry inside `images` or an AnnotationPage is skipped, so such a
+ * canvas enumerates fewer annotations than the library reported. The library
+ * produced an `Annotation` wrapping nothing, which resolved to no resource
+ * downstream; the rendered result is the same, the count is not.
+ *
+ * Expects a Canvas. Handed a Manifest or Collection it will happily return that
+ * resource's `items` — no caller can currently do so, but it is not defended
+ * against.
+ *
+ * **Public API**, from `triiiceratops` and `triiiceratops/image-export`. It is
+ * the supported way to enumerate a canvas's images: without it an integrator
+ * has no route to them and reimplements the removed `canvas.getContent()` /
+ * `canvas.getImages()` idiom, which now returns nothing at all, silently
+ * (SPEC → "The parsing surface").
+ *
+ * The annotations it returns are raw JSON. **A v2 annotation carries its image
+ * under `resource` and a v3 one under `body`** — read both spellings, or use
+ * `resolveCanvasImage` / `resolveAllCanvasImages` from
+ * `triiiceratops/image-export` to go straight to resolved image URLs.
+ */
+export declare function getPaintingAnnotations(canvas: any): any[];
+/**
+ * The raw painting body of an annotation — the resource it places on the
+ * canvas.
+ *
+ * **IIIF v2 spells this `resource`; IIIF v3 spells it `body`.** Reading only
+ * `body` is the epic's named silent-failure mode: a v2 annotation then yields
+ * nothing, and the viewer renders a blank canvas with a `logger.debug` line and
+ * no other signal (SPEC → "The governing rule for the whole epic").
+ *
+ * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
+ *
+ * Returns `null` when the annotation carries neither spelling.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getPaintingBody(annotation: any): any;
+/**
+ * Is this raw painting body a Choice — a set of alternatives the viewer offers
+ * the user rather than a single image?
+ *
+ * Both spellings are recognized: IIIF v3's `"type": "Choice"` and IIIF v2's
+ * `"@type": "oa:Choice"`. The v2 one had no reader at all before this.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function isChoiceBody(body: any): boolean;
+/**
+ * The alternatives a Choice body offers, in the order the viewer should offer
+ * them — the default first.
+ *
+ * IIIF v3 puts them all in `items` (`item` is accepted as an alias, as it was
+ * before). IIIF v2 splits them: `default` holds the one to render initially and
+ * `item` holds the rest, so the two are concatenated.
+ *
+ * Guarded against a bare object in place of the array, per the spec's failure
+ * contract — an unguarded `items.find(...)` on one throws all the way out
+ * through `getViewerTileSources`, which has no `try`/`catch` anywhere on its
+ * path.
+ *
+ * Returns `[]` for anything that is not a Choice-shaped object.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getChoiceAlternatives(body: any): any[];
+/**
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getCanvasChoices(canvas: any): any[];
+/**
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getCanvasBehaviors(canvas: any): string[];
 
 // ======================================================================
 // FILE: dist/utils/imageExport.d.ts
@@ -4062,6 +4300,35 @@ export declare function buildRelativeSizeOptions(nativeWidth: number, nativeHeig
  * small set of relative presets built from their native dimensions.
  */
 export declare function resolveExportSizeOptions(resolved: ResolvedCanvasImage): Promise<ExportSizeOption[]>;
+
+// ======================================================================
+// FILE: dist/utils/languageMap.d.ts
+// ======================================================================
+/**
+ * Shared utility for resolving IIIF language map values.
+ *
+ * IIIF v3 uses language maps: `{ "en": ["Hello"], "fr": ["Bonjour"] }`
+ * Manifesto returns arrays of `{ value, locale/language }` objects.
+ * IIIF v2 may use plain strings.
+ *
+ * This module provides a single resolution strategy used across the viewer.
+ */
+/**
+ * Resolve a IIIF language-mapped value to a single display string.
+ *
+ * Precedence: preferredLocale → 'en' → 'none'/unset → first available.
+ */
+export declare function resolveLanguageValue(value: unknown, preferredLocale?: string): string;
+/**
+ * Resolve a IIIF language-mapped value to all display strings
+ * (for multi-value properties like metadata values with multiple entries
+ * in a single language).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function resolveAllLanguageValues(value: unknown, preferredLocale?: string): string[];
 
 // ======================================================================
 // FILE: dist/utils/pointMarker.d.ts
@@ -4189,8 +4456,10 @@ export interface StructureNode {
     children: StructureNode[];
 }
 /**
- * Parse structures from a manifesto manifest object.
- * Returns an array of top-level StructureNodes (the TOC tree).
+ * Parse a manifest's `structures` into the TOC tree.
+ *
+ * Takes **raw IIIF Manifest JSON**, v2 or v3 as authored; both Range spellings
+ * are handled below. Returns an array of top-level StructureNodes.
  */
 export declare function parseStructures(manifest: any): StructureNode[];
 /**

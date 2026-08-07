@@ -199,7 +199,8 @@ async function main() {
     }
 
     // ── Comparison ─────────────────────────────────────────────────────────
-    const size = compareSizes(base.sizes, head.sizes);
+    const accepted = loadBudgets()?.acceptedSizeIncreases ?? {};
+    const size = compareSizes(base.sizes, head.sizes, accepted);
     const runtime = opts.sizeOnly
         ? { rows: [], regressed: false }
         : compareRuntime(base.runtime, head.runtime);
@@ -227,6 +228,12 @@ async function main() {
     out.push('### Artifact sizes (fail on deterministic > 5% increase)');
     out.push(formatSizeTable(size.rows));
     out.push('');
+    for (const r of size.rows.filter((r) => r.exempt)) {
+        out.push(
+            `> Accepted increase for \`${r.key}\` (\`acceptedSizeIncreases\` in \`perf-budgets.json\`, head ≤ ${accepted[r.key].headBytes} bytes): ${r.reason}`,
+        );
+    }
+    if (size.rows.some((r) => r.exempt)) out.push('');
     if (!opts.sizeOnly) {
         out.push(
             '### Runtime medians (fail on > 10% AND > 20 ms increase per scenario)',

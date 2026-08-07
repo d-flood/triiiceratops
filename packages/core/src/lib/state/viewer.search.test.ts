@@ -1,7 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { manifestsState } from './manifests.svelte';
 import { ViewerState } from './viewer.svelte';
-import * as manifesto from 'manifesto.js';
-import { createMockCanvas } from '../test/utils/mockManifesto';
+import {
+    manifestV2WithSearch,
+    manifestV2WithoutSearch,
+    manifestV3WithSearchV2,
+} from '../test/fixtures/manifests';
 import {
     searchResponseWithHits,
     searchResponseWithResourcesOnly,
@@ -13,87 +18,66 @@ import {
     searchResponseV2MultiCanvas,
     searchResponseV2Empty,
 } from '../test/fixtures/searchResponses';
+import type { ViewerError } from '../types/viewerError';
 
-// Mock manifesto.js
-vi.mock('manifesto.js', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('manifesto.js')>();
-    return {
-        ...actual,
-        parseManifest: vi.fn((json) => {
-            // Create mock manifest with search service
-            const mockCanvases = [
-                {
-                    id: 'http://example.org/canvas/1',
-                    getLabel: () => [{ value: 'Page 1' }],
-                },
-                {
-                    id: 'http://example.org/canvas/2',
-                    getLabel: () => [{ value: 'Page 2' }],
-                },
-            ];
+/**
+ * IIIF Content Search through the epic's one seam — a real `ViewerState` loaded
+ * with raw manifest JSON, backed by the real manifest cache, with no mocks and
+ * no hand-built canvases (`remove-manifesto` SPEC → "The seam").
+ *
+ * This file used to `vi.mock` BOTH `manifesto.js`'s parse entry point and the
+ * manifest cache, and fed a hand-built manifest double carrying `getSequences`,
+ * `getCanvasById` and `getService`. It could not serve as an oracle for this
+ * epic — it asserted on the abstraction being removed, and the search-service
+ * lookup it exercised was the double's `getService`, not the product's
+ * (`remove-manifesto` ticket 08).
+ *
+ * Everything the network sees is still observed the same way: the exact URL the
+ * viewer fetches, and the results and annotations it derives from the response.
+ * The only thing stubbed is `fetch` itself.
+ */
 
-            // Handle both single service and service array
-            let services = [];
-            if (json.service) {
-                services = Array.isArray(json.service)
-                    ? json.service
-                    : [json.service];
-            }
+const MANIFEST_ID = 'http://example.org/manifest';
+const CANVAS_1 = 'http://example.org/canvas/1';
+const CANVAS_2 = 'http://example.org/canvas/2';
 
-            const searchService = services.find(
-                (s: any) =>
-                    s.profile === 'http://iiif.io/api/search/1/search' ||
-                    s.profile === 'http://iiif.io/api/search/0/search',
-            );
+const V1_SERVICE = {
+    '@id': 'http://example.org/search',
+    profile: 'http://iiif.io/api/search/1/search',
+};
 
-            return {
-                getSequences: () => [
-                    {
-                        getCanvases: () => mockCanvases,
-                        getCanvasById: (id: string) =>
-                            mockCanvases.find((c) => c.id === id) || null,
-                    },
-                ],
-                getService: (profile: string) => {
-                    if (
-                        searchService &&
-                        (profile === searchService.profile ||
-                            profile === 'http://iiif.io/api/search/1/search' ||
-                            profile === 'http://iiif.io/api/search/0/search')
-                    ) {
-                        return {
-                            id: searchService.id || searchService['@id'],
-                            '@id': searchService.id || searchService['@id'],
-                            profile: searchService.profile,
-                        };
-                    }
-                    return null;
-                },
-                __jsonld: json,
-            };
-        }),
-    };
-});
+const V0_SERVICE = {
+    '@id': 'http://example.org/search-v0',
+    profile: 'http://iiif.io/api/search/0/search',
+};
 
-// Import manifests state for mocking
-import { manifestsState } from './manifests.svelte';
+const V2_SERVICE = {
+    id: 'http://example.org/search-v2',
+    type: 'SearchService2',
+};
 
-// Mock manifests state
-vi.mock('./manifests.svelte', () => ({
-    manifestsState: {
-        fetchManifest: vi.fn(),
-        fetchResource: vi.fn(),
-        registerManifest: vi.fn(),
-        getManifest: vi.fn(),
-        getManifestEntry: vi.fn(),
-        getCanvases: vi.fn(() => []),
-        getSequenceCount: vi.fn(() => 0),
-    },
-}));
+/**
+ * A two-canvas manifest carrying the given search service declaration.
+ *
+ * Both canvases are the ones every search fixture targets, so the response
+ * parsing below groups against real canvases from real state rather than
+ * against a list handed to a mocked cache.
+ */
+function manifestWithService(service: unknown, suffix: string) {
+    const base = structuredClone(manifestV2WithSearch) as any;
+    base['@id'] = `${MANIFEST_ID}/${suffix}`;
+    if (service === undefined) {
+        delete base.service;
+    } else {
+        base.service = service;
+    }
+    return base;
+}
 
 describe('ViewerState - IIIF Search', () => {
     let state: ViewerState;
     const mockFetch = vi.fn();
+    const registeredIds: string[] = [];
 
     beforeEach(() => {
         vi.stubGlobal('fetch', mockFetch);
@@ -102,40 +86,28 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     afterEach(() => {
+        for (const id of registeredIds.splice(0)) {
+            manifestsState.clearManifest(id);
+        }
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
-    /**
-     * Helper to setup a mock manifest with canvases
-     */
-    function setupMockManifest(manifestJson: any) {
-        const parsed = manifesto.parseManifest(manifestJson) as {
-            getSequences: () => Array<{
-                getCanvases: () => any[];
-            }>;
-        } | null;
-        if (!parsed) {
-            throw new Error('Failed to parse mock manifest');
-        }
+    /** Load raw manifest JSON into the real cache through the viewer. */
+    async function load(json: any): Promise<void> {
+        const id = json.id || json['@id'];
+        registeredIds.push(id);
+        await state.setManifestData(id, json);
+    }
 
-        const mockManifest = parsed;
-        const mockCanvases =
-            mockManifest.getSequences()[0]?.getCanvases() ?? [];
-
-        vi.mocked(manifestsState.getManifest).mockReturnValue(mockManifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(mockCanvases);
-
-        return { mockManifest, mockCanvases };
+    /** Load a two-canvas manifest declaring `service`. */
+    async function loadWithService(service: unknown, suffix: string) {
+        await load(manifestWithService(service, suffix));
     }
 
     describe('Search service detection', () => {
         it('should use a custom search provider when one is set', async () => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+            await loadWithService(undefined, 'custom-provider');
             state.setSearchProvider(async () => [
                 {
                     canvasIndex: 0,
@@ -159,16 +131,7 @@ describe('ViewerState - IIIF Search', () => {
         });
 
         it('should detect IIIF Search API v1 service', async () => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/1/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+            await loadWithService(V1_SERVICE, 'v1');
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -183,16 +146,7 @@ describe('ViewerState - IIIF Search', () => {
         });
 
         it('should detect IIIF Search API v0 service', async () => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search-v0',
-                    profile: 'http://iiif.io/api/search/0/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+            await loadWithService(V0_SERVICE, 'v0');
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -206,23 +160,17 @@ describe('ViewerState - IIIF Search', () => {
             );
         });
 
-        it('should fallback to raw JSON when manifesto getService fails', async () => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: [
+        it('should find the search service among a service array', async () => {
+            await loadWithService(
+                [
                     {
                         '@id': 'http://example.org/other-service',
                         profile: 'http://other.org/service',
                     },
-                    {
-                        '@id': 'http://example.org/search',
-                        profile: 'http://iiif.io/api/search/1/search',
-                    },
+                    V1_SERVICE,
                 ],
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+                'service-array',
+            );
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -231,23 +179,18 @@ describe('ViewerState - IIIF Search', () => {
 
             await state.search('test');
 
-            // Should still find the service in the raw JSON
             expect(mockFetch).toHaveBeenCalledWith(
                 'http://example.org/search?q=test',
             );
         });
 
         it('should handle missing search service gracefully', async () => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+            // A real manifest that declares no search service at all.
+            await load(structuredClone(manifestV2WithoutSearch));
 
             // Ticket 18: an unavailable search service is reported through the
             // structured `viewererror` channel, not bare console output.
-            const reported: import('../types/viewerError').ViewerError[] = [];
+            const reported: ViewerError[] = [];
             state.setErrorReporter((e) => reported.push(e));
 
             await state.search('test');
@@ -261,17 +204,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Query execution', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/1/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService(V1_SERVICE, 'query-execution');
         });
 
         it('should URL encode search query', async () => {
@@ -321,17 +255,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Parse "hits" format', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/1/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService(V1_SERVICE, 'hits');
         });
 
         it('should parse hits with before/match/after text', async () => {
@@ -396,17 +321,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Parse "resources" format (Basic level)', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/0/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService(V0_SERVICE, 'resources');
         });
 
         it('should parse resources-only response', async () => {
@@ -451,17 +367,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Group results by canvas', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/1/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService(V1_SERVICE, 'grouping');
         });
 
         it('should group results by canvas index', async () => {
@@ -505,17 +412,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Generate search annotations', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/1/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService(V1_SERVICE, 'annotations');
         });
 
         it('should generate search annotations with isSearchHit flag', async () => {
@@ -544,9 +442,7 @@ describe('ViewerState - IIIF Search', () => {
 
             const anno = state.searchAnnotations[0];
             expect(anno.on).toMatch(/xywh=\d+,\d+,\d+,\d+/);
-            expect(anno.on).toBe(
-                'http://example.org/canvas/1#xywh=100,100,50,20',
-            );
+            expect(anno.on).toBe(`${CANVAS_1}#xywh=100,100,50,20`);
         });
 
         it('should set canvasId on annotations', async () => {
@@ -558,7 +454,7 @@ describe('ViewerState - IIIF Search', () => {
             await state.search('test');
 
             const anno = state.searchAnnotations[0];
-            expect(anno.canvasId).toBe('http://example.org/canvas/1');
+            expect(anno.canvasId).toBe(CANVAS_1);
         });
 
         it('should include match text in annotation resource', async () => {
@@ -583,7 +479,7 @@ describe('ViewerState - IIIF Search', () => {
 
             // Second canvas hit has 2 bounds, should create 2 annotations
             const canvas2Annos = state.searchAnnotations.filter(
-                (a) => a.canvasId === 'http://example.org/canvas/2',
+                (a) => a.canvasId === CANVAS_2,
             );
             expect(canvas2Annos).toHaveLength(2);
         });
@@ -591,8 +487,8 @@ describe('ViewerState - IIIF Search', () => {
 
     describe('Deferred search', () => {
         it('should defer search when manifest not loaded', async () => {
-            state.manifestId = null;
-            vi.mocked(manifestsState.getManifest).mockReturnValue(null);
+            // No manifest has been loaded into the real cache at all.
+            expect(state.manifestId).toBeNull();
 
             await state.search('deferred query');
 
@@ -604,17 +500,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Error handling', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/1/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService(V1_SERVICE, 'errors');
         });
 
         it('should handle network failures', async () => {
@@ -622,7 +509,7 @@ describe('ViewerState - IIIF Search', () => {
 
             // Ticket 18: a failed search is reported through the structured
             // `viewererror` channel, not bare console output.
-            const reported: import('../types/viewerError').ViewerError[] = [];
+            const reported: ViewerError[] = [];
             state.setErrorReporter((e) => reported.push(e));
 
             await state.search('test');
@@ -640,7 +527,7 @@ describe('ViewerState - IIIF Search', () => {
                 status: 500,
             });
 
-            const reported: import('../types/viewerError').ViewerError[] = [];
+            const reported: ViewerError[] = [];
             state.setErrorReporter((e) => reported.push(e));
 
             await state.search('test');
@@ -661,17 +548,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Empty results', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                '@id': 'http://example.org/manifest',
-                service: {
-                    '@id': 'http://example.org/search',
-                    profile: 'http://iiif.io/api/search/1/search',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService(V1_SERVICE, 'empty');
         });
 
         it('should handle empty search results', async () => {
@@ -692,18 +570,8 @@ describe('ViewerState - IIIF Search', () => {
 
     describe('Search API v2 - Service detection', () => {
         it('should detect v2 service by type: SearchService2', async () => {
-            const mockManifestJson = {
-                id: 'http://example.org/manifest',
-                service: [
-                    {
-                        id: 'http://example.org/search-v2',
-                        type: 'SearchService2',
-                    },
-                ],
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+            // A real IIIF v3 manifest declaring a SearchService2.
+            await load(structuredClone(manifestV3WithSearchV2));
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -717,17 +585,8 @@ describe('ViewerState - IIIF Search', () => {
             );
         });
 
-        it('should detect v2 service via raw JSON fallback', async () => {
-            const mockManifestJson = {
-                id: 'http://example.org/manifest',
-                service: {
-                    id: 'http://example.org/search-v2',
-                    type: 'SearchService2',
-                },
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        it('should detect a v2 service declared as a bare object', async () => {
+            await loadWithService(V2_SERVICE, 'v2-bare-object');
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -742,22 +601,7 @@ describe('ViewerState - IIIF Search', () => {
         });
 
         it('should prefer v2 over v1 when both are present', async () => {
-            const mockManifestJson = {
-                id: 'http://example.org/manifest',
-                service: [
-                    {
-                        '@id': 'http://example.org/search-v1',
-                        profile: 'http://iiif.io/api/search/1/search',
-                    },
-                    {
-                        id: 'http://example.org/search-v2',
-                        type: 'SearchService2',
-                    },
-                ],
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+            await loadWithService([V1_SERVICE, V2_SERVICE], 'v2-over-v1');
 
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -773,19 +617,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Search API v2 - Parse response with context', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                id: 'http://example.org/manifest',
-                service: [
-                    {
-                        id: 'http://example.org/search-v2',
-                        type: 'SearchService2',
-                    },
-                ],
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService([V2_SERVICE], 'v2-context');
         });
 
         it('should parse v2 items with annotations context (prefix/exact/suffix)', async () => {
@@ -851,25 +684,14 @@ describe('ViewerState - IIIF Search', () => {
                 motivation: 'sc:painting',
             });
             expect(state.searchAnnotations[0].on).toBe(
-                'http://example.org/canvas/1#xywh=100,100,50,20',
+                `${CANVAS_1}#xywh=100,100,50,20`,
             );
         });
     });
 
     describe('Search API v2 - Parse items-only response (no annotations)', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                id: 'http://example.org/manifest',
-                service: [
-                    {
-                        id: 'http://example.org/search-v2',
-                        type: 'SearchService2',
-                    },
-                ],
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService([V2_SERVICE], 'v2-items-only');
         });
 
         it('should parse v2 items-only response as resource type', async () => {
@@ -935,19 +757,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Search API v2 - Multi-canvas results', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                id: 'http://example.org/manifest',
-                service: [
-                    {
-                        id: 'http://example.org/search-v2',
-                        type: 'SearchService2',
-                    },
-                ],
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService([V2_SERVICE], 'v2-multi-canvas');
         });
 
         it('should group v2 results by canvas index', async () => {
@@ -1013,19 +824,8 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Search API v2 - Empty results', () => {
-        beforeEach(() => {
-            const mockManifestJson = {
-                id: 'http://example.org/manifest',
-                service: [
-                    {
-                        id: 'http://example.org/search-v2',
-                        type: 'SearchService2',
-                    },
-                ],
-            };
-
-            setupMockManifest(mockManifestJson);
-            state.manifestId = 'http://example.org/manifest';
+        beforeEach(async () => {
+            await loadWithService([V2_SERVICE], 'v2-empty');
         });
 
         it('should handle empty v2 search results', async () => {
@@ -1043,6 +843,22 @@ describe('ViewerState - IIIF Search', () => {
     });
 
     describe('Config updates', () => {
+        /**
+         * Serve IIIF resources by URL through the real fetch path, so
+         * `setManifest` walks its own collection detection, registration and
+         * thumbnail hydration rather than having each step handed to it.
+         */
+        function serveResources(byUrl: Record<string, unknown>) {
+            mockFetch.mockImplementation(async (url: string) => {
+                const json = byUrl[url];
+                if (!json) {
+                    return { ok: false, status: 404 };
+                }
+                registeredIds.push(url);
+                return { ok: true, json: async () => structuredClone(json) };
+            });
+        }
+
         it('applies information, structures, and collection panel config without dropping plugin UI config', () => {
             state.registerSdkChrome({
                 id: 'plugin-a',
@@ -1083,8 +899,8 @@ describe('ViewerState - IIIF Search', () => {
         });
 
         it('clears collection state when switching from a collection to a plain manifest', async () => {
-            vi.mocked(manifestsState.fetchResource)
-                .mockResolvedValueOnce({
+            serveResources({
+                'http://example.org/collection': {
                     id: 'http://example.org/collection',
                     type: 'Collection',
                     label: { none: ['Test collection'] },
@@ -1108,17 +924,20 @@ describe('ViewerState - IIIF Search', () => {
                             label: { none: ['Manifest in collection'] },
                         },
                     ],
-                })
-                .mockResolvedValueOnce({
+                },
+                'http://example.org/manifest/in-collection': {
+                    id: 'http://example.org/manifest/in-collection',
+                    type: 'Manifest',
+                    label: { none: ['Manifest in collection'] },
+                    items: [],
+                },
+                'http://example.org/plain-manifest': {
                     id: 'http://example.org/plain-manifest',
                     type: 'Manifest',
                     label: { none: ['Plain manifest'] },
                     items: [],
-                });
-
-            vi.mocked(manifestsState.fetchManifest).mockResolvedValue();
-            vi.mocked(manifestsState.registerManifest).mockResolvedValue();
-            vi.mocked(manifestsState.getManifest).mockReturnValue(null);
+                },
+            });
 
             state.updateConfig({
                 collection: { open: true },
@@ -1150,47 +969,48 @@ describe('ViewerState - IIIF Search', () => {
         });
 
         it('hydrates missing collection item thumbnails from the first canvas', async () => {
-            const firstCanvas = createMockCanvas({
-                id: 'http://example.org/canvas/1',
-                thumbnail: {
-                    id: 'http://example.org/thumb/full/max/0/default.jpg',
-                    type: 'Image',
-                    service: [
+            serveResources({
+                'http://example.org/collection': {
+                    id: 'http://example.org/collection',
+                    type: 'Collection',
+                    label: { none: ['Test collection'] },
+                    items: [
                         {
-                            id: 'http://example.org/thumb',
-                            type: 'ImageService3',
-                            profile: 'level1',
+                            id: 'http://example.org/manifest/in-collection',
+                            type: 'Manifest',
+                            label: { none: ['Manifest in collection'] },
+                        },
+                    ],
+                },
+                'http://example.org/manifest/in-collection': {
+                    id: 'http://example.org/manifest/in-collection',
+                    type: 'Manifest',
+                    label: { none: ['Manifest in collection'] },
+                    items: [
+                        {
+                            id: CANVAS_1,
+                            type: 'Canvas',
+                            label: { none: ['Page 1'] },
+                            width: 800,
+                            height: 1000,
+                            thumbnail: [
+                                {
+                                    id: 'http://example.org/thumb/full/max/0/default.jpg',
+                                    type: 'Image',
+                                    service: [
+                                        {
+                                            id: 'http://example.org/thumb',
+                                            type: 'ImageService3',
+                                            profile: 'level1',
+                                        },
+                                    ],
+                                },
+                            ],
+                            items: [],
                         },
                     ],
                 },
             });
-
-            vi.mocked(manifestsState.fetchResource).mockResolvedValueOnce({
-                id: 'http://example.org/collection',
-                type: 'Collection',
-                label: { none: ['Test collection'] },
-                items: [
-                    {
-                        id: 'http://example.org/manifest/in-collection',
-                        type: 'Manifest',
-                        label: { none: ['Manifest in collection'] },
-                    },
-                ],
-            });
-            vi.mocked(manifestsState.fetchManifest).mockResolvedValue();
-            vi.mocked(manifestsState.registerManifest).mockResolvedValue();
-            vi.mocked(manifestsState.getManifest).mockReturnValue(null);
-            vi.mocked(manifestsState.getCanvases).mockImplementation(
-                (manifestId: string) => {
-                    if (
-                        manifestId ===
-                        'http://example.org/manifest/in-collection'
-                    ) {
-                        return [firstCanvas];
-                    }
-                    return [];
-                },
-            );
 
             await state.setManifest('http://example.org/collection');
 

@@ -1,0 +1,2450 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/manifest/e32a277e-91e2-4a6d-8ba6-cc4bad230410.json",
+  "@type": "sc:Manifest",
+  "label": "Bodleian Library MS. Ind. Inst. Misc. 22",
+  "description": "[Kalighat paintings - separate sheets]",
+  "metadata": [
+    {
+      "label": "Homepage",
+      "value": "<span><a href=\"https://digital.bodleian.ox.ac.uk/objects/e32a277e-91e2-4a6d-8ba6-cc4bad230410/\">View on Digital Bodleian</a></span>"
+    },
+    {
+      "label": "Title",
+      "value": "[Kalighat paintings - separate sheets]"
+    },
+    {
+      "label": "Shelfmark",
+      "value": "Bodleian Library MS. Ind. Inst. Misc. 22"
+    },
+    {
+      "label": "Date Statement",
+      "value": "1875"
+    },
+    {
+      "label": "Description",
+      "value": "Digitized Kalighat paintings from 19th century Calcutta, created as inexpensive souvenirs for Hindu pilgrims visiting the famous temple of Kali"
+    },
+    {
+      "label": "Description",
+      "value": "These paintings were acquired by Sir Monier Monier-Williams for the Indian Institute Library and Museum at Oxford as a result of his third fund-raising trip to India in the winter of 1883-1884. During this trip, he secured the help of various regional authorities in obtaining local art and craft works and sending them to Oxford. The Kalighat paintings are listed in Babu T.N. Mukherji's \"List of Articles collected for the Oxford Institute under the instruction of T.W. Holderness Esq. and Dr. George Watt,\" Calcutta, 1884, which is bound in the \"Original Lists\" MS. volume held in the Department of Eastern Art, Ashmolean Museum.The paintings are homogenous in style, resembling that of collections in documented ownership by about 1875: the India Office Library from the 1871 exhibition, the museums in Prague and St. Petersburg, the Herwitz batch A (1870) published by Jyotindra Jain and those acquired by the Victoria and Albert Museum in 1887. Some of the paintings originally had labels stuck to them, which indicated they had cost 1 anna each."
+    },
+    {
+      "label": "Extent",
+      "value": "445 x 280 mm"
+    },
+    {
+      "label": "Extent",
+      "value": "Waterbased colour on machine made paper over pencil, mounted on paper"
+    },
+    {
+      "label": "Collection",
+      "value": "South Asian Manuscripts"
+    },
+    {
+      "label": "Subject",
+      "value": "Kalighat (Calcutta, India)--Social life and customs--Pictorial works--19th century"
+    },
+    {
+      "label": "Other Identifier",
+      "value": "MS. Ind. Inst. Misc. 22"
+    },
+    {
+      "label": "Record Created",
+      "value": "2015-07-10T00:00:00+00:00"
+    },
+    {
+      "label": "Holding Institution",
+      "value": "Bodleian Libraries, University of Oxford"
+    }
+  ],
+  "navDate": "1875-01-01T00:00:00Z",
+  "rendering": {
+    "@id": "https://digital.bodleian.ox.ac.uk/objects/e32a277e-91e2-4a6d-8ba6-cc4bad230410/",
+    "label": "View on Digital Bodleian",
+    "format": "text/html"
+  },
+  "attribution": "Access to this manuscript is restricted - please email for details",
+  "logo": {
+    "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/f27e28db-0b08-4f16-9bdf-3565f591fb71/full/256,/0/default.jpg",
+    "@type": "dctypes:Image",
+    "format": "image/jpeg",
+    "service": {
+      "@context": "http://iiif.io/api/image/2/context.json",
+      "profile": "http://iiif.io/api/image/2/level1.json",
+      "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/f27e28db-0b08-4f16-9bdf-3565f591fb71"
+    }
+  },
+  "thumbnail": {
+    "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e58b8c60-005c-4c41-a22f-07d49cb25ede/full/256,/0/default.jpg",
+    "@type": "dctypes:Image",
+    "format": "image/jpeg",
+    "service": {
+      "@context": "http://iiif.io/api/image/2/context.json",
+      "profile": "http://iiif.io/api/image/2/level1.json",
+      "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e58b8c60-005c-4c41-a22f-07d49cb25ede"
+    }
+  },
+  "viewingHint": "paged",
+  "sequences": [
+    {
+      "@id": "https://iiif.bodleian.ox.ac.uk/iiif/sequence/e32a277e-91e2-4a6d-8ba6-cc4bad230410_default.json",
+      "@type": "sc:Sequence",
+      "label": "Default",
+      "canvases": [
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/e58b8c60-005c-4c41-a22f-07d49cb25ede.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 1 Krishna and his lover Radha seated face-to-face]",
+          "width": 5392,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/e58b8c60-005c-4c41-a22f-07d49cb25ede.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/e58b8c60-005c-4c41-a22f-07d49cb25ede.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e58b8c60-005c-4c41-a22f-07d49cb25ede",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5392,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e58b8c60-005c-4c41-a22f-07d49cb25ede",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/02ddc913-ecab-471e-8ca3-6bd402bff215.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 2 Cat (with Vaishnavite mark on forehead) with crayfish: perhaps represents a Bengali proverb or satire on religion]",
+          "width": 5344,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/02ddc913-ecab-471e-8ca3-6bd402bff215.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/02ddc913-ecab-471e-8ca3-6bd402bff215.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/02ddc913-ecab-471e-8ca3-6bd402bff215",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5344,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/02ddc913-ecab-471e-8ca3-6bd402bff215",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/33ce3177-0fdc-44fd-8325-24a298322023.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 3. Two saul fishes]",
+          "width": 5176,
+          "height": 8026,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/33ce3177-0fdc-44fd-8325-24a298322023.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/33ce3177-0fdc-44fd-8325-24a298322023.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/33ce3177-0fdc-44fd-8325-24a298322023",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5176,
+                "height": 8026,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/33ce3177-0fdc-44fd-8325-24a298322023",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9e8020d0-de39-476d-8205-6f009c0b31c9.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 4 Mother and child]",
+          "width": 5212,
+          "height": 8218,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/9e8020d0-de39-476d-8205-6f009c0b31c9.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9e8020d0-de39-476d-8205-6f009c0b31c9.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9e8020d0-de39-476d-8205-6f009c0b31c9",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5212,
+                "height": 8218,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9e8020d0-de39-476d-8205-6f009c0b31c9",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/fd4a9b51-c242-4094-9986-cae0e4e1c872.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 5 A Peri, a fairy of Persian tradition]",
+          "width": 5248,
+          "height": 8134,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/fd4a9b51-c242-4094-9986-cae0e4e1c872.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/fd4a9b51-c242-4094-9986-cae0e4e1c872.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/fd4a9b51-c242-4094-9986-cae0e4e1c872",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8134,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/fd4a9b51-c242-4094-9986-cae0e4e1c872",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3ed32643-a78d-43d8-be31-7241317c31f4.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 6 Courtesans or other entertainers]",
+          "width": 5308,
+          "height": 8182,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/3ed32643-a78d-43d8-be31-7241317c31f4.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3ed32643-a78d-43d8-be31-7241317c31f4.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3ed32643-a78d-43d8-be31-7241317c31f4",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5308,
+                "height": 8182,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3ed32643-a78d-43d8-be31-7241317c31f4",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/5d74908a-5733-45e4-b128-8cf217a45675.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 7 Sepoys, soldiers of the Indian army]",
+          "width": 5248,
+          "height": 8182,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/5d74908a-5733-45e4-b128-8cf217a45675.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/5d74908a-5733-45e4-b128-8cf217a45675.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/5d74908a-5733-45e4-b128-8cf217a45675",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8182,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/5d74908a-5733-45e4-b128-8cf217a45675",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6f42c472-6896-49ee-8dd0-82914d819745.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 8 The clerk Nabin Bannerji kills his unfaithful wife Elokeshi at Tarakeshwar, 27 May 1873]",
+          "width": 5248,
+          "height": 8182,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/6f42c472-6896-49ee-8dd0-82914d819745.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6f42c472-6896-49ee-8dd0-82914d819745.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6f42c472-6896-49ee-8dd0-82914d819745",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8182,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6f42c472-6896-49ee-8dd0-82914d819745",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d167c267-6b40-47ed-bc5d-2b4329c6b17b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 9 Women carpenters (satire on women?)]",
+          "width": 5248,
+          "height": 8182,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/d167c267-6b40-47ed-bc5d-2b4329c6b17b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d167c267-6b40-47ed-bc5d-2b4329c6b17b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d167c267-6b40-47ed-bc5d-2b4329c6b17b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8182,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d167c267-6b40-47ed-bc5d-2b4329c6b17b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3b53d751-66ab-4f12-8071-378e7d72e5c9.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 10 Courtesan or actress]",
+          "width": 5188,
+          "height": 8182,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/3b53d751-66ab-4f12-8071-378e7d72e5c9.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3b53d751-66ab-4f12-8071-378e7d72e5c9.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3b53d751-66ab-4f12-8071-378e7d72e5c9",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5188,
+                "height": 8182,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3b53d751-66ab-4f12-8071-378e7d72e5c9",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/7438cf4a-7962-4810-84fb-dcf08d757350.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 11 A brahmin kneeling before two tigers - meaning uncertain]",
+          "width": 5308,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/7438cf4a-7962-4810-84fb-dcf08d757350.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/7438cf4a-7962-4810-84fb-dcf08d757350.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/7438cf4a-7962-4810-84fb-dcf08d757350",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5308,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/7438cf4a-7962-4810-84fb-dcf08d757350",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/58ab4cdd-e201-4dd5-af87-bfd072378022.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 12 Two women - meaning uncertain]",
+          "width": 5308,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/58ab4cdd-e201-4dd5-af87-bfd072378022.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/58ab4cdd-e201-4dd5-af87-bfd072378022.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/58ab4cdd-e201-4dd5-af87-bfd072378022",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5308,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/58ab4cdd-e201-4dd5-af87-bfd072378022",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/b31f87b5-26be-416b-84ad-809b5554c9fa.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 13 Courtesan holding rose to peacock]",
+          "width": 5308,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/b31f87b5-26be-416b-84ad-809b5554c9fa.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/b31f87b5-26be-416b-84ad-809b5554c9fa.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/b31f87b5-26be-416b-84ad-809b5554c9fa",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5308,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/b31f87b5-26be-416b-84ad-809b5554c9fa",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/4bf3c7bc-d7a1-42e6-a457-c3a422b3536c.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 14 Courtesan at her toilette]",
+          "width": 5332,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/4bf3c7bc-d7a1-42e6-a457-c3a422b3536c.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/4bf3c7bc-d7a1-42e6-a457-c3a422b3536c.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/4bf3c7bc-d7a1-42e6-a457-c3a422b3536c",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5332,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/4bf3c7bc-d7a1-42e6-a457-c3a422b3536c",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6acca299-89ba-432b-9a74-388e3dec94a8.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 15 Babu (dandy) out on the street, muskrats partying in his home: a social satire]",
+          "width": 5332,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/6acca299-89ba-432b-9a74-388e3dec94a8.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6acca299-89ba-432b-9a74-388e3dec94a8.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6acca299-89ba-432b-9a74-388e3dec94a8",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5332,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6acca299-89ba-432b-9a74-388e3dec94a8",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bc9fa807-64eb-4632-ac20-02bd7cfd76bd.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 16 The clerk Nabin Bannerji kills his unfaithful wife Elokeshi at Tarakeshwar, 27 May 1873]",
+          "width": 5332,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/bc9fa807-64eb-4632-ac20-02bd7cfd76bd.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bc9fa807-64eb-4632-ac20-02bd7cfd76bd.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bc9fa807-64eb-4632-ac20-02bd7cfd76bd",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5332,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bc9fa807-64eb-4632-ac20-02bd7cfd76bd",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bdd54216-1ef8-47e6-b1a1-ab7aed4b09a0.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 17 Bhima, a hero of the Mahabharata war, and Hirsimha]",
+          "width": 5320,
+          "height": 8122,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/bdd54216-1ef8-47e6-b1a1-ab7aed4b09a0.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bdd54216-1ef8-47e6-b1a1-ab7aed4b09a0.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bdd54216-1ef8-47e6-b1a1-ab7aed4b09a0",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5320,
+                "height": 8122,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bdd54216-1ef8-47e6-b1a1-ab7aed4b09a0",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3b2cb169-5839-49bd-9f61-5eea191b2bf1.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 18 Kamale-Kamini: a legend of Durga as Mangala Chandi]",
+          "width": 5320,
+          "height": 8122,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/3b2cb169-5839-49bd-9f61-5eea191b2bf1.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3b2cb169-5839-49bd-9f61-5eea191b2bf1.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3b2cb169-5839-49bd-9f61-5eea191b2bf1",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5320,
+                "height": 8122,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3b2cb169-5839-49bd-9f61-5eea191b2bf1",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/cea63497-246b-4701-a140-8f0ad634d949.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 19 Shiva and Durga]",
+          "width": 5356,
+          "height": 8098,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/cea63497-246b-4701-a140-8f0ad634d949.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/cea63497-246b-4701-a140-8f0ad634d949.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/cea63497-246b-4701-a140-8f0ad634d949",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5356,
+                "height": 8098,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/cea63497-246b-4701-a140-8f0ad634d949",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/033504d8-a2a0-45fc-bf5e-9082c021e272.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 20 Karttikeya, the god of war, son of Shiva and Lakshmi, riding the peacock Paravani]",
+          "width": 5356,
+          "height": 8098,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/033504d8-a2a0-45fc-bf5e-9082c021e272.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/033504d8-a2a0-45fc-bf5e-9082c021e272.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/033504d8-a2a0-45fc-bf5e-9082c021e272",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5356,
+                "height": 8098,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/033504d8-a2a0-45fc-bf5e-9082c021e272",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bc2fa437-4adf-483f-a000-74058a1661f5.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 21 A bhisti, water-carrier, of very low caste: possibly the Mahant (high priest) of Tarakeshwar, gaoled for his adultery with Elokeshi in 1872/3]",
+          "width": 5320,
+          "height": 8098,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/bc2fa437-4adf-483f-a000-74058a1661f5.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bc2fa437-4adf-483f-a000-74058a1661f5.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bc2fa437-4adf-483f-a000-74058a1661f5",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5320,
+                "height": 8098,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bc2fa437-4adf-483f-a000-74058a1661f5",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9cee9ad1-cef7-47f0-9da3-5071515fe0d4.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 22 Courtesan playing a stringed instrument]",
+          "width": 5344,
+          "height": 8122,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/9cee9ad1-cef7-47f0-9da3-5071515fe0d4.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9cee9ad1-cef7-47f0-9da3-5071515fe0d4.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9cee9ad1-cef7-47f0-9da3-5071515fe0d4",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5344,
+                "height": 8122,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9cee9ad1-cef7-47f0-9da3-5071515fe0d4",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/48a915b8-fda3-4960-8c05-6297597c77ee.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 23 Babu (dandy) seated, smoking a huqqah]",
+          "width": 5344,
+          "height": 8122,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/48a915b8-fda3-4960-8c05-6297597c77ee.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/48a915b8-fda3-4960-8c05-6297597c77ee.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/48a915b8-fda3-4960-8c05-6297597c77ee",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5344,
+                "height": 8122,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/48a915b8-fda3-4960-8c05-6297597c77ee",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/741e792f-6d1c-43da-8bd0-840b0b2967bb.json",
+          "@type": "sc:Canvas",
+          "label": "[f.  24 Actress as romantic heroine?]",
+          "width": 5344,
+          "height": 8158,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/741e792f-6d1c-43da-8bd0-840b0b2967bb.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/741e792f-6d1c-43da-8bd0-840b0b2967bb.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/741e792f-6d1c-43da-8bd0-840b0b2967bb",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5344,
+                "height": 8158,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/741e792f-6d1c-43da-8bd0-840b0b2967bb",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/7cad4802-cf0e-4cd6-8ac7-30a92d3003a5.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 25 Carnival float for the Muslim holy day of Muharrram, in the form of Buraq, the beast on which Muhammad flew to heaven]",
+          "width": 5284,
+          "height": 8182,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/7cad4802-cf0e-4cd6-8ac7-30a92d3003a5.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/7cad4802-cf0e-4cd6-8ac7-30a92d3003a5.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/7cad4802-cf0e-4cd6-8ac7-30a92d3003a5",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5284,
+                "height": 8182,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/7cad4802-cf0e-4cd6-8ac7-30a92d3003a5",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bdf584a2-fb6b-4619-a141-cd2241f01d71.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 26 Muhammad's mount Duldul bearing a trophy, perhaps a carnival float for the Muslim holy day of Muharram]",
+          "width": 5224,
+          "height": 8086,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/bdf584a2-fb6b-4619-a141-cd2241f01d71.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bdf584a2-fb6b-4619-a141-cd2241f01d71.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bdf584a2-fb6b-4619-a141-cd2241f01d71",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8086,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bdf584a2-fb6b-4619-a141-cd2241f01d71",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/5161237f-45a3-470e-986b-b28b670095fc.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 27 Babu (dandy) seated playing music]",
+          "width": 5188,
+          "height": 8086,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/5161237f-45a3-470e-986b-b28b670095fc.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/5161237f-45a3-470e-986b-b28b670095fc.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/5161237f-45a3-470e-986b-b28b670095fc",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5188,
+                "height": 8086,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/5161237f-45a3-470e-986b-b28b670095fc",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/51cc30d8-0404-49fc-893e-c44c3e4a94f8.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 28 Bird seated on head of old Brahmin: depicts Bengali expressions referring either to his mettle, despite his age, or to his ruin, if frivolous thoughts enter his head]",
+          "width": 5188,
+          "height": 8086,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/51cc30d8-0404-49fc-893e-c44c3e4a94f8.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/51cc30d8-0404-49fc-893e-c44c3e4a94f8.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/51cc30d8-0404-49fc-893e-c44c3e4a94f8",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5188,
+                "height": 8086,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/51cc30d8-0404-49fc-893e-c44c3e4a94f8",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/008b1237-aecc-45de-b53f-fa4bd48d870b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 29 Lakshmi Bai, Rani (Queen) of Jhansi, a heroine of the Sepoy Mutiny, killed fighting the British, 1857]",
+          "width": 5140,
+          "height": 8026,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/008b1237-aecc-45de-b53f-fa4bd48d870b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/008b1237-aecc-45de-b53f-fa4bd48d870b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/008b1237-aecc-45de-b53f-fa4bd48d870b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5140,
+                "height": 8026,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/008b1237-aecc-45de-b53f-fa4bd48d870b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/1e3f8d45-74a8-4b8e-86a3-c7deedfea9a2.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 30 Hand with three prawns, perhaps a Bengali proverb]",
+          "width": 5296,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/1e3f8d45-74a8-4b8e-86a3-c7deedfea9a2.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/1e3f8d45-74a8-4b8e-86a3-c7deedfea9a2.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/1e3f8d45-74a8-4b8e-86a3-c7deedfea9a2",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5296,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/1e3f8d45-74a8-4b8e-86a3-c7deedfea9a2",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9d417dc7-d066-44b0-be85-8fb7f5d42a6c.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 31 Sal fish]",
+          "width": 5129,
+          "height": 8003,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/9d417dc7-d066-44b0-be85-8fb7f5d42a6c.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9d417dc7-d066-44b0-be85-8fb7f5d42a6c.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9d417dc7-d066-44b0-be85-8fb7f5d42a6c",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5129,
+                "height": 8003,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9d417dc7-d066-44b0-be85-8fb7f5d42a6c",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/52f91a71-9edb-48ac-a085-a94f73288af1.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 32 Rui fish and prawns]",
+          "width": 5152,
+          "height": 8014,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/52f91a71-9edb-48ac-a085-a94f73288af1.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/52f91a71-9edb-48ac-a085-a94f73288af1.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/52f91a71-9edb-48ac-a085-a94f73288af1",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5152,
+                "height": 8014,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/52f91a71-9edb-48ac-a085-a94f73288af1",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/8050ebb9-d18a-4cba-aa78-9575dcbdb45f.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 33 Babaji with tree]",
+          "width": 5248,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/8050ebb9-d18a-4cba-aa78-9575dcbdb45f.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/8050ebb9-d18a-4cba-aa78-9575dcbdb45f.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/8050ebb9-d18a-4cba-aa78-9575dcbdb45f",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/8050ebb9-d18a-4cba-aa78-9575dcbdb45f",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/14261d20-f02c-41d7-b704-ed2be376f4e5.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 34 Crow]",
+          "width": 5248,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/14261d20-f02c-41d7-b704-ed2be376f4e5.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/14261d20-f02c-41d7-b704-ed2be376f4e5.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/14261d20-f02c-41d7-b704-ed2be376f4e5",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/14261d20-f02c-41d7-b704-ed2be376f4e5",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/23cbe854-6600-4478-8613-61b7e952a9ca.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 35 Mouse king]",
+          "width": 5248,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/23cbe854-6600-4478-8613-61b7e952a9ca.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/23cbe854-6600-4478-8613-61b7e952a9ca.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/23cbe854-6600-4478-8613-61b7e952a9ca",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/23cbe854-6600-4478-8613-61b7e952a9ca",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/322edc82-b4c5-436e-a153-eafbeab25d6e.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 36 Krishna and Balarama]",
+          "width": 5248,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/322edc82-b4c5-436e-a153-eafbeab25d6e.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/322edc82-b4c5-436e-a153-eafbeab25d6e.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/322edc82-b4c5-436e-a153-eafbeab25d6e",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/322edc82-b4c5-436e-a153-eafbeab25d6e",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/50dca52a-dc2c-44f4-8a2a-36c00f6ad38b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 37 Husband and wife]",
+          "width": 5248,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/50dca52a-dc2c-44f4-8a2a-36c00f6ad38b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/50dca52a-dc2c-44f4-8a2a-36c00f6ad38b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/50dca52a-dc2c-44f4-8a2a-36c00f6ad38b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/50dca52a-dc2c-44f4-8a2a-36c00f6ad38b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/67251329-4825-4f34-868b-82f4559cb82b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 38 Brahma]",
+          "width": 5248,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/67251329-4825-4f34-868b-82f4559cb82b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/67251329-4825-4f34-868b-82f4559cb82b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/67251329-4825-4f34-868b-82f4559cb82b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/67251329-4825-4f34-868b-82f4559cb82b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/990de463-23c9-4c50-aa65-ea6a548c2d0c.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 39 Man with spear]",
+          "width": 5248,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/990de463-23c9-4c50-aa65-ea6a548c2d0c.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/990de463-23c9-4c50-aa65-ea6a548c2d0c.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/990de463-23c9-4c50-aa65-ea6a548c2d0c",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/990de463-23c9-4c50-aa65-ea6a548c2d0c",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d560796f-0d1f-4f43-916b-e60f1b968421.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 40 Woman holding rose to man transformed into a sheep]",
+          "width": 5189,
+          "height": 7979,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/d560796f-0d1f-4f43-916b-e60f1b968421.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d560796f-0d1f-4f43-916b-e60f1b968421.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d560796f-0d1f-4f43-916b-e60f1b968421",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5189,
+                "height": 7979,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d560796f-0d1f-4f43-916b-e60f1b968421",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/800bda19-3e8e-4d0c-86a6-32d1f4a7fa62.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 41 Durga]",
+          "width": 5176,
+          "height": 8014,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/800bda19-3e8e-4d0c-86a6-32d1f4a7fa62.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/800bda19-3e8e-4d0c-86a6-32d1f4a7fa62.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/800bda19-3e8e-4d0c-86a6-32d1f4a7fa62",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5176,
+                "height": 8014,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/800bda19-3e8e-4d0c-86a6-32d1f4a7fa62",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/39335f48-6132-4da2-a82f-8d219acb4e78.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 42 Lakshmi]",
+          "width": 5236,
+          "height": 8014,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/39335f48-6132-4da2-a82f-8d219acb4e78.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/39335f48-6132-4da2-a82f-8d219acb4e78.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/39335f48-6132-4da2-a82f-8d219acb4e78",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5236,
+                "height": 8014,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/39335f48-6132-4da2-a82f-8d219acb4e78",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/213680a3-776b-4825-876f-51cd6981e9d8.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 43 Jagadhatri]",
+          "width": 5236,
+          "height": 8014,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/213680a3-776b-4825-876f-51cd6981e9d8.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/213680a3-776b-4825-876f-51cd6981e9d8.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/213680a3-776b-4825-876f-51cd6981e9d8",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5236,
+                "height": 8014,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/213680a3-776b-4825-876f-51cd6981e9d8",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/cb0ae5a2-e985-48ef-8318-3cab784ad24f.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 44 Kite with fish]",
+          "width": 5236,
+          "height": 8014,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/cb0ae5a2-e985-48ef-8318-3cab784ad24f.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/cb0ae5a2-e985-48ef-8318-3cab784ad24f.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/cb0ae5a2-e985-48ef-8318-3cab784ad24f",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5236,
+                "height": 8014,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/cb0ae5a2-e985-48ef-8318-3cab784ad24f",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/0d4137fa-9d6e-4ce1-b192-3df12abc314b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 45 Cat holding mouse in mouth]",
+          "width": 5236,
+          "height": 8014,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/0d4137fa-9d6e-4ce1-b192-3df12abc314b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/0d4137fa-9d6e-4ce1-b192-3df12abc314b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/0d4137fa-9d6e-4ce1-b192-3df12abc314b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5236,
+                "height": 8014,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/0d4137fa-9d6e-4ce1-b192-3df12abc314b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/668889a1-760a-456b-9a37-92086424d01b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 46 Man with tiger]",
+          "width": 5236,
+          "height": 8014,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/668889a1-760a-456b-9a37-92086424d01b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/668889a1-760a-456b-9a37-92086424d01b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/668889a1-760a-456b-9a37-92086424d01b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5236,
+                "height": 8014,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/668889a1-760a-456b-9a37-92086424d01b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d2817475-c23a-4106-8357-c3176ffd13b6.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 47 Rui fish]",
+          "width": 5236,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/d2817475-c23a-4106-8357-c3176ffd13b6.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d2817475-c23a-4106-8357-c3176ffd13b6.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d2817475-c23a-4106-8357-c3176ffd13b6",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5236,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d2817475-c23a-4106-8357-c3176ffd13b6",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/fb33cc66-be6f-4203-8f2d-bcf1e80afa42.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 48 Parrot caged]",
+          "width": 5248,
+          "height": 8062,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/fb33cc66-be6f-4203-8f2d-bcf1e80afa42.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/fb33cc66-be6f-4203-8f2d-bcf1e80afa42.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/fb33cc66-be6f-4203-8f2d-bcf1e80afa42",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8062,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/fb33cc66-be6f-4203-8f2d-bcf1e80afa42",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/19079636-f1ad-4ecd-a13c-116502a93adc.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 49 Hiramohan birds]",
+          "width": 5248,
+          "height": 8062,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/19079636-f1ad-4ecd-a13c-116502a93adc.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/19079636-f1ad-4ecd-a13c-116502a93adc.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/19079636-f1ad-4ecd-a13c-116502a93adc",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5248,
+                "height": 8062,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/19079636-f1ad-4ecd-a13c-116502a93adc",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/73a548ab-f587-4cd4-8a3f-2c137fdb8924.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 50 Madan Chashma]",
+          "width": 5212,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/73a548ab-f587-4cd4-8a3f-2c137fdb8924.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/73a548ab-f587-4cd4-8a3f-2c137fdb8924.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/73a548ab-f587-4cd4-8a3f-2c137fdb8924",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5212,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/73a548ab-f587-4cd4-8a3f-2c137fdb8924",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/31d7dd7d-3e43-4f98-a877-a6f3c0c33f87.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 51 Krishna Balarama (Calarama?)]",
+          "width": 5212,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/31d7dd7d-3e43-4f98-a877-a6f3c0c33f87.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/31d7dd7d-3e43-4f98-a877-a6f3c0c33f87.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/31d7dd7d-3e43-4f98-a877-a6f3c0c33f87",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5212,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/31d7dd7d-3e43-4f98-a877-a6f3c0c33f87",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d1b04ac6-9721-463b-9d8c-7e568b6a39d4.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 52 Khol-wala]",
+          "width": 5212,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/d1b04ac6-9721-463b-9d8c-7e568b6a39d4.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/d1b04ac6-9721-463b-9d8c-7e568b6a39d4.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d1b04ac6-9721-463b-9d8c-7e568b6a39d4",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5212,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/d1b04ac6-9721-463b-9d8c-7e568b6a39d4",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/1d1b59c1-600e-4eb2-bb8f-08ccf18bb3a2.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 53 Nitai Chaitanya]",
+          "width": 5212,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/1d1b59c1-600e-4eb2-bb8f-08ccf18bb3a2.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/1d1b59c1-600e-4eb2-bb8f-08ccf18bb3a2.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/1d1b59c1-600e-4eb2-bb8f-08ccf18bb3a2",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5212,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/1d1b59c1-600e-4eb2-bb8f-08ccf18bb3a2",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/f1d2be7d-f649-4c12-a8c4-8548b30a9017.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 54 Pari angels]",
+          "width": 5212,
+          "height": 8050,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/f1d2be7d-f649-4c12-a8c4-8548b30a9017.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/f1d2be7d-f649-4c12-a8c4-8548b30a9017.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/f1d2be7d-f649-4c12-a8c4-8548b30a9017",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5212,
+                "height": 8050,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/f1d2be7d-f649-4c12-a8c4-8548b30a9017",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/20d0bcff-e655-43c2-b08f-2b4af0d0b77b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 55 Woman feeding pet cat]",
+          "width": 5284,
+          "height": 8074,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/20d0bcff-e655-43c2-b08f-2b4af0d0b77b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/20d0bcff-e655-43c2-b08f-2b4af0d0b77b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/20d0bcff-e655-43c2-b08f-2b4af0d0b77b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5284,
+                "height": 8074,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/20d0bcff-e655-43c2-b08f-2b4af0d0b77b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/97b61ab4-460f-4f09-8463-ba77641d9d29.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 56 Sarasvati]",
+          "width": 5188,
+          "height": 8110,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/97b61ab4-460f-4f09-8463-ba77641d9d29.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/97b61ab4-460f-4f09-8463-ba77641d9d29.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/97b61ab4-460f-4f09-8463-ba77641d9d29",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5188,
+                "height": 8110,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/97b61ab4-460f-4f09-8463-ba77641d9d29",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/10b1ae63-b77c-4bee-8227-a9efb9bfceef.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 57 Babu smoking]",
+          "width": 5224,
+          "height": 8110,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/10b1ae63-b77c-4bee-8227-a9efb9bfceef.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/10b1ae63-b77c-4bee-8227-a9efb9bfceef.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/10b1ae63-b77c-4bee-8227-a9efb9bfceef",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8110,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/10b1ae63-b77c-4bee-8227-a9efb9bfceef",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3ecbb0c5-9f78-4b89-b5ba-12baae0632a8.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 58 Betel chewing and smoking]",
+          "width": 5224,
+          "height": 8110,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/3ecbb0c5-9f78-4b89-b5ba-12baae0632a8.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3ecbb0c5-9f78-4b89-b5ba-12baae0632a8.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3ecbb0c5-9f78-4b89-b5ba-12baae0632a8",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8110,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3ecbb0c5-9f78-4b89-b5ba-12baae0632a8",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/a426ed1a-9b63-4746-a9c1-cc4c17301793.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 59 Parasuram]",
+          "width": 5224,
+          "height": 7991,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/a426ed1a-9b63-4746-a9c1-cc4c17301793.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/a426ed1a-9b63-4746-a9c1-cc4c17301793.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/a426ed1a-9b63-4746-a9c1-cc4c17301793",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 7991,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/a426ed1a-9b63-4746-a9c1-cc4c17301793",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6748cf6d-6275-46c2-a831-bb2e5292ec9a.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 60 Mahadeva]",
+          "width": 5213,
+          "height": 8027,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/6748cf6d-6275-46c2-a831-bb2e5292ec9a.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6748cf6d-6275-46c2-a831-bb2e5292ec9a.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6748cf6d-6275-46c2-a831-bb2e5292ec9a",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5213,
+                "height": 8027,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6748cf6d-6275-46c2-a831-bb2e5292ec9a",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/557e20dd-131c-4428-88cb-342fad4b1411.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 61 Water woman]",
+          "width": 5224,
+          "height": 8015,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/557e20dd-131c-4428-88cb-342fad4b1411.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/557e20dd-131c-4428-88cb-342fad4b1411.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/557e20dd-131c-4428-88cb-342fad4b1411",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8015,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/557e20dd-131c-4428-88cb-342fad4b1411",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/931f8116-743c-41e4-8509-55d42374ee09.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 62 Man striking woman with shoe]",
+          "width": 5224,
+          "height": 8110,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/931f8116-743c-41e4-8509-55d42374ee09.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/931f8116-743c-41e4-8509-55d42374ee09.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/931f8116-743c-41e4-8509-55d42374ee09",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8110,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/931f8116-743c-41e4-8509-55d42374ee09",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6a2cda6d-0bd4-4313-a3bb-7610e0d701f1.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 63 Harihar]",
+          "width": 5224,
+          "height": 8110,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/6a2cda6d-0bd4-4313-a3bb-7610e0d701f1.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/6a2cda6d-0bd4-4313-a3bb-7610e0d701f1.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6a2cda6d-0bd4-4313-a3bb-7610e0d701f1",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8110,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/6a2cda6d-0bd4-4313-a3bb-7610e0d701f1",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bd8d6a74-5d7a-4f90-bc1d-b29006393777.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 64 Woman striking man with broom]",
+          "width": 5378,
+          "height": 8178,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/bd8d6a74-5d7a-4f90-bc1d-b29006393777.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/bd8d6a74-5d7a-4f90-bc1d-b29006393777.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bd8d6a74-5d7a-4f90-bc1d-b29006393777",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5378,
+                "height": 8178,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/bd8d6a74-5d7a-4f90-bc1d-b29006393777",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/a31b132c-78c4-4238-9c8e-ae383438acf8.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 65 Death of Putna (Putana)]",
+          "width": 5224,
+          "height": 8110,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/a31b132c-78c4-4238-9c8e-ae383438acf8.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/a31b132c-78c4-4238-9c8e-ae383438acf8.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/a31b132c-78c4-4238-9c8e-ae383438acf8",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8110,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/a31b132c-78c4-4238-9c8e-ae383438acf8",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/63273f3e-4380-4731-a043-08dc0f3b7e9b.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 66 Jaganath]",
+          "width": 5105,
+          "height": 7918,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/63273f3e-4380-4731-a043-08dc0f3b7e9b.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/63273f3e-4380-4731-a043-08dc0f3b7e9b.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/63273f3e-4380-4731-a043-08dc0f3b7e9b",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5105,
+                "height": 7918,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/63273f3e-4380-4731-a043-08dc0f3b7e9b",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/32bcadf1-abe2-455a-bda9-8b649f59780f.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 67 Krishna milking]",
+          "width": 5224,
+          "height": 8110,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/32bcadf1-abe2-455a-bda9-8b649f59780f.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/32bcadf1-abe2-455a-bda9-8b649f59780f.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/32bcadf1-abe2-455a-bda9-8b649f59780f",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5224,
+                "height": 8110,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/32bcadf1-abe2-455a-bda9-8b649f59780f",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/2cb3d525-d253-4172-89dc-cb75e399b797.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 68 Rai raja]",
+          "width": 5428,
+          "height": 8229,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/2cb3d525-d253-4172-89dc-cb75e399b797.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/2cb3d525-d253-4172-89dc-cb75e399b797.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/2cb3d525-d253-4172-89dc-cb75e399b797",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5428,
+                "height": 8229,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/2cb3d525-d253-4172-89dc-cb75e399b797",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/43ea62e2-952b-459e-9695-1a6217e2c8f1.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 69 Lakshmi and Sarasvati]",
+          "width": 5148,
+          "height": 8046,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/43ea62e2-952b-459e-9695-1a6217e2c8f1.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/43ea62e2-952b-459e-9695-1a6217e2c8f1.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/43ea62e2-952b-459e-9695-1a6217e2c8f1",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5148,
+                "height": 8046,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/43ea62e2-952b-459e-9695-1a6217e2c8f1",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9ca2aadd-124e-4e33-ba79-f027e20e1159.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 70 Krishna shampooing]",
+          "width": 5186,
+          "height": 7952,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/9ca2aadd-124e-4e33-ba79-f027e20e1159.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/9ca2aadd-124e-4e33-ba79-f027e20e1159.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9ca2aadd-124e-4e33-ba79-f027e20e1159",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5186,
+                "height": 7952,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/9ca2aadd-124e-4e33-ba79-f027e20e1159",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/8a558ad0-2cf8-4ced-8feb-8a18a190cf6a.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 71 Mahadeva with sati]",
+          "width": 5186,
+          "height": 7952,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/8a558ad0-2cf8-4ced-8feb-8a18a190cf6a.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/8a558ad0-2cf8-4ced-8feb-8a18a190cf6a.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/8a558ad0-2cf8-4ced-8feb-8a18a190cf6a",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5186,
+                "height": 7952,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/8a558ad0-2cf8-4ced-8feb-8a18a190cf6a",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/eefebae1-56ff-4bf0-a6b0-149eb9836b41.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 72 Hanuman with Rama and Sita in his heart]",
+          "width": 5200,
+          "height": 8000,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/eefebae1-56ff-4bf0-a6b0-149eb9836b41.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/eefebae1-56ff-4bf0-a6b0-149eb9836b41.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/eefebae1-56ff-4bf0-a6b0-149eb9836b41",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5200,
+                "height": 8000,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/eefebae1-56ff-4bf0-a6b0-149eb9836b41",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/91fd0153-79e7-4072-837d-258246a0a7b1.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 73 Sitar tabla music]",
+          "width": 5200,
+          "height": 8000,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/91fd0153-79e7-4072-837d-258246a0a7b1.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/91fd0153-79e7-4072-837d-258246a0a7b1.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/91fd0153-79e7-4072-837d-258246a0a7b1",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5200,
+                "height": 8000,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/91fd0153-79e7-4072-837d-258246a0a7b1",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3dab53fa-fdfe-4b6c-8f7b-4ef57410033e.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 74 Bhatri dividia]",
+          "width": 5200,
+          "height": 8000,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/3dab53fa-fdfe-4b6c-8f7b-4ef57410033e.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/3dab53fa-fdfe-4b6c-8f7b-4ef57410033e.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3dab53fa-fdfe-4b6c-8f7b-4ef57410033e",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5200,
+                "height": 8000,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/3dab53fa-fdfe-4b6c-8f7b-4ef57410033e",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/14b1022d-2011-4289-9c0f-aae85242dbdb.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 75 Haraguri on oxen]",
+          "width": 5200,
+          "height": 8000,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/14b1022d-2011-4289-9c0f-aae85242dbdb.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/14b1022d-2011-4289-9c0f-aae85242dbdb.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/14b1022d-2011-4289-9c0f-aae85242dbdb",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5200,
+                "height": 8000,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/14b1022d-2011-4289-9c0f-aae85242dbdb",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/384f747d-d32b-4cee-baa5-24b87b5a0a22.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 76 Taifa wali]",
+          "width": 5186,
+          "height": 8012,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/384f747d-d32b-4cee-baa5-24b87b5a0a22.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/384f747d-d32b-4cee-baa5-24b87b5a0a22.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/384f747d-d32b-4cee-baa5-24b87b5a0a22",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5186,
+                "height": 8012,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/384f747d-d32b-4cee-baa5-24b87b5a0a22",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/dfde9dcd-cbaf-4263-adb9-fcc12391338a.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 77 Panchanan]",
+          "width": 5330,
+          "height": 8082,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/dfde9dcd-cbaf-4263-adb9-fcc12391338a.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/dfde9dcd-cbaf-4263-adb9-fcc12391338a.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/dfde9dcd-cbaf-4263-adb9-fcc12391338a",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5330,
+                "height": 8082,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/dfde9dcd-cbaf-4263-adb9-fcc12391338a",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/e7504f7b-1326-482a-821d-c61932ff6f9a.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 78 Lakshmi and Narayana]",
+          "width": 5330,
+          "height": 8178,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/e7504f7b-1326-482a-821d-c61932ff6f9a.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/e7504f7b-1326-482a-821d-c61932ff6f9a.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e7504f7b-1326-482a-821d-c61932ff6f9a",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5330,
+                "height": 8178,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e7504f7b-1326-482a-821d-c61932ff6f9a",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/c8f20573-2c48-4f5b-ac8e-99a7cfba0a21.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 79 Narasinha]",
+          "width": 5354,
+          "height": 8142,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/c8f20573-2c48-4f5b-ac8e-99a7cfba0a21.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/c8f20573-2c48-4f5b-ac8e-99a7cfba0a21.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/c8f20573-2c48-4f5b-ac8e-99a7cfba0a21",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5354,
+                "height": 8142,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/c8f20573-2c48-4f5b-ac8e-99a7cfba0a21",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/e656a22b-b09f-447a-9edc-b5148798442c.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 80 Ganesajanani]",
+          "width": 5354,
+          "height": 8142,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/e656a22b-b09f-447a-9edc-b5148798442c.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/e656a22b-b09f-447a-9edc-b5148798442c.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e656a22b-b09f-447a-9edc-b5148798442c",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5354,
+                "height": 8142,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/e656a22b-b09f-447a-9edc-b5148798442c",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/300c4fb2-0c40-4e4f-aa45-62804b058961.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 81 Ganesa]",
+          "width": 5390,
+          "height": 8166,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/300c4fb2-0c40-4e4f-aa45-62804b058961.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/300c4fb2-0c40-4e4f-aa45-62804b058961.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/300c4fb2-0c40-4e4f-aa45-62804b058961",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5390,
+                "height": 8166,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/300c4fb2-0c40-4e4f-aa45-62804b058961",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/f5b8d616-d876-4029-957c-6d3fb80e422e.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 82 Kali]",
+          "width": 5486,
+          "height": 8238,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/f5b8d616-d876-4029-957c-6d3fb80e422e.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/f5b8d616-d876-4029-957c-6d3fb80e422e.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/f5b8d616-d876-4029-957c-6d3fb80e422e",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5486,
+                "height": 8238,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/f5b8d616-d876-4029-957c-6d3fb80e422e",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/89a9b8b7-4641-4cef-9578-fd4c06c27027.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 83 Siva begs food from Annapurna]",
+          "width": 5016,
+          "height": 8142,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/89a9b8b7-4641-4cef-9578-fd4c06c27027.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/89a9b8b7-4641-4cef-9578-fd4c06c27027.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/89a9b8b7-4641-4cef-9578-fd4c06c27027",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 5016,
+                "height": 8142,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/89a9b8b7-4641-4cef-9578-fd4c06c27027",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        },
+        {
+          "@id": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/03472cb2-32d3-4c65-b9b6-51119609baac.json",
+          "@type": "sc:Canvas",
+          "label": "[f. 83 Annapurna?]",
+          "width": 1000,
+          "height": 1500,
+          "images": [
+            {
+              "@id": "https://iiif.bodleian.ox.ac.uk/iiif/annotation/03472cb2-32d3-4c65-b9b6-51119609baac.json",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "on": "https://iiif.bodleian.ox.ac.uk/iiif/canvas/03472cb2-32d3-4c65-b9b6-51119609baac.json",
+              "resource": {
+                "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/03472cb2-32d3-4c65-b9b6-51119609baac",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "width": 1000,
+                "height": 1500,
+                "service": {
+                  "@id": "https://iiif.bodleian.ox.ac.uk/iiif/image/03472cb2-32d3-4c65-b9b6-51119609baac",
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              }
+            }
+          ],
+          "otherContent": []
+        }
+      ]
+    }
+  ]
+}

@@ -33,14 +33,9 @@
             .filter(Boolean);
     });
 
-    // Helper to get ID from annotation object
+    // Helper to get ID from a raw JSON annotation — `id` in v3, `@id` in v2.
     function getAnnotationId(anno: any): string {
-        return (
-            anno.id ||
-            anno['@id'] ||
-            (typeof anno.getId === 'function' ? anno.getId() : '') ||
-            ''
-        );
+        return anno.id || anno['@id'] || '';
     }
 
     function escapeAttributeValue(value: string): string {

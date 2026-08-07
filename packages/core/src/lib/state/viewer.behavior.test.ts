@@ -1,62 +1,192 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { collectionV3WithNavDates } from '../test/fixtures/manifests';
-import { ViewerState } from './viewer.svelte';
 import { manifestsState } from './manifests.svelte';
+import { ViewerState } from './viewer.svelte';
 
-vi.mock('./manifests.svelte', () => ({
-    manifestsState: {
-        fetchManifest: vi.fn(),
-        fetchResource: vi.fn(),
-        registerManifest: vi.fn(),
-        getManifest: vi.fn(),
-        getManifestEntry: vi.fn(),
-        getAnnotations: vi.fn(() => []),
-        getCanvases: vi.fn(() => []),
-        getSequenceCount: vi.fn(() => 0),
-    },
-}));
+/**
+ * `ViewerState`'s manifest-driven behavior through the epic's one seam — a real
+ * `ViewerState` loaded with raw manifest JSON, backed by the real manifest
+ * cache, with no mocks and no hand-built canvases (`remove-manifesto` SPEC →
+ * "The seam").
+ *
+ * This file used to `vi.mock` the whole manifest cache and feed it manifest
+ * doubles carrying `__jsonld`, `getBehavior` and `getSequences`, plus canvas
+ * doubles that were bare `{ id }` objects. It could not serve as an oracle for
+ * this epic: every assertion below about start canvas, viewing direction and
+ * viewing mode was really an assertion about the double's accessors, and the
+ * doubles would have kept passing against code that reads nothing at all from a
+ * real manifest (`remove-manifesto` ticket 08).
+ *
+ * Where a test loads by URL it stubs `fetch` and nothing else, so
+ * `setManifest`'s own collection detection, registration and fallback paths run
+ * for real.
+ */
+
+const CANVAS_1 = 'http://example.org/canvas/1';
+const CANVAS_2 = 'http://example.org/canvas/2';
+const CANVAS_3 = 'http://example.org/canvas/3';
+const CANVAS_4 = 'http://example.org/canvas/4';
+
+function v3Canvas(id: string, extra: Record<string, unknown> = {}) {
+    return {
+        id,
+        type: 'Canvas',
+        label: { en: [id] },
+        height: 1000,
+        width: 800,
+        ...extra,
+        items: [
+            {
+                id: `${id}/page`,
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        id: `${id}/annotation`,
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        target: id,
+                        body: {
+                            id: `${id}/image`,
+                            type: 'Image',
+                            format: 'image/jpeg',
+                        },
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+function v3Manifest(
+    id: string,
+    {
+        root = {},
+        canvases = [v3Canvas(CANVAS_1), v3Canvas(CANVAS_2)],
+    }: { root?: Record<string, unknown>; canvases?: unknown[] } = {},
+) {
+    return {
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        id,
+        type: 'Manifest',
+        label: { en: ['Behavior fixture'] },
+        ...root,
+        items: canvases,
+    };
+}
+
+function v2Canvas(id: string, extra: Record<string, unknown> = {}) {
+    return {
+        '@id': id,
+        '@type': 'sc:Canvas',
+        label: id,
+        height: 1000,
+        width: 800,
+        ...extra,
+        images: [
+            {
+                '@type': 'oa:Annotation',
+                motivation: 'sc:painting',
+                on: id,
+                resource: { '@id': `${id}/image`, '@type': 'dctypes:Image' },
+            },
+        ],
+    };
+}
+
+function v2Manifest(
+    id: string,
+    {
+        root = {},
+        sequence = {},
+        canvases = [v2Canvas(CANVAS_1), v2Canvas(CANVAS_2)],
+    }: {
+        root?: Record<string, unknown>;
+        sequence?: Record<string, unknown>;
+        canvases?: unknown[];
+    } = {},
+) {
+    return {
+        '@context': 'http://iiif.io/api/presentation/2/context.json',
+        '@id': id,
+        '@type': 'sc:Manifest',
+        label: 'Behavior fixture v2',
+        ...root,
+        sequences: [
+            {
+                '@id': `${id}/sequence/normal`,
+                '@type': 'sc:Sequence',
+                ...sequence,
+                canvases,
+            },
+        ],
+    };
+}
 
 describe('ViewerState manifest behavior', () => {
     let state: ViewerState;
+    const registeredIds: string[] = [];
+    const mockFetch = vi.fn();
 
     beforeEach(() => {
-        vi.resetAllMocks();
-        vi.mocked(manifestsState.getAnnotations).mockReturnValue([]);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue([]);
-        vi.mocked(manifestsState.getSequenceCount).mockReturnValue(0);
+        vi.stubGlobal('fetch', mockFetch);
+        mockFetch.mockReset();
         state = new ViewerState();
     });
 
     afterEach(() => {
+        for (const id of registeredIds.splice(0)) {
+            manifestsState.clearManifest(id);
+        }
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
+    /** Load raw manifest JSON into the real cache through the viewer. */
+    async function load(json: any): Promise<void> {
+        const id = json.id || json['@id'];
+        registeredIds.push(id);
+        await state.setManifestData(id, json);
+    }
+
+    /**
+     * Register raw manifest JSON in the real cache WITHOUT going through
+     * `setManifestData`, for the two tests that need a manifest present while
+     * canvas selection has not run yet.
+     */
+    async function register(json: any): Promise<string> {
+        const id = json.id || json['@id'];
+        registeredIds.push(id);
+        await manifestsState.registerManifest(id, json);
+        return id;
+    }
+
+    /** Serve IIIF resources by URL through the real fetch path. */
+    function serve(byUrl: Record<string, unknown>) {
+        for (const url of Object.keys(byUrl)) registeredIds.push(url);
+        mockFetch.mockImplementation(async (url: string) => {
+            const json = byUrl[url];
+            if (!json) return { ok: false, status: 404 };
+            return { ok: true, json: async () => structuredClone(json) };
+        });
+    }
+
     it('applies root manifest viewing direction when loading manifest data directly', async () => {
-        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
-        const manifest = {
-            __jsonld: {
-                start: { id: 'canvas-2' },
+        const id = 'http://example.org/manifest/root-scalars';
+        const json = v3Manifest(id, {
+            root: {
+                start: { id: CANVAS_2, type: 'Canvas' },
                 viewingDirection: 'top-to-bottom',
+                behavior: ['continuous'],
             },
-            getBehavior: () => ['continuous'],
-            getSequences: () => [
-                {
-                    __jsonld: {},
-                },
-            ],
-        };
+        });
 
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+        await load(json);
 
-        await state.setManifestData('manifest-1', { id: 'manifest-1' });
-
-        expect(manifestsState.registerManifest).toHaveBeenCalledWith(
-            'manifest-1',
-            { id: 'manifest-1' },
-        );
-        expect(state.startCanvasId).toBe('canvas-2');
+        // The manifest reached the real cache as the JSON it was handed.
+        expect(state.manifestId).toBe(id);
+        expect(manifestsState.getManifestEntry(id)?.json).toEqual(json);
+        expect(state.startCanvasId).toBe(CANVAS_2);
         expect(state.viewingDirection).toBe('top-to-bottom');
         expect(state.viewingMode).toBe('continuous');
     });
@@ -84,283 +214,194 @@ describe('ViewerState manifest behavior', () => {
     });
 
     it('falls back to the first sequence viewing direction when the manifest root omits it', async () => {
-        const manifest = {
-            __jsonld: {
-                start: { id: 'canvas-1' },
-            },
-            getBehavior: () => ['individuals'],
-            getSequences: () => [
-                {
-                    __jsonld: {
-                        viewingDirection: 'bottom-to-top',
-                    },
+        await load(
+            v2Manifest('http://example.org/manifest/sequence-direction', {
+                sequence: {
+                    startCanvas: CANVAS_1,
+                    viewingDirection: 'bottom-to-top',
                 },
-            ],
-        };
-
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue([
-            { id: 'canvas-1' },
-        ]);
-
-        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+            }),
+        );
 
         expect(state.viewingDirection).toBe('bottom-to-top');
     });
 
-    it('prefers raw manifest viewing direction over accessor defaults', async () => {
-        const manifest = {
-            __jsonld: {
-                viewingDirection: 'right-to-left',
-                behavior: ['individuals'],
-            },
-            getViewingDirection: () => 'left-to-right',
-            getBehavior: () => ['individuals'],
-            getSequences: () => [],
-        };
-
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue([
-            { id: 'canvas-1' },
-        ]);
-
-        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+    it('reads a right-to-left viewing direction from the manifest root', async () => {
+        await load(
+            v3Manifest('http://example.org/manifest/root-direction', {
+                root: {
+                    viewingDirection: 'right-to-left',
+                    behavior: ['individuals'],
+                },
+            }),
+        );
 
         expect(state.viewingDirection).toBe('right-to-left');
     });
 
-    it('uses raw manifest entry viewing direction for fetched v3 manifests', async () => {
-        const manifest = {
-            getViewingDirection: () => 'left-to-right',
-            getBehavior: () => ['individuals'],
-            getSequences: () => [],
-        };
-
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getManifestEntry).mockReturnValue({
-            json: {
-                id: 'manifest-1',
-                type: 'Manifest',
-                viewingDirection: 'right-to-left',
-            },
-            manifesto: manifest,
-            isFetching: false,
+    it('uses the manifest viewing direction for fetched v3 manifests', async () => {
+        const id = 'http://example.org/manifest/fetched-direction';
+        serve({
+            [id]: v3Manifest(id, {
+                root: {
+                    viewingDirection: 'right-to-left',
+                    behavior: ['individuals'],
+                },
+            }),
         });
-        vi.mocked(manifestsState.getCanvases).mockReturnValue([
-            { id: 'canvas-1' },
-        ]);
 
-        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+        await state.setManifest(id);
 
         expect(state.viewingDirection).toBe('right-to-left');
     });
 
     it('applies the manifest start canvas after fetch-based loading', async () => {
-        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
-        const manifest = {
-            __jsonld: {
-                start: { id: 'canvas-2', type: 'Canvas' },
-            },
-            getBehavior: () => ['individuals'],
-            getSequences: () => [
-                {
-                    __jsonld: {},
-                },
-            ],
-        };
-
-        vi.mocked(manifestsState.fetchResource).mockResolvedValue({
-            id: 'manifest-1',
-            type: 'Manifest',
+        const id = 'http://example.org/manifest/fetched-start';
+        serve({
+            [id]: v3Manifest(id, {
+                root: { start: { id: CANVAS_2, type: 'Canvas' } },
+            }),
         });
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
 
-        await state.setManifest('manifest-1');
+        await state.setManifest(id);
 
-        expect(state.startCanvasId).toBe('canvas-2');
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.startCanvasId).toBe(CANVAS_2);
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
     it('keeps a canvas requested before the manifest loads when the manifest contains it', async () => {
-        const canvases = [
-            { id: 'canvas-1' },
-            { id: 'canvas-2' },
-            { id: 'canvas-3' },
-        ];
-        const manifest = {
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
-        };
-
-        vi.mocked(manifestsState.fetchResource).mockResolvedValue({
-            id: 'manifest-1',
-            type: 'Manifest',
+        const id = 'http://example.org/manifest/pre-requested-fetch';
+        serve({
+            [id]: v3Manifest(id, {
+                canvases: [
+                    v3Canvas(CANVAS_1),
+                    v3Canvas(CANVAS_2),
+                    v3Canvas(CANVAS_3),
+                ],
+            }),
         });
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
 
         // Consumer requests a canvas while the manifest is still loading
-        state.setCanvas('canvas-2');
-        await state.setManifest('manifest-1');
+        state.setCanvas(CANVAS_2);
+        await state.setManifest(id);
 
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
     it('keeps a pre-requested canvas when loading manifest data directly', async () => {
-        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
-        const manifest = {
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
-        };
+        state.setCanvas(CANVAS_2);
+        await load(
+            v3Manifest('http://example.org/manifest/pre-requested-data'),
+        );
 
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
-
-        state.setCanvas('canvas-2');
-        await state.setManifestData('manifest-1', { id: 'manifest-1' });
-
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
     it('keeps a pre-requested canvas when the manifest loads via the fetch fallback', async () => {
-        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
-        const manifest = {
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
-        };
+        const id = 'http://example.org/manifest/pre-requested-fallback';
+        // The Collection probe fails; `setManifest` falls back to fetching the
+        // manifest itself, which succeeds.
+        mockFetch.mockRejectedValueOnce(new Error('network error'));
+        serve({ [id]: v3Manifest(id) });
 
-        vi.mocked(manifestsState.fetchResource).mockRejectedValue(
-            new Error('network error'),
-        );
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+        state.setCanvas(CANVAS_2);
+        await state.setManifest(id);
 
-        state.setCanvas('canvas-2');
-        await state.setManifest('manifest-1');
-
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
     it('keeps a pre-requested canvas when a collection auto-loads its first manifest', async () => {
-        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
-        const manifest = {
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
-        };
+        serve({
+            'http://example.org/collection/navdate': collectionV3WithNavDates,
+            'http://example.org/manifest/1986': v3Manifest(
+                'http://example.org/manifest/1986',
+            ),
+        });
 
-        vi.mocked(manifestsState.fetchResource).mockResolvedValue(
-            collectionV3WithNavDates,
-        );
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
-
-        state.setCanvas('canvas-2');
+        state.setCanvas(CANVAS_2);
         await state.setManifest('http://example.org/collection/navdate');
 
         expect(state.manifestId).toBe('http://example.org/manifest/1986');
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
     it('selects the canvas requested via setManifest options over the current one', async () => {
-        const canvases = [
-            { id: 'canvas-1' },
-            { id: 'canvas-2' },
-            { id: 'canvas-3' },
-        ];
-        const manifest = {
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
-        };
-
-        vi.mocked(manifestsState.fetchResource).mockResolvedValue({
-            id: 'manifest-2',
-            type: 'Manifest',
+        const id = 'http://example.org/manifest/requested-canvas';
+        serve({
+            [id]: v3Manifest(id, {
+                canvases: [
+                    v3Canvas(CANVAS_1),
+                    v3Canvas(CANVAS_2),
+                    v3Canvas(CANVAS_3),
+                ],
+            }),
         });
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
 
         // Simulates switching manifests with a target canvas: the previous
         // canvas is stale, the requested one must win over the first canvas.
         state.canvasId = 'stale-canvas-from-previous-manifest';
-        await state.setManifest('manifest-2', { canvasId: 'canvas-3' });
+        await state.setManifest(id, { canvasId: CANVAS_3 });
 
-        expect(state.canvasId).toBe('canvas-3');
+        expect(state.canvasId).toBe(CANVAS_3);
     });
 
     it('honors the requested canvas when the manifest id resolves to a collection', async () => {
-        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
-        const manifest = {
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
-        };
-
-        vi.mocked(manifestsState.fetchResource).mockResolvedValue(
-            collectionV3WithNavDates,
-        );
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
-
-        await state.setManifest('http://example.org/collection/navdate', {
-            canvasId: 'canvas-2',
+        serve({
+            'http://example.org/collection/navdate': collectionV3WithNavDates,
+            'http://example.org/manifest/1986': v3Manifest(
+                'http://example.org/manifest/1986',
+            ),
         });
 
-        expect(state.canvasId).toBe('canvas-2');
+        await state.setManifest('http://example.org/collection/navdate', {
+            canvasId: CANVAS_2,
+        });
+
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
     it('honors the requested canvas when the manifest loads via the fetch fallback', async () => {
-        const canvases = [{ id: 'canvas-1' }, { id: 'canvas-2' }];
-        const manifest = {
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
-        };
+        const id = 'http://example.org/manifest/requested-fallback';
+        mockFetch.mockRejectedValueOnce(new Error('network error'));
+        serve({ [id]: v3Manifest(id) });
 
-        vi.mocked(manifestsState.fetchResource).mockRejectedValue(
-            new Error('network error'),
-        );
-        vi.mocked(manifestsState.getManifest).mockReturnValue(manifest);
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
+        await state.setManifest(id, { canvasId: CANVAS_2 });
 
-        await state.setManifest('manifest-1', { canvasId: 'canvas-2' });
-
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
-    it('navigates paged spreads around non-paged canvases', () => {
-        const canvases = [
-            { id: 'canvas-1' },
-            { id: 'canvas-2', behavior: ['non-paged'] },
-            { id: 'canvas-3' },
-            { id: 'canvas-4' },
-        ];
+    it('navigates paged spreads around non-paged canvases', async () => {
+        await load(
+            v3Manifest('http://example.org/manifest/paged', {
+                canvases: [
+                    v3Canvas(CANVAS_1),
+                    v3Canvas(CANVAS_2, { behavior: ['non-paged'] }),
+                    v3Canvas(CANVAS_3),
+                    v3Canvas(CANVAS_4),
+                ],
+            }),
+        );
 
-        vi.mocked(manifestsState.getCanvases).mockReturnValue(canvases);
-
-        state.manifestId = 'manifest-1';
         state.viewingMode = 'paged';
-        state.canvasId = 'canvas-1';
+        state.canvasId = CANVAS_1;
 
         state.nextCanvas();
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
 
         state.nextCanvas();
-        expect(state.canvasId).toBe('canvas-3');
+        expect(state.canvasId).toBe(CANVAS_3);
 
         state.previousCanvas();
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
     });
 
     it('auto-loads the earliest manifest when opening a chronology collection', async () => {
-        vi.mocked(manifestsState.fetchResource).mockResolvedValue(
-            collectionV3WithNavDates,
-        );
+        serve({
+            'http://example.org/collection/navdate': collectionV3WithNavDates,
+            'http://example.org/manifest/1986': v3Manifest(
+                'http://example.org/manifest/1986',
+            ),
+        });
 
         await state.setManifest('http://example.org/collection/navdate');
 
@@ -370,50 +411,69 @@ describe('ViewerState manifest behavior', () => {
             'http://example.org/collection/subcollection',
             'http://example.org/manifest/undated',
         ]);
-        expect(manifestsState.fetchManifest).toHaveBeenCalledWith(
+        expect(mockFetch).toHaveBeenCalledWith(
             'http://example.org/manifest/1986',
-            undefined,
+            { headers: undefined, credentials: 'same-origin' },
         );
         expect(state.manifestId).toBe('http://example.org/manifest/1986');
     });
 
-    it('does not report a current canvas index until a canvas is selected', () => {
-        vi.mocked(manifestsState.getCanvases).mockReturnValue([
-            { id: 'canvas-1' },
-            { id: 'canvas-2' },
-        ]);
-
-        state.manifestId = 'manifest-1';
+    it('does not report a current canvas index until a canvas is selected', async () => {
+        state.manifestId = await register(
+            v3Manifest('http://example.org/manifest/no-selection'),
+        );
 
         expect(state.currentCanvasIndex).toBe(-1);
         expect(state.hasNext).toBe(false);
         expect(state.hasPrevious).toBe(false);
     });
 
-    it('repairs stale initial canvas selection to the first available canvas', () => {
-        vi.mocked(manifestsState.getCanvases).mockReturnValue([
-            { id: 'canvas-1' },
-            { id: 'canvas-2' },
-        ]);
-
-        state.manifestId = 'manifest-1';
+    it('repairs stale initial canvas selection to the first available canvas', async () => {
+        state.manifestId = await register(
+            v3Manifest('http://example.org/manifest/stale-selection'),
+        );
         state.canvasId = 'stale-canvas';
 
         (state as any).ensureInitialCanvasSelection();
 
-        expect(state.canvasId).toBe('canvas-1');
+        expect(state.canvasId).toBe(CANVAS_1);
         expect(state.currentCanvasIndex).toBe(0);
     });
 
-    it('keeps annotations hidden by default and shows manifest annotations when the panel opens', () => {
-        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
-            { id: 'anno-1' },
-            { '@id': 'anno-2' },
-        ]);
+    /**
+     * Manifest annotations, read from raw canvas JSON by the real cache. The
+     * two spellings are both exercised on purpose: IIIF v3 puts inline
+     * annotations in an `AnnotationPage`'s `items` under `annotations`, and
+     * IIIF v2 puts them in an AnnotationList's `resources` under `otherContent`
+     * with `@id` rather than `id`.
+     */
+    function annotatedManifest(
+        id: string,
+        annotationsByCanvas: Record<string, unknown[]>,
+    ) {
+        return v2Manifest(id, {
+            canvases: Object.entries(annotationsByCanvas).map(
+                ([canvasId, resources]) =>
+                    v2Canvas(canvasId, {
+                        otherContent: [
+                            {
+                                '@id': `${canvasId}/list`,
+                                '@type': 'sc:AnnotationList',
+                                resources,
+                            },
+                        ],
+                    }),
+            ),
+        });
+    }
 
-        state.manifestId = 'manifest-1';
-        state.canvasId = 'canvas-1';
-        state.searchAnnotations = [{ id: 'search-1', canvasId: 'canvas-1' }];
+    it('keeps annotations hidden by default and shows manifest annotations when the panel opens', async () => {
+        await load(
+            annotatedManifest('http://example.org/manifest/annotations-open', {
+                [CANVAS_1]: [{ id: 'anno-1' }, { '@id': 'anno-2' }],
+            }),
+        );
+        state.searchAnnotations = [{ id: 'search-1', canvasId: CANVAS_1 }];
 
         expect(state.showAnnotations).toBe(false);
         expect([...state.visibleAnnotationIds]).toEqual([]);
@@ -424,14 +484,13 @@ describe('ViewerState manifest behavior', () => {
         expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
     });
 
-    it('restores all manifest annotations after closing and reopening the panel', () => {
-        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
-            { id: 'anno-1' },
-            { id: 'anno-2' },
-        ]);
-
-        state.manifestId = 'manifest-1';
-        state.canvasId = 'canvas-1';
+    it('restores all manifest annotations after closing and reopening the panel', async () => {
+        await load(
+            annotatedManifest(
+                'http://example.org/manifest/annotations-restore',
+                { [CANVAS_1]: [{ id: 'anno-1' }, { id: 'anno-2' }] },
+            ),
+        );
 
         state.toggleAnnotations();
         state.visibleAnnotationIds.delete('anno-2');
@@ -450,14 +509,15 @@ describe('ViewerState manifest behavior', () => {
         expect(state.annotationVisibilityTouched).toBe(false);
     });
 
-    it('only resets visibility on config-driven annotation open and close transitions', () => {
-        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
-            { id: 'anno-1' },
-            { id: 'anno-2' },
-        ]);
-
-        state.manifestId = 'manifest-1';
-        state.canvasId = 'canvas-1';
+    it('only resets visibility on config-driven annotation open and close transitions', async () => {
+        await load(
+            annotatedManifest(
+                'http://example.org/manifest/annotations-config',
+                {
+                    [CANVAS_1]: [{ id: 'anno-1' }, { id: 'anno-2' }],
+                },
+            ),
+        );
 
         state.updateConfig({ annotations: { open: true } });
 
@@ -483,30 +543,24 @@ describe('ViewerState manifest behavior', () => {
         expect([...state.visibleAnnotationIds]).toEqual(['anno-1', 'anno-2']);
     });
 
-    it('clears manual visibility when the canvas changes while the panel is open', () => {
-        vi.mocked(manifestsState.getAnnotations).mockImplementation(
-            (_manifestId, canvasId) => {
-                if (canvasId === 'canvas-1') {
-                    return [{ id: 'anno-1' }, { id: 'anno-2' }];
-                }
-
-                if (canvasId === 'canvas-2') {
-                    return [{ id: 'anno-3' }];
-                }
-
-                return [];
-            },
+    it('clears manual visibility when the canvas changes while the panel is open', async () => {
+        await load(
+            annotatedManifest(
+                'http://example.org/manifest/annotations-canvas-change',
+                {
+                    [CANVAS_1]: [{ id: 'anno-1' }, { id: 'anno-2' }],
+                    [CANVAS_2]: [{ id: 'anno-3' }],
+                },
+            ),
         );
 
-        state.manifestId = 'manifest-1';
-        state.canvasId = 'canvas-1';
         state.toggleAnnotations();
         state.visibleAnnotationIds.delete('anno-2');
         state.annotationVisibilityTouched = true;
 
-        state.setCanvas('canvas-2');
+        state.setCanvas(CANVAS_2);
 
-        expect(state.canvasId).toBe('canvas-2');
+        expect(state.canvasId).toBe(CANVAS_2);
         expect([...state.visibleAnnotationIds]).toEqual([]);
         expect(state.annotationVisibilityTouched).toBe(false);
     });
@@ -531,14 +585,12 @@ describe('ViewerState manifest behavior', () => {
         expect(state.annotationVisibilityTouched).toBe(true);
     });
 
-    it('setAllAnnotationsVisible(true) shows every current-canvas annotation', () => {
-        vi.mocked(manifestsState.getAnnotations).mockReturnValue([
-            { id: 'anno-1' },
-            { '@id': 'anno-2' },
-        ]);
-
-        state.manifestId = 'manifest-1';
-        state.canvasId = 'canvas-1';
+    it('setAllAnnotationsVisible(true) shows every current-canvas annotation', async () => {
+        await load(
+            annotatedManifest('http://example.org/manifest/annotations-all', {
+                [CANVAS_1]: [{ id: 'anno-1' }, { '@id': 'anno-2' }],
+            }),
+        );
 
         state.setAllAnnotationsVisible(true);
 
@@ -546,9 +598,12 @@ describe('ViewerState manifest behavior', () => {
         expect(state.annotationVisibilityTouched).toBe(true);
     });
 
-    it('setAllAnnotationsVisible(false) hides all annotations', () => {
-        state.manifestId = 'manifest-1';
-        state.canvasId = 'canvas-1';
+    it('setAllAnnotationsVisible(false) hides all annotations', async () => {
+        await load(
+            annotatedManifest('http://example.org/manifest/annotations-none', {
+                [CANVAS_1]: [{ id: 'anno-1' }],
+            }),
+        );
         state.setAnnotationVisible('anno-1', true);
 
         state.setAllAnnotationsVisible(false);
