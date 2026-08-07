@@ -331,3 +331,70 @@ export function getChoiceAlternatives(body: any): any[] {
         ...asArray(body.items || body.item),
     ].filter((alternative) => !!alternative);
 }
+
+/**
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export function getCanvasChoices(canvas: any) {
+    if (!canvas) return [];
+
+    const images = getPaintingAnnotations(canvas);
+
+    if (!images || !images.length) return [];
+
+    for (const paintingAnno of images) {
+        if (!paintingAnno) continue;
+
+        // v3 spells the painting body `body`, v2 spells it `resource`, and the
+        // Choice inside it is `Choice`/`items` in v3 and `oa:Choice`/`default`
+        // + `item` in v2. Reading only the v3 half meant a v2 Choice canvas
+        // offered no alternatives at all.
+        const body = getPaintingBody(paintingAnno);
+
+        if (!isChoiceBody(body)) continue;
+
+        // Always an array, even when the manifest wrote `items` as a bare
+        // object: the caller reads `.length`, so returning the object itself
+        // dropped the choice group silently.
+        const alternatives = getChoiceAlternatives(body);
+        if (alternatives.length) {
+            return alternatives;
+        }
+    }
+
+    return [];
+}
+
+/**
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export function getCanvasBehaviors(canvas: any): string[] {
+    // IIIF v3 ONLY. `behavior` is the v3 spelling; the v2 spelling on a Canvas
+    // is `viewingHint`, and it has never been read here.
+    //
+    // The rung deleted below was `canvas.getBehavior()`, which was dead from
+    // the day it was written rather than dead as of this epic: `manifesto.js`
+    // put `getBehavior` on Range, Collection and Manifest, never on Canvas. So
+    // its removal is NOT evidence that the v2 case is covered — it never was.
+    //
+    // The gap is user-visible. `isSinglePageCanvas` below looks for
+    // `non-paged`/`facing-pages`, which is exactly what a v2 manifest writes as
+    // `"viewingHint": "non-paged"` on a canvas, so a v2 book declaring a
+    // single-page plate still gets paired into a spread. Adding the v2 read is
+    // a behavior change and therefore out of scope for a cleanup ticket
+    // (`.tracker/remove-manifesto`, ticket 10 → "Out of scope"); it is raised
+    // as a finding instead.
+    const raw = canvas?.behavior || [];
+
+    if (!raw) return [];
+    const behaviors = Array.isArray(raw) ? raw : [raw];
+    return behaviors.map((value) => {
+        const normalized = String(value).trim().toLowerCase();
+        const segments = normalized.split(/[#/:]/);
+        return segments[segments.length - 1] || normalized;
+    });
+}

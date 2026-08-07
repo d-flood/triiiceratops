@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { manifestsState } from './manifests.svelte';
 import { ViewerState } from './viewer.svelte';
-import { getCanvasChoices } from '../components/viewerControls';
+import { getCanvasChoices } from '../utils/iiifParsing';
 import { syntheticManifestCorpus } from '../test/fixtures/syntheticManifests';
 import { getCanvasLabel } from '../utils/canvasLabels';
 import { isCollection, parseCollection } from '../utils/collections';

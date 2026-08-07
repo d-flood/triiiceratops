@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { getCanvasBehaviors, getCanvasChoices } from '../utils/iiifParsing';
 import {
-    getCanvasBehaviors,
     getCanvasNavLayout,
-    getCanvasChoices,
     getPagedCanvasGroups,
     getVisibleCanvasEntries,
     getVisibleChoiceGroups,

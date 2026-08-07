@@ -255,8 +255,6 @@ type VisibleChoiceGroupArgs = {
     getSelectedChoice: (canvasId: string) => string | undefined;
 };
 export { getCanvasId };
-export declare function getCanvasChoices(canvas: any): any[];
-export declare function getCanvasBehaviors(canvas: any): string[];
 export declare function getPagedCanvasGroups(canvases: any[], pagedOffset: number): PagedCanvasGroup[];
 export declare function getVisibleCanvasEntries({ canvases, currentCanvasId, currentCanvasIndex, viewingMode, pagedOffset, }: Omit<VisibleChoiceGroupArgs, 'viewingDirection' | 'getSelectedChoice'>): VisibleCanvasEntry[];
 export declare function getVisibleChoiceGroups({ canvases, currentCanvasId, currentCanvasIndex, viewingMode, pagedOffset, viewingDirection, getSelectedChoice, }: VisibleChoiceGroupArgs): ChoiceGroup[];
@@ -4216,6 +4214,18 @@ export declare function isChoiceBody(body: any): boolean;
  * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function getChoiceAlternatives(body: any): any[];
+/**
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getCanvasChoices(canvas: any): any[];
+/**
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function getCanvasBehaviors(canvas: any): string[];
 
 // ======================================================================
 // FILE: dist/utils/imageExport.d.ts

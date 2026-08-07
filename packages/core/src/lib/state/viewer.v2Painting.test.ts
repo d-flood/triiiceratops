@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { manifestsState } from './manifests.svelte';
 import { ViewerState } from './viewer.svelte';
-import { getCanvasChoices } from '../components/viewerControls';
+import { getCanvasChoices } from '../utils/iiifParsing';
 import {
     syntheticV2Choice,
     syntheticV2MultipleSequences,
