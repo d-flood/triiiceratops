@@ -176,7 +176,16 @@ export function getCanvasesForSequence(manifest: any, index: number): any[] {
  * resource's `items` — no caller can currently do so, but it is not defended
  * against.
  *
- * Internal for now — deliberately not exported from core's public entry point.
+ * **Public API**, from `triiiceratops` and `triiiceratops/image-export`. It is
+ * the supported way to enumerate a canvas's images: without it an integrator
+ * has no route to them and reimplements the removed `canvas.getContent()` /
+ * `canvas.getImages()` idiom, which now returns nothing at all, silently
+ * (SPEC → "The parsing surface").
+ *
+ * The annotations it returns are raw JSON. **A v2 annotation carries its image
+ * under `resource` and a v3 one under `body`** — read both spellings, or use
+ * `resolveCanvasImage` / `resolveAllCanvasImages` from
+ * `triiiceratops/image-export` to go straight to resolved image URLs.
  */
 export function getPaintingAnnotations(canvas: any): any[] {
     if (!canvas) return [];

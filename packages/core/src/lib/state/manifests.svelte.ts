@@ -7,11 +7,15 @@ import {
     getSequenceCount as countSequences,
 } from '../utils/iiifParsing';
 import { logger } from '../logging/logger';
-import { loadManifestoModule } from './manifestoRuntime';
 
+/**
+ * One manifest's entry in the cache: the **raw JSON as fetched**, the fetch
+ * error if there was one, and whether a fetch is in flight. Nothing here is
+ * parsed or wrapped — the cache holds the document, and the first-party
+ * enumerators in `utils/iiifParsing` read it.
+ */
 export interface ManifestEntry {
     json?: any;
-    manifesto?: any;
     error?: any;
     isFetching?: boolean;
 }
@@ -20,12 +24,23 @@ export class ManifestsState {
     manifests: Record<string, ManifestEntry> = $state({});
     private pendingFetches = new SvelteMap<string, Promise<void>>();
 
+    /**
+     * Store a manifest's raw JSON under its id.
+     *
+     * **A pure store.** It does not parse, validate, or walk the document, and
+     * therefore cannot throw. That is a behavior requirement, not an aesthetic
+     * one: this is reached from the public `setManifestData`, which has no
+     * `try`/`catch`, so a throw here would skip the manifest-id assignment, the
+     * ready marking, and the change event — leaving the viewer half-initialized
+     * (SPEC → "Failure contract"). Reading the document is every enumerator's
+     * job, and each of them is total.
+     *
+     * `async` is vestigial — the parse it awaited is gone — but the
+     * `Promise<void>` signature is public and is kept deliberately.
+     */
     async registerManifest(manifestId: string, json: any): Promise<void> {
-        const manifestoModule = await loadManifestoModule();
-        const manifestoObject = manifestoModule.parseManifest(json);
         this.manifests[manifestId] = {
             json,
-            manifesto: manifestoObject,
             isFetching: false,
         };
     }
@@ -49,7 +64,7 @@ export class ManifestsState {
             await this.pendingFetches.get(manifestId);
             return;
         }
-        if (existing && (existing.json || existing.manifesto)) {
+        if (existing?.json) {
             return; // Already fetched or fetching
         }
 
@@ -75,11 +90,6 @@ export class ManifestsState {
 
     clearManifest(manifestId: string): void {
         delete this.manifests[manifestId];
-    }
-
-    getManifest(manifestId: string) {
-        const entry = this.manifests[manifestId];
-        return entry?.manifesto;
     }
 
     getManifestEntry(manifestId: string): ManifestEntry | undefined {
@@ -326,7 +336,6 @@ export class ManifestsState {
         return this.manualGetAnnotations(manifestId, canvasId, sourceId);
     }
 
-    // We can refactor this to use Manifesto's resource handling later if needed.
     manualGetAnnotations(
         manifestId: string,
         canvasId: string,

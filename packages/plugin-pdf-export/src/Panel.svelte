@@ -24,7 +24,10 @@
 
     import { Button, Select } from '@triiiceratops/ui';
 
-    import { getCanvasLabel } from 'triiiceratops/image-export';
+    import {
+        getCanvasLabel,
+        resolveLanguageValue,
+    } from 'triiiceratops/image-export';
     import {
         exportCanvasRangeAsPdf,
         normalizeCanvasRange,
@@ -235,8 +238,13 @@
         const messages = buildMessages();
 
         try {
-            const manifest = viewerState.manifest;
-            const manifestLabel = manifest?.getLabel()?.[0]?.value || null;
+            // Raw IIIF Manifest JSON. This used to read `manifesto.js`'s
+            // `getLabel()`; the manifest cache holds only the document now, and
+            // `label` is spelled the same in v2 and v3 (the value shapes
+            // differ, which `resolveLanguageValue` absorbs).
+            const manifestJson = viewerState.manifestEntry?.json;
+            const manifestLabel =
+                resolveLanguageValue(manifestJson?.label) || null;
 
             const result = await exportCanvasRangeAsPdf({
                 canvases,

@@ -136,8 +136,11 @@ function parseV2Range(
 }
 
 /**
- * Parse structures from a manifesto manifest object.
- * Returns an array of top-level StructureNodes (the TOC tree).
+ * Parse a manifest's `structures` into the TOC tree.
+ *
+ * Takes **raw IIIF Manifest JSON**, v2 or v3 as authored; both Range spellings
+ * are handled below. (The `__jsonld` unwrap is a dead rung left for ticket 10.)
+ * Returns an array of top-level StructureNodes.
  */
 export function parseStructures(manifest: any): StructureNode[] {
     if (!manifest) return [];

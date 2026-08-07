@@ -16,7 +16,6 @@ vi.mock('./manifests.svelte', () => ({
         fetchManifest: vi.fn(),
         fetchResource: vi.fn(),
         registerManifest: vi.fn(),
-        getManifest: vi.fn(),
         getManifestEntry: vi.fn(),
         getAnnotations: vi.fn(() => []),
         getCanvases: vi.fn(() => []),
@@ -32,8 +31,8 @@ vi.mock('./manifests.svelte', () => ({
  *    (Svelte compiles every `$state` field, plus hand-written get/set pairs,
  *    into prototype accessors).
  *
- * Getter-only accessors (query getters like `manifest`, `hasNext`) and methods
- * are intentionally excluded: they are not mutable members.
+ * Getter-only accessors (query getters like `manifestEntry`, `hasNext`) and
+ * methods are intentionally excluded: they are not mutable members.
  */
 function getMutableMembers(instance: object): Set<string> {
     const members = new Set<string>();
@@ -222,9 +221,6 @@ function resetManifestMocks(): void {
     vi.mocked(manifestsState.fetchManifest).mockReset();
     vi.mocked(manifestsState.fetchResource).mockReset();
     vi.mocked(manifestsState.registerManifest).mockReset();
-    vi.mocked(manifestsState.getManifest)
-        .mockReset()
-        .mockReturnValue(undefined);
     vi.mocked(manifestsState.getManifestEntry)
         .mockReset()
         .mockReturnValue(undefined);

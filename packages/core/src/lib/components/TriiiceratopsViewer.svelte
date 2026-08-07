@@ -1209,7 +1209,7 @@
             manifestData &&
             !manifestData.isFetching &&
             !manifestData.error &&
-            manifestData.manifesto
+            manifestData.json
         ) {
             const query = internalViewerState.pendingSearchQuery;
             internalViewerState.pendingSearchQuery = null;

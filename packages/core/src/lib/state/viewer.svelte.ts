@@ -531,11 +531,15 @@ export class ViewerState {
         }
     }
 
-    get manifest() {
-        if (!this.manifestId) return null;
-        return manifestsState.getManifest(this.manifestId);
-    }
-
+    /**
+     * The active manifest's cache entry — `{ json, error, isFetching }`.
+     *
+     * `json` is the **raw IIIF Manifest JSON as fetched**, v2 or v3 as the
+     * publisher authored it. This replaced the removed `manifest` getter, which
+     * handed out a `manifesto.js` object; there is deliberately no same-named
+     * accessor returning raw JSON in its place, so a consumer that used it
+     * fails at build time rather than at runtime.
+     */
     get manifestEntry() {
         if (!this.manifestId) return null;
         return manifestsState.getManifestEntry(this.manifestId);
@@ -854,7 +858,13 @@ export class ViewerState {
      * Apply manifest-level settings (start canvas, viewing direction, behavior).
      */
     private _applyManifestSettings(manifestId: string) {
-        const manifest = manifestsState.getManifest(manifestId);
+        // `manifesto.js` is gone, so every `manifest?.…` rung below is dead.
+        // They are left standing on purpose: this ticket removes the library and
+        // its two public members (behavior), and ticket 10 deletes the ~98 dead
+        // branches (cleanup). Keeping them apart keeps both diffs readable, and
+        // the reduction is not mechanical — see
+        // `.tracker/remove-manifesto`, ticket 09 → "Out of scope".
+        const manifest: any = undefined;
         const rawManifest = manifestsState.getManifestEntry(manifestId)?.json;
         if (!manifest && !rawManifest) return;
 
@@ -1325,9 +1335,14 @@ export class ViewerState {
      * Returns an empty array if no structures exist.
      */
     get structures(): StructureNode[] {
-        const manifest = this.manifest;
-        if (!manifest) return [];
-        return parseStructures(manifest);
+        // Raw manifest JSON. `parseStructures` reads `structures` off the
+        // document itself and handles both the v2 (`sc:Range`) and the v3
+        // (`Range`) spelling, so this is a plain-JSON read for both versions —
+        // not a branch deletion (SPEC → "The governing rule for the whole
+        // epic").
+        const manifestJson = this.manifestEntry?.json;
+        if (!manifestJson) return [];
+        return parseStructures(manifestJson);
     }
 
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {
@@ -1451,9 +1466,8 @@ export class ViewerState {
         this.searchResults = [];
 
         try {
-            const manifest = this.manifest;
             const manifestJson = this.manifestEntry?.json;
-            if (!manifest && !manifestJson) {
+            if (!manifestJson) {
                 // Defer search until manifest is loaded
                 logger.debug('Manifest not loaded, deferring search:', query);
                 this.pendingSearchQuery = query;
@@ -1463,7 +1477,7 @@ export class ViewerState {
             if (this.searchProvider && this.manifestId) {
                 this.searchResults = await this.searchProvider(query, {
                     manifestId: this.manifestId,
-                    manifest,
+                    manifestJson,
                     canvases: this.canvases,
                     canvasId: this.canvasId,
                 });

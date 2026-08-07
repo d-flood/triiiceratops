@@ -17,7 +17,17 @@ export interface SearchResultGroup {
 
 export interface SearchProviderContext {
     manifestId: string;
-    manifest: any;
+    /**
+     * The active manifest as **raw IIIF Manifest JSON** — v2 or v3 as the
+     * publisher authored it.
+     *
+     * Renamed from `manifest`, which handed out a `manifesto.js` object. The
+     * name changed with the value on purpose: keeping `manifest` would have
+     * left an identical name and an identical `any` type over a completely
+     * different object, which no compiler, linter or API report can see.
+     */
+    manifestJson: any;
+    /** The active sequence's canvases, as raw IIIF Canvas JSON. */
     canvases: any[];
     canvasId: string | null;
 }
