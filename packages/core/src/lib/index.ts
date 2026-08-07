@@ -87,6 +87,23 @@ export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 // rather than re-implement it.
 export { createPluginSurface } from './plugin/surface';
 
+// IIIF reading surface.
+//
+// **The canvas contract.** Every canvas the viewer hands out — `viewerState.
+// canvases`, `ViewerState.getCanvases()`, and every canvas passed to a plugin —
+// is **raw IIIF Canvas JSON, v2 or v3 exactly as the manifest authored it**.
+// There is no wrapper object and there are no accessor methods. A v2 canvas
+// spells its identifier `@id` and its images `images[]`; a v3 canvas spells them
+// `id` and `items[]`. All of it is typed `any`, so TypeScript will not tell you
+// which one you are holding.
+//
+// Rather than branch on version, read them with core's version-neutral helpers:
+// `getPaintingAnnotations` below, and `getCanvasId`, `getCanvasLabel`,
+// `getThumbnailSrc`, `resolveCanvasImage`, and `resolveAllCanvasImages` from
+// `triiiceratops/image-export`. The manifest itself is available as raw JSON
+// through `viewerState.manifestEntry?.json`.
+export { getPaintingAnnotations } from './utils/iiifParsing';
+
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';
 

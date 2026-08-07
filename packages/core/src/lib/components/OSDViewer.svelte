@@ -274,13 +274,8 @@
         const canvas = viewerState
             .getCanvases(viewerState.manifestId)
             .find((entry: any) => {
-                const id =
-                    entry?.id ||
-                    entry?.['@id'] ||
-                    entry?.__jsonld?.id ||
-                    entry?.__jsonld?.['@id'] ||
-                    entry?.getCanvasId?.() ||
-                    entry?.getId?.();
+                // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
+                const id = entry?.id || entry?.['@id'];
                 return id === viewerState.canvasId;
             });
 

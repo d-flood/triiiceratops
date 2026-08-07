@@ -1,0 +1,272 @@
+# Behavioral baseline — BROAD TIER
+#
+# Frozen by `remove-manifesto` ticket 04 while `manifesto.js` was still
+# installed, and RE-BASELINED once after tickets 05, 06 and 07 landed — a
+# deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
+# by `src/lib/state/viewer.baseline.test.ts`; do not edit by hand. Every record
+# is observed on a real `ViewerState` loaded with raw manifest JSON through
+# `setManifestData`, backed by the real manifest cache, with no mocks and no
+# hand-built canvases.
+#
+# The baseline is a DETECTOR, not a contract. Parsing may be better than the
+# baseline; it need not be mechanically identical, and a move that improves
+# parsing is accepted rather than engineered around. What survives is the
+# discipline that made the baseline worth having: every moved record gets an
+# explanation naming what changed and why the new value is right, because
+# improvement and regression look identical in a diff until someone reads them.
+# A move nobody can explain stays a blocker until someone can. Losses are
+# scrutinized harder than gains — gaining a value is cheap to verify, losing one
+# is the thing that ships unnoticed.
+#
+# MOVES ACCEPTED AT THE RE-BASELINE (this file):
+#   - `synthetic/v2 oa:Choice painting annotation` went withPainting=1 -> 2,
+#     withoutPainting=1 -> 0, withChoice=0 -> 1. Ticket 06 taught the enumerator
+#     the v2 spelling of Choice (`resource.default` + `resource.item[]`), so the
+#     choice-bearing canvas now offers its alternatives and renders one instead
+#     of rendering nothing.
+#   - `synthetic/v2 sequences as a bare object` went canvases=0 sequences=0 ->
+#     canvases=2 sequences=1. Ticket 07 guards every array access (SPEC,
+#     "Failure contract"), so a `sequences` written as a bare object degrades to
+#     a one-element list instead of enumerating nothing.
+#   - All four Collections stopped throwing and now record a zero summary.
+#     Ticket 07's totality contract: a Collection has members, not sequences, so
+#     it has no canvases — which is an answer, not a TypeError.
+#
+# HOW TO READ A DIFF
+#   Each manifest gets one six-field record. The dominant failure mode of this
+#   epic is the silent empty result, and it reads here as `withPainting=154`
+#   becoming `withPainting=0` — the viewer would render blank pages and log at
+#   debug level.
+#
+#     canvases         canvases enumerated, summed over EVERY sequence
+#     withPainting     of those, the ones the viewer resolved >=1 image for
+#     withoutPainting  canvases - withPainting
+#     withChoice       canvases offering Choice alternatives
+#     sequences        sequence count
+#     structureNodes   top-level structure (range) nodes
+#
+#   THESE SIX FIELDS ARE A CONTRACT. Adding one churns every record in this file
+#   and destroys comparability with earlier goldens. Doing it is a deliberate,
+#   separately-reviewed re-baseline — never a side effect of another ticket. The
+#   re-baseline deliberately did NOT add a seventh field here: the per-canvas
+#   painting-annotation count it needed went to the deep tier, whose per-canvas
+#   fields are not a contract.
+#
+#   `withPainting` is "the viewer resolved an image", not "the canvas has a
+#   painting annotation". They differ on time-based and unresolvable media, and
+#   this file cannot tell the two apart. The deep tier's `paintingAnnotations=`
+#   is where enumeration itself is pinned.
+#
+#   `canvases` SUMS ACROSS SEQUENCES, and the sum can exceed the number of
+#   distinct canvases in the manifest. Two shapes make it read oddly and neither
+#   is breakage:
+#     - a sequence that enumerates nothing still counts as a sequence.
+#       `vendored/illustrationsofchina` reads canvases=5 sequences=4 because
+#       three of its four sequences are bare references to external Sequence
+#       documents (ticket 07: degrade, do not resolve — resolving one is an HTTP
+#       fetch from a synchronous, pure function).
+#     - a structure-derived sequence RE-LISTS canvases another sequence already
+#       listed. `cookbook/0027-alternative-page-order` reads canvases=8 for FOUR
+#       distinct canvases: its two sequences come from two `behavior: sequence`
+#       ranges over the same four canvases in different orders, so every canvas
+#       is counted twice. A drop from 8 to 4 there would mean a lost sequence,
+#       not a lost canvas.
+#
+# EXPECTED PARTIALS — a non-zero `withoutPainting` is not automatically a bug.
+# See `../test/fixtures/manifests/PROVENANCE.md` ("Known-partial fixtures") for
+# the fixtures that correctly lack an image on every canvas.
+#
+# DEFECTS THIS FILE ONCE FROZE, AND WHAT BECAME OF THEM:
+#   - FIXED, ticket 07 — a bare-object `sequences` enumerated ZERO canvases,
+#     silently. `manifesto.js` walked `sequences` with an indexed loop, so a
+#     bare object had length `undefined`. This was the epic's signature failure
+#     mode. `synthetic/v2 sequences as a bare object` now reads canvases=2.
+#   - FIXED, ticket 07 — a Collection handed to the manifest path THREW a
+#     TypeError instead of returning an empty array, violating the spec's "every
+#     enumerator is total" contract. Collections keep their own section below,
+#     because a six-field record is not something a Collection can honestly
+#     fill, but the manifest path now degrades.
+#   - FIXED, ticket 06 — IIIF v2 `oa:Choice` (`resource.default` +
+#     `resource.item[]`) was not recognized AT ALL:
+#     `synthetic/v2 oa:Choice painting annotation` recorded withChoice=0 AND
+#     withoutPainting=1, i.e. the choice-bearing canvas offered no alternatives
+#     and rendered nothing. It now reads withChoice=1 withoutPainting=0.
+#
+# NOT EXERCISED BY THE CORPUS — real code paths, but no fixture reaches them, so
+# this file can neither freeze them nor detect a change to them. Do not read the
+# absence of a moved record as evidence about either:
+#   - A `Choice` whose `items` is a bare object rather than an array. This was
+#     also fixed, by ticket 06 routing `getCanvasChoices` through
+#     `getChoiceAlternatives`, which guards the access; there is simply no
+#     record here that could have shown it.
+#   - Choice selection keyed per CANVAS rather than per annotation, so a second
+#     Choice annotation on the same canvas can never be switched. Still true in
+#     production. No fixture carries two Choice annotations on one canvas.
+#
+# CANVASES THE VIEWER RESOLVES NO IMAGE FOR, beyond the known partials:
+#   - `vendored/scroll.json` — BOTH canvas dimensions are strings ("62651" and
+#     "1976") and `getCanvasDimensions` requires numbers, so it renders blank.
+#   - `vendored/lunchroom-manners.json` — a pre-release-v3 Choice of Video
+#     bodies, and `vendored/audio.json` — IxIF audio. Both are time-based media
+#     with no image to paint, and this tier cannot tell you whether that is
+#     because enumeration found nothing or because what it found is unpaintable.
+#     The deep tier's `paintingAnnotations=` can, and they differ:
+#     lunchroom-manners enumerates 1, audio enumerates 0 (an IxIF `element` is
+#     a `dctypes:Sound` resource — the media IS the element, reached through
+#     `rendering`, so there is no painting annotation to find).
+
+
+## Manifests
+
+cookbook/0001-mvm-image.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0004-canvas-size.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0005-image-service.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0006-text-language.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0007-string-formats.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0008-rights.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0009-book-1.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0010-book-2-viewing-direction-manifest-rtl.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0010-book-2-viewing-direction-manifest-ttb.json
+    canvases=4 withPainting=4 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0011-book-3-behavior-manifest-continuous.json
+    canvases=4 withPainting=4 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0011-book-3-behavior-manifest-individuals.json
+    canvases=4 withPainting=4 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0019-html-in-annotations.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0021-tagging.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0024-book-4-toc.json
+    canvases=6 withPainting=6 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+cookbook/0027-alternative-page-order.json
+    canvases=8 withPainting=8 withoutPainting=0 withChoice=0 sequences=2 structureNodes=2
+cookbook/0029-metadata-anywhere.json
+    canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0031-bound-multivolume.json
+    canvases=6 withPainting=6 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+cookbook/0033-choice.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=1 sequences=1 structureNodes=0
+cookbook/0035-foldouts.json
+    canvases=9 withPainting=9 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0036-composition-from-multiple-images.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0046-rendering.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0047-homepage.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0053-seeAlso.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0117-add-image-thumbnail.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0118-multivalue.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0135-annotating-point-in-canvas.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0202-start-canvas.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0234-provider.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0261-non-rectangular-commenting.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0266-full-canvas-annotation.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0269-embedded-or-referenced-annotations.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0283-missing-image.json
+    canvases=4 withPainting=3 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+cookbook/0299-region.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/collection-members/0030-multi-volume-manifest_v1.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/collection-members/0030-multi-volume-manifest_v2.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/collection-members/0032-collection-manifest-01.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/collection-members/0032-collection-manifest-02.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/collection-members/0230-navdate-navdate_map_1-manifest.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/collection-members/0230-navdate-navdate_map_2-manifest.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+demo/collections-csntm-manifest.json
+    canvases=14 withPainting=14 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+demo/iiif-bodleian-e32a277e-91e2-4a6d-8ba6-cc4bad230410.json
+    canvases=84 withPainting=84 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+demo/iiif-harvardartmuseums-299843.json
+    canvases=7 withPainting=7 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+demo/iiif-wellcomecollection-b18035723.json
+    canvases=36 withPainting=36 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+demo/zavicajna-digitalna-manifest.json
+    canvases=109 withPainting=109 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+synthetic/v2 level-0 image service
+    canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+synthetic/v2 manifest with two sequences
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=2 structureNodes=0
+synthetic/v2 oa:Choice painting annotation
+    canvases=2 withPainting=2 withoutPainting=0 withChoice=1 sequences=1 structureNodes=0
+synthetic/v2 ranges — canvases, members, and ranges spellings
+    canvases=4 withPainting=4 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+synthetic/v2 sequences as a bare object
+    canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+synthetic/v2 viewingHint and viewingDirection at two levels
+    canvases=3 withPainting=3 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+synthetic/v3 level-0 image service
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+synthetic/v3 painting annotations split across two annotation pages
+    canvases=3 withPainting=3 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+vendored/4.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+vendored/audio.json
+    canvases=2 withPainting=0 withoutPainting=2 withChoice=0 sequences=1 structureNodes=0
+vendored/auth-clinical.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+vendored/horriblemurders.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+vendored/illustrationsofchina.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=4 structureNodes=0
+vendored/lunchroom-manners.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=2
+vendored/members-ranges.json
+    canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+vendored/qatar-right-to-left.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+vendored/riksarkivetscblarge.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+vendored/scroll.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+vendored/storyofwellcome.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+
+## Collections
+
+# A Collection is not a manifest: it has members, and the viewer
+# resolves one to a child manifest before there is anything to
+# enumerate. It keeps its own section because a six-field record is
+# not something a Collection can honestly fill.
+#
+# Handing one to the manifest path used to THROW a TypeError rather
+# than degrade. Ticket 07 made every enumerator total, so it now
+# records a zero summary: a Collection has no sequences, which is an
+# answer. Were a THROWS line ever to return here it would carry the
+# error class and a normalized message, never an engine string.
+
+cookbook/0030-multi-volume.json
+    members=2
+    manifestPath: canvases=0 withPainting=0 withoutPainting=0 withChoice=0 sequences=0 structureNodes=0
+cookbook/0032-collection.json
+    members=2
+    manifestPath: canvases=0 withPainting=0 withoutPainting=0 withChoice=0 sequences=0 structureNodes=0
+cookbook/0230-navdate-navdate-collection.json
+    members=2
+    manifestPath: canvases=0 withPainting=0 withoutPainting=0 withChoice=0 sequences=0 structureNodes=0
+vendored/empty-collection.json
+    members=0
+    manifestPath: canvases=0 withPainting=0 withoutPainting=0 withChoice=0 sequences=0 structureNodes=0

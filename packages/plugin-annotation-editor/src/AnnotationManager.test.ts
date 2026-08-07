@@ -128,22 +128,40 @@ function parseXywh(value: string): {
     };
 }
 
-const SCALING_CANVAS = [
-    {
+/**
+ * A IIIF v3 canvas whose single painting annotation is 3x smaller than the
+ * canvas, for the canvas-space/image-space scaling cases.
+ *
+ * This used to be a `manifesto.js`-shaped double — a `getContent()` accessor
+ * over an annotation with a `getBody()` accessor. Core's v3
+ * painting-annotation enumeration is first-party as of the `remove-manifesto`
+ * epic (ticket 03) and reads `canvas.items[].items[]`, so it now carries the
+ * JSON the accessors used to wrap.
+ */
+function scalingCanvas() {
+    return {
         id: 'http://example.org/canvas/1',
         width: 1920,
         height: 1080,
-        getContent: () => [
+        items: [
             {
-                getBody: () => ({
-                    id: 'https://example.org/image.png',
-                    width: 640,
-                    height: 360,
-                }),
+                id: 'http://example.org/canvas/1/page/1',
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        body: {
+                            id: 'https://example.org/image.png',
+                            width: 640,
+                            height: 360,
+                        },
+                    },
+                ],
             },
         ],
-    },
-] as any;
+    };
+}
+
+const SCALING_CANVAS = [scalingCanvas()] as any;
 
 describe('AnnotationManager point serialization', () => {
     it('updates active edit id through an injected callback and the deprecated window shim', () => {
@@ -254,22 +272,7 @@ describe('AnnotationManager point serialization', () => {
 
     it('scales fragment selectors into canvas coordinates before save', async () => {
         getCanvases.mockReset();
-        getCanvases.mockReturnValue([
-            {
-                id: 'http://example.org/canvas/1',
-                width: 1920,
-                height: 1080,
-                getContent: () => [
-                    {
-                        getBody: () => ({
-                            id: 'https://example.org/image.png',
-                            width: 640,
-                            height: 360,
-                        }),
-                    },
-                ],
-            },
-        ] as any);
+        getCanvases.mockReturnValue([scalingCanvas()] as any);
 
         const adapter = createAdapter();
         const manager = new AnnotationManager({ adapter });

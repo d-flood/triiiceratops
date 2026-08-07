@@ -1,0 +1,586 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "http://localhost:58982/arkis!B0002305/manifest",
+  "@type": "sc:Manifest",
+  "label": [
+    {
+      "@value": "Statistiska Centralbyrån (SCB) - samlingspost, Lokalundersökningar. Primärmaterial: ordinarie\r\nblanketter 1913-1920\r\n, SE/RA/420401/19/H 2 AAA/38 (1915)",
+      "@language": "sv"
+    },
+    {
+      "@value": "Statistiska Centralbyrån (SCB) - samlingspost, Lokalundersökningar. Primärmaterial: ordinarie\r\nblanketter 1913-1920\r\n, SE/RA/420401/19/H 2 AAA/38 (1915)",
+      "@language": "en"
+    }
+  ],
+  "metadata": [
+    {
+      "label": [
+        {
+          "@value": "Arkiv",
+          "@language": "sv"
+        },
+        {
+          "@value": "Archive",
+          "@language": "en-GB"
+        }
+      ],
+      "value": [
+        {
+          "@value": "Statistiska Centralbyrån (SCB) - samlingspost",
+          "@language": "sv"
+        },
+        {
+          "@value": "Statistiska Centralbyrån (SCB) - samlingspost",
+          "@language": "en-GB"
+        }
+      ]
+    },
+    {
+      "label": [
+        {
+          "@value": "Serie",
+          "@language": "sv"
+        },
+        {
+          "@value": "Serie",
+          "@language": "en-GB"
+        }
+      ],
+      "value": [
+        {
+          "@value": "Lokalundersökningar. Primärmaterial: ordinarie\r\nblanketter 1913-1920\r\n",
+          "@language": "sv"
+        },
+        {
+          "@value": "Lokalundersökningar. Primärmaterial: ordinarie\r\nblanketter 1913-1920\r\n",
+          "@language": "en-GB"
+        }
+      ]
+    },
+    {
+      "label": [
+        {
+          "@value": "Referenskod",
+          "@language": "sv"
+        },
+        {
+          "@value": "Reference code",
+          "@language": "en-GB"
+        }
+      ],
+      "value": [
+        {
+          "@value": "SE/RA/420401/19/H 2 AAA/38",
+          "@language": "sv"
+        },
+        {
+          "@value": "SE/RA/420401/19/H 2 AAA/38",
+          "@language": "en-GB"
+        }
+      ]
+    },
+    {
+      "label": [
+        {
+          "@value": "Datering",
+          "@language": "sv"
+        },
+        {
+          "@value": "Date",
+          "@language": "en-GB"
+        }
+      ],
+      "value": [
+        {
+          "@value": "1915",
+          "@language": "sv"
+        },
+        {
+          "@value": "1915",
+          "@language": "en-GB"
+        }
+      ]
+    },
+    {
+      "label": [
+        {
+          "@value": "Anmärkning",
+          "@language": "sv"
+        },
+        {
+          "@value": "Remark",
+          "@language": "en-GB"
+        }
+      ],
+      "value": [
+        {
+          "@value": "Län: K-L.",
+          "@language": "sv"
+        },
+        {
+          "@value": "Län: K-L.",
+          "@language": "en-GB"
+        }
+      ]
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/sequence/normal",
+      "@type": "sc:Sequence",
+      "viewingHint": "paged",
+      "viewingDirection": "left-to-right",
+      "canvases": [
+        {
+          "@id": "http://localhost:58982/arkis!B0002305/canvas/p6",
+          "@type": "sc:Canvas",
+          "label": [
+            {
+              "@value": "Bild 6",
+              "@language": "sv"
+            },
+            {
+              "@value": "Image 6",
+              "@language": "en-GB"
+            }
+          ],
+          "metadata": [
+            {
+              "label": [
+                {
+                  "@value": "Bild ID",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "Image ID",
+                  "@language": "en-GB"
+                }
+              ],
+              "value": [
+                {
+                  "@value": "B0002305_00006",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "B0002305_00006",
+                  "@language": "en-GB"
+                }
+              ]
+            }
+          ],
+          "height": 1470,
+          "width": 2434,
+          "images": [
+            {
+              "@id": "http://localhost:58982/arkis!B0002305/annotation/p6",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://localhost:58982/arkis!B0002305_00006/full/full/0/default.jpg",
+                "@type": "dcTypes:Image",
+                "format": "image/jpeg",
+                "height": 1470,
+                "width": 2434,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://localhost:58982/arkis!B0002305_00006",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              },
+              "on": "http://localhost:58982/arkis!B0002305/canvas/p6"
+            }
+          ]
+        },
+        {
+          "@id": "http://localhost:58982/arkis!B0002305/canvas/p956",
+          "@type": "sc:Canvas",
+          "label": [
+            {
+              "@value": "Bild 956",
+              "@language": "sv"
+            },
+            {
+              "@value": "Image 956",
+              "@language": "en-GB"
+            }
+          ],
+          "metadata": [
+            {
+              "label": [
+                {
+                  "@value": "Bild ID",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "Image ID",
+                  "@language": "en-GB"
+                }
+              ],
+              "value": [
+                {
+                  "@value": "B0002305_00956",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "B0002305_00956",
+                  "@language": "en-GB"
+                }
+              ]
+            }
+          ],
+          "height": 1459,
+          "width": 2416,
+          "images": [
+            {
+              "@id": "http://localhost:58982/arkis!B0002305/annotation/p956",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://localhost:58982/arkis!B0002305_00956/full/full/0/default.jpg",
+                "@type": "dcTypes:Image",
+                "format": "image/jpeg",
+                "height": 1459,
+                "width": 2416,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://localhost:58982/arkis!B0002305_00956",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              },
+              "on": "http://localhost:58982/arkis!B0002305/canvas/p956"
+            }
+          ]
+        },
+        {
+          "@id": "http://localhost:58982/arkis!B0002305/canvas/p1532",
+          "@type": "sc:Canvas",
+          "label": [
+            {
+              "@value": "Bild 1532",
+              "@language": "sv"
+            },
+            {
+              "@value": "Image 1532",
+              "@language": "en-GB"
+            }
+          ],
+          "metadata": [
+            {
+              "label": [
+                {
+                  "@value": "Bild ID",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "Image ID",
+                  "@language": "en-GB"
+                }
+              ],
+              "value": [
+                {
+                  "@value": "B0002305_01532",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "B0002305_01532",
+                  "@language": "en-GB"
+                }
+              ]
+            }
+          ],
+          "height": 1469,
+          "width": 2428,
+          "images": [
+            {
+              "@id": "http://localhost:58982/arkis!B0002305/annotation/p1532",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://localhost:58982/arkis!B0002305_01532/full/full/0/default.jpg",
+                "@type": "dcTypes:Image",
+                "format": "image/jpeg",
+                "height": 1469,
+                "width": 2428,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://localhost:58982/arkis!B0002305_01532",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              },
+              "on": "http://localhost:58982/arkis!B0002305/canvas/p1532"
+            }
+          ]
+        },
+        {
+          "@id": "http://localhost:58982/arkis!B0002305/canvas/p1872",
+          "@type": "sc:Canvas",
+          "label": [
+            {
+              "@value": "Bild 1872",
+              "@language": "sv"
+            },
+            {
+              "@value": "Image 1872",
+              "@language": "en-GB"
+            }
+          ],
+          "metadata": [
+            {
+              "label": [
+                {
+                  "@value": "Bild ID",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "Image ID",
+                  "@language": "en-GB"
+                }
+              ],
+              "value": [
+                {
+                  "@value": "B0002305_01872",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "B0002305_01872",
+                  "@language": "en-GB"
+                }
+              ]
+            }
+          ],
+          "height": 1472,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "http://localhost:58982/arkis!B0002305/annotation/p1872",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://localhost:58982/arkis!B0002305_01872/full/full/0/default.jpg",
+                "@type": "dcTypes:Image",
+                "format": "image/jpeg",
+                "height": 1472,
+                "width": 2411,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://localhost:58982/arkis!B0002305_01872",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              },
+              "on": "http://localhost:58982/arkis!B0002305/canvas/p1872"
+            }
+          ]
+        },
+        {
+          "@id": "http://localhost:58982/arkis!B0002305/canvas/p3040",
+          "@type": "sc:Canvas",
+          "label": [
+            {
+              "@value": "Bild 3040",
+              "@language": "sv"
+            },
+            {
+              "@value": "Image 3040",
+              "@language": "en-GB"
+            }
+          ],
+          "metadata": [
+            {
+              "label": [
+                {
+                  "@value": "Bild ID",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "Image ID",
+                  "@language": "en-GB"
+                }
+              ],
+              "value": [
+                {
+                  "@value": "B0002305_03040",
+                  "@language": "sv"
+                },
+                {
+                  "@value": "B0002305_03040",
+                  "@language": "en-GB"
+                }
+              ]
+            }
+          ],
+          "height": 1474,
+          "width": 2419,
+          "images": [
+            {
+              "@id": "http://localhost:58982/arkis!B0002305/annotation/p3040",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://localhost:58982/arkis!B0002305_03040/full/full/0/default.jpg",
+                "@type": "dcTypes:Image",
+                "format": "image/jpeg",
+                "height": 1474,
+                "width": 2419,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://localhost:58982/arkis!B0002305_03040",
+                  "profile": "http://iiif.io/api/image/2/level1.json"
+                }
+              },
+              "on": "http://localhost:58982/arkis!B0002305/canvas/p3040"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "arkis!B0002305",
+          "@language": "sv"
+        },
+        {
+          "@value": "arkis!B0002305",
+          "@language": "en"
+        }
+      ],
+      "viewingHint": "top",
+      "ranges": [
+        "http://localhost:58982/arkis!B0002305/range/r0-0"
+      ]
+    },
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0-0",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "Lokalundersökning",
+          "@language": "sv"
+        },
+        {
+          "@value": "Lokalundersökning",
+          "@language": "en"
+        }
+      ],
+      "ranges": [
+        "http://localhost:58982/arkis!B0002305/range/r0-1-0"
+      ],
+      "canvases": [
+        "http://localhost:58982/arkis!B0002305/canvas/p3040"
+      ]
+    },
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0-1-0",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "Blekinge län",
+          "@language": "sv"
+        },
+        {
+          "@value": "Blekinge län",
+          "@language": "en"
+        }
+      ],
+      "ranges": [
+        "http://localhost:58982/arkis!B0002305/range/r0-1-1-0",
+        "http://localhost:58982/arkis!B0002305/range/r0-1-1-1",
+        "http://localhost:58982/arkis!B0002305/range/r0-1-1-2",
+        "http://localhost:58982/arkis!B0002305/range/r0-1-1-3",
+        "http://localhost:58982/arkis!B0002305/range/r0-1-1-4"
+      ],
+      "canvases": [
+        "http://localhost:58982/arkis!B0002305/canvas/p3040"
+      ]
+    },
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0-1-1-0",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "Eringsboda 1915",
+          "@language": "sv"
+        },
+        {
+          "@value": "Eringsboda 1915",
+          "@language": "en"
+        }
+      ],
+      "canvases": [
+        "http://localhost:58982/arkis!B0002305/canvas/p3040"
+      ]
+    },
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0-1-1-1",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "Fridlevstad 1915",
+          "@language": "sv"
+        },
+        {
+          "@value": "Fridlevstad 1915",
+          "@language": "en"
+        }
+      ],
+      "canvases": [
+        "http://localhost:58982/arkis!B0002305/canvas/p6"
+      ]
+    },
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0-1-1-2",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "Hjortsberga 1915",
+          "@language": "sv"
+        },
+        {
+          "@value": "Hjortsberga 1915",
+          "@language": "en"
+        }
+      ],
+      "canvases": [
+        "http://localhost:58982/arkis!B0002305/canvas/p1532"
+      ]
+    },
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0-1-1-3",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "Nättraby 1915",
+          "@language": "sv"
+        },
+        {
+          "@value": "Nättraby 1915",
+          "@language": "en"
+        }
+      ],
+      "canvases": [
+        "http://localhost:58982/arkis!B0002305/canvas/p956"
+      ]
+    },
+    {
+      "@id": "http://localhost:58982/arkis!B0002305/range/r0-1-1-4",
+      "@type": "sc:Range",
+      "label": [
+        {
+          "@value": "Tving 1915",
+          "@language": "sv"
+        },
+        {
+          "@value": "Tving 1915",
+          "@language": "en"
+        }
+      ],
+      "canvases": [
+        "http://localhost:58982/arkis!B0002305/canvas/p1872"
+      ]
+    }
+  ]
+}

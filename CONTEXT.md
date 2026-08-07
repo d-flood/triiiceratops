@@ -24,6 +24,21 @@ Owned by the plugin, never by adapters. Display state is per viewer instance —
 shared across viewers on the same page.
 _Avoid_: injection (alone, without saying what is injected where), shared display state
 
+**Painting annotation**:
+An annotation that places image content onto a canvas — IIIF v2 `canvas.images[]`, v3
+the annotations inside `canvas.items[]` AnnotationPages. What the viewer renders as the
+image. The one use of "annotation" in this glossary that does _not_ mean commentary;
+everywhere else in the annotation domain, an annotation is something a user wrote.
+_Avoid_: image annotation (conflates the annotation with its Image body), canvas
+annotation (ambiguous — `ensureCanvasAnnotations` returns commentary), content
+(Manifesto's v3 term, and a dead IIIF 3.0-beta field name)
+
+**Manifest annotation**:
+A commentary annotation defined by the manifest itself (v2 `otherContent`, v3
+`canvas.annotations`), as opposed to a user annotation created through the
+annotation-editor plugin. The viewer merges user annotations on top of these.
+_Avoid_: external annotation (that describes the fetch, not the origin)
+
 **Point annotation**:
 An annotation whose target selector is a IIIF `PointSelector` — a single exact point on
 a canvas, not a small region.

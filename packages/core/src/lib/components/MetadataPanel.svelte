@@ -17,14 +17,21 @@
     let { embedded = false }: { embedded?: boolean } = $props();
     let viewerLocale = $derived(viewerState.config.locale ?? language.current);
 
-    let manifest = $derived(viewerState.manifest);
-    let json = $derived(manifest?.__jsonld);
+    // Raw IIIF Manifest JSON, v2 or v3 as the publisher authored it. Every read
+    // below covers BOTH versions: the `manifesto.js` accessors this panel used
+    // to fall back to (`getLabel`, `getDescription`, `getMetadata`,
+    // `getRequiredStatement`, `getLicense`) were the ONLY reader of the v2
+    // spelling for four of them, so deleting them without adding the v2
+    // property read would have blanked the panel on every v2 manifest
+    // (SPEC → "The governing rule for the whole epic").
+    let json = $derived(viewerState.manifestEntry?.json);
 
     // --- Title ---
+    // v2 and v3 both spell it `label`; v2 may write a bare string or a
+    // `[{"@value","@language"}]` array, which `resolveLanguageValue` reads.
     let title = $derived.by(() => {
-        if (!manifest) return m.loading();
-        const label = manifest.getLabel?.();
-        const resolved = resolveLanguageValue(label, viewerLocale);
+        if (!json) return m.loading();
+        const resolved = resolveLanguageValue(json.label, viewerLocale);
         return resolved || m.metadata_label_fallback();
     });
 
@@ -34,17 +41,17 @@
 
     // --- Summary (v3) or Description (v2) ---
     let summary = $derived.by(() => {
-        if (!manifest) return '';
-        if (json?.summary) {
-            return resolveLanguageValue(json.summary, viewerLocale);
-        }
-        return manifest.getDescription?.()?.getValue(viewerLocale) || '';
+        if (!json) return '';
+        return resolveLanguageValue(
+            json.summary ?? json.description,
+            viewerLocale,
+        );
     });
 
     // --- Metadata entries ---
+    // `metadata` is the same property name in both versions.
     let metadata = $derived.by(() => {
-        const rawMetadata = json?.metadata || manifest?.getMetadata?.();
-        return normalizeMetadataEntries(rawMetadata, viewerLocale);
+        return normalizeMetadataEntries(json?.metadata, viewerLocale);
     });
 
     // --- Attribution (requiredStatement) ---
@@ -58,19 +65,24 @@
     });
 
     let attribution = $derived.by(() => {
+        // v3 `requiredStatement.value`; v2 spells the same idea `attribution`,
+        // as a bare value with no label of its own.
         const statement = json?.requiredStatement;
         if (statement?.value) {
             return resolveHtmlValues(statement.value, viewerLocale);
         }
 
-        return manifest ? manifest.getRequiredStatement()?.getValue() : '';
+        return resolveHtmlValues(json?.attribution, viewerLocale);
     });
 
     // --- License / Rights ---
     let license = $derived.by(() => {
-        if (!manifest) return '';
-        // v3 uses rights, v2 uses license
-        return json?.rights || manifest.getLicense?.() || '';
+        // v3 uses `rights`, v2 uses `license`. v2 permits several; the panel
+        // renders one link, so take the first and ignore any non-URI shape
+        // rather than rendering `[object Object]`.
+        const raw = json?.rights || json?.license;
+        const value = Array.isArray(raw) ? raw[0] : raw;
+        return typeof value === 'string' ? value : '';
     });
 
     // --- Provider (0234) ---

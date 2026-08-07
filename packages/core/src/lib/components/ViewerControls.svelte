@@ -75,13 +75,9 @@
     }
 
     function getChoiceLabel(choice: any, index: number) {
-        // Try manifesto accessor
-        if (choice.getLabel) {
-            const l = choice.getLabel();
-            const resolved = resolveLanguageValue(l, viewerLocale);
-            if (resolved) return resolved;
-        }
-        // Try raw label property
+        // `label` is spelled the same in IIIF v2 and v3, and
+        // `resolveLanguageValue` reads the v2 bare string and
+        // `[{"@value","@language"}]` array as well as the v3 language map.
         if (choice.label) {
             const resolved = resolveLanguageValue(choice.label, viewerLocale);
             if (resolved) return resolved;

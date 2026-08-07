@@ -27,6 +27,15 @@ generated/
 # Generated API snapshots (scripts/api-report.ts) — regenerated & checked in CI.
 api-reports/
 
+# Vendored IIIF manifests (packages/core/src/lib/test/fixtures/manifests/*):
+# third-party manifests copied from IIIF Cookbook recipes, public institutional
+# endpoints, and manifesto.js's own test corpus, recorded in that directory's
+# PROVENANCE.md. Same vendored-output rule as above — they are re-fetched from
+# upstream, not authored here, and reflowing them destroys the diff against the
+# source. The synthetic fixtures alongside them are TypeScript and stay
+# formatted.
+packages/core/src/lib/test/fixtures/manifests/
+
 # Vendored theme partials: overrides/partials/* are verbatim copies of
 # Zensical's own templates carrying one local hunk each, so they fall under the
 # vendored-output rule above — reflowing them destroys the diff against

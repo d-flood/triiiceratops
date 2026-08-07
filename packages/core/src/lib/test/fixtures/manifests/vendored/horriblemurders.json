@@ -1,0 +1,353 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "http://v8l-webtest1.bl.uk:88/IIIFMetadataService/ark:/81055/vdc_000000028404/manifest.json",
+  "@type": "sc:Manifest",
+  "label": "Two more horrible murders in the East-End.",
+  "metadata": [
+    {
+      "label": "Title",
+      "value": "Two more horrible murders in the East-End."
+    },
+    {
+      "label": "Place",
+      "value": "[London"
+    },
+    {
+      "label": "Date",
+      "value": "1889"
+    },
+    {
+      "label": "Collection",
+      "value": "MS Digitised"
+    },
+    {
+      "label": "Identifier",
+      "value": "ark:/81055/abc_B2979320"
+    }
+  ],
+  "description": "[London, 1889, ark:/81055/abc_B2979320",
+  "license": "http://creativecommons.org/about/pdm",
+  "attribution": "Two more horrible murders in the East-End. Usage Terms: Free from known copyright restrictions.",
+  "sequences": [
+    {
+      "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403",
+      "@type": "sc:Sequence",
+      "label": "Current Page Order",
+      "viewingDirection": "left-to-right",
+      "viewingHint": "paged",
+      "canvases": [
+        {
+          "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000001",
+          "@type": "sc:Canvas",
+          "label": "n/a",
+          "width": 2506,
+          "height": 3099,
+          "images": [
+            {
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000001/full/full/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpg",
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000001",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2506,
+                  "height": 3099,
+                  "tiles": [
+                    {
+                      "scaleFactors": [
+                        1,
+                        2,
+                        4,
+                        8,
+                        16
+                      ],
+                      "width": 256
+                    }
+                  ],
+                  "profile": [
+                    "http://iiif.io/api/image/2/level1.json",
+                    {
+                      "qualities": [
+                        "gray",
+                        "color",
+                        "bitonal"
+                      ],
+                      "supports": [
+                        "canonicalLinkHeader",
+                        "profileLinkHeader"
+                      ]
+                    }
+                  ]
+                },
+                "height": 3099,
+                "width": 2506
+              },
+              "on": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000001"
+            }
+          ]
+        },
+        {
+          "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000003",
+          "@type": "sc:Canvas",
+          "label": "1",
+          "width": 2075,
+          "height": 2838,
+          "images": [
+            {
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000003/full/full/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpg",
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000003",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2075,
+                  "height": 2838,
+                  "tiles": [
+                    {
+                      "scaleFactors": [
+                        1,
+                        2,
+                        4,
+                        8,
+                        16
+                      ],
+                      "width": 256
+                    }
+                  ],
+                  "profile": [
+                    "http://iiif.io/api/image/2/level1.json",
+                    {
+                      "qualities": [
+                        "gray",
+                        "color",
+                        "bitonal"
+                      ],
+                      "supports": [
+                        "canonicalLinkHeader",
+                        "profileLinkHeader"
+                      ]
+                    }
+                  ]
+                },
+                "height": 2838,
+                "width": 2075
+              },
+              "on": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000003"
+            }
+          ]
+        },
+        {
+          "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000003",
+          "@type": "sc:Canvas",
+          "label": "1a",
+          "width": 2075,
+          "height": 2838,
+          "images": [
+            {
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000003/full/full/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpg",
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000003",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2075,
+                  "height": 2838,
+                  "tiles": [
+                    {
+                      "scaleFactors": [
+                        1,
+                        2,
+                        4,
+                        8,
+                        16
+                      ],
+                      "width": 256
+                    }
+                  ],
+                  "profile": [
+                    "http://iiif.io/api/image/2/level1.json",
+                    {
+                      "qualities": [
+                        "gray",
+                        "color",
+                        "bitonal"
+                      ],
+                      "supports": [
+                        "canonicalLinkHeader",
+                        "profileLinkHeader"
+                      ]
+                    }
+                  ]
+                },
+                "height": 2838,
+                "width": 2075
+              },
+              "on": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000003"
+            }
+          ]
+        },
+        {
+          "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000003",
+          "@type": "sc:Canvas",
+          "label": "1b",
+          "width": 2075,
+          "height": 2838,
+          "images": [
+            {
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000003/full/full/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpg",
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000003",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2075,
+                  "height": 2838,
+                  "tiles": [
+                    {
+                      "scaleFactors": [
+                        1,
+                        2,
+                        4,
+                        8,
+                        16
+                      ],
+                      "width": 256
+                    }
+                  ],
+                  "profile": [
+                    "http://iiif.io/api/image/2/level1.json",
+                    {
+                      "qualities": [
+                        "gray",
+                        "color",
+                        "bitonal"
+                      ],
+                      "supports": [
+                        "canonicalLinkHeader",
+                        "profileLinkHeader"
+                      ]
+                    }
+                  ]
+                },
+                "height": 2838,
+                "width": 2075
+              },
+              "on": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000003"
+            }
+          ]
+        },
+        {
+          "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000005",
+          "@type": "sc:Canvas",
+          "label": "3",
+          "width": 2074,
+          "height": 2837,
+          "images": [
+            {
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000005/full/full/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpg",
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "http://v8l-webtest1.bl.uk:89/IIIFImageService/v2/ark:/81055/vdc_000000028400.0x000005",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2074,
+                  "height": 2837,
+                  "tiles": [
+                    {
+                      "scaleFactors": [
+                        1,
+                        2,
+                        4,
+                        8,
+                        16
+                      ],
+                      "width": 256
+                    }
+                  ],
+                  "profile": [
+                    "http://iiif.io/api/image/2/level1.json",
+                    {
+                      "qualities": [
+                        "gray",
+                        "color",
+                        "bitonal"
+                      ],
+                      "supports": [
+                        "canonicalLinkHeader",
+                        "profileLinkHeader"
+                      ]
+                    }
+                  ]
+                },
+                "height": 2837,
+                "width": 2074
+              },
+              "on": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000005"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000000",
+      "@type": "sc:Range",
+      "label": "Table of contents",
+      "viewingHint": "top",
+      "ranges": [
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000001",
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000002",
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000002b"
+      ]
+    },
+    {
+      "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000001",
+      "@type": "sc:Range",
+      "label": "Other",
+      "ranges": [
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000002",
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000002b"
+      ],
+      "canvases": [
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000001"
+      ]
+    },
+    {
+      "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000002",
+      "@type": "sc:Range",
+      "label": "Title",
+      "canvases": [
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000003"
+      ]
+    },
+    {
+      "@id": "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028404.0x000002b",
+      "@type": "sc:Range",
+      "label": "Ghastly murder",
+      "canvases": [
+        "http://api.bl.uk/iiif/presentation/ark:/81055/vdc_000000028403.0x000005"
+      ]
+    }
+  ]
+}

@@ -72,3 +72,14 @@ export { parseAnnotation } from './utils/annotationAdapter';
 
 // Canvas thumbnail fallback source.
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
+
+// Painting-annotation enumeration over a raw IIIF Canvas — the supported way to
+// see the same image-bearing annotations the viewer does, in either IIIF
+// version. Also exported from `triiiceratops` itself.
+export { getPaintingAnnotations } from './utils/iiifParsing';
+
+// IIIF language-map resolution. Raw IIIF labels come in three shapes across the
+// two versions (bare string, `[{"@value","@language"}]`, and a v3 language map);
+// this is the one reader for all of them, so a plugin holding raw manifest or
+// canvas JSON does not reimplement it.
+export { resolveLanguageValue } from './utils/languageMap';

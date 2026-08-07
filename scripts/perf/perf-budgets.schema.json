@@ -33,6 +33,21 @@
                 }
             }
         },
+        "acceptedSizeIncreases": {
+            "type": "object",
+            "description": "Reviewed exemptions from the base-vs-head size gate. An artifact listed here may exceed the +5% delta as long as its head size stays at or below `headBytes`. Use only for intentional cost shifts (e.g. work moving from an external dependency into first-party code, which the base measurement never counted). Delete the entry once main carries the new cost, so the ordinary gate resumes.",
+            "additionalProperties": {
+                "type": "object",
+                "required": ["headBytes", "reason"],
+                "properties": {
+                    "headBytes": {
+                        "type": "integer",
+                        "description": "Maximum accepted head size in bytes. A head larger than this fails even with the exemption."
+                    },
+                    "reason": { "type": "string" }
+                }
+            }
+        },
         "runtime": {
             "type": "object",
             "description": "Per-scenario median ceilings in milliseconds (captured median with noise headroom).",

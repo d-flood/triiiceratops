@@ -6,7 +6,12 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import {
+        getPaintingAnnotations,
+        getPaintingBody,
+        isChoiceBody,
+    } from '../utils/iiifParsing';
+    import { getCanvasLabel } from '../utils/canvasLabels';
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
     import {
         GALLERY_THUMB_VARS,
@@ -15,42 +20,14 @@
         getGalleryThumbItemWidth,
     } from './galleryGeometry';
 
-    // Minimal canvas/annotation types covering methods used here
-    type ManifestService = {
-        id?: string;
-        ['@id']?: string;
-        profile?: unknown;
-        getProfile?: () => unknown;
-    };
-
-    type ManifestResource =
+    // Canvases crossing the viewer boundary are raw IIIF Canvas JSON, v2 or v3
+    // as the manifest authored it — `id` in v3, `@id` in v2. The accessor- and
+    // `__jsonld`-shaped service/resource/annotation types this block used to
+    // declare described the removed library's objects and nothing else.
+    type ManifestCanvas =
         | {
               id?: string;
               ['@id']?: string;
-              __jsonld?: any;
-              getServices?: () => ManifestService[];
-          }
-        | any;
-
-    type ManifestAnnotation =
-        | {
-              __jsonld?: any;
-              getResource?: () => ManifestResource | null;
-              getBody?: () => ManifestResource | ManifestResource[] | null;
-              body?: ManifestResource | ManifestResource[];
-          }
-        | any;
-
-    type ManifestCanvas =
-        | {
-              id: string;
-              getLabel: () => { value: string }[];
-              getThumbnail?: () =>
-                  | string
-                  | { id?: string; ['@id']?: string }
-                  | null;
-              getImages?: () => ManifestAnnotation[];
-              getContent?: () => ManifestAnnotation[];
           }
         | any;
 
@@ -112,27 +89,17 @@
 
             // Check for choices
             try {
-                let images = canvas.getImages?.() || [];
-                if ((!images || !images.length) && canvas.getContent) {
-                    images = canvas.getContent();
-                }
+                const images = getPaintingAnnotations(canvas);
                 if (images && images.length > 0) {
                     const anno = images[0];
-                    const body = anno.getBody
-                        ? anno.getBody()
-                        : anno.body || anno.resource;
 
-                    const rawBody = anno.__jsonld?.body || anno.body;
-                    // isChoice check - check rawBody and body itself
-                    const isChoice =
-                        rawBody?.type === 'Choice' ||
-                        rawBody?.type === 'oa:Choice' ||
-                        (body &&
-                            !Array.isArray(body) &&
-                            (body.type === 'Choice' ||
-                                body.type === 'oa:Choice'));
+                    // The painting body is `body` in v3 and `resource` in v2,
+                    // and the Choice inside it is `Choice` in v3 and
+                    // `oa:Choice` in v2. Only the v3 half was recognized, so a
+                    // v2 Choice canvas never showed the badge.
+                    const body = getPaintingBody(anno);
 
-                    if (isChoice) {
+                    if (isChoiceBody(body)) {
                         hasChoice = true;
                     }
                 }
@@ -142,9 +109,11 @@
 
             return {
                 id: getCanvasId(canvas) || `canvas-${index}`,
-                label:
-                    resolveLanguageValue(canvas.getLabel?.(), viewerLocale) ||
-                    `Canvas ${index + 1}`,
+                // Via the shared helper, which reads the raw JSON first. This
+                // used to call `canvas.getLabel?.()` directly, and once
+                // canvases became raw JSON that accessor vanished — every
+                // label in the gallery silently fell back to "Canvas N".
+                label: getCanvasLabel(canvas, index, viewerLocale),
                 src,
                 index,
                 hasChoice,
