@@ -71,36 +71,19 @@ describe('annotationAdapter', () => {
             }
         });
 
-        it('should handle Manifesto-style getTarget and getId methods', () => {
-            const mockManifestoAnno = {
-                getId: () => 'http://example.org/manifesto-anno',
-                getTarget: () => 'http://example.org/canvas1#xywh=5,5,50,50',
-                getBody: () => [
-                    {
-                        getValue: () => 'Manifesto Body',
-                        getFormat: () => 'text/plain',
-                    },
-                ],
-            };
-
-            const result = parseAnnotation(mockManifestoAnno, 2);
-
-            expect(result?.id).toBe('http://example.org/manifesto-anno');
-
-            const geometry = result?.geometry;
-            if (geometry && 'x' in geometry) {
-                expect(geometry).toMatchObject({
-                    type: 'RECTANGLE',
-                    x: 5,
-                    y: 5,
-                    w: 50,
-                    h: 50,
-                });
-            }
-
-            expect(result?.body[0].value).toBe('Manifesto Body');
-            expect(result?.coordinateSpace).toBe('image');
-        });
+        /**
+         * A test named "should handle Manifesto-style getTarget and getId
+         * methods" stood here. It built an annotation double carrying `getId`,
+         * `getTarget` and `getBody` accessors and pinned the three
+         * `manifesto.js`-shaped branches of `annotationAdapter.ts` that read
+         * them. Nothing in the product ever hands those branches such an
+         * object: every annotation reaching `parseAnnotation` comes from
+         * `ManifestsState.manualGetAnnotations`, from a content-search
+         * response, or from a plugin — raw JSON in all three cases. The test
+         * asserted on the abstraction the `remove-manifesto` epic removes and
+         * could not survive it, so it was dropped rather than migrated
+         * (ticket 08); the branches themselves are ticket 10's to delete.
+         */
 
         it('should return null for invalid annotations with no geometry', () => {
             const invalidAnno = {

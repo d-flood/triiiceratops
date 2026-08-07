@@ -193,6 +193,31 @@ function readValue(state: ViewerState, member: string): unknown {
     return value;
 }
 
+/**
+ * Raw IIIF v3 manifest JSON, used wherever a scenario needs a manifest to be
+ * present. It is raw JSON on purpose: this file mocks the manifest cache
+ * because its subject is state classification, not parsing, but the values that
+ * cache hands back must still be the shapes the real one produces. It used to
+ * hand back `manifesto.js`-shaped doubles carrying `getBehavior` and
+ * `getSequences`, which is the abstraction the `remove-manifesto` epic removes
+ * (ticket 08).
+ */
+const MANIFEST_JSON = {
+    id: 'manifest-1',
+    type: 'Manifest',
+    label: { en: ['State inventory fixture'] },
+    behavior: ['individuals'],
+    items: [
+        {
+            id: 'canvas-1',
+            type: 'Canvas',
+            label: { en: ['Canvas 1'] },
+            width: 800,
+            height: 1000,
+        },
+    ],
+};
+
 function resetManifestMocks(): void {
     vi.mocked(manifestsState.fetchManifest).mockReset();
     vi.mocked(manifestsState.fetchResource).mockReset();
@@ -220,17 +245,15 @@ const commandScenarios: CapabilityScenario[] = [
     {
         member: 'manifestId',
         setup: () => {
-            vi.mocked(manifestsState.getManifest).mockReturnValue({
-                __jsonld: {},
-                getBehavior: () => ['individuals'],
-                getSequences: () => [{ __jsonld: {} }],
+            vi.mocked(manifestsState.getManifestEntry).mockReturnValue({
+                json: MANIFEST_JSON,
+                isFetching: false,
             });
             vi.mocked(manifestsState.getCanvases).mockReturnValue([
-                { id: 'canvas-1' },
+                ...MANIFEST_JSON.items,
             ]);
         },
-        act: (state) =>
-            state.setManifestData('manifest-1', { id: 'manifest-1' }),
+        act: (state) => state.setManifestData('manifest-1', MANIFEST_JSON),
     },
     { member: 'canvasId', act: (state) => state.setCanvas('canvas-1') },
     {
@@ -731,13 +754,12 @@ describe('ViewerState per-viewer display state (ticket 05)', () => {
     });
 
     it('notifies subscribers and reports readiness when a manifest loads', async () => {
-        vi.mocked(manifestsState.getManifest).mockReturnValue({
-            __jsonld: {},
-            getBehavior: () => ['individuals'],
-            getSequences: () => [{ __jsonld: {} }],
+        vi.mocked(manifestsState.getManifestEntry).mockReturnValue({
+            json: MANIFEST_JSON,
+            isFetching: false,
         });
         vi.mocked(manifestsState.getCanvases).mockReturnValue([
-            { id: 'canvas-1' },
+            ...MANIFEST_JSON.items,
         ]);
 
         const state = new ViewerState();
@@ -746,7 +768,7 @@ describe('ViewerState per-viewer display state (ticket 05)', () => {
 
         expect(state.isManifestReady('manifest-1')).toBe(false);
 
-        await state.setManifestData('manifest-1', { id: 'manifest-1' });
+        await state.setManifestData('manifest-1', MANIFEST_JSON);
         await tick();
 
         expect(state.isManifestReady('manifest-1')).toBe(true);

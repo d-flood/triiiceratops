@@ -1,602 +1,333 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { manifestsState } from '../state/manifests.svelte';
+import { ViewerState } from '../state/viewer.svelte';
+import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 
 /**
- * Tests for ThumbnailGallery thumbnail extraction logic
+ * The thumbnail the gallery shows for a canvas.
  *
- * Note: Since ThumbnailGallery is a Svelte component with runes, we test
- * the core thumbnail extraction logic by recreating it here.
+ * This file used to hold a LOCAL COPY of the gallery's old extraction logic
+ * (`canvas.getThumbnail()`, then `canvas.getImages()`, then
+ * `canvas.getContent()`, then `annotation.getResource()` / `.getBody()`) and
+ * test the copy rather than the product. The copy also truncated to the first
+ * annotation page — the exact data-loss bug `remove-manifesto` ticket 03 fixed
+ * — so it stayed green against a regression, and the test names promising
+ * "v3 getContent" coverage described a code path that no longer exists.
+ *
+ * It now enters through the epic's one seam: a real `ViewerState` loaded with
+ * raw manifest JSON, backed by the real manifest cache, with no mocks and no
+ * hand-built canvases (`remove-manifesto` SPEC → "The seam", ticket 08). The
+ * function under test is `getThumbnailSrc`, which is what
+ * `ThumbnailGallery.svelte` actually calls.
  */
 
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 1000;
+
+let manifestCounter = 0;
+const registeredIds: string[] = [];
+
+/** Load a one-canvas IIIF v3 manifest and hand back the canvas from state. */
+async function v3Canvas(canvasBody: Record<string, unknown>): Promise<any> {
+    const id = `http://example.org/v3/manifest/${++manifestCounter}`;
+    registeredIds.push(id);
+
+    const state = new ViewerState();
+    await state.setManifestData(id, {
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        id,
+        type: 'Manifest',
+        label: { en: ['Thumbnail fixture'] },
+        items: [
+            {
+                id: `${id}/canvas/1`,
+                type: 'Canvas',
+                label: { en: ['Page 1'] },
+                width: CANVAS_WIDTH,
+                height: CANVAS_HEIGHT,
+                ...canvasBody,
+            },
+        ],
+    });
+
+    return state.canvases[0];
+}
+
+/** Load a one-canvas IIIF v2 manifest and hand back the canvas from state. */
+async function v2Canvas(canvasBody: Record<string, unknown>): Promise<any> {
+    const id = `http://example.org/v2/manifest/${++manifestCounter}`;
+    registeredIds.push(id);
+
+    const state = new ViewerState();
+    await state.setManifestData(id, {
+        '@context': 'http://iiif.io/api/presentation/2/context.json',
+        '@id': id,
+        '@type': 'sc:Manifest',
+        label: 'Thumbnail fixture v2',
+        sequences: [
+            {
+                '@id': `${id}/sequence/normal`,
+                '@type': 'sc:Sequence',
+                canvases: [
+                    {
+                        '@id': `${id}/canvas/1`,
+                        '@type': 'sc:Canvas',
+                        label: 'Page 1',
+                        width: CANVAS_WIDTH,
+                        height: CANVAS_HEIGHT,
+                        ...canvasBody,
+                    },
+                ],
+            },
+        ],
+    });
+
+    return state.canvases[0];
+}
+
+/** IIIF v3 painting annotations in one AnnotationPage. */
+function paintingPage(...bodies: unknown[]) {
+    return {
+        items: [
+            {
+                id: 'http://example.org/page/1',
+                type: 'AnnotationPage',
+                items: bodies.map((body, index) => ({
+                    id: `http://example.org/annotation/${index + 1}`,
+                    type: 'Annotation',
+                    motivation: 'painting',
+                    body,
+                })),
+            },
+        ],
+    };
+}
+
+/** IIIF v2 painting annotations, one per resource. */
+function paintingImages(...resources: unknown[]) {
+    return {
+        images: resources.map((resource, index) => ({
+            '@id': `http://example.org/annotation/${index + 1}`,
+            '@type': 'oa:Annotation',
+            motivation: 'sc:painting',
+            resource,
+        })),
+    };
+}
+
 describe('ThumbnailGallery - Thumbnail extraction', () => {
-    /**
-     * Extracted thumbnail logic from ThumbnailGallery.svelte
-     * This allows us to test the complex fallback logic independently
-     */
-    function extractThumbnail(canvas: any, index: number) {
-        let src = '';
-        try {
-            if (canvas.getThumbnail) {
-                const thumb = canvas.getThumbnail();
-                if (thumb) {
-                    src =
-                        typeof thumb === 'string'
-                            ? thumb
-                            : thumb.id || thumb['@id'];
-                }
-            }
-        } catch (e) {
-            console.warn('Error getting thumbnail', e);
+    afterEach(() => {
+        for (const id of registeredIds.splice(0)) {
+            manifestsState.clearManifest(id);
         }
+    });
 
-        // Fallback to first image if no thumbnail service
-        if (!src) {
-            let images = canvas.getImages ? canvas.getImages() : null;
-
-            // Fallback for IIIF v3: iterate content if images is empty
-            if ((!images || !images.length) && canvas.getContent) {
-                images = canvas.getContent();
-            }
-
-            if (images && images.length > 0) {
-                const annotation = images[0];
-                let resource = annotation.getResource
-                    ? annotation.getResource()
-                    : null;
-
-                // v3 fallback: getBody
-                if (!resource && annotation.getBody) {
-                    const body = annotation.getBody();
-                    if (Array.isArray(body) && body.length > 0)
-                        resource = body[0];
-                    else if (body) resource = body;
-                }
-
-                // Validate resource
-                if (
-                    resource &&
-                    !resource.id &&
-                    !resource.__jsonld &&
-                    (!resource.getServices ||
-                        resource.getServices().length === 0)
-                ) {
-                    resource = null;
-                }
-
-                // Raw json fallback
-                if (!resource) {
-                    const json = annotation.__jsonld || annotation;
-                    if (json.body) {
-                        resource = Array.isArray(json.body)
-                            ? json.body[0]
-                            : json.body;
-                    }
-                }
-
-                if (resource) {
-                    const getServices = () => {
-                        let s: any[] = [];
-                        if (resource.getServices) {
-                            s = resource.getServices();
-                        }
-                        if (!s || s.length === 0) {
-                            const rJson = resource.__jsonld || resource;
-                            if (rJson.service) {
-                                s = Array.isArray(rJson.service)
-                                    ? rJson.service
-                                    : [rJson.service];
-                            }
-                        }
-                        return s;
-                    };
-
-                    const services = getServices();
-                    let isLevel0 = false;
-                    if (services.length > 0) {
-                        const service = services[0];
-                        let profile: any = '';
-                        try {
-                            profile = service.getProfile
-                                ? service.getProfile()
-                                : service.profile || '';
-                            // Handle Manifesto profile object
-                            if (typeof profile === 'object' && profile) {
-                                profile =
-                                    profile.value ||
-                                    profile.id ||
-                                    profile['@id'] ||
-                                    JSON.stringify(profile);
-                            }
-                        } catch {
-                            // ignore
-                        }
-
-                        const pStr = String(profile ?? '').toLowerCase();
-                        if (
-                            pStr.includes('level0') ||
-                            pStr.includes('level-0')
-                        ) {
-                            isLevel0 = true;
-                        }
-
-                        const serviceId = service.id || service['@id'];
-
-                        if (!isLevel0) {
-                            src = `${serviceId}/full/200,/0/default.jpg`;
-                        }
-                    }
-
-                    if (!src) {
-                        src = resource.id || resource['@id'];
-
-                        // Fallback: check raw annotation body
-                        if (!src) {
-                            let rawBody: any = null;
-                            if (
-                                annotation.__jsonld &&
-                                annotation.__jsonld.body
-                            ) {
-                                rawBody = annotation.__jsonld.body;
-                            } else if (annotation.body) {
-                                rawBody = annotation.body;
-                            }
-
-                            if (rawBody) {
-                                const bodyObj = Array.isArray(rawBody)
-                                    ? rawBody[0]
-                                    : rawBody;
-                                src = bodyObj.id || bodyObj['@id'];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        const getLabel = () => {
-            if (canvas.getLabel) {
-                const label = canvas.getLabel();
-                return label.length ? label[0].value : `Canvas ${index + 1}`;
-            }
-            return `Canvas ${index + 1}`;
-        };
-
-        return {
-            id: canvas.id,
-            label: getLabel(),
-            src,
-            index,
-        };
-    }
-
-    describe('Direct thumbnail via getThumbnail()', () => {
-        it('should extract thumbnail from getThumbnail() as string', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => 'http://example.org/thumb.jpg',
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/thumb.jpg');
-            expect(result.label).toBe('Page 1');
-        });
-
-        it('should extract thumbnail from getThumbnail() as object with id', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => ({
-                    id: 'http://example.org/thumb-v3.jpg',
+    describe('Declared canvas thumbnail', () => {
+        it('should use a v3 thumbnail declared on the canvas', async () => {
+            const canvas = await v3Canvas({
+                thumbnail: [
+                    {
+                        id: 'http://example.org/thumb-v3.jpg',
+                        type: 'Image',
+                    },
+                ],
+                ...paintingPage({
+                    id: 'http://example.org/image/1',
                     type: 'Image',
                 }),
-                getLabel: () => [{ value: 'Page 1' }],
-            };
+            });
 
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/thumb-v3.jpg');
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/thumb-v3.jpg',
+            );
         });
 
-        it('should extract thumbnail from getThumbnail() as object with @id', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => ({
+        it('should use a v2 thumbnail declared with @id', async () => {
+            const canvas = await v2Canvas({
+                thumbnail: {
                     '@id': 'http://example.org/thumb-v2.jpg',
                     '@type': 'dctypes:Image',
+                },
+                ...paintingImages({
+                    '@id': 'http://example.org/image/1',
+                    '@type': 'dctypes:Image',
                 }),
-                getLabel: () => [{ value: 'Page 1' }],
-            };
+            });
 
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/thumb-v2.jpg');
-        });
-    });
-
-    describe('Fallback to image service (v2 getImages)', () => {
-        it('should construct thumbnail URL from IIIF service', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        getResource: () => ({
-                            id: 'http://example.org/image/1',
-                            getServices: () => [
-                                {
-                                    id: 'http://example.org/iiif/image1',
-                                    '@id': 'http://example.org/iiif/image1',
-                                    getProfile: () =>
-                                        'http://iiif.io/api/image/2/level1.json',
-                                },
-                            ],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe(
-                'http://example.org/iiif/image1/full/200,/0/default.jpg',
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/thumb-v2.jpg',
             );
         });
 
-        it('should handle service from __jsonld when getServices not available', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
+        it('should build a service URL from a declared thumbnail service', async () => {
+            const canvas = await v3Canvas({
+                thumbnail: [
                     {
-                        getResource: () => ({
-                            __jsonld: {
-                                service: {
-                                    '@id': 'http://example.org/iiif/image2',
-                                    profile:
-                                        'http://iiif.io/api/image/2/level1.json',
-                                },
-                            },
-                            getServices: () => [],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe(
-                'http://example.org/iiif/image2/full/200,/0/default.jpg',
-            );
-        });
-
-        it('should handle service array', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        getResource: () => ({
-                            __jsonld: {
-                                service: [
-                                    {
-                                        '@id': 'http://example.org/iiif/image3',
-                                        profile:
-                                            'http://iiif.io/api/image/2/level1.json',
-                                    },
-                                ],
-                            },
-                            getServices: () => [],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe(
-                'http://example.org/iiif/image3/full/200,/0/default.jpg',
-            );
-        });
-
-        it('should skip level0 services and use direct image URL', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        getResource: () => ({
-                            id: 'http://example.org/direct-image.jpg',
-                            getServices: () => [
-                                {
-                                    id: 'http://example.org/iiif/level0',
-                                    '@id': 'http://example.org/iiif/level0',
-                                    profile:
-                                        'http://iiif.io/api/image/2/level0.json',
-                                },
-                            ],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            // Should use direct image URL instead of constructing IIIF URL
-            expect(result.src).toBe('http://example.org/direct-image.jpg');
-        });
-    });
-
-    describe('Fallback to image content (v3 getContent)', () => {
-        it('should use getContent when getImages returns empty', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [],
-                getContent: () => [
-                    {
-                        getBody: () => ({
-                            id: 'http://example.org/image/v3',
-                            getServices: () => [
-                                {
-                                    id: 'http://example.org/iiif/v3',
-                                    type: 'ImageService3',
-                                },
-                            ],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe(
-                'http://example.org/iiif/v3/full/200,/0/default.jpg',
-            );
-        });
-
-        it('should handle getBody returning array', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => null,
-                getContent: () => [
-                    {
-                        getBody: () => [
+                        id: 'http://example.org/thumb/full/max/0/default.jpg',
+                        type: 'Image',
+                        service: [
                             {
-                                id: 'http://example.org/image/first',
-                                getServices: () => [
-                                    {
-                                        id: 'http://example.org/iiif/first',
-                                        type: 'ImageService3',
-                                    },
-                                ],
-                            },
-                            {
-                                id: 'http://example.org/image/second',
+                                id: 'http://example.org/iiif/thumb',
+                                type: 'ImageService3',
+                                profile: 'level1',
                             },
                         ],
                     },
                 ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
+                ...paintingPage({
+                    id: 'http://example.org/image/1',
+                    type: 'Image',
+                }),
+            });
 
-            const result = extractThumbnail(canvas, 0);
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/iiif/thumb/full/200,/0/default.jpg',
+            );
+        });
+    });
+
+    describe('Fallback to image service (IIIF v2 canvas.images)', () => {
+        it('should construct thumbnail URL from IIIF service', async () => {
+            const canvas = await v2Canvas(
+                paintingImages({
+                    '@id': 'http://example.org/image/1',
+                    '@type': 'dctypes:Image',
+                    service: {
+                        '@id': 'http://example.org/iiif/image1',
+                        profile: 'http://iiif.io/api/image/2/level1.json',
+                    },
+                }),
+            );
+
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/iiif/image1/full/200,/0/default.jpg',
+            );
+        });
+
+        it('should handle service array', async () => {
+            const canvas = await v2Canvas(
+                paintingImages({
+                    '@id': 'http://example.org/image/1',
+                    '@type': 'dctypes:Image',
+                    service: [
+                        {
+                            '@id': 'http://example.org/iiif/image3',
+                            profile: 'http://iiif.io/api/image/2/level1.json',
+                        },
+                    ],
+                }),
+            );
+
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/iiif/image3/full/200,/0/default.jpg',
+            );
+        });
+
+        it('should skip level0 services and use direct image URL', async () => {
+            const canvas = await v2Canvas(
+                paintingImages({
+                    '@id': 'http://example.org/direct-image.jpg',
+                    '@type': 'dctypes:Image',
+                    service: {
+                        '@id': 'http://example.org/iiif/level0',
+                        profile: 'http://iiif.io/api/image/2/level0.json',
+                    },
+                }),
+            );
+
+            // Should use direct image URL instead of constructing IIIF URL
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/direct-image.jpg',
+            );
+        });
+    });
+
+    describe('Fallback to image content (IIIF v3 canvas.items)', () => {
+        it('should build a service URL from a v3 painting body', async () => {
+            const canvas = await v3Canvas(
+                paintingPage({
+                    id: 'http://example.org/image/v3',
+                    type: 'Image',
+                    service: [
+                        {
+                            id: 'http://example.org/iiif/v3',
+                            type: 'ImageService3',
+                            profile: 'level1',
+                        },
+                    ],
+                }),
+            );
+
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/iiif/v3/full/200,/0/default.jpg',
+            );
+        });
+
+        it('should handle a body given as an array', async () => {
+            const canvas = await v3Canvas(
+                paintingPage([
+                    {
+                        id: 'http://example.org/image/first',
+                        type: 'Image',
+                        service: [
+                            {
+                                id: 'http://example.org/iiif/first',
+                                type: 'ImageService3',
+                                profile: 'level1',
+                            },
+                        ],
+                    },
+                    { id: 'http://example.org/image/second', type: 'Image' },
+                ]),
+            );
 
             // Should use first image
-            expect(result.src).toBe(
+            expect(getThumbnailSrc(canvas)).toBe(
                 'http://example.org/iiif/first/full/200,/0/default.jpg',
             );
         });
     });
 
-    describe('Raw JSON fallback', () => {
-        it('should extract from __jsonld.body when methods fail', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        __jsonld: {
-                            body: {
-                                id: 'http://example.org/raw-image.jpg',
-                            },
-                        },
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/raw-image.jpg');
-        });
-
-        it('should handle body as array', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        __jsonld: {
-                            body: [
-                                {
-                                    id: 'http://example.org/raw-image-1.jpg',
-                                },
-                            ],
-                        },
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/raw-image-1.jpg');
-        });
-
-        it('should use @id when id is not available', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        __jsonld: {
-                            body: {
-                                '@id': 'http://example.org/raw-v2-image.jpg',
-                            },
-                        },
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/raw-v2-image.jpg');
-        });
-    });
-
     describe('Direct image URL fallback', () => {
-        it('should use resource id when no service available', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        getResource: () => ({
-                            id: 'http://example.org/direct.jpg',
-                            getServices: () => [],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
+        it('should use the v3 body id when no service is available', async () => {
+            const canvas = await v3Canvas(
+                paintingPage({
+                    id: 'http://example.org/raw-image.jpg',
+                    type: 'Image',
+                }),
+            );
 
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/direct.jpg');
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/raw-image.jpg',
+            );
         });
 
-        it('should use resource @id when id not available', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [
-                    {
-                        getResource: () => ({
-                            '@id': 'http://example.org/direct-v2.jpg',
-                            __jsonld: {}, // Add __jsonld to pass validation
-                            getServices: () => [],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Page 1' }],
-            };
+        it('should use the v2 resource @id when no service is available', async () => {
+            const canvas = await v2Canvas(
+                paintingImages({
+                    '@id': 'http://example.org/raw-v2-image.jpg',
+                    '@type': 'dctypes:Image',
+                }),
+            );
 
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('http://example.org/direct-v2.jpg');
-        });
-    });
-
-    describe('Canvas label extraction', () => {
-        it('should extract label from getLabel() array', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => 'http://example.org/thumb.jpg',
-                getLabel: () => [{ value: 'My Custom Label' }],
-            };
-
-            const result = extractThumbnail(canvas, 5);
-
-            expect(result.label).toBe('My Custom Label');
-        });
-
-        it('should default to "Canvas N" when label is empty', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => 'http://example.org/thumb.jpg',
-                getLabel: () => [],
-            };
-
-            const result = extractThumbnail(canvas, 3);
-
-            expect(result.label).toBe('Canvas 4'); // index + 1
-        });
-
-        it('should default to "Canvas N" when getLabel not available', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => 'http://example.org/thumb.jpg',
-            };
-
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.label).toBe('Canvas 1');
+            expect(getThumbnailSrc(canvas)).toBe(
+                'http://example.org/raw-v2-image.jpg',
+            );
         });
     });
 
     describe('Empty canvas handling', () => {
-        it('should handle canvas with no images', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => [],
-                getLabel: () => [{ value: 'Empty Canvas' }],
-            };
+        it('should handle canvas with an empty images array', async () => {
+            const canvas = await v2Canvas({ images: [] });
 
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('');
-            expect(result.label).toBe('Empty Canvas');
+            expect(getThumbnailSrc(canvas)).toBe('');
         });
 
-        it('should handle canvas with null images', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => null,
-                getImages: () => null,
-                getLabel: () => [{ value: 'Null Images Canvas' }],
-            };
+        it('should handle canvas with no painting annotations at all', async () => {
+            const canvas = await v3Canvas({});
 
-            const result = extractThumbnail(canvas, 0);
-
-            expect(result.src).toBe('');
-        });
-
-        it('should handle canvas with error in getThumbnail', () => {
-            const canvas = {
-                id: 'http://example.org/canvas/1',
-                getThumbnail: () => {
-                    throw new Error('Thumbnail error');
-                },
-                getImages: () => [
-                    {
-                        getResource: () => ({
-                            id: 'http://example.org/fallback.jpg',
-                            getServices: () => [],
-                        }),
-                    },
-                ],
-                getLabel: () => [{ value: 'Error Canvas' }],
-            };
-
-            // Mock console.warn to prevent test output pollution
-            const warnSpy = vi
-                .spyOn(console, 'warn')
-                .mockImplementation(() => {});
-
-            const result = extractThumbnail(canvas, 0);
-
-            // Should fallback to image
-            expect(result.src).toBe('http://example.org/fallback.jpg');
-
-            warnSpy.mockRestore();
+            expect(getThumbnailSrc(canvas)).toBe('');
         });
     });
 });
