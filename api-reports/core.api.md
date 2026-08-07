@@ -177,16 +177,45 @@ export default TriiiceratopsViewer;
 // ======================================================================
 // FILE: dist/components/osdLayout.d.ts
 // ======================================================================
-export declare const MULTI_CANVAS_GAP = 0.0125;
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
 export type ViewingDirection = 'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top';
-export interface PositionedTileSource {
-    canvasId?: string;
-    x?: number;
-    y?: number;
-    width?: number;
-    tileSource?: unknown;
+/**
+ * The geometry of one source, as its caller knows it.
+ *
+ * `sourceWidth`/`sourceHeight` are the dimensions of the thing being laid out,
+ * in whatever space the caller works in — only their ratio is used, to give the
+ * canvas a height. They are deliberately *not* called `canvasWidth`/
+ * `canvasHeight`: those names mean manifest Canvas dimensions elsewhere in this
+ * codebase (see `ResolvedCanvasImage`), and a caller may legitimately lay out
+ * from a different space. They are passed in rather than read off a tile source
+ * so that layout can run before (or entirely without) any image service being
+ * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
+ * because that is what it has to hand; manifest Canvas dimensions are the
+ * authoritative geometry everywhere else.
+ */
+export interface CanvasGeometry {
+    canvasId?: string | null;
+    /** Position and extent of this source within its canvas, in world units. */
+    x?: number | null;
+    y?: number | null;
+    width?: number | null;
+    sourceWidth?: number | null;
+    sourceHeight?: number | null;
 }
+/** Where layout placed one source, in world units. */
+interface PlacedRect {
+    canvasId: string;
+    x: number;
+    y: number;
+    width: number;
+}
+/** A layout input: geometry plus a payload layout returns untouched. */
+export type PositionedTileSource = CanvasGeometry & {
+    tileSource: unknown;
+};
+export type DisplayPositionedTileSource = PlacedRect & {
+    tileSource: unknown;
+};
 export interface CanvasDisplayLayout {
     canvasId: string;
     x: number;
@@ -194,22 +223,16 @@ export interface CanvasDisplayLayout {
     width: number;
     height: number;
 }
-export interface DisplayPositionedTileSource {
-    tileSource: unknown;
-    x: number;
-    y: number;
-    width: number;
-    canvasId: string;
-}
 interface CanvasLayoutResult {
     sources: DisplayPositionedTileSource[];
     layouts: CanvasDisplayLayout[];
 }
-export declare function getCanvasDisplayLayouts(sources: unknown[], options: {
+export declare function getCanvasDisplayLayouts(sources: PositionedTileSource[], options: {
     mode: ViewingMode;
     direction: ViewingDirection;
     preserveCanvasScale?: boolean;
-    gap: number;
+    /** Defaults to the spacing the viewer itself lays out with. */
+    gap?: number;
 }): CanvasLayoutResult;
 export declare function getContinuousTargetPosition(indexOrCanvasId: number | string, layouts: CanvasDisplayLayout[], direction: ViewingDirection): number | null;
 export {};
@@ -919,7 +942,7 @@ export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvas
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
 export { DEFAULT_POINT_RADIUS, resolvePointRadius, type PointStyle, } from './utils/pointMarker';
-export { getCanvasDisplayLayouts, MULTI_CANVAS_GAP, } from './components/osdLayout';
+export { getCanvasDisplayLayouts } from './components/osdLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
@@ -4408,9 +4431,19 @@ export type ResolvedCanvasImage = {
     serviceId: string | null;
     serviceProfile: string | null;
     imageApiRegion: RegionRect | null;
+    /**
+     * The box this image paints on its canvas, in manifest Canvas coordinates
+     * normalized by the canvas's *width* on both axes — the vertical axis
+     * included, so that one vertical unit equals one horizontal unit. A
+     * canvas-filling image is `x: 0, y: 0, width: 1`, making `height` the
+     * canvas's aspect ratio; a region-targeted image gets its target's own box.
+     * This is the authoritative geometry for laying the image out — the image
+     * service's own dimensions describe the pixels, not the placement.
+     */
     x: number;
     y: number;
     width: number;
+    height: number;
 };
 export declare function getRegionString(region: RegionRect): string;
 export { getCanvasLabel, getCanvasId };

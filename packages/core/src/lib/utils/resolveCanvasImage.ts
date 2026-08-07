@@ -54,9 +54,19 @@ export type ResolvedCanvasImage = {
     serviceId: string | null;
     serviceProfile: string | null;
     imageApiRegion: RegionRect | null;
+    /**
+     * The box this image paints on its canvas, in manifest Canvas coordinates
+     * normalized by the canvas's *width* on both axes — the vertical axis
+     * included, so that one vertical unit equals one horizontal unit. A
+     * canvas-filling image is `x: 0, y: 0, width: 1`, making `height` the
+     * canvas's aspect ratio; a region-targeted image gets its target's own box.
+     * This is the authoritative geometry for laying the image out — the image
+     * service's own dimensions describe the pixels, not the placement.
+     */
     x: number;
     y: number;
     width: number;
+    height: number;
 };
 
 type CanvasDimensions = {
@@ -400,6 +410,9 @@ export function resolveAllCanvasImages(
                 // is divided by width, exactly like x and width — not by height.
                 y: region ? region.y / canvasDimensions.width : 0,
                 width: region ? region.width / canvasDimensions.width : 1,
+                height: region
+                    ? region.height / canvasDimensions.width
+                    : canvasDimensions.height / canvasDimensions.width,
             } satisfies ResolvedCanvasImage;
         })
         .filter((result): result is ResolvedCanvasImage => result !== null);

@@ -9,7 +9,6 @@ import {
     getCompositeImagePlacement,
     getResolvedImageExportUrl,
     getVisibleCanvasEntries,
-    MULTI_CANVAS_GAP,
     resolveAllCanvasImages,
     resolveExportSizeOptions,
     type ComposeImageEntry,
@@ -214,11 +213,14 @@ function buildWorldLayout(
                 x: resolved.x,
                 y: resolved.y,
                 width: resolved.width,
-                tileSource: {
-                    width: resolved.resourceWidth || resolved.canvasWidth,
-                    height: resolved.resourceHeight || resolved.canvasHeight,
-                    resolved,
-                },
+                // The box this image occupies on its manifest Canvas. Layout
+                // reads only the ratio, so passing the box's own width and
+                // height gives each source exactly the extent the manifest
+                // declares for it. The image service's dimensions are image
+                // space and are deliberately not used as canvas geometry.
+                sourceWidth: resolved.width,
+                sourceHeight: resolved.height,
+                tileSource: { resolved },
             }),
         );
     });
@@ -229,7 +231,6 @@ function buildWorldLayout(
         mode: viewerState.viewingMode,
         direction: viewerState.viewingDirection,
         preserveCanvasScale: viewerState.preserveCanvasScale,
-        gap: MULTI_CANVAS_GAP,
     });
 
     if (!layouts.length) return null;

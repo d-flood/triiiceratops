@@ -1,8 +1,11 @@
-// Gap (in normalized OSD world units) inserted between adjacent canvases in
-// paged/continuous layouts. Exported so anything reconstructing this layout
-// outside the live viewer (e.g. an export/download plugin) uses the same
-// spacing as what's actually on screen.
-export const MULTI_CANVAS_GAP = 0.0125;
+// Gap (in normalized world units) inserted between adjacent canvases in
+// paged/continuous layouts. Deliberately *not* exported: this module is the one
+// layout implementation in the repository, so a caller that wants the spacing
+// that is actually on screen — the live viewer and the export path alike — gets
+// it by omitting the `gap` option rather than by importing the number and
+// reconstructing the layout itself. It stays an option so a caller with its own
+// spacing (and, later, a configured one) can pass it.
+const DEFAULT_MULTI_CANVAS_GAP = 0.0125;
 
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
 
@@ -12,13 +15,42 @@ export type ViewingDirection =
     | 'top-to-bottom'
     | 'bottom-to-top';
 
-export interface PositionedTileSource {
-    canvasId?: string;
-    x?: number;
-    y?: number;
-    width?: number;
-    tileSource?: unknown;
+/**
+ * The geometry of one source, as its caller knows it.
+ *
+ * `sourceWidth`/`sourceHeight` are the dimensions of the thing being laid out,
+ * in whatever space the caller works in — only their ratio is used, to give the
+ * canvas a height. They are deliberately *not* called `canvasWidth`/
+ * `canvasHeight`: those names mean manifest Canvas dimensions elsewhere in this
+ * codebase (see `ResolvedCanvasImage`), and a caller may legitimately lay out
+ * from a different space. They are passed in rather than read off a tile source
+ * so that layout can run before (or entirely without) any image service being
+ * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
+ * because that is what it has to hand; manifest Canvas dimensions are the
+ * authoritative geometry everywhere else.
+ */
+export interface CanvasGeometry {
+    canvasId?: string | null;
+    /** Position and extent of this source within its canvas, in world units. */
+    x?: number | null;
+    y?: number | null;
+    width?: number | null;
+    sourceWidth?: number | null;
+    sourceHeight?: number | null;
 }
+
+/** Where layout placed one source, in world units. */
+interface PlacedRect {
+    canvasId: string;
+    x: number;
+    y: number;
+    width: number;
+}
+
+/** A layout input: geometry plus a payload layout returns untouched. */
+export type PositionedTileSource = CanvasGeometry & { tileSource: unknown };
+
+export type DisplayPositionedTileSource = PlacedRect & { tileSource: unknown };
 
 export interface CanvasDisplayLayout {
     canvasId: string;
@@ -28,24 +60,19 @@ export interface CanvasDisplayLayout {
     height: number;
 }
 
-export interface DisplayPositionedTileSource {
-    tileSource: unknown;
-    x: number;
-    y: number;
-    width: number;
-    canvasId: string;
+/** The caller's payload for one source, carried through layout unread. */
+type SourcePayload = Pick<PositionedTileSource, 'tileSource'>;
+
+interface GroupedSource extends SourcePayload {
+    localX: number;
+    localY: number;
+    localWidth: number;
+    localHeight: number | null;
 }
 
 interface CanvasGroup {
     canvasId: string;
-    sources: Array<{
-        source: PositionedTileSource | unknown;
-        tileSource: unknown;
-        localX: number;
-        localY: number;
-        localWidth: number;
-        localHeight: number | null;
-    }>;
+    sources: GroupedSource[];
     width: number;
     height: number | null;
 }
@@ -55,13 +82,7 @@ interface CanvasLayoutResult {
     layouts: CanvasDisplayLayout[];
 }
 
-function isPositionedSource(source: unknown): source is PositionedTileSource {
-    return !!source && typeof source === 'object' && 'tileSource' in source;
-}
-
-function getDimension(tileSource: unknown, key: 'width' | 'height') {
-    if (!tileSource || typeof tileSource !== 'object') return null;
-    const value = (tileSource as Record<string, unknown>)[key];
+function getDimension(value: number | null | undefined) {
     return typeof value === 'number' && Number.isFinite(value) && value > 0
         ? value
         : null;
@@ -79,20 +100,16 @@ function median(values: number[]) {
         : sorted[middle];
 }
 
-function groupSources(sources: unknown[]): CanvasGroup[] {
+function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
     const groups = new Map<string, CanvasGroup>();
 
     sources.forEach((source, index) => {
-        const positioned = isPositionedSource(source);
-        const tileSource = positioned ? source.tileSource : source;
-        const canvasId = positioned
-            ? (source.canvasId ?? `canvas-${index}`)
-            : `canvas-${index}`;
-        const localX = positioned ? (source.x ?? 0) : 0;
-        const localY = positioned ? (source.y ?? 0) : 0;
-        const localWidth = positioned ? (source.width ?? 1) : 1;
-        const imageWidth = getDimension(tileSource, 'width');
-        const imageHeight = getDimension(tileSource, 'height');
+        const canvasId = source.canvasId ?? `canvas-${index}`;
+        const localX = source.x ?? 0;
+        const localY = source.y ?? 0;
+        const localWidth = source.width ?? 1;
+        const imageWidth = getDimension(source.sourceWidth);
+        const imageHeight = getDimension(source.sourceHeight);
         const localHeight =
             imageWidth && imageHeight
                 ? (localWidth * imageHeight) / imageWidth
@@ -105,8 +122,7 @@ function groupSources(sources: unknown[]): CanvasGroup[] {
         }
 
         group.sources.push({
-            source,
-            tileSource,
+            tileSource: source.tileSource,
             localX,
             localY,
             localWidth,
@@ -132,11 +148,11 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
             height: group.height ?? 1,
         })),
         sources: groups.flatMap((group) =>
-            group.sources.map(({ tileSource, localX, localY, localWidth }) => ({
-                tileSource,
-                x: localX,
-                y: localY,
-                width: localWidth,
+            group.sources.map((placed) => ({
+                tileSource: placed.tileSource,
+                x: placed.localX,
+                y: placed.localY,
+                width: placed.localWidth,
                 canvasId: group.canvasId,
             })),
         ),
@@ -144,14 +160,16 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
 }
 
 export function getCanvasDisplayLayouts(
-    sources: unknown[],
+    sources: PositionedTileSource[],
     options: {
         mode: ViewingMode;
         direction: ViewingDirection;
         preserveCanvasScale?: boolean;
-        gap: number;
+        /** Defaults to the spacing the viewer itself lays out with. */
+        gap?: number;
     },
 ): CanvasLayoutResult {
+    const gap = options.gap ?? DEFAULT_MULTI_CANVAS_GAP;
     const groups = groupSources(sources);
 
     if (options.mode === 'individuals' || groups.length <= 1) {
@@ -190,10 +208,10 @@ export function getCanvasDisplayLayouts(
         for (const layout of scaled) {
             if (isVertical) {
                 layout.y = isReverse ? -offset : offset;
-                offset += (canNormalize ? layout.height : 1) + options.gap;
+                offset += (canNormalize ? layout.height : 1) + gap;
             } else {
                 layout.x = isReverse ? -offset : offset;
-                offset += (canNormalize ? layout.width : 1) + options.gap;
+                offset += (canNormalize ? layout.width : 1) + gap;
             }
         }
     } else if (options.mode === 'paged') {
@@ -206,7 +224,7 @@ export function getCanvasDisplayLayouts(
                 : scaled.slice(0, index);
             layout.x = previous.reduce(
                 (offset, item) =>
-                    offset + (canNormalize ? item.width : 1) + options.gap,
+                    offset + (canNormalize ? item.width : 1) + gap,
                 0,
             );
             layout.y = (spreadHeight - layout.height) / 2;
@@ -222,15 +240,13 @@ export function getCanvasDisplayLayouts(
             height: layout.height,
         })),
         sources: scaled.flatMap((layout) =>
-            layout.group.sources.map(
-                ({ tileSource, localX, localY, localWidth }) => ({
-                    tileSource,
-                    x: layout.x + localX * layout.scale,
-                    y: layout.y + localY * layout.scale,
-                    width: localWidth * layout.scale,
-                    canvasId: layout.group.canvasId,
-                }),
-            ),
+            layout.group.sources.map((placed) => ({
+                tileSource: placed.tileSource,
+                x: layout.x + placed.localX * layout.scale,
+                y: layout.y + placed.localY * layout.scale,
+                width: placed.localWidth * layout.scale,
+                canvasId: layout.group.canvasId,
+            })),
         ),
     };
 }

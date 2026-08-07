@@ -10,10 +10,9 @@
     import {
         getCanvasDisplayLayouts,
         getContinuousTargetPosition,
-        MULTI_CANVAS_GAP,
         type CanvasDisplayLayout,
     } from './osdLayout';
-    import { resolveTileSources } from './osdTileSources';
+    import { resolveTileSources, toLayoutSource } from './osdTileSources';
     import { parseAnnotations } from '../utils/annotationAdapter';
     import {
         canvasPointToImagePoint,
@@ -703,12 +702,14 @@
                 setTileSourceError(null);
                 const resolvedSources = result.resolved;
 
-                const layoutResult = getCanvasDisplayLayouts(resolvedSources, {
-                    mode,
-                    direction,
-                    preserveCanvasScale: viewerState.preserveCanvasScale,
-                    gap: MULTI_CANVAS_GAP,
-                });
+                const layoutResult = getCanvasDisplayLayouts(
+                    resolvedSources.map(toLayoutSource),
+                    {
+                        mode,
+                        direction,
+                        preserveCanvasScale: viewerState.preserveCanvasScale,
+                    },
+                );
                 continuousLayouts = layoutResult.layouts;
                 const allPositions = layoutResult.sources;
 
@@ -819,12 +820,16 @@
             const resolvedSources = result.resolved;
 
             if (mode === 'paged') {
-                const positioned = getCanvasDisplayLayouts(resolvedSources, {
-                    mode,
-                    direction: isPagedRTL ? 'right-to-left' : 'left-to-right',
-                    preserveCanvasScale: viewerState.preserveCanvasScale,
-                    gap: MULTI_CANVAS_GAP,
-                }).sources;
+                const positioned = getCanvasDisplayLayouts(
+                    resolvedSources.map(toLayoutSource),
+                    {
+                        mode,
+                        direction: isPagedRTL
+                            ? 'right-to-left'
+                            : 'left-to-right',
+                        preserveCanvasScale: viewerState.preserveCanvasScale,
+                    },
+                ).sources;
 
                 viewer.open(
                     positioned.length === 1 ? positioned[0] : positioned,
