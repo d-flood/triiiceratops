@@ -1,0 +1,679 @@
+{
+  "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/manifest/",
+  "type": "Manifest",
+  "items": [
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Recto_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Recto_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Recto_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_A_Recto_White_PSC/M_NT_GRC_P40_A_Recto_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 6132,
+                "format": "image/jpeg",
+                "height": 8176,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_A_Recto_White_PSC/M_NT_GRC_P40_A_Recto_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Recto_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_A_Recto_White_PSC"
+        ]
+      },
+      "width": 6132,
+      "height": 8176
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Verso_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Verso_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Verso_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_A_Verso_White_PSC/M_NT_GRC_P40_A_Verso_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 6132,
+                "format": "image/jpeg",
+                "height": 8176,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_A_Verso_White_PSC/M_NT_GRC_P40_A_Verso_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_A_Verso_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_A_Verso_White_PSC"
+        ]
+      },
+      "width": 6132,
+      "height": 8176
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Recto_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Recto_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Recto_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_B_Recto_White_PSC/M_NT_GRC_P40_B_Recto_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 6132,
+                "format": "image/jpeg",
+                "height": 8176,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_B_Recto_White_PSC/M_NT_GRC_P40_B_Recto_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Recto_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_B_Recto_White_PSC"
+        ]
+      },
+      "width": 6132,
+      "height": 8176
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Verso_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Verso_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Verso_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_B_Verso_White_PSC/M_NT_GRC_P40_B_Verso_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 6132,
+                "format": "image/jpeg",
+                "height": 8176,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_B_Verso_White_PSC/M_NT_GRC_P40_B_Verso_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_B_Verso_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_B_Verso_White_PSC"
+        ]
+      },
+      "width": 6132,
+      "height": 8176
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Recto_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Recto_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Recto_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_CD_Recto_White_PSC/M_NT_GRC_P40_CD_Recto_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_CD_Recto_White_PSC/M_NT_GRC_P40_CD_Recto_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Recto_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_CD_Recto_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Verso_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Verso_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Verso_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_CD_Verso_White_PSC/M_NT_GRC_P40_CD_Verso_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_CD_Verso_White_PSC/M_NT_GRC_P40_CD_Verso_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_CD_Verso_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_CD_Verso_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Recto_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Recto_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Recto_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_E_Recto_White_PSC/M_NT_GRC_P40_E_Recto_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_E_Recto_White_PSC/M_NT_GRC_P40_E_Recto_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Recto_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_E_Recto_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Verso_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Verso_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Verso_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_E_Verso_White_PSC/M_NT_GRC_P40_E_Verso_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_E_Verso_White_PSC/M_NT_GRC_P40_E_Verso_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_E_Verso_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_E_Verso_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Recto_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Recto_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Recto_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_FG_Recto_White_PSC/M_NT_GRC_P40_FG_Recto_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_FG_Recto_White_PSC/M_NT_GRC_P40_FG_Recto_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Recto_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_FG_Recto_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Verso_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Verso_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Verso_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_FG_Verso_White_PSC/M_NT_GRC_P40_FG_Verso_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_FG_Verso_White_PSC/M_NT_GRC_P40_FG_Verso_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_FG_Verso_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_FG_Verso_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Recto_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Recto_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Recto_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_GH_Recto_White_PSC/M_NT_GRC_P40_GH_Recto_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_GH_Recto_White_PSC/M_NT_GRC_P40_GH_Recto_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Recto_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_GH_Recto_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Verso_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Verso_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Verso_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_GH_Verso_White_PSC/M_NT_GRC_P40_GH_Verso_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_GH_Verso_White_PSC/M_NT_GRC_P40_GH_Verso_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_GH_Verso_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_GH_Verso_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Recto_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Recto_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Recto_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_IJ_Recto_White_PSC/M_NT_GRC_P40_IJ_Recto_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_IJ_Recto_White_PSC/M_NT_GRC_P40_IJ_Recto_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Recto_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_IJ_Recto_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    },
+    {
+      "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Verso_White_PSC/canvas",
+      "type": "Canvas",
+      "items": [
+        {
+          "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Verso_White_PSC/annotationpage/",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Verso_White_PSC/annotation/",
+              "body": {
+                "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_IJ_Verso_White_PSC/M_NT_GRC_P40_IJ_Verso_White_PSC/thumbnail.jpg",
+                "type": "Image",
+                "width": 8176,
+                "format": "image/jpeg",
+                "height": 6132,
+                "service": [
+                  {
+                    "id": "https://collections.csntm.org/image-service/iiif/MNTGRCP40/default/M_NT_GRC_P40_IJ_Verso_White_PSC/M_NT_GRC_P40_IJ_Verso_White_PSC",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ]
+              },
+              "type": "Annotation",
+              "target": "https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/M_NT_GRC_P40_IJ_Verso_White_PSC/canvas",
+              "@context": "http://iiif.io/api/presentation/3/context.json",
+              "motivation": "painting"
+            }
+          ],
+          "@context": "http://iiif.io/api/presentation/3/context.json"
+        }
+      ],
+      "label": {
+        "en": [
+          "M_NT_GRC_P40_IJ_Verso_White_PSC"
+        ]
+      },
+      "width": 8176,
+      "height": 6132
+    }
+  ],
+  "label": {
+    "en": [
+      "GA P40"
+    ]
+  },
+  "partOf": {
+    "id": "https://collections.csntm.org/iiif/artifacts/MNTGRCP40/collection",
+    "type": "Collection"
+  },
+  "rights": "URL to rights/usage statement",
+  "summary": {
+    "en": [
+      "Third century manuscript of Paul on papyrus; 10 fragments, 1 column per fragment, 35-36 lines per page. Images taken at the University at Heidelberg."
+    ]
+  },
+  "@context": "http://iiif.io/api/presentation/3/context.json",
+  "behavior": [
+    "non-paged"
+  ],
+  "homepage": {
+    "id": "https://collections.csntm.org/manuscripts/view/MNTGRCP40/",
+    "type": "Text",
+    "label": {
+      "en": [
+        "Artifact Homepage"
+      ]
+    },
+    "format": "text/html",
+    "language": [
+      "en"
+    ]
+  },
+  "metadata": [
+    {
+      "label": {
+        "en": [
+          "Shelfmark"
+        ]
+      },
+      "value": {
+        "en": [
+          "P. Heid. Inv. G. 645"
+        ]
+      }
+    }
+  ],
+  "provider": [
+    {
+      "id": "https://www.csntm.org/about-us",
+      "logo": [
+        {
+          "id": "https://www.csntm.org/about-us",
+          "type": "Image",
+          "width": 100,
+          "format": "image/png",
+          "height": 100
+        }
+      ],
+      "type": "Agent",
+      "label": {
+        "en": [
+          "CSNTM"
+        ]
+      },
+      "homepage": [
+        {
+          "id": "https://www.csntm.org/",
+          "type": "Text",
+          "label": {
+            "en": [
+              "CSNTM Homepage"
+            ]
+          },
+          "format": "text/html",
+          "language": [
+            "en"
+          ]
+        }
+      ]
+    }
+  ],
+  "thumbnail": {
+    "id": "https://iiif-thumbnails.nyc3.digitaloceanspaces.com/iiif/MNTGRCP40/default/M_NT_GRC_P40_A_Recto_White_PSC/M_NT_GRC_P40_A_Recto_White_PSC/thumbnail.jpg",
+    "type": "Image",
+    "format": "image/jpeg"
+  },
+  "viewingDirection": "left-to-right",
+  "requiredStatement": {
+    "label": {
+      "en": [
+        "Attribution"
+      ]
+    },
+    "value": {
+      "en": [
+        "Institut für Papyrologie"
+      ]
+    }
+  }
+}
