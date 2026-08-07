@@ -1,6 +1,6 @@
 {
     "name": "@triiiceratops/plugin-pdf-export",
-    "version": "1.0.0-rc.5",
+    "version": "1.0.0-rc.6",
     "type": "module",
     "description": "PDF export plugin for the triiiceratops IIIF viewer, authored on @triiiceratops/plugin-sdk. Owns its own pdf-lib dependency.",
     "license": "MIT",
