@@ -1,6 +1,15 @@
 import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId, getResourceId } from './iiifIds';
+import {
+    getChoiceAlternatives,
+    getPaintingAnnotations,
+    getPaintingBody,
+    // The file already has a two-argument `isChoiceBody` for the library-shaped
+    // path below. Aliased rather than merged: that one is dead once every
+    // annotation is raw JSON, and ticket 10 deletes it.
+    isChoiceBody as isRawChoiceBody,
+} from './iiifParsing';
 import { normalizeIiifTargets } from './iiifTargets';
 import { resolveLanguageValue } from './languageMap';
 
@@ -159,14 +168,6 @@ function getSelectedChoiceResource({
     return bodyItems[0] || rawItems[0] || null;
 }
 
-function getCanvasAnnotations(canvas: any): any[] {
-    let annotations = canvas.getImages?.() || [];
-    if ((!annotations || !annotations.length) && canvas.getContent) {
-        annotations = canvas.getContent();
-    }
-    return annotations || [];
-}
-
 function getCanvasDimensions(canvas: any): CanvasDimensions | null {
     const width =
         canvas?.width ||
@@ -311,11 +312,16 @@ function getAnnotationResource(
     }
 
     if (!resource) {
-        const json = annotation.__jsonld || annotation;
-        if (json.body) {
-            let body = json.body;
-            if (body.type === 'Choice' || body.type === 'oa:Choice') {
-                const items = body.items || body.item || [];
+        // The raw-JSON path. It read only the v3 `body` spelling and never the
+        // v2 `resource` one, so a v2 annotation resolved to nothing the moment
+        // it arrived as raw JSON — a blank canvas and a `logger.debug` line.
+        // `getPaintingBody` reads both, and `getChoiceAlternatives` recognizes
+        // the v2 `oa:Choice`/`default`+`item` spelling as well as v3's
+        // `Choice`/`items`, with its array access guarded.
+        let body = getPaintingBody(annotation);
+        if (body) {
+            if (isRawChoiceBody(body)) {
+                const items = getChoiceAlternatives(body);
                 const selectedId = getSelectedChoice?.(canvasId);
                 const selectedItem = selectedId
                     ? items.find(
@@ -479,7 +485,7 @@ export function resolveAllCanvasImages(
         return [];
     }
 
-    const annotations = getCanvasAnnotations(canvas);
+    const annotations = getPaintingAnnotations(canvas);
     if (!annotations.length) {
         return [];
     }

@@ -2,6 +2,10 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import type { RequestConfig } from '../types/config';
 import { fetchJson } from '../utils/fetchJson';
+import {
+    getCanvasesForSequence,
+    getSequenceCount as countSequences,
+} from '../utils/iiifParsing';
 import { logger } from '../logging/logger';
 import { loadManifestoModule } from './manifestoRuntime';
 
@@ -100,14 +104,10 @@ export class ManifestsState {
 
     private getStructureSequences(manifestId: string): any[][] {
         const manifestEntry = this.getManifestEntry(manifestId);
-        const manifestoObject = this.getManifest(manifestId);
-        const structures = manifestEntry?.json?.structures;
+        const manifestJson = manifestEntry?.json;
+        const structures = manifestJson?.structures;
 
-        if (
-            !Array.isArray(structures) ||
-            !structures.length ||
-            !manifestoObject
-        ) {
+        if (!Array.isArray(structures) || !structures.length) {
             return [];
         }
 
@@ -129,17 +129,16 @@ export class ManifestsState {
             return [];
         }
 
+        // Every canvas the manifest declares, keyed by id, so that a range's
+        // canvas references can be resolved to the canvases themselves. Walks
+        // the raw JSON through the first-party enumerator; it used to walk
+        // `manifesto.js` sequences, which no longer exist in this cache.
         const canvasById = new SvelteMap<string, any>();
-        const manifestoSequences = manifestoObject.getSequences?.() || [];
+        const sequenceCount = countSequences(manifestJson);
 
-        for (const sequence of manifestoSequences) {
-            const canvases = sequence?.getCanvases?.() || [];
-            for (const canvas of canvases) {
-                const canvasId =
-                    canvas?.id ||
-                    canvas?.['@id'] ||
-                    canvas?.getCanvasId?.() ||
-                    canvas?.getId?.();
+        for (let index = 0; index < sequenceCount; index++) {
+            for (const canvas of getCanvasesForSequence(manifestJson, index)) {
+                const canvasId = canvas?.id || canvas?.['@id'];
 
                 if (canvasId && !canvasById.has(canvasId)) {
                     canvasById.set(canvasId, canvas);
@@ -206,20 +205,26 @@ export class ManifestsState {
     }
 
     private getCanvasJson(manifestId: string, canvasId: string): any | null {
-        const manifestoObject = this.getManifest(manifestId);
-        const manifestEntry = this.getManifestEntry(manifestId);
+        const manifestJson = this.getManifestEntry(manifestId)?.json;
 
-        if (manifestoObject) {
-            const sequences = manifestoObject.getSequences?.() || [];
-            for (const sequence of sequences) {
-                const canvas = sequence?.getCanvasById?.(canvasId);
-                if (canvas?.__jsonld) {
-                    return canvas.__jsonld;
-                }
+        // The enumerated canvases first — the same list the viewer renders, so
+        // an annotation is always read against the canvas that is on screen.
+        // This walked `manifesto.js` sequences and unwrapped `__jsonld`; the
+        // enumerator hands back that same raw JSON directly.
+        const sequenceCount = countSequences(manifestJson);
+        for (let index = 0; index < sequenceCount; index++) {
+            const canvas = getCanvasesForSequence(manifestJson, index).find(
+                (candidate) =>
+                    (candidate?.id || candidate?.['@id']) === canvasId,
+            );
+            if (canvas) {
+                return canvas;
             }
         }
 
-        return this.findCanvasInJson(manifestEntry?.json, canvasId);
+        // A canvas that is in the manifest but in no sequence — inside a range,
+        // a collection member, or an otherwise unenumerated branch.
+        return this.findCanvasInJson(manifestJson, canvasId);
     }
 
     private getCanvasAnnotationListRefs(canvasJson: any): string[] {
@@ -274,22 +279,29 @@ export class ManifestsState {
         return this.getAnnotations(manifestId, canvasId, sourceId);
     }
 
-    getSequenceCount(manifestId: string) {
+    /**
+     * How many sequences the active manifest offers, as the sequence picker
+     * counts them. Ranges with `behavior: "sequence"` define the sequences when
+     * the manifest has any; the manifest's own sequences are the fallback.
+     */
+    getSequenceCount(manifestId: string): number {
         const structureSequences = this.getStructureSequences(manifestId);
         if (structureSequences.length) {
             return structureSequences.length;
         }
 
-        const m = this.getManifest(manifestId);
-        if (!m) {
-            return 0;
-        }
-
-        const sequences = m.getSequences();
-        return Array.isArray(sequences) ? sequences.length : 0;
+        return countSequences(this.getManifestEntry(manifestId)?.json);
     }
 
-    getCanvases(manifestId: string, sequenceIndex: number = 0) {
+    /**
+     * The canvases of one sequence, as **raw IIIF Canvas JSON** — v2 or v3 as
+     * the manifest authored it, never a library object. Read them with core's
+     * version-neutral helpers rather than by branching on IIIF version.
+     *
+     * Structure-derived sequences take priority, as above. `sequenceIndex` is
+     * clamped into range in either case.
+     */
+    getCanvases(manifestId: string, sequenceIndex: number = 0): any[] {
         const structureSequences = this.getStructureSequences(manifestId);
         if (structureSequences.length) {
             return structureSequences[
@@ -300,18 +312,10 @@ export class ManifestsState {
             ];
         }
 
-        const m = this.getManifest(manifestId);
-        if (!m) {
-            return [];
-        }
-        const sequences = m.getSequences();
-        if (!sequences || !sequences.length) return [];
-        const sequence =
-            sequences[
-                Math.max(0, Math.min(sequenceIndex, sequences.length - 1))
-            ];
-        const canvases = sequence?.getCanvases?.() || [];
-        return canvases;
+        return getCanvasesForSequence(
+            this.getManifestEntry(manifestId)?.json,
+            sequenceIndex,
+        );
     }
 
     getAnnotations(manifestId: string, canvasId: string, sourceId?: string) {

@@ -1,4 +1,10 @@
 import { getCanvasId } from '../utils/iiifIds';
+import {
+    getChoiceAlternatives,
+    getPaintingAnnotations,
+    getPaintingBody,
+    isChoiceBody,
+} from '../utils/iiifParsing';
 
 export type ChoiceGroup = {
     canvasId: string;
@@ -96,10 +102,7 @@ export { getCanvasId };
 export function getCanvasChoices(canvas: any) {
     if (!canvas) return [];
 
-    let images = canvas.getImages?.() || [];
-    if ((!images || !images.length) && canvas.getContent) {
-        images = canvas.getContent();
-    }
+    const images = getPaintingAnnotations(canvas);
 
     if (!images || !images.length) return [];
 
@@ -108,15 +111,14 @@ export function getCanvasChoices(canvas: any) {
 
         const body = paintingAnno.getBody
             ? paintingAnno.getBody()
-            : paintingAnno.body || paintingAnno.resource;
+            : getPaintingBody(paintingAnno);
 
-        const rawBody = paintingAnno.__jsonld?.body || paintingAnno.body;
-        const isChoice =
-            rawBody?.type === 'Choice' ||
-            rawBody?.type === 'oa:Choice' ||
-            (body &&
-                !Array.isArray(body) &&
-                (body.type === 'Choice' || body.type === 'oa:Choice'));
+        // v3 spells the painting body `body`, v2 spells it `resource`, and the
+        // Choice inside it is `Choice`/`items` in v3 and `oa:Choice`/`default`
+        // + `item` in v2. Reading only the v3 half meant a v2 Choice canvas
+        // offered no alternatives at all.
+        const rawBody = getPaintingBody(paintingAnno);
+        const isChoice = isChoiceBody(rawBody) || isChoiceBody(body);
 
         if (!isChoice) continue;
 
@@ -124,12 +126,17 @@ export function getCanvasChoices(canvas: any) {
             return body;
         }
 
-        if (body && (body.items || body.item)) {
-            return body.items || body.item;
+        // Always an array, even when the manifest wrote `items` as a bare
+        // object: the caller reads `.length`, so returning the object itself
+        // dropped the choice group silently.
+        const alternatives = getChoiceAlternatives(body);
+        if (alternatives.length) {
+            return alternatives;
         }
 
-        if (rawBody && (rawBody.items || rawBody.item)) {
-            return rawBody.items || rawBody.item;
+        const rawAlternatives = getChoiceAlternatives(rawBody);
+        if (rawAlternatives.length) {
+            return rawAlternatives;
         }
     }
 

@@ -1,3 +1,10 @@
+import {
+    getChoiceAlternatives,
+    getPaintingAnnotations,
+    getPaintingBody,
+    isChoiceBody,
+} from './iiifParsing';
+
 function normalizeServiceId(serviceId: string): string {
     return serviceId.endsWith('/info.json')
         ? serviceId.slice(0, -'/info.json'.length)
@@ -57,23 +64,31 @@ export function resolveThumbnailResourceSrc(
 }
 
 /**
- * Extract a thumbnail URL from a Manifesto canvas object.
+ * Extract a thumbnail URL from a IIIF Canvas.
  *
  * Follows the same fallback chain used by ThumbnailGallery:
- *   1. canvas.getThumbnail()
+ *   1. The canvas's own `thumbnail` property
  *   2. First image annotation → IIIF service → {serviceId}/full/{size},/0/default.jpg
  *   3. Raw resource / body ID
  */
 export function getThumbnailSrc(canvas: any, size = 200): string {
     let src = '';
 
-    // 1. Manifesto getThumbnail
+    // 1. The canvas's declared thumbnail.
+    //
+    // `thumbnail` is spelled the same in IIIF v2 and v3, and
+    // `resolveThumbnailResourceSrc` already accepts the array form, a bare
+    // string, and a resource with an image service. This branch was
+    // `canvas.getThumbnail()` alone: with canvases now raw JSON that accessor
+    // is gone, and every canvas declaring an explicit thumbnail would have
+    // silently fallen through to its first painting annotation instead.
     try {
-        if (canvas.getThumbnail) {
-            const thumb = canvas.getThumbnail();
-            if (thumb) {
-                src = resolveThumbnailResourceSrc(thumb, size);
-            }
+        const thumb =
+            canvas?.thumbnail ??
+            canvas?.__jsonld?.thumbnail ??
+            canvas?.getThumbnail?.();
+        if (thumb) {
+            src = resolveThumbnailResourceSrc(thumb, size);
         }
     } catch {
         // ignore
@@ -83,10 +98,7 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
 
     // 2. Fallback: first image annotation
     try {
-        let images = canvas.getImages?.() || [];
-        if ((!images || !images.length) && canvas.getContent) {
-            images = canvas.getContent();
-        }
+        const images = getPaintingAnnotations(canvas);
 
         if (images && images.length > 0) {
             const annotation = images[0];
@@ -134,12 +146,14 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
             }
 
             if (!resource) {
-                const json = annotation.__jsonld || annotation;
-                if (json.body) {
-                    let body = json.body;
-                    if (body.type === 'Choice' || body.type === 'oa:Choice') {
-                        const items = body.items || body.item || [];
-                        body = items[0] || null;
+                // The raw-JSON path. It read only the v3 `body` spelling and
+                // never the v2 `resource` one, which made every v2 canvas
+                // thumbnail-less the moment v2 annotations became raw JSON.
+                // `getPaintingBody` reads both.
+                let body = getPaintingBody(annotation);
+                if (body) {
+                    if (isChoiceBody(body)) {
+                        body = getChoiceAlternatives(body)[0] || null;
                     }
                     resource = Array.isArray(body) ? body[0] : body;
                 }
@@ -180,22 +194,16 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
                     '';
 
                 if (!src) {
-                    let rawBody: any = null;
-                    if (annotation.__jsonld && annotation.__jsonld.body) {
-                        rawBody = annotation.__jsonld.body;
-                    } else if (annotation.body) {
-                        rawBody = annotation.body;
-                    }
+                    // Same v2 blindness as above, one rung further down the
+                    // ladder: this re-read the annotation for a `body` only.
+                    const rawBody = getPaintingBody(annotation);
                     if (rawBody) {
                         let bodyObj = Array.isArray(rawBody)
                             ? rawBody[0]
                             : rawBody;
-                        if (
-                            bodyObj.type === 'Choice' ||
-                            bodyObj.type === 'oa:Choice'
-                        ) {
-                            const items = bodyObj.items || bodyObj.item || [];
-                            bodyObj = items[0] || bodyObj;
+                        if (isChoiceBody(bodyObj)) {
+                            bodyObj =
+                                getChoiceAlternatives(bodyObj)[0] || bodyObj;
                         }
                         src = bodyObj.id || bodyObj['@id'] || '';
                     }
