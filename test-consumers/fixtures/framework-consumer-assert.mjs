@@ -299,11 +299,11 @@ export async function assertFrameworkFixture(ctx, options) {
         'no property-tier value may be stringified into an attribute',
     ).toEqual([]);
 
-    // 2. `frame` cadence, driven by a real OpenSeadragon zoom — and the same
-    //    projection at the default `state` cadence as the contrast, which the
-    //    batched watcher never wakes.
+    // 2. `frame` cadence, driven by a real zoom through the public viewport
+    //    command — and the same projection at the default `state` cadence as the
+    //    contrast, which the batched watcher never wakes.
     await expect
-        .poll(() => page.evaluate(() => window.__tri.osdReady()), {
+        .poll(() => page.evaluate(() => window.__tri.rendererReady()), {
             timeout: 30_000,
         })
         .toBe(true);
@@ -325,7 +325,7 @@ export async function assertFrameworkFixture(ctx, options) {
         .not.toBe(zoomBefore);
     expect(
         await v1ZoomState.textContent(),
-        'a `state`-cadence projection is NOT woken by OpenSeadragon',
+        'a `state`-cadence projection is NOT woken by a renderer frame',
     ).toBe(stateZoomBefore);
 
     // 3. Commands through the handle, at `state` cadence, per viewer.
@@ -725,7 +725,7 @@ export async function assertFrameworkFixture(ctx, options) {
         '`themeConfig`',
     );
 
-    // The selector runtime's batched-cadence OSD warning (tickets 01 and 06),
+    // The selector runtime's batched-cadence viewport warning (tickets 01 and 06),
     // once for each of the two projections that make the mistake: one over the
     // mounted viewer, one over an idle `triiiceratops/testing` state that never
     // notifies at all. Both were created and first read in phase 1, while debug
@@ -733,7 +733,7 @@ export async function assertFrameworkFixture(ctx, options) {
     // advance, so a probe decided once, too early, would never fire again.
     expect(
         loud.warnings.filter((w) => /`state`-cadence selector read/.test(w)),
-        `${framework}: a state-cadence projection reading osdViewer must warn`,
+        `${framework}: a state-cadence projection reading the viewport must warn`,
     ).toHaveLength(2);
     expect(
         loud.warnings.find((w) => /`state`-cadence selector read/.test(w)),

@@ -30,13 +30,16 @@ import {
     createHeadlessLocaleService,
     createHeadlessViewerState,
     createPluginSurface,
+    createRendererStub,
     type HeadlessViewerFixtures,
+    type RendererStub,
+    type RendererStubOptions,
 } from 'triiiceratops/testing';
 
-import { whenOsdReady } from '../osd.js';
+import { whenRendererReady } from '../renderer.js';
 import { createSelectorRuntime } from '../selectors.js';
 
-export { whenOsdReady };
+export { whenRendererReady };
 
 /** One recorded `styles.install` call and whether its reference was released. */
 export interface RecordedStyleInstall {
@@ -195,12 +198,23 @@ export interface TestViewerContext {
      */
     readonly surface: PluginSurface;
     /**
-     * Inject a caller-supplied OSD stub and fire the readiness path
-     * (`ViewerState.notifyOSDReady`). `osdViewer` is `null` until called. The kit
-     * ships NO OSD fake — OSD-dependent behavior belongs to the browser seam
-     * (SPEC.md Testing Decisions). Pair with `whenOsdReady` to await readiness.
+     * Mount core's headless renderer stand-in and fire the real readiness path
+     * (`ViewerState.attachRenderer`). Until it is called `rendererReady` is
+     * `false`, the viewport queries answer with zeroes and `null`s, and
+     * viewport commands are no-ops.
+     *
+     * The stand-in comes from core rather than from the caller: the renderer is
+     * first-party, so there is one right answer to what a stand-in reports.
+     * Returns it, which is also the controller — `setView` moves the viewport,
+     * `emitFrame` fires one animation event, `calls` records commands received.
+     * Pass `canvasIds` to make it answer `null` for any other canvas, the way a
+     * real host does for a canvas it has not laid out.
+     *
+     * Pair with `whenRendererReady` to await readiness.
      */
-    setOsdViewer(stub: unknown): void;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
+    /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
+    detachRenderer(): void;
     /**
      * Drop the context's own selector-runtime subscription. Optional: each
      * context owns a fresh state that is garbage-collected with it, so most tests
@@ -242,6 +256,7 @@ export function createTestViewerContext(
     }
 
     const selectorRuntime = createSelectorRuntime(viewerState);
+    let releaseRenderer: (() => void) | null = null;
 
     const context: PluginContext = {
         viewerState,
@@ -259,12 +274,19 @@ export function createTestViewerContext(
         locale,
         ui,
         surface,
-        setOsdViewer(stub: unknown): void {
-            viewerState.notifyOSDReady(
-                stub as Parameters<ViewerState['notifyOSDReady']>[0],
-            );
+        attachRenderer(options?: RendererStubOptions): RendererStub {
+            releaseRenderer?.();
+            const stub = createRendererStub(options);
+            releaseRenderer = viewerState.attachRenderer(stub);
+            return stub;
+        },
+        detachRenderer(): void {
+            releaseRenderer?.();
+            releaseRenderer = null;
         },
         dispose(): void {
+            releaseRenderer?.();
+            releaseRenderer = null;
             selectorRuntime.dispose();
         },
     };

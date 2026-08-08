@@ -74,8 +74,27 @@
     // Create the annotation manager
     let manager = $state.raw<AnnotationManager | null>(null);
 
+    /*
+     * Annotation editing is UNAVAILABLE in this phase.
+     *
+     * Annotorious's OpenSeadragon integration requires the raw viewer instance,
+     * and the renderer pass-through that supplied it was removed with no
+     * successor and no shim (SPEC.md §Public API). There is nothing to
+     * initialise the manager with, so it is never created and this controller
+     * renders inert. Not a degradation — a stop, which is the decision already
+     * on the record; the replacement is phase-2 work built on the paint hook
+     * and the input-claim API.
+     *
+     * **Ticket 15 owns the rest of the disposition** — the changeset and
+     * release note, the README pointer, pinning or unpublishing the package, and
+     * removing it from the aggregate build/test/lint scripts. What is here is
+     * only what ticket 13 had to do to stop naming a member that no longer
+     * exists.
+     */
+    const RENDERER_AVAILABLE_FOR_ANNOTORIOUS = false;
+
     $effect(() => {
-        if (manager || !viewerState?.osdViewer) {
+        if (manager || !RENDERER_AVAILABLE_FOR_ANNOTORIOUS || !viewerState) {
             return;
         }
 
@@ -100,7 +119,7 @@
             }
         };
 
-        mgr.init(viewerState.osdViewer, viewerState.canvasId);
+        mgr.init(null, viewerState.canvasId);
 
         if (isEditing && canCreateAnnotation) {
             mgr.setEditing(true);

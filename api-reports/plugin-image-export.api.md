@@ -90,8 +90,8 @@ export type { ImageDownloadFormat, ImageDownloadMode } from './exportImage';
  * cleanup. Styles install through the SDK style service (root-aware), strings
  * resolve through the per-viewer locale service over this package's catalog, and
  * the toolbar glyph is a `svgIcon` descriptor. Export reads canvas geometry from
- * the raw OSD-backed viewer model, so the plugin declares
- * `requiredCapabilities: ['osd@5']`.
+ * raw Canvas JSON and core's first-party layout helpers, so the plugin requires
+ * no capability.
  *
  * This plugin's validation duty (SPEC.md Plugin Migration) is asynchronous
  * operations and binary output: the panel runs async IIIF fetch/compositing and

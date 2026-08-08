@@ -34,6 +34,7 @@
  * OpenSeadragon path still uses it.
  */
 
+import { METADATA_IN_FLIGHT_LIMIT } from './rendererDefaults';
 import { isLevel0Profile } from './sizeLadder';
 import type { ImageServiceFacts } from './types';
 
@@ -172,6 +173,13 @@ export interface ImageServiceCache {
      * Safe to call every frame: a hit resolves from cache, a miss joins the
      * in-flight request rather than starting a second one, and a service that
      * has spent its attempts resolves `null` without touching the network.
+     *
+     * Also safe to call for fifty services at once: at most
+     * {@link ImageServiceCacheOptions.maxConcurrent} requests are outstanding
+     * and the rest wait their turn, so the promise a caller gets back may be
+     * queued rather than in flight. The planner emits its list centre-out and
+     * re-emits it every frame, so the queue drains in the order the reader
+     * cares about.
      */
     ensure(serviceId: string): Promise<ImageServiceFacts | null>;
     /**
@@ -217,6 +225,15 @@ export interface ImageServiceCacheOptions {
      * for metadata is as good as recency and costs no bookkeeping.
      */
     maxEntries?: number;
+    /**
+     * How many `info.json` requests may be outstanding at once.
+     *
+     * The dedupe below bounds requests per SERVICE; this bounds them across
+     * services, which is the bound that matters at the derived zoom floor where
+     * fifty thumbnail-tier canvases can want metadata in the same frame.
+     * Defaults to `rendererDefaults.METADATA_IN_FLIGHT_LIMIT`.
+     */
+    maxConcurrent?: number;
 }
 
 async function defaultFetchJson(
@@ -246,10 +263,25 @@ export function createImageServiceCache(
     const fetchJson = options.fetchJson ?? defaultFetchJson;
     const maxAttempts = Math.max(1, Math.floor(options.maxAttempts ?? 2));
     const maxEntries = Math.max(1, Math.floor(options.maxEntries ?? 512));
+    const maxConcurrent = Math.max(
+        1,
+        Math.floor(options.maxConcurrent ?? METADATA_IN_FLIGHT_LIMIT),
+    );
 
     const facts = new Map<string, ImageServiceFacts>();
     const failures = new Map<string, FailureEntry>();
+    /**
+     * Wanted and not yet answered — queued OR actually fetching. Callers join
+     * it either way, which is what lets the window be bounded without a second
+     * request escaping through a frame that arrived while a slot was busy.
+     */
     const inFlight = new Map<string, Promise<ImageServiceFacts | null>>();
+    /** Admitted to the window but not started, oldest first. */
+    const waiting: Array<{
+        serviceId: string;
+        settle: (facts: ImageServiceFacts | null) => void;
+    }> = [];
+    let active = 0;
     let requestCount = 0;
 
     /** Insertion-ordered, so the oldest key is simply the first one. */
@@ -309,6 +341,25 @@ export function createImageServiceCache(
         }
     }
 
+    /**
+     * Start as many waiting services as the window has room for.
+     *
+     * `load` never rejects — every failure mode is already an answer it records
+     * — so a settled slot is always freed and the queue cannot stall on one bad
+     * service.
+     */
+    function pump(): void {
+        while (active < maxConcurrent && waiting.length > 0) {
+            const next = waiting.shift()!;
+            active += 1;
+            void load(next.serviceId).then((result) => {
+                active -= 1;
+                next.settle(result);
+                pump();
+            });
+        }
+    }
+
     return {
         get: (serviceId) => facts.get(serviceId),
         failure: (serviceId) => failures.get(serviceId)?.kind,
@@ -331,9 +382,12 @@ export function createImageServiceCache(
             const pending = inFlight.get(serviceId);
             if (pending) return pending;
 
-            const started = load(serviceId);
-            inFlight.set(serviceId, started);
-            return started;
+            const queued = new Promise<ImageServiceFacts | null>((resolve) => {
+                waiting.push({ serviceId, settle: resolve });
+            });
+            inFlight.set(serviceId, queued);
+            pump();
+            return queued;
         },
         invalidate(serviceId) {
             facts.delete(serviceId);

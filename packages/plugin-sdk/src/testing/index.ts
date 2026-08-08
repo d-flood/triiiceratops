@@ -3,14 +3,14 @@
  *
  * A plugin author validates a plugin without a full application by mounting it
  * against a **test viewer context**: a REAL, compiled `ViewerState` (real
- * commands, real batched notifications) with recording-double services and an
- * injectable OSD stub (CONTEXT.md **Test viewer context** — "the harness is
- * fake; the state is never fake"). Because the state is the production
+ * commands, real batched notifications) with recording-double services and a
+ * mountable headless renderer stand-in (CONTEXT.md **Test viewer context** —
+ * "the harness is fake; the state is never fake"). Because the state is the production
  * implementation, a passing test reflects production semantics.
  *
  * ── Flush timing rule (READ THIS) ─────────────────────────────────────────
  * Notifications are BATCHED and delivered on the reactive flush, never
- * synchronously inside a command. After a command (or `setLocale`/`setOsdViewer`),
+ * synchronously inside a command. After a command (or `setLocale`/`attachRenderer`),
  * `await flush()` before asserting a subscriber reacted:
  *
  *   import { createTestViewerContext, flush } from '@triiiceratops/plugin-sdk/testing';
@@ -35,10 +35,10 @@ export {
     type HeadlessViewerFixtures,
 } from 'triiiceratops/testing';
 
-// The test viewer context, recording doubles, and OSD-readiness helper.
+// The test viewer context, recording doubles, and the renderer-readiness helper.
 export {
     createTestViewerContext,
-    whenOsdReady,
+    whenRendererReady,
     type TestViewerContext,
     type TestViewerContextOptions,
     type RecordingStyleService,

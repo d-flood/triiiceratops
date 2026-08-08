@@ -123,20 +123,34 @@ runPluginConformance(() => createExamplePlugin());
 
 ## OSD-dependent behavior
 
-The kit ships **no** OSD or Annotorious fake. Inject a caller-supplied stub with
-`setOsdViewer(...)` to exercise the readiness path, but validate genuine
-OSD-dependent behavior at the browser seam instead:
+The kit ships **no** Annotorious fake, but it does ship a headless renderer
+stand-in — the renderer is first-party now, so there is one right answer to what
+a stand-in reports. Mount it with `attachRenderer(...)` to exercise the readiness
+path, the viewport queries, and the `frame` selector cadence with no DOM:
 
 ```ts
-import { createTestViewerContext, whenOsdReady } from '@triiiceratops/plugin-sdk/testing';
+import {
+    createTestViewerContext,
+    whenRendererReady,
+} from '@triiiceratops/plugin-sdk/testing';
 
 async function readinessExample() {
     const tc = createTestViewerContext();
-    const ready = whenOsdReady(tc.viewerState);
-    tc.setOsdViewer({ viewport: {} }); // your stub
+    const ready = whenRendererReady(tc.viewerState);
+    const renderer = tc.attachRenderer({ scale: 2 }); // sized surface
     await ready;
+
+    // Move the viewport and fire one animation event, synchronously.
+    renderer.setView({ scale: 4 });
+    renderer.emitFrame();
+
+    // And read what a command sent to the renderer.
+    tc.viewerState.zoomIn();
+    return renderer.calls;
 }
 ```
+
+Genuine pixel behaviour still belongs at the browser seam.
 
 ## Testing an annotation storage adapter
 

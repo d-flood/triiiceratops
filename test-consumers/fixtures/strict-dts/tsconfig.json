@@ -10,10 +10,10 @@
         "verbatimModuleSyntax": false,
         // The whole point of this fixture: check the PUBLISHED declarations too
         // (`skipLibCheck: false`), so a strict consumer proves core's public
-        // `.d.ts` resolves the `OpenSeadragon` types WITHOUT manually installing
-        // `@types/openseadragon`. `types: []` disables ambient auto-inclusion so
-        // resolution can only succeed through core's own `@types/openseadragon`
-        // dependency (ticket 21).
+        // `.d.ts` stands on its own. `types: []` disables ambient
+        // auto-inclusion, so anything core's declarations reach for that the
+        // consumer has not installed is a compile error here rather than a
+        // support issue later.
         "skipLibCheck": false,
         "types": []
     },

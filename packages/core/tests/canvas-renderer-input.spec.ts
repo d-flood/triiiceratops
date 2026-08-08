@@ -21,6 +21,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import {
+    fitCanvasBounds,
     findFeature,
     getStats,
     getView,
@@ -28,6 +29,7 @@ import {
     openGridManifest,
     setView,
 } from './helpers/numberedGrid';
+import { MAX_ZOOM_FACTOR } from '../src/lib/renderer/rendererDefaults';
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 
@@ -46,6 +48,10 @@ interface RendererHandle {
     getView(): { centre: { x: number; y: number }; scale: number };
     zoomAt(anchor: { x: number; y: number }, factor: number): Promise<void>;
     fit(): Promise<void>;
+    fitCanvasBounds(
+        bounds: { x: number; y: number; width: number; height: number },
+        canvasId?: string,
+    ): Promise<void>;
     isMoving(): boolean;
     nextPaint(): Promise<void>;
 }
@@ -522,6 +528,38 @@ test.describe('Canvas2D renderer — gestures', () => {
         );
         await settled(page);
         expect(floor).toBeLessThan((await getView(page)).scale);
+    });
+
+    // `zoomTo` documents its limits as inescapable. `fitBounds` is a sibling
+    // command whose box comes from the CALLER rather than from layout, so it is
+    // the one path where a fitted scale is not a home scale — and where a
+    // missing clamp lets a plugin put the viewer somewhere the toolbar, the
+    // keyboard, and the wheel cannot.
+    test('a caller-chosen fit cannot escape the zoom ceiling', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+
+        // The whole-world fit is the ceiling's reference.
+        await page.locator(SURFACE).evaluate((element) =>
+            (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: RendererHandle;
+                }
+            ).__triiiceratopsRenderer!.fit(),
+        );
+        await settled(page);
+        const home = (await getView(page)).scale;
+        expect(home).toBeGreaterThan(0);
+
+        // Two canvas units on a 1200-unit-wide canvas: a fit hundreds of times
+        // past the ceiling if nothing clamps it.
+        await fitCanvasBounds(page, { x: 0, y: 0, width: 2, height: 2 });
+        await settled(page);
+
+        const zoomed = (await getView(page)).scale;
+        expect(zoomed).toBeGreaterThan(home);
+        expect(zoomed).toBeLessThanOrEqual(home * MAX_ZOOM_FACTOR * 1.001);
     });
 
     test('the image cannot be dragged off screen', async ({ page }) => {

@@ -244,7 +244,7 @@ import type { ViewerHandleSlot } from 'triiiceratops/react';
 export function ZoomReadout({ handle }: { handle: ViewerHandleSlot }) {
     const zoom = useViewerSelector(
         handle,
-        (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+        (state) => state.viewportScale,
         { cadence: 'frame' },
     );
     if (zoom === undefined) return null;
@@ -252,7 +252,8 @@ export function ZoomReadout({ handle }: { handle: ViewerHandleSlot }) {
 }
 ```
 
-Reading *through* `state.osdViewer` at the default `state` cadence is the one
+Reading a query-only viewport value (`viewportScale`, `viewportCentre`,
+`viewportBounds`) at the default `state` cadence is the one
 selector mistake that fails silently — the projection simply appears frozen. See
 [what notifies](configuration.md#what-notifies) for the inventory that decides
 which members a `state`-cadence projection may read.
@@ -565,7 +566,7 @@ fails fast instead of hanging.
 Three further failure modes are silent by design and surface only under
 `config: { debug: true }` — an unmemoized property-tier prop, a handle created and
 never passed to a viewer, and a `state`-cadence projection reading through
-`osdViewer`. See [debug diagnostics](configuration.md#debug-diagnostics).
+a query-only viewport value. See [debug diagnostics](configuration.md#debug-diagnostics).
 
 ## Testing your own components
 
@@ -627,9 +628,11 @@ command plus `await flush()` is how you drive it.
 
 `createTestViewerHandle()` accepts `{ fixtures }` to seed a config, an active
 locale, or already-parsed manifest JSON (through the real `setManifestData`
-command — still no network). `handle.setOsdViewer(stub)` injects your own
-OpenSeadragon stand-in and fires the real readiness path, which is how a
-`cadence: 'frame'` projection is exercised headlessly; no OSD fake ships with it.
+command — still no network). `handle.attachRenderer()` mounts core's headless
+renderer stand-in and fires the real readiness path, which is how a
+`cadence: 'frame'` projection and the query-only viewport values are exercised
+headlessly. It returns the stand-in, which is also the controller: `setView`
+moves the viewport and `emitFrame` fires one animation event, synchronously.
 
 ## What the wrapper does not do
 

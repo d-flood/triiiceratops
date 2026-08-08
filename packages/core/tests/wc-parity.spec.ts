@@ -79,7 +79,12 @@ async function drive(
     expect(runtime, 'window.Triiiceratops should exist').not.toBeNull();
     expect(runtime!.coreVersion).not.toBe('');
     expect(runtime!.pluginApiVersion).not.toBe('');
-    expect(runtime!.capabilities.length).toBeGreaterThan(0);
+    // Present and enumerable, NOT non-empty: core's 1.0 line declares no
+    // capabilities at all. The one that ever existed named a bundled
+    // third-party major and was retired with no successor, so what the runtime
+    // has to keep promising is that the list exists and can be read — the
+    // parity assertion below (`esm` equals `iife`) is what this really guards.
+    expect(Array.isArray(runtime!.capabilities)).toBe(true);
     expect(runtime!.hasRegistry).toBe(true);
 
     // Documented element properties are readable off the custom element.

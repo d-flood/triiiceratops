@@ -58,10 +58,25 @@
     } from '../renderer/imageService';
     import {
         boxContains,
+        canvasBoxToWorld,
+        canvasPointToWorld,
+        canvasScaleFactor,
         fitTargetBounds,
         navigationTargetBounds,
         reflowShift,
+        worldBoxToCanvas,
+        worldPointToCanvas,
+        type CanvasPlacement,
     } from '../renderer/layoutQueries';
+    import type { RendererPort } from '../renderer/rendererPort';
+    import { markRendererPort } from '../renderer/rendererPortBrand';
+    import {
+        imageAdjustmentsToCssFilter,
+        type ContainerSize,
+        type ImageAdjustments,
+        type ViewportBox,
+        type ViewportPoint,
+    } from '../types/viewport';
     import { paintScene } from '../renderer/paintScene';
     import { planScene, planViewportLimits } from '../renderer/planScene';
     import { pointerSample } from '../renderer/pointerSamples';
@@ -225,13 +240,64 @@
      * not knowable before mount, because which ceiling a device gets is a
      * question for `matchMedia` (`rendererDefaults.resolveByteBudget`) — and it
      * is a live one, so this is reassigned whenever that query changes (see
-     * `applyByteBudget`). Nothing else in here varies at runtime, and nothing
-     * here is configuration — the public surface for these is ticket 13's.
+     * `applyByteBudget`). Nothing else in here varies at runtime.
+     *
+     * The consumer's `ViewerConfig.renderer` overrides land here too, through
+     * {@link configuredBudgets} — a **closed** set of named knobs, not an open
+     * options object. A configured `byteBudget` wins over the device ceiling,
+     * because a consumer who states a number has more context than a media
+     * query does.
      *
      * Deliberately not `$state`: read by the frame loop, never by the reactive
      * graph.
      */
-    let budgets = DEFAULT_BUDGETS;
+    let budgets = configuredBudgets(DEFAULT_BUDGETS);
+
+    /**
+     * Apply `ViewerConfig.renderer` over a set of budgets.
+     *
+     * Every member is optional and each is checked for being a usable number,
+     * so a config carrying `undefined`, `null`, or a stray `NaN` from a JSON
+     * round-trip takes core's default rather than poisoning the planner with a
+     * threshold nothing compares true against.
+     */
+    function configuredBudgets(base: PlannerBudgets): PlannerBudgets {
+        const config = viewerState.config?.renderer;
+        if (!config) return base;
+        const usable = (value: number | undefined): value is number =>
+            typeof value === 'number' && Number.isFinite(value) && value > 0;
+        return {
+            byteBudget: usable(config.byteBudget)
+                ? config.byteBudget
+                : base.byteBudget,
+            marginFactor: usable(config.residencyMargin)
+                ? config.residencyMargin
+                : base.marginFactor,
+            pyramidThreshold: usable(config.pyramidThreshold)
+                ? config.pyramidThreshold
+                : base.pyramidThreshold,
+            boxThreshold: usable(config.boxThreshold)
+                ? config.boxThreshold
+                : base.boxThreshold,
+            minPixelRatio: usable(config.minPixelRatio)
+                ? config.minPixelRatio
+                : base.minPixelRatio,
+            maxDecodedPixels: base.maxDecodedPixels,
+        };
+    }
+
+    /**
+     * The time constant every programmatic and discrete animation runs at, from
+     * `ViewerConfig.renderer.animationTimeConstant`.
+     */
+    function animationTime(): number {
+        const configured = viewerState.config?.renderer?.animationTimeConstant;
+        return typeof configured === 'number' &&
+            Number.isFinite(configured) &&
+            configured > 0
+            ? configured
+            : ANIMATION_TIME_CONSTANT;
+    }
 
     /**
      * The tile scheduler: everything about asking for, decoding, holding, and
@@ -488,9 +554,9 @@
      * The alternative is a canvas that is blank with no explanation anywhere,
      * which is indistinguishable from one that is still loading. Ticket 12 owns
      * what a *user* sees; this is the developer's version, and it goes through
-     * the debug-gated `logger` rather than `console` — a published distribution
-     * is quiet by default, and bad thumbnail metadata is common enough that a
-     * bare warning would be noise in every consumer's console.
+     * the debug-gated `logger` rather than `console` — a published
+     * distribution is quiet by default, and bad thumbnail metadata is common
+     * enough that a bare warning would be noise in every consumer's console.
      */
     function reportUnresolvedThumbnails(canvasIds: string[]): void {
         for (const canvasId of canvasIds) {
@@ -511,6 +577,14 @@
      * network again. That is what makes opening a single-canvas manifest cost
      * exactly one `info.json` request rather than one per frame — and what
      * replaces the old renderer's `Promise.all` over every source.
+     *
+     * It is also safe to hand it fifty ids at once, which at the derived zoom
+     * floor it will be: `imageServiceCache` holds a bounded in-flight window
+     * (`rendererDefaults.METADATA_IN_FLIGHT_LIMIT`) and queues the rest, so
+     * metadata is under a concurrency cap as well as under the tier and the
+     * view-stable gate — the three bounds the spec asks for, not two of them.
+     * The list arrives centre-out from the planner and is re-emitted every
+     * frame, so the queue drains nearest-first.
      */
     function requestMetadata(canvasIds: string[]): void {
         for (const canvasId of canvasIds) {
@@ -798,20 +872,265 @@
         applyFit(navigationBoundsTarget(viewportLimits()), animated);
     }
 
+    /**
+     * Adopt the view that frames `bounds`.
+     *
+     * The fitted scale goes through `clampScale` like every other scale this
+     * component adopts. It is a no-op for `fitWorld`/`fitCurrentCanvas`, whose
+     * bounds are layout rects and whose fit therefore IS the home scale — but
+     * the public `fitBounds` command hands in a box a CALLER chose, and a
+     * two-unit box on a 4000-unit canvas fits at a scale hundreds of times the
+     * ceiling. `zoomTo` documents its limits as inescapable; a sibling command
+     * that skips them would make that false, and would bypass the tier and
+     * zoom-floor invariants derived from the same range.
+     */
     function applyFit(bounds: Box | null, animated: boolean) {
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const fit = fitBounds(bounds, viewport);
+        const scale = clampScale(fit.scale);
         if (animated) {
-            setViewAnimated(fit.centre, fit.scale, ANIMATION_TIME_CONSTANT);
+            setViewAnimated(fit.centre, scale, animationTime());
             return;
         }
 
-        viewport = { ...viewport, centre: fit.centre, scale: fit.scale };
+        viewport = { ...viewport, centre: fit.centre, scale };
         targetCentre = fit.centre;
-        targetScale = fit.scale;
+        targetScale = scale;
         animating = false;
         momentum = null;
+    }
+
+    /*
+     * ======================= RENDERER PORT (Canvas2D) ========================
+     *
+     * The public viewport API, implemented (`renderer/rendererPort.ts`).
+     * `ViewerState` holds this and nothing else of the renderer: the commands
+     * below are the same ones the chrome's own buttons and key bindings call,
+     * which is the parity rule satisfied by construction rather than by two
+     * parallel paths that have to be kept in step.
+     *
+     * Everything here is built on the animated primitives the input work
+     * already established — `setViewAnimated`, `applyFit`, `zoomAnchored`,
+     * `clampScale`, `constrained` — so a programmatic zoom eases exactly like a
+     * double-tap, honours reduced motion at the same choke point, and cannot
+     * escape the zoom range or pan constraint. There is deliberately no second
+     * way to move this viewport.
+     *
+     * The public boundary speaks **canvas space**; the renderer's world places
+     * canvases side by side and may normalize their sizes. `layoutQueries`
+     * owns that conversion, and `placementOf` is where a canvas id becomes the
+     * placement it needs.
+     */
+
+    /**
+     * Where a canvas sits in the laid-out world, or `null` if it is not laid
+     * out at all — in `individuals`/`paged` mode that is every canvas except
+     * the current spread, and answering `null` is the honest response.
+     *
+     * Memoized on the layout's identity because a `frame`-cadence selector
+     * reading `viewportCentre` calls this once per frame, and an 800-folio
+     * manifest would otherwise be a linear scan per read.
+     */
+    let placementMemo: {
+        layout: LayoutRect[];
+        canvasId: string;
+        value: CanvasPlacement | null;
+    } | null = null;
+
+    function placementOf(canvasId?: string): CanvasPlacement | null {
+        const id = canvasId ?? viewerState.canvasId;
+        if (!id) return null;
+
+        const layout = viewportLimits().layout;
+        if (
+            placementMemo &&
+            placementMemo.layout === layout &&
+            placementMemo.canvasId === id
+        ) {
+            return placementMemo.value;
+        }
+
+        const rect = layout.find((entry) => entry.canvasId === id) ?? null;
+        const canvas = canvasesById.get(id);
+        const value: CanvasPlacement | null = rect
+            ? {
+                  rect,
+                  width: canvas?.width ?? null,
+                  height: canvas?.height ?? null,
+              }
+            : null;
+        placementMemo = { layout, canvasId: id, value };
+        return value;
+    }
+
+    /**
+     * World units per canvas unit for the CURRENT canvas.
+     *
+     * The factor itself is `layoutQueries.canvasScaleFactor`, beside the point
+     * and box conversions that apply the same one — shared rather than spelled
+     * again here so `getScale`, `zoomTo`, and the coordinate helpers cannot
+     * drift apart. `1` when the canvas is not laid out, which is the only
+     * answer that leaves `zoomTo` an identity on `getScale`'s own reading.
+     */
+    function currentCanvasScaleFactor(): number {
+        const placement = placementOf();
+        return placement ? canvasScaleFactor(placement) : 1;
+    }
+
+    const canvasPort: RendererPort = markRendererPort({
+        zoomBy(factor: number, anchor?: ViewportPoint): void {
+            // With no anchor, zoom about the middle of the surface — which is
+            // what `anchoredZoomCentre` reduces to, so the toolbar and a
+            // double-tap take one code path rather than two.
+            zoomAnchored(
+                anchor ?? { x: viewport.width / 2, y: viewport.height / 2 },
+                factor,
+            );
+        },
+
+        zoomTo(scale: number): void {
+            // Converted out of canvas space first — `getScale` reports screen
+            // pixels per CANVAS unit, so `zoomTo(viewportScale)` has to be a
+            // no-op, and it is not unless the same normalization factor is
+            // undone here. It differs from 1 exactly when layout resized this
+            // canvas's rect for a facing-page spread.
+            setViewAnimated(
+                viewport.centre,
+                clampScale(scale / currentCanvasScaleFactor()),
+                animationTime(),
+            );
+        },
+
+        panTo(centre: ViewportPoint, canvasId?: string): void {
+            const placement = placementOf(canvasId);
+            if (!placement) return;
+            setViewAnimated(
+                canvasPointToWorld(centre, placement),
+                viewport.scale,
+                animationTime(),
+            );
+        },
+
+        fitBounds(bounds: ViewportBox, canvasId?: string): void {
+            const placement = placementOf(canvasId);
+            if (!placement) return;
+            // Programmatic input is always animated (spec §Input and animation).
+            applyFit(canvasBoxToWorld(bounds, placement), true);
+        },
+
+        fitCanvas(canvasId?: string): void {
+            const placement = placementOf(canvasId);
+            if (!placement) return;
+            applyFit(placement.rect, true);
+        },
+
+        getScale(): number {
+            // Canvas space, not world space: layout may have normalized this
+            // canvas's rect, and the number a caller uses to size an export
+            // request has to be about the canvas it is exporting.
+            return viewport.scale * currentCanvasScaleFactor();
+        },
+
+        getCentre(canvasId?: string): ViewportPoint | null {
+            const placement = placementOf(canvasId);
+            if (!placement) return null;
+            return worldPointToCanvas(viewport.centre, placement);
+        },
+
+        getVisibleBounds(canvasId?: string): ViewportBox | null {
+            const placement = placementOf(canvasId);
+            if (!placement || viewport.scale <= 0) return null;
+            const width = viewport.width / viewport.scale;
+            const height = viewport.height / viewport.scale;
+            return worldBoxToCanvas(
+                {
+                    x: viewport.centre.x - width / 2,
+                    y: viewport.centre.y - height / 2,
+                    width,
+                    height,
+                },
+                placement,
+            );
+        },
+
+        getContainerSize(): ContainerSize {
+            return { width: viewport.width, height: viewport.height };
+        },
+
+        canvasToScreen(
+            point: ViewportPoint,
+            canvasId?: string,
+        ): ViewportPoint | null {
+            const placement = placementOf(canvasId);
+            if (!placement) return null;
+            const world = canvasPointToWorld(point, placement);
+            return {
+                x:
+                    (world.x - viewport.centre.x) * viewport.scale +
+                    viewport.width / 2,
+                y:
+                    (world.y - viewport.centre.y) * viewport.scale +
+                    viewport.height / 2,
+            };
+        },
+
+        screenToCanvas(
+            point: ViewportPoint,
+            canvasId?: string,
+        ): ViewportPoint | null {
+            const placement = placementOf(canvasId);
+            if (!placement || viewport.scale <= 0) return null;
+            return worldPointToCanvas(
+                {
+                    x:
+                        (point.x - viewport.width / 2) / viewport.scale +
+                        viewport.centre.x,
+                    y:
+                        (point.y - viewport.height / 2) / viewport.scale +
+                        viewport.centre.y,
+                },
+                placement,
+            );
+        },
+
+        applyImageAdjustments(adjustments: ImageAdjustments): void {
+            appliedAdjustments = adjustments;
+            paintImageAdjustments();
+        },
+
+        onFrame(listener: () => void): () => void {
+            frameListeners.add(listener);
+            return () => frameListeners.delete(listener);
+        },
+    });
+
+    /**
+     * Frame-cadence listeners. A plain `Set`, deliberately not reactive: it is
+     * read once per painted frame, and waking the reactive graph per frame is
+     * the cost the `frame` cadence exists to avoid in the first place.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const frameListeners = new Set<() => void>();
+
+    /** Wake `frame`-cadence subscribers. Called once per painted frame. */
+    function emitFrame() {
+        for (const listener of [...frameListeners]) listener();
+    }
+
+    let appliedAdjustments: ImageAdjustments | null = null;
+
+    /**
+     * Write the adjustment set onto the surface as a CSS filter.
+     *
+     * A CSS filter rather than `ctx.filter` on purpose: it is composited on the
+     * GPU and costs nothing per frame, where a context filter would be applied
+     * per tile draw on every frame of a pan. It is applied to the surface
+     * element, which core owns and never hands out.
+     */
+    function paintImageAdjustments() {
+        if (!surface || !appliedAdjustments) return;
+        surface.style.filter = imageAdjustmentsToCssFilter(appliedAdjustments);
     }
 
     /**
@@ -913,6 +1232,7 @@
         }
 
         paint();
+        emitFrame();
 
         if (animating || momentum || keyPan) {
             scheduleFrame();
@@ -1161,7 +1481,12 @@
     }
 
     function applyByteBudget() {
-        const byteBudget = resolveByteBudget(byteBudgetMatches);
+        // A consumer who named a ceiling knows more than the media query does,
+        // so the device answer is only consulted when none was configured.
+        const byteBudget = configuredBudgets({
+            ...budgets,
+            byteBudget: resolveByteBudget(byteBudgetMatches),
+        }).byteBudget;
         if (byteBudget === budgets.byteBudget) return;
 
         budgets = { ...budgets, byteBudget };
@@ -1435,7 +1760,7 @@
         setViewAnimated(
             anchoredZoomCentre(viewport, anchor, scale),
             scale,
-            ANIMATION_TIME_CONSTANT,
+            animationTime(),
         );
     }
 
@@ -1613,7 +1938,7 @@
         setViewAnimated(
             { ...targetCentre },
             clampScale(targetScale * factor),
-            ANIMATION_TIME_CONSTANT,
+            animationTime(),
         );
     }
 
@@ -1844,12 +2169,27 @@
         window.addEventListener('blur', handleWindowBlur);
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
+        // The renderer has a sized surface and accepts commands. Attached after
+        // the first `measure()` above for exactly that reason: `rendererReady`
+        // means the viewport queries answer with real numbers, not zeroes.
+        const detachRenderer = viewerState.attachRenderer(canvasPort);
+
         /*
          * Internal test handle for the geometric e2e assertions, which need a
          * deterministic viewport rather than one arrived at by synthesizing
-         * gestures. Ticket 13 replaces it with real viewport command state and
-         * query-only state; it exists only on the development-only renderer and
-         * is never part of the published surface.
+         * gestures.
+         *
+         * NOT superseded by the public viewport API: what remains here is the
+         * renderer's own instrumentation — residency by canvas name, decoded
+         * bytes, plan counts, metadata failures — which is how the epic's
+         * claims are asserted at all, and a `setView` that adopts an exact
+         * viewport with no easing, which no public command offers because
+         * programmatic input is always animated. `zoomAt` now routes through
+         * the port, and `fit` deliberately does not: it fits what is ON SCREEN
+         * (`fitWorld`), which is the `0`/`Home` binding, where the public
+         * `fitCanvas` fits the canvas the viewer says is current — ticket 08's
+         * split, and load-bearing in continuous mode. It exists only on the
+         * development-only renderer and is never part of the published surface.
          */
         (
             surface as HTMLCanvasElement & { __triiiceratopsRenderer?: unknown }
@@ -1882,9 +2222,30 @@
                 fitWorld(true);
                 return nextPaint();
             },
-            /** Animated zoom about a surface-local point — the toolbar's shape. */
+            /**
+             * Animated zoom about a surface-local point — the toolbar's shape,
+             * routed through the public port so the e2e assertions exercise the
+             * command a plugin would issue rather than a parallel path.
+             */
             zoomAt: (anchor: Point, factor: number) => {
-                zoomAnchored(anchor, factor);
+                canvasPort.zoomBy(factor, anchor);
+                return nextPaint();
+            },
+            /**
+             * The public `fitBounds` command, on a caller-chosen canvas-space
+             * box — routed through the port for the same reason `zoomAt` is.
+             *
+             * Distinct from `fit` above: that one fits what is ON SCREEN and is
+             * the `0`/`Home` binding, where this is the command a plugin issues
+             * with a box of its own choosing. It is the only path where the
+             * fitted scale is not a layout rect's, which is what makes the zoom
+             * clamp observable.
+             */
+            fitCanvasBounds: (
+                bounds: { x: number; y: number; width: number; height: number },
+                canvasId?: string,
+            ) => {
+                canvasPort.fitBounds(bounds, canvasId);
                 return nextPaint();
             },
             isMoving: () => animating || momentum !== null || keyPan !== null,
@@ -1917,6 +2278,17 @@
                 cachedTileCount: tiles.cachedTileCount,
                 /** Required set plus opportunistic cache — the budgeted total. */
                 decodedBytes: tiles.decodedBytes,
+                /**
+                 * The required set alone.
+                 *
+                 * The difference is what the budget can actually act on: the
+                 * cache is the only thing `trim` evicts, so `requiredBytes`
+                 * above the ceiling is the one state in which the ceiling is
+                 * genuinely exceeded and no eviction can help. Reachable
+                 * through the declared-thumbnail rung, which the spec requires
+                 * to be used as-is whatever size it turns out to be.
+                 */
+                requiredBytes: tiles.requiredBytes,
                 /** The ceiling that total is asserted against. */
                 byteBudget: tiles.byteBudget,
                 tileRequestCount: tiles.requestCount,
@@ -1955,6 +2327,8 @@
         };
 
         return () => {
+            detachRenderer();
+            frameListeners.clear();
             observer.disconnect();
             unwatchDevicePixelRatio();
             unwatchReducedMotion();

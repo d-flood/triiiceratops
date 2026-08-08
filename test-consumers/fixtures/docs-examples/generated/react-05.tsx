@@ -6,7 +6,7 @@ import type { ViewerHandleSlot } from 'triiiceratops/react';
 export function ZoomReadout({ handle }: { handle: ViewerHandleSlot }) {
     const zoom = useViewerSelector(
         handle,
-        (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+        (state) => state.viewportScale,
         { cadence: 'frame' },
     );
     if (zoom === undefined) return null;

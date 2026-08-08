@@ -20,7 +20,7 @@
 //
 //   · Viewer A is mounted ONCE and lives through all three phases. Its `config`
 //     carries the `debug` flag, and the `state`-cadence projection that reads
-//     `osdViewer` hangs off it — so that projection is created and first read
+//     a query-only viewport value hangs off it — so that projection is created and first read
 //     while debug is still OFF, which is the ordering a published wrapper
 //     actually produces (the flag is bridged when the property tier is
 //     applied) and the one a probe decided too early would miss forever.
@@ -84,13 +84,11 @@ const live = { handleA: null };
 /** Hoisted, so the projection identity is stable and its cache survives a
  * re-render — which is what makes "first read before debug was on" real. */
 const selectZoomThousandths = (state) =>
-    state.osdViewer
-        ? Math.round(state.osdViewer.viewport.getZoom() * 1000)
-        : -1;
+    state.rendererReady ? Math.round(state.viewportScale * 1000) : -1;
 
 /**
  * A real `ViewerState` from `triiiceratops/testing` with no viewer, no element
- * and no OpenSeadragon behind it — and therefore genuinely IDLE: nothing ever
+ * and no renderer behind it — and therefore genuinely IDLE: nothing ever
  * notifies it, so a projection over it never sees its version advance.
  *
  * That is the strict version of the same ordering viewer A demonstrates. A

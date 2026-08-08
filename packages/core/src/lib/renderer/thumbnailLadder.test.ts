@@ -22,6 +22,10 @@ function resolve(overrides: Partial<ResolveThumbnailInput> = {}) {
         // ticket 06 is about. Stated here rather than imported so tuning the
         // default cannot silently rewrite what these assertions prove.
         minPixelRatio: 0.5,
+        // 16 megapixels, the shipped ceiling — stated here for the same reason.
+        // This is the ONLY thing that refuses a ladder at this tier, so every
+        // refusal assertion below is measured against a number the test owns.
+        maxDecodedPixels: 16 * 1024 * 1024,
         ...overrides,
     });
 }
@@ -147,6 +151,48 @@ describe('resolveThumbnail', () => {
                 'fallback',
             );
         });
+
+        it('clamps to the whole image rather than asking for an upscale', () => {
+            // `512,` on a 400 px wide image is not a large picture, it is a
+            // 400: Image API 3.0 requires the `^` prefix to upscale and 2.1
+            // forbids it. Unclamped, a seal or a binding fragment burns both
+            // attempts plus the `native` fallback and stays blank, with nothing
+            // in `unresolvedThumbnails` to explain it.
+            expect(resolve({ rung: 512, imageWidth: 400 })).toMatchObject({
+                url: `${SERVICE}/full/max/0/default.jpg`,
+            });
+        });
+
+        it('spells the whole image `full` on a version 2 service, fallback included', () => {
+            expect(
+                resolve({
+                    source: service('http://iiif.io/api/image/2/level2.json'),
+                    rung: 512,
+                    imageWidth: 400,
+                }),
+            ).toEqual({
+                kind: 'url',
+                url: `${SERVICE}/full/full/0/default.jpg`,
+                fallback: {
+                    url: `${SERVICE}/full/full/0/native.jpg`,
+                    group: SERVICE,
+                },
+            });
+        });
+
+        it('does not clamp a rung the image is comfortably wider than', () => {
+            expect(resolve({ rung: 128, imageWidth: 4000 })).toMatchObject({
+                url: `${SERVICE}/full/128,/0/default.jpg`,
+            });
+        });
+
+        it('applies no clamp when the manifest declares no width', () => {
+            // `null` is what an unsized Canvas carries, and the width-only form
+            // is the only thing that can be said without one.
+            expect(resolve({ rung: 128, imageWidth: null })).toMatchObject({
+                url: `${SERVICE}/full/128,/0/default.jpg`,
+            });
+        });
     });
 
     describe('rung 3 — asking info.json, and only where it is needed', () => {
@@ -239,6 +285,23 @@ describe('resolveThumbnail', () => {
                 url: `${SERVICE}/full/128,/0/default.png`,
             });
         });
+
+        it('clamps against the width `info.json` states, not the manifest’s guess', () => {
+            const facts: ImageServiceFacts = {
+                width: 300,
+                height: 225,
+                version: 3,
+            };
+
+            expect(
+                resolve({
+                    source: service(null),
+                    facts,
+                    rung: 512,
+                    imageWidth: 4000,
+                }),
+            ).toMatchObject({ url: `${SERVICE}/full/max/0/default.jpg` });
+        });
     });
 
     describe('rung 4 — the advertised scale factors, as whole images', () => {
@@ -261,15 +324,15 @@ describe('resolveThumbnail', () => {
     });
 
     describe('rung 5 — nothing usable, permanently', () => {
-        it('refuses a ladder whose cheapest image is far bigger than the rung', () => {
+        it('refuses a ladder whose cheapest image is over the decoded-pixel cap', () => {
             // A level0 service with no sizes and no tiles can serve exactly one
-            // thing: the whole master. Decoding a 12-megapixel scan to fill a
+            // thing: the whole master. Decoding a 108-megapixel scan to fill a
             // 32-pixel box is the memory failure the tier exists to prevent, and
             // the spec's own answer for a canvas with no usable thumbnail is a
             // plain box (user story 31).
             const facts: ImageServiceFacts = {
-                width: 4000,
-                height: 3000,
+                width: 12_000,
+                height: 9000,
                 level0: true,
                 version: 3,
             };
@@ -277,6 +340,73 @@ describe('resolveThumbnail', () => {
             expect(
                 resolve({ source: service('level0'), facts, rung: 32 }),
             ).toEqual({ kind: 'none' });
+        });
+
+        it('accepts an ordinary derivative set at the smallest rung', () => {
+            // The boundary the refusal must NOT be drawn at. A Cantaloupe/IIP
+            // derivative set off a 12000 px master is the common shape of a
+            // level0 service, its cheapest image is 1.7 MB decoded, and refusing
+            // it would put most real level0 manifests in the box tier — which is
+            // the acceptance criterion "scrolling an 800-canvas manifest shows
+            // page images, not empty boxes" failing on exactly the manifests it
+            // was written for. The refusal is decoded pixels and nothing else.
+            const facts: ImageServiceFacts = {
+                width: 12_000,
+                height: 9000,
+                level0: true,
+                version: 3,
+                sizes: [
+                    { width: 750, height: 563 },
+                    { width: 1500, height: 1125 },
+                    { width: 3000, height: 2250 },
+                ],
+            };
+
+            expect(
+                resolve({ source: service('level0'), facts, rung: 64 }),
+            ).toMatchObject({
+                kind: 'url',
+                url: `${SERVICE}/full/750,/0/default.jpg`,
+            });
+        });
+
+        it('accepts a scale-factor ladder off a large master at the smallest rung', () => {
+            // The same shape reached through `ladderFromPyramid`: rungs 3 and 4
+            // are the two that exist FOR level0, and both have to resolve.
+            const facts: ImageServiceFacts = {
+                width: 12_000,
+                height: 9000,
+                level0: true,
+                version: 3,
+                tileSize: 256,
+                scaleFactors: [1, 2, 4, 8, 16],
+            };
+
+            expect(
+                resolve({ source: service('level0'), facts, rung: 32 }),
+            ).toMatchObject({
+                kind: 'url',
+                url: `${SERVICE}/full/750,/0/default.jpg`,
+            });
+        });
+
+        it('is refused identically at every rung, so the tier cannot flip with zoom', () => {
+            // "Box tier permanently, logged once" is only true if the answer is
+            // independent of the zoom. A rung-relative threshold would accept
+            // this canvas one zoom step in and refuse it one step out, with the
+            // log entry claiming permanence either way.
+            const facts: ImageServiceFacts = {
+                width: 12_000,
+                height: 9000,
+                level0: true,
+                version: 3,
+            };
+
+            for (const rung of THUMBNAIL_RUNGS) {
+                expect(
+                    resolve({ source: service('level0'), facts, rung }),
+                ).toEqual({ kind: 'none' });
+            }
         });
 
         it('refuses a service whose dimensions are unusable', () => {
@@ -304,9 +434,10 @@ describe('resolveThumbnail', () => {
     it('is a pure function of its inputs, which is what makes "never retried" true', () => {
         const input: ResolveThumbnailInput = {
             source: service('level0'),
-            facts: { width: 4000, height: 3000, level0: true },
+            facts: { width: 12_000, height: 9000, level0: true },
             rung: 32,
             minPixelRatio: 0.5,
+            maxDecodedPixels: 16 * 1024 * 1024,
         };
 
         // Same answer every frame, so a canvas that resolved to nothing keeps

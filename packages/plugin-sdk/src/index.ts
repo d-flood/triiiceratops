@@ -20,8 +20,8 @@ export { svgIcon, SvgIconError } from './svgIcon.js';
 export { definePluginStyles } from './pluginStyles.js';
 
 // Await OSD readiness before touching the raw OpenSeadragon viewer.
-export { whenOsdReady } from './osd.js';
-export type { WhenOsdReadyOptions } from './osd.js';
+export { whenRendererReady } from './renderer.js';
+export type { WhenRendererReadyOptions } from './renderer.js';
 
 // Report user-driven command failures through the structured host channel.
 export { dispatchPluginCommandError } from './reportError.js';

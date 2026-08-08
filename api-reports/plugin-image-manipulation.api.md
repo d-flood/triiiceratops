@@ -45,8 +45,10 @@ export type { ImageFilters } from './types';
  * Filter state lives in the Activation-scoped {@link FilterController} created
  * here (per viewer, above the mounted component), so slider positions survive
  * close→reopen and the canvas-change / deactivation resets fire whether the
- * Flyout is open or closed. Filters touch the raw OSD viewer, so the plugin
- * declares `requiredCapabilities: ['osd@5']` and gates on OSD readiness.
+ * Flyout is open or closed. Filters are applied through the first-party
+ * `setImageAdjustments` command, so the plugin needs no capability and no
+ * readiness gate: the adjustment set lives in viewer state and is replayed onto
+ * whichever renderer mounts.
  */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 /** The image-manipulation plugin factory. Activate it explicitly, per viewer. */

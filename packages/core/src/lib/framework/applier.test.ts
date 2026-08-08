@@ -159,7 +159,7 @@ describe('property tier after the element is registered', () => {
             version: '1.0.0',
             coreRange: '>=1.0.0-rc.0',
             pluginApiRange: '^1.0.0',
-            requiredCapabilities: ['osd@5'],
+            requiredCapabilities: [],
             icon: {
                 kind: 'svg',
                 inner: '<circle />',

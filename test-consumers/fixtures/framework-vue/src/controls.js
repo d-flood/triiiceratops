@@ -159,10 +159,10 @@ export function installControls() {
             // Through `useViewer()` in a deep, provideViewer-resolved component.
             live.deepToggle();
         },
-        osdReady: () => !!(state1() && state1().osdViewer),
+        rendererReady: () => !!(state1() && state1().rendererReady),
         zoomIn: () => {
             const state = state1();
-            if (!state || !state.osdViewer) return false;
+            if (!state || !state.rendererReady) return false;
             state.zoomIn();
             return true;
         },

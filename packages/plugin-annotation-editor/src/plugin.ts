@@ -6,8 +6,15 @@
  * package or its Svelte runtime. The full domain machinery — Store, Adapter seam,
  * per-viewer display sync, undo/redo, body editors, Annotorious integration — is
  * carried intact and driven from the neutral `view.mount(container, context)`
- * contract (see `mount.svelte.ts`). Annotorious needs the raw OSD viewer, so the
- * plugin declares `requiredCapabilities: ['osd@5']` (ADR 0009).
+ * contract (see `mount.svelte.ts`).
+ *
+ * Annotation editing is UNAVAILABLE in this phase: Annotorious's OpenSeadragon
+ * integration needs the raw viewer instance, which no longer exists. The plugin
+ * therefore keeps declaring `osd@5`, a capability core retired with no
+ * successor — so activation FAILS loudly with the structured capability error
+ * rather than the plugin activating cleanly and installing a button that does
+ * nothing. See `AnnotationEditorController.svelte`; ticket 15 owns the full
+ * disposition (changeset, README, pinning, aggregate scripts).
  */
 import {
     definePlugin,
@@ -55,6 +62,10 @@ export function createAnnotationEditorPlugin(
         version: '1.0.0-rc.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
+        // Unsatisfiable on purpose (see the module comment): core retired
+        // `osd@5` with no successor, so this is how the plugin reports that it
+        // is retired instead of silently doing nothing. Ticket 15 removes it
+        // along with the package.
         requiredCapabilities: ['osd@5'],
         icon: ICON,
         target: config.target ?? 'panel',

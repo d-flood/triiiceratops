@@ -33,6 +33,15 @@
  *    remotely, and "no usable thumbnail" is a fact about the manifest that no
  *    number of requests will change.
  *
+ *    Two shapes reach it: a service with no usable dimensions at all, and one
+ *    whose CHEAPEST advertised image is over `budgets.maxDecodedPixels` — a
+ *    level0 master with no derivatives, where the only legal request is a
+ *    hundred-megapixel decode to fill a thirty-pixel box. Both are properties
+ *    of the manifest and the service's facts and of nothing else, which is what
+ *    keeps "permanently" honest: the answer does not move with the zoom, so a
+ *    canvas cannot flip between a thumbnail and a box as the reader scrolls
+ *    across a rung boundary. See {@link fromLadder}.
+ *
  * ## Which rung, and why the URL set is small
  *
  * The requested size is **quantized to {@link THUMBNAIL_RUNGS}**, rounding the
@@ -56,6 +65,7 @@ import {
     buildSizeLadder,
     chooseRung,
     complianceLevel,
+    exceedsDecodedPixelCap,
     isLevel0Profile,
     ladderFromPyramid,
     profileVersion,
@@ -96,8 +106,20 @@ export const THUMBNAIL_BASE_RUNG = THUMBNAIL_RUNGS[0];
  * The rung to ask for, given a projected width in **device** pixels.
  *
  * Rounded **up**, so a thumbnail is never asked to cover more pixels than it
- * has; clamped to the top rung, above which the canvas is about to become
- * pyramid tier anyway.
+ * has; clamped to the top rung.
+ *
+ * That clamp is a **deliberate softness**, not a coincidence of the thresholds.
+ * The tier boundary is `effectiveSize = sqrt(w * h)` in CSS pixels against
+ * `budgets.pyramidThreshold`, and the rung is quantized from
+ * `rect.width * scale * dpr` in DEVICE pixels: the two diverge by the device
+ * pixel ratio and by aspect ratio, so a wide canvas just under the pyramid
+ * threshold on a 2x screen really does want more than 512 and is upscaled to
+ * fill. The band is narrow — it ends at the pyramid tier, which is a page or
+ * two either side of the viewport centre and gets real tiles — and a sixth rung
+ * would cost every canvas in it a fresh cache-missing URL for a sharpness
+ * nobody is looking at yet. The ladder is the ticket's stated contract
+ * (32/64/128/256/512), so this trades the last half-step of sharpness at the
+ * top of the tier for a ladder that stays short.
  */
 export function quantizeRung(
     projectedWidth: number,
@@ -134,22 +156,64 @@ export interface ResolveThumbnailInput {
     /** The quantized rung, in device pixels of width. */
     rung: number;
     /**
-     * The pyramid's promotion budget, reused verbatim. It decides which
-     * advertised image a real ladder resolves to, and — through
-     * {@link tooCoarseForThumbnail} — whether that ladder can serve a thumbnail
-     * at all.
+     * The pyramid's promotion budget, reused verbatim: it decides which
+     * advertised image a real ladder resolves to.
      */
     minPixelRatio: number;
+    /**
+     * `budgets.maxDecodedPixels`, the one ceiling on how big a single decode may
+     * be — and at this tier the ONLY thing that refuses a ladder outright.
+     *
+     * `chooseRung` already caps against it and degrades to the cheapest rung
+     * when every rung is over; here that degradation is refused instead (see
+     * {@link resolveThumbnail}, step 5).
+     */
+    maxDecodedPixels: number;
+    /**
+     * The service's full-resolution width, when it is known without a fetch —
+     * the manifest's Canvas width, which is the same picture's extent for every
+     * ordinary IIIF Canvas.
+     *
+     * Used only to keep a constructed URL legal: `{w},` larger than the image
+     * is a 400 in Image API 3.0 (upscaling needs the `^` prefix) and is
+     * disallowed in 2.1 as well. `null` where the manifest declares none, which
+     * simply means no clamp is applied.
+     */
+    imageWidth?: number | null;
 }
 
-/** `{serviceId}/full/{rung},/0/default.{format}` — the level 1/2 construction. */
+/**
+ * `{serviceId}/full/{size}/0/{quality}.{format}` for a service that answers
+ * arbitrary sizes.
+ *
+ * The size parameter is the width-only form, EXCEPT when the rung is at or
+ * above the image's own width, where it is the canonical whole-image spelling
+ * (`max` in version 3, `full` in version 2). Asking a 400 px wide service for
+ * `512,` is not a large picture, it is a **400**: Image API 3.0 requires the
+ * `^` upscaling prefix for any size beyond the region's extent, and 2.1
+ * forbids it outright. Without this a small canvas — a seal, a binding fragment
+ * — burns both its attempts plus the `native` fallback and then stays blank
+ * with nothing in `unresolvedThumbnails` to explain it, because the ladder
+ * genuinely did resolve; it resolved to a URL the server refuses.
+ *
+ * This is the same rule `sizeLadder.rungUrl` applies to a ladder's top rung,
+ * stated here for the branch that constructs rather than selects.
+ */
 function constructedUrl(
     serviceId: string,
     rung: number,
     format: string,
+    version: 2 | 3,
+    imageWidth: number | null | undefined,
     quality: 'default' | 'native' = 'default',
 ): string {
-    return `${serviceId}/full/${rung},/0/${quality}.${format}`;
+    const whole =
+        typeof imageWidth === 'number' &&
+        Number.isFinite(imageWidth) &&
+        imageWidth > 0 &&
+        rung >= imageWidth;
+    const size = whole ? (version === 3 ? 'max' : 'full') : `${rung},`;
+    return `${serviceId}/full/${size}/0/${quality}.${format}`;
 }
 
 /**
@@ -167,23 +231,31 @@ function fromConstruction(
     rung: number,
     version: 2 | 3,
     format: string,
+    imageWidth: number | null | undefined,
 ): ThumbnailSource {
-    const url = constructedUrl(serviceId, rung, format);
+    const url = constructedUrl(serviceId, rung, format, version, imageWidth);
     if (version !== 2) return { kind: 'url', url };
 
     return {
         kind: 'url',
         url,
         fallback: {
-            url: constructedUrl(serviceId, rung, format, 'native'),
+            url: constructedUrl(
+                serviceId,
+                rung,
+                format,
+                version,
+                imageWidth,
+                'native',
+            ),
             group: serviceId,
         },
     };
 }
 
 /**
- * Whether the smallest image this ladder can serve is too big to be a
- * thumbnail.
+ * The rung of a real ladder of advertised images, or nothing when even its
+ * cheapest image is over the decoded-pixel ceiling.
  *
  * `chooseRung` degrades to the cheapest rung rather than to nothing, because a
  * blurry canvas beats a blank one when the alternative is a pyramid-tier canvas
@@ -191,38 +263,44 @@ function fromConstruction(
  * canvas is at most a few hundred pixels across, and decoding a 100-megapixel
  * master to fill it is precisely the memory failure the tier exists to prevent.
  * A plain layout rect is the spec's own answer for a canvas with no usable
- * thumbnail (user story 31), so this refuses instead.
+ * thumbnail (user story 31), so this refuses instead of degrading.
  *
- * The threshold is `minPixelRatio` restated as a hard limit rather than a
- * preference: `chooseRung` accepts a rung no wider than `rung / minPixelRatio`,
- * so anything wider than that is a rung the walk did not want either and only
- * returned because there was nothing else.
+ * The refusal is stated in **decoded pixels** and nothing else. Stating it
+ * against `minPixelRatio` — "wider than `rung / minPixelRatio`" — reads like a
+ * tighter version of the same idea and is not: `chooseRung` guarantees that
+ * bound for every rung it selects except its `candidates[0]` fallback, so such
+ * a test fires exactly when the SMALLEST image the service advertises is wider
+ * than twice the rung, which at a 32 px rung is nearly every real derivative
+ * set. A 750x563 JPEG is 1.7 MB decoded and is a perfectly good thumbnail; a
+ * 12000x9000 master is 108 megapixels and is the failure being refused. Only
+ * the pixel count tells those apart, and only the pixel count is independent of
+ * which rung the current zoom happens to ask for — which is what makes "box
+ * tier **permanently**, never retried" true rather than an artefact of the
+ * viewport (see `ScenePlan.unresolvedThumbnails`).
  */
-function tooCoarseForThumbnail(
-    width: number,
-    rung: number,
-    minPixelRatio: number,
-): boolean {
-    return minPixelRatio > 0 && width > rung / minPixelRatio;
-}
-
 function fromLadder(
     ladder: SizeLadder,
     rung: number,
     minPixelRatio: number,
+    maxDecodedPixels: number,
 ): ThumbnailSource {
-    // Asked about the QUANTIZED rung rather than the raw projection, which is
-    // what keeps a zoom sweep on a handful of URLs while leaving the selection
-    // rule identical to the pyramid's.
-    const imageScale = rung / ladder.width;
-    // No decoded-pixel cap here: `tooCoarseForThumbnail` below is strictly
-    // tighter at this tier, and passing a cap as well would let the ladder
-    // return an image the cap kept but this tier still cannot use.
-    const chosen = chooseRung(ladder, imageScale, minPixelRatio, Infinity);
-
-    if (tooCoarseForThumbnail(chosen.width, rung, minPixelRatio)) {
+    // Rung-independent, so this answer is a fact about the manifest and the
+    // service rather than about the current zoom.
+    if (exceedsDecodedPixelCap(ladder, maxDecodedPixels)) {
         return { kind: 'none' };
     }
+
+    // Asked about the QUANTIZED rung rather than the raw projection, which is
+    // what keeps a zoom sweep on a handful of URLs while leaving the selection
+    // rule identical to the pyramid's — cap included, which is the capping this
+    // tier needs and already has.
+    const imageScale = rung / ladder.width;
+    const chosen = chooseRung(
+        ladder,
+        imageScale,
+        minPixelRatio,
+        maxDecodedPixels,
+    );
 
     const fallback = rungFallback(ladder, chosen);
     return {
@@ -240,7 +318,7 @@ function fromLadder(
 export function resolveThumbnail(
     input: ResolveThumbnailInput,
 ): ThumbnailSource {
-    const { source, facts, rung, minPixelRatio } = input;
+    const { source, facts, rung, minPixelRatio, maxDecodedPixels } = input;
 
     // 1. The publisher's own answer, used as-is. Tried ahead of everything,
     //    including for a source kind that has no ladder at all.
@@ -267,6 +345,12 @@ export function resolveThumbnail(
                 rung,
                 profileVersion(profile),
                 'jpg',
+                // The manifest's Canvas width is the only figure available
+                // without a fetch, and it is the right conservative bound: for
+                // an ordinary Canvas it IS the image's width, and where it is
+                // not, clamping early costs a marginally softer thumbnail while
+                // not clamping costs a 400.
+                input.imageWidth,
             );
         }
 
@@ -282,7 +366,9 @@ export function resolveThumbnail(
     if (!level0) {
         // The service admits to serving arbitrary sizes — whether or not it
         // advertises tiles, which is a separate question this tier never asks.
-        return fromConstruction(serviceId, rung, version, format);
+        // `info.json` knows the real width, so the clamp uses it rather than
+        // the manifest's guess at it.
+        return fromConstruction(serviceId, rung, version, format, facts.width);
     }
 
     // 4. A level0 service serves only files it generated. If it advertises
@@ -298,5 +384,5 @@ export function resolveThumbnail(
     // 5. Nothing usable. Box tier, permanently.
     if (!ladder) return { kind: 'none' };
 
-    return fromLadder(ladder, rung, minPixelRatio);
+    return fromLadder(ladder, rung, minPixelRatio, maxDecodedPixels);
 }

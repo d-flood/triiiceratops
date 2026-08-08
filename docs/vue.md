@@ -346,7 +346,7 @@ import {
 const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
 const zoom = useViewerSelector(
     viewer,
-    (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+    (state) => state.viewportScale,
     { cadence: 'frame' },
 );
 </script>
@@ -361,7 +361,8 @@ const zoom = useViewerSelector(
 </template>
 ```
 
-Reading *through* `state.osdViewer` at the default `state` cadence is the one
+Reading a query-only viewport value (`viewportScale`, `viewportCentre`,
+`viewportBounds`) at the default `state` cadence is the one
 selector mistake that fails silently — the projection simply appears frozen. See
 [what notifies](configuration.md#what-notifies) for the inventory that decides
 which members a `state`-cadence projection may read.
@@ -709,7 +710,7 @@ poll anywhere in the path, so an incompatible page fails fast instead of hanging
 
 Further failure modes are silent by design and surface only under
 `config: { debug: true }` — unstable property-tier props, a `state`-cadence
-projection reading through `osdViewer`, and the `<KeepAlive>` state loss above.
+projection reading a query-only viewport value, and the `<KeepAlive>` state loss above.
 See [debug diagnostics](configuration.md#debug-diagnostics).
 
 ## Testing your own components
@@ -766,9 +767,11 @@ test('follows the viewer to a new canvas', async () => {
 
 `createTestViewerHandle()` accepts `{ fixtures }` to seed a config, an active
 locale, or already-parsed manifest JSON (through the real `setManifestData`
-command — still no network). `handle.setOsdViewer(stub)` injects your own
-OpenSeadragon stand-in and fires the real readiness path, which is how a
-`cadence: 'frame'` projection is exercised headlessly; no OSD fake ships with it.
+command — still no network). `handle.attachRenderer()` mounts core's headless
+renderer stand-in and fires the real readiness path, which is how a
+`cadence: 'frame'` projection and the query-only viewport values are exercised
+headlessly. It returns the stand-in, which is also the controller: `setView`
+moves the viewport and `emitFrame` fires one animation event, synchronously.
 
 ## What the wrapper does not do
 

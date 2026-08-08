@@ -174,7 +174,7 @@ function countingPlugin(name: string, mounts: string[]): SdkPlugin {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: { kind: 'svg', inner: '<circle />', viewBox: '0 0 1 1' },
         target: 'flyout',
         dismiss: 'explicit',

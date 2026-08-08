@@ -20,7 +20,7 @@
 //
 //   · Viewer A is mounted ONCE and lives through all three phases. Its `config`
 //     carries the `debug` flag, and the `state`-cadence projection that reads
-//     `osdViewer` hangs off it — so that projection is created and first read
+//     a query-only viewport value hangs off it — so that projection is created and first read
 //     while debug is still OFF, which is the ordering a published wrapper
 //     actually produces (the flag is bridged when the property tier is
 //     applied) and the one a probe decided too early would miss forever.
@@ -94,13 +94,11 @@ const viewerC = shallowRef(null);
  * viewer A is idle between phases, so without one nothing would invalidate the
  * selection and the projection would never be re-evaluated. This is the
  * documented Vue path (`recompute()` exists for exactly this) and the projection
- * is still an ordinary `state`-cadence one reading through `osdViewer`.
+ * is still an ordinary `state`-cadence one reading a query-only viewport value.
  */
 const selectZoomThousandths = (state) => {
     void store.tick;
-    return state.osdViewer
-        ? Math.round(state.osdViewer.viewport.getZoom() * 1000)
-        : -1;
+    return state.rendererReady ? Math.round(state.viewportScale * 1000) : -1;
 };
 
 const selectCanvasId = (state) => state.canvasId ?? 'none';

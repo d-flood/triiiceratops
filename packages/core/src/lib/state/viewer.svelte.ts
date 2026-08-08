@@ -11,17 +11,21 @@
 // fails `build:lib` if a Svelte type import reappears in the public declarations.
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
-// Import the OpenSeadragon types as a MODULE (not the ambient UMD global) so the
-// emitted `.d.ts` references `import('openseadragon').Viewer` — module-resolvable
-// by a strict-TS consumer via the `openseadragon` runtime dep + the
-// `@types/openseadragon` dependency (ticket 21), instead of an ambient global the
-// consumer can't see.
-import type OpenSeadragon from 'openseadragon';
 import { manifestsState } from './manifests.svelte.js';
 import { STATE_INVENTORY } from './state-inventory.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { logger, isDebugEnabled } from '../logging/logger';
 import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
+import type { RendererPort } from '../renderer/rendererPort.js';
+import { isRendererPort } from '../renderer/rendererPortBrand.js';
+import { ZOOM_PER_CLICK as DEFAULT_ZOOM_PER_CLICK } from '../renderer/rendererDefaults.js';
+import {
+    NEUTRAL_IMAGE_ADJUSTMENTS,
+    type ContainerSize,
+    type ImageAdjustments,
+    type ViewportBox,
+    type ViewportPoint,
+} from '../types/viewport.js';
 import type {
     PluginUiConfig,
     RequestConfig,
@@ -651,18 +655,317 @@ export class ViewerState {
         }
     }
 
-    zoomIn() {
-        if (this.osdViewer && this.osdViewer.viewport) {
-            this.osdViewer.viewport.zoomBy(1.2);
-            this.osdViewer.viewport.applyConstraints();
+    // ==================== VIEWPORT (SPEC.md §Public API) ======================
+    //
+    // Command state for the viewport, and query-only state beside it. These
+    // replace the renderer pass-through: the parity rule says anything the
+    // viewer's own chrome can do to the viewport a plugin can do too, and the
+    // chrome's zoom buttons, fit control, and keyboard bindings all land here.
+    //
+    // Every command is a no-op before a renderer is attached rather than a
+    // throw. A plugin activating during mount would otherwise have to guard
+    // every call, and "the surface is not sized yet" is a timing fact, not a
+    // caller error — {@link rendererReady} is how a caller that cares waits.
+    //
+    // Coordinates are canvas space (the IIIF Canvas's own dimensions) and
+    // screen space (the surface's CSS pixels). Image space stays inside core.
+
+    /**
+     * The mounted renderer's command/query seam, or `null` before one mounts.
+     *
+     * Deliberately NOT reactive: it is set once per mount, plugins never see
+     * it, and making it `$state` would put a renderer handle on the batched
+     * notification path — which is the pass-through this epic removes wearing a
+     * different hat. {@link rendererReady} is the notifying signal.
+     */
+    private rendererPort: RendererPort | null = null;
+
+    /** Frame-cadence fan-out; see {@link subscribeFrame}. */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    private frameListeners = new Set<() => void>();
+
+    /** Detach from the port's animation events; set while we are attached. */
+    private unsubscribeFrame: (() => void) | null = null;
+
+    /** The port {@link unsubscribeFrame} belongs to, so a swap is noticed. */
+    private tickingPort: RendererPort | null = null;
+
+    /**
+     * Whether a renderer has a sized surface and accepts viewport commands.
+     *
+     * **A new signal, not the old readiness renamed.** The old one meant "the
+     * third-party object exists, you may touch it"; with no pass-through there
+     * is nothing to hand over. This one is about the viewer being able to obey:
+     * before it, viewport commands are no-ops and the viewport queries answer
+     * with zeroes and `null`s.
+     *
+     * Observable state — core writes it, subscribers are woken by it.
+     */
+    rendererReady: boolean = $state(false);
+
+    /**
+     * Image adjustments currently applied to the rendered image.
+     *
+     * Command state: changed through {@link setImageAdjustments} and
+     * {@link resetImageAdjustments}, which is what replaces reaching into the
+     * renderer's DOM node to set a CSS filter string. Because the set lives
+     * here rather than on a node, it survives a renderer remount, is readable,
+     * and is testable with no renderer at all.
+     */
+    imageAdjustments: ImageAdjustments = $state.raw(NEUTRAL_IMAGE_ADJUSTMENTS);
+
+    /**
+     * Attach the mounted renderer. **Core-internal** — the host↔state seam, not
+     * part of the supported plugin API, and it takes a fixed first-party
+     * interface rather than a renderer object.
+     *
+     * Returns a detach function the host calls on teardown. Attaching replays
+     * the current image adjustments, so a renderer that mounts after they were
+     * set shows them.
+     *
+     * **`@internal` is documentation; the guard below is the enforcement.** The
+     * API report is a d.ts snapshot of the whole published declaration graph,
+     * not an api-extractor run, so this method reaches the shipped `.d.ts` and
+     * is typed and callable from a plugin. Only a port core itself built is
+     * accepted (`renderer/rendererPortBrand.ts`, whose brand is a
+     * module-private symbol no consumer can obtain) — otherwise a plugin could
+     * hand in an object of the right shape and become the renderer for the
+     * whole viewer, serving the chrome's own zoom buttons and every other
+     * plugin's viewport queries with the real renderer unreachable. A refused
+     * attach changes nothing and returns a no-op detach.
+     *
+     * @internal
+     */
+    attachRenderer(port: RendererPort): () => void {
+        if (!isRendererPort(port)) {
+            logger.warn(
+                'attachRenderer ignored a port core did not create. It is an internal host seam, not a plugin API; use the viewport commands and queries on ViewerState.',
+            );
+            return () => {};
+        }
+
+        this.rendererPort = port;
+        port.applyImageAdjustments(this.imageAdjustments);
+        this.syncFrameSource();
+        this.rendererReady = true;
+
+        let detached = false;
+        return () => {
+            if (detached || this.rendererPort !== port) return;
+            detached = true;
+            this.rendererPort = null;
+            this.syncFrameSource();
+            this.rendererReady = false;
+        };
+    }
+
+    /**
+     * Wake up on the renderer's own animation events — the `frame` selector
+     * cadence's source (CONTEXT.md **Selector cadence**). The listener receives
+     * no payload: it means "the viewport moved, read what you need".
+     *
+     * Attached to the renderer lazily and detached when the last listener
+     * leaves, so an idle viewer pays nothing and no polling loop is ever
+     * created. Unsubscribing is idempotent.
+     */
+    subscribeFrame(listener: () => void): () => void {
+        this.frameListeners.add(listener);
+        this.syncFrameSource();
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            this.frameListeners.delete(listener);
+            this.syncFrameSource();
+        };
+    }
+
+    /**
+     * Attach to (or detach from) the port's animation events so that we are
+     * subscribed exactly when a port exists AND somebody is listening.
+     */
+    private syncFrameSource(): void {
+        // Keyed on the PORT, not on a boolean: a renderer swap (the flag
+        // switching hosts, a remount) leaves the count non-zero on both sides,
+        // and a boolean check would leave the ticker on the renderer that just
+        // went away — which reads as a viewport that has silently stopped
+        // moving.
+        const wanted = this.frameListeners.size > 0 ? this.rendererPort : null;
+        if (wanted === this.tickingPort) return;
+
+        this.unsubscribeFrame?.();
+        this.unsubscribeFrame = null;
+        this.tickingPort = wanted;
+        if (wanted) {
+            this.unsubscribeFrame = wanted.onFrame(() => this.emitFrame());
         }
     }
 
-    zoomOut() {
-        if (this.osdViewer && this.osdViewer.viewport) {
-            this.osdViewer.viewport.zoomBy(0.8);
-            this.osdViewer.viewport.applyConstraints();
+    /**
+     * Deliver a frame tick. Isolated per listener: no core guard sits on the
+     * renderer's event path, so one consumer's throw must not abort the rest
+     * (or land inside the renderer's own dispatch).
+     */
+    private emitFrame(): void {
+        for (const listener of [...this.frameListeners]) {
+            try {
+                listener();
+            } catch (error) {
+                logger.error('viewer frame listener failed', error);
+            }
         }
+    }
+
+    /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
+    zoomIn(): void {
+        this.rendererPort?.zoomBy(this.zoomPerClick);
+    }
+
+    /** Zoom out one step, about the viewport centre. The toolbar's `−`. */
+    zoomOut(): void {
+        this.rendererPort?.zoomBy(1 / this.zoomPerClick);
+    }
+
+    /**
+     * Zoom to an absolute scale — screen pixels per canvas-space unit, the same
+     * units {@link viewportScale} reads. Clamped by the renderer to the zoom
+     * range it derives from the layout; a caller cannot escape those limits.
+     */
+    zoomTo(scale: number): void {
+        if (!Number.isFinite(scale) || scale <= 0) return;
+        this.rendererPort?.zoomTo(scale);
+    }
+
+    /** Centre the viewport on a canvas-space point. */
+    panTo(centre: ViewportPoint, canvasId?: string): void {
+        this.rendererPort?.panTo(centre, canvasId);
+    }
+
+    /**
+     * Fit a canvas-space box into the viewport.
+     *
+     * A degenerate or non-finite box is refused rather than obeyed, the same
+     * way {@link zoomTo} refuses a scale that is not usable: a zero-width box
+     * has no scale that frames it, and the arithmetic below would otherwise
+     * fall through to a nominal one and teleport the viewport. The resulting
+     * scale is clamped to the renderer's zoom range like every other one, so
+     * this cannot be used to escape the limits {@link zoomTo} documents.
+     */
+    fitBounds(bounds: ViewportBox, canvasId?: string): void {
+        if (
+            !bounds ||
+            !Number.isFinite(bounds.x) ||
+            !Number.isFinite(bounds.y) ||
+            !Number.isFinite(bounds.width) ||
+            !Number.isFinite(bounds.height) ||
+            bounds.width <= 0 ||
+            bounds.height <= 0
+        ) {
+            return;
+        }
+        this.rendererPort?.fitBounds(bounds, canvasId);
+    }
+
+    /**
+     * Fit a whole canvas — the current one unless named. The `0`/`Home` path,
+     * and what canvas navigation does in continuous mode.
+     */
+    fitCanvas(canvasId?: string): void {
+        this.rendererPort?.fitCanvas(canvasId);
+    }
+
+    /**
+     * Apply image adjustments, merging over the current set. Members left out
+     * keep their current value; {@link resetImageAdjustments} returns to
+     * neutral.
+     */
+    setImageAdjustments(adjustments: Partial<ImageAdjustments>): void {
+        const next: ImageAdjustments = {
+            ...this.imageAdjustments,
+            ...adjustments,
+        };
+        this.imageAdjustments = next;
+        this.rendererPort?.applyImageAdjustments(next);
+    }
+
+    /** Return the image to exactly how it was decoded. */
+    resetImageAdjustments(): void {
+        this.imageAdjustments = NEUTRAL_IMAGE_ADJUSTMENTS;
+        this.rendererPort?.applyImageAdjustments(NEUTRAL_IMAGE_ADJUSTMENTS);
+    }
+
+    // ---- Query-only viewport state ------------------------------------------
+    //
+    // Per-frame values, readable on demand and deliberately NON-notifying
+    // (CONTEXT.md **Query-only state**): mirroring them into notifying state
+    // would wake every subscriber on every pointer sample. Reading them
+    // reactively is a `frame`-cadence selector — a cadence choice, not a
+    // reclassification.
+
+    /**
+     * Screen pixels per canvas-space unit — the single number relating the two
+     * spaces. `0` before a renderer has a sized surface.
+     */
+    get viewportScale(): number {
+        return this.rendererPort?.getScale() ?? 0;
+    }
+
+    /**
+     * The canvas-space point at the middle of the viewport, or `null` before a
+     * renderer has a sized surface.
+     */
+    get viewportCentre(): ViewportPoint | null {
+        return this.rendererPort?.getCentre() ?? null;
+    }
+
+    /**
+     * The canvas-space box the viewport currently shows, or `null` before a
+     * renderer has a sized surface. Extends past the canvas's own bounds when
+     * the canvas is zoomed out far enough to sit inside the viewport.
+     */
+    get viewportBounds(): ViewportBox | null {
+        return this.rendererPort?.getVisibleBounds() ?? null;
+    }
+
+    /**
+     * The viewer surface's size in CSS pixels — what an export path asks in
+     * order to request an image sized to what the reader is looking at. Zeroes
+     * before the surface is measured.
+     */
+    get containerSize(): ContainerSize {
+        return this.rendererPort?.getContainerSize() ?? { width: 0, height: 0 };
+    }
+
+    /**
+     * Canvas space → screen space, for the current canvas unless named.
+     *
+     * `null` when there is no renderer, or when the named canvas is not one the
+     * mounted renderer can place — never a point answered for a different
+     * canvas.
+     */
+    canvasToScreen(
+        point: ViewportPoint,
+        canvasId?: string,
+    ): ViewportPoint | null {
+        return this.rendererPort?.canvasToScreen(point, canvasId) ?? null;
+    }
+
+    /** Screen space → canvas space, for the current canvas unless named. */
+    screenToCanvas(
+        point: ViewportPoint,
+        canvasId?: string,
+    ): ViewportPoint | null {
+        return this.rendererPort?.screenToCanvas(point, canvasId) ?? null;
+    }
+
+    /** The configured multiplicative zoom step, with the shipped default. */
+    private get zoomPerClick(): number {
+        const configured = this.config?.renderer?.zoomPerClick;
+        return typeof configured === 'number' &&
+            Number.isFinite(configured) &&
+            configured > 1
+            ? configured
+            : DEFAULT_ZOOM_PER_CLICK;
     }
 
     setSearchProvider(searchProvider: SearchProvider | null): void {
@@ -1946,13 +2249,6 @@ export class ViewerState {
     pluginFlyouts: PluginFlyout[] = $state([]);
 
     /**
-     * OpenSeadragon viewer instance (set by OSDViewer at OSD readiness).
-     * Observable pass-through state: its existence and ready-timing are core
-     * API, but the object's own surface is OpenSeadragon's (ADR 0009).
-     */
-    osdViewer: OpenSeadragon.Viewer | null = $state.raw(null);
-
-    /**
      * Per-viewer annotation-edit channel shared by OSDViewer and the annotation
      * editor plugin. Keeping this on ViewerState scopes edit requests and the
      * active edit id to one viewer instance instead of using global listeners.
@@ -2275,16 +2571,6 @@ export class ViewerState {
             (f) => !f.id.startsWith(`${pluginId}:`),
         );
         this.pluginUiState.delete(pluginId);
-    }
-
-    /**
-     * Notify that OSD viewer is ready.
-     * With the component-based system, we don't notify plugins individually.
-     * Instead, plugins should use the OSDViewer instance from context or listen for 'osd-ready' event (if we emitted one).
-     * But since we have direct access to osdViewer in this state, components can just react to it.
-     */
-    notifyOSDReady(viewer: OpenSeadragon.Viewer): void {
-        this.osdViewer = viewer;
     }
 
     /**

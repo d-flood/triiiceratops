@@ -66,6 +66,22 @@ export type {
 } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
 
+// The viewport's public vocabulary (SPEC.md §Public API). Coordinates on this
+// boundary are canvas space (the IIIF Canvas's own dimensions, already the
+// persistence format for annotation geometry) and screen space; image space is
+// core-internal and never crosses it. Nothing here is a renderer object.
+export type {
+    ContainerSize,
+    ImageAdjustments,
+    ViewportBox,
+    ViewportPoint,
+} from './types/viewport';
+export {
+    NEUTRAL_IMAGE_ADJUSTMENTS,
+    imageAdjustmentsToCssFilter,
+    isNeutralImageAdjustments,
+} from './types/viewport';
+
 // The custom element's state bridge (framework-wrappers ticket 02): the
 // getter-only `viewerState` property paired with the `viewerstateavailable`
 // lifecycle event. This is how a Web Component host binds to the live

@@ -31,7 +31,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
 - **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
-- **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
+- **Renderer Tuning**: A small, closed set of renderer knobs (zoom per click, animation timing, cache budgets) via `config.renderer`
 
 ## Current Limitations
 

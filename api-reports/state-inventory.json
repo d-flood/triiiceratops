@@ -1,10 +1,10 @@
 {
-    "count": 60,
+    "count": 69,
     "byClassification": {
-        "command": 34,
+        "command": 35,
         "observable": 12,
-        "internal": 14,
-        "query-only": 0
+        "internal": 18,
+        "query-only": 4
     },
     "entries": [
         {
@@ -82,6 +82,11 @@
             ]
         },
         {
+            "member": "containerSize",
+            "classification": "query-only",
+            "commands": null
+        },
+        {
             "member": "dockSide",
             "classification": "command",
             "commands": [
@@ -100,6 +105,11 @@
         },
         {
             "member": "eventTarget",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "frameListeners",
             "classification": "internal",
             "commands": null
         },
@@ -140,6 +150,14 @@
             "classification": "command",
             "commands": [
                 "setHoveredAnnotationId"
+            ]
+        },
+        {
+            "member": "imageAdjustments",
+            "classification": "command",
+            "commands": [
+                "setImageAdjustments",
+                "resetImageAdjustments"
             ]
         },
         {
@@ -200,11 +218,6 @@
             ]
         },
         {
-            "member": "osdViewer",
-            "classification": "observable",
-            "commands": null
-        },
-        {
             "member": "pagedOffset",
             "classification": "command",
             "commands": [
@@ -258,6 +271,16 @@
                 "unregisterPlugin",
                 "destroyAllPlugins"
             ]
+        },
+        {
+            "member": "rendererPort",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "rendererReady",
+            "classification": "observable",
+            "commands": null
         },
         {
             "member": "searchAnnotations",
@@ -352,6 +375,11 @@
             "commands": null
         },
         {
+            "member": "tickingPort",
+            "classification": "internal",
+            "commands": null
+        },
+        {
             "member": "tileSourceError",
             "classification": "observable",
             "commands": null
@@ -362,6 +390,11 @@
             "commands": [
                 "toggleToolbar"
             ]
+        },
+        {
+            "member": "unsubscribeFrame",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "userAnnotations",
@@ -389,6 +422,36 @@
             "commands": [
                 "setViewingMode",
                 "updateConfig"
+            ]
+        },
+        {
+            "member": "viewportBounds",
+            "classification": "query-only",
+            "commands": [
+                "panTo",
+                "zoomTo",
+                "fitBounds",
+                "fitCanvas"
+            ]
+        },
+        {
+            "member": "viewportCentre",
+            "classification": "query-only",
+            "commands": [
+                "panTo",
+                "fitBounds",
+                "fitCanvas"
+            ]
+        },
+        {
+            "member": "viewportScale",
+            "classification": "query-only",
+            "commands": [
+                "zoomIn",
+                "zoomOut",
+                "zoomTo",
+                "fitBounds",
+                "fitCanvas"
             ]
         },
         {

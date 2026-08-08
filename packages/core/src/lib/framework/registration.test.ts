@@ -224,18 +224,27 @@ describe('ensureViewerElementRegistered', () => {
 });
 
 describe('assertViewerElementCompatible', () => {
-    it('accepts the real element constructor', async () => {
-        const { RealViewerElementCtor } =
-            await import('../test/utils/realViewerElement.js');
-        const registry = fakeRegistry();
-        registry.define(TAG, RealViewerElementCtor);
+    // The dynamic import below compiles the REAL element and everything it
+    // pulls in — the whole viewer chrome and both renderer hosts. That is the
+    // point of the test, and it is also why the default 5 s budget is not
+    // enough: the cost is transform time shared with every other suite running
+    // in parallel, so it grows whenever a sibling file compiles more Svelte.
+    it(
+        'accepts the real element constructor',
+        { timeout: 60_000 },
+        async () => {
+            const { RealViewerElementCtor } =
+                await import('../test/utils/realViewerElement.js');
+            const registry = fakeRegistry();
+            registry.define(TAG, RealViewerElementCtor);
 
-        // The handshake is the state bridge itself: the getter the Svelte
-        // compiler emits for the `viewerState` instance export.
-        expect(() =>
-            assertViewerElementCompatible(registry, TAG),
-        ).not.toThrow();
-    });
+            // The handshake is the state bridge itself: the getter the Svelte
+            // compiler emits for the `viewerState` instance export.
+            expect(() =>
+                assertViewerElementCompatible(registry, TAG),
+            ).not.toThrow();
+        },
+    );
 
     it('rejects a constructor without the bridge', () => {
         const registry = fakeRegistry();

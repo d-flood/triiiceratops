@@ -17,8 +17,8 @@
  * with its own configuration. A preconfigured default (`PdfExportPlugin`) is
  * exported alongside it.
  *
- * The plugin reads the raw OSD viewer (`ViewerState.osdViewer`) to size export
- * requests, so it declares `requiredCapabilities: ['osd@5']`.
+ * The plugin sizes export requests from `ViewerState.containerSize`, a
+ * first-party query-only read, so it requires no capability.
  */
 
 import { mount, unmount } from 'svelte';
@@ -88,7 +88,7 @@ export function createPdfExportPlugin(config: PdfExportConfig = {}): SdkPlugin {
         version: VERSION,
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: FILE_PDF_ICON,
         target: 'panel',
         catalog,

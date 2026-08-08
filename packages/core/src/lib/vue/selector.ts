@@ -94,7 +94,7 @@ export function useViewer(
  * const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
  * const zoom = useViewerSelector(
  *     viewer,
- *     (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+ *     (state) => state.viewportScale,
  *     { cadence: 'frame' },
  * );
  * ```

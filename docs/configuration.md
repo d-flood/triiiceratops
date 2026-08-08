@@ -142,8 +142,16 @@ interface ViewerConfig {
         withCredentials?: boolean; // Use cookies/credentials
     };
 
-    // OpenSeadragon overrides
-    openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+    // Renderer tuning — a small, closed set (see "Renderer tuning" below)
+    renderer?: {
+        animationTimeConstant?: number;
+        zoomPerClick?: number;
+        minPixelRatio?: number;
+        byteBudget?: number;
+        residencyMargin?: number;
+        pyramidThreshold?: number;
+        boxThreshold?: number;
+    };
 
     // Marker styling for point annotations, shared by the read-only overlay
     // and the annotation editor
@@ -573,13 +581,14 @@ and observable state. The checked-in
 is the authority on which members those are; every mutable member is classified
 there, and an unclassified member fails CI.
 
-Reading *through* `state.osdViewer` at `state` cadence is the one selector
-mistake that fails silently — the projection simply appears frozen, because
-OpenSeadragon's viewport never wakes the batched watcher. With
-`config: { debug: true }` the runtime warns once and names the fix
-(`cadence: 'frame'`). Reading `state.osdViewer` only to *test readiness* is
-correct at `state` cadence: `osdViewer` is itself an inventoried observable
-member.
+Reading a **query-only** member at `state` cadence is the one selector mistake
+that fails silently — the projection simply appears frozen, because the
+viewport's scale, centre, and bounds change every frame and deliberately never
+wake the batched watcher. With `config: { debug: true }` the runtime warns once,
+names the member, and names the fix (`cadence: 'frame'`). Reading
+`state.rendererReady` at `state` cadence is correct: that one is an inventoried
+observable member, and it is how you wait for the viewport to be answerable at
+all.
 
 ### Debug diagnostics
 
@@ -590,7 +599,7 @@ failure modes produce no error — just a viewer that quietly does the wrong thi
   object prop in React or Vue);
 - a handle or ref created and never passed to a viewer, so reads stay empty
   forever;
-- a `state`-cadence projection that reads through `osdViewer` (above).
+- a `state`-cadence projection that reads a query-only viewport value (above).
 
 These are gated on `ViewerConfig.debug`, **not** on `NODE_ENV` — a production
 build with `config: { debug: true }` logs them, and a development build without it
@@ -1224,19 +1233,32 @@ own navigation.
     />
     ```
 
-## OpenSeadragon Overrides
+## Renderer Tuning
 
-You can pass custom [OpenSeadragon options](https://openseadragon.github.io/docs/OpenSeadragon.html#.Options) via `openSeadragonConfig` to fine-tune the underlying viewer. These are merged into the default options at initialization and updated reactively.
+`config.renderer` is a **small, closed, typed set** of knobs on the image
+renderer. Every member is optional; omitting one takes the default.
 
 ```javascript
 config = {
-    openSeadragonConfig: {
-        maxZoomPixelRatio: 4,
-        zoomPerScroll: 1.5,
-        animationTime: 0.3,
+    renderer: {
+        animationTimeConstant: 0.15, // seconds; smaller settles faster
+        zoomPerClick: 1.5, // one press of the zoom buttons
+        minPixelRatio: 0.5, // sharpness vs. bytes
+        byteBudget: 64 * 1024 * 1024, // decoded-tile cache ceiling
+        residencyMargin: 1.5, // how far past the viewport stays resident
+        pyramidThreshold: 512, // px at which a canvas gets full tiles
+        boxThreshold: 32, // px below which a canvas draws as a plain box
     },
 };
 ```
+
+There is deliberately **no escape hatch into renderer internals**. An open
+options object would make the renderer's own surface part of what consumers
+depend on, and changing an undocumented internal would then be a breaking
+change. If a knob you need is missing, that is a request for core to add it.
+
+The defaults are provisional and are tuned as the renderer is measured, so do
+not assert against a shipped number.
 
 ## IIIF Collections
 

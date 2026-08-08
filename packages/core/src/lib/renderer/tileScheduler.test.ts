@@ -600,6 +600,43 @@ describe('createTileScheduler — the opportunistic cache', () => {
         expect(tiles.decodedBytes).toBe(3 * TILE_BYTES);
     });
 
+    it('reports the required set’s own bytes, so an unenforceable overrun is visible', async () => {
+        // The ceiling bounds the CACHE, and bounds the total only while the
+        // required set fits underneath it. Saying "the pixels sit under the byte
+        // ceiling" without qualification is therefore an overstatement — a
+        // manifest declaring its full-resolution image as each Canvas's
+        // `thumbnail` requires fifty full-size decodes at the zoom floor, and
+        // the spec requires that URL to be used as-is. `requiredBytes` is what
+        // makes that state diagnosable instead of silent.
+        const net = controllableFetch();
+        const budget = TILE_BYTES;
+        const tiles = scheduler(net, { maxInFlight: 4, byteBudget: budget });
+
+        await hold(tiles, net, [0, 1, 2]);
+
+        expect(tiles.requiredBytes).toBe(3 * TILE_BYTES);
+        expect(tiles.requiredBytes).toBeGreaterThan(tiles.byteBudget);
+        // Nothing left to shed: the cache is empty and the overrun is entirely
+        // the required set's.
+        expect(tiles.cachedTileCount).toBe(0);
+        expect(tiles.requiredBytes).toBe(tiles.decodedBytes);
+    });
+
+    it('counts only the required set, not the opportunistic cache', async () => {
+        const net = controllableFetch();
+        const tiles = scheduler(net, {
+            maxInFlight: 4,
+            byteBudget: 8 * TILE_BYTES,
+        });
+
+        await hold(tiles, net, [0, 1]);
+        tiles.update([request(0)]);
+
+        expect(tiles.cachedTileCount).toBe(1);
+        expect(tiles.requiredBytes).toBe(TILE_BYTES);
+        expect(tiles.decodedBytes).toBe(2 * TILE_BYTES);
+    });
+
     it('stays under the byte budget through sustained scrolling', async () => {
         const net = controllableFetch();
         const budget = 6 * TILE_BYTES;

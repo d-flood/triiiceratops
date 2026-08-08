@@ -371,10 +371,14 @@ export interface ScenePlan {
      *
      * Reported rather than logged because the planner is pure, and reported at
      * all because a silently blank canvas is indistinguishable from one still
-     * loading. The host logs each id **once** (`CanvasHost.reportUnresolvedThumbnails`):
-     * the decision is a pure function of the manifest and the service's facts,
-     * so it is the same answer every frame, and re-announcing it sixty times a
-     * second would be as bad as the retry loop the ladder refuses to run.
+     * loading. The host logs each id **once** (`CanvasHost.reportUnresolvedThumbnails`),
+     * keyed on the canvas id alone — which it may do because the decision is a
+     * pure function of the manifest and the service's facts and of NOTHING
+     * ELSE. In particular it does not depend on the rung, so it cannot change
+     * as the reader zooms: `thumbnailLadder` refuses on decoded pixels, a
+     * property of the images the service offers, rather than on any
+     * rung-relative comparison. If that ever stops being true the report has to
+     * be keyed on the pair and "permanently" has to come out of this sentence.
      */
     unresolvedThumbnails: string[];
     /**

@@ -16,8 +16,10 @@
  * Filter state lives in the Activation-scoped {@link FilterController} created
  * here (per viewer, above the mounted component), so slider positions survive
  * close→reopen and the canvas-change / deactivation resets fire whether the
- * Flyout is open or closed. Filters touch the raw OSD viewer, so the plugin
- * declares `requiredCapabilities: ['osd@5']` and gates on OSD readiness.
+ * Flyout is open or closed. Filters are applied through the first-party
+ * `setImageAdjustments` command, so the plugin needs no capability and no
+ * readiness gate: the adjustment set lives in viewer state and is replayed onto
+ * whichever renderer mounts.
  */
 
 import { mount, unmount } from 'svelte';
@@ -49,14 +51,10 @@ const view: PluginView = {
         // Flyout + the `@triiiceratops/ui` primitives). Separate install id so
         // the style service refcounts each independently.
         const releaseBundled = context.styles.install(BUNDLED_CSS, 'bundled');
-        // Own an abort controller for the OSD-readiness wait here, so the wait is
-        // cancelled synchronously by the view cleanup (which `runActivation` runs
-        // on deactivation) — not on the component's async `onDestroy`.
-        const teardown = new AbortController();
-        // Activation-scoped filter state + OSD wiring. Created ABOVE the mounted
-        // component so the last slider positions survive close→reopen and the
+        // Activation-scoped filter state. Created ABOVE the mounted component
+        // so the last slider positions survive close→reopen and the
         // canvas-change / deactivation resets take effect whether open or closed.
-        const controller = createFilterController(context, teardown.signal);
+        const controller = createFilterController(context);
         // Hand the controller + locale to the flyout through Svelte's
         // component-context map. `getContext` returns them as plain, non-reactive
         // values — correct, since a fresh mount gets a fresh activation and the
@@ -68,7 +66,6 @@ const view: PluginView = {
             ]),
         });
         return () => {
-            teardown.abort();
             unmount(app);
             controller.dispose();
             releaseBundled();
@@ -85,7 +82,7 @@ export const ImageManipulationPlugin: SdkPlugin = definePlugin({
     version: '1.0.0-rc.0',
     coreRange: '>=1.0.0-rc.0',
     pluginApiRange: '^1.0.0',
-    requiredCapabilities: ['osd@5'],
+    requiredCapabilities: [],
     icon: SLIDERS_ICON,
     target: 'flyout',
     // A live-editing surface: closes only via its toolbar button, never on a
