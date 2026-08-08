@@ -51,7 +51,6 @@
     // manual unsubscribe is needed.
     let canvases = $state<any[]>(viewerState.canvases ?? []);
     let manifestId = $state<string | null>(viewerState.manifestId);
-    let osd = $state<unknown>(viewerState.osdViewer ?? null);
 
     selectors
         .select((s) => s.canvases)
@@ -62,11 +61,6 @@
         .select((s) => s.manifestId)
         .subscribe((value) => {
             manifestId = value;
-        });
-    selectors
-        .select((s) => s.osdViewer)
-        .subscribe((value) => {
-            osd = value;
         });
 
     // Active-locale reactivity: bump a tick on change so `t()`-derived labels
@@ -201,9 +195,13 @@
     }
 
     function getTargetWidth(): number {
-        const container = (osd as { container?: { clientWidth?: number } })
-            ?.container;
-        const containerWidth = container?.clientWidth || 1200;
+        // The first-party container-size query, read on demand. It is
+        // query-only state, so it is deliberately NOT mirrored through a
+        // selector like the members above: it is read once per export, at the
+        // moment the export is asked for, which is exactly when it is true.
+        // (This used to reach through the renderer pass-through for the raw
+        // viewer's `container.clientWidth`.)
+        const containerWidth = viewerState.containerSize.width || 1200;
         const pixelRatio = window.devicePixelRatio || 1;
         return Math.min(
             1800,

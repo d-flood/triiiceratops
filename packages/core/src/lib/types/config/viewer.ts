@@ -1,8 +1,3 @@
-// Import OpenSeadragon types as a MODULE (not the ambient UMD global) so the
-// emitted `ViewerConfig` d.ts references `import('openseadragon').Options` —
-// resolvable by a strict-TS consumer via core's `@types/openseadragon`
-// dependency (ticket 21).
-import type OpenSeadragon from 'openseadragon';
 import type { GalleryConfig } from './gallery';
 import type {
     AnnotationsConfig,
@@ -88,6 +83,81 @@ export const DEFAULT_CONTROLS: ControlsMode = 'split';
 export const DEFAULT_NAV_STYLE: NavStyle = 'docked';
 export const DEFAULT_NAV_EDGE: NavEdge = 'bottom';
 export const DEFAULT_NAV_ALIGN: NavAlign = 'center';
+
+/**
+ * Renderer tuning — a **small, closed, typed set**.
+ *
+ * There is deliberately no open partial-options escape hatch into renderer
+ * internals. An escape hatch would make the renderer's own surface part of what
+ * consumers depend on, which is exactly the pass-through this viewer removed:
+ * once someone sets an undocumented internal, changing it becomes a breaking
+ * change and the renderer can no longer be rewritten. Every member below is a
+ * knob core has decided to support and will keep supporting under its own
+ * semver.
+ *
+ * Every value is optional; omitting one takes core's default, and the defaults
+ * are provisional — they are tuned as the renderer is measured, so nothing
+ * should assert against a shipped number.
+ *
+ * If a knob you need is missing, that is a request for core to add it, not a
+ * gap for a consumer to reach through.
+ */
+export interface RendererConfig {
+    /**
+     * How quickly programmatic and discrete motion — a zoom button, a
+     * double-tap, a fit, canvas navigation — settles onto its target, as the
+     * time constant in **seconds** of an exponential approach: the time to
+     * cover about 63% of the remaining distance. Smaller is stiffer.
+     *
+     * Ignored under `prefers-reduced-motion: reduce`, where every viewport
+     * change is instant.
+     */
+    animationTimeConstant?: number;
+
+    /**
+     * Multiplicative zoom factor for one step of `zoomIn` / `zoomOut` and the
+     * toolbar buttons behind them. `2` doubles the zoom per press. Must be
+     * greater than 1; zooming out applies its reciprocal, so a step out
+     * undoes a step in exactly.
+     */
+    zoomPerClick?: number;
+
+    /**
+     * The least **device** pixels per level pixel a pyramid level may carry
+     * before the next coarser one is taken instead. At `0.5`, up to 2×
+     * oversampling is tolerated; a *higher* value accepts a blurrier image for
+     * fewer bytes.
+     */
+    minPixelRatio?: number;
+
+    /**
+     * Decoded-byte ceiling for the opportunistic tile cache. Core picks a
+     * lower default on devices where memory pressure is fatal rather than slow.
+     * This is a ceiling on what is held *beyond* what the current view
+     * requires, so lowering it costs re-fetches, never blank canvases.
+     */
+    byteBudget?: number;
+
+    /**
+     * How far beyond the viewport a canvas is still kept resident, as the
+     * factor the viewport rect is inflated by. `1` holds only what is on
+     * screen; larger values pre-empt more of a scroll at the cost of memory.
+     */
+    residencyMargin?: number;
+
+    /**
+     * Projected on-screen size, in CSS pixels, at or above which a canvas is
+     * given the full tile pyramid.
+     */
+    pyramidThreshold?: number;
+
+    /**
+     * Projected on-screen size, in CSS pixels, below which a canvas is drawn as
+     * a plain box with no image fetched at all. Between this and
+     * {@link pyramidThreshold} a canvas gets a single thumbnail.
+     */
+    boxThreshold?: number;
+}
 
 export interface ViewerConfig {
     /**
@@ -248,13 +318,9 @@ export interface ViewerConfig {
     plugins?: Record<string, PluginUiConfig>;
 
     /**
-     * Additional OpenSeadragon viewer options.
-     * These are merged into the OSD constructor options, allowing you to
-     * override defaults or set any OSD option (e.g. maxZoomPixelRatio,
-     * zoomPerScroll, animationTime, etc.).
-     * @see https://openseadragon.github.io/docs/OpenSeadragon.html#.Options
+     * Renderer tuning. See {@link RendererConfig} — a small, closed set.
      */
-    openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+    renderer?: RendererConfig;
 
     /**
      * Marker styling for point annotations, shared by the read-only overlay and

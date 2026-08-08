@@ -33,6 +33,7 @@ export type {
     NavEdge,
     NavAlign,
     NavConfig,
+    RendererConfig,
     ViewerConfig,
 } from './config/viewer';
 export {

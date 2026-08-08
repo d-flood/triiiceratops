@@ -83,7 +83,7 @@ function makeDouble(config: {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: ICON,
         target: config.target ?? 'panel',
         view: {

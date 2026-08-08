@@ -184,8 +184,8 @@ export { buildCoverSheetFields, buildImageRequestInit, buildPdfFilename, extract
  * with its own configuration. A preconfigured default (`PdfExportPlugin`) is
  * exported alongside it.
  *
- * The plugin reads the raw OSD viewer (`ViewerState.osdViewer`) to size export
- * requests, so it declares `requiredCapabilities: ['osd@5']`.
+ * The plugin sizes export requests from `ViewerState.containerSize`, a
+ * first-party query-only read, so it requires no capability.
  */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 import type { PdfExportConfig } from './types';

@@ -396,7 +396,11 @@ export interface PluginHost {
     readonly coreVersion: string;
     /** The host plugin API version, for `pluginApiRange` negotiation. */
     readonly pluginApiVersion: string;
-    /** The host's declared capabilities (e.g. `osd@5`). */
+    /**
+     * The host's declared capabilities. Empty in core's 1.0 line: capability
+     * negotiation existed to version a third-party renderer, and core's own
+     * surface is governed by `coreRange` instead (`plugin/api.ts`).
+     */
     readonly capabilities: readonly string[];
     readonly styles?: PluginStyleService;
     readonly locale?: PluginLocaleService;
@@ -538,7 +542,12 @@ export interface SdkPluginMeta {
     readonly coreRange: string;
     /** Semver range of plugin API versions this plugin supports. */
     readonly pluginApiRange: string;
-    /** Capability identifiers this plugin requires (e.g. `osd@5`). */
+    /**
+     * Capability identifiers this plugin requires. Normally empty: a plugin
+     * states which CORE it works with through `coreRange`, and capabilities are
+     * reserved for genuinely optional runtime features. A plugin declaring one
+     * the host does not have fails activation.
+     */
     readonly requiredCapabilities: readonly string[];
     /** Toolbar icon descriptor (from the SDK's `svgIcon`). */
     readonly icon: IconDescriptor;

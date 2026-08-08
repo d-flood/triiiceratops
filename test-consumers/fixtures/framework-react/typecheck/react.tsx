@@ -209,8 +209,7 @@ function Readouts({ handle }: { handle: ViewerHandleSlot }): ReactElement {
     );
     const zoom: number | undefined = useViewerSelector(
         handle,
-        (viewer: ReadonlyViewerState) =>
-            viewer.osdViewer?.viewport.getZoom() ?? 1,
+        (viewer: ReadonlyViewerState) => viewer.viewportScale,
         selectorOptions,
     );
     // Context form: no handle argument at all.

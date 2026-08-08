@@ -227,7 +227,9 @@ function emitBrowserRuntime(): void {
                     'PluginFactoryRegistry',
                 ),
             },
-            // Semver-governed capability list (must include `osd@5`).
+            // Semver-governed capability list. Empty in the 1.0 line: the
+            // renderer capability was retired with no successor, and core’s own
+            // surface is negotiated through `coreRange` (see plugin/api.ts).
             capabilities: [...capabilities].sort(),
             pluginApiVersion,
         }),

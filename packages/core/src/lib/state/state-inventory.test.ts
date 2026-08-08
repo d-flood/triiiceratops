@@ -4,6 +4,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import { ViewerState } from './viewer.svelte';
 import { manifestsState } from './manifests.svelte';
+import { createRendererStub } from '../testing/rendererStub';
 import type { IconDescriptor } from '../types/plugin';
 import {
     REACTIVE_COLLECTION_MEMBERS,
@@ -61,14 +62,48 @@ function getMutableMembers(instance: object): Set<string> {
     return members;
 }
 
+/**
+ * Reflect getter-only prototype accessors — the shape a `query-only` member
+ * takes.
+ *
+ * Query-only state is not a stored value the viewer writes; it is a question
+ * asked of the renderer on demand (`viewportScale`, `containerSize`), which is
+ * precisely why it never notifies. It therefore has no setter and would be
+ * invisible to {@link getMutableMembers}, so the inventory reflects both shapes
+ * and each test below says which one it means.
+ *
+ * This set is deliberately NOT subject to the "classify everything" gate: most
+ * getters here are ordinary derived reads (`hasNext`, `manifestEntry`) that are
+ * not viewer state at all. It exists so that a `query-only` entry can be
+ * checked against a real member instead of being rejected as stale.
+ */
+function getQueryAccessors(instance: object): Set<string> {
+    const members = new Set<string>();
+    let proto: object | null = Object.getPrototypeOf(instance);
+    while (proto && proto !== Object.prototype) {
+        for (const [name, desc] of Object.entries(
+            Object.getOwnPropertyDescriptors(proto),
+        )) {
+            if (name === 'constructor') continue;
+            if (typeof desc.get === 'function' && !desc.set) {
+                members.add(name);
+            }
+        }
+        proto = Object.getPrototypeOf(proto);
+    }
+    return members;
+}
+
 describe('ViewerState state inventory', () => {
     let state: ViewerState;
     let mutableMembers: Set<string>;
+    let queryAccessors: Set<string>;
     let byMember: Map<string, StateInventoryEntry>;
 
     beforeEach(() => {
         state = new ViewerState();
         mutableMembers = getMutableMembers(state);
+        queryAccessors = getQueryAccessors(state);
         byMember = new Map(
             STATE_INVENTORY.map((entry) => [entry.member, entry]),
         );
@@ -87,10 +122,30 @@ describe('ViewerState state inventory', () => {
 
     it('contains no stale entries (every entry maps to a real member)', () => {
         const stale = STATE_INVENTORY.map((entry) => entry.member)
-            .filter((member) => !mutableMembers.has(member))
+            .filter(
+                (member) =>
+                    !mutableMembers.has(member) && !queryAccessors.has(member),
+            )
             .sort();
 
         expect(stale).toEqual([]);
+    });
+
+    // A query-only member is a question asked of the renderer, never a stored
+    // value: giving one a setter would put a per-frame value on the batched
+    // notification path, which is the whole reason the classification exists.
+    it('exposes every query-only member as a getter-only accessor', () => {
+        for (const entry of STATE_INVENTORY) {
+            if (entry.classification !== 'query-only') continue;
+            expect(
+                queryAccessors.has(entry.member),
+                `query-only member "${entry.member}" must be a getter with no setter`,
+            ).toBe(true);
+            expect(
+                mutableMembers.has(entry.member),
+                `query-only member "${entry.member}" must not be writable`,
+            ).toBe(false);
+        }
     });
 
     it('has no duplicate member entries', () => {
@@ -104,7 +159,15 @@ describe('ViewerState state inventory', () => {
                     entry.commands && entry.commands.length > 0,
                     `command member "${entry.member}" must list at least one mutation method`,
                 ).toBe(true);
+            }
 
+            // `query-only` members MAY list commands — the viewport is read per
+            // frame and moved by the same commands the viewer's own chrome uses
+            // (see state-inventory.ts). Whatever is listed must still exist.
+            if (
+                entry.classification === 'command' ||
+                entry.classification === 'query-only'
+            ) {
                 for (const method of entry.commands ?? []) {
                     expect(
                         typeof (state as unknown as Record<string, unknown>)[
@@ -238,6 +301,10 @@ interface CapabilityScenario {
 }
 
 const commandScenarios: CapabilityScenario[] = [
+    {
+        member: 'imageAdjustments',
+        act: (state) => state.setImageAdjustments({ brightness: 120 }),
+    },
     {
         member: 'manifestId',
         setup: () => {
@@ -439,9 +506,10 @@ const observableScenarios: CapabilityScenario[] = [
         },
     },
     {
-        member: 'osdViewer',
-        act: (state) =>
-            state.notifyOSDReady({} as unknown as OpenSeadragon.Viewer),
+        member: 'rendererReady',
+        act: (state) => {
+            state.attachRenderer(createRendererStub());
+        },
     },
     {
         member: 'loadedManifestIds',
@@ -549,14 +617,59 @@ describe('ViewerState subscription capability matrix', () => {
         state.destroy();
     });
 
-    it('has no query-only members to notify (kept out of the flush by design)', () => {
-        // Query-only members are readable on demand but never notify. There are
-        // none today; if one is added it must be driven here and asserted to NOT
-        // notify (like the internal-exclusion case above).
+    // The viewport moves on every pointer sample and every animation frame.
+    // Waking the batched watcher from it would make an idle-looking drag the
+    // most expensive thing the viewer does — which is the entire reason these
+    // members are query-only rather than observable.
+    it('never notifies when a query-only member changes (exclusion)', async () => {
+        const state = new ViewerState();
+        const stub = createRendererStub();
+        state.attachRenderer(stub);
+        await tick();
+
+        const listener = vi.fn();
+        state.subscribe(listener);
+
+        const before = {
+            scale: state.viewportScale,
+            centre: state.viewportCentre,
+            bounds: state.viewportBounds,
+            container: state.containerSize,
+        };
+
+        // Move every query-only member: through a command (zoomIn/panTo) and
+        // through the renderer moving on its own (a drag, a resize).
+        state.zoomIn();
+        state.panTo({ x: 500, y: 500 });
+        stub.setView({ container: { width: 1024, height: 768 } });
+        stub.emitFrame();
+        await tick();
+
+        expect(state.viewportScale).not.toBe(before.scale);
+        expect(state.viewportCentre).not.toEqual(before.centre);
+        expect(state.viewportBounds).not.toEqual(before.bounds);
+        expect(state.containerSize).not.toEqual(before.container);
+        expect(listener).not.toHaveBeenCalled();
+
+        state.destroy();
+    });
+
+    it('covers every query-only member in the exclusion test above', () => {
+        // Drift guard: the assertion above names each member explicitly, so a
+        // new query-only member must be added to it rather than silently
+        // trusted not to notify.
         const queryOnly = STATE_INVENTORY.filter(
             (entry) => entry.classification === 'query-only',
-        );
-        expect(queryOnly).toEqual([]);
+        )
+            .map((entry) => entry.member)
+            .sort();
+
+        expect(queryOnly).toEqual([
+            'containerSize',
+            'viewportBounds',
+            'viewportCentre',
+            'viewportScale',
+        ]);
     });
 });
 

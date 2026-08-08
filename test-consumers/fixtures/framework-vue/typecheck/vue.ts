@@ -221,8 +221,7 @@ const Readouts = defineComponent({
             useViewerSelector(props.viewer, projection);
         const zoom: ComputedRef<number | undefined> = useViewerSelector(
             props.viewer,
-            (viewer: ReadonlyViewerState) =>
-                viewer.osdViewer?.viewport.getZoom() ?? 1,
+            (viewer: ReadonlyViewerState) => viewer.viewportScale,
             selectorOptions,
         );
         // Context form: no handle argument at all.

@@ -6,7 +6,7 @@ import { AnnotationEditorPlugin, createAnnotationEditorPlugin } from './index';
  * The factory returns an SDK plugin (framework-neutral `definePlugin` factory).
  * This suite is the moved `index.test.ts`, updated to assert the SDK shape: the
  * `target` still threads through from config (flyout vs panel), and the plugin
- * carries a neutral `view.mount`, the `osd@5` capability, and its
+ * carries a neutral `view.mount`, no required capabilities, and its
  * package-qualified name.
  */
 describe('createAnnotationEditorPlugin', () => {
@@ -23,7 +23,7 @@ describe('createAnnotationEditorPlugin', () => {
         const plugin = createAnnotationEditorPlugin();
 
         expect(plugin.target).toBe('panel');
-        expect(plugin.requiredCapabilities).toContain('osd@5');
+        expect(plugin.requiredCapabilities).toEqual([]);
     });
 
     it('exposes a pre-configured default plugin', () => {

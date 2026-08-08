@@ -200,3 +200,96 @@ export function reflowShift(
 
     return { x: moved.x - anchor.x, y: moved.y - anchor.y };
 }
+
+/**
+ * The canvas's own coordinate space, as it sits in the laid-out world.
+ *
+ * A **canvas-space** point runs from `(0, 0)` to the Canvas's declared
+ * `width`/`height` — the space IIIF annotation geometry is persisted in, and
+ * the only space the public API speaks. The world a layout rect lives in is a
+ * different one: canvases are placed side by side there, and layout may have
+ * normalized their sizes so that facing pages match.
+ *
+ * The mapping is therefore expressed as a **fraction of the rect**, not as a
+ * shared unit: a point 30% across the Canvas is 30% across its rect, whatever
+ * layout did to the rect's size. That is what makes these two functions correct
+ * under `preserveCanvasScale` in both settings, rather than correct only when
+ * layout happens to have left the sizes alone.
+ *
+ * A canvas whose manifest declares no dimensions is laid out from its siblings'
+ * median (ticket 07), and its rect is then the only statement of its extent
+ * anyone has — so its rect stands in for its declared size and the mapping
+ * becomes the identity. That is a better answer than refusing to convert: the
+ * viewer is already drawing the canvas at that size.
+ */
+export interface CanvasPlacement {
+    rect: LayoutRect;
+    /** The Canvas's declared width, or `null` when the manifest omits it. */
+    width: number | null;
+    /** The Canvas's declared height, or `null` when the manifest omits it. */
+    height: number | null;
+}
+
+/** Canvas space → world space. */
+export function canvasPointToWorld(
+    point: Point,
+    placement: CanvasPlacement,
+): Point {
+    const { rect } = placement;
+    const width = usableExtent(placement.width, rect.width);
+    const height = usableExtent(placement.height, rect.height);
+    return {
+        x: rect.x + (point.x / width) * rect.width,
+        y: rect.y + (point.y / height) * rect.height,
+    };
+}
+
+/** World space → canvas space. */
+export function worldPointToCanvas(
+    point: Point,
+    placement: CanvasPlacement,
+): Point {
+    const { rect } = placement;
+    const width = usableExtent(placement.width, rect.width);
+    const height = usableExtent(placement.height, rect.height);
+    return {
+        x: ((point.x - rect.x) / rect.width) * width,
+        y: ((point.y - rect.y) / rect.height) * height,
+    };
+}
+
+/** Canvas space → world space, for a box. */
+export function canvasBoxToWorld(box: Box, placement: CanvasPlacement): Box {
+    const { rect } = placement;
+    const width = usableExtent(placement.width, rect.width);
+    const height = usableExtent(placement.height, rect.height);
+    return {
+        x: rect.x + (box.x / width) * rect.width,
+        y: rect.y + (box.y / height) * rect.height,
+        width: (box.width / width) * rect.width,
+        height: (box.height / height) * rect.height,
+    };
+}
+
+/** World space → canvas space, for a box. */
+export function worldBoxToCanvas(box: Box, placement: CanvasPlacement): Box {
+    const { rect } = placement;
+    const width = usableExtent(placement.width, rect.width);
+    const height = usableExtent(placement.height, rect.height);
+    return {
+        x: ((box.x - rect.x) / rect.width) * width,
+        y: ((box.y - rect.y) / rect.height) * height,
+        width: (box.width / rect.width) * width,
+        height: (box.height / rect.height) * height,
+    };
+}
+
+/**
+ * The declared extent when the manifest gave a usable one, and the laid-out
+ * extent otherwise. Guards a zero or negative declared size too — a manifest
+ * can carry `"width": 0`, and dividing by it would silently produce infinities
+ * that travel a long way before anyone notices.
+ */
+function usableExtent(declared: number | null, laidOut: number): number {
+    return declared !== null && declared > 0 ? declared : laidOut;
+}

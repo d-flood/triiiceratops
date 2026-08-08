@@ -4,12 +4,6 @@
     import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
-    const CONNECTOR_VIEWER_EVENTS = [
-        'open',
-        'animation',
-        'resize',
-        'rotate',
-    ] as const;
 
     let annotations = $derived.by(() => {
         if (!viewerState.manifestId || !viewerState.canvasId) {
@@ -99,7 +93,6 @@
             }
         }
 
-        const osdViewer = viewerState.osdViewer;
         let frame: number | null = null;
         let observedElements: Element[] = [];
 
@@ -198,16 +191,18 @@
 
         root.addEventListener('scroll', scheduleUpdate, true);
         window.addEventListener('resize', scheduleUpdate);
-        for (const event of CONNECTOR_VIEWER_EVENTS) {
-            osdViewer?.addHandler(event, scheduleUpdate);
-        }
+        // The connector lines run from a panel row to a shape on the image, so
+        // they have to be redrawn whenever the image moves. That is the `frame`
+        // cadence exactly — the renderer's own animation events — rather than
+        // this component knowing any renderer's event names. Unlike the old
+        // binding it also survives a renderer mounting after the hover starts,
+        // because the subscription is to the viewer, not to a renderer instance.
+        const unsubscribeFrame = viewerState.subscribeFrame(scheduleUpdate);
 
         return () => {
             root.removeEventListener('scroll', scheduleUpdate, true);
             window.removeEventListener('resize', scheduleUpdate);
-            for (const event of CONNECTOR_VIEWER_EVENTS) {
-                osdViewer?.removeHandler(event, scheduleUpdate);
-            }
+            unsubscribeFrame();
             resizeObserver.disconnect();
             if (frame !== null) cancelAnimationFrame(frame);
         };

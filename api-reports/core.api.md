@@ -108,7 +108,10 @@ export interface InstallCoreOptions {
     coreVersion: string;
     /** Plugin API version core declares for activation-time negotiation. */
     pluginApiVersion: string;
-    /** Capabilities core declares (e.g. `osd@5`). */
+    /**
+     * Capabilities core declares. Empty in the 1.0 line — see `plugin/api.ts`
+     * for why the renderer capability was retired with no successor.
+     */
     capabilities: readonly string[];
     /** The custom-element constructor to register for {@link tag}. */
     elementCtor: CustomElementConstructor;
@@ -1024,6 +1027,8 @@ export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService
 export { SDK_PLUGIN_KIND, isSdkPlugin, PLUGIN_ERROR_EVENT, } from './types/plugin';
 export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorReporter, } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
+export type { ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint, } from './types/viewport';
+export { NEUTRAL_IMAGE_ADJUSTMENTS, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
 export type { TriiiceratopsViewerElement } from './types/viewerElement';
 export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
 export type { Logger, LogLevel, LogSink } from './logging/logger';
@@ -1123,9 +1128,22 @@ export declare const CORE_VERSION = "1.0.0-rc.25";
  */
 export declare const pluginApiVersion = "1.0.0";
 /**
- * Runtime capabilities core declares. `osd@5` states the bundled OpenSeadragon
- * major (ADR 0009 / SPEC.md ViewerState contract); it changes only with a core
- * major. Capabilities describe compatibility, not security permissions.
+ * Runtime capabilities core declares. Capabilities describe compatibility, not
+ * security permissions.
+ *
+ * **Empty, deliberately.** The one capability that ever existed here declared
+ * the bundled OpenSeadragon major, because the renderer's surface belonged to a
+ * third party and core could only promise the pass-through field's existence and
+ * timing. The renderer is now first-party and its surface is governed by core's
+ * own semver, which `coreRange` already negotiates — so that capability was
+ * **retired with no successor**, and no `renderer@1` replaced it. Reintroducing
+ * one would recreate the versioning split this work removed.
+ *
+ * A plugin still declaring the retired identifier fails activation. That is the
+ * correct outcome: it needs a renderer object that no longer exists.
+ *
+ * The vocabulary itself is not retired — a future capability naming a genuinely
+ * optional runtime feature (rather than a dependency's major) belongs here.
  */
 export declare const capabilities: readonly string[];
 
@@ -1411,7 +1429,7 @@ export declare function useViewer(handle?: ViewerHandleSlot | null): ReadonlyVie
  * const canvasId = useViewerSelector(handle, (state) => state.canvasId);
  * const zoom = useViewerSelector(
  *     handle,
- *     (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+ *     (state) => state.viewportScale,
  *     { cadence: 'frame' },
  * );
  * ```
@@ -1499,6 +1517,80 @@ export interface TriiiceratopsViewerProps extends ViewerElementProps, ViewerEven
 /** The imperative value a forwarded `ref` receives. */
 export type TriiiceratopsViewerRef = ViewerHandle;
 export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): ReactElement;
+
+// ======================================================================
+// FILE: dist/renderer/rendererPort.d.ts
+// ======================================================================
+/**
+ * The seam between `ViewerState`'s viewport API and the mounted renderer.
+ *
+ * **Core-internal.** It is not a pass-through and not a successor to one: it
+ * hands out no renderer object, no DOM node, and no third-party surface. It is
+ * a fixed set of first-party operations, governed by core's own semver, that a
+ * host component implements so viewer state can answer viewport questions and
+ * issue viewport commands without knowing which renderer is mounted. Plugins
+ * never see it — they see the `ViewerState` methods below it.
+ *
+ * Two hosts implement it while the development-only renderer flag keeps both
+ * renderers in the repository: `CanvasHost.svelte` (first-party Canvas2D) and
+ * `OSDViewer.svelte` (the OpenSeadragon path ticket 18 deletes). That is the
+ * entire reason the seam is an interface rather than direct calls into the
+ * Canvas2D host.
+ *
+ * **Coordinates.** Every point and box crossing this interface is in **canvas
+ * space** — the IIIF Canvas's own `width`/`height` — or in **screen space**,
+ * the viewer surface's CSS pixels from its top-left corner. Image space stays
+ * inside the renderer.
+ *
+ * **Which canvas.** Methods taking a `canvasId` address that canvas's own
+ * space; omitting it means the viewer's current canvas. A host that cannot
+ * answer for the canvas asked about returns `null` rather than silently
+ * answering for a different one.
+ */
+import type { ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint } from '../types/viewport.js';
+export interface RendererPort {
+    /**
+     * Multiply the zoom by `factor`, anchored at a screen-space point — the
+     * world point under `anchor` stays under it. Omitting the anchor zooms
+     * about the viewport centre, which is what a toolbar button wants.
+     */
+    zoomBy(factor: number, anchor?: ViewportPoint): void;
+    /** Zoom to an absolute scale — screen pixels per canvas-space unit. */
+    zoomTo(scale: number): void;
+    /** Centre the viewport on a canvas-space point. */
+    panTo(centre: ViewportPoint, canvasId?: string): void;
+    /** Fit a canvas-space box into the viewport. */
+    fitBounds(bounds: ViewportBox, canvasId?: string): void;
+    /** Fit a whole canvas — the viewer's current one unless named. */
+    fitCanvas(canvasId?: string): void;
+    /**
+     * Screen pixels per canvas-space unit, or `0` before the surface is sized.
+     * The single number relating the two spaces.
+     */
+    getScale(): number;
+    /** The canvas-space point at the middle of the viewport. */
+    getCentre(canvasId?: string): ViewportPoint | null;
+    /** The canvas-space box the viewport currently shows. */
+    getVisibleBounds(canvasId?: string): ViewportBox | null;
+    /** The surface's size in CSS pixels; zeroes before it is measured. */
+    getContainerSize(): ContainerSize;
+    /** Canvas space → screen space. */
+    canvasToScreen(point: ViewportPoint, canvasId?: string): ViewportPoint | null;
+    /** Screen space → canvas space. */
+    screenToCanvas(point: ViewportPoint, canvasId?: string): ViewportPoint | null;
+    /**
+     * Adopt an adjustment set. Called on every change and once at attach, so a
+     * renderer mounting after the adjustments were set still shows them.
+     */
+    applyImageAdjustments(adjustments: ImageAdjustments): void;
+    /**
+     * Subscribe to the renderer's **own animation events** — what the `frame`
+     * selector cadence is woken by (CONTEXT.md **Selector cadence**). The
+     * listener takes no payload: it means "the viewport moved, read what you
+     * need". Returns an idempotent unsubscribe.
+     */
+    onFrame(listener: () => void): () => void;
+}
 
 // ======================================================================
 // FILE: dist/state/manifests.svelte.d.ts
@@ -1592,9 +1684,10 @@ export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, Se
  * cadence**; ADR 0008, ADR 0011).
  *
  * This module is deliberately lightweight: it imports no Svelte runtime, no
- * OpenSeadragon, and nothing from the plugin SDK. Its only dependency on
- * `ViewerState` is `subscribe` plus synchronous property reads, so it is equally
- * usable from a plugin activation, a React wrapper, and a Vue wrapper.
+ * renderer, and nothing from the plugin SDK. Its only dependency on
+ * `ViewerState` is `subscribe`/`subscribeFrame` plus synchronous property reads,
+ * so it is equally usable from a plugin activation, a React wrapper, and a Vue
+ * wrapper.
  *
  * A runtime owns exactly ONE `ViewerState.subscribe` registration and fans out
  * from it to cheap per-consumer projections. Each projection is created from a
@@ -1628,12 +1721,16 @@ import type { ViewerState } from '../viewer.svelte.js';
  *
  * - `state` (the default) — the batched, payload-free inventoried-member watcher
  *   behind `ViewerState.subscribe` (ADR 0008).
- * - `frame` — additionally the live OpenSeadragon instance's own animation
- *   events, so continuous viewport values (zoom, pan, rotation, bounds) are
- *   readable reactively without ever being mirrored into viewer state
+ * - `frame` — additionally the renderer's own animation events, delivered
+ *   through `ViewerState.subscribeFrame`, so the query-only viewport values
+ *   (`viewportScale`, `viewportCentre`, `viewportBounds`) are readable
+ *   reactively without ever being mirrored into notifying viewer state
  *   (ADR 0011). `frame` is the FINER cadence, never a coarser one: a
  *   frame-cadence projection also wakes on state notifications, so it never
  *   serves a stale inventoried member between animations.
+ *
+ * The cadence survives the renderer replacement unchanged as a concept; only
+ * its event source moved, from a third party's event names to core's own.
  */
 export type SelectorCadence = 'state' | 'frame';
 /** Per-projection options. */
@@ -1715,8 +1812,9 @@ export declare function createSelectorRuntime(viewerState: ViewerState, options?
 // ======================================================================
 // FILE: dist/state/viewer.svelte.d.ts
 // ======================================================================
-import type OpenSeadragon from 'openseadragon';
 import type { ViewerErrorReporter } from '../types/viewerError';
+import type { RendererPort } from '../renderer/rendererPort.js';
+import { type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportPoint } from '../types/viewport.js';
 import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
 import { type StructureNode } from '../utils/structures';
@@ -1961,8 +2059,137 @@ export declare class ViewerState {
     get hasPrevious(): boolean;
     nextCanvas(): void;
     previousCanvas(): void;
+    /**
+     * The mounted renderer's command/query seam, or `null` before one mounts.
+     *
+     * Deliberately NOT reactive: it is set once per mount, plugins never see
+     * it, and making it `$state` would put a renderer handle on the batched
+     * notification path — which is the pass-through this epic removes wearing a
+     * different hat. {@link rendererReady} is the notifying signal.
+     */
+    private rendererPort;
+    /** Frame-cadence fan-out; see {@link subscribeFrame}. */
+    private frameListeners;
+    /** Detach from the port's animation events; set while we are attached. */
+    private unsubscribeFrame;
+    /** The port {@link unsubscribeFrame} belongs to, so a swap is noticed. */
+    private tickingPort;
+    /**
+     * Whether a renderer has a sized surface and accepts viewport commands.
+     *
+     * **A new signal, not the old readiness renamed.** The old one meant "the
+     * third-party object exists, you may touch it"; with no pass-through there
+     * is nothing to hand over. This one is about the viewer being able to obey:
+     * before it, viewport commands are no-ops and the viewport queries answer
+     * with zeroes and `null`s.
+     *
+     * Observable state — core writes it, subscribers are woken by it.
+     */
+    rendererReady: boolean;
+    /**
+     * Image adjustments currently applied to the rendered image.
+     *
+     * Command state: changed through {@link setImageAdjustments} and
+     * {@link resetImageAdjustments}, which is what replaces reaching into the
+     * renderer's DOM node to set a CSS filter string. Because the set lives
+     * here rather than on a node, it survives a renderer remount, is readable,
+     * and is testable with no renderer at all.
+     */
+    imageAdjustments: ImageAdjustments;
+    /**
+     * Attach the mounted renderer. **Core-internal** — the host↔state seam, not
+     * part of the supported plugin API, and it takes a fixed first-party
+     * interface rather than a renderer object.
+     *
+     * Returns a detach function the host calls on teardown. Attaching replays
+     * the current image adjustments, so a renderer that mounts after they were
+     * set shows them.
+     *
+     * @internal
+     */
+    attachRenderer(port: RendererPort): () => void;
+    /**
+     * Wake up on the renderer's own animation events — the `frame` selector
+     * cadence's source (CONTEXT.md **Selector cadence**). The listener receives
+     * no payload: it means "the viewport moved, read what you need".
+     *
+     * Attached to the renderer lazily and detached when the last listener
+     * leaves, so an idle viewer pays nothing and no polling loop is ever
+     * created. Unsubscribing is idempotent.
+     */
+    subscribeFrame(listener: () => void): () => void;
+    /**
+     * Attach to (or detach from) the port's animation events so that we are
+     * subscribed exactly when a port exists AND somebody is listening.
+     */
+    private syncFrameSource;
+    /**
+     * Deliver a frame tick. Isolated per listener: no core guard sits on the
+     * renderer's event path, so one consumer's throw must not abort the rest
+     * (or land inside the renderer's own dispatch).
+     */
+    private emitFrame;
+    /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
     zoomIn(): void;
+    /** Zoom out one step, about the viewport centre. The toolbar's `−`. */
     zoomOut(): void;
+    /**
+     * Zoom to an absolute scale — screen pixels per canvas-space unit, the same
+     * units {@link viewportScale} reads. Clamped by the renderer to the zoom
+     * range it derives from the layout; a caller cannot escape those limits.
+     */
+    zoomTo(scale: number): void;
+    /** Centre the viewport on a canvas-space point. */
+    panTo(centre: ViewportPoint, canvasId?: string): void;
+    /** Fit a canvas-space box into the viewport. */
+    fitBounds(bounds: ViewportBox, canvasId?: string): void;
+    /**
+     * Fit a whole canvas — the current one unless named. The `0`/`Home` path,
+     * and what canvas navigation does in continuous mode.
+     */
+    fitCanvas(canvasId?: string): void;
+    /**
+     * Apply image adjustments, merging over the current set. Members left out
+     * keep their current value; {@link resetImageAdjustments} returns to
+     * neutral.
+     */
+    setImageAdjustments(adjustments: Partial<ImageAdjustments>): void;
+    /** Return the image to exactly how it was decoded. */
+    resetImageAdjustments(): void;
+    /**
+     * Screen pixels per canvas-space unit — the single number relating the two
+     * spaces. `0` before a renderer has a sized surface.
+     */
+    get viewportScale(): number;
+    /**
+     * The canvas-space point at the middle of the viewport, or `null` before a
+     * renderer has a sized surface.
+     */
+    get viewportCentre(): ViewportPoint | null;
+    /**
+     * The canvas-space box the viewport currently shows, or `null` before a
+     * renderer has a sized surface. Extends past the canvas's own bounds when
+     * the canvas is zoomed out far enough to sit inside the viewport.
+     */
+    get viewportBounds(): ViewportBox | null;
+    /**
+     * The viewer surface's size in CSS pixels — what an export path asks in
+     * order to request an image sized to what the reader is looking at. Zeroes
+     * before the surface is measured.
+     */
+    get containerSize(): ContainerSize;
+    /**
+     * Canvas space → screen space, for the current canvas unless named.
+     *
+     * `null` when there is no renderer, or when the named canvas is not one the
+     * mounted renderer can place — never a point answered for a different
+     * canvas.
+     */
+    canvasToScreen(point: ViewportPoint, canvasId?: string): ViewportPoint | null;
+    /** Screen space → canvas space, for the current canvas unless named. */
+    screenToCanvas(point: ViewportPoint, canvasId?: string): ViewportPoint | null;
+    /** The configured multiplicative zoom step, with the shipped default. */
+    private get zoomPerClick();
     setSearchProvider(searchProvider: SearchProvider | null): void;
     setManifestRequestConfig(requestConfig?: RequestConfig): void;
     setManifestData(manifestId: string, manifestJson: any, options?: {
@@ -2130,12 +2357,6 @@ export declare class ViewerState {
     /** Plugin-registered flyouts (compact popovers anchored to the toolbar button) */
     pluginFlyouts: PluginFlyout[];
     /**
-     * OpenSeadragon viewer instance (set by OSDViewer at OSD readiness).
-     * Observable pass-through state: its existence and ready-timing are core
-     * API, but the object's own surface is OpenSeadragon's (ADR 0009).
-     */
-    osdViewer: OpenSeadragon.Viewer | null;
-    /**
      * Per-viewer annotation-edit channel shared by OSDViewer and the annotation
      * editor plugin. Keeping this on ViewerState scopes edit requests and the
      * active edit id to one viewer instance instead of using global listeners.
@@ -2271,13 +2492,6 @@ export declare class ViewerState {
      * (`deactivate()`) owns that.
      */
     unregisterPlugin(pluginId: string): void;
-    /**
-     * Notify that OSD viewer is ready.
-     * With the component-based system, we don't notify plugins individually.
-     * Instead, plugins should use the OSDViewer instance from context or listen for 'osd-ready' event (if we emitted one).
-     * But since we have direct access to osdViewer in this state, components can just react to it.
-     */
-    notifyOSDReady(viewer: OpenSeadragon.Viewer): void;
     /**
      * Cleanup everything.
      */
@@ -2431,12 +2645,15 @@ import { ViewerState } from '../state/viewer.svelte.js';
 import type { ViewerConfig } from '../types/config.js';
 import { createPluginLocaleService } from '../plugin/localeService.js';
 import type { ActiveLocaleSource } from '../plugin/localeService.js';
+import { type RendererStub, type StubView } from './rendererStub.js';
 export { ViewerState } from '../state/viewer.svelte.js';
 export type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
 export { CORE_VERSION, pluginApiVersion, capabilities } from '../plugin/api.js';
 export { createPluginLocaleService } from '../plugin/localeService.js';
 export type { ActiveLocaleSource } from '../plugin/localeService.js';
 export { createPluginSurface } from '../plugin/surface.js';
+export { createRendererStub, DEFAULT_STUB_VIEW } from './rendererStub.js';
+export type { RendererStub, StubView } from './rendererStub.js';
 /**
  * Fixture data used to pre-load a headless {@link ViewerState}. All fields are
  * optional; the common case is `createHeadlessViewerState()` with none.
@@ -2536,20 +2753,28 @@ export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
      */
     readonly state: ViewerState;
     /**
-     * Inject an OpenSeadragon stand-in and fire the real readiness path
-     * (`ViewerState.notifyOSDReady`), which is what makes `cadence: 'frame'`
-     * exercisable headlessly. `state.osdViewer` is `null` until this is called.
+     * Mount a headless stand-in for the renderer and fire the real readiness
+     * path (`ViewerState.attachRenderer`), which is what makes `cadence:
+     * 'frame'` and the query-only viewport values exercisable with no DOM.
+     * Until it is called, `state.rendererReady` is `false`, the viewport
+     * queries answer with zeroes and `null`s, and viewport commands are no-ops.
      *
-     * No OSD fake ships here — the stub is the caller's, exactly as in the SDK
-     * test kit. A `frame`-cadence projection attaches to it through
-     * `addHandler`/`removeHandler`, so a stub needs at least those two and a way
-     * for the test to fire `animation` / `viewport-change` / `animation-finish`.
+     * Unlike the OSD stand-in this replaces, the stub is core's rather than the
+     * caller's: the renderer is first-party now, so there is a right answer to
+     * what a stand-in should do, and every consumer inventing their own would
+     * be inventing the same one.
      *
-     * `osdViewer` is an inventoried observable member, so the selector runtime
-     * only learns about the injection on the next flush: `await flush()` after
-     * calling this.
+     * Returns the stub, which is also the controller: `setView` moves the
+     * viewport, `emitFrame` fires one animation event, and `calls` records the
+     * commands it received.
+     *
+     * `rendererReady` is an inventoried observable member, so the selector
+     * runtime only learns about the mount on the next flush: `await flush()`
+     * after calling this if a `state`-cadence consumer must see it.
      */
-    setOsdViewer(stub: unknown): void;
+    attachRenderer(view?: Partial<StubView>): RendererStub;
+    /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
+    detachRenderer(): void;
     /**
      * Release everything this handle owns: publish `null` to subscribers, drop
      * the selector runtime's registration, and remove its single underlying
@@ -2568,7 +2793,8 @@ export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
  * the helper drives the production code path rather than a parallel one.
  *
  * Nothing is mounted either: no custom element is defined or rendered, no
- * OpenSeadragon is created, and no network request is made.
+ * renderer is created (`attachRenderer` mounts a headless stand-in when a test
+ * needs one), and no network request is made.
  *
  * @example
  * ```ts
@@ -2584,6 +2810,60 @@ export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
  * ```
  */
 export declare function createTestViewerHandle(options?: TestViewerHandleOptions): TestViewerHandle;
+
+// ======================================================================
+// FILE: dist/testing/rendererStub.d.ts
+// ======================================================================
+/**
+ * A headless stand-in for a mounted renderer.
+ *
+ * The renderer is no longer a third-party object a test can bring its own stub
+ * for, so core ships one. It is what makes the `frame` selector cadence and the
+ * viewport queries exercisable with no DOM, no canvas, and no network — and it
+ * is the same seam a real host attaches through (`ViewerState.attachRenderer`),
+ * so a test drives the production path rather than a parallel one.
+ *
+ * Deliberately dumb: it stores a view and answers from it. It does not clamp,
+ * animate, constrain, or lay anything out — those belong to the real renderer
+ * and are tested against it. What this proves is wiring: that a command
+ * reaches the renderer, that a query reads through to it, and that a frame tick
+ * wakes a `frame`-cadence selector.
+ */
+import type { RendererPort } from '../renderer/rendererPort.js';
+import { type ContainerSize, type ImageAdjustments, type ViewportPoint } from '../types/viewport.js';
+/** The view a {@link RendererStub} reports, all in canvas space. */
+export interface StubView {
+    /** Screen pixels per canvas-space unit. */
+    scale: number;
+    centre: ViewportPoint;
+    /** Surface size in CSS pixels. */
+    container: ContainerSize;
+}
+export declare const DEFAULT_STUB_VIEW: StubView;
+/** A {@link RendererPort} plus the controls a test drives it with. */
+export interface RendererStub extends RendererPort {
+    /** The view as it currently stands. */
+    readonly view: StubView;
+    /** The last adjustment set handed to {@link applyImageAdjustments}. */
+    readonly adjustments: ImageAdjustments;
+    /** Every command received, in order — `['zoomBy', 1.2]` and friends. */
+    readonly calls: Array<[string, ...unknown[]]>;
+    /** Move the view without going through a command. */
+    setView(view: Partial<StubView>): void;
+    /**
+     * Fire one animation event, waking every `frame`-cadence subscriber. The
+     * renderer's own cadence, delivered synchronously — no `requestAnimationFrame`
+     * and no timer, so a test never waits on a real frame.
+     */
+    emitFrame(): void;
+    /** How many `frame`-cadence listeners are currently attached. */
+    readonly frameListenerCount: number;
+}
+/**
+ * Build a {@link RendererStub}. Attach it with
+ * `viewerState.attachRenderer(stub)`, which returns the detach function.
+ */
+export declare function createRendererStub(initialView?: Partial<StubView>): RendererStub;
 
 // ======================================================================
 // FILE: dist/theme/colorUtils.d.ts
@@ -2799,7 +3079,7 @@ export type { GalleryConfig } from './config/gallery';
 export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, } from './config/search';
 export type { ToolbarConfig, ToolbarSide, ToolbarAnchor, } from './config/toolbar';
 export { TOOLBAR_SIDES, TOOLBAR_ANCHORS, DEFAULT_TOOLBAR_SIDE, DEFAULT_TOOLBAR_ANCHOR, } from './config/toolbar';
-export type { ControlsMode, NavStyle, NavEdge, NavAlign, NavConfig, ViewerConfig, } from './config/viewer';
+export type { ControlsMode, NavStyle, NavEdge, NavAlign, NavConfig, RendererConfig, ViewerConfig, } from './config/viewer';
 export { CONTROLS_MODES, NAV_STYLES, NAV_EDGES, NAV_ALIGNS, DEFAULT_CONTROLS, DEFAULT_NAV_STYLE, DEFAULT_NAV_EDGE, DEFAULT_NAV_ALIGN, } from './config/viewer';
 
 // ======================================================================
@@ -3102,7 +3382,6 @@ export interface ToolbarConfig {
 // ======================================================================
 // FILE: dist/types/config/viewer.d.ts
 // ======================================================================
-import type OpenSeadragon from 'openseadragon';
 import type { GalleryConfig } from './gallery';
 import type { AnnotationsConfig, CollectionConfig, InformationConfig, PluginUiConfig, SearchConfig, StructuresConfig } from './panels';
 import type { RequestConfig } from './requests';
@@ -3173,6 +3452,74 @@ export declare const DEFAULT_CONTROLS: ControlsMode;
 export declare const DEFAULT_NAV_STYLE: NavStyle;
 export declare const DEFAULT_NAV_EDGE: NavEdge;
 export declare const DEFAULT_NAV_ALIGN: NavAlign;
+/**
+ * Renderer tuning — a **small, closed, typed set**.
+ *
+ * There is deliberately no open partial-options escape hatch into renderer
+ * internals. An escape hatch would make the renderer's own surface part of what
+ * consumers depend on, which is exactly the pass-through this viewer removed:
+ * once someone sets an undocumented internal, changing it becomes a breaking
+ * change and the renderer can no longer be rewritten. Every member below is a
+ * knob core has decided to support and will keep supporting under its own
+ * semver.
+ *
+ * Every value is optional; omitting one takes core's default, and the defaults
+ * are provisional — they are tuned as the renderer is measured, so nothing
+ * should assert against a shipped number.
+ *
+ * If a knob you need is missing, that is a request for core to add it, not a
+ * gap for a consumer to reach through.
+ */
+export interface RendererConfig {
+    /**
+     * How quickly programmatic and discrete motion — a zoom button, a
+     * double-tap, a fit, canvas navigation — settles onto its target, as the
+     * time constant in **seconds** of an exponential approach: the time to
+     * cover about 63% of the remaining distance. Smaller is stiffer.
+     *
+     * Ignored under `prefers-reduced-motion: reduce`, where every viewport
+     * change is instant.
+     */
+    animationTimeConstant?: number;
+    /**
+     * Multiplicative zoom factor for one step of `zoomIn` / `zoomOut` and the
+     * toolbar buttons behind them. `2` doubles the zoom per press. Must be
+     * greater than 1; zooming out applies its reciprocal, so a step out
+     * undoes a step in exactly.
+     */
+    zoomPerClick?: number;
+    /**
+     * The least **device** pixels per level pixel a pyramid level may carry
+     * before the next coarser one is taken instead. At `0.5`, up to 2×
+     * oversampling is tolerated; a *higher* value accepts a blurrier image for
+     * fewer bytes.
+     */
+    minPixelRatio?: number;
+    /**
+     * Decoded-byte ceiling for the opportunistic tile cache. Core picks a
+     * lower default on devices where memory pressure is fatal rather than slow.
+     * This is a ceiling on what is held *beyond* what the current view
+     * requires, so lowering it costs re-fetches, never blank canvases.
+     */
+    byteBudget?: number;
+    /**
+     * How far beyond the viewport a canvas is still kept resident, as the
+     * factor the viewport rect is inflated by. `1` holds only what is on
+     * screen; larger values pre-empt more of a scroll at the cost of memory.
+     */
+    residencyMargin?: number;
+    /**
+     * Projected on-screen size, in CSS pixels, at or above which a canvas is
+     * given the full tile pyramid.
+     */
+    pyramidThreshold?: number;
+    /**
+     * Projected on-screen size, in CSS pixels, below which a canvas is drawn as
+     * a plain box with no image fetched at all. Between this and
+     * {@link pyramidThreshold} a canvas gets a single thumbnail.
+     */
+    boxThreshold?: number;
+}
 export interface ViewerConfig {
     /**
      * Preferred locale for resolving IIIF language maps.
@@ -3304,13 +3651,9 @@ export interface ViewerConfig {
      */
     plugins?: Record<string, PluginUiConfig>;
     /**
-     * Additional OpenSeadragon viewer options.
-     * These are merged into the OSD constructor options, allowing you to
-     * override defaults or set any OSD option (e.g. maxZoomPixelRatio,
-     * zoomPerScroll, animationTime, etc.).
-     * @see https://openseadragon.github.io/docs/OpenSeadragon.html#.Options
+     * Renderer tuning. See {@link RendererConfig} — a small, closed set.
      */
-    openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+    renderer?: RendererConfig;
     /**
      * Marker styling for point annotations, shared by the read-only overlay and
      * the annotation editor so a point renders consistently whether selected or
@@ -3672,7 +4015,11 @@ export interface PluginHost {
     readonly coreVersion: string;
     /** The host plugin API version, for `pluginApiRange` negotiation. */
     readonly pluginApiVersion: string;
-    /** The host's declared capabilities (e.g. `osd@5`). */
+    /**
+     * The host's declared capabilities. Empty in core's 1.0 line: capability
+     * negotiation existed to version a third-party renderer, and core's own
+     * surface is governed by `coreRange` instead (`plugin/api.ts`).
+     */
     readonly capabilities: readonly string[];
     readonly styles?: PluginStyleService;
     readonly locale?: PluginLocaleService;
@@ -3790,7 +4137,12 @@ export interface SdkPluginMeta {
     readonly coreRange: string;
     /** Semver range of plugin API versions this plugin supports. */
     readonly pluginApiRange: string;
-    /** Capability identifiers this plugin requires (e.g. `osd@5`). */
+    /**
+     * Capability identifiers this plugin requires. Normally empty: a plugin
+     * states which CORE it works with through `coreRange`, and capabilities are
+     * reserved for genuinely optional runtime features. A plugin declaring one
+     * the host does not have fails activation.
+     */
     readonly requiredCapabilities: readonly string[];
     /** Toolbar icon descriptor (from the SDK's `svgIcon`). */
     readonly icon: IconDescriptor;
@@ -3951,6 +4303,83 @@ export interface ViewerError {
 export declare const VIEWER_ERROR_EVENT = "viewererror";
 /** Host callback for the structured viewer-failure channel (Svelte prop / element property). */
 export type ViewerErrorReporter = (error: ViewerError) => void;
+
+// ======================================================================
+// FILE: dist/types/viewport.d.ts
+// ======================================================================
+/**
+ * The viewport's public vocabulary (SPEC.md §Public API).
+ *
+ * Every coordinate on this boundary is **canvas space** — the IIIF Canvas's own
+ * `width`/`height`, which is already the persistence format for annotation
+ * geometry — or **screen space**, the viewer surface's own CSS pixels with the
+ * origin at its top-left corner. Image space (the pixel dimensions of the
+ * underlying image, the space the tile pyramid is addressed in) is
+ * core-internal and never appears here: no plugin has to know an image's pixel
+ * dimensions to place a point on a canvas.
+ *
+ * These types are plain data. Nothing here is a renderer object, and nothing
+ * here hands out a live DOM node — which is the whole point of replacing the
+ * pass-through.
+ */
+/** A point, in whichever space the reading method names. */
+export interface ViewportPoint {
+    x: number;
+    y: number;
+}
+/** An axis-aligned box, in whichever space the reading method names. */
+export interface ViewportBox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+/** The viewer surface's size in CSS pixels. */
+export interface ContainerSize {
+    width: number;
+    height: number;
+}
+/**
+ * Image adjustments applied to the rendered image, as a whole set.
+ *
+ * The percentage members are percentages with `100` as neutral, matching the
+ * CSS filter functions they are named after, so `brightness: 120` is 20%
+ * brighter. {@link NEUTRAL_IMAGE_ADJUSTMENTS} is the identity.
+ *
+ * A **command**, not a DOM reach: the adjustment set lives in viewer state, so
+ * it is readable, testable without a renderer, survives a renderer change, and
+ * is re-applied to a renderer that mounts after it was set.
+ */
+export interface ImageAdjustments {
+    /** Brightness, 100 = unchanged. */
+    brightness: number;
+    /** Contrast, 100 = unchanged. */
+    contrast: number;
+    /** Colour saturation, 100 = unchanged. */
+    saturation: number;
+    /** Invert the image's colours. */
+    invert: boolean;
+    /** Render the image without colour. */
+    grayscale: boolean;
+}
+/** The identity adjustment set — the image exactly as it was decoded. */
+export declare const NEUTRAL_IMAGE_ADJUSTMENTS: ImageAdjustments;
+/**
+ * Whether an adjustment set is the identity — nothing to apply.
+ *
+ * Exported because both renderers and the export paths ask the same question,
+ * and "is 100 the neutral value for this member" is exactly the kind of detail
+ * that drifts when three callers each answer it.
+ */
+export declare function isNeutralImageAdjustments(adjustments: ImageAdjustments): boolean;
+/**
+ * The adjustment set as a CSS `filter` value, or `'none'` when it is neutral.
+ *
+ * Both renderers paint into a canvas element and apply the set the same way;
+ * keeping the string in one place is what stops the two from drifting apart
+ * while they coexist behind the development-only flag.
+ */
+export declare function imageAdjustmentsToCssFilter(adjustments: ImageAdjustments): string;
 
 // ======================================================================
 // FILE: dist/utils/annotationAdapter.d.ts
@@ -4884,7 +5313,7 @@ export declare function useViewer(handle?: ViewerHandleRef | null): ComputedRef<
  * const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
  * const zoom = useViewerSelector(
  *     viewer,
- *     (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+ *     (state) => state.viewportScale,
  *     { cadence: 'frame' },
  * );
  * ```

@@ -18,9 +18,19 @@
         canvasPointToImagePoint,
         canvasPointsToImagePoints,
         canvasRectToImageRect,
+        imagePointToCanvasPoint,
+        imageRectToCanvasRect,
     } from '../utils/canvasImageSpace';
     import { resolveCanvasImage } from '../utils/resolveCanvasImage';
     import { resolvePointRadius } from '../utils/pointMarker';
+    import type { RendererPort } from '../renderer/rendererPort';
+    import {
+        imageAdjustmentsToCssFilter,
+        type ContainerSize,
+        type ImageAdjustments,
+        type ViewportBox,
+        type ViewportPoint,
+    } from '../types/viewport';
     import type { ViewerState } from '../state/viewer.svelte';
 
     // Deprecated shim: external listeners may still observe this event for one
@@ -295,6 +305,241 @@
         };
     });
 
+    /*
+     * ===================== RENDERER PORT (OpenSeadragon) =====================
+     *
+     * The OpenSeadragon half of the seam `ViewerState` issues viewport commands
+     * and asks viewport questions through (`renderer/rendererPort.ts`). It
+     * exists so that removing the pass-through did not have to wait for the
+     * OpenSeadragon path to be deleted: the public API is identical on both
+     * renderers while the development-only flag keeps them side by side, and
+     * ticket 18 deletes this file whole.
+     *
+     * Deliberately NOT a general OSD wrapper. It answers only the fixed set the
+     * port names, and only for the **current canvas** — the one case the old
+     * plugins covered by reaching for `world.getItemAt(0)` themselves. A
+     * question about any other canvas is answered `null` rather than answered
+     * wrongly; the first-party renderer, which knows where every canvas is
+     * laid out, is what answers those.
+     *
+     * The coordinate chain is canvas space → image space → OSD viewport
+     * coordinates → screen pixels, and back. Image space appears here because
+     * it is where OSD's own conversions live; it stops at this boundary and
+     * never reaches a plugin.
+     */
+
+    /** The `TiledImage` the current canvas is drawn by, if the world is open. */
+    function currentTiledImage(): any | null {
+        if (!viewer?.world) return null;
+        return viewer.world.getItemAt(0) ?? null;
+    }
+
+    /**
+     * Whether a port call naming `canvasId` is about the canvas this adapter can
+     * answer for. Omitting the id always means the current canvas.
+     */
+    function isCurrentCanvas(canvasId?: string): boolean {
+        return canvasId === undefined || canvasId === viewerState.canvasId;
+    }
+
+    function screenToViewportPoint(point: ViewportPoint): any | null {
+        if (!viewer?.viewport || !OSD) return null;
+        return viewer.viewport.pointFromPixel(new OSD.Point(point.x, point.y));
+    }
+
+    const osdPort: RendererPort = {
+        zoomBy(factor: number, anchor?: ViewportPoint): void {
+            if (!viewer?.viewport) return;
+            const at = anchor ? screenToViewportPoint(anchor) : undefined;
+            viewer.viewport.zoomBy(factor, at ?? undefined);
+            viewer.viewport.applyConstraints();
+        },
+
+        zoomTo(scale: number): void {
+            if (!viewer?.viewport) return;
+            const dimensions = currentCanvasImageDimensions;
+            const container = viewer.viewport.getContainerSize();
+            if (!dimensions?.canvasWidth || !container?.x) return;
+            // OSD's zoom is "viewport widths per container width", and one
+            // viewport width is the canvas's full width — so the scale the
+            // public API speaks (screen pixels per canvas unit) converts by the
+            // container width.
+            viewer.viewport.zoomTo(
+                (scale * dimensions.canvasWidth) / container.x,
+            );
+            viewer.viewport.applyConstraints();
+        },
+
+        panTo(centre: ViewportPoint, canvasId?: string): void {
+            if (!viewer?.viewport || !isCurrentCanvas(canvasId)) return;
+            const tiledImage = currentTiledImage();
+            if (!tiledImage) return;
+            const image = canvasPointToImagePoint(
+                centre,
+                currentCanvasImageDimensions,
+            );
+            viewer.viewport.panTo(
+                tiledImage.imageToViewportCoordinates(image.x, image.y),
+            );
+            viewer.viewport.applyConstraints();
+        },
+
+        fitBounds(bounds: ViewportBox, canvasId?: string): void {
+            if (!viewer?.viewport || !isCurrentCanvas(canvasId)) return;
+            const tiledImage = currentTiledImage();
+            if (!tiledImage) return;
+            const image = canvasRectToImageRect(
+                bounds,
+                currentCanvasImageDimensions,
+            );
+            viewer.viewport.fitBounds(
+                tiledImage.imageToViewportRectangle(
+                    image.x,
+                    image.y,
+                    image.width,
+                    image.height,
+                ),
+                false,
+            );
+        },
+
+        fitCanvas(canvasId?: string): void {
+            if (!viewer?.viewport || !isCurrentCanvas(canvasId)) return;
+            viewer.viewport.goHome();
+        },
+
+        getScale(): number {
+            if (!viewer?.viewport) return 0;
+            const dimensions = currentCanvasImageDimensions;
+            const container = viewer.viewport.getContainerSize();
+            if (!dimensions?.canvasWidth || !container?.x) return 0;
+            return (
+                (viewer.viewport.getZoom(true) * container.x) /
+                dimensions.canvasWidth
+            );
+        },
+
+        getCentre(canvasId?: string): ViewportPoint | null {
+            if (!viewer?.viewport || !isCurrentCanvas(canvasId)) return null;
+            const tiledImage = currentTiledImage();
+            if (!tiledImage) return null;
+            const image = tiledImage.viewportToImageCoordinates(
+                viewer.viewport.getCenter(true),
+            );
+            return imagePointToCanvasPoint(
+                { x: image.x, y: image.y },
+                currentCanvasImageDimensions,
+            );
+        },
+
+        getVisibleBounds(canvasId?: string): ViewportBox | null {
+            if (!viewer?.viewport || !isCurrentCanvas(canvasId)) return null;
+            const tiledImage = currentTiledImage();
+            if (!tiledImage) return null;
+            const bounds = tiledImage.viewportToImageRectangle(
+                viewer.viewport.getBounds(true),
+            );
+            return imageRectToCanvasRect(
+                {
+                    x: bounds.x,
+                    y: bounds.y,
+                    width: bounds.width,
+                    height: bounds.height,
+                },
+                currentCanvasImageDimensions,
+            );
+        },
+
+        getContainerSize(): ContainerSize {
+            const size = viewer?.viewport?.getContainerSize();
+            return size
+                ? { width: size.x, height: size.y }
+                : {
+                      width: container?.clientWidth ?? 0,
+                      height: container?.clientHeight ?? 0,
+                  };
+        },
+
+        canvasToScreen(
+            point: ViewportPoint,
+            canvasId?: string,
+        ): ViewportPoint | null {
+            if (!viewer?.viewport || !isCurrentCanvas(canvasId)) return null;
+            const tiledImage = currentTiledImage();
+            if (!tiledImage) return null;
+            const image = canvasPointToImagePoint(
+                point,
+                currentCanvasImageDimensions,
+            );
+            const pixel = viewer.viewport.pixelFromPoint(
+                tiledImage.imageToViewportCoordinates(image.x, image.y),
+                true,
+            );
+            return { x: pixel.x, y: pixel.y };
+        },
+
+        screenToCanvas(
+            point: ViewportPoint,
+            canvasId?: string,
+        ): ViewportPoint | null {
+            if (!viewer?.viewport || !isCurrentCanvas(canvasId)) return null;
+            const tiledImage = currentTiledImage();
+            const viewportPoint = screenToViewportPoint(point);
+            if (!tiledImage || !viewportPoint) return null;
+            const image = tiledImage.viewportToImageCoordinates(viewportPoint);
+            return imagePointToCanvasPoint(
+                { x: image.x, y: image.y },
+                currentCanvasImageDimensions,
+            );
+        },
+
+        applyImageAdjustments(adjustments: ImageAdjustments): void {
+            // Held so a drawer created later (a canvas switch reopens the
+            // world) still gets them; see the effect below.
+            appliedAdjustments = adjustments;
+            paintImageAdjustments();
+        },
+
+        onFrame(listener: () => void): () => void {
+            // The renderer's own animation events, which is all the `frame`
+            // selector cadence ever needed from OSD.
+            let attached = viewer ?? null;
+            for (const event of OSD_FRAME_EVENTS) {
+                attached?.addHandler(event, listener);
+            }
+            return () => {
+                for (const event of OSD_FRAME_EVENTS) {
+                    attached?.removeHandler(event, listener);
+                }
+                attached = null;
+            };
+        },
+    };
+
+    /** OpenSeadragon's own animation events — the `frame` cadence's source. */
+    const OSD_FRAME_EVENTS = [
+        'animation',
+        'viewport-change',
+        'animation-finish',
+    ] as const;
+
+    let appliedAdjustments: ImageAdjustments | null = null;
+    let detachRenderer: (() => void) | null = null;
+
+    /**
+     * Write the adjustment set onto the drawer's canvas as a CSS filter.
+     *
+     * This is the same mechanism the image-manipulation plugin used to apply by
+     * reaching for `viewer.drawer.canvas` itself. The difference is who owns
+     * the node: it never leaves core now, so a plugin cannot hold a stale one,
+     * and the adjustment set survives the world reopening.
+     */
+    function paintImageAdjustments(): void {
+        const node = viewer?.drawer?.canvas as HTMLElement | undefined;
+        if (!node || !appliedAdjustments) return;
+        node.style.filter = imageAdjustmentsToCssFilter(appliedAdjustments);
+    }
+
     // Rendered annotations with pixel coordinates
     let renderedAnnotations = $derived.by(() => {
         // Depend on osdVersion to trigger updates
@@ -476,14 +721,20 @@
 
             OSD = osdModule.default || osdModule;
             const userAgent = navigator.userAgent || '';
-            const consumerOverrides =
-                viewerState.config?.openSeadragonConfig ?? {};
+            // The closed renderer config (SPEC.md §Public API). The old open
+            // `Partial<OpenSeadragon.Options>` pass-through is gone, so the only
+            // consumer-settable knobs are the ones core names, mapped here onto
+            // the OSD options that carry the same meaning. Knobs that describe
+            // the first-party renderer's residency and tiering have no OSD
+            // equivalent and are simply not read on this path.
+            const rendererConfig = viewerState.config?.renderer ?? {};
 
-            // Prefer canvas first on mobile unless consumer overrides drawer.
-            // This avoids known WebGL tile rendering issues on some devices.
+            // Prefer canvas first on mobile: this avoids known WebGL tile
+            // rendering issues on some devices. No longer overridable — the
+            // drawer was an OSD internal, not a supported knob.
             const defaultDrawer = shouldUseMobileDrawerFallback({
                 userAgent,
-                drawerOverride: consumerOverrides.drawer,
+                drawerOverride: undefined,
             })
                 ? { drawer: [...MOBILE_DRAWER_FALLBACK] }
                 : {};
@@ -501,11 +752,13 @@
                 showRotationControl: false,
                 tabIndex: '', // This prevents the focus outline from appearing
                 animationTime: 0.5,
-                springStiffness: 7.0,
+                // `RendererConfig.animationTimeConstant` is the time constant in
+                // seconds; OSD's spring stiffness is its reciprocal.
+                springStiffness: rendererConfig.animationTimeConstant
+                    ? 1 / rendererConfig.animationTimeConstant
+                    : 7.0,
                 zoomPerClick: 2.0,
                 ...defaultDrawer,
-                // Consumer-provided OSD overrides
-                ...consumerOverrides,
                 // Enable double-click to zoom, but keep clickToZoom disabled for Annotorious
                 gestureSettingsMouse: {
                     clickToZoom: false,
@@ -522,19 +775,19 @@
             viewer.addHandler('add-item-failed', handleTileSourceFailure);
 
             viewer.addHandler('open', () => {
-                const overrides = viewerState.config?.openSeadragonConfig ?? {};
-                if (overrides.minZoomLevel === undefined) {
-                    // Keep a conservative floor below home zoom to avoid over-zoomed
-                    // empty/unstable ranges while preserving normal navigation.
-                    const homeZoom = viewer.viewport.getHomeZoom();
-                    const floorFactor =
-                        viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
-                    viewer.viewport.minZoomLevel = homeZoom * floorFactor;
-                }
+                // Keep a conservative floor below home zoom to avoid over-zoomed
+                // empty/unstable ranges while preserving normal navigation.
+                const homeZoom = viewer.viewport.getHomeZoom();
+                const floorFactor =
+                    viewerState.viewingMode === 'continuous' ? 0.8 : 0.95;
+                viewer.viewport.minZoomLevel = homeZoom * floorFactor;
 
-                if (overrides.minPixelRatio === undefined) {
-                    viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
-                }
+                viewer.minPixelRatio =
+                    rendererConfig.minPixelRatio ?? DEFAULT_MIN_PIXEL_RATIO;
+
+                // A reopened world means a new drawer canvas, so the adjustment
+                // set has to be written onto it again.
+                paintImageAdjustments();
 
                 const region = viewerState.initialCanvasRegion;
                 const tiledImage = viewer.world.getItemAt(0);
@@ -554,14 +807,17 @@
                 }
             });
 
-            // Notify plugins that OSD is ready
-            viewerState.notifyOSDReady(viewer);
+            // The renderer has a sized surface and accepts commands. No object
+            // is handed over — `attachRenderer` takes the fixed first-party
+            // port above, and `rendererReady` is what a consumer waits on.
+            detachRenderer = viewerState.attachRenderer(osdPort);
         })();
 
         return () => {
             mounted = false;
+            detachRenderer?.();
+            detachRenderer = null;
             viewer?.destroy();
-            viewerState.osdViewer = null;
         };
     });
 
@@ -614,16 +870,6 @@
         };
     });
 
-    // Apply consumer OSD config overrides reactively
-    $effect(() => {
-        if (!viewer) return;
-        const overrides = viewerState.config?.openSeadragonConfig;
-        if (!overrides) return;
-        for (const [key, value] of Object.entries(overrides)) {
-            viewer[key] = value;
-        }
-    });
-
     // Load tile source when it changes
     $effect(() => {
         if (!viewer) return;
@@ -667,7 +913,7 @@
 
         // Capture stateKey for staleness guard
         const capturedKey = stateKey;
-        const overrides = viewerState.config?.openSeadragonConfig ?? {};
+        const rendererOverrides = viewerState.config?.renderer ?? {};
 
         if (mode === 'continuous') {
             // Remove current world immediately so stale canvases are not shown
@@ -675,12 +921,9 @@
             viewer.close();
             setTileSourceError(null);
 
-            if (overrides.minPixelRatio === undefined) {
-                viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
-            }
-            if (overrides.minZoomImageRatio === undefined) {
-                viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
-            }
+            viewer.minPixelRatio =
+                rendererOverrides.minPixelRatio ?? DEFAULT_MIN_PIXEL_RATIO;
+            viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
 
             resolveTileSources({
                 sources,
@@ -759,10 +1002,8 @@
                         if (batch.length === 0) {
                             // Keep a modest margin below home zoom in continuous
                             // mode to reduce empty over-zoom edge cases.
-                            if (overrides.minZoomLevel === undefined) {
-                                viewer.viewport.minZoomLevel =
-                                    viewer.viewport.getHomeZoom() * 0.8;
-                            }
+                            viewer.viewport.minZoomLevel =
+                                viewer.viewport.getHomeZoom() * 0.8;
                             return;
                         }
 
@@ -791,13 +1032,10 @@
         viewer.close();
         setTileSourceError(null);
 
-        // Restore less aggressive defaults outside continuous mode unless user-overridden.
-        if (overrides.minPixelRatio === undefined) {
-            viewer.minPixelRatio = DEFAULT_MIN_PIXEL_RATIO;
-        }
-        if (overrides.minZoomImageRatio === undefined) {
-            viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
-        }
+        // Restore less aggressive defaults outside continuous mode.
+        viewer.minPixelRatio =
+            rendererOverrides.minPixelRatio ?? DEFAULT_MIN_PIXEL_RATIO;
+        viewer.minZoomImageRatio = DEFAULT_MIN_ZOOM_IMAGE_RATIO;
 
         resolveTileSources({
             sources,

@@ -10,6 +10,6 @@ import {
 const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
 const zoom = useViewerSelector(
     viewer,
-    (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+    (state) => state.viewportScale,
     { cadence: 'frame' },
 );

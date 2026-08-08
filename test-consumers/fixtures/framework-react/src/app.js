@@ -85,9 +85,7 @@ function idOf(state) {
 /** Hoisted so its identity is stable: a projection re-created every render
  * would recompute every render, which would mask the cadence contrast below. */
 const selectZoomThousandths = (state) =>
-    state.osdViewer
-        ? Math.round(state.osdViewer.viewport.getZoom() * 1000)
-        : -1;
+    state.rendererReady ? Math.round(state.viewportScale * 1000) : -1;
 
 const selectCanvasId = (state) => state.canvasId ?? 'none';
 
@@ -432,10 +430,10 @@ export function installControls() {
             // Through `useViewer()` in a deep, provider-resolved component.
             live.deepToggle();
         },
-        osdReady: () => !!(state1() && state1().osdViewer),
+        rendererReady: () => !!(state1() && state1().rendererReady),
         zoomIn: () => {
             const state = state1();
-            if (!state || !state.osdViewer) return false;
+            if (!state || !state.rendererReady) return false;
             state.zoomIn();
             return true;
         },

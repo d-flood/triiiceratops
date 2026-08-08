@@ -230,7 +230,7 @@ export function createExamplePlugin() {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0', // core versions this plugin supports
         pluginApiRange: '^1.0.0', // plugin API versions supported
-        requiredCapabilities: [], // e.g. ['osd@5']
+        requiredCapabilities: [], // normally empty; see "Capabilities" below
         icon,
         target: 'panel', // default target; or 'flyout'. Host can override at
         // runtime via config.plugins[uiId].target / setPluginTarget.
@@ -535,24 +535,49 @@ container you placed yourself — `surface.isOpen` is `true` and the movers are
 no-ops: there is nothing that could be hiding your UI, so surface-gated work
 runs.
 
-### The raw OpenSeadragon viewer
+### The viewport
 
-The raw OSD viewer is a documented pass-through: `viewerState.osdViewer` is
-`null` until OSD is ready. Await readiness with the SDK helper instead of
-polling:
+**No renderer object is exposed.** The viewer's image surface is reached through
+first-party commands and queries on `viewerState`, all of them governed by core's
+own semver:
+
+- **Commands** — `zoomIn()`, `zoomOut()`, `zoomTo(scale)`, `panTo(point)`,
+  `fitBounds(box)`, `fitCanvas()`, and `setImageAdjustments({ ... })`.
+- **Query-only state** — `viewportScale`, `viewportCentre`, `viewportBounds`,
+  and `containerSize`. These change every frame and deliberately never notify;
+  read them reactively with a `frame`-cadence selector.
+- **Coordinate helpers** — `canvasToScreen(point)` and `screenToCanvas(point)`,
+  converting between **canvas space** (the IIIF Canvas's own dimensions, which is
+  already how annotation geometry is persisted) and **screen space** (the
+  surface's CSS pixels). An image's pixel dimensions never enter into it.
+
+Commands are safe to call before a renderer has mounted — they are no-ops, and
+the queries answer `0`/`null` — so most plugins need no readiness gate at all.
+When you do need one (anything positioning something over the image), await it:
 
 ```ts
-import { whenOsdReady } from '@triiiceratops/plugin-sdk';
+import { whenRendererReady } from '@triiiceratops/plugin-sdk';
 import type { PluginContext } from 'triiiceratops';
 
-async function fitToViewport(context: PluginContext) {
-    const osd = await whenOsdReady(context.viewerState);
-    osd.viewport.goHome();
+async function markCentre(context: PluginContext) {
+    await whenRendererReady(context.viewerState);
+    // The surface is sized, so this answers in real screen pixels.
+    return context.viewerState.canvasToScreen({ x: 100, y: 200 });
 }
 ```
 
-The bundled OSD major is declared as the `osd@5` capability and changes only with
-a core major release.
+`whenRendererReady` resolves `void`: there is no object to hand over. It means
+"the renderer has a sized surface and accepts commands", and it is not the old
+OSD-readiness helper renamed — that one promised a third-party viewer instance,
+which no longer exists.
+
+### Capabilities
+
+`requiredCapabilities` is normally `[]`. Capability negotiation exists for
+genuinely optional runtime features, and core's 1.0 line declares none: a plugin
+states which *core* it works with through `coreRange`. A plugin requiring a
+capability the host does not declare fails activation — which is what happens to
+anything still asking for the retired `osd@5`.
 
 ## Services
 

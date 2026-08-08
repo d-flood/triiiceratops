@@ -181,6 +181,20 @@ export const ANIMATION_TIME_CONSTANT = 1 / 7;
 export const DOUBLE_TAP_ZOOM_FACTOR = 2;
 
 /**
+ * Zoom factor for one **toolbar / API** zoom step (`ViewerState.zoomIn` and
+ * `zoomOut`), and the default behind `ViewerConfig.renderer.zoomPerClick`.
+ *
+ * Carried forward from the OpenSeadragon path's toolbar, which zoomed in by
+ * 1.2 and out by 0.8. Those were not each other's inverse, so a zoom-in
+ * followed by a zoom-out did not return to where it started; one factor
+ * applied in both directions fixes that without changing how big a step feels.
+ *
+ * Smaller than {@link DOUBLE_TAP_ZOOM_FACTOR} for the same reason
+ * {@link KEY_ZOOM_FACTOR} is: a button is easy to press repeatedly.
+ */
+export const ZOOM_PER_CLICK = 1.2;
+
+/**
  * Time constant, in seconds, of the friction that decays flick momentum. About
  * a third of a second to fall to 1/e, which reads as sliding to a stop rather
  * than as either a hard cut or a drift.

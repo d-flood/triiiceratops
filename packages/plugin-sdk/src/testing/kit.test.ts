@@ -4,7 +4,8 @@
 //  - a command notifies a plugin selector only AFTER `flush()` (real batching,
 //    not fake-synchronous);
 //  - the recording doubles capture style installs/releases and ui requests;
-//  - `setOsdViewer` flips OSD readiness and `whenOsdReady` resolves;
+//  - `attachRenderer` flips renderer readiness and `whenRendererReady`
+//    resolves, and the mounted stand-in carries the viewport queries;
 //  - the conformance suite passes for a well-behaved plugin and the
 //    subscription-disposal check FAILS for a deliberately-leaky one.
 
@@ -25,7 +26,7 @@ import {
     createTestViewerContext,
     flush,
     runPluginConformance,
-    whenOsdReady,
+    whenRendererReady,
 } from './index.js';
 
 const ICON = svgIcon('<svg viewBox="0 0 1 1"><path d="M0 0h1v1H0z" /></svg>');
@@ -192,25 +193,72 @@ describe('recording doubles', () => {
     });
 });
 
-describe('injectable OSD stub', () => {
-    it('defaults to absent, then setOsdViewer flips readiness and whenOsdReady resolves', async () => {
+describe('mountable renderer stand-in', () => {
+    it('defaults to absent, then attachRenderer flips readiness and whenRendererReady resolves', async () => {
         const tc = createTestViewerContext();
-        expect(tc.viewerState.osdViewer).toBeNull();
+        expect(tc.viewerState.rendererReady).toBe(false);
+        // Before a renderer, the viewport answers honestly rather than making
+        // every caller guard: zero scale, no centre, no bounds.
+        expect(tc.viewerState.viewportScale).toBe(0);
+        expect(tc.viewerState.viewportCentre).toBeNull();
 
-        const pending = whenOsdReady(tc.viewerState);
-        const stub = { viewport: {} };
-        tc.setOsdViewer(stub);
+        const pending = whenRendererReady(tc.viewerState);
+        tc.attachRenderer({ scale: 3 });
         await flush();
 
-        await expect(pending).resolves.toBe(stub);
-        expect(tc.viewerState.osdViewer).toBe(stub);
+        await expect(pending).resolves.toBeUndefined();
+        expect(tc.viewerState.rendererReady).toBe(true);
+        expect(tc.viewerState.viewportScale).toBe(3);
     });
 
-    it('whenOsdReady resolves synchronously when OSD is already present', async () => {
+    it('whenRendererReady resolves synchronously when a renderer is already mounted', async () => {
         const tc = createTestViewerContext();
-        const stub = { viewport: {} };
-        tc.setOsdViewer(stub);
-        await expect(whenOsdReady(tc.viewerState)).resolves.toBe(stub);
+        tc.attachRenderer();
+        await expect(
+            whenRendererReady(tc.viewerState),
+        ).resolves.toBeUndefined();
+    });
+
+    // Readiness is not permanent: a renderer that unmounts takes the viewport
+    // queries with it, and a plugin holding a stale reading would be placing
+    // things over an image that is no longer there.
+    it('goes back to not-ready when the renderer unmounts', async () => {
+        const tc = createTestViewerContext();
+        tc.attachRenderer({ scale: 2 });
+        await flush();
+        expect(tc.viewerState.rendererReady).toBe(true);
+
+        tc.detachRenderer();
+        await flush();
+
+        expect(tc.viewerState.rendererReady).toBe(false);
+        expect(tc.viewerState.viewportScale).toBe(0);
+    });
+
+    it('routes a viewport command to the mounted renderer', async () => {
+        const tc = createTestViewerContext();
+        const renderer = tc.attachRenderer({ scale: 1 });
+
+        tc.viewerState.zoomIn();
+
+        // Attaching replays the adjustment set, so the zoom is not the first
+        // call the renderer sees — only the first COMMAND.
+        expect(renderer.calls.map(([name]) => name)).toContain('zoomBy');
+        expect(tc.viewerState.viewportScale).toBeGreaterThan(1);
+    });
+
+    // The image-adjustment command replaces reaching into the renderer's DOM
+    // node, so the set has to reach a renderer that mounts AFTER it was set.
+    it('replays image adjustments onto a renderer mounted later', () => {
+        const tc = createTestViewerContext();
+        tc.viewerState.setImageAdjustments({ brightness: 130, invert: true });
+
+        const renderer = tc.attachRenderer();
+
+        expect(renderer.adjustments.brightness).toBe(130);
+        expect(renderer.adjustments.invert).toBe(true);
+        // Unset members keep their neutral values.
+        expect(renderer.adjustments.contrast).toBe(100);
     });
 });
 

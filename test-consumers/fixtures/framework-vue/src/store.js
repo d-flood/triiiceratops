@@ -56,9 +56,7 @@ export function captureError(error) {
 /** Hoisted so their identity is stable across re-renders. */
 export const selectCanvasId = (state) => state.canvasId ?? 'none';
 export const selectZoomThousandths = (state) =>
-    state.osdViewer
-        ? Math.round(state.osdViewer.viewport.getZoom() * 1000)
-        : -1;
+    state.rendererReady ? Math.round(state.viewportScale * 1000) : -1;
 
 export async function driveTestHandle() {
     testHandle.state.setCanvas('kit/canvas-2');

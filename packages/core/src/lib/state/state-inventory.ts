@@ -18,16 +18,27 @@
  *                 Every listed method exists on `ViewerState` and has at least
  *                 one behavior test.
  * - `observable`— mirrors an external fact core alone writes (network errors,
- *                 fetch flags, `osdViewer`). Readable and notifying, no mutator.
+ *                 fetch flags, renderer readiness). Readable and notifying, no
+ *                 mutator.
  * - `internal`  — no contract; changeable in a patch release and excluded from
  *                 the documented API (TS `private` fields and transient UI
  *                 bookkeeping that has no plugin-facing meaning).
  * - `query-only`— high-frequency/per-frame values readable on demand but never
- *                 notifying (e.g. continuous viewport position). There are no
- *                 such members on `ViewerState` today: continuous viewport
- *                 position is read from `osdViewer` (OpenSeadragon's own API),
- *                 so this classification currently has zero entries but is kept
- *                 available for future inventory decisions.
+ *                 notifying — the viewport's scale, centre, bounds, and
+ *                 container size. Reading them reactively is a `frame`-cadence
+ *                 selector choice, not a reclassification.
+ *
+ * **`query-only` members may still list commands.** The viewport is both: its
+ * values are read per frame and never notify, while `zoomIn`, `panTo`, and
+ * `fitCanvas` are exactly the parity-rule commands the viewer's own chrome
+ * uses. Splitting it into a notifying member and a query member would have
+ * meant either waking every subscriber per pointer sample or leaving the
+ * chrome's own zoom unreachable from a plugin. `command` members MUST list
+ * their mutators; `observable` and `internal` members must list none.
+ *
+ * Query-only members are reflected as getter-only accessors rather than as
+ * mutable fields — they are questions asked of the renderer, not stored values
+ * — so `state-inventory.test.ts` reflects both shapes.
  *
  * Direct property assignment stays physically possible (the object is not
  * sealed); it is an unsupported escape hatch carrying no semver or invariant
@@ -48,8 +59,11 @@ export interface StateInventoryEntry {
     member: string;
     classification: StateClassification;
     /**
-     * For `command` members, the supported mutation method(s) on `ViewerState`.
-     * Required (and only meaningful) when `classification === 'command'`.
+     * The supported mutation method(s) on `ViewerState`.
+     *
+     * Required for `command` members. Optional for `query-only` ones, where it
+     * records which commands move the value (the viewport case); forbidden for
+     * `observable` and `internal` ones, which by definition have no mutator.
      */
     commands?: string[];
     /** Reviewer-facing rationale / parity note. */
@@ -351,16 +365,67 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Measured DOMRect of the center panel captured at drag start (shadow-DOM safe). Layout bookkeeping, no contract.',
     },
 
-    // ---- Errors & OSD pass-through --------------------------------------------
+    // ---- Errors ---------------------------------------------------------------
     {
         member: 'tileSourceError',
         classification: 'observable',
-        notes: 'Tile-source auth/load failure written by core in response to OSD errors; no mutator.',
+        notes: 'Tile-source auth/load failure written by core in response to a renderer load failure; no mutator.',
+    },
+
+    // ---- Viewport -------------------------------------------------------------
+    {
+        member: 'rendererPort',
+        classification: 'internal',
+        notes: 'The mounted renderer’s command/query seam (attachRenderer). Core-internal and deliberately non-reactive: putting a renderer handle on the notification path is the pass-through this epic removes. `rendererReady` is the notifying signal.',
     },
     {
-        member: 'osdViewer',
+        member: 'frameListeners',
+        classification: 'internal',
+        notes: 'Frame-cadence fan-out set behind subscribeFrame. Plain Set, not reactive: a frame tick must not wake the batched state watcher.',
+    },
+    {
+        member: 'unsubscribeFrame',
+        classification: 'internal',
+        notes: 'Live detach handle for the renderer’s animation events; non-null exactly while a port exists and someone is listening.',
+    },
+    {
+        member: 'tickingPort',
+        classification: 'internal',
+        notes: 'Which port `unsubscribeFrame` belongs to, so a renderer swap re-attaches instead of leaving the ticker on the departed one.',
+    },
+    {
+        member: 'rendererReady',
         classification: 'observable',
-        notes: 'Raw OpenSeadragon.Viewer set at OSD readiness (notifyOSDReady); documented pass-through, existence/timing is core API but its surface is OSD-governed (ADR 0009).',
+        notes: 'Whether a renderer has a sized surface and accepts viewport commands. Core writes it from attachRenderer; no mutator. Not the old OSD-readiness signal renamed — there is no object to hand over.',
+    },
+    {
+        member: 'imageAdjustments',
+        classification: 'command',
+        commands: ['setImageAdjustments', 'resetImageAdjustments'],
+        notes: 'Brightness/contrast/saturation/invert/grayscale applied to the rendered image. Command state rather than a reach into the renderer’s DOM node: it survives a remount and is testable with no renderer.',
+    },
+    {
+        member: 'viewportScale',
+        classification: 'query-only',
+        commands: ['zoomIn', 'zoomOut', 'zoomTo', 'fitBounds', 'fitCanvas'],
+        notes: 'Screen pixels per canvas-space unit. Per-frame, so non-notifying; read reactively through a `frame`-cadence selector.',
+    },
+    {
+        member: 'viewportCentre',
+        classification: 'query-only',
+        commands: ['panTo', 'fitBounds', 'fitCanvas'],
+        notes: 'Canvas-space point at the middle of the viewport. Per-frame, so non-notifying.',
+    },
+    {
+        member: 'viewportBounds',
+        classification: 'query-only',
+        commands: ['panTo', 'zoomTo', 'fitBounds', 'fitCanvas'],
+        notes: 'Canvas-space box the viewport shows. Derived from scale and centre; per-frame, so non-notifying.',
+    },
+    {
+        member: 'containerSize',
+        classification: 'query-only',
+        notes: 'Surface size in CSS pixels. Changes only on resize, but it is a renderer measurement rather than viewer state and is read on demand beside the other viewport queries. No command: the host sizes the surface, not a plugin.',
     },
 
     // ---- Plugin registration -------------------------------------------------

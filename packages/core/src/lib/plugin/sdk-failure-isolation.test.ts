@@ -63,7 +63,7 @@ function makePlugin(opts: {
         version: '1.2.3',
         coreRange: opts.coreRange ?? '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: ICON,
         target: 'panel',
         view: {

@@ -32,6 +32,7 @@ import {
 } from 'vitest';
 
 import { configureLogging, type LogLevel } from '../logging/logger.js';
+import { createRendererStub } from '../testing/rendererStub.js';
 import type { ViewerState } from '../state/viewer.svelte.js';
 import type { PluginError } from '../types/plugin.js';
 import type { ViewerError } from '../types/viewerError.js';
@@ -106,33 +107,6 @@ function liveState(): ViewerState {
 
 function text(): string {
     return container.querySelector('[data-testid="value"]')?.textContent ?? '';
-}
-
-/** A minimal OpenSeadragon stand-in exposing the event source and a zoom. */
-class OsdStub {
-    zoom = 1;
-    readonly handlers = new Map<string, Set<() => void>>();
-    readonly viewport = { getZoom: (): number => this.zoom };
-
-    addHandler(event: string, handler: () => void): void {
-        const set = this.handlers.get(event) ?? new Set<() => void>();
-        set.add(handler);
-        this.handlers.set(event, set);
-    }
-
-    removeHandler(event: string, handler: () => void): void {
-        this.handlers.get(event)?.delete(handler);
-    }
-
-    get attached(): number {
-        let total = 0;
-        for (const set of this.handlers.values()) total += set.size;
-        return total;
-    }
-
-    raise(event: string): void {
-        for (const handler of [...(this.handlers.get(event) ?? [])]) handler();
-    }
 }
 
 /** An ordinary Vue error boundary — the consumer's own error handling. */
@@ -411,8 +385,10 @@ describe('projections that read Vue reactive state', () => {
 });
 
 describe('selector cadence', () => {
-    it('wakes a frame-cadence projection from OpenSeadragon animation events', async () => {
-        const osd = new OsdStub();
+    // The acceptance this ticket is measured against, for Vue: zoom read
+    // REACTIVELY through a `frame`-cadence selector.
+    it("wakes a frame-cadence projection from the renderer's animation events", async () => {
+        const renderer = createRendererStub({ scale: 1 });
 
         await mount(
             defineComponent({
@@ -421,7 +397,7 @@ describe('selector cadence', () => {
                         useTemplateRef<TriiiceratopsViewerInstance>('viewer');
                     const zoom = useViewerSelector(
                         viewer,
-                        (state) => state.osdViewer?.viewport.getZoom() ?? 0,
+                        (state) => state.viewportScale,
                         { cadence: 'frame' },
                     );
                     return (): VNode =>
@@ -439,29 +415,27 @@ describe('selector cadence', () => {
 
         expect(text()).toBe('0');
 
-        await flush(() =>
-            liveState().notifyOSDReady(
-                osd as unknown as NonNullable<ViewerState['osdViewer']>,
-            ),
-        );
+        await flush(() => {
+            liveState().attachRenderer(renderer);
+        });
         expect(text()).toBe('1');
-        expect(osd.attached).toBeGreaterThan(0);
+        expect(renderer.frameListenerCount).toBeGreaterThan(0);
 
         // A continuous viewport value, reactive with no state notification and
         // no requestAnimationFrame loop.
         await flush(() => {
-            osd.zoom = 4.5;
-            osd.raise('animation');
+            renderer.setView({ scale: 4.5 });
+            renderer.emitFrame();
         });
         expect(text()).toBe('4.5');
 
         // Unmounting detaches the ticker: an idle viewer costs nothing.
         app?.unmount();
         app = null;
-        expect(osd.attached).toBe(0);
+        expect(renderer.frameListenerCount).toBe(0);
     });
 
-    it('warns in development when a state-cadence projection reads the OSD pass-through', async () => {
+    it('warns in development when a state-cadence projection reads a query-only viewport value', async () => {
         const warnings: string[] = [];
         configureLogging({
             debug: true,
@@ -477,7 +451,7 @@ describe('selector cadence', () => {
                         useTemplateRef<TriiiceratopsViewerInstance>('viewer');
                     const zoom = useViewerSelector(
                         viewer,
-                        (state) => state.osdViewer?.viewport.getZoom() ?? 0,
+                        (state) => state.viewportScale,
                     );
                     return (): VNode =>
                         h('div', null, [
