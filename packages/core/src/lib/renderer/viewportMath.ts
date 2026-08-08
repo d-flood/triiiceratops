@@ -63,6 +63,32 @@ export function fitBounds(
 }
 
 /**
+ * The legal scale range: the derived zoom floor, and a ceiling a fixed factor
+ * above the scale a fit lands at.
+ *
+ * The one rule worth stating is what happens when the floor comes out **above**
+ * the ceiling — which is reachable, because the two are derived from different
+ * things: the floor is the zoom at which the median canvas reaches the box
+ * threshold, and the ceiling is measured from the fit of one canvas. Taking the
+ * lower of the two collapses the range to a single legal scale, and the viewer
+ * can then neither zoom in nor out with nothing reported. The ceiling is RAISED
+ * instead, so a reader can always zoom in by the same factor from wherever the
+ * floor happens to be.
+ *
+ * `minZoom` of `0` means "no floor derived" — an empty world — and is given a
+ * nominal one far below the ceiling rather than being treated as a real bound.
+ */
+export function zoomRange(
+    fitScale: number,
+    minZoom: number,
+    maxFactor: number,
+): { min: number; max: number } {
+    const min = minZoom > 0 ? minZoom : (fitScale * maxFactor) / 1e6;
+
+    return { min, max: Math.max(fitScale, min) * maxFactor };
+}
+
+/**
  * Keep the world within reach of the viewport.
  *
  * Without this, pan is unbounded: a drag — and much more easily a flick, which

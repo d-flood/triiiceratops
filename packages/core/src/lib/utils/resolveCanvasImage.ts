@@ -22,13 +22,36 @@ export type RegionRect = {
 export type PositionedTileSource = {
     canvasId: string;
     tileSource: TileSource;
+    /** Position and PAINTED extent, normalized by the Canvas's own width. */
     x: number;
     y: number;
     width: number;
+    /**
+     * The whole Canvas box in the same normalized units — 1 unit wide by
+     * construction, and as many tall as the Canvas's aspect ratio. Distinct
+     * from `width` for a source that paints a sub-region, and it is what layout
+     * advances the next canvas past (see `components/osdLayout`).
+     */
+    canvasBoxWidth: number;
+    canvasBoxHeight: number | null;
 };
 
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
+    /**
+     * Dimensions to stand in for a Canvas that declares none, instead of
+     * refusing to resolve it at all.
+     *
+     * Opt-in, and deliberately: every caller but one wants a spec-violating
+     * canvas dropped, because it has no geometry to place an image or an
+     * annotation in. The Canvas2D renderer is the exception — it must still lay
+     * such a canvas out, from a median of its siblings, and reflow it if an
+     * image service later reports real dimensions (user story 32). It reads the
+     * declared dimensions separately, through
+     * {@link getDeclaredCanvasDimensions}, so what it gets back here is only
+     * ever the source descriptor; the placeholder never reaches layout.
+     */
+    fallbackCanvasDimensions?: CanvasDimensions;
 };
 
 type GetViewerTileSourcesParams = {
@@ -346,6 +369,23 @@ function getHeuristicServiceId(resourceId: string | null): string | null {
 
 export { getCanvasLabel, getCanvasId };
 
+/**
+ * The dimensions a raw Canvas actually declares, or `null` where it declares
+ * none usable.
+ *
+ * Exported so a caller can tell "the manifest says 1200x900" apart from "the
+ * manifest says nothing and something guessed for it" — a distinction
+ * {@link ResolvedCanvasImage} cannot carry, because its `canvasWidth`/
+ * `canvasHeight` are always numbers. The renderer needs it: a declared
+ * dimension is authoritative forever, while a missing one is a placeholder to
+ * be replaced the moment an image service reports the truth.
+ */
+export function getDeclaredCanvasDimensions(
+    canvas: unknown,
+): CanvasDimensions | null {
+    return getCanvasDimensions(canvas);
+}
+
 export function resolveCanvasImage(
     canvas: any,
     options: ResolveCanvasImageOptions = {},
@@ -363,7 +403,8 @@ export function resolveAllCanvasImages(
         return [];
     }
 
-    const canvasDimensions = getCanvasDimensions(canvas);
+    const canvasDimensions =
+        getCanvasDimensions(canvas) ?? options.fallbackCanvasDimensions ?? null;
     if (!canvasDimensions) {
         return [];
     }
@@ -490,6 +531,18 @@ export function getCanvasTileSources(
                 x: resolved.x,
                 y: resolved.y,
                 width: resolved.width,
+                // The whole Canvas, in this world's normalized units: `x`,
+                // `y` and `width` above are all divided by the Canvas's own
+                // width, so the Canvas box is 1 unit wide by construction and
+                // as many tall as its aspect ratio. Layout advances by this
+                // rather than by `width`, which is the PAINTED extent and is
+                // less than a whole page whenever the painting annotation
+                // targets a sub-region.
+                canvasBoxWidth: 1,
+                canvasBoxHeight:
+                    resolved.canvasWidth > 0
+                        ? resolved.canvasHeight / resolved.canvasWidth
+                        : null,
             } satisfies PositionedTileSource;
         })
         .filter((result): result is PositionedTileSource => result !== null);

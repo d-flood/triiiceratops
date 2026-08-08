@@ -27,6 +27,83 @@ import {
 const PREFIX = '/iiif-fixture/';
 
 /**
+ * The **800-canvas continuous fixture**, generated rather than checked in.
+ *
+ * Virtualization is only meaningful against a manifest of several hundred
+ * canvases: "load everything" passes any test written against a short one
+ * (spec §Further Notes), and the `remove-manifesto` corpus is a PARSER corpus —
+ * it says nothing about renderer residency. So this fixture is part of the
+ * work, and it is dedicated to renderer and network behaviour: every canvas is
+ * the same numbered grid at the same Canvas dimensions, through its OWN image
+ * service, so nothing dedupes and one `info.json` per canvas is exactly what an
+ * unvirtualized renderer would ask for.
+ *
+ * Generated for two reasons. It is ~300 KB of JSON that would otherwise sit in
+ * the repository and in the npm tarball for one spec's benefit; and being
+ * arithmetic, every position a test asserts — canvas *i* begins at
+ * `i * (WIDTH + gap)` — is derivable rather than transcribed.
+ */
+const CONTINUOUS_MANIFEST = '/demo-manifests/continuous-800/manifest.json';
+const CONTINUOUS_CANVAS_COUNT = 800;
+/** Service id prefix for that fixture's canvases: one level 2 service each. */
+const CONTINUOUS_SERVICE = 'c800-';
+
+function continuousManifest(origin) {
+    const base = `${origin}${CONTINUOUS_MANIFEST.replace('/manifest.json', '')}`;
+
+    return {
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        id: `${origin}${CONTINUOUS_MANIFEST}`,
+        type: 'Manifest',
+        behavior: ['continuous'],
+        label: { en: ['800-canvas continuous renderer fixture'] },
+        summary: {
+            en: [
+                'A synthetic 800-folio manuscript for the virtualization assertions. Every canvas is the same numbered grid at 1200x900 through its own IIIF level 2 service, so median-height normalization is the identity, canvas i begins at i * (1200 + gap), and one info.json per canvas is precisely what a renderer that fetched the whole manifest would ask for.',
+            ],
+        },
+        items: Array.from({ length: CONTINUOUS_CANVAS_COUNT }, (_, index) => {
+            const service = `${origin}${PREFIX}${CONTINUOUS_SERVICE}${index}`;
+            return {
+                id: `${base}/canvas/${index}`,
+                type: 'Canvas',
+                label: { en: [`Folio ${index}`] },
+                width: WIDTH,
+                height: HEIGHT,
+                items: [
+                    {
+                        id: `${base}/page/${index}`,
+                        type: 'AnnotationPage',
+                        items: [
+                            {
+                                id: `${base}/annotation/${index}`,
+                                type: 'Annotation',
+                                motivation: 'painting',
+                                body: {
+                                    id: `${service}/full/max/0/default.png`,
+                                    type: 'Image',
+                                    format: 'image/png',
+                                    width: WIDTH,
+                                    height: HEIGHT,
+                                    service: [
+                                        {
+                                            id: service,
+                                            type: 'ImageService3',
+                                            profile: 'level2',
+                                        },
+                                    ],
+                                },
+                                target: `${base}/canvas/${index}`,
+                            },
+                        ],
+                    },
+                ],
+            };
+        }),
+    };
+}
+
+/**
  * A service whose id begins with this is served as a **strict Image API 2.1**
  * endpoint: a version 2 `info.json`, and a hard rejection of any quality other
  * than `default`.
@@ -338,14 +415,24 @@ export function iiifFixture() {
         configureServer(server) {
             server.middlewares.use((request, response, next) => {
                 const url = request.url ?? '';
+                const origin = `http://${request.headers.host ?? 'localhost'}`;
+
+                if (url.split('?')[0] === CONTINUOUS_MANIFEST) {
+                    response.setHeader('Content-Type', 'application/json');
+                    response.setHeader('Access-Control-Allow-Origin', '*');
+                    // No caching, for the same reason `info.json` is not
+                    // cached: a spec that counts requests must see every one.
+                    response.setHeader('Cache-Control', 'no-store');
+                    response.end(JSON.stringify(continuousManifest(origin)));
+                    return undefined;
+                }
+
                 if (!url.startsWith(PREFIX)) return next();
 
                 const [path] = url.split('?');
                 const rest = path.slice(PREFIX.length).split('/');
                 const id = rest.shift();
                 if (!id) return next();
-
-                const origin = `http://${request.headers.host ?? 'localhost'}`;
 
                 if (rest.length === 1 && rest[0] === 'info.json') {
                     const body = JSON.stringify(infoJson(origin, id));

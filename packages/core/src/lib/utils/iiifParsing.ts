@@ -367,32 +367,50 @@ export function getCanvasChoices(canvas: any) {
     return [];
 }
 
+/** Either spelling's value as a list, dropping empties and non-values. */
+function toBehaviorList(value: unknown): unknown[] {
+    if (value === null || value === undefined || value === '') return [];
+    return Array.isArray(value) ? value : [value];
+}
+
 /**
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
  * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function getCanvasBehaviors(canvas: any): string[] {
-    // IIIF v3 ONLY. `behavior` is the v3 spelling; the v2 spelling on a Canvas
-    // is `viewingHint`, and it has never been read here.
+    // BOTH IIIF versions. `behavior` is the v3 spelling of a Canvas's own
+    // display hints; `viewingHint` is the v2 spelling of the same idea, and it
+    // went unread until the renderer epic's multi-canvas layout needed it
+    // (`.tracker/replace-openseadragon`, ticket 07).
     //
-    // The rung deleted below was `canvas.getBehavior()`, which was dead from
-    // the day it was written rather than dead as of this epic: `manifesto.js`
-    // put `getBehavior` on Range, Collection and Manifest, never on Canvas. So
-    // its removal is NOT evidence that the v2 case is covered — it never was.
-    //
-    // The gap is user-visible. `isSinglePageCanvas` below looks for
+    // The gap was user-visible, which is why it is closed here rather than
+    // recorded. `viewerControls.isSinglePageCanvas` looks for
     // `non-paged`/`facing-pages`, which is exactly what a v2 manifest writes as
-    // `"viewingHint": "non-paged"` on a canvas, so a v2 book declaring a
-    // single-page plate still gets paired into a spread. Adding the v2 read is
-    // a behavior change and therefore out of scope for a cleanup ticket
-    // (`.tracker/remove-manifesto`, ticket 10 → "Out of scope"); it is raised
-    // as a finding instead.
-    const raw = canvas?.behavior || [];
+    // `"viewingHint": "non-paged"` on a canvas — so a v2 book declaring a
+    // single-page plate was silently paired into a spread with its neighbour,
+    // and paged mode showed the wrong two pages from there on.
+    //
+    // v3 wins where a document somehow carries both: a manifest that has been
+    // upgraded states its current intent in `behavior`, and a leftover
+    // `viewingHint` is the stale copy.
+    //
+    // Read directly off raw JSON, deliberately: the rung this replaced was
+    // `canvas.getBehavior()`, which `manifesto.js` defined on Range, Collection
+    // and Manifest but NEVER on Canvas, so it was dead from the day it was
+    // written — its removal was never evidence that either spelling was covered.
+    //
+    // The first NON-EMPTY of the two, not the first truthy: `"behavior": []`
+    // is an empty array, which is truthy, and it is exactly what a v2→v3
+    // converter emits on every canvas while leaving `viewingHint` in place. A
+    // truthiness test there discards the only hint the document carries and
+    // re-pairs the single-page plate this function exists to keep unpaired.
+    const behaviors = [
+        toBehaviorList(canvas?.behavior),
+        toBehaviorList(canvas?.viewingHint),
+    ].find((list) => list.length > 0);
 
-    if (!raw) return [];
-    const behaviors = Array.isArray(raw) ? raw : [raw];
-    return behaviors.map((value) => {
+    return (behaviors ?? []).map((value) => {
         const normalized = String(value).trim().toLowerCase();
         const segments = normalized.split(/[#/:]/);
         return segments[segments.length - 1] || normalized;

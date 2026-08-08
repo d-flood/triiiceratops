@@ -39,6 +39,7 @@ import {
     LEVEL0_TILED_MANIFEST,
     nextPaint,
     openRendererManifest,
+    setByteBudget,
     setView,
 } from './helpers/numberedGrid';
 
@@ -183,6 +184,14 @@ test.describe('Canvas2D renderer — level0 ladder on a native-only version 2 tr
         //
         // Zoomed out past the box tier first, which releases the whole ladder —
         // otherwise the rungs are still resident and nothing is re-requested.
+        //
+        // The byte budget goes to zero for the same reason: since ticket 08 a
+        // rung dropped from the required set moves to the **opportunistic
+        // cache** rather than being closed, and a cached rung comes back with
+        // no request at all — which is the right behaviour and the wrong
+        // conditions for this assertion. Zero is the documented "no cache"
+        // setting, and it is what makes "released" mean released here.
+        await setByteBudget(page, 0);
         await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.01 });
         await expect
             .poll(
@@ -299,6 +308,13 @@ test.describe('Canvas2D renderer — level0 size-ladder source', () => {
         // Far enough out that the canvas leaves the pyramid tier entirely. The
         // per-rung rules nest inside the canvas tier exactly as the per-level
         // ones do, so everything — including the coarsest rung — is released.
+        //
+        // With the byte budget at zero, because since ticket 08 "released" has
+        // two stages: a rung dropped from the required set moves to the
+        // **opportunistic cache** first, and is closed only when the budget
+        // says so. Zero is the documented "no cache" setting, and what is under
+        // test here is the tier nesting, not the cache.
+        await setByteBudget(page, 0);
         await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.01 });
         await expect
             .poll(

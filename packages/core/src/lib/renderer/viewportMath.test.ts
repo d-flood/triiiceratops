@@ -10,6 +10,7 @@ import {
     fitBounds,
     normalizeWheelDelta,
     screenToCanvas,
+    zoomRange,
 } from './viewportMath';
 
 const VIEWPORT: Viewport = {
@@ -68,6 +69,35 @@ describe('fitBounds', () => {
         expect(
             fitBounds({ x: 0, y: 0, width: 0, height: 0 }, VIEWPORT).scale,
         ).toBe(1);
+    });
+});
+
+describe('zoomRange', () => {
+    it('puts the ceiling a fixed factor above the fit', () => {
+        expect(zoomRange(0.5, 0.01, 128)).toEqual({ min: 0.01, max: 64 });
+    });
+
+    it('RAISES the ceiling when the derived floor lands above it', () => {
+        // The two are derived from different things — the floor from the median
+        // canvas reaching the box threshold, the ceiling from the fit of one
+        // canvas — so the floor really can come out higher. Taking the lower of
+        // the two collapses the range to a single legal scale, and the viewer
+        // can then neither zoom in nor out, silently. The reader keeps the same
+        // factor of zoom from wherever the floor is instead.
+        const { min, max } = zoomRange(0.001, 0.02, 128);
+
+        expect(min).toBe(0.02);
+        expect(max).toBe(0.02 * 128);
+        expect(max).toBeGreaterThan(min);
+    });
+
+    it('treats a floor of zero as no floor at all', () => {
+        // An empty world derives none. A nominal floor far below the ceiling,
+        // rather than a real bound of zero that a scale could be clamped to.
+        const { min, max } = zoomRange(2, 0, 128);
+
+        expect(max).toBe(256);
+        expect(min).toBeCloseTo(256e-6, 12);
     });
 });
 

@@ -31,12 +31,21 @@ export type SourceDescriptor =
  * space** (manifest Canvas `width`/`height`), and where its pixels come from.
  *
  * Geometry is manifest geometry, never image-service geometry: layout must not
- * depend on any fetch (spec §Coordinate model and layout).
+ * depend on any fetch (spec §Coordinate model and layout). Where the two
+ * disagree — which is routine — the manifest wins permanently, so nothing on
+ * screen moves when tiles arrive.
+ *
+ * `width`/`height` are `null` for a canvas whose manifest declares no usable
+ * dimensions, which is a spec violation the viewer still has to render (user
+ * story 32). Such a canvas is laid out from the **median of its siblings** and
+ * repositioned if an image service later reports real ones — never blocked on a
+ * fetch, which is the reflex that restores the fetch storm for any manifest
+ * with sparse metadata. See `planScene.resolveGeometry`.
  */
 export interface PlannerCanvas {
     id: string;
-    width: number;
-    height: number;
+    width: number | null;
+    height: number | null;
     source: SourceDescriptor;
 }
 
@@ -221,11 +230,51 @@ export interface ThumbnailRequest {
     rung: number;
 }
 
-export interface PlanSceneInput {
+/**
+ * Everything that decides **where the canvases are** — and nothing else.
+ *
+ * Deliberately a separate input from {@link PlanSceneInput}: the world's layout
+ * and the zoom floor derived from it depend on neither the viewport nor
+ * residency, and the host asks for them on every pointer sample. Splitting the
+ * inputs is what makes `planViewportLimits` cheap by construction rather than
+ * by discipline — a caller cannot accidentally pay for tile enumeration when
+ * the viewport is not even in the signature.
+ *
+ * `knownMetadata` is here because geometry can depend on it in exactly one
+ * case: a canvas whose manifest declared no dimensions is repositioned when an
+ * image service reports real ones.
+ */
+export interface PlanWorldInput {
     canvases: PlannerCanvas[];
     mode: ViewingMode;
     direction: ViewingDirection;
     preserveCanvasScale: boolean;
+    /**
+     * Inter-canvas gap, as a fraction of the median **laid-out** canvas extent
+     * along the axis the world flows in.
+     *
+     * A **fraction**, not a length, because the renderer's world is canvas
+     * space — manifest Canvas pixels — where a page is a few thousand units
+     * across and any absolute default would be either a hairline or a chasm
+     * depending on the manifest. It is passed through to the shared layout
+     * function, which resolves it after normalization and on the axis it has
+     * already chosen (see `components/osdLayout`).
+     *
+     * Here rather than in {@link PlannerBudgets} because it is a statement
+     * about where canvases go, like `mode` and `direction` beside it, and not a
+     * byte, pixel, or threshold quantity. Tuning the budgets must not be able
+     * to move canvases on screen as a side effect.
+     *
+     * Not configuration: no public surface exposes it, and none is added here
+     * (spec §Out of Scope).
+     */
+    gapFraction: number;
+    /** canvasId → image-service facts already fetched. */
+    knownMetadata: Record<string, ImageServiceFacts>;
+    budgets: PlannerBudgets;
+}
+
+export interface PlanSceneInput extends PlanWorldInput {
     viewport: Viewport;
     /**
      * Device pixels per CSS pixel of the backing store, defaulting to 1.
@@ -238,9 +287,6 @@ export interface PlanSceneInput {
      * ratio moves nothing in canvas space.
      */
     dpr?: number;
-    /** canvasId → image-service facts already fetched. */
-    knownMetadata: Record<string, ImageServiceFacts>;
-    budgets: PlannerBudgets;
     /**
      * Which tiles the host currently holds decoded.
      *
@@ -266,8 +312,6 @@ export interface ScenePlan {
     thumbnailRequests: ThumbnailRequest[];
     /** Canvas ids needing an `info.json` fetch now. */
     metadataRequests: string[];
-    /** Canvas ids droppable under budget pressure. */
-    evictable: string[];
     /**
      * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
      * their service offers exceeds it.

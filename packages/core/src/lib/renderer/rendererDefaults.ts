@@ -10,9 +10,55 @@
 
 import type { PlannerBudgets } from './types';
 
+/**
+ * Ceiling, in bytes, on everything the tile scheduler holds decoded — the
+ * required set plus the **opportunistic cache**.
+ *
+ * In BYTES rather than in tiles, deliberately: a count-based cache varies its
+ * footprint by more than an order of magnitude with a server-side tile-size
+ * choice it does not control, which is what the path this replaces did.
+ */
+export const DESKTOP_BYTE_BUDGET = 128 * 1024 * 1024;
+
+/**
+ * The same ceiling on a phone, where the browser will kill a tab for far less
+ * (spec, user story 13) and decoded images do not show up in any heap metric
+ * that would have warned first.
+ */
+export const MOBILE_BYTE_BUDGET = 48 * 1024 * 1024;
+
+/**
+ * The media query that picks between the two ceilings.
+ *
+ * A statement about the INPUT, not about the user agent: this is the one
+ * question a device sniff would have been asked, and `(pointer: coarse)` is the
+ * only form of it the platform answers honestly. The spec deletes the
+ * OpenSeadragon path's device-sniffing *drawer* selection outright; a memory
+ * ceiling is a different question, and it is one the platform has an API for.
+ */
+export const MOBILE_BUDGET_QUERY = '(pointer: coarse) and (hover: none)';
+
+/**
+ * Which byte ceiling this device gets.
+ *
+ * Takes the matcher rather than reaching for `window.matchMedia` itself, so it
+ * is a pure function with an ordinary unit test and so nothing in the
+ * renderer's module graph touches a browser global at module scope — the
+ * whole of what SSR-safety reduces to for first-party code.
+ */
+export function resolveByteBudget(matches: (query: string) => boolean): number {
+    return matches(MOBILE_BUDGET_QUERY)
+        ? MOBILE_BYTE_BUDGET
+        : DESKTOP_BYTE_BUDGET;
+}
+
 export const DEFAULT_BUDGETS: PlannerBudgets = {
-    /** Decoded-pixel ceiling for the opportunistic cache; desktop figure. */
-    byteBudget: 256 * 1024 * 1024,
+    /**
+     * The desktop ceiling. The host replaces it with
+     * {@link resolveByteBudget}'s answer once it has a window to ask; this is
+     * what a caller that never mounts (the server) would have used.
+     */
+    byteBudget: DESKTOP_BYTE_BUDGET,
     /** The viewport rect inflated by this factor is the residency margin. */
     marginFactor: 1.5,
     /** `effectiveSize` in CSS px at or above which a canvas holds a pyramid. */
@@ -35,6 +81,21 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
      */
     maxDecodedPixels: 16 * 1024 * 1024,
 };
+
+/**
+ * The gutter between adjacent canvases, as a fraction of the median laid-out
+ * canvas extent along the axis the world flows in.
+ *
+ * The same 1.25% the OpenSeadragon path lays out with — that path's world is
+ * normalized so a canvas is one unit wide, and its gap is the literal 0.0125 in
+ * `components/osdLayout`. Expressed as a fraction here because this renderer's
+ * world is canvas space, where the same number would be a sub-pixel hairline.
+ *
+ * Deliberately NOT a member of {@link DEFAULT_BUDGETS}: it decides where
+ * canvases are, and a ticket tuning the byte and threshold budgets must not
+ * move the layout as a side effect.
+ */
+export const MULTI_CANVAS_GAP_FRACTION = 0.0125;
 
 /**
  * The bounded in-flight tile window.

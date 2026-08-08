@@ -201,6 +201,27 @@ export interface CanvasGeometry {
     width?: number | null;
     sourceWidth?: number | null;
     sourceHeight?: number | null;
+    /**
+     * The extent of the whole **Canvas box** in world units — the box the
+     * source's `x`/`y`/`width` are positions within — when it is larger than
+     * what this source paints.
+     *
+     * A painting annotation may target a sub-region of its Canvas
+     * (`#xywh=0,0,600,900` on a 1200x900 Canvas), and then the painted extent
+     * is *half* the Canvas. Layout advances the cumulative offset by the Canvas
+     * box, never by the painted extent: the next canvas goes after the whole
+     * page, not after the part of it that happens to carry an image. Omitted,
+     * the painted extent is used, which is right for the common case where a
+     * source fills its canvas.
+     *
+     * In world units like everything else here, deliberately *not* the
+     * manifest's Canvas pixel dimensions (`ResolvedCanvasImage.canvasWidth`):
+     * the OpenSeadragon path's world is normalized, so its Canvas box is 1 unit
+     * wide by construction, while the renderer's world is canvas space, where
+     * it is the manifest figure.
+     */
+    canvasBoxWidth?: number | null;
+    canvasBoxHeight?: number | null;
 }
 /** Where layout placed one source, in world units. */
 interface PlacedRect {
@@ -227,12 +248,56 @@ interface CanvasLayoutResult {
     sources: DisplayPositionedTileSource[];
     layouts: CanvasDisplayLayout[];
 }
+/**
+ * Position every canvas in the world, in the caller's own units.
+ *
+ * ## Why each canvas advances by its own extent
+ *
+ * A multi-canvas world is laid out by walking the canvases and advancing a
+ * cumulative offset. That offset advances by the canvas's **real extent** —
+ * `width` along a horizontal axis, `height` along a vertical one — in every
+ * mode and whether or not normalization is on.
+ *
+ * It did not always. When normalization was off (`preserveCanvasScale`, or a
+ * sibling with no dimensions), the offset advanced by a fixed **one world
+ * unit** per canvas instead. That is only ever right for a caller whose
+ * canvases are one unit wide: anything wider (or, on a vertical axis, taller)
+ * overlapped its neighbour, and by its whole excess — a canvas-space caller,
+ * where a page is a few thousand units across, stacked its entire manifest on
+ * one spot. Preserving a canvas's authored scale is a statement about its
+ * SIZE; it was never a statement about where the next one goes.
+ *
+ * The extent that advances the offset is the **Canvas box**
+ * (`canvasBoxWidth`/`canvasBoxHeight`), not the painted extent. A canvas whose
+ * painting annotation targets a sub-region paints half a page and still
+ * occupies a whole one; advancing by what it painted would pull every canvas
+ * after it backwards.
+ *
+ * ## Why the gap has two spellings
+ *
+ * `gap` is an absolute length in the caller's units. `gapFraction` is a
+ * fraction of the median laid-out extent **along the axis the world flows in**,
+ * resolved here — after normalization, so it is measured in the same units as
+ * the widths it separates, and on the axis this function has already decided.
+ * A caller whose world is canvas space cannot express the spacing any other
+ * way: an absolute default is a hairline there, and a fraction it resolved
+ * itself would be a fraction of the *unnormalized* extents, on an axis it had
+ * to guess a second time.
+ */
 export declare function getCanvasDisplayLayouts(sources: PositionedTileSource[], options: {
     mode: ViewingMode;
     direction: ViewingDirection;
     preserveCanvasScale?: boolean;
-    /** Defaults to the spacing the viewer itself lays out with. */
+    /**
+     * Absolute inter-canvas spacing, in the caller's own units. Defaults to
+     * the spacing the viewer itself lays out with.
+     */
     gap?: number;
+    /**
+     * Inter-canvas spacing as a fraction of the median laid-out canvas
+     * extent along the flow axis. Ignored when `gap` is given.
+     */
+    gapFraction?: number;
 }): CanvasLayoutResult;
 export declare function getContinuousTargetPosition(indexOrCanvasId: number | string, layouts: CanvasDisplayLayout[], direction: ViewingDirection): number | null;
 export {};
@@ -4402,12 +4467,35 @@ export type RegionRect = {
 export type PositionedTileSource = {
     canvasId: string;
     tileSource: TileSource;
+    /** Position and PAINTED extent, normalized by the Canvas's own width. */
     x: number;
     y: number;
     width: number;
+    /**
+     * The whole Canvas box in the same normalized units — 1 unit wide by
+     * construction, and as many tall as the Canvas's aspect ratio. Distinct
+     * from `width` for a source that paints a sub-region, and it is what layout
+     * advances the next canvas past (see `components/osdLayout`).
+     */
+    canvasBoxWidth: number;
+    canvasBoxHeight: number | null;
 };
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
+    /**
+     * Dimensions to stand in for a Canvas that declares none, instead of
+     * refusing to resolve it at all.
+     *
+     * Opt-in, and deliberately: every caller but one wants a spec-violating
+     * canvas dropped, because it has no geometry to place an image or an
+     * annotation in. The Canvas2D renderer is the exception — it must still lay
+     * such a canvas out, from a median of its siblings, and reflow it if an
+     * image service later reports real dimensions (user story 32). It reads the
+     * declared dimensions separately, through
+     * {@link getDeclaredCanvasDimensions}, so what it gets back here is only
+     * ever the source descriptor; the placeholder never reaches layout.
+     */
+    fallbackCanvasDimensions?: CanvasDimensions;
 };
 type GetViewerTileSourcesParams = {
     canvases: any[];
@@ -4445,8 +4533,24 @@ export type ResolvedCanvasImage = {
     width: number;
     height: number;
 };
+type CanvasDimensions = {
+    width: number;
+    height: number;
+};
 export declare function getRegionString(region: RegionRect): string;
 export { getCanvasLabel, getCanvasId };
+/**
+ * The dimensions a raw Canvas actually declares, or `null` where it declares
+ * none usable.
+ *
+ * Exported so a caller can tell "the manifest says 1200x900" apart from "the
+ * manifest says nothing and something guessed for it" — a distinction
+ * {@link ResolvedCanvasImage} cannot carry, because its `canvasWidth`/
+ * `canvasHeight` are always numbers. The renderer needs it: a declared
+ * dimension is authoritative forever, while a missing one is a placeholder to
+ * be replaced the moment an image service reports the truth.
+ */
+export declare function getDeclaredCanvasDimensions(canvas: unknown): CanvasDimensions | null;
 export declare function resolveCanvasImage(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage | null;
 export declare function resolveAllCanvasImages(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage[];
 export declare function getCanvasTileSource(canvas: any, options?: ResolveCanvasImageOptions): TileSource | null;

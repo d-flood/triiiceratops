@@ -37,20 +37,47 @@
  * Which services take that branch is decided by `isSizeLadderSource`, and the
  * decision is load-bearing: "advertises no tiles" alone is not level0.
  *
+ * ## Layout
+ *
+ * `layoutCanvases` below is a **translation**, not an implementation: the
+ * positions come from the shared layout function in `components/osdLayout`,
+ * which the export path uses too, so there is one set of coordinates for a
+ * given manifest and no cumulative-offset arithmetic anywhere in the renderer.
+ * What this module owns is the geometry each canvas is laid out *with*
+ * (`resolveGeometry`). The gap is not translated here: layout takes a fraction
+ * and resolves it against its own laid-out extents.
+ *
+ * ## Virtualization
+ *
+ * The whole manifest is laid out — layout is pure arithmetic over manifest
+ * dimensions and costs no network — but only the canvases in the **residency
+ * window** are allowed to hold anything (`residencyWindow` below). Everything
+ * else is box tier: no metadata request, no tiles, no texture, whatever its
+ * projected size. That gate is what makes an 800-folio manifest cost O(1)
+ * requests to open, and it is deliberately positional rather than size-based:
+ * `assignTier` decides from projected size alone and cannot tell canvas 400
+ * from canvas 4, so relying on the tier alone would give every canvas in the
+ * input a base tile and an `info.json`.
+ *
  * ## What is still to come
  *
- * - multi-canvas layout (paged, continuous, viewing direction,
- *   `preserveCanvasScale`, the inter-canvas gap) — ticket 07, which replaces
- *   `layoutCanvases` below with the shared layout function;
- * - distance-based eviction and the byte budget — ticket 08;
  * - thumbnail resolution and its quantized ladder — ticket 09.
  *
- * `mode`, `direction`, `preserveCanvasScale`, and `budgets.byteBudget` are
- * therefore accepted and not yet read. They are in the signature from the first
- * version deliberately: the contract is fixed, so later tickets add behaviour
- * rather than re-cut the seam.
+ * `budgets.byteBudget` is not read here: it bounds the **opportunistic cache**,
+ * which holds what was recently dropped from the required set, and that is the
+ * host's tile scheduler (`tileScheduler.ts`). The planner has no lever over it
+ * by construction — required-set membership is a pure function of the viewport
+ * — which is exactly why the thing this module bounds is what ENTERS the
+ * required set.
  */
 
+import { getCanvasDisplayLayouts } from '../components/osdLayout';
+import {
+    boxContains,
+    distanceToBox,
+    nearestRect,
+    worldBounds,
+} from './layoutQueries';
 import {
     buildSizeLadder,
     chooseRung,
@@ -76,7 +103,7 @@ import type {
     LayoutRect,
     PlannerCanvas,
     PlanSceneInput,
-    Point,
+    PlanWorldInput,
     ResidencyTier,
     ScenePlan,
     TileDraw,
@@ -90,13 +117,15 @@ function isUsableDimension(value: unknown): value is number {
     return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
-function isLayoutable(canvas: PlannerCanvas): boolean {
-    return (
-        isUsableDimension(canvas.width) &&
-        isUsableDimension(canvas.height) &&
-        typeof canvas.id === 'string' &&
-        canvas.id.length > 0
-    );
+function hasUsableId(canvas: PlannerCanvas): boolean {
+    return typeof canvas.id === 'string' && canvas.id.length > 0;
+}
+
+/** A canvas with the geometry layout will actually use, in canvas space. */
+interface SizedCanvas {
+    canvas: PlannerCanvas;
+    width: number;
+    height: number;
 }
 
 /**
@@ -115,37 +144,6 @@ export function effectiveSize(
     return Math.sqrt(width * scale * height * scale);
 }
 
-/**
- * Single-canvas layout, in canvas space.
- *
- * Ticket 07 replaces this with the shared layout function that already handles
- * paged and continuous worlds, viewing direction, the median-height
- * normalization, and the inter-canvas gap. Until then the only supported world
- * is one canvas at the origin — which is exactly the geometry the manifest
- * declares, so nothing here can shift when metadata arrives later.
- */
-function layoutCanvases(canvases: PlannerCanvas[]): LayoutRect[] {
-    return canvases.map((canvas) => ({
-        canvasId: canvas.id,
-        x: 0,
-        y: 0,
-        width: canvas.width,
-        height: canvas.height,
-    }));
-}
-
-function assignTier(
-    canvas: PlannerCanvas,
-    scale: number,
-    pyramidThreshold: number,
-    boxThreshold: number,
-): ResidencyTier {
-    const size = effectiveSize(canvas.width, canvas.height, scale);
-    if (size >= pyramidThreshold) return 'pyramid';
-    if (size >= boxThreshold) return 'thumbnail';
-    return 'box';
-}
-
 function median(values: number[]): number {
     const sorted = [...values].sort((a, b) => a - b);
     const middle = Math.floor(sorted.length / 2);
@@ -155,28 +153,206 @@ function median(values: number[]): number {
 }
 
 /**
+ * The box a canvas is laid out in when nothing at all is known about its shape:
+ * no declared dimensions, no fetched service facts, and no sibling to take a
+ * median from.
+ *
+ * Square, and its absolute size does not matter — a world of one such canvas is
+ * fitted to the viewport, and a world with siblings never reaches this rung.
+ * What matters is that there IS one. Dropping the canvas instead looks like a
+ * safe refusal and is a dead end: an unlaid-out canvas gets no tier, therefore
+ * no metadata request, therefore no reflow, so the folio that a fetch would
+ * have sized is blank permanently rather than briefly (user story 32).
+ */
+const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
+
+/** The aspect ratio of a box, or null when it has none. */
+function aspectOf(box: { width: number; height: number } | null) {
+    return box && isUsableDimension(box.width) && isUsableDimension(box.height)
+        ? box.height / box.width
+        : null;
+}
+
+/**
+ * The geometry each canvas is laid out with, in canvas space.
+ *
+ * Four rungs, in this order, and the order is the decision:
+ *
+ * 1. **The manifest wins, permanently.** Declared Canvas dimensions are the
+ *    authoritative geometry even where the image service disagrees — which is
+ *    routine, and is why the canvas-space/image-space distinction exists.
+ *    Service dimensions govern only the tile pyramid, and the image is fitted
+ *    into its manifest-declared box, so layout never shifts when tiles arrive.
+ *    The alternative moves the thing under the user's cursor as tiles load, and
+ *    breaks annotation geometry, which is already persisted in canvas space.
+ *    Applied **per axis**: a Canvas that states a width and omits its height
+ *    keeps the width it stated and takes only the missing axis from below.
+ *    Treating a half-declared Canvas as undeclared throws away a figure the
+ *    manifest was explicit about.
+ * 2. **A canvas the manifest never sized takes what a service reports** — the
+ *    *reflow*. This is the only case in which fetched metadata can move
+ *    anything, and it moves it because there was nothing there to contradict.
+ * 3. **Failing both, the median of its siblings.** A guess, and deliberately a
+ *    guess: "just fetch it" is the reflex, and it is what restores the fetch
+ *    storm for any manifest with sparse metadata. Positioning is never blocked
+ *    on a request (spec §Coordinate model and layout).
+ *
+ *    The siblings are the canvases in *this* input, which is as much of the
+ *    manifest as the host has to lay out: the whole of it in continuous mode,
+ *    and the spread on screen in paged and individuals mode. Virtualization is
+ *    positional (see `residencyWindow`), not a smaller input, so the median a
+ *    continuous world guesses from really is the manifest's — and it still
+ *    needs the floor below, because an individuals-mode input is ONE canvas.
+ * 4. **Failing even that, {@link UNSIZED_CANVAS_PLACEHOLDER}.** The rung that
+ *    makes the drop unreachable, and it is reachable itself on the path users
+ *    actually take: in individuals and continuous mode the host feeds ONE
+ *    canvas, so an unsized canvas there has no siblings to take a median from.
+ *
+ * Only a canvas with no usable id is dropped: it cannot be keyed, so nothing
+ * downstream could name it.
+ */
+function resolveGeometry(
+    canvases: PlannerCanvas[],
+    knownMetadata: Record<string, ImageServiceFacts>,
+): SizedCanvas[] {
+    const usable = canvases.filter(hasUsableId);
+
+    const declared = usable.filter(
+        (canvas) =>
+            isUsableDimension(canvas.width) && isUsableDimension(canvas.height),
+    );
+    const guess =
+        declared.length > 0
+            ? {
+                  width: median(declared.map((canvas) => canvas.width!)),
+                  height: median(declared.map((canvas) => canvas.height!)),
+              }
+            : UNSIZED_CANVAS_PLACEHOLDER;
+
+    return usable.map((canvas): SizedCanvas => {
+        const facts = knownMetadata[canvas.id];
+        const reported =
+            facts &&
+            isUsableDimension(facts.width) &&
+            isUsableDimension(facts.height)
+                ? { width: facts.width, height: facts.height }
+                : null;
+        const fallback = reported ?? guess;
+
+        // Whichever axes the manifest stated, kept; the rest taken from the
+        // fallback box, and shaped by its aspect ratio so a canvas that stated
+        // one axis is not silently reshaped into a sibling's proportions.
+        const aspect = aspectOf(fallback) ?? 1;
+        const width = isUsableDimension(canvas.width)
+            ? canvas.width
+            : isUsableDimension(canvas.height)
+              ? canvas.height / aspect
+              : fallback.width;
+        const height = isUsableDimension(canvas.height)
+            ? canvas.height
+            : isUsableDimension(canvas.width)
+              ? canvas.width * aspect
+              : fallback.height;
+
+        return { canvas, width, height };
+    });
+}
+
+/**
+ * Multi-canvas layout, in canvas space — delegated **entirely** to the shared
+ * layout function in `components/osdLayout`.
+ *
+ * There is one layout implementation in this repository and this is not it.
+ * Paged spreads, the four viewing directions, median-height normalization, the
+ * `[0.25, 4]` scale clamp, and the cumulative inter-canvas offset all live
+ * there, are exercised from Node, and are shared with the export path. A second
+ * copy here would be a second set of positions for the same manifest.
+ *
+ * What this function does own is the **translation between the two callers'
+ * units**. The layout module's world is normalized (a canvas is one unit wide);
+ * the renderer's world is canvas space, where a page is a few thousand units
+ * across. Passing each canvas's real extent as its layout `width` is what puts
+ * the answer back in canvas space.
+ *
+ * The gap goes across as a **fraction**, which layout resolves itself. It reads
+ * the same on a folio manifest and a postage-stamp one either way; what the
+ * fraction buys is that it is resolved against the extents layout actually laid
+ * out — after median-height normalization, on the axis layout already chose —
+ * rather than against the raw manifest figures this function can see, which are
+ * a different quantity on a different axis whenever normalization is not the
+ * identity.
+ */
+function layoutCanvases(
+    sized: SizedCanvas[],
+    input: PlanWorldInput,
+): LayoutRect[] {
+    if (sized.length === 0) return [];
+
+    return getCanvasDisplayLayouts(
+        sized.map((entry) => ({
+            canvasId: entry.canvas.id,
+            x: 0,
+            y: 0,
+            width: entry.width,
+            sourceWidth: entry.width,
+            sourceHeight: entry.height,
+            // Layout carries a payload through untouched; the renderer needs
+            // none, because it looks its canvases up by id.
+            tileSource: null,
+        })),
+        {
+            mode: input.mode,
+            direction: input.direction,
+            preserveCanvasScale: input.preserveCanvasScale,
+            gapFraction: input.gapFraction,
+        },
+    ).layouts;
+}
+
+/**
+ * The tier is decided from the canvas's **projected** size — its LAYOUT rect
+ * scaled by the viewport, not its manifest dimensions.
+ *
+ * The two are the same only in a single-canvas world. Normalization scales a
+ * canvas to the median height, so a page the manifest declares at 400 px and
+ * layout draws at 4000 covers ten times the screen the manifest figure
+ * predicts; deciding from the manifest would put a canvas that fills the
+ * viewport in the box tier.
+ */
+function assignTier(
+    rect: LayoutRect,
+    scale: number,
+    pyramidThreshold: number,
+    boxThreshold: number,
+): ResidencyTier {
+    const size = effectiveSize(rect.width, rect.height, scale);
+    if (size >= pyramidThreshold) return 'pyramid';
+    if (size >= boxThreshold) return 'thumbnail';
+    return 'box';
+}
+
+/**
  * The zoom floor, **derived** rather than fixed: the scale at which the median
  * canvas reaches the box threshold. Below it there is no information on screen.
  * This scales with the manifest instead of being a tuned percentage of home
  * zoom, which is what lets an 800-folio manifest and a one-page manifest both
  * stop somewhere meaningful.
+ *
+ * Measured on the laid-out rects for the same reason the tier is: normalization
+ * is what decides how big a canvas actually is on screen.
  */
-function deriveMinZoom(
-    canvases: PlannerCanvas[],
-    boxThreshold: number,
-): number {
-    if (canvases.length === 0) return 0;
+function deriveMinZoom(layout: LayoutRect[], boxThreshold: number): number {
+    if (layout.length === 0) return 0;
 
-    const sizes = canvases.map((canvas) =>
-        Math.sqrt(canvas.width * canvas.height),
-    );
+    const sizes = layout.map((rect) => Math.sqrt(rect.width * rect.height));
 
     return boxThreshold / median(sizes);
 }
 
 /**
- * The two things about a scene that bound the **viewport** — the world's layout
- * and the derived zoom floor — without planning the scene.
+ * The three things about a scene that bound the **viewport** — the world's
+ * layout, its outer bounds, and the derived zoom floor — without planning the
+ * scene.
  *
  * A separate, cheap entry point because the host clamps on every pointer sample:
  * a pan clamps its centre, a pinch clamps its scale as well, and momentum clamps
@@ -185,18 +361,30 @@ function deriveMinZoom(
  * a 120 Hz pinch, for two numbers that depend on neither. Tile enumeration
  * belongs to the frame loop, once per frame (see `CanvasHost.paint`).
  *
- * Neither output depends on the viewport, on image-service metadata, or on what
- * is resident — which is exactly why this can skip all of it, and why the two
- * cannot drift: `planScene` returns these very values by calling this.
+ * No output depends on the viewport or on what is resident — which is exactly
+ * why this can skip all of it, and why the two cannot drift: `planScene`
+ * returns these very values by calling this.
+ *
+ * `bounds` is here rather than left to the caller for the same reason the memo
+ * around this function exists: the pan constraint runs on every pointer sample
+ * and a min/max over 800 rects per sample is the very O(manifest)-per-sample
+ * shape this entry point was split out to avoid. Computed once, beside the
+ * layout it summarizes.
  */
-export function planViewportLimits(
-    canvases: PlannerCanvas[],
-    boxThreshold: number,
-): { layout: LayoutRect[]; minZoom: number } {
-    const layoutable = canvases.filter(isLayoutable);
+export function planViewportLimits(input: PlanWorldInput): {
+    layout: LayoutRect[];
+    bounds: Box | null;
+    minZoom: number;
+} {
+    const layout = layoutCanvases(
+        resolveGeometry(input.canvases, input.knownMetadata),
+        input,
+    );
+
     return {
-        layout: layoutCanvases(layoutable),
-        minZoom: deriveMinZoom(layoutable, boxThreshold),
+        layout,
+        bounds: worldBounds(layout),
+        minZoom: deriveMinZoom(layout, input.budgets.boxThreshold),
     };
 }
 
@@ -218,7 +406,9 @@ function viewportBox(viewport: Viewport): Box {
  *
  * Expressed in viewport-relative terms rather than in tile or canvas counts, so
  * it is correct for a wide world and a tall one without an axis conditional
- * (spec §Virtualization: canvas tiers).
+ * (spec §Virtualization: canvas tiers). A canvas-count margin needs the
+ * conditional and will get one direction wrong: a left-to-right world is wide
+ * and short, a top-to-bottom world tall and narrow.
  */
 function inflate(box: Box, factor: number): Box {
     const width = box.width * factor;
@@ -232,6 +422,9 @@ function inflate(box: Box, factor: number): Box {
     };
 }
 
+/** Contains nothing, so an empty world reaches no fallback. */
+const EMPTY_BOX: Box = { x: 0, y: 0, width: -1, height: -1 };
+
 function intersects(a: Box, b: Box): boolean {
     return (
         a.x < b.x + b.width &&
@@ -242,21 +435,99 @@ function intersects(a: Box, b: Box): boolean {
 }
 
 /**
- * Canvas-space distance from a point to the **nearest point of** a box — zero
- * when the box contains it.
+ * Which canvases are near enough the viewport to be allowed to hold anything.
  *
- * Distance to the box, deliberately not to its centre. A coarse tile is huge in
- * canvas space, so its centre can be far from the viewport centre while the tile
- * covers it: measured centre-to-centre, the base tile that guarantees the viewer
- * is never blank is scheduled *behind* dozens of current-level tiles at any
- * off-centre entry point (a deep link, a programmatic view), which is exactly
- * where blur-up is needed most.
+ * This is the whole of continuous mode's virtualization, and it is **positional
+ * by necessity**. The residency tier is decided from projected size alone
+ * ({@link assignTier}), which cannot distinguish canvas 400 from canvas 4: at
+ * reading zoom every canvas in an 800-folio manifest projects the same way, so
+ * a tier-only gate hands every one of them a base tile and an `info.json` —
+ * O(n) requests to open, which is the behaviour this epic exists to remove.
+ * A canvas outside this set is box tier whatever its size: no network, no
+ * texture, layout rect only.
+ *
+ * Two rules, and both are in the spec for reasons an implementer would
+ * otherwise resolve by reaching for a canvas count:
+ *
+ * 1. **The viewport rect inflated by `marginFactor`.** A rect, intersected
+ *    against layout rects, so a wide left-to-right world and a tall
+ *    top-to-bottom one are handled by the same arithmetic. Margin cost is
+ *    quadratic in area — doubling the factor quadruples the tiles — so the
+ *    margin stays modest and the byte budget is spent on the opportunistic
+ *    cache instead. This is the first knob to reach for and the wrong one.
+ * 2. **±1 canvas beyond the ones actually on screen**, so turning the page is
+ *    instant (spec §Virtualization: canvas tiers). Stated for continuous mode,
+ *    applied in every mode because it cannot do anything in the others: paged
+ *    and individuals feed at most a spread, and every member of a spread is
+ *    either on screen or the neighbour of something that is.
+ *
+ * Membership is a pure function of the viewport and nothing else — not of how
+ * the user got here. That is what makes the resident set identical whether the
+ * reader scrolled to canvas 400 directly or arrived by way of canvas 700, and
+ * it is why eviction is distance-based rather than LRU: an LRU makes residency
+ * a function of scroll history, which is neither reproducible nor testable.
+ *
+ * **A viewport INSIDE the world always holds something**, and that is a rule
+ * rather than a consequence of the two above. Both of them key off
+ * *intersection* with a layout rect, and a viewport can be inside the world and
+ * intersect none: the inter-canvas gutter is a fraction of a page wide, so a
+ * deep enough zoom centred inside it makes even the inflated margin narrower
+ * than the gap. Every canvas would then be box tier — every tile and texture
+ * released, the viewer blank until the reader happened to pan back out.
+ *
+ * Scoped to a centre within the world's own bounds, deliberately. A viewport
+ * the world is nowhere near really must hold nothing: that is the nesting rule
+ * ("a canvas leaving the pyramid tier releases everything, base level
+ * included") and the thing that keeps an 800-folio manifest from holding 800
+ * base tiles. The gutter is not that case — the reader is *in* the manifest,
+ * between two of its pages.
  */
-function distanceToBox(point: Point, box: Box): number {
-    const nearestX = Math.min(Math.max(point.x, box.x), box.x + box.width);
-    const nearestY = Math.min(Math.max(point.y, box.y), box.y + box.height);
+function residencyWindow(
+    layout: LayoutRect[],
+    viewport: Viewport,
+    marginFactor: number,
+): Set<string> {
+    const visible = viewportBox(viewport);
+    const margin = inflate(visible, marginFactor);
+    const resident = new Set<string>();
 
-    return Math.hypot(point.x - nearestX, point.y - nearestY);
+    /** A canvas and the two the reader could turn to next. */
+    function addWithNeighbours(index: number): void {
+        // The neighbours by INDEX, not by distance: "the next page" is a
+        // statement about reading order, and it stays correct in a
+        // right-to-left or bottom-to-top world, where the next canvas is at a
+        // lower coordinate rather than a higher one.
+        for (const rect of [
+            layout[index - 1],
+            layout[index],
+            layout[index + 1],
+        ]) {
+            if (rect) resident.add(rect.canvasId);
+        }
+    }
+
+    layout.forEach((rect, index) => {
+        if (intersects(rect, margin)) resident.add(rect.canvasId);
+        if (intersects(rect, visible)) addWithNeighbours(index);
+    });
+
+    // A zero-area viewport is not "in the gutter" — it is a surface that has
+    // not been measured yet, and it must not be given a reason to fetch.
+    const inWorld =
+        visible.width > 0 &&
+        visible.height > 0 &&
+        boxContains(worldBounds(layout) ?? EMPTY_BOX, viewport.centre);
+
+    if (resident.size === 0 && inWorld) {
+        // Nothing intersected, and the centre is inside the world: the
+        // viewport is in a gutter between two canvases. The nearest canvas is
+        // the one the reader is standing between, so it and its neighbours are
+        // exactly what the window held one pixel either side.
+        const nearest = nearestRect(layout, viewport.centre);
+        if (nearest) addWithNeighbours(layout.indexOf(nearest));
+    }
+
+    return resident;
 }
 
 /**
@@ -454,39 +725,44 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     // backing store is describing.
     const dpr = input.dpr && input.dpr > 0 ? input.dpr : 1;
 
-    const layoutable = canvases.filter(isLayoutable);
     // The same function the host's per-sample clamping calls, so the world the
     // pan constraint is measured against can never diverge from the world that
     // is painted.
-    const { layout, minZoom } = planViewportLimits(
-        canvases,
-        budgets.boxThreshold,
-    );
+    const { layout, minZoom } = planViewportLimits(input);
     const rects = new Map(layout.map((rect) => [rect.canvasId, rect]));
+    // Laid out, therefore plannable — and in layout's own order, so a canvas
+    // dropped for having no usable geometry is absent from both.
+    const layoutable = canvases.filter((canvas) => rects.has(canvas.id));
+    // The virtualization gate. Everything outside it is box tier whatever its
+    // projected size, which is what keeps the required set a function of the
+    // VIEWPORT rather than of the manifest's length.
+    const nearby = residencyWindow(layout, viewport, budgets.marginFactor);
 
     const tiers: Record<string, ResidencyTier> = {};
-    const evictable: string[] = [];
     const overCapCanvases: string[] = [];
     const metadataRequests: string[] = [];
     const tileRequests: TileRequest[] = [];
     const tileDraws: TileDraw[] = [];
 
     for (const canvas of layoutable) {
-        const tier = assignTier(
-            canvas,
-            viewport.scale,
-            budgets.pyramidThreshold,
-            budgets.boxThreshold,
-        );
-        tiers[canvas.id] = tier;
-
+        const rect = rects.get(canvas.id)!;
+        // Position first, size second. A canvas the viewport is nowhere near
+        // holds nothing however large it would project — see `residencyWindow`
+        // for why the size test alone cannot express that.
+        const tier = nearby.has(canvas.id)
+            ? assignTier(
+                  rect,
+                  viewport.scale,
+                  budgets.pyramidThreshold,
+                  budgets.boxThreshold,
+              )
+            : 'box';
         // A box-tier canvas holds no network resource and no texture, so
-        // whatever it held is droppable. Residency is a pure function of the
-        // viewport: the same viewport always yields the same set, regardless of
-        // how the user arrived (spec — eviction is distance-based, not LRU).
-        if (tier === 'box') {
-            evictable.push(canvas.id);
-        }
+        // whatever it held is droppable — which the tier map already says.
+        // There is deliberately no second `evictable` list beside it: one
+        // residency vocabulary, and nothing allocating ~795 canvas ids a frame
+        // for a reader that does not exist.
+        tiers[canvas.id] = tier;
 
         // A static-image source has exactly one known URL and no service, so it
         // has nothing to discover and nothing to tile (user story 29).
@@ -516,7 +792,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             planPyramid(
                 canvas,
                 pyramid,
-                rects.get(canvas.id)!,
+                rect,
                 viewport,
                 dpr,
                 budgets.minPixelRatio,
@@ -552,7 +828,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             planSizeLadder(
                 canvas,
                 ladder,
-                rects.get(canvas.id)!,
+                rect,
                 viewport,
                 dpr,
                 budgets.minPixelRatio,
@@ -575,7 +851,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         planPyramid(
             canvas,
             derived,
-            rects.get(canvas.id)!,
+            rect,
             viewport,
             dpr,
             budgets.minPixelRatio,
@@ -598,7 +874,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         tileDraws: tileDraws.sort((a, b) => a.level - b.level),
         thumbnailRequests: [],
         metadataRequests,
-        evictable,
         overCapCanvases,
         minZoom,
     };

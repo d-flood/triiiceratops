@@ -206,6 +206,11 @@ describe('toLayoutSource', () => {
             x: 0.25,
             y: 0.5,
             width: 0.75,
+            // The Canvas box, in this world's normalized units. `width` above
+            // is the fraction of the canvas this source paints; layout advances
+            // past the whole page rather than past the painted part of it.
+            canvasBoxWidth: 1,
+            canvasBoxHeight: undefined,
             sourceWidth: 4000,
             sourceHeight: 3000,
         });
@@ -220,6 +225,8 @@ describe('toLayoutSource', () => {
             x: 0,
             y: 0,
             width: 1,
+            canvasBoxWidth: 1,
+            canvasBoxHeight: null,
             sourceWidth: 1000,
             sourceHeight: 2000,
         });
@@ -234,6 +241,8 @@ describe('toLayoutSource', () => {
             x: 0,
             y: 0,
             width: 1,
+            canvasBoxWidth: 1,
+            canvasBoxHeight: null,
             sourceWidth: undefined,
             sourceHeight: undefined,
         });

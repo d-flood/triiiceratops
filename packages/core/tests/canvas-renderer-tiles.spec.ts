@@ -26,6 +26,7 @@ import {
     GRID_FEATURES,
     nextPaint,
     openTiledManifest,
+    setByteBudget,
     setView,
     TILED_MANIFEST,
     TILED_V2_MANIFEST,
@@ -249,6 +250,13 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         // fit view already holds its full-resolution level whole — without this,
         // zooming in requires a SUBSET of what is already resident and there is
         // no ordering left to observe.
+        //
+        // And with the byte budget at zero, because since ticket 08 a tile that
+        // leaves the required set is held in the **opportunistic cache** rather
+        // than closed — so zooming back in would be answered from memory with
+        // no requests at all, and there would again be no ordering to observe.
+        // What is under test is the priority queue, not the cache.
+        await setByteBudget(page, 0);
         await setView(page, { centre: { x: 600, y: 450 }, scale: 0.2 });
         for (let frame = 0; frame < 3; frame += 1) await nextPaint(page);
 
@@ -483,9 +491,19 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     }) => {
         await openTiledManifest(page);
 
+        // With no opportunistic cache, so `decodedBytes` is exactly the
+        // required set. Since ticket 08 the counter reports everything held —
+        // cache included, deliberately, because a counter that saw only the
+        // required set would read comfortably low while the cache was the thing
+        // filling memory. What this test is about is that the counters follow
+        // RESIDENCY, so the cache is turned off here and asserted separately
+        // (`canvas-renderer-continuous.spec.ts`, `tileScheduler.test.ts`).
+        await setByteBudget(page, 0);
+
         const atFit = await getStats(page);
         expect(atFit.residentTileCount).toBeGreaterThan(0);
         expect(atFit.decodedBytes).toBeGreaterThan(0);
+        expect(atFit.cachedTileCount).toBe(0);
 
         // Zoomed right out: the current level is a couple of tiles and every
         // finer one is released — bytes with them. Decoded bytes track the
