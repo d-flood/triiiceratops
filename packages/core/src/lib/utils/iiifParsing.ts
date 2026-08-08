@@ -382,7 +382,7 @@ export function getCanvasBehaviors(canvas: any): string[] {
     // BOTH IIIF versions. `behavior` is the v3 spelling of a Canvas's own
     // display hints; `viewingHint` is the v2 spelling of the same idea, and it
     // went unread until the renderer epic's multi-canvas layout needed it
-    // (`.tracker/replace-openseadragon`, ticket 07).
+    // (the renderer-replacement epic, ticket 07).
     //
     // The gap was user-visible, which is why it is closed here rather than
     // recorded. `viewerControls.isSinglePageCanvas` looks for

@@ -439,3 +439,67 @@ describe('frame notification', () => {
         expect(survived).toBe(1);
     });
 });
+
+/**
+ * The paint hook, as viewer state owns it: registration, ordering, and teardown.
+ *
+ * What a layer is HANDED — the context and the transform the tiles were drawn
+ * with — is the renderer host's, and is asserted in the browser
+ * (`tests/canvas-renderer-paint-hook.spec.ts`) because a claim about which matrix
+ * a layer received can only be made against a real frame with real tiles in it.
+ */
+describe('the paint hook', () => {
+    const draw = () => {};
+
+    it('registers a layer before any renderer has mounted, and keeps it', () => {
+        const state = new ViewerState();
+        state.registerPaintLayer({ id: 'early', draw });
+
+        // A plugin activating during mount must not have to wait for a renderer,
+        // and a renderer arriving later must find the layer already there.
+        expect(state.paintLayers.map((layer) => layer.id)).toEqual(['early']);
+        state.attachRenderer(createRendererStub());
+        expect(state.paintLayers.map((layer) => layer.id)).toEqual(['early']);
+    });
+
+    it('orders layers by order, then by registration', () => {
+        const state = new ViewerState();
+        state.registerPaintLayer({ id: 'top', order: 5, draw });
+        state.registerPaintLayer({ id: 'first', draw });
+        state.registerPaintLayer({ id: 'second', draw });
+
+        expect(state.paintLayers.map((layer) => layer.id)).toEqual([
+            'first',
+            'second',
+            'top',
+        ]);
+    });
+
+    it('removes a layer on release, idempotently, and announces both', () => {
+        const state = new ViewerState();
+        const before = state.paintLayerRevision;
+        const release = state.registerPaintLayer({ id: 'one', draw });
+        expect(state.paintLayerRevision).toBe(before + 1);
+
+        release();
+        expect(state.paintLayers).toEqual([]);
+        expect(state.paintLayerRevision).toBe(before + 2);
+
+        release();
+        expect(state.paintLayerRevision).toBe(before + 2);
+    });
+
+    it('refuses an unusable layer with a no-op release rather than throwing', () => {
+        const state = new ViewerState();
+
+        // Every caller gets a release function back, so a plugin's teardown never
+        // has to know whether its registration was accepted.
+        expect(() =>
+            state.registerPaintLayer({ id: '', draw })(),
+        ).not.toThrow();
+        expect(() =>
+            state.registerPaintLayer({ id: 'no-draw' } as never)(),
+        ).not.toThrow();
+        expect(state.paintLayers).toEqual([]);
+    });
+});

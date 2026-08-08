@@ -15,6 +15,11 @@
 //   pnpm perf:compare --base-root <builtDir> --head-root <builtDir>   (no git)
 //   pnpm perf:compare --head-root <builtDir>                          (base==head)
 //   pnpm perf:compare ... --update-budgets   (capture/refresh perf-budgets.json)
+//   pnpm perf:compare ... --no-traces        (no Playwright trace; undistorted
+//                                             medians for a budget capture AND
+//                                             for the enforcing run — the mode
+//                                             is recorded in perf-budgets.json
+//                                             and a mismatch is refused)
 //
 // Raw measurement JSON + Playwright traces are written under --out-dir
 // (default: perf-results/) for upload as CI artifacts.
@@ -29,8 +34,11 @@ import {
     bad,
     buildBudgets,
     checkBudgets,
+    checkTracingMode,
+    compareMemory,
     compareRuntime,
     compareSizes,
+    formatMemoryTable,
     formatRuntimeTable,
     formatSizeTable,
     heading,
@@ -42,6 +50,7 @@ import {
     resolveSha,
     run,
     step,
+    validateBudgets,
     warn,
 } from './lib.mjs';
 import { measure } from './measure.mjs';
@@ -105,7 +114,9 @@ async function measureSha(
             warmups: opts.warmups,
             runs: opts.runs,
             sizeOnly: opts.sizeOnly,
-            tracesDir: join(opts.outDir, 'traces', label),
+            tracesDir: opts.noTraces
+                ? undefined
+                : join(opts.outDir, 'traces', label),
         });
         m.ref = ref;
         m.sha = sha;
@@ -121,7 +132,9 @@ async function measureRoot(root, label, opts) {
         warmups: opts.warmups,
         runs: opts.runs,
         sizeOnly: opts.sizeOnly,
-        tracesDir: join(opts.outDir, 'traces', label),
+        tracesDir: opts.noTraces
+            ? undefined
+            : join(opts.outDir, 'traces', label),
     });
     m.root = root;
     return m;
@@ -144,6 +157,19 @@ async function main() {
         runs: args.runs ? Number(args.runs) : undefined,
         sizeOnly: Boolean(args['size-only']),
         noBuild: Boolean(args['no-build']),
+        // Playwright tracing with DOM snapshots is not free, and it is not evenly
+        // distributed: it triples `theme_switch`, which is timed by polling
+        // getComputedStyle, while leaving the load-session phases alone (measured
+        // on this tree: 1.8 ms untraced vs 14.1 ms traced, same build, only
+        // --traces-dir differing). That is fine for a base-vs-head diff, where
+        // both sides carry it, but it must not be baked into a captured CEILING.
+        // A `--update-budgets` capture therefore turns it off — and so does the
+        // enforcing run in `.github/workflows/test.yml`, because the headroom is
+        // NOT reliably enough to absorb it: `activate_image-manipulation` is
+        // 5.7 ms untraced and 64.6 ms traced on this tree, past a ceiling derived
+        // from the untraced median. Ceiling and measurement have to be the same
+        // kind of number.
+        noTraces: Boolean(args['no-traces']),
     };
     mkdirSync(opts.outDir, { recursive: true });
 
@@ -204,9 +230,23 @@ async function main() {
     const runtime = opts.sizeOnly
         ? { rows: [], regressed: false }
         : compareRuntime(base.runtime, head.runtime);
+    const memory = opts.sizeOnly
+        ? { rows: [], regressed: false }
+        : compareMemory(base.memory, head.memory);
 
     const budgets = loadBudgets();
-    const budgetFailures = budgets ? checkBudgets(budgets, head) : [];
+    const budgetFailures = budgets
+        ? checkBudgets(budgets, head, { skipMemory: opts.sizeOnly })
+        : [];
+    // The budget file is generated, committed, and enforced here, so here is the
+    // only place its own schema can be checked cheaply. Without this a generator
+    // change that drops a required key writes a file nothing rejects.
+    const schemaProblems = budgets ? validateBudgets(budgets) : [];
+    // Ceilings and medians have to be the same kind of number. Until now that
+    // pairing was only a convention held up by `--no-traces` appearing in the
+    // workflow; the budget file records the mode it was captured in, so the
+    // mismatch is refused here instead of silently enforced.
+    const tracingProblem = budgets ? checkTracingMode(budgets, head) : null;
 
     // ── Summary ──────────────────────────────────────────────────────────--
     const out = [];
@@ -218,6 +258,14 @@ async function main() {
     out.push(
         `Warm-ups: ${head.warmups} · Measured runs: ${head.runs} · Median-vs-median.`,
     );
+    // Only in a mode that actually probed a browser. In `--size-only` the
+    // renderer is `unknown` by construction, and printing that reads as a
+    // detection failure rather than as "not asked".
+    if (!opts.sizeOnly) {
+        out.push(
+            `Renderer — base: \`${base.renderer ?? 'unknown'}\` · head: \`${head.renderer ?? 'unknown'}\``,
+        );
+    }
     out.push('');
     if (preRestructureBase) {
         out.push(
@@ -240,6 +288,23 @@ async function main() {
         );
         out.push(formatRuntimeTable(runtime.rows));
         out.push('');
+        out.push(
+            '### Renderer memory counters (fail on > 10% AND above the absolute floor)',
+        );
+        if (memory.rows.length) {
+            out.push(formatMemoryTable(memory.rows));
+            if (memory.rows.some((r) => r.skipped)) {
+                out.push('');
+                out.push(
+                    '> Skipped rows have counters on one side only — the residency counters exist only on the first-party renderer, so a comparison against a base that predates it has nothing to diff. The absolute ceilings below still apply.',
+                );
+            }
+        } else {
+            out.push(
+                '> No renderer memory counters on the head dist — see the renderer line above.',
+            );
+        }
+        out.push('');
     }
     if (budgets) {
         out.push(
@@ -254,6 +319,14 @@ async function main() {
         } else {
             out.push('- All artifacts within committed absolute ceilings.');
         }
+        for (const p of schemaProblems) {
+            out.push(`- FAIL \`perf-budgets.json\` schema: ${p}`);
+        }
+        if (tracingProblem) {
+            out.push(
+                `- ${tracingProblem.kind === 'mismatch' ? 'FAIL' : 'WARN'} ${tracingProblem.message}`,
+            );
+        }
         out.push('');
     } else {
         out.push(
@@ -266,9 +339,17 @@ async function main() {
         base: { ref: base.ref, sha: base.sha, root: base.root },
         head: { ref: head.ref, sha: head.sha, root: head.root },
         preRestructureBase,
+        renderer: { base: base.renderer, head: head.renderer },
         size,
         runtime,
+        memory,
         budgetFailures,
+        schemaProblems,
+        tracing: {
+            budgets: budgets?.tracing ?? null,
+            head: head.tracing ?? null,
+        },
+        tracingProblem,
         thresholds: (loadBudgets() || {}).thresholds,
     };
     writeFileSync(
@@ -295,6 +376,10 @@ async function main() {
                 bad('runtime regression (> 10% AND > 20 ms)');
                 failed = true;
             } else ok('runtime medians within threshold');
+            if (memory.regressed) {
+                bad('renderer memory regression (> 10% AND above the floor)');
+                failed = true;
+            } else ok('renderer memory counters within threshold');
         }
     }
     if (budgets) {
@@ -302,6 +387,20 @@ async function main() {
             bad(`budget ceiling(s) exceeded: ${budgetFailures.length}`);
             failed = true;
         } else ok('within committed budget ceilings');
+        if (schemaProblems.length) {
+            bad(
+                `perf-budgets.json does not satisfy its own schema: ${schemaProblems.join('; ')}`,
+            );
+            failed = true;
+        } else ok('perf-budgets.json satisfies its schema');
+        if (tracingProblem?.kind === 'mismatch') {
+            bad(tracingProblem.message);
+            failed = true;
+        } else if (tracingProblem) {
+            warn(tracingProblem.message);
+        } else if (head.tracing) {
+            ok(`tracing mode matches the budget capture (\`${head.tracing}\`)`);
+        }
     } else {
         warn('no committed perf-budgets.json to enforce');
     }

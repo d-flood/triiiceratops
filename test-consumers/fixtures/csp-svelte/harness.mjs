@@ -29,7 +29,7 @@ export default {
         const violations = await collectCspViolations(page);
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // The viewer mounts and OSD paints the first canvas under the strict CSP.
+        // The viewer mounts and the renderer paints the first canvas under the strict CSP.
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });

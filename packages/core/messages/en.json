@@ -144,5 +144,7 @@
     "plugin_error_phase": "Failed during the {phase} phase.",
     "plugin_error_retry": "Retry",
     "plugin_error_close": "Close error details",
-    "canvas_surface_label": "Image surface — pan with the arrow keys, zoom with plus and minus, fit with zero"
+    "canvas_surface_label": "Image surface — pan with the arrow keys, zoom with plus and minus, fit with zero",
+    "canvas_error_auth": "This page requires authentication",
+    "canvas_error_load": "This page could not be loaded"
 }

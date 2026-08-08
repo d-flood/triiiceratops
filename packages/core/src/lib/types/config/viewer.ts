@@ -214,7 +214,7 @@ export interface ViewerConfig {
     pagedViewOffset?: boolean;
 
     /**
-     * Preserve authored IIIF canvas scale in multi-canvas OpenSeadragon layouts.
+     * Preserve authored IIIF canvas scale in multi-canvas layouts.
      * When false, paged and continuous modes normalize canvas display heights
      * so unusually wide/tall canvases remain readable and comparable.
      * Single-canvas individuals mode is unchanged.

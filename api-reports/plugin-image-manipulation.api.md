@@ -57,7 +57,7 @@ export declare const ImageManipulationPlugin: SdkPlugin;
 // ======================================================================
 // FILE: dist/types.d.ts
 // ======================================================================
-/** The image filter values the plugin applies to the OSD canvas. */
+/** The image filter values the plugin applies to the viewer's canvas. */
 export interface ImageFilters {
     brightness: number;
     contrast: number;

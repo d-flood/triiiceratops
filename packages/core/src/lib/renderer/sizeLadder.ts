@@ -24,18 +24,16 @@
  *
  * ## What this replaces
  *
- * `components/osdTileSources.applyLevel0LowZoomFullImageStrategy` — 200 lines
- * that reconstruct level0 semantics by monkeypatching a third-party tile
- * source's `getNumTiles`, `getTileUrl`, and `minLevel` at runtime, because that
- * class assumes arbitrary region requests exist. Modelled directly, the whole
- * of shape 2 is the rung list below and one selection rule, and shape 1 needs
- * no code at all. That module survives until ticket 18 because the
- * OpenSeadragon path still uses it.
+ * 200 lines that reconstructed level0 semantics by monkeypatching a third-party
+ * tile source's `getNumTiles`, `getTileUrl`, and `minLevel` at runtime, because
+ * that class assumes arbitrary region requests exist. Modelled directly, the
+ * whole of shape 2 is the rung list below and one selection rule, and shape 1
+ * needs no code at all.
  *
  * ## URL parity, and the one place it is knowingly broken
  *
  * Which rung is requested at which zoom, and how its size parameter is spelled
- * (`max` / `full` / `w,`), reproduce the OpenSeadragon path exactly. The
+ * (`max` / `full` / `w,`), reproduce the previous renderer exactly. The
  * **quality** parameter does not: this asks for `default` where that path asks
  * for `native` on a version 2 service. `native` was deprecated in Image API 2.1
  * in favour of `default`, a 2.0 document is indistinguishable from a 2.1 one,
@@ -141,9 +139,8 @@ export function profileVersion(profile: unknown): 2 | 3 {
 /**
  * Whether a declared image-service profile is level0.
  *
- * A first-party copy of the predicate `components/osdTileSources` exports, so
- * nothing outside the OpenSeadragon path has to import from it — ticket 18
- * deletes that module wholesale.
+ * First-party, where the previous renderer read the same fact through its own
+ * tile-source module.
  *
  * Needs no fetch: `resolveCanvasImage` reads the profile straight off the
  * manifest. The renderer itself does not consult it — `buildPyramid` and
@@ -190,8 +187,8 @@ function usableSizes(
  * A level0 service advertising **no sizes either** still gets a ladder — one
  * rung, the whole image. Level0 compliance requires the full-size image to be
  * available at the canonical whole-image URL, so that rung always exists; the
- * alternative is a permanently blank canvas, which is what the OpenSeadragon
- * path does with such a service today.
+ * alternative is a permanently blank canvas, which is what the previous
+ * renderer did with such a service.
  */
 export function buildSizeLadder(
     serviceId: string,
@@ -271,7 +268,7 @@ export function rungUrl(
     quality: 'default' | 'native' = 'default',
 ): string {
     // Version 2 compares width alone and version 3 compares both, matching the
-    // OpenSeadragon path's whole-image URL exactly.
+    // previous renderer's whole-image URL exactly.
     const isFullSize =
         ladder.version === 2
             ? rung.width === ladder.width
@@ -352,7 +349,7 @@ export function exceedsDecodedPixelCap(
  *    at 0.5 the chosen rung may be as much as half the width actually needed
  *    and the last half-step of sharpness is traded for the smaller decode.
  *    Deliberately this rather than "the smallest rung at or above what is
- *    needed": that is how the OpenSeadragon path chooses, so which image is
+ *    needed": that is how the previous renderer chose, so which image is
  *    requested at which zoom does not shift, and it means one budget governs
  *    sharpness for both source kinds instead of two that can drift apart. The
  *    consequence — a gapped ladder can leave a rung visibly upscaled — is a

@@ -21,10 +21,9 @@ Multi-canvas layout: facing-page spreads in the Canvas2D renderer, a v2
   painting annotation targets a sub-region still occupies a whole page: its
   positions are unchanged, and every caller shipping today keeps the layout it
   has.
-- The development-only Canvas2D renderer now shows a facing-page spread rather
-  than the current canvas alone, positioned by that same shared layout function
-  in canvas space. Continuous mode still shows one canvas; the whole manifest
-  arrives with the virtualization that makes it affordable. A Canvas that
+- The renderer now shows a facing-page spread rather than the current canvas
+  alone, positioned by that same shared layout function in canvas space. A
+  Canvas that
   declares no `width`/`height` is laid out from the median of its siblings —
   or, with no sized sibling to take a median from, from a placeholder box —
   and repositioned if its image service later reports real ones, rather than

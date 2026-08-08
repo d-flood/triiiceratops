@@ -19,7 +19,7 @@ export { svgIcon, SvgIconError } from './svgIcon.js';
 // Shape a plugin's global stylesheet + install id for the SDK style service.
 export { definePluginStyles } from './pluginStyles.js';
 
-// Await OSD readiness before touching the raw OpenSeadragon viewer.
+// Await renderer readiness before asking the viewport for coordinates.
 export { whenRendererReady } from './renderer.js';
 export type { WhenRendererReadyOptions } from './renderer.js';
 

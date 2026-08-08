@@ -402,10 +402,28 @@ framework](plugin-authoring.md#rendering-ui-in-your-framework).
 | [Image Manipulation](plugin-image-manipulation.md) | Brightness, contrast, saturation, invert, and grayscale controls for the displayed image | Flyout |
 | [Image Download](plugin-image-export.md) | Downloads the current canvas (composite, single image, or current view) as a raster image | Panel |
 | [PDF Export](plugin-pdf-export.md) | Exports a range of canvases as a browser-generated PDF, with optional OCR text and a cover sheet | Panel |
-| [Annotation Editor](plugin-annotation-editor.md) | Rectangle/polygon/point annotation authoring with pluggable persistence and host extension hooks | Panel or flyout |
+| [Annotation Editor](plugin-annotation-editor.md) — **paused** | Rectangle/polygon/point annotation authoring with pluggable persistence and host extension hooks | Panel or flyout |
 
 Each page above has its own install command, setup snippet, and configuration
 reference.
+
+!!! warning "Annotation Editor is paused in this release line"
+
+    `@triiiceratops/plugin-annotation-editor` is **no longer published to npm**
+    and does not work against this version of the viewer. The viewer's renderer
+    is first-party now, and the plugin's editing surface
+    (`@annotorious/openseadragon`) is built from the raw OpenSeadragon viewer
+    instance that core no longer exposes. Registering it fails loudly with a
+    `PluginCompatibilityError` naming the retired `osd@5` capability rather than
+    installing a button that does nothing.
+
+    The last working combination is
+    `@triiiceratops/plugin-annotation-editor@1.0.0-rc.7` against
+    `triiiceratops@1.0.0-rc.36` — still on npm, but its peer range
+    (`^1.0.0-rc.33`) will let npm resolve a core that cannot run it, so pin core
+    yourself. Editing returns with the phase-2 drawing layer, built on core's
+    paint hook and input-claim API. See
+    [the plugin's page](plugin-annotation-editor.md) for the full disposition.
 
 ---
 
@@ -431,6 +449,14 @@ reference.
 | `@triiiceratops/plugin-image-export/iife`          | Image download plugin (IIFE)             |
 | `@triiiceratops/plugin-pdf-export`                   | PDF export plugin (ES module)            |
 | `@triiiceratops/plugin-pdf-export/iife`              | PDF export plugin (IIFE)                 |
+
+The annotation-editor plugin is **paused and unpublished** in this release line,
+so none of its entry points are installable alongside this core. They existed on
+the last published version (`1.0.0-rc.7`, which needs `triiiceratops@1.0.0-rc.36`)
+and return with the phase-2 drawing layer:
+
+| Export path (paused — not published)                 | Description                              |
+| ---------------------------------------------------- | ---------------------------------------- |
 | `@triiiceratops/plugin-annotation-editor`            | Annotation editor plugin (ES module)     |
 | `@triiiceratops/plugin-annotation-editor/iife`       | Annotation editor plugin (IIFE)          |
 | `@triiiceratops/plugin-annotation-editor/testing`    | Adapter conformance suite                |

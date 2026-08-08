@@ -37,7 +37,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     await page.addInitScript(CAPTURE_BLOBS);
     await page.goto(`${baseURL}/${pathname}`, { waitUntil: 'load' });
 
-    // The custom element upgrades and OSD paints inside the shadow root.
+    // The custom element upgrades and the renderer paints inside the shadow root.
     await expect(page.locator('triiiceratops-viewer')).toBeVisible({
         timeout: 30_000,
     });

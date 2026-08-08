@@ -40,7 +40,7 @@
  * ## Layout
  *
  * `layoutCanvases` below is a **translation**, not an implementation: the
- * positions come from the shared layout function in `components/osdLayout`,
+ * positions come from the shared layout function in `components/canvasLayout`,
  * which the export path uses too, so there is one set of coordinates for a
  * given manifest and no cumulative-offset arithmetic anywhere in the renderer.
  * What this module owns is the geometry each canvas is laid out *with*
@@ -79,7 +79,7 @@
  * required set.
  */
 
-import { getCanvasDisplayLayouts } from '../components/osdLayout';
+import { getCanvasDisplayLayouts } from '../components/canvasLayout';
 import {
     boxContains,
     distanceToBox,
@@ -276,7 +276,7 @@ function resolveGeometry(
 
 /**
  * Multi-canvas layout, in canvas space — delegated **entirely** to the shared
- * layout function in `components/osdLayout`.
+ * layout function in `components/canvasLayout`.
  *
  * There is one layout implementation in this repository and this is not it.
  * Paged spreads, the four viewing directions, median-height normalization, the
@@ -614,7 +614,12 @@ function planPyramid(
             // Drawn only if held AND actually on screen: the margin exists to
             // prefetch, not to paint.
             if (residentTiles.has(key) && intersects(tileBox, visible)) {
-                draws.push({ key, level: level.level, ...tileBox });
+                draws.push({
+                    key,
+                    canvasId: canvas.id,
+                    level: level.level,
+                    ...tileBox,
+                });
             }
         }
     }
@@ -701,7 +706,7 @@ function planSizeLadder(
         });
 
         if (residentTiles.has(key) && intersects(box, visible)) {
-            draws.push({ key, level: rung.index, ...box });
+            draws.push({ key, canvasId: canvas.id, level: rung.index, ...box });
         }
     }
 }
@@ -877,7 +882,7 @@ function planThumbnail(
         }
 
         if (residentTiles.has(key) && intersects(box, visible)) {
-            draws.push({ key, level: index, ...box });
+            draws.push({ key, canvasId: canvas.id, level: index, ...box });
         }
     });
 

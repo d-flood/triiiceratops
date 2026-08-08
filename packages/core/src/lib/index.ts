@@ -82,6 +82,17 @@ export {
     isNeutralImageAdjustments,
 } from './types/viewport';
 
+// The **paint hook**'s vocabulary (ticket 14): what `registerPaintLayer` takes,
+// and what a layer is handed each frame. Types only — the registry itself is
+// core's, reached through `ViewerState.registerPaintLayer`.
+export type {
+    PaintCanvasPlacement,
+    PaintFrame,
+    PaintLayer,
+    PaintLayerDraw,
+    PaintTransform,
+} from './renderer/paintLayers';
+
 // The custom element's state bridge (framework-wrappers ticket 02): the
 // getter-only `viewerState` property paired with the `viewerstateavailable`
 // lifecycle event. This is how a Web Component host binds to the live

@@ -147,5 +147,7 @@
     "plugin_error_phase": "Fehlgeschlagen in der Phase {phase}.",
     "plugin_error_retry": "Erneut versuchen",
     "plugin_error_close": "Fehlerdetails schließen",
-    "canvas_surface_label": "Bildfläche – mit den Pfeiltasten verschieben, mit Plus und Minus zoomen, mit Null einpassen"
+    "canvas_surface_label": "Bildfläche – mit den Pfeiltasten verschieben, mit Plus und Minus zoomen, mit Null einpassen",
+    "canvas_error_auth": "Diese Seite erfordert eine Authentifizierung",
+    "canvas_error_load": "Diese Seite konnte nicht geladen werden"
 }

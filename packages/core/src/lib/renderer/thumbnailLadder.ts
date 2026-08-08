@@ -55,7 +55,7 @@
  * uses, which at 0.5 may be as narrow as half the width needed. Deliberately
  * the same rule rather than "the nearest advertised image at or above what is
  * needed" (TRACKER, knowing deviation for ticket 06): one sharpness budget
- * governs both source kinds, and it is how the OpenSeadragon path chose.
+ * governs both source kinds, and it is how the previous renderer chose.
  *
  * The quantized rung is what that walk is asked about, not the raw projection,
  * so the URL stays stable across a zoom while the selection rule stays shared.

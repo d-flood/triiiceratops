@@ -1,13 +1,31 @@
-// Single source of truth for the six publishable packages, in dependency order
+// Single source of truth for the publishable packages, in dependency order
 // (core first: the SDK and every plugin type-check against core's built dist,
 // so it must be built + packed before them).
 //
 // Shared by the release tooling so the pack step, the reproducibility check, and
 // the registry smoke job never drift on which packages ship or what order they
 // build in:
-//   · pack-artifacts.mjs     — builds + packs the six .tgz that CI promotes
+//   · pack-artifacts.mjs      — builds + packs the .tgz that CI promotes
 //   · verify-reproducible.mjs — two clean builds must yield identical checksums
 //   · smoke-registry.mjs      — installs the exact published versions post-publish
+//
+// Derive counts from `PUBLISHABLE_PACKAGES.length` rather than restating a
+// literal: the set shrank from six to five when the annotation-editor plugin was
+// paused (see below), and every consumer of this list that hard-coded "six" had
+// to be chased down.
+//
+// NOT publishable, deliberately: `@triiiceratops/plugin-annotation-editor`. Its
+// editing surface needs the raw third-party viewer that core no longer exposes,
+// so it cannot run against this core at all (see
+// `packages/plugin-annotation-editor/README.md`). The package is also
+// `private: true`, which npm does enforce for `npm publish <tgz>` — but relying
+// on that alone would break the release, not protect it: publish.yml runs its
+// promote loop under `set -euo pipefail` over the release manifest THIS list
+// generates, with core first. A package we don't intend to publish left in the
+// list would pack, then fail EPRIVATE mid-loop and abort the job with core
+// already on the registry — published, unsmoked, and with no GitHub release.
+// Omitting it here is what keeps the promote loop honest end to end. Re-adding it
+// must wait for the phase-2 drawing layer.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -20,10 +38,13 @@ export const REPO_ROOT = join(
 );
 
 /**
- * The six publishable packages. `build` lists the package scripts that must run
- * (in order) before packing so the packed `dist/` is complete — these mirror the
- * packed-consumer harness (`test-consumers/driver/run.mjs`) exactly, which is
- * itself part of required CI. `dir` is the package directory under `packages/`.
+ * The publishable packages. `build` lists the package scripts that must run (in
+ * order) before packing so the packed `dist/` is complete — these mirror the
+ * packed-consumer harness (`test-consumers/driver/run.mjs`), which packs one
+ * package MORE than this list: it still packs the paused annotation-editor plugin
+ * so the fixtures that consume it from a tarball (its adapter-conformance suite,
+ * the docs examples) keep running. Packing is not publishing. `dir` is the
+ * package directory under `packages/`.
  */
 export const PUBLISHABLE_PACKAGES = [
     {
@@ -47,11 +68,6 @@ export const PUBLISHABLE_PACKAGES = [
     {
         name: '@triiiceratops/plugin-pdf-export',
         dir: 'plugin-pdf-export',
-        build: ['build'],
-    },
-    {
-        name: '@triiiceratops/plugin-annotation-editor',
-        dir: 'plugin-annotation-editor',
         build: ['build'],
     },
 ];

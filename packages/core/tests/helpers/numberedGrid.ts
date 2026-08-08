@@ -139,25 +139,8 @@ export interface RendererView {
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 
-/**
- * Select the first-party Canvas2D renderer for this page.
- *
- * The development-only flag is left undefined on the dev server, which makes it
- * an ordinary mutable global — so a spec can select the new renderer per test
- * while the rest of the suite keeps exercising the OpenSeadragon path in the
- * same run. This must run before any page script, hence `addInitScript`.
- */
-export async function useCanvasRenderer(page: Page): Promise<void> {
-    await page.addInitScript(() => {
-        (
-            globalThis as { __TRIIICERATOPS_CANVAS_RENDERER__?: boolean }
-        ).__TRIIICERATOPS_CANVAS_RENDERER__ = true;
-    });
-}
-
-/** Open the numbered-grid fixture with the Canvas2D renderer selected. */
+/** Open the numbered-grid fixture. */
 export async function openGridManifest(page: Page): Promise<void> {
-    await useCanvasRenderer(page);
     await page.goto(`/?manifest=${GRID_MANIFEST}`, {
         waitUntil: 'domcontentloaded',
     });
@@ -211,7 +194,6 @@ export async function openRendererManifest(
      */
     timeout = 20_000,
 ): Promise<void> {
-    await useCanvasRenderer(page);
     const query = config
         ? `?manifest=${manifest}&config=${encodeURIComponent(JSON.stringify(config))}`
         : `?manifest=${manifest}`;

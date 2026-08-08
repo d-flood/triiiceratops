@@ -554,18 +554,18 @@ plugin SDK, and any other host.
 | Cadence | Woken by | Use it for |
 | :-- | :-- | :-- |
 | `state` (default) | the batched, payload-free viewer-state notification | everything in the [state inventory](#what-notifies) — canvas, manifest, panels, gallery, plugin UI |
-| `frame` | the live OpenSeadragon instance's own animation events, **and** state notifications | continuous viewport values: zoom, pan, rotation, bounds |
+| `frame` | the renderer's own animation events, **and** state notifications | the query-only viewport values: `viewportScale`, `viewportCentre`, `viewportBounds`, `containerSize` |
 
-Continuous viewport values live on the OpenSeadragon instance and are
-deliberately **not** mirrored into viewer state: mirroring them would make the
-batched watcher fire at animation framerate for every subscriber on the page, so
-one component's zoom readout would tax every plugin. Cadence solves that with one
-option instead ([ADR 0011](adr/0011-selectors-choose-a-notification-cadence.md)).
+Those viewport values are read from the renderer on demand and are deliberately
+**not** mirrored into viewer state: mirroring them would make the batched watcher
+fire at animation framerate for every subscriber on the page, so one component's
+zoom readout would tax every plugin. Cadence solves that with one option instead
+([ADR 0011](adr/0011-selectors-choose-a-notification-cadence.md)).
 
 `frame` is the *finer* cadence, never a coarser one: a frame-cadence projection
 also wakes on state notifications, so it never serves a stale inventoried member
-between animations. The frame ticker attaches lazily when an OpenSeadragon
-instance appears and detaches on teardown or replacement — there is no
+between animations. The frame ticker attaches lazily when a renderer surface
+appears and detaches on teardown or replacement — there is no
 `requestAnimationFrame` loop, and an idle viewer with no frame-cadence selector
 costs nothing.
 
@@ -1259,6 +1259,15 @@ change. If a knob you need is missing, that is a request for core to add it.
 
 The defaults are provisional and are tuned as the renderer is measured, so do
 not assert against a shipped number.
+
+The decisions behind these knobs are recorded as ADRs, which is the place to
+look before asking for a different default:
+`byteBudget`, `residencyMargin`, `pyramidThreshold`, and `boxThreshold` are the
+tuning surface of the residency model
+([ADR 0014](adr/0014-residency-is-tiered-by-projected-size-and-budgeted-in-bytes.md)),
+while `animationTimeConstant` and `zoomPerClick` govern only the *discrete and
+programmatic* input that is animated — direct manipulation is deliberately never
+smoothed ([ADR 0015](adr/0015-direct-manipulation-is-never-animated.md)).
 
 ## IIIF Collections
 

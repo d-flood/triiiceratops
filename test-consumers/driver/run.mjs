@@ -18,7 +18,7 @@
 //    and the SDK-adapter fixtures append to this list.
 //  · Ticket 20 assertions run after the pack step, before fixtures:
 //    assert-tarball-css (stylesheet), assert-tarball-contents (allowlist contract
-//    for all six packages + planted-test self-check), and the core-only
+//    for every packed package + planted-test self-check), and the core-only
 //    dependency-absence check.
 // ---------------------------------------------------------------------------
 
@@ -61,9 +61,16 @@ import {
     step,
 } from './lib.mjs';
 
-// Publishable packages packed into tarballs. Core first (its dist must exist
-// before the SDK type-checks against it); the SDK (ticket 13) follows. Plugin
-// packages join here in later tickets.
+// Packages packed into tarballs for the fixtures below. Core first (its dist must
+// exist before the SDK type-checks against it); the SDK (ticket 13) follows.
+// Plugin packages join here in later tickets.
+//
+// This is NOT the publishable set. `scripts/release/packages.mjs` lists the five
+// packages that reach npm; this list is six, because the paused
+// `@triiiceratops/plugin-annotation-editor` still has to be packed for the
+// fixtures that consume it from a real tarball (its adapter-conformance suite,
+// the docs examples). Packing proves the tarball's contents; publishing is what
+// ticket 15 stopped.
 const PACKAGES_TO_PACK = [
     {
         filter: 'triiiceratops',
@@ -110,7 +117,9 @@ const PACKAGES_TO_PACK = [
     {
         // Ticket 17: the annotation-editor plugin. `build` = ESM + IIFE (vite) +
         // types (tsc); resolves `triiiceratops` and `@triiiceratops/plugin-sdk`
-        // from the entries built above, so it must stay AFTER both.
+        // from the entries built above, so it must stay AFTER both. Packed but
+        // NOT published (see the note above): only the viewer-free
+        // `plugin-annotation-conformance` and `docs-examples` fixtures consume it.
         filter: '@triiiceratops/plugin-annotation-editor',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-annotation-editor.tgz',
@@ -134,7 +143,7 @@ export const FIXTURES = [
     'vitest-kit',
     // Ticket 12: the migrated image-manipulation plugin, consumed from its
     // packed tarball. `-svelte` activates the ESM entry on a real viewer and
-    // asserts the OSD canvas gets the CSS filter; `-iife` loads core + plugin
+    // asserts the renderer's canvas gets the CSS filter; `-iife` loads core + plugin
     // IIFEs in BOTH script orders; `-failure` proves plugin failure isolation
     // (ticket 09) for a real SDK plugin.
     'plugin-image-manip-svelte',
@@ -155,14 +164,19 @@ export const FIXTURES = [
     'plugin-pdf-export-svelte',
     'plugin-pdf-export-iife',
     // Ticket 17: the migrated annotation-editor plugin, consumed from its packed
-    // tarball. `-svelte` drives the full annotate journey (create a point + a
-    // region, edit a body, undo, redo, reload) against the packed
-    // `LocalStorageAdapter`, asserting persisted annotations render via the
-    // read-only overlay while Annotorious holds only the edited one.
-    // `-conformance` runs the adapter conformance suite from the packed
+    // tarball. `-conformance` runs the adapter conformance suite from the packed
     // `@triiiceratops/plugin-annotation-editor/testing` subpath in a plain vitest
-    // project (no Svelte tooling).
-    'plugin-annotation-svelte',
+    // project (no Svelte tooling, no viewer) — that subpath is pure logic and is
+    // unaffected by the pause, so it keeps running.
+    //
+    // `plugin-annotation-svelte` is GONE from this list (renderer-replacement epic,
+    // ticket 15). It drove the full annotate journey through a real viewer, and
+    // the plugin can no longer activate on one: core removed the raw
+    // third-party viewer the plugin's editing surface is built from, so
+    // activation now fails with a `PluginCompatibilityError` BY DESIGN. Keeping
+    // the fixture would assert the failure we intend, which is not what it is
+    // for. Its directory is retained, unrun, for the phase-2 drawing layer to
+    // restore. See `packages/plugin-annotation-editor/README.md`.
     'plugin-annotation-conformance',
     // Ticket 21: strict-TS declaration consumer. Type-checks a consumer of the
     // public viewport API against the packed core tarball under
@@ -173,8 +187,8 @@ export const FIXTURES = [
     // Ticket 26: doc-example compilation. A non-browser fixture that type-checks
     // (`tsc --noEmit`) every `ts`/`tsx`/`js` code sample importing package code
     // (extracted from `docs/**/*.md` into its `generated/` dir by
-    // `scripts/docs-examples.mjs`) against the packed tarballs of all six
-    // packages, so published documentation matches what users can install.
+    // `scripts/docs-examples.mjs`) against the packed tarballs of every packed
+    // package, so published documentation matches what users can install.
     'docs-examples',
     // Ticket 24: CSP + Trusted Types fixtures. Each is a packed-consumer page
     // served under a strict Content-Security-Policy (delivered via a
@@ -271,7 +285,7 @@ async function assertCssFromTarball(tarballPath, tarballDir) {
 }
 
 async function assertContentsFromTarballs(tarballs) {
-    heading('Tarball content contract (allowlist, all six packages)');
+    heading('Tarball content contract (allowlist, every packed package)');
     let ok = true;
 
     // One-time guard that the allowlist actually rejects a planted test file.
@@ -469,9 +483,9 @@ export async function installFixture(pm, fixtureDir) {
 // every other fixture defaults to chromium only (see runFixture).
 const BROWSER_TYPES = { chromium, firefox, webkit };
 
-// Launch options per engine. Chromium needs software WebGL (SwiftShader) so
-// OpenSeadragon's WebGL drawer works in headless CI without a GPU; firefox and
-// webkit reject those Chromium flags, so they launch with defaults.
+// Launch options per engine. Chromium gets software WebGL (SwiftShader) so any
+// WebGL a fixture's graph touches works in headless CI without a GPU; firefox
+// and webkit reject those Chromium flags, so they launch with defaults.
 const LAUNCH_OPTIONS = {
     chromium: {
         args: [

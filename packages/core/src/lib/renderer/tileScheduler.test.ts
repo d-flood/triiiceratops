@@ -54,6 +54,53 @@ function controllableFetch() {
 }
 
 /**
+ * A fetch whose ABORT hands back control too: `abort()` marks the request and
+ * leaves it on the wire until the test says the cancellation landed.
+ *
+ * {@link controllableFetch} rejects on `abort` immediately, which is what the JS
+ * promise does but not what the connection does — a browser's socket is busy
+ * until the cancellation reaches the network stack. That gap is the only place
+ * an over-subscribed window is observable, so it needs a seam of its own.
+ */
+function lingeringFetch() {
+    interface Entry {
+        url: string;
+        signal: AbortSignal;
+        settled: boolean;
+        settle(): void;
+    }
+    const entries: Entry[] = [];
+
+    const fetchTile = (url: string, signal: AbortSignal) =>
+        new Promise<Blob>((_resolve, reject) => {
+            const entry: Entry = {
+                url,
+                signal,
+                settled: false,
+                settle() {
+                    entry.settled = true;
+                    reject(new Error('aborted'));
+                },
+            };
+            entries.push(entry);
+        });
+
+    return {
+        fetchTile,
+        entries,
+        /** Requests the network has neither answered nor finished tearing down. */
+        onWire: () => entries.filter((entry) => !entry.settled),
+        aborted: () => entries.filter((entry) => entry.signal.aborted),
+        /** The cancellations land: every aborted request leaves the wire. */
+        settleAborted() {
+            for (const entry of entries) {
+                if (entry.signal.aborted && !entry.settled) entry.settle();
+            }
+        },
+    };
+}
+
+/**
  * A decode that hands back control, the way {@link controllableFetch} does for
  * the network — the only way to hold a decode open across an `update`, which is
  * the window in which a tile can be superseded by one that has already landed.
@@ -172,6 +219,47 @@ describe('createTileScheduler', () => {
         expect(
             net.byUrl('https://images.test/abc/tile-1.jpg')[0].signal.aborted,
         ).toBe(false);
+    });
+
+    it('keeps an aborting request inside the window until it settles', async () => {
+        // The window bounds what is ON THE WIRE, and `abort()` does not take a
+        // request off it: the socket is busy until the cancellation lands.
+        // Freeing the slot on `abort()` instead lets the surplus stack across
+        // the frames of a pan — measured page-side at eleven simultaneous live
+        // fetches against a limit of six on the 800-canvas fixture, the surplus
+        // being requests the scheduler had already aborted.
+        const net = lingeringFetch();
+        const tiles = createTileScheduler({
+            maxInFlight: 2,
+            maxAttempts: 2,
+            byteBudget: 0,
+            fetchTile: net.fetchTile,
+            decodeTile,
+        });
+
+        tiles.update([request(0), request(1)]);
+        await flush();
+        expect(net.onWire()).toHaveLength(2);
+
+        // A pan: both tiles leave the required set and two others take their
+        // place. The replacements must WAIT — the wire is still full.
+        tiles.update([request(2), request(3)]);
+        await flush();
+
+        expect(net.aborted()).toHaveLength(2);
+        expect(
+            net.onWire(),
+            'the window was doubled by two requests still being cancelled',
+        ).toHaveLength(2);
+
+        // …and the moment the cancellations land, the replacements start. The
+        // slot is deferred, not lost.
+        net.settleAborted();
+        await flush();
+        expect(net.onWire().map((entry) => entry.url)).toEqual([
+            'https://images.test/abc/tile-2.jpg',
+            'https://images.test/abc/tile-3.jpg',
+        ]);
     });
 
     it('does not restart a request that is already in flight for the same tile', async () => {

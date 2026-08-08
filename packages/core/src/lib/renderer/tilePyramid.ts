@@ -345,13 +345,13 @@ export function tileCanvasRect(
  * on a 2× screen a level chosen from CSS pixels carries a quarter of the detail
  * the display can actually resolve and full resolution is never reached.
  *
- * The rule is OpenSeadragon's, carried forward unchanged so
+ * The rule is the previous renderer's, carried forward unchanged so
  * sharpness-versus-speed does not visibly shift: walk **finest to coarsest** and
  * take the first level that is not oversampled past `minPixelRatio` device
  * pixels per level pixel. At 0.5 that means up to 2× oversampling — a level
  * carrying twice the density the screen can show — is tolerated before dropping
  * to the next coarser one. A *higher* `minPixelRatio` therefore accepts a
- * blurrier level, which is the direction OpenSeadragon documents.
+ * blurrier level, which is the direction the previous renderer documented.
  *
  * Below the base level's ratio there is nothing coarser to fall back to, so the
  * base level is the floor — which is what keeps the viewer never blank.

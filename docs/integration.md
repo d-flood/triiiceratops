@@ -68,7 +68,8 @@ a CDN `<script>` tag.
 ## Use it
 
 Load the self-contained IIFE from a CDN or a copied file — no install, no build
-step. It bundles the element, the Svelte runtime, OpenSeadragon, and all styles:
+step. It bundles the element, the Svelte runtime, the image renderer, and all
+styles:
 
 ```html
 <script src="https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js"></script>
@@ -199,7 +200,7 @@ Notes on the bridge:
 - `viewerState` is `undefined` before the inner viewer mounts and again after
   disconnection, and it is getter-only — a host physically cannot replace it.
 - `viewerstateavailable` means only that state can be bound. It does not mean a
-  manifest has loaded, OpenSeadragon is ready, or a requested canvas is visible.
+  manifest has loaded, the renderer is ready, or a requested canvas is visible.
 - Ordinary state updates do not repeat the event. A disconnection that destroys
   the inner viewer and a later reconnection produce a **new** `ViewerState` and
   a new event; rebind and drop the old one.

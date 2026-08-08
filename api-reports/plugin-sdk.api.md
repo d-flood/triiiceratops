@@ -620,11 +620,11 @@ export declare function runPluginConformance(factory: PluginFactory): void;
  *
  * `createTestViewerContext` assembles a REAL, compiled `ViewerState` (from
  * `triiiceratops/testing`) with RECORDING DOUBLES for the style, UI, and locale
- * services and an injectable OSD stub that defaults to absent. This is the
+ * services and an injectable renderer stand-in that defaults to absent. This is the
  * canonical shape of CONTEXT.md's **Test viewer context**: "the harness is fake;
  * the state is never fake." Commands, `subscribe`, selector memoization, and the
  * batched notification flush are all the production implementations — only the
- * host-owned services and OSD are stand-ins.
+ * host-owned services and the renderer are stand-ins.
  *
  * The doubles only RECORD calls; they need not implement teardown. `runActivation`
  * (ticket 08) auto-tracks every `styles.install` and `locale.subscribe` an
@@ -711,7 +711,7 @@ export interface TestViewerContextOptions {
 }
 /**
  * The assembled test viewer context: a real state, recording-double services, a
- * ready-to-mount {@link PluginContext}, and an OSD injector.
+ * ready-to-mount {@link PluginContext}, and a renderer injector.
  */
 export interface TestViewerContext {
     /**
@@ -795,8 +795,8 @@ export declare function createTestViewerContext(options?: TestViewerContextOptio
  *   await flush();            // ← notification lands here
  *   expect(seen).toBe(true);
  *
- * This kit is unit-level. OSD- and Annotorious-dependent behavior is validated
- * at the browser seam, not here: the kit ships NO OSD/Annotorious fake.
+ * This kit is unit-level. Renderer- and Annotorious-dependent behavior is
+ * validated at the browser seam, not here: the kit ships no Annotorious fake.
  */
 export { flush, createHeadlessViewerState, type HeadlessViewerFixtures, } from 'triiiceratops/testing';
 export { createTestViewerContext, whenRendererReady, type TestViewerContext, type TestViewerContextOptions, type RecordingStyleService, type RecordedStyleInstall, type RecordingUiService, type RecordedUiRequest, type TestLocaleService, } from './context.js';

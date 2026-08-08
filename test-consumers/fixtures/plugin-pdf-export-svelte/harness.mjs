@@ -55,7 +55,7 @@ export default {
         await page.addInitScript(CAPTURE_BLOBS);
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // Viewer mounts and OSD paints the first canvas (OSD readiness).
+        // Viewer mounts and the renderer paints the first canvas (renderer readiness).
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });

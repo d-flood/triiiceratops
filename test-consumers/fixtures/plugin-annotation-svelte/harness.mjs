@@ -1,5 +1,13 @@
 import { expect } from '@playwright/test';
 
+// NOT RUN (renderer-replacement epic, ticket 15). This fixture is deliberately absent
+// from `FIXTURES` in `test-consumers/driver/run.mjs`: the annotation-editor plugin
+// can no longer activate on a viewer at all (core removed the raw third-party
+// instance its editing surface is built from), so the journey below cannot pass.
+// It is kept intact — tarballs, app, assertions — as the specification the
+// phase-2 drawing layer has to satisfy before it is re-listed. Do not "fix" it by
+// weakening the assertions; re-list it only when editing works again.
+//
 // plugin-annotation-svelte: a Vite + Svelte app that renders the real viewer from
 // the packed `triiiceratops` tarball and activates the migrated
 // `@triiiceratops/plugin-annotation-editor` plugin (packed ESM entry, its default
@@ -48,7 +56,7 @@ export default {
     async assert({ page, baseURL, pageErrors }) {
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // Viewer mounts and OSD paints the first canvas (OSD readiness).
+        // Viewer mounts and the renderer paints the first canvas (renderer readiness).
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });

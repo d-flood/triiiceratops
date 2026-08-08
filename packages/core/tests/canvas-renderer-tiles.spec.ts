@@ -30,7 +30,6 @@ import {
     setView,
     TILED_MANIFEST,
     TILED_V2_MANIFEST,
-    useCanvasRenderer,
 } from './helpers/numberedGrid';
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
@@ -104,7 +103,6 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     test('opening a single-canvas view issues exactly one info.json request', async ({
         page,
     }) => {
-        await useCanvasRenderer(page);
         const infoRequests = recordRequests(page, INFO_PATTERN);
 
         await page.goto(`/?manifest=${TILED_MANIFEST}`, {
@@ -129,7 +127,6 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     test('revisiting a canvas issues no second metadata request', async ({
         page,
     }) => {
-        await useCanvasRenderer(page);
         const infoRequests = recordRequests(page, INFO_PATTERN);
 
         await page.goto(`/?manifest=${TILED_MANIFEST}`, {
@@ -297,8 +294,6 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     test('keeps in-flight tile requests inside the configured window', async ({
         page,
     }) => {
-        await useCanvasRenderer(page);
-
         let active = 0;
         let peak = 0;
         await page.route(TILE_PATTERN, async (route) => {
@@ -329,8 +324,6 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     test('aborts superseded tile requests rather than completing them', async ({
         page,
     }) => {
-        await useCanvasRenderer(page);
-
         // Slow tiles, so a request is still outstanding when the view moves on.
         await page.route(TILE_PATTERN, async (route) => {
             await new Promise((resolve) => setTimeout(resolve, 400));
@@ -366,8 +359,6 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     });
 
     test('requests a failing tile at most twice, ever', async ({ page }) => {
-        await useCanvasRenderer(page);
-
         // One tile of the full-resolution level, chosen by its region so the
         // choice survives any change in how a URL is spelled.
         const brokenTile = /\/iiif-fixture\/one\/512,256,256,256\//;
@@ -458,8 +449,6 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     test('loads tiles from a strict Image API 2.1 service', async ({
         page,
     }) => {
-        await useCanvasRenderer(page);
-
         const rejected: string[] = [];
         page.on('response', (response) => {
             if (!TILE_PATTERN.test(response.url())) return;

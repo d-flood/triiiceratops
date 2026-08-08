@@ -250,12 +250,23 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   contradiction — the same canvas-paints / DOM-carries-the-targets split the
   renderer spec draws for overlays.
 - **Constraint this creates:** `role="application"` suppresses browse mode for
-  the element's whole **subtree**, not just the element. Today the only child is
-  the `<canvas>`, which has nothing to browse. Any future non-canvas descendant
-  — ticket 12's per-canvas error UI and ticket 14's annotation overlay are both
-  slated to land inside `.renderer-root` — must either carry `role="document"`
-  (restoring browse mode for its own subtree) or be hoisted out and rendered as
-  a sibling; otherwise its text becomes unreadable to NVDA and JAWS users. The
+  the element's whole **subtree**, not just the element. Every non-canvas
+  descendant must therefore either carry `role="document"` (restoring browse
+  mode for its own subtree) or be hoisted out and rendered as a sibling;
+  otherwise its text becomes unreadable to NVDA and JAWS users. Ticket 12's
+  per-canvas error layer is the first such descendant and satisfies the
+  constraint the first way: it is a `role="document"` wrapper inside
+  `.renderer-root` holding one labelled placeholder per failed canvas. Ticket
+  14's annotation shape overlay resolved it the OTHER way, and is the reason both
+  ways are named here: every editable annotation is a focusable `<button>` with an
+  accessible name, so nesting the layer under `role="application"` would have hidden
+  those names from NVDA and JAWS. It is therefore mounted as a **sibling** of
+  `.renderer-root` inside `.viewer-area` (`components/AnnotationShapeOverlay.svelte`,
+  mounted by `TriiiceratopsViewer`), positioned from the same surface-local
+  coordinates, and placed after the renderer in DOM order so Tab reaches the
+  picture before the things marked on it. Its pointer listeners are on the shared
+  stage and narrowed back to the renderer's own root, which is the one cost of
+  being hoisted out. The
   role itself stays: it is the only one those screen readers pass arrow keys
   through, which is what makes the surface operable at all. Noted in the markup
   comment above the element.
@@ -273,3 +284,46 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   stop present.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-07 · **Review by:** 2027-02-07
+
+### 8. `svelte/prefer-svelte-reactivity` — plain `Set`/`Map`/`Date` deliberately kept out of reactivity
+
+- **Code:** `svelte/prefer-svelte-reactivity` (eslint, `eslint-plugin-svelte`)
+- **Mechanism:** rule-named `eslint-disable-next-line` comments, one per
+  declaration, each carrying its own one-line reason at the site. Every current
+  site:
+    - `packages/core/src/lib/components/CanvasHost.svelte` — `reportedThumbnailFailures`,
+      `reportedPaintLayerFailures` (say-it-once diagnostic sets, written from the
+      frame loop and read by nothing else), `frameListeners` (the `frame`-cadence
+      listener set), `byteBudgetQueries` (a `MediaQueryList` cache), and two
+      function-local temporaries (`choices`, `painting`) built and discarded
+      inside one call.
+    - `packages/core/src/lib/state/viewer.svelte.ts` — `frameListeners`, the same
+      listener set on the state side.
+    - `packages/core/src/lib/components/TriiiceratopsViewer.svelte` — a
+      function-local `Set` of live plugin instances, used for one diff.
+    - `packages/plugin-annotation-editor/src/mount.svelte.ts` — the one-time
+      context `Map` handed to Svelte's `mount()`.
+    - `packages/plugin-annotation-editor/src/AnnotationStore.svelte.ts` — two
+      `new Date()` values stringified on the next line.
+- **Rationale:** the rule assumes a collection or `Date` in a `.svelte`/`.svelte.ts`
+  module is state something renders from, and prescribes the reactive equivalent.
+  None of these are. Two kinds appear here, and both are **worse** as reactive
+  values: (1) function-local temporaries and one-shot values, where reactivity is
+  unobservable overhead; (2) collections written from the renderer's frame loop or
+  from a diagnostic path, where a `SvelteSet` would wake the batched state watcher
+  every plugin subscribes through — sixty times a second, from inside the loop the
+  `frame` cadence exists to keep OFF that watcher. For the paint-hook and frame
+  cadence in particular the non-reactive collection is a documented design
+  decision: the ONE reactive signal is a revision counter
+  (`ViewerState.paintLayerRevision`), precisely so the list itself can be read per
+  frame for free.
+- **Behavior test:** `packages/core/src/lib/renderer/paintLayers.test.ts` (the
+  registry's `onChange`-is-the-signal contract) and
+  `packages/core/src/lib/state/viewer.viewport.test.ts` (frame listeners attach
+  to the port lazily, fire, and detach when the last one leaves) cover the collections whose non-reactivity is
+  load-bearing; `packages/core/tests/canvas-renderer-paint-hook.spec.ts` covers
+  the diagnostic set's effect (a throwing layer is reported once and never stops a
+  frame). The function-local temporaries have no observable behaviour to pin: they
+  do not outlive the call.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-08 · **Review by:** 2027-02-08

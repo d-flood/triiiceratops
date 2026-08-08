@@ -224,7 +224,7 @@ the same `minPixelRatio` walk a pyramid level is — the largest rung not oversa
 that ratio, which at 0.5 can be as narrow as half the width actually needed — and capped
 against a maximum decoded pixel count. Deliberately the same rule as the pyramid rather
 than "the nearest advertised image at or above what is needed": one budget governs
-sharpness for both source kinds, and it is how the OpenSeadragon path chose.
+sharpness for both source kinds, and it is how the previous renderer chose.
 _Avoid_: static source (that means a canvas with no image service at all)
 _Note_: a service that advertises no tiles is a size-ladder source only if it is also
 level0. Level 1/2 services omit `tiles` too, and serve arbitrary regions.

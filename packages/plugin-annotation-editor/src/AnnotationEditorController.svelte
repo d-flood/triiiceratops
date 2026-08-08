@@ -85,11 +85,11 @@
      * on the record; the replacement is phase-2 work built on the paint hook
      * and the input-claim API.
      *
-     * **Ticket 15 owns the rest of the disposition** — the changeset and
-     * release note, the README pointer, pinning or unpublishing the package, and
-     * removing it from the aggregate build/test/lint scripts. What is here is
-     * only what ticket 13 had to do to stop naming a member that no longer
-     * exists.
+     * The manager and everything under it is kept intact rather than deleted:
+     * the package is PAUSED, and this flag is the single point that flips when
+     * the phase-2 drawing layer gives it something to initialise against. See
+     * `README.md` for the disposition and the last core version it works
+     * against.
      */
     const RENDERER_AVAILABLE_FOR_ANNOTORIOUS = false;
 

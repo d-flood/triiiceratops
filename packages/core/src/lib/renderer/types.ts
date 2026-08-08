@@ -7,7 +7,7 @@
  * planner runnable in plain Node.
  */
 
-import type { ViewingDirection, ViewingMode } from '../components/osdLayout';
+import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
 
 export type { ViewingDirection, ViewingMode };
 
@@ -145,7 +145,7 @@ export interface PlannerBudgets {
      * The least **device** pixels per level pixel a level may carry before the
      * next coarser one is taken instead. At 0.5, up to 2× oversampling is
      * tolerated; a *higher* value accepts a blurrier level. Carried forward from
-     * the OpenSeadragon path at its current value, with its semantics, so
+     * the previous renderer at its value, with its semantics, so
      * sharpness-versus-speed does not visibly shift (ticket 05 §Contract). See
      * `tilePyramid.chooseLevel`.
      */
@@ -232,6 +232,18 @@ export interface TileRequest {
  */
 export interface TileDraw {
     key: TileKey;
+    /**
+     * Which canvas this draw belongs to.
+     *
+     * The painter does not need it — a draw carries its own box. The HOST does:
+     * "does this canvas have anything on screen this frame?" is the question that
+     * decides whether an opaque error placeholder may cover it, and a canvas can
+     * have a failure recorded against its image service while a public declared
+     * thumbnail paints perfectly well over the same rect. Answered from the key's
+     * spelling instead, that question would be a string parse over an identifier
+     * that is a URI.
+     */
+    canvasId: string;
     level: number;
     x: number;
     y: number;
@@ -289,7 +301,7 @@ export interface PlanWorldInput {
      * across and any absolute default would be either a hairline or a chasm
      * depending on the manifest. It is passed through to the shared layout
      * function, which resolves it after normalization and on the axis it has
-     * already chosen (see `components/osdLayout`).
+     * already chosen (see `components/canvasLayout`).
      *
      * Here rather than in {@link PlannerBudgets} because it is a statement
      * about where canvases go, like `mode` and `direction` beside it, and not a

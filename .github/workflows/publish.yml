@@ -1,12 +1,23 @@
 # Release promotion pipeline.
 #
 # Publishing PROMOTES the exact tarballs required CI already built and verified —
-# it never rebuilds. The required "Run Tests" workflow packs the six `.tgz` (with
-# a SHA256SUMS manifest) and uploads them as a workflow artifact; this workflow
-# downloads that SHA-matched artifact, re-verifies the checksums, and runs
-# `npm publish <tgz>` per package. There is deliberately NO build/compile step
-# here (see SPEC "Publishing promotes verified artifacts ... rather than
-# rebuilding").
+# it never rebuilds. The required "Run Tests" workflow packs one `.tgz` per
+# publishable package (five today, with a SHA256SUMS manifest) and uploads them as
+# a workflow artifact; this workflow downloads that SHA-matched artifact,
+# re-verifies the checksums, and runs `npm publish <tgz>` per package. There is
+# deliberately NO build/compile step here (see SPEC "Publishing promotes verified
+# artifacts ... rather than rebuilding").
+#
+# WHAT gets published is decided entirely by `scripts/release/packages.mjs` — the
+# promote step below loops over release-manifest.json, which is generated from that
+# list. A `private: true` manifest would be REFUSED by `npm publish <tgz>`
+# (EPRIVATE), but that is a failure, not a safety net: the loop runs under
+# `set -euo pipefail` with core first, so a package we don't intend to publish left
+# in the list aborts the job after core is already on the registry — published,
+# unsmoked, and with no GitHub release. Keeping a package off npm therefore means
+# dropping it from that list, which is why the paused
+# `@triiiceratops/plugin-annotation-editor` is absent from it and from the five
+# tarballs above.
 #
 # Graph:  promote  →  registry smoke  →  GitHub release
 # The GitHub release is created ONLY after the registry smoke test passes.
@@ -97,7 +108,8 @@ jobs:
                   PUBLISHED=()
                   CORE_VERSION=""
                   # release-manifest.json (from pack-artifacts.mjs) lists the exact
-                  # name/version/dist-tag/tarball for each of the six packages.
+                  # name/version/dist-tag/tarball for each publishable package
+                  # (five today). COUNT is read from the manifest, never hardcoded.
                   COUNT=$(node -p "require('./release-manifest.json').packages.length")
                   for i in $(seq 0 $((COUNT - 1))); do
                     NAME=$(node -p "require('./release-manifest.json').packages[$i].name")

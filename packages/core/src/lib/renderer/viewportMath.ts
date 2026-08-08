@@ -94,7 +94,7 @@ export function zoomRange(
  * Without this, pan is unbounded: a drag — and much more easily a flick, which
  * keeps travelling after the finger has left — can put the world arbitrarily
  * far off screen, at which point the viewer is a blank rectangle with no
- * affordance for getting back. The OpenSeadragon path constrained the pan on
+ * affordance for getting back. The previous renderer constrained the pan on
  * release; this constrains it continuously, so the image never leaves at all
  * rather than springing back afterwards.
  *

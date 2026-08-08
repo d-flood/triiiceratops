@@ -32,12 +32,6 @@ import {
 import type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
 import { TriiiceratopsViewer } from './viewer.js';
 
-vi.mock('openseadragon', async () => {
-    const { createOsdModuleMock } =
-        await import('../test/utils/realViewerElement.js');
-    return createOsdModuleMock();
-});
-
 const {
     defineRealViewerElement,
     installInertAnimations,

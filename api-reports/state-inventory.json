@@ -1,9 +1,9 @@
 {
-    "count": 69,
+    "count": 72,
     "byClassification": {
         "command": 35,
         "observable": 12,
-        "internal": 18,
+        "internal": 21,
         "query-only": 4
     },
     "entries": [
@@ -223,6 +223,21 @@
             "commands": [
                 "togglePagedOffset"
             ]
+        },
+        {
+            "member": "paintLayerRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "paintLayerRevision",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "paintLayers",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "pendingSearchQuery",

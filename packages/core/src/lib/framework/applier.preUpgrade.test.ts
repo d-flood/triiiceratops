@@ -29,12 +29,6 @@ import type { TriiiceratopsViewerElement } from './types.js';
  * platform then does with it.
  */
 
-vi.mock('openseadragon', async () => {
-    const { createOsdModuleMock } =
-        await import('../test/utils/realViewerElement.js');
-    return createOsdModuleMock();
-});
-
 const {
     defineRealViewerElement,
     installInertAnimations,

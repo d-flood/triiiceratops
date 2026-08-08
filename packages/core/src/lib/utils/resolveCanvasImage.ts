@@ -30,7 +30,7 @@ export type PositionedTileSource = {
      * The whole Canvas box in the same normalized units — 1 unit wide by
      * construction, and as many tall as the Canvas's aspect ratio. Distinct
      * from `width` for a source that paints a sub-region, and it is what layout
-     * advances the next canvas past (see `components/osdLayout`).
+     * advances the next canvas past (see `components/canvasLayout`).
      */
     canvasBoxWidth: number;
     canvasBoxHeight: number | null;
@@ -455,10 +455,13 @@ export function resolveAllCanvasImages(
                 serviceProfile: serviceDetails.serviceProfile,
                 imageApiRegion,
                 x: region ? region.x / canvasDimensions.width : 0,
-                // OSD viewport coordinates normalize BOTH axes to the reference
-                // image's width (aspect ratio preserved: 1 vertical unit = 1
-                // horizontal unit = the base image width in px). So the y offset
-                // is divided by width, exactly like x and width — not by height.
+                // This world normalizes BOTH axes by the Canvas's width (aspect
+                // ratio preserved: 1 vertical unit = 1 horizontal unit = the
+                // Canvas's width). So the y offset is divided by width, exactly
+                // like x and width — not by height. The rule outlived the
+                // renderer that introduced it: it is the normalized world the
+                // export path still lays out in (see `components/canvasLayout`,
+                // whose `canvasBoxWidth` is 1 unit wide for the same reason).
                 y: region ? region.y / canvasDimensions.width : 0,
                 width: region ? region.width / canvasDimensions.width : 1,
                 height: region

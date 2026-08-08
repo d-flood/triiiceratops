@@ -99,8 +99,8 @@ const ROOT_ONLY = /^(?::where\()?\.viewer-root(?:\[[^\]]*\]|\.[\w-]+)*\)?$/;
  *
  * Base tokens must land on the root ALONE. Declared on a descendant they beat
  * the root's `[data-theme=…]` block and `themeConfig` inline styles by cascade,
- * so that subtree silently reverts to the stock light theme — the OSDViewer
- * `class="viewer-root"` regression, from the other end (see
+ * so that subtree silently reverts to the stock light theme — the renderer
+ * wrapper's `class="viewer-root"` regression, from the other end (see
  * viewerRootUnique.test.ts, which guards the markup side).
  */
 function findNonRootTokenDeclarations(css: string): string[] {
@@ -226,7 +226,7 @@ describe('published distributions ship styles + themes', () => {
 
     // The Annotorious single-source CSS rule moved to
     // `@triiiceratops/plugin-annotation-editor` with the plugin (ticket 17); its
-    // `styles.ts` now imports `annotorious-openseadragon.css?inline` and installs
+    // `styles.ts` now imports the Annotorious stylesheet with `?inline` and installs
     // it through the SDK style service. Core's own "no Annotorious layer" rule
     // (above) is what stays here.
 });

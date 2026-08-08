@@ -337,7 +337,7 @@ async function captureViewer(chromium) {
                 }
             `,
         });
-        // Let OpenSeadragon's debounced resize refit finish before zooming:
+        // Let the renderer's debounced resize refit finish before zooming:
         // restyling `.viewer-pane` above changed the viewport size, and the refit
         // would otherwise undo the zoom.
         await page.waitForTimeout(3000);
@@ -348,7 +348,7 @@ async function captureViewer(chromium) {
         // card size.
         //
         // The viewer's own Zoom In button, not synthetic wheel events over the
-        // canvas: OpenSeadragon's resize refit lands after those and discards
+        // canvas: the renderer's resize refit lands after those and discards
         // them, so the plate stays at fit-to-canvas no matter how long we wait.
         const zoomIn = page.getByRole('button', {
             name: 'Zoom In',
@@ -358,7 +358,7 @@ async function captureViewer(chromium) {
             await zoomIn.first().click();
             await page.waitForTimeout(700);
         }
-        // Let OpenSeadragon settle on the higher-resolution tiles.
+        // Let the renderer settle on the higher-resolution tiles.
         await page.waitForTimeout(6000);
         const file = join(REPO_ROOT, SHOT);
         mkdirSync(join(REPO_ROOT, 'scripts', 'social-cards'), {

@@ -22,8 +22,8 @@
  *   await flush();            // ← notification lands here
  *   expect(seen).toBe(true);
  *
- * This kit is unit-level. OSD- and Annotorious-dependent behavior is validated
- * at the browser seam, not here: the kit ships NO OSD/Annotorious fake.
+ * This kit is unit-level. Renderer- and Annotorious-dependent behavior is
+ * validated at the browser seam, not here: the kit ships no Annotorious fake.
  */
 
 // The flush helper and headless state factory come from core's COMPILED testing

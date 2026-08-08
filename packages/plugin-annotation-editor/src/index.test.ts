@@ -29,9 +29,10 @@ describe('createAnnotationEditorPlugin', () => {
         expect(plugin.target).toBe('panel');
     });
 
-    // The plugin is retired-but-published (ticket 15 disposes of the package).
-    // A capability core no longer declares is what turns "registered" into a
-    // loud activation failure instead of a dead UI.
+    // The package is paused and unpublished, but `1.0.0-rc.7` is on the registry
+    // for good and its peer range admits a core that cannot run it. A capability
+    // core no longer declares is what turns "registered" into a loud activation
+    // failure instead of a dead UI.
     it('declares the retired renderer capability, so activation fails loudly', () => {
         expect(createAnnotationEditorPlugin().requiredCapabilities).toEqual([
             'osd@5',

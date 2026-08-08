@@ -98,6 +98,20 @@ interface Traffic {
  * because the bounded window is the one claim here whose failure mode is
  * invisible in a total: an uncapped renderer asks for the same URLs, just all
  * at once.
+ *
+ * What this counts is the window PLUS the browser's cancellation lag, and the
+ * difference is not the observer's fault. A request the scheduler aborts is
+ * rejected in the page immediately but reported as `requestfailed` tens of
+ * milliseconds later — around 80ms median, measured on this fixture — so a
+ * viewport change that aborts and replaces tiles reads here as `limit + aborts`
+ * for that gap however honest the scheduler is. Nothing in the platform tells a
+ * page when a cancelled socket is actually released, so the scheduler bounds
+ * what it can: live `fetch` operations, aborting ones included
+ * (`tileScheduler.ts`, `outstanding`). A peak over the limit in a spec that
+ * does not pan is therefore worth investigating rather than dismissing — it
+ * cannot be event ordering, because the scheduler starts a replacement only
+ * after the previous attempt's fetch AND decode have settled, which is strictly
+ * later than the browser's own `loadingFinished`.
  */
 function watchTraffic(page: Page): Traffic {
     const traffic: Traffic = {
@@ -368,8 +382,8 @@ test.describe('Canvas2D renderer — the thumbnail tier', () => {
             `the nearer half arrived no later than the further half`,
         ).toBeLessThan(furthest);
 
-        // The window is bounded, and shared with the tiles: the OpenSeadragon
-        // path capped concurrency at nothing at all.
+        // The window is bounded, and shared with the tiles: the previous
+        // renderer capped concurrency at nothing at all.
         expect(traffic.peakInFlight).toBeLessThanOrEqual(TILE_IN_FLIGHT_LIMIT);
     });
 

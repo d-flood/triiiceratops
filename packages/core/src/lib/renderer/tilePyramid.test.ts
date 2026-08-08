@@ -282,7 +282,7 @@ describe('chooseLevel', () => {
         // 0.5 allows, so the half-resolution level is taken instead.
         expect(chooseLevel(pyramid, 0.3, 0.5).scaleFactor).toBe(2);
         // A LOWER ratio tolerates more oversampling and keeps the finer level;
-        // a higher one accepts a blurrier one. That is OpenSeadragon's
+        // a higher one accepts a blurrier one. That is the previous renderer's
         // direction, carried forward with the value.
         expect(chooseLevel(pyramid, 0.3, 0.25).scaleFactor).toBe(1);
         expect(chooseLevel(pyramid, 0.3, 2).scaleFactor).toBe(8);

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// Build + pack the six publishable packages into a single artifact directory,
-// then write a `SHA256SUMS` checksum manifest over the produced tarballs.
+// Build + pack every publishable package (`PUBLISHABLE_PACKAGES`, five today)
+// into a single artifact directory, then write a `SHA256SUMS` checksum manifest
+// over the produced tarballs.
 //
 // This is the PRODUCER half of the promotion flow. Required CI runs it once per
-// commit and uploads the output directory (six `.tgz` + `SHA256SUMS`) as a
-// workflow artifact. The publish workflow later downloads that exact artifact,
-// re-verifies the checksums, and runs `npm publish <tgz>` per package with NO
-// build of its own — it promotes the bytes CI already verified.
+// commit and uploads the output directory (one `.tgz` per package + `SHA256SUMS`)
+// as a workflow artifact. The publish workflow later downloads that exact
+// artifact, re-verifies the checksums, and runs `npm publish <tgz>` per package
+// with NO build of its own — it promotes the bytes CI already verified.
 //
 // Before packing, `workspace:*`/`^`/`~` protocol ranges (e.g. the peerDependency
 // `triiiceratops: workspace:^`) are rewritten in-place to real semver ranges
@@ -65,7 +66,7 @@ function run(cmd, cmdArgs, cwd) {
     }
 }
 
-/** name -> version for every workspace package (not just the publishable six). */
+/** name -> version for every workspace package (not just the publishable ones). */
 function readWorkspaceVersions() {
     const versions = new Map();
     for (const dir of readdirSync(join(REPO_ROOT, 'packages'))) {
@@ -250,7 +251,11 @@ function main() {
         );
     }
 
-    // Sanity: exactly the six expected tarballs, nothing stray.
+    // Sanity: exactly one tarball per publishable package, nothing stray. The
+    // count comes from PUBLISHABLE_PACKAGES so pausing/adding a package cannot
+    // leave a stale literal behind — a package dropped from that list (e.g. the
+    // paused annotation-editor plugin) must also vanish from this directory,
+    // because whatever lands here is what publish.yml promotes to npm.
     const tgz = readdirSync(outDir).filter((f) => f.endsWith('.tgz'));
     if (tgz.length !== PUBLISHABLE_PACKAGES.length) {
         throw new Error(

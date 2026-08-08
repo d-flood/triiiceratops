@@ -10,17 +10,16 @@
      * is handed the planner's **required set** once per frame and does exactly
      * what it says.
      *
-     * Mounted instead of `OSDViewer` when the development-only build flag
-     * selects this renderer (see `renderer/rendererFlag.ts`). Ticket 18 deletes
-     * the flag and the OpenSeadragon path together.
+     * The one renderer the viewer mounts: there is no renderer selection, no
+     * build flag, and no alternative (ADR 0012).
      *
      * ## SSR
      *
      * Nothing in this component's module graph touches `window`, `document`, or
      * `navigator` at module scope. Being first-party code there is no need for
-     * the dynamic import the OpenSeadragon component uses: the canvas element
-     * renders as inert markup on the server and the 2D context is acquired in
-     * `onMount`.
+     * the dynamic library import the previous renderer's component needed: the
+     * canvas element renders as inert markup on the server and the 2D context is
+     * acquired in `onMount`.
      *
      * ## Scope
      *
@@ -28,7 +27,14 @@
      * paged mode, and the **whole manifest** in continuous mode — from any of
      * the three source kinds; the full pointer input model (drag, flick
      * momentum, pinch, wheel, double-tap), keyboard operation, and reduced
-     * motion. Annotation overlays are ticket 14.
+     * motion.
+     *
+     * The **paint hook** is here too (ticket 14): registered layers are drawn
+     * each frame after the tiles, under the transform `paintScene` left applied,
+     * and core registers one of its own. The annotation overlays are NOT — they
+     * are DOM layers mounted beside this component by `TriiiceratopsViewer`, on
+     * the frame cadence and the public coordinate helpers, so they know nothing
+     * about which renderer is mounted.
      *
      * ## Virtualization (ticket 08)
      *
@@ -53,9 +59,15 @@
     import { reconcileImages } from '../renderer/imageRequests';
     import { PAN_KEYS, keyPanVelocity } from '../renderer/keyboardPan';
     import {
-        imageServiceCache,
-        type ImageServiceFailure,
-    } from '../renderer/imageService';
+        createTileSourceErrorMirror,
+        errorPlacements,
+        samePlacements,
+        viewerLevelErrorKind,
+        type CanvasErrorKind,
+        type CanvasErrorPlacement,
+    } from '../renderer/canvasErrors';
+    import { imageServiceCache } from '../renderer/imageService';
+    import { staticImageFailures } from '../renderer/staticImageFailures';
     import {
         boxContains,
         canvasBoxToWorld,
@@ -78,6 +90,12 @@
         type ViewportPoint,
     } from '../types/viewport';
     import { paintScene } from '../renderer/paintScene';
+    import {
+        drawPaintLayers,
+        paintCanvasSpace,
+        type PaintFrame,
+        type RegisteredPaintLayer,
+    } from '../renderer/paintLayers';
     import { planScene, planViewportLimits } from '../renderer/planScene';
     import { pointerSample } from '../renderer/pointerSamples';
     import { createTileScheduler } from '../renderer/tileScheduler';
@@ -356,16 +374,44 @@
     } | null = null;
 
     /**
-     * canvasId → why its image service has no facts, for the canvases where one
+     * canvasId → why that canvas has no pixels, for the canvases that failed.
+     *
+     * **The source of truth for error state** (spec §Errors). An `info.json` that
+     * answered `401`, one that answered nothing usable, or a static image whose
+     * decode failed all land here, against the canvas they belong to and nowhere
+     * else — which is what lets folio 400 fail while 1–399 keep displaying.
+     * `errorPlacements` turns it into placeholders and `viewerLevelErrorKind`
+     * decides whether it adds up to a viewer-level condition; neither is decided
+     * here.
+     *
+     * `$state`, unlike the other frame-loop records in this component, because it
+     * is read by the MARKUP as well as by the frame loop: the placeholder is a DOM
+     * element with an accessible name, per ticket 14's rule that anything a user
+     * must perceive lives in the DOM layer rather than in painted pixels. It
+     * changes at the rate canvases fail — a handful of times per session, never
+     * per frame — so reactivity costs nothing here.
+     */
+    let canvasErrors: Record<string, CanvasErrorKind> = $state({});
+
+    /**
+     * The placeholders to draw, in surface-local CSS pixels — recomputed from the
+     * frame loop, and empty in the overwhelmingly common case of nothing having
      * failed.
      *
-     * The renderer's half of a canvas error state: the planner keeps asking for
-     * metadata it will never get, and `ensure` keeps resolving `null`, so
-     * without this the canvas is silently blank forever. Ticket 12 turns it into
-     * something a user can see; here it is only surfaced.
+     * Held separately from {@link canvasErrors} because a placeholder's POSITION
+     * is a function of the viewport, which is deliberately not reactive: it moves
+     * every frame of a pan, and driving the reactive graph from the viewport is
+     * the cost the frame loop exists to avoid. So the frame loop pushes the
+     * answer in, and only when it has changed.
      */
-    const metadataFailures: Record<string, ImageServiceFailure> =
-        Object.create(null);
+    let errorLayer: CanvasErrorPlacement[] = $state([]);
+
+    function errorLabel(kind: CanvasErrorKind): string {
+        // The auth/load distinction, all the way to the reader: knowing whether
+        // logging in would help is the difference between a useful error and a
+        // shrug (user story 27).
+        return kind === 'auth' ? m.canvas_error_auth() : m.canvas_error_load();
+    }
 
     /**
      * The canvases this renderer is showing, in **canvas space**.
@@ -381,7 +427,7 @@
      *
      * In every other mode which canvases those are is `getVisibleCanvasEntries`'
      * decision, not this component's — the same function the choice controls,
-     * the search-result offsets, and the OpenSeadragon path all ask, so the
+     * the search-result offsets, and the export path all ask, so the
      * renderer can never disagree with the rest of the viewer about what a
      * spread is. In paged mode that is the facing-page group; otherwise it is
      * the current canvas alone.
@@ -594,19 +640,54 @@
             const { serviceId } = canvas.source;
             void imageServiceCache.ensure(serviceId).then((facts) => {
                 if (!facts) {
-                    // A canvas that will never have pixels. Recorded rather
-                    // than swallowed: painting nothing and saying nothing is
-                    // indistinguishable from still loading (user stories 26 and
-                    // 27). Ticket 12 owns the announcement; this is the seam it
-                    // reads.
-                    // No repaint is bumped for this: nothing about the scene
-                    // changed, and a failure that provoked a frame would
-                    // provoke the next metadata request too.
+                    // A canvas that will never have pixels. Recorded against
+                    // THIS canvas rather than swallowed or raised viewer-wide:
+                    // painting nothing and saying nothing is indistinguishable
+                    // from still loading (user stories 26 and 27), and blanking
+                    // the viewer for it would take 799 working folios down with
+                    // it.
+                    //
+                    // A repaint IS asked for, unlike before: the placeholder is
+                    // positioned by the frame loop, so without a frame the
+                    // failure would be invisible until something unrelated
+                    // repainted. It cannot loop, because only a SPENT failure
+                    // gets this far: a spent request is never reissued, so the
+                    // next frame's identical ask resolves from the recorded
+                    // failure with no network and no state change, and the write
+                    // below is a no-op once the kind is unchanged.
+                    //
+                    // Spent rather than merely failed, and that gate is what
+                    // keeps the placeholder from FLASHING. `failure()` reports a
+                    // kind after the first attempt, including for a retryable
+                    // one — a 503 under an allowance of two would record `load`,
+                    // paint a placeholder, and have it taken away again by the
+                    // retry the very next frame's `ensure` issues. Nothing is
+                    // said about this canvas until the question is closed;
+                    // until then it is still loading, which is the truth.
+                    if (!imageServiceCache.spent(serviceId)) {
+                        // A retryable failure with attempts left. The retry is
+                        // issued by the next frame's identical ask, so a frame is
+                        // what this needs — otherwise the attempt allowance is
+                        // spent only if something unrelated happens to repaint,
+                        // and a canvas that a single 503 could have recovered
+                        // sits blank until the reader moves. Bounded by the
+                        // cache's allowance, not by the frame rate: once the
+                        // attempts are gone the branch below runs instead.
+                        requestFrame();
+                        return;
+                    }
+
                     const kind = imageServiceCache.failure(serviceId);
-                    if (kind) metadataFailures[canvasId] = kind;
+                    if (kind && canvasErrors[canvasId] !== kind) {
+                        canvasErrors[canvasId] = kind;
+                        requestFrame();
+                    }
                     return;
                 }
-                delete metadataFailures[canvasId];
+                // Guarded rather than deleted unconditionally: this resolves once
+                // per frame until the facts land in `knownMetadata`, and a
+                // `delete` of an absent key still touches the reactive proxy.
+                if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
                 if (knownMetadata[canvasId] === facts) return;
                 // Captured BEFORE the write below, which is what re-lays the
                 // world out. See `compensateForReflow`.
@@ -952,13 +1033,8 @@
         }
 
         const rect = layout.find((entry) => entry.canvasId === id) ?? null;
-        const canvas = canvasesById.get(id);
         const value: CanvasPlacement | null = rect
-            ? {
-                  rect,
-                  width: canvas?.width ?? null,
-                  height: canvas?.height ?? null,
-              }
+            ? { rect, ...declaredCanvasSize(id) }
             : null;
         placementMemo = { layout, canvasId: id, value };
         return value;
@@ -1346,9 +1422,231 @@
         // Before painting, so a canvas that left the window stops painting in
         // the frame it left rather than the one after.
         loadStaticImages(imageBearingCanvases(plan));
+        updateCanvasErrors(plan);
 
         paintScene(ctx, plan, viewport, { images, tiles: tiles.get }, dpr);
+        // The **paint hook**, in the same frame and under the same matrix
+        // `paintScene` left applied — which is the whole reason a layer drawn
+        // here cannot desync from the image the way a DOM overlay repositioned
+        // on an event can.
+        drawPaintLayers(
+            ctx,
+            viewerState.paintLayers,
+            paintFrame(plan),
+            reportPaintLayerFailure,
+        );
     }
+
+    /**
+     * What a paint layer is told about this frame.
+     *
+     * The transform is spelled out again rather than read back off the context
+     * (`getTransform` allocates a `DOMMatrix` per frame) and is the same
+     * arithmetic `paintScene.applyViewportTransform` performs — asserted by the
+     * geometric e2e assertion, which locates a layer's own ink and compares it
+     * with the coordinate model, exactly as it does for the tiles.
+     *
+     * The canvas half comes from `paintCanvasSpace`, which carries this frame's
+     * rects AND the canvas-space → world conversion over them. The declared
+     * dimensions it needs are the manifest's, read from the same
+     * `canvasesById`/`placementOf` source the public coordinate helpers read, so
+     * a layer and `ViewerState.canvasToScreen` cannot disagree about where a
+     * canvas-space point is.
+     */
+    function paintFrame(plan: ScenePlan): PaintFrame {
+        const scale = viewport.scale * dpr;
+        return {
+            transform: {
+                scale,
+                offsetX: (viewport.width / 2) * dpr - viewport.centre.x * scale,
+                offsetY:
+                    (viewport.height / 2) * dpr - viewport.centre.y * scale,
+                dpr,
+            },
+            width: viewport.width,
+            height: viewport.height,
+            ...paintCanvasSpace(plan.layout, declaredCanvasSize),
+        };
+    }
+
+    /** A canvas's declared dimensions, as the manifest gave them. */
+    function declaredCanvasSize(canvasId: string): {
+        width: number | null;
+        height: number | null;
+    } {
+        const canvas = canvasesById.get(canvasId);
+        return {
+            width: canvas?.width ?? null,
+            height: canvas?.height ?? null,
+        };
+    }
+
+    /**
+     * A paint layer threw. Said once per layer, for the same reason
+     * `reportUnresolvedThumbnails` is: a layer that throws does it every frame,
+     * and sixty identical console errors a second is indistinguishable from a
+     * hang. Through the debug-gated `logger`, so a published distribution stays
+     * quiet by default.
+     *
+     * A plain Set, deliberately not a `SvelteSet`: written from the frame loop,
+     * read by nothing but this function.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const reportedPaintLayerFailures = new Set<string>();
+
+    function reportPaintLayerFailure(
+        layer: RegisteredPaintLayer,
+        error: unknown,
+    ): void {
+        if (reportedPaintLayerFailures.has(layer.id)) return;
+        reportedPaintLayerFailures.add(layer.id);
+        logger.error(`paint layer "${layer.id}" failed`, error);
+    }
+
+    /**
+     * Core's own paint layer: a page-shaped placeholder for every canvas in the
+     * **box tier**.
+     *
+     * The hook is public in this phase *and used by core itself*, so it is
+     * exercised on every frame of the mode it matters in rather than shipped
+     * speculative — and this is the layer core needs anyway. A box-tier canvas
+     * holds nothing: no network, no texture, no pixels. Until now it painted
+     * nothing either, so scrolling an 800-folio manuscript at the zoom floor
+     * showed blank space where 795 folios are — indistinguishable from the end
+     * of the manifest, and exactly the "loading river" this epic exists to
+     * remove. Its rect is the one thing that IS known for free (layout is pure
+     * arithmetic over manifest dimensions), so the rect is what is drawn.
+     *
+     * **Decoration, and nothing but.** It carries no text and no information a
+     * reader must perceive, which is what makes painted pixels the right home
+     * for it: a message would need an accessible name and would belong in the
+     * DOM layer beside the surface, where ticket 12's error placeholders are.
+     *
+     * The ink is a translucent mid-grey rather than a theme token, deliberately:
+     * resolving a `--tri-*` token means `getComputedStyle` on the surface, which
+     * is a layout read this loop must not do per frame, and caching it means
+     * watching for theme changes to invalidate it. At this alpha a mid-grey
+     * reads as a faint page against both a light and a dark ground, and being
+     * decoration it has no contrast requirement to meet.
+     */
+    const PAGE_PLACEHOLDER_INK = 'rgba(128, 128, 128, 0.16)';
+
+    function paintBoxTierPages(
+        context: CanvasRenderingContext2D,
+        frame: PaintFrame,
+    ): void {
+        context.fillStyle = PAGE_PLACEHOLDER_INK;
+        for (const placement of frame.canvases) {
+            if (lastTiers[placement.canvasId] !== 'box') continue;
+            context.fillRect(
+                placement.x,
+                placement.y,
+                placement.width,
+                placement.height,
+            );
+        }
+    }
+
+    /**
+     * Position this frame's error placeholders, and raise or drop the
+     * viewer-level error condition derived from them.
+     *
+     * Both are decided in `renderer/canvasErrors.ts`, which is where the
+     * reasoning is tested. What is decided HERE is which failed canvases are
+     * PLACEHOLDER-WORTHY this frame, because that is the only part of the question
+     * that needs to know what the host is holding:
+     *
+     * - **Not box tier.** A box-tier canvas's projection is below the point at
+     *   which it carries information at all, so a labelled placeholder on it would
+     *   be unreadable noise — and at the derived zoom floor of a manifest whose
+     *   whole service is behind a login, 800 of them.
+     * - **Nothing drawn for it this frame.** The placeholder is opaque, so it
+     *   would cover working content. That is not hypothetical: a manifest very
+     *   commonly advertises a PUBLIC `thumbnail` beside a login-gated image
+     *   service, and a declared thumbnail resolves with no `info.json` at all
+     *   (`thumbnailLadder`). So a reader who views such a folio full-page records
+     *   an `auth` failure against it from the pyramid tier, zooms out, and its
+     *   thumbnail then paints perfectly well — at which point an error box over it
+     *   loses the only pixels the reader could have had. A failure recorded
+     *   against a canvas means "the source we asked for has no pixels", and this
+     *   is what keeps it from being read as "this canvas has none".
+     */
+    function updateCanvasErrors(plan: ScenePlan) {
+        const failed = Object.keys(canvasErrors);
+
+        // The overwhelmingly common case: nothing has failed, so nothing is
+        // walked and nothing is written.
+        if (failed.length === 0) {
+            if (errorLayer.length > 0) errorLayer = [];
+            setDerivedTileSourceError(null);
+            return;
+        }
+
+        // Walked only on this path, and bounded by the residency window rather
+        // than by the manifest: a draw list is what is on screen.
+        //
+        // A plain Set, deliberately not a `SvelteSet`: it lives for the length of
+        // this call and is read by nothing but the filter below.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const painting = new Set<string>();
+        for (const draw of plan.tileDraws) painting.add(draw.canvasId);
+
+        const perceptible = plan.layout.filter(
+            (rect) =>
+                // Cheapest test first, and the one that excludes ~800 of 800
+                // rects on the manifest this path exists for.
+                canvasErrors[rect.canvasId] &&
+                plan.tiers[rect.canvasId] !== 'box' &&
+                !painting.has(rect.canvasId) &&
+                !images[rect.canvasId],
+        );
+        const next = errorPlacements(perceptible, canvasErrors, viewport);
+        // A pan moves every placeholder, so an update is genuinely needed most
+        // frames; this only avoids waking the graph on the frames where it is not.
+        if (!samePlacements(errorLayer, next)) errorLayer = next;
+
+        setDerivedTileSourceError(
+            viewerLevelErrorKind(
+                plan.layout,
+                canvasErrors,
+                viewerState.canvasId,
+            ),
+        );
+    }
+
+    /**
+     * Mirror the derived condition onto the viewer-level `tileSourceError`,
+     * writing only when it changes.
+     *
+     * Deliberately the SAME observable the previous renderer wrote, in the same
+     * shape, so the existing error chrome and its journey keep working with no new
+     * chrome invented (ticket 12's scope). Its meaning is now derived rather than
+     * primary: `canvasErrors` is the source of truth and this is a view of it for
+     * the canvas being read.
+     *
+     * Raising it unmounts this component — the chrome replaces the renderer with
+     * a full cover — which is exactly why `viewerLevelErrorKind` refuses to raise
+     * it while any canvas on screen still works. `ViewerState.setCanvas` clears
+     * it, so navigating away remounts the renderer, and the metadata cache
+     * remembers the failure without refetching if the reader comes back.
+     *
+     * The change-only write lives in `canvasErrors.createTileSourceErrorMirror`,
+     * where it has a unit test: it is the difference between one state
+     * notification per failure and one per frame to every plugin subscriber, and
+     * getting it wrong is silent.
+     *
+     * The escape-hatch assignment is the one the previous renderer used for the
+     * same member: `tileSourceError` is an `observable` in the state inventory, so
+     * it has no mutator by definition — core writes it, nothing else may.
+     */
+    const setDerivedTileSourceError = createTileSourceErrorMirror({
+        loadMessage: () => m.canvas_error_load(),
+        write: (value) => {
+            (
+                viewerState as unknown as { tileSourceError: unknown }
+            ).tileSourceError = value;
+        },
+    });
 
     /**
      * Size the backing store and the viewport from the container.
@@ -1696,8 +1994,8 @@
      *
      * Drag and pinch are **direct**: the transform is updated here, 1:1, with
      * no smoothing and no spring. This is the single most important
-     * behavioural difference from the OpenSeadragon path, which animates the
-     * pan target through the same spring it uses for zoom and so trails the
+     * behavioural difference from the previous renderer, which animated the
+     * pan target through the same spring it used for zoom and so trailed the
      * pointer. Painting is still once per frame — the transform is what must be
      * direct, not the number of draw calls.
      */
@@ -2087,8 +2385,20 @@
      * What changed is decided by `reconcileImages`, which compares **resolved
      * URLs** rather than canvas ids — selecting a different Choice keeps the
      * canvas id and changes only the URL, and an id-keyed cache would go on
-     * painting the superseded image. Load failures and per-canvas error
-     * reporting are ticket 12.
+     * painting the superseded image.
+     *
+     * A failed decode is recorded against the canvas (`canvasErrors`), never
+     * viewer-wide. An `<img>` reports no status, so a static source's failure can
+     * only ever be `load` — there is no 401 to distinguish, which is a fact about
+     * the element rather than a simplification.
+     *
+     * The failure is ALSO recorded in `staticImageFailures`, keyed on the URL and
+     * page-shared, which is what gives a static canvas the eviction lifetime the
+     * spec asks for: `canvasErrors` is component state and is cleared when this
+     * canvas leaves the residency window along with its pixels, so on its own it
+     * would refetch a 404 every time the reader scrolled back. That module's
+     * comment carries why the negative cache is keyed on the URL rather than
+     * being a per-canvas record kept across eviction.
      */
     function loadStaticImages(canvases: PlannerCanvas[]) {
         const { drop, load } = reconcileImages(imageUrls, canvases);
@@ -2098,9 +2408,31 @@
             // it is superseded, not when its replacement finishes decoding.
             delete images[canvasId];
             delete imageUrls[canvasId];
+            // And the error with them. The URL this canvas resolves to has
+            // changed or been released, so the recorded failure is an answer
+            // about a request that is no longer the one being made — keeping it
+            // would leave a placeholder over a Choice that loads perfectly well.
+            //
+            // Safe for eviction as well as for a Choice switch only because
+            // `staticImageFailures` remembers the URL: the canvas coming back
+            // re-derives its error from that below, with no second request. Drop
+            // this and the per-canvas record is the only memory of the failure,
+            // which is the refetch-on-re-entry the spec forbids.
+            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
         }
 
         for (const { canvasId, url } of load) {
+            if (staticImageFailures.has(url)) {
+                // Answered already, by a request this page made earlier. Recorded
+                // BEFORE `imageUrls`, so the state the placeholder is derived
+                // from is in place for `updateCanvasErrors` in this same frame.
+                canvasErrors[canvasId] = 'load';
+                // Held as if in flight: the reconciliation compares held URLs, so
+                // this is what stops the next frame asking again.
+                imageUrls[canvasId] = url;
+                continue;
+            }
+
             const image = new Image();
             // Decode off the main thread where the browser can.
             image.decoding = 'async';
@@ -2115,6 +2447,23 @@
                 // was in flight.
                 if (imageUrls[canvasId] !== url) return;
                 images[canvasId] = image;
+                if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+                loadedGeneration += 1;
+            };
+            image.onerror = () => {
+                // Recorded whatever this canvas now wants, and before the guard:
+                // the URL failed, and that is a fact about the URL rather than
+                // about the canvas that happened to ask for it. A reader who
+                // switches Choice away mid-request and back must not re-issue it.
+                staticImageFailures.record(url);
+                if (imageUrls[canvasId] !== url) return;
+                // The URL is deliberately LEFT in `imageUrls`, which is what
+                // stops the next frame's reconciliation from asking again: a
+                // request that failed is answered, and a retry loop over a 404
+                // is the behaviour the thumbnail ladder also refuses. Once this
+                // canvas is evicted the URL goes with it, and `staticImageFailures`
+                // is what refuses the request on the way back in.
+                canvasErrors[canvasId] = 'load';
                 loadedGeneration += 1;
             };
             // Recorded BEFORE the request starts, so a second reconciliation
@@ -2157,6 +2506,11 @@
         // transient one another chance; a deterministic one (auth, an
         // unparseable document) is left alone.
         imageServiceCache.retryTransientFailures();
+        // The same bargain for static images, with the whole set treated as the
+        // transient case: an `<img>` reports no status, so none of its failures
+        // can be shown to be an answer about the resource rather than about the
+        // network.
+        staticImageFailures.retryAll();
 
         const observer = new ResizeObserver(() => measure());
         observer.observe(root);
@@ -2173,6 +2527,16 @@
         // the first `measure()` above for exactly that reason: `rendererReady`
         // means the viewport queries answer with real numbers, not zeroes.
         const detachRenderer = viewerState.attachRenderer(canvasPort);
+
+        // Core's own layer, registered through the same public API a plugin
+        // uses — not a private back door beside it, which is what makes "the
+        // hook is exercised rather than speculative" true. Ordered below zero so
+        // the default a plugin gets paints OVER core's page placeholders.
+        const releasePageLayer = viewerState.registerPaintLayer({
+            id: 'core:page-placeholders',
+            order: -100,
+            draw: paintBoxTierPages,
+        });
 
         /*
          * Internal test handle for the geometric e2e assertions, which need a
@@ -2319,15 +2683,33 @@
                 return { pyramid, thumbnail, boxCount };
             },
             /**
-             * canvasId → why its image service failed, for the canvases whose
-             * metadata never arrived. The seam ticket 12's error UI reads.
+             * canvasId → why that canvas has no pixels, for the canvases that
+             * failed — the per-canvas error state that is the source of truth.
+             *
+             * Names, not a count, for the same reason `getResidency` reports
+             * names: "one folio failed and the other 799 did not" is a claim about
+             * WHICH canvas, and a count passes just as happily with the wrong one.
              */
-            getMetadataFailures: () => ({ ...metadataFailures }),
+            getCanvasErrors: () => ({ ...canvasErrors }),
+            /**
+             * The PUBLIC paint-hook registration, reached from here.
+             *
+             * Not a second registration path: it calls
+             * `ViewerState.registerPaintLayer` and returns what that returns, so
+             * the assertion exercises the same surface a plugin does. It is here
+             * because the demo page the e2e suite drives holds the viewer as a
+             * component and puts its `ViewerState` on no global — and a claim
+             * about which matrix a layer is handed can only be made against a
+             * real frame with real tiles in it.
+             */
+            registerPaintLayer:
+                viewerState.registerPaintLayer.bind(viewerState),
             nextPaint,
         };
 
         return () => {
             detachRenderer();
+            releasePageLayer();
             frameListeners.clear();
             observer.disconnect();
             unwatchDevicePixelRatio();
@@ -2384,6 +2766,15 @@
         void loadedGeneration;
         requestFrame();
     });
+
+    $effect(() => {
+        // A paint layer was registered or released. Without this a layer added
+        // while the viewport is idle would first appear at whatever unrelated
+        // repaint came next — and one that was released would go on being drawn
+        // until then.
+        void viewerState.paintLayerRevision;
+        requestFrame();
+    });
 </script>
 
 <!--
@@ -2419,14 +2810,17 @@
     is the only role NVDA and JAWS pass arrows through — so it stays. The price
     is that any non-canvas descendant becomes unreadable in browse mode:
     ordinary text, a heading, an error message, a list of annotations would all
-    be skipped over. Ticket 12's error UI and ticket 14's annotation overlay are
-    both slated to land inside here. Each such child must either carry
-    `role="document"` (which restores browse mode for its own subtree) or be
-    hoisted OUT of this element and rendered as a sibling. Recorded in
-    lint-allowlist.md entry 7.
+    be skipped over. Ticket 12's per-canvas error layer IS such a child — it is
+    the `.error-layer` below, and it carries `role="document"` for exactly this
+    reason. Each such child must either carry `role="document"` (which restores
+    browse mode for its own subtree) or be hoisted OUT of this element and
+    rendered as a sibling. Recorded in lint-allowlist.md entry 7.
 
-    It sits ahead of the annotation overlay's focusable shapes in DOM order, so
-    Tab goes surface → annotations: the picture before the things marked on it.
+    Ticket 14's annotation shape overlay took the second option: it is a SIBLING
+    of this element, mounted by `TriiiceratopsViewer` into the same stage box, so
+    its labels are read normally and its focusable shapes are ordinary widgets.
+    This element comes first in DOM order, so Tab goes surface → annotations: the
+    picture before the things marked on it.
 
     The two suppressions below are recorded in lint-allowlist.md. Svelte's
     heuristic classifies every ARIA role outside the widget set as
@@ -2461,6 +2855,78 @@
         onlostpointercapture={handlePointerCancel}
         onwheel={handleWheel}
     ></canvas>
+
+    <!--
+        The per-canvas error layer: one placeholder over the layout rect of each
+        canvas that failed, and nothing at all when none did.
+
+        DOM rather than painted pixels, per ticket 14's rule — a message the reader
+        must perceive needs an accessible name, and painted text has none.
+
+        `role="document"` on the layer is the constraint the note above this markup
+        records: `role="application"` suppresses browse mode for its whole subtree,
+        so text inside it would be skipped by NVDA and JAWS. `document` restores
+        browse mode for this subtree only, leaving the surface's arrow-key
+        pass-through intact.
+
+        `pointer-events: none` throughout (see the style block): a placeholder sits
+        over the surface, and a reader must still be able to pan and zoom the page
+        the failed folio is sitting next to.
+    -->
+    {#if errorLayer.length > 0}
+        <div class="error-layer" role="document">
+            {#each errorLayer as placement (placement.canvasId)}
+                <div
+                    class="canvas-error"
+                    class:canvas-error-auth={placement.kind === 'auth'}
+                    data-testid="canvas-error-placeholder"
+                    data-canvas-id={placement.canvasId}
+                    data-error-kind={placement.kind}
+                    role="img"
+                    aria-label={errorLabel(placement.kind)}
+                    style:left="{placement.left}px"
+                    style:top="{placement.top}px"
+                    style:width="{placement.width}px"
+                    style:height="{placement.height}px"
+                >
+                    <!--
+                        The VISIBLE message, centred in the part of the failed
+                        canvas that is actually on screen rather than in the
+                        canvas rect — see `CanvasErrorPlacement`. Zoomed into a
+                        failed folio (the ceiling is 128x home) the rect is many
+                        times the viewport, and a label centred in it is centred
+                        on a point nobody can see: a sighted reader gets a flat
+                        fill and no message while the accessible name goes on
+                        being correct. Positioned relative to the placeholder,
+                        which is this element, hence the offsets.
+
+                        Omitted entirely below a minimum box, because a clipped
+                        fragment of one glyph reads as a rendering bug rather
+                        than as an error. The named, bordered box remains.
+
+                        The same string as the accessible name, and hidden from
+                        the accessibility tree because `role="img"` above already
+                        carries it — which also makes every descendant of that
+                        element presentational anyway, so this attribute is
+                        belt-and-braces rather than what makes it true.
+                    -->
+                    {#if placement.labelled}
+                        <span
+                            class="canvas-error-text"
+                            data-testid="canvas-error-label"
+                            aria-hidden="true"
+                            style:left="{placement.labelLeft -
+                                placement.left}px"
+                            style:top="{placement.labelTop - placement.top}px"
+                            style:width="{placement.labelWidth}px"
+                            style:height="{placement.labelHeight}px"
+                            >{errorLabel(placement.kind)}</span
+                        >
+                    {/if}
+                </div>
+            {/each}
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -2492,8 +2958,76 @@
     }
 
     /*
+     * The error layer covers the surface and takes no input: the placeholders are
+     * positioned in surface coordinates by the frame loop, and the reader must
+     * still be able to pan and zoom from anywhere on the surface — including from
+     * over a folio that failed.
+     */
+    .error-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        /* The layer is a positioning context in its own right, so a placeholder's
+           surface-local coordinates are not affected by anything the root's
+           padding or borders might later become. */
+        overflow: hidden;
+    }
+
+    /*
+     * One placeholder, filling the failed canvas's layout rect exactly — which is
+     * what makes it read as "this page", rather than as a message about the viewer.
+     *
+     * Theme tokens throughout, like the rest of the surface: the placeholder sits
+     * among the working pages and has to belong to the same picture.
+     */
+    .canvas-error {
+        position: absolute;
+        box-sizing: border-box;
+        background-color: var(--tri-panel-bg);
+        border: 1px solid var(--tri-color-warning);
+        color: var(--tri-panel-content);
+    }
+
+    /*
+     * Auth is not load, and the distinction survives to the picture as well as to
+     * the label: a reader scanning a long manifest can see which failures a login
+     * would fix without reading every box.
+     */
+    .canvas-error-auth {
+        /* The `-text` variant, not the raw primary, for the reason the focus
+           ring's note spells out: the raw token is a fill colour and has no
+           contrast guarantee against a panel surface. */
+        border-color: var(--tri-color-primary-text);
+    }
+
+    /*
+     * The message, in a box the frame loop sizes to the on-screen part of the
+     * failed canvas (see the markup). Absolutely positioned inside the
+     * placeholder, because "centred in the canvas rect" and "centred where the
+     * reader is looking" stop being the same box the moment the rect is larger
+     * than the viewport — which the zoom ceiling makes ordinary.
+     */
+    .canvas-error-text {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        padding: 0.5rem;
+        font-size: 0.8125rem;
+        line-height: 1.3;
+        text-align: center;
+        /* The box is never below `canvasErrors.MIN_LABEL_*`, so the message fits
+           at the ordinary text size; this is the guard for the cases that
+           bound cannot know about — a translation several times longer, or a
+           reader's larger minimum font size. Clipped rather than allowed to
+           spill over the pages either side of it. */
+        overflow: hidden;
+    }
+
+    /*
      * The visible focus ring — a NEW visual affordance, and an accepted design
-     * cost rather than an oversight. The OpenSeadragon path suppressed focus on
+     * cost rather than an oversight. The previous renderer suppressed focus on
      * this surface outright (`tabIndex: ''`, "This prevents the focus outline
      * from appearing"); a surface that is operable by keyboard must show where
      * the keyboard is (WCAG 2.4.7).

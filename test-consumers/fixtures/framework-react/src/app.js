@@ -182,13 +182,13 @@ function ViewerOne({ handle }) {
     const toolbar = useViewerSelector(handle, (state) =>
         state.toolbarOpen ? 'open' : 'closed',
     );
-    // `frame` cadence: continuous viewport values are woken by OpenSeadragon's
-    // own animation events, not by the batched state watcher.
+    // `frame` cadence: per-frame viewport values are woken by the renderer's own
+    // animation events, not by the batched state watcher.
     const zoom = useViewerSelector(handle, selectZoomThousandths, {
         cadence: 'frame',
     });
     // The SAME projection at the default `state` cadence, as the contrast: the
-    // batched watcher is never woken by OpenSeadragon, so this readout must
+    // batched watcher is never woken by the renderer, so this readout must
     // stay frozen while the `frame` one above follows the zoom.
     const zoomAtStateCadence = useViewerSelector(handle, selectZoomThousandths);
     // An INLINE projection whose closure changes between renders, with no
