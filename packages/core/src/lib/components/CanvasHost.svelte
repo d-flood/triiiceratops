@@ -45,6 +45,7 @@
     import { onMount, untrack } from 'svelte';
 
     import { getMessages } from '../state/i18n.svelte';
+    import { logger } from '../logging/logger';
     import { getCanvasId } from '../utils/iiifIds';
     import { getVisibleCanvasEntries } from './viewerControls';
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
@@ -486,16 +487,17 @@
      *
      * The alternative is a canvas that is blank with no explanation anywhere,
      * which is indistinguishable from one that is still loading. Ticket 12 owns
-     * what a *user* sees; this is the developer's version and it is
-     * deliberately a warning rather than an error — bad thumbnail metadata is
-     * common, and the rest of the manifest keeps working.
+     * what a *user* sees; this is the developer's version, and it goes through
+     * the debug-gated `logger` rather than `console` — a published distribution
+     * is quiet by default, and bad thumbnail metadata is common enough that a
+     * bare warning would be noise in every consumer's console.
      */
     function reportUnresolvedThumbnails(canvasIds: string[]): void {
         for (const canvasId of canvasIds) {
             if (reportedThumbnailFailures.has(canvasId)) continue;
             reportedThumbnailFailures.add(canvasId);
-            console.warn(
-                `[triiiceratops] no usable thumbnail for canvas ${canvasId}; it will render as a plain box`,
+            logger.warn(
+                `no usable thumbnail for canvas ${canvasId}; it will render as a plain box`,
             );
         }
     }
