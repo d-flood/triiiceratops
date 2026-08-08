@@ -59,9 +59,17 @@
  * from canvas 4, so relying on the tier alone would give every canvas in the
  * input a base tile and an `info.json`.
  *
- * ## What is still to come
+ * ## The thumbnail tier
  *
- * - thumbnail resolution and its quantized ladder — ticket 09.
+ * Between the two thresholds a canvas holds ONE small image rather than a
+ * pyramid (`planThumbnail` below, resolved by `thumbnailLadder.ts`). Three
+ * things keep that affordable on a manifest where the residency window can hold
+ * fifty such canvases at once — the derived zoom floor is exactly that case:
+ * the size is **quantized to a rung** so a zoom sweep reuses URLs instead of
+ * minting one per frame; the requests are **gated on a stable view**, so a
+ * flick past a hundred folios asks for none of them; and they go into the same
+ * bounded, centre-out, byte-budgeted scheduler as the tiles, so the concurrency
+ * cap is genuinely global and the nearest canvas is served first.
  *
  * `budgets.byteBudget` is not read here: it bounds the **opportunistic cache**,
  * which holds what was recently dropped from the required set, and that is the
@@ -88,6 +96,11 @@ import {
     type SizeLadder,
 } from './sizeLadder';
 import {
+    quantizeRung,
+    resolveThumbnail,
+    THUMBNAIL_BASE_RUNG,
+} from './thumbnailLadder';
+import {
     buildPyramid,
     chooseLevel,
     DERIVED_TILE_SIZE,
@@ -106,6 +119,7 @@ import type {
     PlanWorldInput,
     ResidencyTier,
     ScenePlan,
+    ThumbnailRequest,
     TileDraw,
     TileKey,
     TileRequest,
@@ -691,6 +705,144 @@ function planSizeLadder(
 }
 
 /**
+ * A thumbnail's stable identity: the canvas, and the URL that was resolved for
+ * it.
+ *
+ * Keyed on the **URL** rather than on the rung, deliberately. The declared-
+ * thumbnail rung of the ladder returns one fixed URL whatever size was asked
+ * for, so a rung-keyed identity would decode and hold the same picture once per
+ * zoom step. Keyed on what is actually fetched, a zoom across the whole ladder
+ * on such a canvas is one request and one texture.
+ *
+ * In the same namespace as `tilePyramid.tileKey`, which cannot collide with it:
+ * that spelling puts a number where this puts `thumb`.
+ */
+function thumbnailKey(canvasId: string, url: string): TileKey {
+    return `${canvasId}#thumb/${url}`;
+}
+
+/**
+ * The required set and the draw for one **thumbnail-tier** canvas: a single
+ * small image, sized to its projection and quantized to a rung.
+ *
+ * Two entries, never more (see `thumbnailLadder.THUMBNAIL_BASE_RUNG`): the
+ * cheapest rung, which is what paints while anything else is in flight, and the
+ * rung the projection actually wants. At the derived zoom floor — where the
+ * residency window can hold fifty canvases and every one of them is this tier —
+ * they are the same rung and the same request.
+ *
+ * Returns the tier this canvas ends up in, which is `box` when the ladder ran
+ * out: a canvas with no usable thumbnail renders as a plain rect rather than as
+ * a broken image or a retry loop (user story 31).
+ */
+function planThumbnail(
+    canvas: PlannerCanvas,
+    rect: LayoutRect,
+    viewport: Viewport,
+    dpr: number,
+    minPixelRatio: number,
+    facts: ImageServiceFacts | undefined,
+    viewStable: boolean,
+    residentTiles: ReadonlySet<TileKey>,
+    requests: ThumbnailRequest[],
+    draws: TileDraw[],
+    metadataRequests: string[],
+    unresolved: string[],
+): ResidencyTier {
+    // DEVICE pixels across, for the same reason level selection is measured in
+    // them: the viewport is CSS pixels, and a thumbnail chosen from those is
+    // visibly soft on a 2x screen.
+    const wanted = quantizeRung(rect.width * viewport.scale * dpr);
+
+    const box: Box = {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+    };
+    // One image covering the whole canvas, so there is nothing to intersect and
+    // one priority for it: the distance from the viewport centre, which is what
+    // makes the queue centre-out and the page the reader is looking at arrive
+    // first.
+    const priority = distanceToBox(viewport.centre, box);
+    const visible = viewportBox(viewport);
+
+    /** The rungs this canvas holds: the cheapest, then the one it wants. */
+    const rungs =
+        wanted === THUMBNAIL_BASE_RUNG
+            ? [wanted]
+            : [THUMBNAIL_BASE_RUNG, wanted];
+    // At most two rungs, so "have I already asked for this URL?" is one
+    // comparison rather than a `Set` allocated per canvas per frame — which on
+    // an 800-folio manifest at the zoom floor is a few thousand a second for a
+    // membership test over two elements.
+    let previousKey: TileKey | null = null;
+    let resolvedAny = false;
+    let needsMetadata = false;
+
+    rungs.forEach((rung, index) => {
+        const resolved = resolveThumbnail({
+            thumbnailUrl: canvas.thumbnailUrl,
+            source: canvas.source,
+            facts,
+            rung,
+            minPixelRatio,
+        });
+
+        if (resolved.kind === 'metadata') {
+            needsMetadata = true;
+            return;
+        }
+        if (resolved.kind === 'none') return;
+
+        resolvedAny = true;
+        const key = thumbnailKey(canvas.id, resolved.url);
+        // The declared-thumbnail rung resolves both rungs to one URL, and a
+        // ladder can land two rungs on the same advertised image. Either way
+        // that is one request, not two.
+        if (key === previousKey) return;
+        previousKey = key;
+
+        // **The view-stable gate.** A thumbnail already decoded stays in the
+        // required set through a gesture — dropping it would demote it to the
+        // opportunistic cache and blank the canvas mid-drag — but nothing NEW
+        // is asked for until the motion stops.
+        if (viewStable || residentTiles.has(key)) {
+            requests.push({
+                key,
+                canvasId: canvas.id,
+                // The base rung paints under the chosen one, exactly as a
+                // pyramid's coarse chain paints under its current level.
+                level: index,
+                url: resolved.url,
+                priority,
+                rung,
+                ...(resolved.fallback ? { fallback: resolved.fallback } : {}),
+            });
+        }
+
+        if (residentTiles.has(key) && intersects(box, visible)) {
+            draws.push({ key, level: index, ...box });
+        }
+    });
+
+    if (needsMetadata && !resolvedAny) {
+        // Gated with the thumbnails themselves, and bounded by the tier: this
+        // is what keeps "fetch `info.json` to discover a thumbnail" from being
+        // the fetch storm in a different costume.
+        if (viewStable) metadataRequests.push(canvas.id);
+        return 'thumbnail';
+    }
+
+    if (!resolvedAny) {
+        unresolved.push(canvas.id);
+        return 'box';
+    }
+
+    return 'thumbnail';
+}
+
+/**
  * Whether a **tile-less** service is a size-ladder source rather than a level
  * 1/2 endpoint that merely omitted `tiles`.
  *
@@ -724,6 +876,9 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     // 1 is the CSS-pixel screen, which is what a caller that does not know its
     // backing store is describing.
     const dpr = input.dpr && input.dpr > 0 ? input.dpr : 1;
+    // Idle unless the host says otherwise, which is what a test that does not
+    // care about the gate — and a caller with nothing moving — is describing.
+    const viewStable = input.viewStable ?? true;
 
     // The same function the host's per-sample clamping calls, so the world the
     // pan constraint is measured against can never diverge from the world that
@@ -742,6 +897,8 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     const overCapCanvases: string[] = [];
     const metadataRequests: string[] = [];
     const tileRequests: TileRequest[] = [];
+    const thumbnailRequests: ThumbnailRequest[] = [];
+    const unresolvedThumbnails: string[] = [];
     const tileDraws: TileDraw[] = [];
 
     for (const canvas of layoutable) {
@@ -765,8 +922,32 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         tiers[canvas.id] = tier;
 
         // A static-image source has exactly one known URL and no service, so it
-        // has nothing to discover and nothing to tile (user story 29).
+        // has nothing to discover and nothing to tile (user story 29). Its
+        // thumbnail tier is its one image, painted by the host, which is why
+        // the ladder below is not asked about it either.
         if (canvas.source.kind !== 'service') continue;
+
+        // One small image instead of a pyramid — the tier that fills the grey
+        // boxes. It can send the canvas to the box tier (nothing usable), so
+        // the tier map is written from what it decides.
+        if (tier === 'thumbnail') {
+            tiers[canvas.id] = planThumbnail(
+                canvas,
+                rect,
+                viewport,
+                dpr,
+                budgets.minPixelRatio,
+                knownMetadata[canvas.id],
+                viewStable,
+                residentTiles,
+                thumbnailRequests,
+                tileDraws,
+                metadataRequests,
+                unresolvedThumbnails,
+            );
+            continue;
+        }
+
         // Only the pyramid tier fetches tiles, and the per-level rules are
         // nested inside the tier: a canvas below it releases everything,
         // including its base level. Applied without that gate, "the base level
@@ -778,8 +959,10 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         if (!facts) {
             // Lazy and per-canvas: layout already happened without it, so this
             // costs one request when the canvas needs pixels rather than one
-            // per canvas before anything renders.
-            metadataRequests.push(canvas.id);
+            // per canvas before anything renders — and only once the view has
+            // stopped moving, so a flick past a hundred folios asks for none of
+            // them (spec §Tile scheduling).
+            if (viewStable) metadataRequests.push(canvas.id);
             continue;
         }
 
@@ -872,8 +1055,13 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         ),
         // Coarsest first, so a finer tile paints OVER the blur-up beneath it.
         tileDraws: tileDraws.sort((a, b) => a.level - b.level),
-        thumbnailRequests: [],
+        // Centre-out, exactly like the tiles they share a scheduler and a
+        // concurrency cap with, so what the reader is looking at arrives first.
+        thumbnailRequests: thumbnailRequests.sort(
+            (a, b) => a.priority - b.priority || a.level - b.level,
+        ),
         metadataRequests,
+        unresolvedThumbnails,
         overCapCanvases,
         minZoom,
     };

@@ -45,6 +45,7 @@
     import { onMount, untrack } from 'svelte';
 
     import { getMessages } from '../state/i18n.svelte';
+    import { logger } from '../logging/logger';
     import { getCanvasId } from '../utils/iiifIds';
     import { getVisibleCanvasEntries } from './viewerControls';
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
@@ -428,6 +429,29 @@
         };
     }
 
+    /**
+     * Whether the view has stopped moving — **the view-stable gate** (spec
+     * §Tile scheduling).
+     *
+     * Four ways to be moving, and all four are the same thing to a reader: a
+     * finger or button is down (the arbiter owns the gesture), a spring is
+     * still settling, a flick is coasting, or an arrow key is held. Thumbnail
+     * and `info.json` requests wait for all of them to be false; tiles do not,
+     * because a pyramid-tier canvas is one the reader is looking at.
+     *
+     * A flick passes over hundreds of canvases that are never dwelt on, and
+     * this alone removes most of what would otherwise be asked for on their
+     * behalf.
+     */
+    function viewStable(): boolean {
+        return (
+            gestures.owner === 'none' &&
+            !animating &&
+            momentum === null &&
+            keyPan === null
+        );
+    }
+
     function currentPlan(): ScenePlan {
         scenePlanCount += 1;
         return planScene({
@@ -438,7 +462,44 @@
             // a 2× screen never reaches full resolution.
             dpr,
             residentTiles: tiles.residentKeys(),
+            viewStable: viewStable(),
         });
+    }
+
+    /**
+     * canvasIds already announced as having no usable thumbnail.
+     *
+     * The planner's decision is a pure function of the manifest and the
+     * service's facts, so it is the same answer on every frame this canvas is
+     * in the tier — announcing it each time would be sixty lines a second per
+     * canvas, which is the console equivalent of the retry loop the ladder
+     * exists to refuse.
+     *
+     * A plain Set, deliberately not a `SvelteSet`: it is read from the frame
+     * loop, never by the reactive graph.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const reportedThumbnailFailures = new Set<string>();
+
+    /**
+     * Say once, for developers, that a canvas has no usable thumbnail and is
+     * therefore a plain box for good.
+     *
+     * The alternative is a canvas that is blank with no explanation anywhere,
+     * which is indistinguishable from one that is still loading. Ticket 12 owns
+     * what a *user* sees; this is the developer's version, and it goes through
+     * the debug-gated `logger` rather than `console` — a published distribution
+     * is quiet by default, and bad thumbnail metadata is common enough that a
+     * bare warning would be noise in every consumer's console.
+     */
+    function reportUnresolvedThumbnails(canvasIds: string[]): void {
+        for (const canvasId of canvasIds) {
+            if (reportedThumbnailFailures.has(canvasId)) continue;
+            reportedThumbnailFailures.add(canvasId);
+            logger.warn(
+                `no usable thumbnail for canvas ${canvasId}; it will render as a plain box`,
+            );
+        }
     }
 
     /**
@@ -952,8 +1013,16 @@
         // handler. Pointer events outpace frames during a drag, so per-event
         // reconciliation would generate (and abort) several required sets per
         // frame for no gain.
-        tiles.update(plan.tileRequests);
+        //
+        // ONE scheduler for tiles and thumbnails together, which is what makes
+        // the concurrency cap genuinely global and the priority order genuinely
+        // centre-out: a thumbnail two folios away and a tile in the middle of
+        // the page compete on distance from the viewport centre rather than on
+        // which list they arrived in. It is also what puts thumbnails under the
+        // one decoded-byte ceiling instead of beside it.
+        tiles.update([...plan.tileRequests, ...plan.thumbnailRequests]);
         requestMetadata(plan.metadataRequests);
+        reportUnresolvedThumbnails(plan.unresolvedThumbnails);
         // Before painting, so a canvas that left the window stops painting in
         // the frame it left rather than the one after.
         loadStaticImages(imageBearingCanvases(plan));
@@ -1275,6 +1344,11 @@
     function handlePointerUp(event: PointerEvent) {
         applyGesture(gestures.up(sampleOf(event)));
         releasePointer(event.pointerId);
+        // The view may have just become STABLE, and a gesture that moved
+        // nothing (a tap, or a drag whose last sample already painted) leaves
+        // nothing else to schedule a frame. Without this the thumbnails and
+        // `info.json`s the gate held back wait for the next unrelated repaint.
+        requestFrame();
     }
 
     /**
@@ -1288,6 +1362,8 @@
     function handlePointerCancel(event: PointerEvent) {
         applyGesture(gestures.cancel(sampleOf(event)));
         releasePointer(event.pointerId);
+        // See `handlePointerUp`: the gate may have just opened.
+        requestFrame();
     }
 
     /**
@@ -1490,7 +1566,12 @@
 
         const last = keyPan;
         keyPan = null;
-        if (!last || reducedMotion) return;
+        if (!last || reducedMotion) {
+            // Stopped dead, so the view is stable now: ask for the frame that
+            // notices (see `handlePointerUp`).
+            requestFrame();
+            return;
+        }
 
         momentum = { x: -last.x, y: -last.y };
         requestFrame();

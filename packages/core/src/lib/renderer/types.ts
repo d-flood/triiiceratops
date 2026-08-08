@@ -47,6 +47,22 @@ export interface PlannerCanvas {
     width: number | null;
     height: number | null;
     source: SourceDescriptor;
+    /**
+     * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of
+     * the **thumbnail tier**'s resolution ladder, used as-is with the size
+     * ladder ignored (spec §Thumbnail resolution).
+     *
+     * A **raw-JSON** fact: `thumbnail` is spelled the same in IIIF v2 and v3
+     * and is read straight off the manifest by
+     * `canvasDescriptors.getDeclaredThumbnailUrl`. It is deliberately carried
+     * on the descriptor rather than looked up per frame, because it costs a
+     * walk of the Canvas and the host builds descriptors once per manifest
+     * (`CanvasHost.plannerCanvases`) rather than once per frame.
+     *
+     * `null` where the Canvas declares none, which is the usual case and simply
+     * means the ladder starts at its second rung.
+     */
+    thumbnailUrl?: string | null;
 }
 
 /** A point in canvas space. */
@@ -223,10 +239,25 @@ export interface TileDraw {
     height: number;
 }
 
-/** A whole-image request sized to a canvas's projection, quantized to a rung. */
-export interface ThumbnailRequest {
-    canvasId: string;
-    url: string;
+/**
+ * A whole-image request sized to a canvas's projection, quantized to a rung.
+ *
+ * A {@link TileRequest} by extension, and that is not a convenience: it means
+ * the scheduler's abort-on-supersede, centre-out priority queue, bounded
+ * in-flight window, negative cache, off-thread decode, and byte-budgeted
+ * **opportunistic cache** all apply to thumbnails without a second
+ * implementation of any of them — the same reasoning that expresses a
+ * **size-ladder source**'s rungs as one-tile levels (`planScene.planSizeLadder`).
+ * The host hands the two lists to one scheduler, so the concurrency cap really
+ * is global and a thumbnail and a tile compete on distance from the viewport
+ * centre rather than on which list they arrived in.
+ *
+ * `rung` is carried beyond what the scheduler needs, because "a continuous zoom
+ * produces a small set of distinct URLs" is a claim about the quantization and
+ * a test has to be able to read it.
+ */
+export interface ThumbnailRequest extends TileRequest {
+    /** The quantized ladder rung, in device pixels of requested width. */
     rung: number;
 }
 
@@ -295,6 +326,24 @@ export interface PlanSceneInput extends PlanWorldInput {
      * the planner pure while leaving the painter with nothing to decide.
      */
     residentTiles?: ReadonlySet<TileKey>;
+    /**
+     * Whether the view has stopped moving — no gesture in progress, no spring
+     * settling, no momentum, no held key. Defaults to `true`, which is what an
+     * idle caller and every test that does not care are describing.
+     *
+     * **The view-stable gate** (spec §Tile scheduling). No thumbnail and no
+     * `info.json` request is issued while this is false. A flick passes over
+     * hundreds of canvases that are never dwelt on, and asking for each one as
+     * it goes by is most of the request storm on its own — so the ones the
+     * reader actually stops at are the only ones asked for.
+     *
+     * It gates **discovery**, not residency: tiles are unaffected (a pyramid-
+     * tier canvas is one the reader is looking at, and letting it go blank
+     * during a drag would be worse than the requests), and a thumbnail already
+     * decoded stays in the required set so it keeps painting through the
+     * gesture rather than being demoted and blanking.
+     */
+    viewStable?: boolean;
 }
 
 /**
@@ -309,9 +358,25 @@ export interface ScenePlan {
     tileRequests: TileRequest[];
     /** What to paint, coarsest level first. Only tiles the host already holds. */
     tileDraws: TileDraw[];
+    /**
+     * The **thumbnail tier**'s share of the required set, ordered by priority
+     * beside `tileRequests` and fed to the same scheduler.
+     */
     thumbnailRequests: ThumbnailRequest[];
     /** Canvas ids needing an `info.json` fetch now. */
     metadataRequests: string[];
+    /**
+     * Canvas ids that reached the end of the thumbnail ladder with nothing
+     * usable, and are therefore **box tier permanently**.
+     *
+     * Reported rather than logged because the planner is pure, and reported at
+     * all because a silently blank canvas is indistinguishable from one still
+     * loading. The host logs each id **once** (`CanvasHost.reportUnresolvedThumbnails`):
+     * the decision is a pure function of the manifest and the service's facts,
+     * so it is the same answer every frame, and re-announcing it sixty times a
+     * second would be as bad as the retry loop the ladder refuses to run.
+     */
+    unresolvedThumbnails: string[];
     /**
      * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
      * their service offers exceeds it.

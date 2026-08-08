@@ -95,6 +95,50 @@ function getProfileHead(profile: unknown): string | null {
 }
 
 /**
+ * The compliance level a profile declares, or `null` when it declares none the
+ * renderer recognises.
+ *
+ * Spelled three ways in the wild and all three are read: the bare version 3
+ * token (`level2`), the version 2 profile URI (`…/api/image/2/level2.json`),
+ * and the version 1 fragment form (`…#level2`).
+ *
+ * `null` is a real answer and not a synonym for level0. A missing or
+ * unrecognised profile means "we do not know what this service will answer",
+ * which is what sends the thumbnail ladder to `info.json` rather than letting
+ * it construct a region request a level0 tree would 404.
+ */
+export function complianceLevel(profile: unknown): 0 | 1 | 2 | null {
+    const head = getProfileHead(profile);
+    if (!head) return null;
+
+    for (const level of [0, 1, 2] as const) {
+        if (
+            head === `level${level}` ||
+            head.endsWith(`/level${level}.json`) ||
+            head.endsWith(`#level${level}`)
+        ) {
+            return level;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Which Image API major version a declared **profile** implies.
+ *
+ * A weaker question than `imageService.parseVersion`, which reads a whole
+ * `info.json`: this is what the manifest alone can say, and it is asked only
+ * where the thumbnail ladder builds a URL without fetching. Only the version 2
+ * profile URI carries the version; the bare `level2` token is version 3
+ * syntax, and version 3 is the safe default because it is the only one of the
+ * two whose `quality` spelling has no deprecated alternative.
+ */
+export function profileVersion(profile: unknown): 2 | 3 {
+    return (getProfileHead(profile) ?? '').includes('/image/2/') ? 2 : 3;
+}
+
+/**
  * Whether a declared image-service profile is level0.
  *
  * A first-party copy of the predicate `components/osdTileSources` exports, so
@@ -107,13 +151,7 @@ function getProfileHead(profile: unknown): string | null {
  * the fact that matters and is right even when a profile is missing or lies.
  */
 export function isLevel0Profile(profile: unknown): boolean {
-    const head = getProfileHead(profile);
-    if (!head) return false;
-    return (
-        head === 'level0' ||
-        head.endsWith('/level0.json') ||
-        head.endsWith('#level0')
-    );
+    return complianceLevel(profile) === 0;
 }
 
 function usableSizes(

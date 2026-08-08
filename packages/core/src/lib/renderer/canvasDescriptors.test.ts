@@ -6,7 +6,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { toPlannerCanvas, toPlannerCanvases } from './canvasDescriptors';
+import {
+    getDeclaredThumbnailUrl,
+    toPlannerCanvas,
+    toPlannerCanvases,
+} from './canvasDescriptors';
 
 function v3Canvas(body: Record<string, unknown>, canvas: object = {}) {
     return {
@@ -52,6 +56,7 @@ describe('toPlannerCanvas', () => {
             width: 1000,
             height: 750,
             source: { kind: 'static', url: 'https://example.test/image.jpg' },
+            thumbnailUrl: null,
         });
     });
 
@@ -109,6 +114,7 @@ describe('toPlannerCanvas', () => {
             width: 800,
             height: 600,
             source: { kind: 'static', url: 'https://example.test/v2.jpg' },
+            thumbnailUrl: null,
         });
     });
 
@@ -165,5 +171,110 @@ describe('toPlannerCanvas', () => {
         expect(
             toPlannerCanvases([v3Canvas(STATIC_BODY), { type: 'Canvas' }]),
         ).toHaveLength(1);
+    });
+});
+
+/**
+ * The **thumbnail tier**'s first rung, read from raw IIIF JSON.
+ *
+ * These fixtures are written out here rather than taken from the parser corpus
+ * deliberately: that corpus has exactly one canvas-level thumbnail in it, so
+ * "the Cookbook fixtures cover this" is an assumption rather than a fact. The
+ * shapes below are the four a Canvas is allowed to declare a thumbnail in, and
+ * the branch they feed must never be replaced by a discovery fetch merely
+ * because a canvas is raw JSON now (spec §Thumbnail resolution, rung 1).
+ */
+describe('getDeclaredThumbnailUrl', () => {
+    it('reads a v3 canvas thumbnail — an array of resources with `id`', () => {
+        const canvas = v3Canvas(STATIC_BODY, {
+            thumbnail: [
+                {
+                    id: 'https://example.test/thumb/v3.jpg',
+                    type: 'Image',
+                    format: 'image/jpeg',
+                    width: 200,
+                    height: 150,
+                },
+            ],
+        });
+
+        expect(getDeclaredThumbnailUrl(canvas)).toBe(
+            'https://example.test/thumb/v3.jpg',
+        );
+        expect(toPlannerCanvas(canvas)?.thumbnailUrl).toBe(
+            'https://example.test/thumb/v3.jpg',
+        );
+    });
+
+    it('reads a v2 canvas thumbnail — a single resource with `@id`', () => {
+        const v2 = {
+            '@id': 'https://example.test/canvas/2',
+            '@type': 'sc:Canvas',
+            width: 800,
+            height: 600,
+            thumbnail: {
+                '@id': 'https://example.test/thumb/v2.jpg',
+                '@type': 'dctypes:Image',
+            },
+            images: [
+                {
+                    '@type': 'oa:Annotation',
+                    motivation: 'sc:painting',
+                    resource: {
+                        '@id': 'https://example.test/v2.jpg',
+                        '@type': 'dctypes:Image',
+                        width: 800,
+                        height: 600,
+                    },
+                    on: 'https://example.test/canvas/2',
+                },
+            ],
+        };
+
+        expect(getDeclaredThumbnailUrl(v2)).toBe(
+            'https://example.test/thumb/v2.jpg',
+        );
+        expect(toPlannerCanvas(v2)?.thumbnailUrl).toBe(
+            'https://example.test/thumb/v2.jpg',
+        );
+    });
+
+    it('reads a bare string thumbnail', () => {
+        expect(
+            getDeclaredThumbnailUrl({
+                thumbnail: 'https://example.test/thumb/bare.jpg',
+            }),
+        ).toBe('https://example.test/thumb/bare.jpg');
+    });
+
+    it('takes the resource id even when the thumbnail declares its own service', () => {
+        // Rung 1 is "used AS-IS, the ladder ignored". A thumbnail resource may
+        // carry an image service, and the gallery's helper prefers a URL built
+        // from it at a size baked into the call — but the published id is the
+        // publisher's own answer, it costs no discovery, and it is what makes
+        // this rung work for a level0 service.
+        expect(
+            getDeclaredThumbnailUrl({
+                thumbnail: [
+                    {
+                        id: 'https://example.test/thumb/with-service.jpg',
+                        service: [
+                            {
+                                id: 'https://example.test/iiif/thumb',
+                                profile: 'level2',
+                            },
+                        ],
+                    },
+                ],
+            }),
+        ).toBe('https://example.test/thumb/with-service.jpg');
+    });
+
+    it('reports null where a canvas declares no usable thumbnail', () => {
+        expect(getDeclaredThumbnailUrl({})).toBeNull();
+        expect(getDeclaredThumbnailUrl({ thumbnail: [] })).toBeNull();
+        expect(getDeclaredThumbnailUrl({ thumbnail: '' })).toBeNull();
+        expect(getDeclaredThumbnailUrl({ thumbnail: [{}] })).toBeNull();
+        expect(getDeclaredThumbnailUrl(null)).toBeNull();
     });
 });
