@@ -34,7 +34,10 @@
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
     import { GestureRecogniser } from '../renderer/gestureArbiter';
     import { reconcileImages } from '../renderer/imageRequests';
-    import { imageServiceCache } from '../renderer/imageService';
+    import {
+        imageServiceCache,
+        type ImageServiceFailure,
+    } from '../renderer/imageService';
     import { paintScene } from '../renderer/paintScene';
     import { planScene, planViewportLimits } from '../renderer/planScene';
     import { pointerSample } from '../renderer/pointerSamples';
@@ -172,6 +175,18 @@
         Object.create(null);
 
     /**
+     * canvasId → why its image service has no facts, for the canvases where one
+     * failed.
+     *
+     * The renderer's half of a canvas error state: the planner keeps asking for
+     * metadata it will never get, and `ensure` keeps resolving `null`, so
+     * without this the canvas is silently blank forever. Ticket 12 turns it into
+     * something a user can see; here it is only surfaced.
+     */
+    const metadataFailures: Record<string, ImageServiceFailure> =
+        Object.create(null);
+
+    /**
      * The canvases this renderer is showing, in **canvas space**.
      *
      * Only the current canvas: multi-canvas worlds (paged, continuous) arrive
@@ -213,6 +228,10 @@
             direction: viewerState.viewingDirection,
             preserveCanvasScale: viewerState.preserveCanvasScale,
             viewport,
+            // Level selection is a question about pixels the display can
+            // resolve, and the viewport is measured in CSS pixels: without this
+            // a 2× screen never reaches full resolution.
+            dpr,
             knownMetadata,
             budgets: DEFAULT_BUDGETS,
             residentTiles: tiles.residentKeys(),
@@ -238,7 +257,21 @@
 
             const { serviceId } = canvas.source;
             void imageServiceCache.ensure(serviceId).then((facts) => {
-                if (!facts || knownMetadata[canvasId] === facts) return;
+                if (!facts) {
+                    // A canvas that will never have pixels. Recorded rather
+                    // than swallowed: painting nothing and saying nothing is
+                    // indistinguishable from still loading (user stories 26 and
+                    // 27). Ticket 12 owns the announcement; this is the seam it
+                    // reads.
+                    // No repaint is bumped for this: nothing about the scene
+                    // changed, and a failure that provoked a frame would
+                    // provoke the next metadata request too.
+                    const kind = imageServiceCache.failure(serviceId);
+                    if (kind) metadataFailures[canvasId] = kind;
+                    return;
+                }
+                delete metadataFailures[canvasId];
+                if (knownMetadata[canvasId] === facts) return;
                 knownMetadata[canvasId] = facts;
                 // Tiles can only be planned now that the pyramid is knowable.
                 loadedGeneration += 1;
@@ -949,6 +982,13 @@
          */
         ctx = surface.getContext('2d', { alpha: true });
 
+        // The metadata cache outlives this renderer, the manifest, and SPA
+        // navigation, so a failure it recorded may be older than the network
+        // conditions that caused it. A mount is the natural moment to give a
+        // transient one another chance; a deterministic one (auth, an
+        // unparseable document) is left alone.
+        imageServiceCache.retryTransientFailures();
+
         const observer = new ResizeObserver(() => measure());
         observer.observe(root);
         measure();
@@ -1016,6 +1056,11 @@
                  */
                 scenePlanCount,
             }),
+            /**
+             * canvasId → why its image service failed, for the canvases whose
+             * metadata never arrived. The seam ticket 12's error UI reads.
+             */
+            getMetadataFailures: () => ({ ...metadataFailures }),
             nextPaint,
         };
 

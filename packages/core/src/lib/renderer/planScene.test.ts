@@ -75,6 +75,27 @@ const FACTS: ImageServiceFacts = {
     version: 3,
 };
 
+/**
+ * An 8192-square service: five levels, so the coarse chain is long enough for
+ * "the chain is a fraction of the current level" to be a real measurement rather
+ * than an artefact of a two-level pyramid.
+ */
+const BIG_FACTS: ImageServiceFacts = {
+    width: 8192,
+    height: 8192,
+    tileSize: 512,
+    scaleFactors: [1, 2, 4, 8, 16],
+    version: 3,
+};
+
+function countByLevel(requests: Array<{ level: number }>): Map<number, number> {
+    const byLevel = new Map<number, number>();
+    for (const request of requests) {
+        byLevel.set(request.level, (byLevel.get(request.level) ?? 0) + 1);
+    }
+    return byLevel;
+}
+
 function viewport(overrides: Partial<Viewport> = {}): Viewport {
     return {
         width: 800,
@@ -260,27 +281,52 @@ describe('planScene — tiled sources', () => {
         expect(box.metadataRequests).toEqual([]);
     });
 
-    it('keeps the whole coarse chain resident, not just the tiles on screen', () => {
-        // Zoomed into the top-left corner at full resolution. The current level
-        // holds only what is near the viewport, but every coarser level is held
-        // whole — which is what makes zooming back out immediate.
+    it('keeps the coarse chain over viewport-plus-margin, not over the whole image', () => {
+        // Zoomed into the top-left corner at full resolution. Every level —
+        // coarse chain included — is restricted to the same box; only the base
+        // level, one tile by construction, is held whole.
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ centre: { x: 60, y: 60 }, scale: 16 }),
             knownMetadata: { c1: FACTS },
         });
 
-        const byLevel = new Map<number, number>();
-        for (const request of result.tileRequests) {
-            byLevel.set(request.level, (byLevel.get(request.level) ?? 0) + 1);
-        }
+        const byLevel = countByLevel(result.tileRequests);
 
-        // Levels 0..2 are the full grid: 1x1, 2x2, 4x4.
         expect(byLevel.get(0)).toBe(1);
-        expect(byLevel.get(1)).toBe(4);
-        expect(byLevel.get(2)).toBe(16);
-        // The current level (8x8 = 64 tiles) is restricted to the corner.
+        // Held whole these would be the full 2x2 and 4x4 grids.
+        expect(byLevel.get(1)).toBe(1);
+        expect(byLevel.get(2)).toBe(1);
+        // The current level (8x8 = 64 tiles) is restricted to the corner too.
         expect(byLevel.get(3)).toBeLessThan(64);
         expect(byLevel.get(3)).toBeGreaterThan(0);
+    });
+
+    it('keeps the coarse chain a fraction of the current level, not a function of image size', () => {
+        // The claim the spec's arithmetic rests on: geometric level sizes make
+        // the whole chain roughly a third of the current level. That is only
+        // true when every level is measured over the SAME box. Held whole, the
+        // chain costs O(image area) against the current level's O(viewport
+        // area) — here 85 tiles against 16, and far worse as the scan grows,
+        // with no later budget able to touch it: the required set is by
+        // definition never evicted.
+        const result = plan([serviceCanvas('c1', 1000, 1000)], {
+            viewport: viewport({
+                width: 1200,
+                height: 800,
+                centre: { x: 500, y: 500 },
+                scale: 8,
+            }),
+            knownMetadata: { c1: BIG_FACTS },
+        });
+
+        const byLevel = countByLevel(result.tileRequests);
+        const current = Math.max(...byLevel.keys());
+        const chain = [...byLevel]
+            .filter(([level]) => level < current)
+            .reduce((total, [, count]) => total + count, 0);
+
+        expect(byLevel.get(current)).toBeGreaterThan(4);
+        expect(chain).toBeLessThan(byLevel.get(current)!);
     });
 
     it('always includes the base level, so there is always something to paint', () => {
@@ -312,10 +358,43 @@ describe('planScene — tiled sources', () => {
             );
 
         expect(levelAt(0.5)).toBe(0);
-        expect(levelAt(4)).toBeGreaterThan(levelAt(0.5));
-        expect(levelAt(16)).toBeGreaterThan(levelAt(4));
+        expect(levelAt(1)).toBeGreaterThan(levelAt(0.5));
+        expect(levelAt(4)).toBeGreaterThan(levelAt(1));
         // Four levels exist; there is nothing sharper to promote to.
         expect(levelAt(1000)).toBe(3);
+    });
+
+    it('reaches full resolution sooner on a HiDPI screen, because it can be seen', () => {
+        // The same view in CSS pixels. Level selection is a question about
+        // pixels the display can resolve, so the backing-store ratio is a
+        // planner input: without it a 2× screen tops out four times short of
+        // what it could show.
+        const levelAt = (dpr: number) =>
+            Math.max(
+                ...plan([serviceCanvas('c1', 1000, 1000)], {
+                    viewport: viewport({
+                        centre: { x: 500, y: 500 },
+                        scale: 1,
+                    }),
+                    knownMetadata: { c1: FACTS },
+                    dpr,
+                }).tileRequests.map((request) => request.level),
+            );
+
+        expect(levelAt(2)).toBeGreaterThan(levelAt(1));
+        // Absent, it is the CSS-pixel screen — a caller that does not know its
+        // backing store gets the conservative answer, not a broken one.
+        expect(levelAt(1)).toBe(
+            Math.max(
+                ...plan([serviceCanvas('c1', 1000, 1000)], {
+                    viewport: viewport({
+                        centre: { x: 500, y: 500 },
+                        scale: 1,
+                    }),
+                    knownMetadata: { c1: FACTS },
+                }).tileRequests.map((request) => request.level),
+            ),
+        );
     });
 
     it('honours the supplied minimum pixel ratio rather than a shipped default', () => {
@@ -331,8 +410,10 @@ describe('planScene — tiled sources', () => {
                 }).tileRequests.map((request) => request.level),
             );
 
-        // A higher ratio tolerates less blur, so it promotes sooner.
-        expect(at(2)).toBeGreaterThan(at(0.25));
+        // The ratio is device pixels per LEVEL pixel: a higher one accepts a
+        // blurrier level, which is OpenSeadragon's direction carried forward
+        // with the value.
+        expect(at(2)).toBeLessThan(at(0.25));
     });
 
     it('orders tiles centre-out, not in discovery order', () => {
@@ -351,15 +432,38 @@ describe('planScene — tiled sources', () => {
     });
 
     it('re-sorts as the viewport moves: the nearest tile changes with the centre', () => {
-        const nearest = (centre: { x: number; y: number }) =>
-            plan([serviceCanvas('c1', 1000, 1000)], {
+        // Read at the CURRENT level: every covering tile contains the viewport
+        // centre and is therefore at distance 0, so the coarse chain is
+        // deliberately indistinguishable here — that is the previous test's
+        // subject, not this one's.
+        const nearest = (centre: { x: number; y: number }) => {
+            const requests = plan([serviceCanvas('c1', 1000, 1000)], {
                 viewport: viewport({ centre, scale: 4 }),
                 knownMetadata: { c1: FACTS },
-            }).tileRequests[0].key;
+            }).tileRequests;
+            const current = Math.max(...requests.map((entry) => entry.level));
+            return requests.find((entry) => entry.level === current)!.key;
+        };
 
         expect(nearest({ x: 100, y: 100 })).not.toBe(
             nearest({ x: 900, y: 900 }),
         );
+    });
+
+    it('measures distance to the tile, not to its centre, so a covering tile is fetched first', () => {
+        // Off-centre entry — a deep link, or a programmatic view. A coarse tile
+        // is huge in canvas space, so measured centre-to-centre the base tile
+        // that guarantees the viewer is never blank sits behind dozens of
+        // current-level tiles, and with an in-flight window of six it arrives
+        // last. Entering at fit hides this completely: there the base tile's
+        // centre IS the viewport centre.
+        const result = plan([serviceCanvas('c1', 1000, 1000)], {
+            viewport: viewport({ centre: { x: 120, y: 880 }, scale: 12 }),
+            knownMetadata: { c1: FACTS },
+        });
+
+        expect(result.tileRequests[0].key).toBe(tileKey('c1', 0, 0, 0));
+        expect(result.tileRequests[0].priority).toBe(0);
     });
 
     it('builds a IIIF Image API request URL per tile', () => {

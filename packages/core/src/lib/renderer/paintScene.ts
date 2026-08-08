@@ -9,6 +9,13 @@
  * correctness is the geometric e2e assertions' job (spec §Testing Decisions,
  * "Deliberately not unit-tested in isolation").
  *
+ * With one carve-out, in `paintScene.test.ts`: device-pixel snapping is a
+ * sub-pixel relationship between adjacent draw calls, and blur-up paints the
+ * coarse level underneath, so a seam is a one-pixel line of the coarse tile's
+ * colour rather than a hole. Nothing that reads the finished canvas back can
+ * tell that from the picture — which makes it the one property here that a
+ * geometric assertion cannot reach.
+ *
  * ## The canvas never paints a background
  *
  * Nothing here clears to a colour. The viewer background is a CSS

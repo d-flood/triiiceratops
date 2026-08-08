@@ -28,13 +28,21 @@ import {
     openTiledManifest,
     setView,
     TILED_MANIFEST,
+    TILED_V2_MANIFEST,
     useCanvasRenderer,
 } from './helpers/numberedGrid';
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 
-/** Tile requests, distinguished from any other image the page may fetch. */
-const TILE_PATTERN = /\/iiif-fixture\/[^/]+\/[^/]+\/[^/]+\/0\/default\.png$/;
+/**
+ * Tile requests, distinguished from any other image the page may fetch.
+ *
+ * The quality segment is deliberately left open. Pinned to `default` this would
+ * silently stop matching if the renderer ever asked for `native` again — the
+ * exact regression that blanks a strictly-2.1 service — so the pattern must see
+ * every tile request, not only the well-formed ones.
+ */
+const TILE_PATTERN = /\/iiif-fixture\/[^/]+\/[^/]+\/[^/]+\/0\/[^/]+\.png$/;
 const INFO_PATTERN = /\/iiif-fixture\/[^/]+\/info\.json$/;
 
 test.skip(
@@ -232,13 +240,17 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         page,
     }) => {
         await openTiledManifest(page);
-
-        // Let the fit view's own tiles finish, so what is recorded below is one
-        // plan's ordering rather than two overlapping ones.
         await expect
             .poll(() => getStats(page).then((stats) => stats.tileRequestCount))
             .toBeGreaterThan(0);
-        for (let frame = 0; frame < 5; frame += 1) await nextPaint(page);
+
+        // Zoomed right out first, so the current level is a couple of tiles and
+        // everything finer is released. This fixture is small enough that the
+        // fit view already holds its full-resolution level whole — without this,
+        // zooming in requires a SUBSET of what is already resident and there is
+        // no ordering left to observe.
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 0.2 });
+        for (let frame = 0; frame < 3; frame += 1) await nextPaint(page);
 
         const requested = recordRequests(page, TILE_PATTERN);
         // Off-centre on purpose: a scheduler that started at the top-left of
@@ -249,13 +261,23 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
 
         // The window is fed straight off the priority queue, so the first
         // requests to leave it are in centre-out order. Distances are measured
-        // in image space, which is this fixture's canvas space too.
+        // in image space, which is this fixture's canvas space too — and to the
+        // NEAREST POINT of each tile, not to its centre, because a coarse tile
+        // covering the viewport centre is what blur-up needs first however far
+        // away its own centre is.
         const distances = requested.slice(0, 6).map((url) => {
             const region = tileRegion(url)!;
-            return Math.hypot(
-                region.x + region.width / 2 - centre.x,
-                region.y + region.height / 2 - centre.y,
-            );
+            const nearest = {
+                x: Math.min(
+                    Math.max(centre.x, region.x),
+                    region.x + region.width,
+                ),
+                y: Math.min(
+                    Math.max(centre.y, region.y),
+                    region.y + region.height,
+                ),
+            };
+            return Math.hypot(nearest.x - centre.x, nearest.y - centre.y);
         });
 
         expect(
@@ -364,7 +386,19 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         expect(attempts).toHaveLength(2);
     });
 
-    test('paints no seams between tiles at fractional zoom', async ({
+    /**
+     * Coverage, not seams.
+     *
+     * The seam claim itself is asserted where it can fail — `drawTile`'s
+     * destination rectangles, in `src/lib/renderer/paintScene.test.ts`. It
+     * cannot be asserted from here: blur-up paints the coarse chain underneath
+     * first, so every in-image pixel is opaque before a single current-level
+     * tile is drawn, and a real seam under blur-up is a one-pixel line of the
+     * COARSE level's colour rather than a hole. What this still proves is worth
+     * keeping — that the tiled path covers the viewport at an awkward zoom at
+     * all — so it is kept under a name that matches it.
+     */
+    test('covers the viewport with no gap at fractional zoom', async ({
         page,
     }) => {
         await openTiledManifest(page);
@@ -387,8 +421,8 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
             .toBeGreaterThan(4);
         await nextPaint(page);
 
-        // A seam is a column the painter left transparent: the canvas never
-        // paints a background, so a gap between two tiles reads as alpha 0.
+        // The canvas never paints a background, so anything the painter left
+        // uncovered reads as alpha 0.
         const gaps = await page.locator(SURFACE).evaluate((element) => {
             const canvas = element as HTMLCanvasElement;
             const ctx = canvas.getContext('2d')!;
@@ -413,6 +447,37 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         expect(gaps).toBe(0);
     });
 
+    test('loads tiles from a strict Image API 2.1 service', async ({
+        page,
+    }) => {
+        await useCanvasRenderer(page);
+
+        const rejected: string[] = [];
+        page.on('response', (response) => {
+            if (!TILE_PATTERN.test(response.url())) return;
+            if (response.status() >= 400) rejected.push(response.url());
+        });
+
+        await page.goto(`/?manifest=${TILED_V2_MANIFEST}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        await page
+            .locator(SURFACE)
+            .waitFor({ state: 'visible', timeout: 20_000 });
+
+        // The fixture rejects any quality but `default`, as 2.1 requires. Ask it
+        // for the deprecated `native` and every tile 4xxs, each spends its one
+        // retry, the URLs land in the permanent negative cache, and no feature
+        // is ever findable.
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+            .not.toBeNull();
+        await setView(page, { centre: GRID_FEATURES.alpha, scale: 2 });
+        await expectFeatureOnModel(page, 'alpha', 1);
+
+        expect(rejected).toEqual([]);
+    });
+
     test('reports resident tiles and decoded bytes, and they follow what is held', async ({
         page,
     }) => {
@@ -422,32 +487,38 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         expect(atFit.residentTileCount).toBeGreaterThan(0);
         expect(atFit.decodedBytes).toBeGreaterThan(0);
 
+        // Zoomed right out: the current level is a couple of tiles and every
+        // finer one is released — bytes with them. Decoded bytes track the
+        // tiles, not the request history, and browser heap metrics could not see
+        // this at all, since decoded images live outside the JS heap.
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.2 });
+        await expect
+            .poll(
+                () => getStats(page).then((stats) => stats.residentTileCount),
+                { timeout: 20_000 },
+            )
+            .toBeLessThan(atFit.residentTileCount);
+
+        const out = await getStats(page);
+        expect(out.decodedBytes).toBeLessThan(atFit.decodedBytes);
+
+        // Back in, and the current level is held again — over
+        // viewport-plus-margin, not over the whole image.
         await setView(page, { centre: GRID_FEATURES.bravo, scale: 4 });
         await expect
             .poll(
                 () => getStats(page).then((stats) => stats.residentTileCount),
                 { timeout: 20_000 },
             )
-            .toBeGreaterThan(atFit.residentTileCount);
+            .toBeGreaterThan(out.residentTileCount);
 
         const zoomed = await getStats(page);
-        // Decoded bytes track the tiles, not the request history: browser heap
-        // metrics could not see this at all, since decoded images live outside
-        // the JS heap.
-        expect(zoomed.decodedBytes).toBeGreaterThan(atFit.decodedBytes);
+        expect(zoomed.decodedBytes).toBeGreaterThan(out.decodedBytes);
         expect(
             zoomed.decodedBytes / zoomed.residentTileCount,
         ).toBeLessThanOrEqual(
             // Nothing bigger than one 256x256 RGBA tile per resident tile.
             256 * 256 * 4,
-        );
-
-        // Back out, and the current level's tiles are released again.
-        await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.4 });
-        await nextPaint(page);
-        const backOut = await getStats(page);
-        expect(backOut.residentTileCount).toBeLessThan(
-            zoomed.residentTileCount,
         );
     });
 });

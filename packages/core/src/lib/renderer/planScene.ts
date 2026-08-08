@@ -21,9 +21,10 @@
  * - the **base level** — the coarsest level, covering the whole image in
  *   (typically) one tile. It costs almost nothing and it is what guarantees the
  *   viewer is never blank;
- * - the **full chain of coarser levels**, whole. Pyramid levels are geometric,
- *   so the entire chain is roughly a third of one full level — cheap, and it is
- *   what makes zooming *out* instant as well as in;
+ * - the **full chain of coarser levels**, each over the same
+ *   viewport-plus-margin box as the current level. Pyramid levels are
+ *   geometric, so the whole chain then really is roughly a third of the current
+ *   level — cheap, and it is what makes zooming *out* instant as well as in;
  * - the **current level**, for tiles intersecting viewport-plus-margin.
  *
  * `tileDraws` is the resident subset of that, restricted to what is actually on
@@ -59,6 +60,7 @@ import type {
     LayoutRect,
     PlannerCanvas,
     PlanSceneInput,
+    Point,
     ResidencyTier,
     ScenePlan,
     TileDraw,
@@ -224,18 +226,37 @@ function intersects(a: Box, b: Box): boolean {
 }
 
 /**
+ * Canvas-space distance from a point to the **nearest point of** a box — zero
+ * when the box contains it.
+ *
+ * Distance to the box, deliberately not to its centre. A coarse tile is huge in
+ * canvas space, so its centre can be far from the viewport centre while the tile
+ * covers it: measured centre-to-centre, the base tile that guarantees the viewer
+ * is never blank is scheduled *behind* dozens of current-level tiles at any
+ * off-centre entry point (a deep link, a programmatic view), which is exactly
+ * where blur-up is needed most.
+ */
+function distanceToBox(point: Point, box: Box): number {
+    const nearestX = Math.min(Math.max(point.x, box.x), box.x + box.width);
+    const nearestY = Math.min(Math.max(point.y, box.y), box.y + box.height);
+
+    return Math.hypot(point.x - nearestX, point.y - nearestY);
+}
+
+/**
  * The required set and the draw list for one pyramid-tier canvas.
  *
- * Priority is the canvas-space distance from the viewport centre to the tile's
- * centre — distance, not discovery order, and not rank. Coarser levels break
- * ties, so blur-up coverage lands fractionally ahead of the detail that will
- * replace it while the ordering stays centre-out.
+ * Priority is the canvas-space distance from the viewport centre to the tile —
+ * distance, not discovery order, and not rank. Coarser levels break ties, so
+ * blur-up coverage lands ahead of the detail that will replace it while the
+ * ordering stays centre-out.
  */
 function planPyramid(
     canvas: PlannerCanvas,
     pyramid: TilePyramid,
     rect: LayoutRect,
     viewport: Viewport,
+    dpr: number,
     minPixelRatio: number,
     marginFactor: number,
     residentTiles: ReadonlySet<TileKey>,
@@ -245,20 +266,30 @@ function planPyramid(
     const visible = viewportBox(viewport);
     const margin = inflate(visible, marginFactor);
 
-    // Screen pixels per full-resolution image pixel. The image is fitted into
-    // its manifest-declared box, so the box's canvas-space width — not the
-    // service's pixel width — is what relates the two spaces.
-    const imageScale = (viewport.scale * rect.width) / pyramid.width;
+    // DEVICE pixels per full-resolution image pixel: the viewport is measured in
+    // CSS pixels, and a level chosen from those never reaches full resolution on
+    // a HiDPI screen. The image is fitted into its manifest-declared box, so the
+    // box's canvas-space width — not the service's pixel width — is what relates
+    // canvas space to image space.
+    const imageScale = (viewport.scale * dpr * rect.width) / pyramid.width;
     const current = chooseLevel(pyramid, imageScale, minPixelRatio);
 
     for (const level of pyramid.levels) {
         if (level.level > current.level) break;
 
-        // The coarse chain is held WHOLE (a `null` box); only the current level
-        // is restricted to viewport-plus-margin. That asymmetry is the point:
-        // the chain is geometric and therefore cheap, and holding all of it is
-        // what makes zooming out instant.
-        const box = level.level === current.level ? margin : null;
+        // Every level is restricted to viewport-plus-margin. The base level is
+        // the one exception, and only because it is a single tile by
+        // construction — holding it whole costs nothing and is what guarantees
+        // the viewer is never blank.
+        //
+        // Holding the coarse chain WHOLE is the reading that makes the spec's
+        // "the chain is roughly a third of the current level" false: a whole
+        // level costs O(image area) while the current level costs O(viewport
+        // area), so the ratio diverges with image size — a 30000² scan wants
+        // over a gigabyte of chain against 10 MB of current level. Restricted to
+        // the same box, the geometric sum really is a third, and the required
+        // set stays a function of the viewport rather than of the image.
+        const box = level.level === 0 ? null : margin;
 
         for (const { column, row } of tilesIntersecting(
             pyramid,
@@ -268,18 +299,13 @@ function planPyramid(
         )) {
             const key = tileKey(canvas.id, level.level, column, row);
             const tileBox = tileCanvasRect(pyramid, level, column, row, rect);
-            const centreX = tileBox.x + tileBox.width / 2;
-            const centreY = tileBox.y + tileBox.height / 2;
 
             requests.push({
                 key,
                 canvasId: canvas.id,
                 level: level.level,
                 url: tileUrl(pyramid, level, column, row),
-                priority: Math.hypot(
-                    centreX - viewport.centre.x,
-                    centreY - viewport.centre.y,
-                ),
+                priority: distanceToBox(viewport.centre, tileBox),
             });
 
             // Drawn only if held AND actually on screen: the margin exists to
@@ -294,6 +320,9 @@ function planPyramid(
 export function planScene(input: PlanSceneInput): ScenePlan {
     const { canvases, viewport, budgets, knownMetadata } = input;
     const residentTiles = input.residentTiles ?? new Set<TileKey>();
+    // 1 is the CSS-pixel screen, which is what a caller that does not know its
+    // backing store is describing.
+    const dpr = input.dpr && input.dpr > 0 ? input.dpr : 1;
 
     const layoutable = canvases.filter(isLayoutable);
     // The same function the host's per-sample clamping calls, so the world the
@@ -356,6 +385,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             pyramid,
             rects.get(canvas.id)!,
             viewport,
+            dpr,
             budgets.minPixelRatio,
             budgets.marginFactor,
             residentTiles,

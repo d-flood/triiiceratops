@@ -32,6 +32,18 @@ export const GRID_MANIFEST = '/demo-manifests/static-image/manifest.json';
  * wrong place, not as a new set of numbers to maintain.
  */
 export const TILED_MANIFEST = '/demo-manifests/tiled/manifest.json';
+
+/**
+ * The same grid again, through a **strict Image API 2.1** service that rejects
+ * any quality but `default` (see `scripts/iiifFixturePlugin.mjs`).
+ *
+ * The one browser fixture whose tile URLs are not built from a version 3
+ * document. `native` was deprecated in 2.1 and a 2.0 document is
+ * indistinguishable from a 2.1 one, so a renderer that infers `native` from
+ * "version 2" blanks this canvas permanently — and every real 2.1 endpoint with
+ * it.
+ */
+export const TILED_V2_MANIFEST = '/demo-manifests/tiled-v2/manifest.json';
 /** The image services the tiled fixture's two canvases are backed by. */
 export const TILED_SERVICES = ['/iiif-fixture/one', '/iiif-fixture/two'];
 

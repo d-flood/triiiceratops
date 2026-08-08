@@ -27,6 +27,20 @@ import {
 const PREFIX = '/iiif-fixture/';
 
 /**
+ * A service whose id begins with this is served as a **strict Image API 2.1**
+ * endpoint: a version 2 `info.json`, and a hard rejection of any quality other
+ * than `default`.
+ *
+ * 2.1 deprecated `native` and requires `default` from compliance level 1
+ * upwards, and a 2.0 document is indistinguishable from a 2.1 one — so a
+ * renderer that infers `native` from "version 2" 404s every tile of a real
+ * endpoint like this one, spends its one retry on each, and paints the canvas
+ * permanently blank. Refusing `native` here is what makes that a test failure
+ * rather than a field report.
+ */
+const V2_PREFIX = 'v2-';
+
+/**
  * 256 with scale factors up to 8 gives four levels over a 1200x900 image —
  * a base level of exactly one tile, and 20 tiles at full resolution. Enough
  * for the in-flight window, the priority order, and the coarse chain all to be
@@ -43,7 +57,37 @@ function source() {
     return sourcePixels;
 }
 
+/**
+ * The version 2 form of the same service.
+ *
+ * Note what is NOT here: `preferredFormats` is a version 3 addition, so a
+ * renderer asking this service for tiles falls back to its default format. The
+ * middleware answers with PNG bytes and an `image/png` content type whatever
+ * extension is asked for, which is what the browser decodes from.
+ */
+function infoJsonV2(origin, id) {
+    return {
+        '@context': 'http://iiif.io/api/image/2/context.json',
+        '@id': `${origin}${PREFIX}${id}`,
+        '@type': 'iiif:Image',
+        protocol: 'http://iiif.io/api/image',
+        profile: [
+            'http://iiif.io/api/image/2/level2.json',
+            { formats: ['png', 'jpg'], qualities: ['default'] },
+        ],
+        width: WIDTH,
+        height: HEIGHT,
+        tiles: [{ width: TILE_SIZE, scaleFactors: SCALE_FACTORS }],
+        sizes: SCALE_FACTORS.map((factor) => ({
+            width: Math.ceil(WIDTH / factor),
+            height: Math.ceil(HEIGHT / factor),
+        })),
+    };
+}
+
 function infoJson(origin, id) {
+    if (id.startsWith(V2_PREFIX)) return infoJsonV2(origin, id);
+
     return {
         '@context': 'http://iiif.io/api/image/3/context.json',
         id: `${origin}${PREFIX}${id}`,
@@ -149,6 +193,13 @@ export function iiifFixture() {
 
                 // {region}/{size}/{rotation}/{quality}.{format}
                 if (rest.length !== 4) return next();
+
+                const quality = rest[3].split('.')[0];
+                if (id.startsWith(V2_PREFIX) && quality !== 'default') {
+                    response.statusCode = 400;
+                    response.end('unsupported quality');
+                    return undefined;
+                }
 
                 const region = parseRegion(rest[0]);
                 if (!region) {

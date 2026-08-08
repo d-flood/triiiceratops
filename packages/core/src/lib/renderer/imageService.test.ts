@@ -86,6 +86,14 @@ describe('createImageServiceCache', () => {
 
     const ok = async () => ({ status: 200, json: LEVEL2_V3 });
 
+    function createBoundedCache(maxEntries: number) {
+        const fetchJson = vi.fn(ok);
+        return {
+            cache: createImageServiceCache({ fetchJson, maxEntries }),
+            fetchJson,
+        };
+    }
+
     it('fetches info.json from the service id', async () => {
         const { cache, fetchJson } = cacheWith(ok);
 
@@ -120,17 +128,18 @@ describe('createImageServiceCache', () => {
         expect(fetchJson).toHaveBeenCalledTimes(1);
     });
 
-    it('remembers a failure permanently rather than retrying it every frame', async () => {
+    it('gives a failure one retry, then stops asking rather than retrying every frame', async () => {
         const { cache, fetchJson } = cacheWith(async () => ({
-            status: 404,
+            status: 503,
             json: null,
         }));
 
-        expect(await cache.ensure(SERVICE)).toBeNull();
-        expect(await cache.ensure(SERVICE)).toBeNull();
-        expect(await cache.ensure(SERVICE)).toBeNull();
+        // Called once per frame while the canvas is on screen.
+        for (let frame = 0; frame < 5; frame += 1) {
+            expect(await cache.ensure(SERVICE)).toBeNull();
+        }
 
-        expect(fetchJson).toHaveBeenCalledTimes(1);
+        expect(fetchJson).toHaveBeenCalledTimes(2);
         expect(cache.failure(SERVICE)).toBe('load');
     });
 
@@ -141,16 +150,69 @@ describe('createImageServiceCache', () => {
         expect(cache.failure(SERVICE)).toBe('auth');
     });
 
-    it('treats a network error as a permanent load failure', async () => {
+    it('never retries an answer: 401 and an unparseable document are permanent', async () => {
+        // Both are the server telling us something true. Repeating the question
+        // cannot change either, so neither is reopened by a remount.
+        const auth = cacheWith(async () => ({ status: 401, json: null }));
+        await auth.cache.ensure(SERVICE);
+        await auth.cache.ensure(SERVICE);
+        auth.cache.retryTransientFailures();
+        await auth.cache.ensure(SERVICE);
+        expect(auth.fetchJson).toHaveBeenCalledTimes(1);
+
+        const junk = cacheWith(async () => ({ status: 200, json: {} }));
+        await junk.cache.ensure(SERVICE);
+        await junk.cache.ensure(SERVICE);
+        junk.cache.retryTransientFailures();
+        await junk.cache.ensure(SERVICE);
+        expect(junk.fetchJson).toHaveBeenCalledTimes(1);
+    });
+
+    it('reopens a transient failure on the next mount rather than blanking the canvas forever', async () => {
+        // This cache outlives the renderer, the manifest, and SPA navigation. A
+        // dropped connection recorded permanently means that canvas paints
+        // nothing for the rest of the page's life, with nothing on screen to
+        // say why.
+        let offline = true;
         const { cache, fetchJson } = cacheWith(async () => {
-            throw new Error('offline');
+            if (offline) throw new Error('offline');
+            return { status: 200, json: LEVEL2_V3 };
         });
 
         expect(await cache.ensure(SERVICE)).toBeNull();
-        await cache.ensure(SERVICE);
-
-        expect(fetchJson).toHaveBeenCalledTimes(1);
         expect(cache.failure(SERVICE)).toBe('load');
+
+        offline = false;
+        cache.retryTransientFailures();
+
+        expect(await cache.ensure(SERVICE)).toMatchObject({ width: 4096 });
+        expect(cache.failure(SERVICE)).toBeUndefined();
+        expect(fetchJson).toHaveBeenCalledTimes(2);
+    });
+
+    it('forgets a service on invalidate, and everything on clear', async () => {
+        const { cache, fetchJson } = cacheWith(ok);
+
+        await cache.ensure(SERVICE);
+        cache.invalidate(SERVICE);
+        await cache.ensure(SERVICE);
+        expect(fetchJson).toHaveBeenCalledTimes(2);
+
+        cache.clear();
+        expect(cache.get(SERVICE)).toBeUndefined();
+        await cache.ensure(SERVICE);
+        expect(fetchJson).toHaveBeenCalledTimes(3);
+    });
+
+    it('bounds what it holds: it is page-shared and nothing else evicts it', async () => {
+        const { cache } = createBoundedCache(2);
+
+        await cache.ensure('https://images.test/a');
+        await cache.ensure('https://images.test/b');
+        await cache.ensure('https://images.test/c');
+
+        expect(cache.get('https://images.test/a')).toBeUndefined();
+        expect(cache.get('https://images.test/c')).toBeDefined();
     });
 
     it('keeps services apart', async () => {

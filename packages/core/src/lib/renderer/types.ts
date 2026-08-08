@@ -101,10 +101,12 @@ export interface PlannerBudgets {
     /** `effectiveSize` below which a canvas is in the box tier. */
     boxThreshold: number;
     /**
-     * How blurry a pyramid level may be before the next finer one is promoted,
-     * as level pixels per screen pixel. Carried forward from the OpenSeadragon
-     * path at its current value so sharpness-versus-speed does not visibly
-     * shift (ticket 05 §Contract).
+     * The least **device** pixels per level pixel a level may carry before the
+     * next coarser one is taken instead. At 0.5, up to 2× oversampling is
+     * tolerated; a *higher* value accepts a blurrier level. Carried forward from
+     * the OpenSeadragon path at its current value, with its semantics, so
+     * sharpness-versus-speed does not visibly shift (ticket 05 §Contract). See
+     * `tilePyramid.chooseLevel`.
      */
     minPixelRatio: number;
 }
@@ -179,6 +181,17 @@ export interface PlanSceneInput {
     direction: ViewingDirection;
     preserveCanvasScale: boolean;
     viewport: Viewport;
+    /**
+     * Device pixels per CSS pixel of the backing store, defaulting to 1.
+     *
+     * A planner input rather than a painter detail: the viewport is measured in
+     * CSS pixels, so this is the only thing that says how many pixels the
+     * display can actually resolve, and level selection is a question about
+     * pixels the screen can show (`tilePyramid.chooseLevel`). Left out of
+     * {@link Viewport} because the viewport is the coordinate model — a device
+     * ratio moves nothing in canvas space.
+     */
+    dpr?: number;
     /** canvasId → image-service facts already fetched. */
     knownMetadata: Record<string, ImageServiceFacts>;
     budgets: PlannerBudgets;

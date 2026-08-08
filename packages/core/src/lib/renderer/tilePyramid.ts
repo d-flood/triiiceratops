@@ -52,6 +52,13 @@ export interface TilePyramid {
     tileSize: number;
     /** Ordered coarsest first. Never empty. */
     levels: PyramidLevel[];
+    /**
+     * The service's Image API major version. Tile URLs are spelled identically
+     * in 2 and 3 — the width-only size form and `default` quality are valid in
+     * both — but the whole-image request the size-ladder source and the
+     * thumbnail ladder build is not (`full` in version 2, `max` in version 3),
+     * so the version is carried on the pyramid rather than discarded here.
+     */
     version: 2 | 3;
     format: string;
 }
@@ -220,9 +227,14 @@ export function tileUrl(
         : `${region.x},${region.y},${region.width},${region.height}`;
 
     const size = Math.max(1, Math.ceil(region.width / level.scaleFactor));
-    const quality = pyramid.version === 2 ? 'native' : 'default';
 
-    return `${pyramid.serviceId}/${regionParameter}/${size},/0/${quality}.${pyramid.format}`;
+    // `default`, never `native`. Version 2.1 deprecated `native` and requires
+    // `default` from compliance level 1 upwards, and a 2.0 document is
+    // indistinguishable from a 2.1 one — same `@context`, same profile URIs — so
+    // `parseVersion` cannot tell them apart and asking for `native` on a
+    // strictly-2.1 endpoint 404s every tile in the pyramid. `native` belongs to
+    // version 1 only, which is not a source kind this renderer supports.
+    return `${pyramid.serviceId}/${regionParameter}/${size},/0/default.${pyramid.format}`;
 }
 
 /** Where a tile lands in **canvas space**, given its canvas's layout rect. */
@@ -246,13 +258,23 @@ export function tileCanvasRect(
 }
 
 /**
- * The coarsest level sharp enough for `imageScale`, in screen pixels per
+ * The level to draw at, given `imageScale` — **device** pixels per
  * full-resolution image pixel.
  *
- * `minPixelRatio` is how blurry a level may be before the next is promoted: at
- * 0.5 a level carrying half the density the screen could show is accepted,
- * which is the OpenSeadragon value carried forward unchanged so
- * sharpness-versus-speed does not visibly shift.
+ * Device pixels, not CSS pixels: the backing store is sized in device pixels, so
+ * on a 2× screen a level chosen from CSS pixels carries a quarter of the detail
+ * the display can actually resolve and full resolution is never reached.
+ *
+ * The rule is OpenSeadragon's, carried forward unchanged so
+ * sharpness-versus-speed does not visibly shift: walk **finest to coarsest** and
+ * take the first level that is not oversampled past `minPixelRatio` device
+ * pixels per level pixel. At 0.5 that means up to 2× oversampling — a level
+ * carrying twice the density the screen can show — is tolerated before dropping
+ * to the next coarser one. A *higher* `minPixelRatio` therefore accepts a
+ * blurrier level, which is the direction OpenSeadragon documents.
+ *
+ * Below the base level's ratio there is nothing coarser to fall back to, so the
+ * base level is the floor — which is what keeps the viewer never blank.
  */
 export function chooseLevel(
     pyramid: TilePyramid,
@@ -260,21 +282,25 @@ export function chooseLevel(
     minPixelRatio: number,
 ): PyramidLevel {
     const { levels } = pyramid;
-    const wanted = imageScale * minPixelRatio;
 
-    for (const level of levels) {
-        if (1 / level.scaleFactor >= wanted) return level;
+    for (let index = levels.length - 1; index >= 0; index -= 1) {
+        const level = levels[index];
+        // One level pixel spans `scaleFactor` full-resolution pixels, so this
+        // is device pixels per level pixel.
+        if (imageScale * level.scaleFactor >= minPixelRatio) return level;
     }
 
-    return levels[levels.length - 1];
+    return levels[0];
 }
 
 /**
  * The tiles of a level intersecting a canvas-space box, as grid coordinates.
  *
- * A `null` box means the whole level — which is what the coarse chain asks
- * for, since a coarse level is a handful of tiles and holding all of it is what
- * makes zooming *out* instant.
+ * A `null` box means the whole level. Only the **base** level asks for that,
+ * and it is one tile by construction; every other level — the coarse chain
+ * included — is restricted to viewport-plus-margin, because a whole level costs
+ * O(image area) while the viewport costs O(viewport area) (see
+ * `planScene.planPyramid`).
  */
 export function tilesIntersecting(
     pyramid: TilePyramid,

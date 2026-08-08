@@ -161,20 +161,53 @@ export function createTileScheduler(
         inFlight.set(request.key, controller);
         requestCount += 1;
 
+        /**
+         * Retire THIS attempt, and only if it is still the current one.
+         *
+         * Aborting cannot cancel a `createImageBitmap` that has already started,
+         * so a superseded attempt can settle after the same tile has been
+         * re-required and restarted. Keyed by tile alone, its late arrival would
+         * delete the *new* attempt's controller: that request becomes
+         * untrackable and unabortable, `inFlight.size` undercounts so the window
+         * opens past its limit, and the tile is re-queued every frame because
+         * nothing records it as in flight.
+         */
+        function retire(): void {
+            if (inFlight.get(request.key) === controller) {
+                inFlight.delete(request.key);
+            }
+        }
+
         void (async () => {
             try {
                 const blob = await fetchTile(request.url, controller.signal);
                 const tile = await decodeTile(blob);
 
-                inFlight.delete(request.key);
+                retire();
 
                 // Re-checked AFTER the decode resolved, not before the fetch
                 // started: a tile can leave the viewport during a decode, and
                 // caching it then is how a fast zoom fills memory with pixels
                 // nobody asked for.
-                if (controller.signal.aborted || !required.has(request.key)) {
+                //
+                // Three ways to be unwanted, ONE way out. Every decoded tile
+                // this scheduler does not go on to hold is closed on this line:
+                // an `ImageBitmap`'s pixels live outside the JS heap, so a
+                // dropped reference leaks past the heap metrics AND past
+                // `decodedBytes`, the counter that exists to catch exactly that.
+                // Written as a single close so no future branch can be added
+                // without one.
+                const unwanted =
+                    controller.signal.aborted ||
+                    !required.has(request.key) ||
+                    // A superseded attempt whose decode landed behind the one
+                    // that won: aborting cannot cancel a `createImageBitmap`
+                    // already under way.
+                    resident.has(request.key);
+
+                if (unwanted) {
                     tile.close();
-                } else if (!resident.has(request.key)) {
+                } else {
                     const bytes = decodedBytesOf(tile);
                     resident.set(request.key, { tile, bytes });
                     decodedBytes += bytes;
@@ -182,7 +215,7 @@ export function createTileScheduler(
                     options.onChange?.();
                 }
             } catch {
-                inFlight.delete(request.key);
+                retire();
 
                 // An abort is not a failure. Counting it would let a fast pan
                 // — which aborts by design — poison the negative cache with

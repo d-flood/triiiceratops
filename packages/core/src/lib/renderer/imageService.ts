@@ -11,8 +11,19 @@
  * refetched `info.json` every time a canvas re-enters the viewport
  * (spec §Virtualization: per-canvas level residency).
  *
- * The cache is therefore module-scoped and page-shared, like the manifest
- * cache, and its entries are never dropped by anything the renderer does.
+ * The cache is therefore module-scoped and page-shared, like the manifest cache,
+ * and no viewport pressure drops an entry — only an explicit `invalidate` or
+ * `clear`, and the entry ceiling that keeps a long session from growing without
+ * bound.
+ *
+ * ## Failure is not a fact
+ *
+ * That long lifetime is exactly why a failure recorded here must be
+ * discriminating. A `401` is an answer about the service and is permanent; a
+ * dropped connection is an answer about the network and is not. Recording both
+ * the same way makes one flaky request blank that canvas for the rest of the
+ * page's life — across manifests, across SPA navigations — with nothing on
+ * screen to say why.
  *
  * ## What it replaces
  *
@@ -45,9 +56,14 @@ function positiveInteger(value: unknown): number | null {
  * Which major version of the Image API a service document describes.
  *
  * The `@context` is authoritative in both versions; `type: 'ImageService3'` and
- * a `/api/image/3/` profile are the fallbacks for documents that omit it. The
- * answer decides one thing only — whether a tile URL asks for `default` or
- * `native` quality.
+ * a `/api/image/3/` profile are the fallbacks for documents that omit it.
+ *
+ * It deliberately does **not** decide the tile quality parameter. A 2.0 document
+ * and a 2.1 one are indistinguishable — same `@context`, same profile URIs — and
+ * 2.1 deprecated `native` in favour of `default`, so no answer this function can
+ * give would justify asking for `native`. What the version does govern is the
+ * whole-image request the size ladder and the thumbnail ladder build, where
+ * version 2 spells the size `full` and version 3 spells it `max`.
  */
 function parseVersion(json: Record<string, unknown>): 2 | 3 {
     const context = firstString(json['@context']) ?? '';
@@ -133,16 +149,42 @@ export type ImageServiceFailure = 'auth' | 'load';
 export interface ImageServiceCache {
     /** Facts already held, without starting a fetch. */
     get(serviceId: string): ImageServiceFacts | undefined;
-    /** Why this service failed, if it did. Permanent: it is never retried. */
+    /**
+     * Why this service has no facts, if it has none.
+     *
+     * The seam the host announces a canvas's error state through (user stories
+     * 26 and 27): a canvas whose `info.json` never arrived paints nothing, and
+     * a viewer that says nothing about it is indistinguishable from one that is
+     * still loading. Ticket 12 owns what that looks like.
+     */
     failure(serviceId: string): ImageServiceFailure | undefined;
     /**
-     * Facts for a service, fetching `info.json` at most once ever.
+     * Facts for a service, fetching `info.json` at most once per attempt
+     * allowance.
      *
      * Safe to call every frame: a hit resolves from cache, a miss joins the
-     * in-flight request rather than starting a second one, and a permanent
-     * failure resolves `null` without touching the network.
+     * in-flight request rather than starting a second one, and a service that
+     * has spent its attempts resolves `null` without touching the network.
      */
     ensure(serviceId: string): Promise<ImageServiceFacts | null>;
+    /**
+     * Forget one service entirely — facts and failure alike — so the next
+     * `ensure` refetches.
+     */
+    invalidate(serviceId: string): void;
+    /** Forget every service. */
+    clear(): void;
+    /**
+     * Forget every failure that was **not** deterministic, keeping the facts.
+     *
+     * Called by the host on mount. A dropped connection, a captive portal, or a
+     * 500 says nothing about the service, so a viewer that recorded one
+     * permanently would paint that canvas blank for the rest of the page's life
+     * — across manifests and across SPA navigations, since this cache outlives
+     * all of them. Only `auth` and an unparseable document are permanent: those
+     * are answers, and repeating the question cannot change them.
+     */
+    retryTransientFailures(): void;
     /** How many network requests this cache has issued. Test/diagnostic only. */
     readonly requestCount: number;
 }
@@ -154,6 +196,20 @@ export interface ImageServiceCacheOptions {
      * no fetch polyfill at module scope.
      */
     fetchJson?: (url: string) => Promise<{ status: number; json: unknown }>;
+    /**
+     * How many times a transient failure may be attempted before the service is
+     * left alone until the next mount. Two is one retry, matching the tile
+     * scheduler's allowance.
+     */
+    maxAttempts?: number;
+    /**
+     * Entry ceiling for the facts held.
+     *
+     * The cache is page-shared and never expires, so an unbounded map grows with
+     * every canvas of every manifest a session ever opens. Oldest-first, which
+     * for metadata is as good as recency and costs no bookkeeping.
+     */
+    maxEntries?: number;
 }
 
 async function defaultFetchJson(
@@ -164,15 +220,50 @@ async function defaultFetchJson(
     return { status: response.status, json: await response.json() };
 }
 
+/**
+ * A recorded failure.
+ *
+ * `permanent` is the whole point: only a deterministic answer — the service said
+ * no, or said something unparseable — closes the question. Everything else is
+ * the network, and the network changes.
+ */
+interface FailureEntry {
+    kind: ImageServiceFailure;
+    permanent: boolean;
+    attempts: number;
+}
+
 export function createImageServiceCache(
     options: ImageServiceCacheOptions = {},
 ): ImageServiceCache {
     const fetchJson = options.fetchJson ?? defaultFetchJson;
+    const maxAttempts = Math.max(1, Math.floor(options.maxAttempts ?? 2));
+    const maxEntries = Math.max(1, Math.floor(options.maxEntries ?? 512));
 
     const facts = new Map<string, ImageServiceFacts>();
-    const failures = new Map<string, ImageServiceFailure>();
+    const failures = new Map<string, FailureEntry>();
     const inFlight = new Map<string, Promise<ImageServiceFacts | null>>();
     let requestCount = 0;
+
+    /** Insertion-ordered, so the oldest key is simply the first one. */
+    function bound<Value>(map: Map<string, Value>): void {
+        while (map.size > maxEntries) {
+            const oldest = map.keys().next();
+            if (oldest.done) return;
+            map.delete(oldest.value);
+        }
+    }
+
+    function fail(
+        serviceId: string,
+        kind: ImageServiceFailure,
+        permanent: boolean,
+    ): null {
+        const attempts = (failures.get(serviceId)?.attempts ?? 0) + 1;
+        failures.set(serviceId, { kind, permanent, attempts });
+        bound(failures);
+        return null;
+    }
 
     async function load(serviceId: string): Promise<ImageServiceFacts | null> {
         requestCount += 1;
@@ -181,22 +272,31 @@ export function createImageServiceCache(
             // The authentication/load distinction is preserved from the
             // OpenSeadragon path: knowing whether logging in would help is the
             // difference between a useful error and a shrug (user story 27).
+            // It is also an answer, so it is permanent — logging in is a new
+            // page, and a new page is a new cache.
             if (status === 401 || status === 403) {
-                failures.set(serviceId, 'auth');
-                return null;
+                return fail(serviceId, 'auth', true);
+            }
+
+            // A 5xx, a captive portal's redirect, a proxy's error page: the
+            // server is not describing this service, it is failing to. Retryable.
+            if (status >= 400) {
+                return fail(serviceId, 'load', false);
             }
 
             const parsed = parseImageService(json);
-            if (!parsed) {
-                failures.set(serviceId, 'load');
-                return null;
-            }
+            // The document arrived and is not an image service. Asking again
+            // gets the same document.
+            if (!parsed) return fail(serviceId, 'load', true);
 
+            failures.delete(serviceId);
             facts.set(serviceId, parsed);
+            bound(facts);
             return parsed;
         } catch {
-            failures.set(serviceId, 'load');
-            return null;
+            // A thrown fetch is a dropped connection or a CORS rejection —
+            // never an answer about the service.
+            return fail(serviceId, 'load', false);
         } finally {
             inFlight.delete(serviceId);
         }
@@ -204,11 +304,22 @@ export function createImageServiceCache(
 
     return {
         get: (serviceId) => facts.get(serviceId),
-        failure: (serviceId) => failures.get(serviceId),
+        failure: (serviceId) => failures.get(serviceId)?.kind,
         ensure(serviceId) {
             const known = facts.get(serviceId);
             if (known) return Promise.resolve(known);
-            if (failures.has(serviceId)) return Promise.resolve(null);
+
+            // Spent, not necessarily settled: a transient failure stops being
+            // asked for once its attempts are gone, so a frame loop cannot turn
+            // an outage into a request storm, and `retryTransientFailures`
+            // reopens it on the next mount.
+            const failed = failures.get(serviceId);
+            if (
+                failed &&
+                (failed.permanent || failed.attempts >= maxAttempts)
+            ) {
+                return Promise.resolve(null);
+            }
 
             const pending = inFlight.get(serviceId);
             if (pending) return pending;
@@ -216,6 +327,19 @@ export function createImageServiceCache(
             const started = load(serviceId);
             inFlight.set(serviceId, started);
             return started;
+        },
+        invalidate(serviceId) {
+            facts.delete(serviceId);
+            failures.delete(serviceId);
+        },
+        clear() {
+            facts.clear();
+            failures.clear();
+        },
+        retryTransientFailures() {
+            for (const [serviceId, entry] of [...failures]) {
+                if (!entry.permanent) failures.delete(serviceId);
+            }
         },
         get requestCount() {
             return requestCount;

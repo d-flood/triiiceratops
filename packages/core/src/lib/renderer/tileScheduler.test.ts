@@ -53,6 +53,26 @@ function controllableFetch() {
     };
 }
 
+/**
+ * A decode that hands back control, the way {@link controllableFetch} does for
+ * the network — the only way to hold a decode open across an `update`, which is
+ * the window in which a tile can be superseded by one that has already landed.
+ */
+function controllableDecode() {
+    const pending: Array<{ close: () => void; settle(): void }> = [];
+
+    const decodeTile = () =>
+        new Promise<DecodedTile>((resolve) => {
+            const close = vi.fn();
+            pending.push({
+                close,
+                settle: () => resolve({ width: 4, height: 4, close }),
+            });
+        });
+
+    return { decodeTile, pending };
+}
+
 let decodedTiles = 0;
 
 function decodeTile(): Promise<DecodedTile> {
@@ -235,6 +255,67 @@ describe('createTileScheduler', () => {
 
         tiles.update([]);
         expect(closes[0]).toHaveBeenCalled();
+    });
+
+    it('closes a decode that lands behind the attempt that replaced it, and keeps only one', async () => {
+        // The case a tile key alone cannot express. Aborting cannot cancel a
+        // `createImageBitmap` already under way, so the first attempt's decode
+        // settles AFTER the tile has been dropped, re-required, and re-fetched.
+        //
+        // Retired by key rather than by attempt, that late arrival deletes the
+        // NEW attempt's controller: the request becomes untracked and
+        // unabortable, `inFlight` undercounts so the window opens past its
+        // limit, and the tile is re-queued every frame. Dropped without
+        // `close()`, its pixels leak outside the JS heap where neither the heap
+        // metrics nor `decodedBytes` can see them.
+        const net = controllableFetch();
+        const decodes = controllableDecode();
+        const tiles = createTileScheduler({
+            maxInFlight: 4,
+            maxAttempts: 2,
+            fetchTile: net.fetchTile,
+            decodeTile: decodes.decodeTile,
+        });
+        const url = 'https://images.test/abc/tile-0.jpg';
+
+        tiles.update([request(0)]);
+        await flush();
+        net.byUrl(url)[0].resolve();
+        await flush();
+        expect(decodes.pending).toHaveLength(1);
+
+        // A pan away and straight back: the first decode is still running.
+        tiles.update([]);
+        tiles.update([request(0)]);
+        await flush();
+        expect(net.byUrl(url)).toHaveLength(2);
+        net.byUrl(url)[1].resolve();
+        await flush();
+        expect(decodes.pending).toHaveLength(2);
+
+        // The SUPERSEDED decode lands first, while the attempt that replaced it
+        // is still outstanding. It must close its own bitmap and retire nothing
+        // but itself.
+        decodes.pending[0].settle();
+        await flush();
+        expect(decodes.pending[0].close).toHaveBeenCalled();
+
+        // Retired by key, the line above would have deleted the second
+        // attempt's controller — so this frame would start a third request for
+        // a tile that is already being fetched, and would do so every frame.
+        tiles.update([request(0)]);
+        await flush();
+        expect(net.byUrl(url)).toHaveLength(2);
+        expect(
+            net.byUrl(url).filter((entry) => !entry.signal.aborted),
+        ).toHaveLength(1);
+
+        decodes.pending[1].settle();
+        await flush();
+
+        expect(tiles.residentTileCount).toBe(1);
+        expect(tiles.decodedBytes).toBe(4 * 4 * 4);
+        expect(decodes.pending[1].close).not.toHaveBeenCalled();
     });
 
     it('retries a failed tile once, then never asks for that URL again', async () => {

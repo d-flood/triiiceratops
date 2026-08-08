@@ -145,11 +145,15 @@ describe('tileUrl', () => {
         );
     });
 
-    it('asks a version 2 service for native quality', () => {
+    it('asks a version 2 service for default quality, never the deprecated native', () => {
+        // 2.1 deprecated `native` and requires `default` from compliance level 1
+        // upwards, and a 2.0 document is indistinguishable from a 2.1 one — so
+        // `native` here would 404 every tile of a strictly-2.1 service, spend
+        // its one retry, and land in the permanent negative cache.
         const pyramid = buildPyramid(SERVICE, facts({ version: 2 }))!;
 
         expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toContain(
-            '/0/native.jpg',
+            '/0/default.jpg',
         );
     });
 
@@ -160,6 +164,12 @@ describe('tileUrl', () => {
     });
 });
 
+/**
+ * `imageScale` is DEVICE pixels per full-resolution image pixel throughout — not
+ * CSS pixels. The distinction is the whole reason these numbers are what they
+ * are: a level chosen from CSS pixels carries a quarter of the detail a 2×
+ * screen can resolve.
+ */
 describe('chooseLevel', () => {
     it('takes the base level when the whole image is small on screen', () => {
         const pyramid = buildPyramid(SERVICE, facts())!;
@@ -167,24 +177,41 @@ describe('chooseLevel', () => {
         expect(chooseLevel(pyramid, 0.05, 0.5).level).toBe(0);
     });
 
-    it('takes full resolution when nothing coarser is sharp enough', () => {
+    it('takes full resolution at 1:1, where the display can resolve every pixel', () => {
         const pyramid = buildPyramid(SERVICE, facts())!;
 
+        expect(chooseLevel(pyramid, 1, 0.5).scaleFactor).toBe(1);
         expect(chooseLevel(pyramid, 8, 0.5).scaleFactor).toBe(1);
     });
 
-    it('tolerates blur down to the minimum pixel ratio before promoting', () => {
+    it('reaches full resolution on a 2× screen at half the CSS-pixel scale', () => {
+        // The same view: 0.4 CSS pixels per image pixel. On a 1× screen the
+        // finest level is oversampled past the ratio and the next coarser one is
+        // taken; on a 2× screen it is not. Fed CSS pixels, a HiDPI display would
+        // never see the full-resolution level at all.
         const pyramid = buildPyramid(SERVICE, facts())!;
 
-        // At 1:1 with a ratio of 0.5, a half-resolution level is accepted.
-        expect(chooseLevel(pyramid, 1, 0.5).scaleFactor).toBe(2);
-        // Demand full density and the next level is promoted.
-        expect(chooseLevel(pyramid, 1, 1).scaleFactor).toBe(1);
+        expect(chooseLevel(pyramid, 0.4 * 1, 0.5).scaleFactor).toBe(2);
+        expect(chooseLevel(pyramid, 0.4 * 2, 0.5).scaleFactor).toBe(1);
+    });
+
+    it('tolerates oversampling down to the minimum pixel ratio before dropping a level', () => {
+        const pyramid = buildPyramid(SERVICE, facts())!;
+
+        // 0.3 device pixels per image pixel: the full-resolution level would
+        // carry 3.3 level pixels per device pixel, past the 2× that a ratio of
+        // 0.5 allows, so the half-resolution level is taken instead.
+        expect(chooseLevel(pyramid, 0.3, 0.5).scaleFactor).toBe(2);
+        // A LOWER ratio tolerates more oversampling and keeps the finer level;
+        // a higher one accepts a blurrier one. That is OpenSeadragon's
+        // direction, carried forward with the value.
+        expect(chooseLevel(pyramid, 0.3, 0.25).scaleFactor).toBe(1);
+        expect(chooseLevel(pyramid, 0.3, 2).scaleFactor).toBe(8);
     });
 });
 
 describe('tilesIntersecting', () => {
-    it('returns the whole grid for a null box — the coarse chain is held whole', () => {
+    it('returns the whole grid for a null box — what the base level asks for', () => {
         const pyramid = buildPyramid(SERVICE, facts())!;
         const level = pyramid.levels[2]; // 4x4
 
