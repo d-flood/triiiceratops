@@ -941,6 +941,24 @@
         return value;
     }
 
+    /**
+     * World units per canvas unit for the current canvas — the one factor
+     * relating the scale the public API speaks (screen pixels per CANVAS unit)
+     * to the scale the viewport holds (screen pixels per WORLD unit).
+     *
+     * `1` unless layout resized this canvas's rect, which it does for a
+     * facing-page spread. Shared by `getScale` and `zoomTo` on purpose: they are
+     * inverses, and the way that breaks is one of them applying the factor and
+     * the other forgetting, which reads as `zoomTo(viewportScale)` quietly
+     * changing the zoom.
+     */
+    function canvasScaleFactor(): number {
+        const placement = placementOf();
+        const declared = placement?.width;
+        if (!placement || declared == null || declared <= 0) return 1;
+        return placement.rect.width / declared;
+    }
+
     const canvasPort: RendererPort = {
         zoomBy(factor: number, anchor?: ViewportPoint): void {
             // With no anchor, zoom about the middle of the surface — which is
@@ -953,9 +971,14 @@
         },
 
         zoomTo(scale: number): void {
+            // Converted out of canvas space first — `getScale` reports screen
+            // pixels per CANVAS unit, so `zoomTo(viewportScale)` has to be a
+            // no-op, and it is not unless the same normalization factor is
+            // undone here. It differs from 1 exactly when layout resized this
+            // canvas's rect for a facing-page spread.
             setViewAnimated(
                 viewport.centre,
-                clampScale(scale),
+                clampScale(scale / canvasScaleFactor()),
                 animationTime(),
             );
         },
@@ -987,11 +1010,7 @@
             // Canvas space, not world space: layout may have normalized this
             // canvas's rect, and the number a caller uses to size an export
             // request has to be about the canvas it is exporting.
-            const placement = placementOf();
-            if (!placement) return viewport.scale;
-            const declared = placement.width;
-            if (declared === null || declared <= 0) return viewport.scale;
-            return (viewport.scale * placement.rect.width) / declared;
+            return viewport.scale * canvasScaleFactor();
         },
 
         getCentre(canvasId?: string): ViewportPoint | null {
