@@ -60,6 +60,7 @@
         boxContains,
         canvasBoxToWorld,
         canvasPointToWorld,
+        canvasScaleFactor,
         fitTargetBounds,
         navigationTargetBounds,
         reflowShift,
@@ -68,6 +69,7 @@
         type CanvasPlacement,
     } from '../renderer/layoutQueries';
     import type { RendererPort } from '../renderer/rendererPort';
+    import { markRendererPort } from '../renderer/rendererPortBrand';
     import {
         imageAdjustmentsToCssFilter,
         type ContainerSize,
@@ -862,18 +864,31 @@
         applyFit(navigationBoundsTarget(viewportLimits()), animated);
     }
 
+    /**
+     * Adopt the view that frames `bounds`.
+     *
+     * The fitted scale goes through `clampScale` like every other scale this
+     * component adopts. It is a no-op for `fitWorld`/`fitCurrentCanvas`, whose
+     * bounds are layout rects and whose fit therefore IS the home scale — but
+     * the public `fitBounds` command hands in a box a CALLER chose, and a
+     * two-unit box on a 4000-unit canvas fits at a scale hundreds of times the
+     * ceiling. `zoomTo` documents its limits as inescapable; a sibling command
+     * that skips them would make that false, and would bypass the tier and
+     * zoom-floor invariants derived from the same range.
+     */
     function applyFit(bounds: Box | null, animated: boolean) {
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const fit = fitBounds(bounds, viewport);
+        const scale = clampScale(fit.scale);
         if (animated) {
-            setViewAnimated(fit.centre, fit.scale, animationTime());
+            setViewAnimated(fit.centre, scale, animationTime());
             return;
         }
 
-        viewport = { ...viewport, centre: fit.centre, scale: fit.scale };
+        viewport = { ...viewport, centre: fit.centre, scale };
         targetCentre = fit.centre;
-        targetScale = fit.scale;
+        targetScale = scale;
         animating = false;
         momentum = null;
     }
@@ -942,24 +957,20 @@
     }
 
     /**
-     * World units per canvas unit for the current canvas — the one factor
-     * relating the scale the public API speaks (screen pixels per CANVAS unit)
-     * to the scale the viewport holds (screen pixels per WORLD unit).
+     * World units per canvas unit for the CURRENT canvas.
      *
-     * `1` unless layout resized this canvas's rect, which it does for a
-     * facing-page spread. Shared by `getScale` and `zoomTo` on purpose: they are
-     * inverses, and the way that breaks is one of them applying the factor and
-     * the other forgetting, which reads as `zoomTo(viewportScale)` quietly
-     * changing the zoom.
+     * The factor itself is `layoutQueries.canvasScaleFactor`, beside the point
+     * and box conversions that apply the same one — shared rather than spelled
+     * again here so `getScale`, `zoomTo`, and the coordinate helpers cannot
+     * drift apart. `1` when the canvas is not laid out, which is the only
+     * answer that leaves `zoomTo` an identity on `getScale`'s own reading.
      */
-    function canvasScaleFactor(): number {
+    function currentCanvasScaleFactor(): number {
         const placement = placementOf();
-        const declared = placement?.width;
-        if (!placement || declared == null || declared <= 0) return 1;
-        return placement.rect.width / declared;
+        return placement ? canvasScaleFactor(placement) : 1;
     }
 
-    const canvasPort: RendererPort = {
+    const canvasPort: RendererPort = markRendererPort({
         zoomBy(factor: number, anchor?: ViewportPoint): void {
             // With no anchor, zoom about the middle of the surface — which is
             // what `anchoredZoomCentre` reduces to, so the toolbar and a
@@ -978,7 +989,7 @@
             // canvas's rect for a facing-page spread.
             setViewAnimated(
                 viewport.centre,
-                clampScale(scale / canvasScaleFactor()),
+                clampScale(scale / currentCanvasScaleFactor()),
                 animationTime(),
             );
         },
@@ -1010,7 +1021,7 @@
             // Canvas space, not world space: layout may have normalized this
             // canvas's rect, and the number a caller uses to size an export
             // request has to be about the canvas it is exporting.
-            return viewport.scale * canvasScaleFactor();
+            return viewport.scale * currentCanvasScaleFactor();
         },
 
         getCentre(canvasId?: string): ViewportPoint | null {
@@ -1084,7 +1095,7 @@
             frameListeners.add(listener);
             return () => frameListeners.delete(listener);
         },
-    };
+    });
 
     /**
      * Frame-cadence listeners. A plain `Set`, deliberately not reactive: it is
@@ -2210,6 +2221,23 @@
              */
             zoomAt: (anchor: Point, factor: number) => {
                 canvasPort.zoomBy(factor, anchor);
+                return nextPaint();
+            },
+            /**
+             * The public `fitBounds` command, on a caller-chosen canvas-space
+             * box — routed through the port for the same reason `zoomAt` is.
+             *
+             * Distinct from `fit` above: that one fits what is ON SCREEN and is
+             * the `0`/`Home` binding, where this is the command a plugin issues
+             * with a box of its own choosing. It is the only path where the
+             * fitted scale is not a layout rect's, which is what makes the zoom
+             * clamp observable.
+             */
+            fitCanvasBounds: (
+                bounds: { x: number; y: number; width: number; height: number },
+                canvasId?: string,
+            ) => {
+                canvasPort.fitBounds(bounds, canvasId);
                 return nextPaint();
             },
             isMoving: () => animating || momentum !== null || keyPan !== null,

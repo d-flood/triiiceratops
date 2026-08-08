@@ -72,10 +72,11 @@ function getMutableMembers(instance: object): Set<string> {
  * invisible to {@link getMutableMembers}, so the inventory reflects both shapes
  * and each test below says which one it means.
  *
- * This set is deliberately NOT subject to the "classify everything" gate: most
- * getters here are ordinary derived reads (`hasNext`, `manifestEntry`) that are
- * not viewer state at all. It exists so that a `query-only` entry can be
- * checked against a real member instead of being rejected as stale.
+ * These ARE subject to the "classify everything" gate, via {@link DERIVED_READS}
+ * below. `getMutableMembers` cannot see a getter with no setter by construction,
+ * so leaving this set ungated would mean a new public getter on the plugin
+ * surface — a per-frame read that never notifies — could be added with no
+ * inventory entry and nothing would fail.
  */
 function getQueryAccessors(instance: object): Set<string> {
     const members = new Set<string>();
@@ -93,6 +94,43 @@ function getQueryAccessors(instance: object): Set<string> {
     }
     return members;
 }
+
+/**
+ * Getter-only accessors that are NOT viewer state and therefore carry no
+ * inventory entry.
+ *
+ * Every one of these is an ordinary **derived read** — a projection of state
+ * that is already inventoried elsewhere (`canvases` off the manifest cache,
+ * `hasNext` off the canvas index, `showToggle` off config) — or is TS-private
+ * and only visible here because `private` compiles away. Nothing in this list
+ * is a new fact about the viewer, so classifying them would say nothing.
+ *
+ * The list is exhaustive on purpose: adding a getter without either an
+ * inventory entry or a line here fails the gate below, which is the point. If a
+ * new getter genuinely IS viewer state — a value a plugin reads that no other
+ * member carries — it belongs in `state-inventory.ts`, most likely as
+ * `query-only`, not here.
+ */
+const DERIVED_READS = new Set([
+    // Projections of the manifest cache and the current canvas index.
+    'canvases',
+    'currentCanvasIndex',
+    'currentCanvasSearchAnnotations',
+    'hasCollection',
+    'hasNext',
+    'hasPrevious',
+    'manifestEntry',
+    'sequenceCount',
+    'structures',
+    // Projections of `config`.
+    'galleryExtent',
+    'preserveCanvasScale',
+    'showCanvasNav',
+    'showToggle',
+    'showZoomControls',
+    // TS-private; a getter at runtime only because `private` is erased.
+    'zoomPerClick',
+]);
 
 describe('ViewerState state inventory', () => {
     let state: ViewerState;
@@ -118,6 +156,35 @@ describe('ViewerState state inventory', () => {
         // state-inventory.ts entry. Classify it (command | observable |
         // internal | query-only) before CI can pass.
         expect(unclassified).toEqual([]);
+    });
+
+    // The companion to the gate above, for the shape `getMutableMembers` cannot
+    // see. A `query-only` member is a getter with no setter, so without this a
+    // new public per-frame read would be invisible to every gate in this file.
+    it('classifies every getter-only accessor, or names it a derived read', () => {
+        const unclassified = [...queryAccessors]
+            .filter(
+                (member) => !byMember.has(member) && !DERIVED_READS.has(member),
+            )
+            .sort();
+
+        // If this fails, a new getter was added to ViewerState. Either give it
+        // a state-inventory.ts entry (if a plugin reads it as viewer state) or
+        // add it to DERIVED_READS above (if it merely projects a member that is
+        // already inventoried).
+        expect(unclassified).toEqual([]);
+    });
+
+    // Guards the allowlist itself: a derived read that is later deleted, or
+    // promoted into the inventory, must not leave a line here claiming it.
+    it('has no stale derived-read exemptions', () => {
+        const stale = [...DERIVED_READS]
+            .filter(
+                (member) => !queryAccessors.has(member) || byMember.has(member),
+            )
+            .sort();
+
+        expect(stale).toEqual([]);
     });
 
     it('contains no stale entries (every entry maps to a real member)', () => {

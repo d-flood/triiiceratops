@@ -2105,6 +2105,17 @@ export declare class ViewerState {
      * the current image adjustments, so a renderer that mounts after they were
      * set shows them.
      *
+     * **`@internal` is documentation; the guard below is the enforcement.** The
+     * API report is a d.ts snapshot of the whole published declaration graph,
+     * not an api-extractor run, so this method reaches the shipped `.d.ts` and
+     * is typed and callable from a plugin. Only a port core itself built is
+     * accepted (`renderer/rendererPortBrand.ts`, whose brand is a
+     * module-private symbol no consumer can obtain) — otherwise a plugin could
+     * hand in an object of the right shape and become the renderer for the
+     * whole viewer, serving the chrome's own zoom buttons and every other
+     * plugin's viewport queries with the real renderer unreachable. A refused
+     * attach changes nothing and returns a no-op detach.
+     *
      * @internal
      */
     attachRenderer(port: RendererPort): () => void;
@@ -2141,7 +2152,16 @@ export declare class ViewerState {
     zoomTo(scale: number): void;
     /** Centre the viewport on a canvas-space point. */
     panTo(centre: ViewportPoint, canvasId?: string): void;
-    /** Fit a canvas-space box into the viewport. */
+    /**
+     * Fit a canvas-space box into the viewport.
+     *
+     * A degenerate or non-finite box is refused rather than obeyed, the same
+     * way {@link zoomTo} refuses a scale that is not usable: a zero-width box
+     * has no scale that frames it, and the arithmetic below would otherwise
+     * fall through to a nominal one and teleport the viewport. The resulting
+     * scale is clamped to the renderer's zoom range like every other one, so
+     * this cannot be used to escape the limits {@link zoomTo} documents.
+     */
     fitBounds(bounds: ViewportBox, canvasId?: string): void;
     /**
      * Fit a whole canvas — the current one unless named. The `0`/`Home` path,
@@ -2645,7 +2665,7 @@ import { ViewerState } from '../state/viewer.svelte.js';
 import type { ViewerConfig } from '../types/config.js';
 import { createPluginLocaleService } from '../plugin/localeService.js';
 import type { ActiveLocaleSource } from '../plugin/localeService.js';
-import { type RendererStub, type StubView } from './rendererStub.js';
+import { type RendererStub, type RendererStubOptions } from './rendererStub.js';
 export { ViewerState } from '../state/viewer.svelte.js';
 export type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
 export { CORE_VERSION, pluginApiVersion, capabilities } from '../plugin/api.js';
@@ -2653,7 +2673,7 @@ export { createPluginLocaleService } from '../plugin/localeService.js';
 export type { ActiveLocaleSource } from '../plugin/localeService.js';
 export { createPluginSurface } from '../plugin/surface.js';
 export { createRendererStub, DEFAULT_STUB_VIEW } from './rendererStub.js';
-export type { RendererStub, StubView } from './rendererStub.js';
+export type { RendererStub, RendererStubOptions, StubView, } from './rendererStub.js';
 /**
  * Fixture data used to pre-load a headless {@link ViewerState}. All fields are
  * optional; the common case is `createHeadlessViewerState()` with none.
@@ -2766,13 +2786,14 @@ export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
      *
      * Returns the stub, which is also the controller: `setView` moves the
      * viewport, `emitFrame` fires one animation event, and `calls` records the
-     * commands it received.
+     * commands it received. Pass `canvasIds` to make it answer `null` for any
+     * other canvas, the way a real host does for a canvas it has not laid out.
      *
      * `rendererReady` is an inventoried observable member, so the selector
      * runtime only learns about the mount on the next flush: `await flush()`
      * after calling this if a `state`-cadence consumer must see it.
      */
-    attachRenderer(view?: Partial<StubView>): RendererStub;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
     /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
     detachRenderer(): void;
     /**
@@ -2828,9 +2849,32 @@ export declare function createTestViewerHandle(options?: TestViewerHandleOptions
  * and are tested against it. What this proves is wiring: that a command
  * reaches the renderer, that a query reads through to it, and that a frame tick
  * wakes a `frame`-cadence selector.
+ *
+ * The one contract it does model rather than ignore is **honest absence**: give
+ * it `canvasIds` and it answers `null` for any other canvas, the way a real host
+ * does for a canvas it has not laid out.
  */
 import type { RendererPort } from '../renderer/rendererPort.js';
 import { type ContainerSize, type ImageAdjustments, type ViewportPoint } from '../types/viewport.js';
+/** Options for {@link createRendererStub}. */
+export interface RendererStubOptions extends Partial<StubView> {
+    /**
+     * The canvases this stand-in can answer for.
+     *
+     * Omitted (the default) it answers for **anything**, which is what a
+     * single-canvas test wants and what every existing test assumed. Given a
+     * list, a query naming a canvas outside it answers `null` and a command
+     * naming one is a no-op — the port's honest-absence rule ("a host that
+     * cannot answer for the canvas asked about returns `null` rather than
+     * silently answering for a different one"), which is real behaviour in
+     * `individuals` and `paged` mode where only the current spread is laid out.
+     *
+     * Pass it to prove an overlay handles the `null` branch. Without it, code
+     * that asks about a canvas the renderer has never placed passes every
+     * assertion here and then silently draws nothing against a real viewer.
+     */
+    canvasIds?: readonly string[];
+}
 /** The view a {@link RendererStub} reports, all in canvas space. */
 export interface StubView {
     /** Screen pixels per canvas-space unit. */
@@ -2863,7 +2907,7 @@ export interface RendererStub extends RendererPort {
  * Build a {@link RendererStub}. Attach it with
  * `viewerState.attachRenderer(stub)`, which returns the detach function.
  */
-export declare function createRendererStub(initialView?: Partial<StubView>): RendererStub;
+export declare function createRendererStub(options?: RendererStubOptions): RendererStub;
 
 // ======================================================================
 // FILE: dist/theme/colorUtils.d.ts

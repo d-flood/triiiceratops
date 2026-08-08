@@ -632,7 +632,7 @@ export declare function runPluginConformance(factory: PluginFactory): void;
  * free to be a pure log.
  */
 import type { IconDescriptor, LocaleCatalog, PluginContext, PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService, PluginUiTarget, ViewerState } from 'triiiceratops';
-import { type HeadlessViewerFixtures, type RendererStub, type StubView } from 'triiiceratops/testing';
+import { type HeadlessViewerFixtures, type RendererStub, type RendererStubOptions } from 'triiiceratops/testing';
 import { whenRendererReady } from '../renderer.js';
 export { whenRendererReady };
 /** One recorded `styles.install` call and whether its reference was released. */
@@ -744,10 +744,12 @@ export interface TestViewerContext {
      * first-party, so there is one right answer to what a stand-in reports.
      * Returns it, which is also the controller — `setView` moves the viewport,
      * `emitFrame` fires one animation event, `calls` records commands received.
+     * Pass `canvasIds` to make it answer `null` for any other canvas, the way a
+     * real host does for a canvas it has not laid out.
      *
      * Pair with `whenRendererReady` to await readiness.
      */
-    attachRenderer(view?: Partial<StubView>): RendererStub;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
     /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
     detachRenderer(): void;
     /**

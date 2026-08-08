@@ -71,7 +71,7 @@ import type { ActiveLocaleSource } from '../plugin/localeService.js';
 import {
     createRendererStub,
     type RendererStub,
-    type StubView,
+    type RendererStubOptions,
 } from './rendererStub.js';
 
 export { ViewerState } from '../state/viewer.svelte.js';
@@ -97,7 +97,11 @@ export { createPluginSurface } from '../plugin/surface.js';
 // first-party: there is one right answer to what a stand-in should report, and
 // a consumer inventing their own would be inventing that same one.
 export { createRendererStub, DEFAULT_STUB_VIEW } from './rendererStub.js';
-export type { RendererStub, StubView } from './rendererStub.js';
+export type {
+    RendererStub,
+    RendererStubOptions,
+    StubView,
+} from './rendererStub.js';
 
 /**
  * Fixture data used to pre-load a headless {@link ViewerState}. All fields are
@@ -278,13 +282,14 @@ export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
      *
      * Returns the stub, which is also the controller: `setView` moves the
      * viewport, `emitFrame` fires one animation event, and `calls` records the
-     * commands it received.
+     * commands it received. Pass `canvasIds` to make it answer `null` for any
+     * other canvas, the way a real host does for a canvas it has not laid out.
      *
      * `rendererReady` is an inventoried observable member, so the selector
      * runtime only learns about the mount on the next flush: `await flush()`
      * after calling this if a `state`-cadence consumer must see it.
      */
-    attachRenderer(view?: Partial<StubView>): RendererStub;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
     /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
     detachRenderer(): void;
     /**
@@ -352,9 +357,9 @@ export function createTestViewerHandle(
         subscribe: slot.subscribe,
         armUnboundWarning: slot.armUnboundWarning,
         claim: slot.claim,
-        attachRenderer(view?: Partial<StubView>): RendererStub {
+        attachRenderer(options?: RendererStubOptions): RendererStub {
             releaseRenderer?.();
-            const stub = createRendererStub(view);
+            const stub = createRendererStub(options);
             releaseRenderer = state.attachRenderer(stub);
             return stub;
         },

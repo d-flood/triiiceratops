@@ -365,6 +365,38 @@ export async function setView(
     }, view);
 }
 
+/**
+ * Issue the public `fitBounds` viewport command with a canvas-space box, and
+ * wait until the animation it starts has settled.
+ *
+ * Distinct from `fitWorld`, which is the `0`/`Home` binding: this is the box a
+ * CALLER chose, so the fitted scale is not a layout rect's and the zoom clamp
+ * is observable through it.
+ */
+export async function fitCanvasBounds(
+    page: Page,
+    bounds: { x: number; y: number; width: number; height: number },
+    canvasId?: string,
+): Promise<void> {
+    await page.locator(SURFACE).evaluate(
+        (element, args) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: {
+                        fitCanvasBounds(
+                            bounds: typeof args.bounds,
+                            canvasId?: string,
+                        ): Promise<void>;
+                    };
+                }
+            ).__triiiceratopsRenderer;
+            if (!handle) throw new Error('renderer test handle not installed');
+            return handle.fitCanvasBounds(args.bounds, args.canvasId);
+        },
+        { bounds, canvasId },
+    );
+}
+
 /** Wait for the next painted frame. */
 export async function nextPaint(page: Page): Promise<void> {
     await page.locator(SURFACE).evaluate((element) => {

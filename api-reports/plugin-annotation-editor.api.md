@@ -163,10 +163,13 @@ export { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
  * package or its Svelte runtime. The full domain machinery — Store, Adapter seam,
  * per-viewer display sync, undo/redo, body editors, Annotorious integration — is
  * carried intact and driven from the neutral `view.mount(container, context)`
- * contract (see `mount.svelte.ts`). Annotorious needs the raw OSD viewer, so the
+ * contract (see `mount.svelte.ts`).
+ *
  * Annotation editing is UNAVAILABLE in this phase: Annotorious's OpenSeadragon
  * integration needs the raw viewer instance, which no longer exists. The plugin
- * declares no capability — it touches no renderer at all now, because it does
+ * therefore keeps declaring `osd@5`, a capability core retired with no
+ * successor — so activation FAILS loudly with the structured capability error
+ * rather than the plugin activating cleanly and installing a button that does
  * nothing. See `AnnotationEditorController.svelte`; ticket 15 owns the full
  * disposition (changeset, README, pinning, aggregate scripts).
  */

@@ -247,6 +247,91 @@ describe('mountable renderer stand-in', () => {
         expect(tc.viewerState.viewportScale).toBeGreaterThan(1);
     });
 
+    // The abort path exists so a plugin that tears down before a renderer ever
+    // mounts leaves no dangling `ViewerState.subscribe` behind. Untested, a
+    // helper that resolved-instead-of-rejected, or that forgot to unsubscribe,
+    // would look identical from outside.
+    it('whenRendererReady rejects and unsubscribes when the wait is aborted', async () => {
+        const tc = createTestViewerContext();
+        const controller = new AbortController();
+        const reason = new Error('plugin torn down');
+
+        const pending = whenRendererReady(tc.viewerState, {
+            signal: controller.signal,
+        });
+        controller.abort(reason);
+
+        await expect(pending).rejects.toBe(reason);
+
+        // The subscription is gone: a renderer mounting afterwards must not
+        // wake a settled promise's listener.
+        tc.attachRenderer();
+        await flush();
+        await expect(pending).rejects.toBe(reason);
+    });
+
+    it('whenRendererReady rejects immediately for an already-aborted signal', async () => {
+        const tc = createTestViewerContext();
+        const reason = new Error('already gone');
+
+        await expect(
+            whenRendererReady(tc.viewerState, {
+                signal: AbortSignal.abort(reason),
+            }),
+        ).rejects.toBe(reason);
+    });
+
+    // Readiness is a state, not a one-shot event. A plugin that survives a
+    // renderer swap (the development-only renderer flag, or a host remounting)
+    // must be able to ask again and be answered again.
+    it('resolves a SECOND whenRendererReady after an unmount and remount', async () => {
+        const tc = createTestViewerContext();
+        tc.attachRenderer({ scale: 2 });
+        await flush();
+        await expect(
+            whenRendererReady(tc.viewerState),
+        ).resolves.toBeUndefined();
+
+        tc.detachRenderer();
+        await flush();
+        expect(tc.viewerState.rendererReady).toBe(false);
+
+        const pending = whenRendererReady(tc.viewerState);
+        const remounted = tc.attachRenderer({ scale: 5 });
+        await flush();
+
+        await expect(pending).resolves.toBeUndefined();
+        expect(tc.viewerState.rendererReady).toBe(true);
+        expect(tc.viewerState.viewportScale).toBe(5);
+        expect(remounted.frameListenerCount).toBe(0);
+    });
+
+    // The port's honest-absence rule: a host that cannot answer for the canvas
+    // asked about answers `null` rather than answering for a different one. A
+    // stand-in that always answered would pass an overlay's tests and then draw
+    // nothing against a real viewer in individuals or paged mode.
+    it('answers null for a canvas the stand-in was not given', async () => {
+        const tc = createTestViewerContext();
+        tc.attachRenderer({ scale: 2, canvasIds: ['canvas-1'] });
+
+        expect(
+            tc.viewerState.canvasToScreen({ x: 0, y: 0 }, 'canvas-1'),
+        ).not.toBeNull();
+        expect(
+            tc.viewerState.canvasToScreen({ x: 0, y: 0 }, 'canvas-9'),
+        ).toBeNull();
+        expect(
+            tc.viewerState.screenToCanvas({ x: 0, y: 0 }, 'canvas-9'),
+        ).toBeNull();
+        // And the default — no `canvasIds` — still answers for anything, which
+        // is what a single-canvas test wants.
+        const anything = createTestViewerContext();
+        anything.attachRenderer({ scale: 2 });
+        expect(
+            anything.viewerState.canvasToScreen({ x: 0, y: 0 }, 'canvas-9'),
+        ).not.toBeNull();
+    });
+
     // The image-adjustment command replaces reaching into the renderer's DOM
     // node, so the set has to reach a renderer that mounts AFTER it was set.
     it('replays image adjustments onto a renderer mounted later', () => {

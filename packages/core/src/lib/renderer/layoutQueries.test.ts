@@ -15,6 +15,7 @@ import {
     boxContains,
     canvasBoxToWorld,
     canvasPointToWorld,
+    canvasScaleFactor,
     fitTargetBounds,
     navigationTargetBounds,
     nearestRect,
@@ -307,5 +308,94 @@ describe('canvas space <-> world space', () => {
             x: 100,
             y: 100,
         });
+    });
+});
+
+/**
+ * The scale factor the public viewport API's `getScale`/`zoomTo` pair is built
+ * on (`CanvasHost.currentCanvasScaleFactor`).
+ *
+ * The invariant worth pinning is not the arithmetic — it is that this factor is
+ * the SAME one the coordinate helpers apply. `getScale` reporting screen pixels
+ * per WORLD unit while `canvasToScreen` maps by the rect is the shape of the
+ * bug this function exists to remove, and it is invisible in every fixture
+ * where layout happens to leave the canvas at its declared size.
+ */
+describe('canvasScaleFactor', () => {
+    /** A 1600x2000 Canvas that layout placed at (500, 40) scaled to 800x1000. */
+    const normalized = {
+        rect: { canvasId: 'c', x: 500, y: 40, width: 800, height: 1000 },
+        width: 1600,
+        height: 2000,
+    };
+
+    it('is the factor the coordinate helpers already scale distances by', () => {
+        const origin = canvasPointToWorld({ x: 0, y: 0 }, normalized);
+        const along = canvasPointToWorld({ x: 100, y: 0 }, normalized);
+
+        expect(canvasScaleFactor(normalized)).toBeCloseTo(
+            (along.x - origin.x) / 100,
+            12,
+        );
+    });
+
+    // A spread normalizes canvas sizes, so the scale the viewport holds and the
+    // scale the public API reports are genuinely different numbers there. A
+    // "simplification" of `getScale` back to `viewport.scale` is only visible
+    // because this is not 1.
+    it('differs from 1 exactly when layout resized the rect', () => {
+        expect(canvasScaleFactor(normalized)).toBe(0.5);
+        expect(
+            canvasScaleFactor({
+                rect: { canvasId: 'c', x: 0, y: 0, width: 1200, height: 900 },
+                width: 1200,
+                height: 900,
+            }),
+        ).toBe(1);
+    });
+
+    // `zoomTo(getScale())` must be a no-op: the host divides by this factor on
+    // the way in and multiplies by it on the way out, so anything but an exact
+    // reciprocal pair makes a plugin reading the zoom and writing it straight
+    // back move the viewport.
+    it('round-trips a world scale through canvas space unchanged', () => {
+        for (const placement of [
+            normalized,
+            {
+                rect: { canvasId: 'c', x: 0, y: 0, width: 600, height: 800 },
+                width: null,
+                height: null,
+            },
+            {
+                rect: { canvasId: 'c', x: 0, y: 0, width: 400, height: 400 },
+                width: 0,
+                height: 0,
+            },
+        ]) {
+            const factor = canvasScaleFactor(placement);
+            const worldScale = 3.25;
+            expect((worldScale * factor) / factor).toBeCloseTo(worldScale, 12);
+            expect(factor).toBeGreaterThan(0);
+        }
+    });
+
+    // A canvas the manifest gives no usable size for is laid out from its
+    // siblings' median, and its rect stands in for its declared size — so the
+    // two spaces coincide and the factor is 1, not a division by zero.
+    it('is 1 for a canvas with no usable declared size', () => {
+        expect(
+            canvasScaleFactor({
+                rect: { canvasId: 'c', x: 0, y: 0, width: 600, height: 800 },
+                width: null,
+                height: null,
+            }),
+        ).toBe(1);
+        expect(
+            canvasScaleFactor({
+                rect: { canvasId: 'c', x: 0, y: 0, width: 400, height: 400 },
+                width: 0,
+                height: 0,
+            }),
+        ).toBe(1);
     });
 });

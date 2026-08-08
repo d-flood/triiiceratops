@@ -24,6 +24,7 @@
     import { resolveCanvasImage } from '../utils/resolveCanvasImage';
     import { resolvePointRadius } from '../utils/pointMarker';
     import type { RendererPort } from '../renderer/rendererPort';
+    import { markRendererPort } from '../renderer/rendererPortBrand';
     import {
         imageAdjustmentsToCssFilter,
         type ContainerSize,
@@ -328,10 +329,86 @@
      * never reaches a plugin.
      */
 
-    /** The `TiledImage` the current canvas is drawn by, if the world is open. */
+    /**
+     * The canvas each world item was added for, in world-item order.
+     *
+     * Recorded at every `viewer.open`/`addTiledImage`, because OSD's world has
+     * no idea what a Canvas is: `world.getItemAt(0)` is the FIRST source that
+     * was opened, which in paged mode is the verso and in continuous mode is
+     * whichever end of the initial window came first. Answering viewport
+     * questions from item 0 while gating them on `viewerState.canvasId` — which
+     * is what this adapter used to do — reports the wrong page's coordinates
+     * whenever the reader is on the recto, and an overlay then lands a full
+     * page-width off.
+     *
+     * A source with no canvas id (a bare `tileSources` prop handed straight to
+     * the component) records `undefined` and is resolvable only through the
+     * single-item fallback in {@link currentTiledImage}.
+     */
+    let worldCanvasIds: (string | undefined)[] = [];
+
+    /** Record what a world open/add put into the world, in item order. */
+    function setWorldCanvasIds(sources: readonly any[]): void {
+        worldCanvasIds = sources.map((source) => source?.canvasId);
+    }
+
+    function appendWorldCanvasIds(sources: readonly any[]): void {
+        worldCanvasIds = [
+            ...worldCanvasIds,
+            ...sources.map((source) => source?.canvasId),
+        ];
+    }
+
+    /**
+     * Empty the world and the mapping together. Every `viewer.close()` goes
+     * through here so the two cannot drift — a stale mapping would resolve a
+     * canvas id onto whatever item later took that index.
+     */
+    function closeWorld(): void {
+        worldCanvasIds = [];
+        viewer?.close();
+    }
+
+    /**
+     * The `TiledImage` the CURRENT canvas is drawn by, or `null` when this
+     * adapter cannot prove which item that is.
+     *
+     * `null` rather than item 0: the port's rule is that a host which cannot
+     * answer for the canvas asked about answers nothing rather than answering
+     * for a different one, and a silently-wrong page is exactly the failure the
+     * rule exists to prevent.
+     */
     function currentTiledImage(): any | null {
         if (!viewer?.world) return null;
-        return viewer.world.getItemAt(0) ?? null;
+
+        const canvasId = viewerState.canvasId;
+        const index = canvasId ? worldCanvasIds.indexOf(canvasId) : -1;
+        if (index >= 0) return viewer.world.getItemAt(index) ?? null;
+
+        // No mapping, but a world holding exactly ONE item — one item is one
+        // canvas, and the current canvas is the only one it can be, so there is
+        // nothing to be wrong about. This is what keeps the viewport API
+        // working for a consumer passing `tileSources` straight to the
+        // component, where no Canvas id ever reaches layout.
+        return viewer.world.getItemCount() === 1
+            ? (viewer.world.getItemAt(0) ?? null)
+            : null;
+    }
+
+    /**
+     * The width of the current canvas's world item in OSD viewport units.
+     *
+     * OSD's zoom is "viewport widths per container width", and one viewport
+     * unit is the width of the FIRST item opened — not of the current canvas.
+     * In a spread the current canvas's item is `width` viewport units across,
+     * so the scale the public API speaks (screen pixels per CANVAS unit) needs
+     * this factor as well as the Canvas's own width. It is `1` for a
+     * single-item world, which is why omitting it was invisible.
+     */
+    function currentItemViewportWidth(): number | null {
+        const bounds = currentTiledImage()?.getBounds?.();
+        const width = bounds?.width;
+        return typeof width === 'number' && width > 0 ? width : null;
     }
 
     /**
@@ -347,7 +424,7 @@
         return viewer.viewport.pointFromPixel(new OSD.Point(point.x, point.y));
     }
 
-    const osdPort: RendererPort = {
+    const osdPort: RendererPort = markRendererPort({
         zoomBy(factor: number, anchor?: ViewportPoint): void {
             if (!viewer?.viewport) return;
             const at = anchor ? screenToViewportPoint(anchor) : undefined;
@@ -359,13 +436,13 @@
             if (!viewer?.viewport) return;
             const dimensions = currentCanvasImageDimensions;
             const container = viewer.viewport.getContainerSize();
-            if (!dimensions?.canvasWidth || !container?.x) return;
-            // OSD's zoom is "viewport widths per container width", and one
-            // viewport width is the canvas's full width — so the scale the
-            // public API speaks (screen pixels per canvas unit) converts by the
-            // container width.
+            const itemWidth = currentItemViewportWidth();
+            if (!dimensions?.canvasWidth || !container?.x || !itemWidth) return;
+            // The exact inverse of `getScale` below, and written as one so it
+            // stays that way: a caller reading the zoom and writing it straight
+            // back must not move the viewport.
             viewer.viewport.zoomTo(
-                (scale * dimensions.canvasWidth) / container.x,
+                (scale * dimensions.canvasWidth) / (container.x * itemWidth),
             );
             viewer.viewport.applyConstraints();
         },
@@ -412,9 +489,16 @@
             if (!viewer?.viewport) return 0;
             const dimensions = currentCanvasImageDimensions;
             const container = viewer.viewport.getContainerSize();
-            if (!dimensions?.canvasWidth || !container?.x) return 0;
+            const itemWidth = currentItemViewportWidth();
+            if (!dimensions?.canvasWidth || !container?.x || !itemWidth) {
+                return 0;
+            }
+            // Screen pixels per VIEWPORT unit is `zoom * container.x`; the
+            // current canvas spans `itemWidth` viewport units and
+            // `canvasWidth` canvas units. Dropping `itemWidth` reports the
+            // first item's scale for every canvas in a spread.
             return (
-                (viewer.viewport.getZoom(true) * container.x) /
+                (viewer.viewport.getZoom(true) * container.x * itemWidth) /
                 dimensions.canvasWidth
             );
         },
@@ -514,7 +598,7 @@
                 attached = null;
             };
         },
-    };
+    });
 
     /** OpenSeadragon's own animation events — the `frame` cadence's source. */
     const OSD_FRAME_EVENTS = [
@@ -768,13 +852,33 @@
 
             const handleTileSourceFailure = (event: any) => {
                 setTileSourceError(createLoadError(event));
-                viewer?.close();
+                closeWorld();
             };
 
             viewer.addHandler('open-failed', handleTileSourceFailure);
             viewer.addHandler('add-item-failed', handleTileSourceFailure);
 
             viewer.addHandler('open', () => {
+                /*
+                 * The renderer has a sized surface and accepts commands — and
+                 * not one moment earlier. No object is handed over;
+                 * `attachRenderer` takes the fixed first-party port above, and
+                 * `rendererReady` is what a consumer waits on.
+                 *
+                 * Attached HERE rather than beside the constructor because
+                 * `rendererReady` promises the viewport queries answer with
+                 * real numbers instead of zeroes and nulls. Before `open` the
+                 * world holds no items, so every coordinate query answers
+                 * `null` and every pan/fit is a silent no-op — a plugin that
+                 * awaited readiness and then measured where a canvas point
+                 * lands would get exactly the polling case the readiness helper
+                 * exists to prevent. Once, deliberately: the world reopens on
+                 * every canvas switch, and readiness is not a per-open event.
+                 */
+                if (!detachRenderer) {
+                    detachRenderer = viewerState.attachRenderer(osdPort);
+                }
+
                 // Keep a conservative floor below home zoom to avoid over-zoomed
                 // empty/unstable ranges while preserving normal navigation.
                 const homeZoom = viewer.viewport.getHomeZoom();
@@ -806,11 +910,6 @@
                     viewerState.setInitialCanvasRegion(null);
                 }
             });
-
-            // The renderer has a sized surface and accepts commands. No object
-            // is handed over — `attachRenderer` takes the fixed first-party
-            // port above, and `rendererReady` is what a consumer waits on.
-            detachRenderer = viewerState.attachRenderer(osdPort);
         })();
 
         return () => {
@@ -877,7 +976,7 @@
         // If sources are cleared/absent during a canvas/world switch, clear
         // stale tiles immediately and allow the same source to reopen later.
         if (!tileSources) {
-            viewer.close();
+            closeWorld();
             setTileSourceError(null);
             lastTileSourceStr = '';
             return;
@@ -905,7 +1004,7 @@
             !!source && typeof source === 'object' && 'tileSource' in source;
 
         if (sources.length === 0) {
-            viewer.close();
+            closeWorld();
             setTileSourceError(null);
             lastTileSourceStr = '';
             return;
@@ -918,7 +1017,7 @@
         if (mode === 'continuous') {
             // Remove current world immediately so stale canvases are not shown
             // while async source resolution is in progress.
-            viewer.close();
+            closeWorld();
             setTileSourceError(null);
 
             viewer.minPixelRatio =
@@ -938,7 +1037,7 @@
 
                 if (!result.ok) {
                     setTileSourceError(result.error);
-                    viewer.close();
+                    closeWorld();
                     return;
                 }
 
@@ -967,6 +1066,7 @@
                 );
 
                 const initialSpread = allPositions.slice(startIdx, endIdx);
+                setWorldCanvasIds(initialSpread);
                 viewer.open(initialSpread);
 
                 viewer.addOnceHandler('open', () => {
@@ -1007,6 +1107,7 @@
                             return;
                         }
 
+                        appendWorldCanvasIds(batch);
                         for (const pos of batch) {
                             viewer.addTiledImage({
                                 tileSource: pos.tileSource,
@@ -1029,7 +1130,7 @@
 
         // In paged/individual modes, clear the current image immediately so
         // users don't see stale content while tile sources are being prepared.
-        viewer.close();
+        closeWorld();
         setTileSourceError(null);
 
         // Restore less aggressive defaults outside continuous mode.
@@ -1050,7 +1151,7 @@
 
             if (!result.ok) {
                 setTileSourceError(result.error);
-                viewer.close();
+                closeWorld();
                 return;
             }
 
@@ -1069,6 +1170,7 @@
                     },
                 ).sources;
 
+                setWorldCanvasIds(positioned);
                 viewer.open(
                     positioned.length === 1 ? positioned[0] : positioned,
                 );
@@ -1084,6 +1186,7 @@
                         : source,
                 );
 
+                setWorldCanvasIds(resolvedSources);
                 viewer.open(
                     positioned.length === 1 ? positioned[0] : positioned,
                 );

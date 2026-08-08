@@ -33,7 +33,7 @@ import {
     createRendererStub,
     type HeadlessViewerFixtures,
     type RendererStub,
-    type StubView,
+    type RendererStubOptions,
 } from 'triiiceratops/testing';
 
 import { whenRendererReady } from '../renderer.js';
@@ -207,10 +207,12 @@ export interface TestViewerContext {
      * first-party, so there is one right answer to what a stand-in reports.
      * Returns it, which is also the controller — `setView` moves the viewport,
      * `emitFrame` fires one animation event, `calls` records commands received.
+     * Pass `canvasIds` to make it answer `null` for any other canvas, the way a
+     * real host does for a canvas it has not laid out.
      *
      * Pair with `whenRendererReady` to await readiness.
      */
-    attachRenderer(view?: Partial<StubView>): RendererStub;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
     /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
     detachRenderer(): void;
     /**
@@ -272,9 +274,9 @@ export function createTestViewerContext(
         locale,
         ui,
         surface,
-        attachRenderer(view?: Partial<StubView>): RendererStub {
+        attachRenderer(options?: RendererStubOptions): RendererStub {
             releaseRenderer?.();
-            const stub = createRendererStub(view);
+            const stub = createRendererStub(options);
             releaseRenderer = viewerState.attachRenderer(stub);
             return stub;
         },

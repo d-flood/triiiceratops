@@ -285,6 +285,24 @@ export function worldBoxToCanvas(box: Box, placement: CanvasPlacement): Box {
 }
 
 /**
+ * World units per canvas unit for a placement — the one factor relating the
+ * scale the public viewport API speaks (screen pixels per CANVAS unit) to the
+ * scale the renderer's viewport holds (screen pixels per WORLD unit).
+ *
+ * `1` unless layout resized this canvas's rect, which it does for a facing-page
+ * spread (median-height normalization) and whenever `preserveCanvasScale` is
+ * off. It lives here, beside the point and box conversions, because it is the
+ * SAME factor they apply: `getScale` and `zoomTo` on the host are inverses of
+ * each other and both must agree with the coordinate helpers, and the way that
+ * breaks is one caller applying the factor while another forgets — which reads
+ * as `zoomTo(viewportScale)` quietly changing the zoom.
+ */
+export function canvasScaleFactor(placement: CanvasPlacement): number {
+    const { rect } = placement;
+    return rect.width / usableExtent(placement.width, rect.width);
+}
+
+/**
  * The declared extent when the manifest gave a usable one, and the laid-out
  * extent otherwise. Guards a zero or negative declared size too — a manifest
  * can carry `"width": 0`, and dividing by it would silently produce infinities

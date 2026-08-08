@@ -63,13 +63,24 @@ source moved, from OpenSeadragon's animation events to core's own
 working — replace `state.osdViewer?.viewport.getZoom()` with
 `state.viewportScale`.
 
+`fitBounds` refuses a box that is not a usable rectangle (non-finite, or a zero
+or negative extent) the same way `zoomTo` refuses an unusable scale, and the
+scale it lands on is clamped to the renderer's zoom range — so no viewport
+command can leave the range the toolbar and keyboard are held to.
+
 **Test kits:** `handle.attachRenderer()` (core) and `context.attachRenderer()`
 (SDK) mount a headless renderer stand-in that core now ships, since the renderer
 is first-party and there is one right answer to what a stand-in should report.
 It makes the `frame` cadence and the viewport queries exercisable with no DOM,
-and it records the commands it receives.
+and it records the commands it receives. Pass `canvasIds` to make it answer
+`null` for any other canvas — the honest-absence contract a real host follows
+for a canvas it has not laid out, which is what a plugin's overlay has to
+handle.
 
 **Plugins:** image-manipulation, pdf-export, and image-export migrated to the new
 surface and no longer declare any capability. **Annotation editing is
 unavailable** in this release: Annotorious's OpenSeadragon integration requires
-the raw viewer instance and no shim was built for it.
+the raw viewer instance and no shim was built for it. That plugin deliberately
+keeps declaring `osd@5`, so registering it now fails activation with the
+structured capability error that says why, rather than installing a button that
+does nothing.

@@ -99,6 +99,31 @@ describe('viewport commands', () => {
         }
     });
 
+    // The same rule `zoomTo` states, on the sibling command: a box with no
+    // extent has no scale that frames it, and `viewportMath.fitBounds` falls
+    // through to a nominal scale of 1 for one — which teleports the viewport
+    // instead of failing.
+    it('refuses a fit box that is not a usable rectangle', () => {
+        const { state, renderer } = mounted();
+
+        for (const bounds of [
+            { x: 0, y: 0, width: 0, height: 100 },
+            { x: 0, y: 0, width: 100, height: 0 },
+            { x: 0, y: 0, width: -10, height: 10 },
+            { x: 0, y: 0, width: Number.NaN, height: 10 },
+            { x: 0, y: 0, width: Infinity, height: 10 },
+            { x: Number.NaN, y: 0, width: 10, height: 10 },
+        ]) {
+            state.fitBounds(bounds);
+        }
+
+        expect(commandNames(renderer)).toEqual([]);
+
+        // A usable one still goes through.
+        state.fitBounds({ x: 0, y: 0, width: 10, height: 10 });
+        expect(commandNames(renderer)).toEqual(['fitBounds']);
+    });
+
     it('refuses a zoom target that is not a usable scale', () => {
         const { state, renderer } = mounted();
 
@@ -146,6 +171,68 @@ describe('viewport commands', () => {
 
         expect(state.rendererReady).toBe(true);
         expect(state.viewportScale).toBe(7);
+    });
+});
+
+/**
+ * `attachRenderer` is `@internal`, but the API report is a d.ts snapshot rather
+ * than an api-extractor run, so the method reaches the published declarations
+ * and is typed and callable from a plugin. What stops it being a hijack point
+ * is the runtime check, not the tag.
+ */
+describe('attachRenderer is a host seam, not a plugin API', () => {
+    it('ignores a port core did not create, leaving the live renderer in place', () => {
+        const state = new ViewerState();
+        const real = createRendererStub({ scale: 3 });
+        state.attachRenderer(real);
+
+        const impostor = {
+            zoomBy: () => {},
+            zoomTo: () => {},
+            panTo: () => {},
+            fitBounds: () => {},
+            fitCanvas: () => {},
+            getScale: () => 999,
+            getCentre: () => ({ x: 999, y: 999 }),
+            getVisibleBounds: () => null,
+            getContainerSize: () => ({ width: 999, height: 999 }),
+            canvasToScreen: () => null,
+            screenToCanvas: () => null,
+            applyImageAdjustments: () => {},
+            onFrame: () => () => {},
+        };
+
+        const detach = state.attachRenderer(impostor);
+
+        // The real renderer still answers, and the returned detach cannot tear
+        // it out either.
+        expect(state.viewportScale).toBe(3);
+        detach();
+        expect(state.rendererReady).toBe(true);
+        expect(state.viewportScale).toBe(3);
+    });
+
+    it('refuses a foreign port even before any renderer has mounted', () => {
+        const state = new ViewerState();
+
+        state.attachRenderer({
+            zoomBy: () => {},
+            zoomTo: () => {},
+            panTo: () => {},
+            fitBounds: () => {},
+            fitCanvas: () => {},
+            getScale: () => 42,
+            getCentre: () => null,
+            getVisibleBounds: () => null,
+            getContainerSize: () => ({ width: 1, height: 1 }),
+            canvasToScreen: () => null,
+            screenToCanvas: () => null,
+            applyImageAdjustments: () => {},
+            onFrame: () => () => {},
+        });
+
+        expect(state.rendererReady).toBe(false);
+        expect(state.viewportScale).toBe(0);
     });
 });
 
@@ -203,6 +290,24 @@ describe('coordinate helpers', () => {
         // middle of an 800px-wide surface.
         expect(screen).toEqual({ x: 500, y: 260 });
         expect(state.screenToCanvas(screen!)).toEqual(canvasPoint);
+    });
+
+    // The port's rule: a host that cannot answer for the canvas asked about
+    // answers `null` rather than answering for a different one — which is the
+    // real behaviour in individuals and paged mode, where only the current
+    // spread is laid out. The stand-in models it when a test asks it to.
+    it('answers null for a canvas the renderer cannot place', () => {
+        const state = new ViewerState();
+        state.attachRenderer(
+            createRendererStub({ scale: 2, canvasIds: ['canvas-1'] }),
+        );
+
+        expect(state.canvasToScreen({ x: 0, y: 0 }, 'canvas-1')).not.toBeNull();
+        expect(state.canvasToScreen({ x: 0, y: 0 }, 'canvas-2')).toBeNull();
+        expect(state.screenToCanvas({ x: 0, y: 0 }, 'canvas-2')).toBeNull();
+        // Omitting the id always means the current canvas, which it can answer
+        // for by construction.
+        expect(state.canvasToScreen({ x: 0, y: 0 })).not.toBeNull();
     });
 
     it('passes the canvas id through, so a caller can ask about a named canvas', () => {

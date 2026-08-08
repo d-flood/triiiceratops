@@ -17,6 +17,7 @@ import { getLocale } from '../paraglide/runtime.js';
 import { logger, isDebugEnabled } from '../logging/logger';
 import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
+import { isRendererPort } from '../renderer/rendererPortBrand.js';
 import { ZOOM_PER_CLICK as DEFAULT_ZOOM_PER_CLICK } from '../renderer/rendererDefaults.js';
 import {
     NEUTRAL_IMAGE_ADJUSTMENTS,
@@ -722,9 +723,27 @@ export class ViewerState {
      * the current image adjustments, so a renderer that mounts after they were
      * set shows them.
      *
+     * **`@internal` is documentation; the guard below is the enforcement.** The
+     * API report is a d.ts snapshot of the whole published declaration graph,
+     * not an api-extractor run, so this method reaches the shipped `.d.ts` and
+     * is typed and callable from a plugin. Only a port core itself built is
+     * accepted (`renderer/rendererPortBrand.ts`, whose brand is a
+     * module-private symbol no consumer can obtain) — otherwise a plugin could
+     * hand in an object of the right shape and become the renderer for the
+     * whole viewer, serving the chrome's own zoom buttons and every other
+     * plugin's viewport queries with the real renderer unreachable. A refused
+     * attach changes nothing and returns a no-op detach.
+     *
      * @internal
      */
     attachRenderer(port: RendererPort): () => void {
+        if (!isRendererPort(port)) {
+            logger.warn(
+                'attachRenderer ignored a port core did not create. It is an internal host seam, not a plugin API; use the viewport commands and queries on ViewerState.',
+            );
+            return () => {};
+        }
+
         this.rendererPort = port;
         port.applyImageAdjustments(this.imageAdjustments);
         this.syncFrameSource();
@@ -822,8 +841,28 @@ export class ViewerState {
         this.rendererPort?.panTo(centre, canvasId);
     }
 
-    /** Fit a canvas-space box into the viewport. */
+    /**
+     * Fit a canvas-space box into the viewport.
+     *
+     * A degenerate or non-finite box is refused rather than obeyed, the same
+     * way {@link zoomTo} refuses a scale that is not usable: a zero-width box
+     * has no scale that frames it, and the arithmetic below would otherwise
+     * fall through to a nominal one and teleport the viewport. The resulting
+     * scale is clamped to the renderer's zoom range like every other one, so
+     * this cannot be used to escape the limits {@link zoomTo} documents.
+     */
     fitBounds(bounds: ViewportBox, canvasId?: string): void {
+        if (
+            !bounds ||
+            !Number.isFinite(bounds.x) ||
+            !Number.isFinite(bounds.y) ||
+            !Number.isFinite(bounds.width) ||
+            !Number.isFinite(bounds.height) ||
+            bounds.width <= 0 ||
+            bounds.height <= 0
+        ) {
+            return;
+        }
         this.rendererPort?.fitBounds(bounds, canvasId);
     }
 
