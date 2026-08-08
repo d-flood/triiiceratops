@@ -13,6 +13,17 @@ import type { PlannerBudgets } from './types';
 export const DEFAULT_BUDGETS: PlannerBudgets = {
     /** Decoded-pixel ceiling for the opportunistic cache; desktop figure. */
     byteBudget: 256 * 1024 * 1024,
+    /**
+     * The gutter between adjacent canvases, as a fraction of the median canvas
+     * extent along the axis the world flows in.
+     *
+     * The same 1.25% the OpenSeadragon path lays out with — that path's world
+     * is normalized so a canvas is one unit wide, and its gap is the literal
+     * 0.0125 in `components/osdLayout`. Expressed as a fraction here because
+     * this renderer's world is canvas space, where the same number would be a
+     * sub-pixel hairline.
+     */
+    gapFraction: 0.0125,
     /** The viewport rect inflated by this factor is the residency margin. */
     marginFactor: 1.5,
     /** `effectiveSize` in CSS px at or above which a canvas holds a pyramid. */

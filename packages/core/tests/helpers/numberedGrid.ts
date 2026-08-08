@@ -81,6 +81,19 @@ export const LEVEL0_SIZES_MANIFEST =
 export const LEVEL0_SIZES_V2_MANIFEST =
     '/demo-manifests/level0-sizes-v2/manifest.json';
 
+/**
+ * A **facing-page** manifest: every canvas the same numbered grid at the same
+ * Canvas dimensions, so median-height normalization is the identity and the
+ * second page's expected position is arithmetic a spec can state.
+ *
+ * The pages being identical is deliberate. A feature is located by colour, so a
+ * spec has to put exactly one page in the viewport to know which page it found
+ * — and "only one page is in this viewport" is itself the assertion that the
+ * second page is BESIDE the first rather than on top of it, which is the bug
+ * this layout fixes.
+ */
+export const PAGED_MANIFEST = '/demo-manifests/paged/manifest.json';
+
 /** The image services the tiled fixture's two canvases are backed by. */
 export const TILED_SERVICES = ['/iiif-fixture/one', '/iiif-fixture/two'];
 
@@ -159,9 +172,18 @@ export async function openTiledManifest(page: Page): Promise<void> {
 export async function openRendererManifest(
     page: Page,
     manifest: string,
+    /**
+     * Viewer config for the demo app to boot with, as its `config` URL
+     * parameter takes it. The way a spec reaches a viewing mode or a paged
+     * offset without driving the settings UI to get there.
+     */
+    config?: Record<string, unknown>,
 ): Promise<void> {
     await useCanvasRenderer(page);
-    await page.goto(`/?manifest=${manifest}`, {
+    const query = config
+        ? `?manifest=${manifest}&config=${encodeURIComponent(JSON.stringify(config))}`
+        : `?manifest=${manifest}`;
+    await page.goto(query, {
         waitUntil: 'domcontentloaded',
     });
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 20_000 });

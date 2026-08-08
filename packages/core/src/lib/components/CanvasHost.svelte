@@ -24,14 +24,17 @@
      *
      * ## Scope
      *
-     * One canvas — a static image or a tiled image service; the full pointer
-     * input model (drag, flick momentum, pinch, wheel, double-tap), keyboard
-     * operation, and reduced motion. The size-ladder source is ticket 06,
-     * multi-canvas layout ticket 07, annotation overlays ticket 14.
+     * The canvases on screen — one in individuals mode, a facing-page spread in
+     * paged mode — from any of the three source kinds; the full pointer input
+     * model (drag, flick momentum, pinch, wheel, double-tap), keyboard
+     * operation, and reduced motion. Continuous mode still shows one canvas:
+     * the whole manifest arrives with the virtualization that makes it
+     * affordable, in ticket 08. Annotation overlays are ticket 14.
      */
     import { onMount } from 'svelte';
 
     import { getMessages } from '../state/i18n.svelte';
+    import { getVisibleCanvasEntries } from './viewerControls';
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
     import { GestureRecogniser } from '../renderer/gestureArbiter';
     import { reconcileImages } from '../renderer/imageRequests';
@@ -232,24 +235,39 @@
     /**
      * The canvases this renderer is showing, in **canvas space**.
      *
-     * Only the current canvas: multi-canvas worlds (paged, continuous) arrive
-     * with ticket 07's shared layout.
+     * Which canvases those are is `getVisibleCanvasEntries`' decision, not this
+     * component's — the same function the choice controls, the search-result
+     * offsets, and the OpenSeadragon path all ask, so the renderer can never
+     * disagree with the rest of the viewer about what a spread is. In paged
+     * mode that is the facing-page group; otherwise it is the current canvas
+     * alone.
+     *
+     * **Continuous mode is deliberately still one canvas.** Feeding the whole
+     * manifest in would be a one-line change and exactly the behaviour this
+     * epic exists to remove: layout would place all 800 folios, every one of
+     * them would be pyramid tier, and nothing would evict. It arrives with
+     * virtualization, in ticket 08.
      */
     const plannerCanvases: PlannerCanvas[] = $derived.by(() => {
         if (!viewerState.manifestId || !viewerState.canvasId) return [];
 
-        const current = viewerState
-            .getCanvases(viewerState.manifestId)
-            .find((entry: any) => {
-                // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
-                const id = entry?.id || entry?.['@id'];
-                return id === viewerState.canvasId;
-            });
+        const visible = getVisibleCanvasEntries({
+            // `viewerState.canvases`, not `getCanvases(manifestId)`: the
+            // former honours the selected sequence and the latter always reads
+            // sequence 0, and `currentCanvasIndex` is an index into the former.
+            // Mixing them would index a v2 multi-sequence manifest's second
+            // sequence with a position from its first.
+            canvases: viewerState.canvases,
+            currentCanvasId: viewerState.canvasId,
+            currentCanvasIndex: viewerState.currentCanvasIndex,
+            viewingMode:
+                viewerState.viewingMode === 'paged' ? 'paged' : 'individuals',
+            pagedOffset: viewerState.pagedOffset,
+        });
 
-        if (!current) return [];
-
-        return toPlannerCanvases([current], (canvasId) =>
-            viewerState.getSelectedChoice(canvasId),
+        return toPlannerCanvases(
+            visible.map((entry) => entry.canvas),
+            (canvasId) => viewerState.getSelectedChoice(canvasId),
         );
     });
 
@@ -263,20 +281,32 @@
      */
     let scenePlanCount = 0;
 
-    function currentPlan(): ScenePlan {
-        scenePlanCount += 1;
-        return planScene({
+    /**
+     * Everything that decides where the canvases are — shared verbatim by the
+     * full plan and by the cheap per-sample clamp, so the world the pan
+     * constraint is measured against cannot diverge from the world that is
+     * painted.
+     */
+    function worldInput() {
+        return {
             canvases: plannerCanvases,
             mode: viewerState.viewingMode,
             direction: viewerState.viewingDirection,
             preserveCanvasScale: viewerState.preserveCanvasScale,
+            knownMetadata,
+            budgets: DEFAULT_BUDGETS,
+        };
+    }
+
+    function currentPlan(): ScenePlan {
+        scenePlanCount += 1;
+        return planScene({
+            ...worldInput(),
             viewport,
             // Level selection is a question about pixels the display can
             // resolve, and the viewport is measured in CSS pixels: without this
             // a 2× screen never reaches full resolution.
             dpr,
-            knownMetadata,
-            budgets: DEFAULT_BUDGETS,
             residentTiles: tiles.residentKeys(),
         });
     }
@@ -334,10 +364,7 @@
      * `paint()`'s comment says it belongs: once per frame, in the frame loop.
      */
     function viewportLimits() {
-        return planViewportLimits(
-            plannerCanvases,
-            DEFAULT_BUDGETS.boxThreshold,
-        );
+        return planViewportLimits(worldInput());
     }
 
     function worldBounds(layout: LayoutRect[]) {

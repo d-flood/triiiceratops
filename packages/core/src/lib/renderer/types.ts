@@ -31,12 +31,21 @@ export type SourceDescriptor =
  * space** (manifest Canvas `width`/`height`), and where its pixels come from.
  *
  * Geometry is manifest geometry, never image-service geometry: layout must not
- * depend on any fetch (spec §Coordinate model and layout).
+ * depend on any fetch (spec §Coordinate model and layout). Where the two
+ * disagree — which is routine — the manifest wins permanently, so nothing on
+ * screen moves when tiles arrive.
+ *
+ * `width`/`height` are `null` for a canvas whose manifest declares no usable
+ * dimensions, which is a spec violation the viewer still has to render (user
+ * story 32). Such a canvas is laid out from the **median of its siblings** and
+ * repositioned if an image service later reports real ones — never blocked on a
+ * fetch, which is the reflex that restores the fetch storm for any manifest
+ * with sparse metadata. See `planScene.resolveGeometry`.
  */
 export interface PlannerCanvas {
     id: string;
-    width: number;
-    height: number;
+    width: number | null;
+    height: number | null;
     source: SourceDescriptor;
 }
 
@@ -110,6 +119,22 @@ export interface ImageServiceFacts {
 export interface PlannerBudgets {
     /** Decoded-pixel byte ceiling for the opportunistic cache. */
     byteBudget: number;
+    /**
+     * Inter-canvas gap, as a fraction of the median canvas extent along the
+     * axis the world flows in.
+     *
+     * A **fraction**, not a length, because the renderer's world is canvas
+     * space — manifest Canvas pixels — where a page is a few thousand units
+     * across and any absolute default would be either a hairline or a chasm
+     * depending on the manifest. The shared layout function takes an absolute
+     * `gap`, so `planScene` multiplies this out before calling it; it is the
+     * caller's job precisely because only the caller knows its own units (see
+     * `components/osdLayout`).
+     *
+     * Not configuration: no public surface exposes it, and none is added here
+     * (spec §Out of Scope). It is a budget so tests can supply their own.
+     */
+    gapFraction: number;
     /** Residency margin as a factor the viewport rect is inflated by. */
     marginFactor: number;
     /** `effectiveSize` at or above which a canvas is in the pyramid tier. */
@@ -221,11 +246,31 @@ export interface ThumbnailRequest {
     rung: number;
 }
 
-export interface PlanSceneInput {
+/**
+ * Everything that decides **where the canvases are** — and nothing else.
+ *
+ * Deliberately a separate input from {@link PlanSceneInput}: the world's layout
+ * and the zoom floor derived from it depend on neither the viewport nor
+ * residency, and the host asks for them on every pointer sample. Splitting the
+ * inputs is what makes `planViewportLimits` cheap by construction rather than
+ * by discipline — a caller cannot accidentally pay for tile enumeration when
+ * the viewport is not even in the signature.
+ *
+ * `knownMetadata` is here because geometry can depend on it in exactly one
+ * case: a canvas whose manifest declared no dimensions is repositioned when an
+ * image service reports real ones.
+ */
+export interface PlanWorldInput {
     canvases: PlannerCanvas[];
     mode: ViewingMode;
     direction: ViewingDirection;
     preserveCanvasScale: boolean;
+    /** canvasId → image-service facts already fetched. */
+    knownMetadata: Record<string, ImageServiceFacts>;
+    budgets: PlannerBudgets;
+}
+
+export interface PlanSceneInput extends PlanWorldInput {
     viewport: Viewport;
     /**
      * Device pixels per CSS pixel of the backing store, defaulting to 1.
@@ -238,9 +283,6 @@ export interface PlanSceneInput {
      * ratio moves nothing in canvas space.
      */
     dpr?: number;
-    /** canvasId → image-service facts already fetched. */
-    knownMetadata: Record<string, ImageServiceFacts>;
-    budgets: PlannerBudgets;
     /**
      * Which tiles the host currently holds decoded.
      *

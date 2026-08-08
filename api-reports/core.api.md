@@ -227,6 +227,25 @@ interface CanvasLayoutResult {
     sources: DisplayPositionedTileSource[];
     layouts: CanvasDisplayLayout[];
 }
+/**
+ * Position every canvas in the world, in the caller's own units.
+ *
+ * ## Why each canvas advances by its own extent
+ *
+ * A multi-canvas world is laid out by walking the canvases and advancing a
+ * cumulative offset. That offset advances by the canvas's **real extent** —
+ * `width` along a horizontal axis, `height` along a vertical one — in every
+ * mode and whether or not normalization is on.
+ *
+ * It did not always. When normalization was off (`preserveCanvasScale`, or a
+ * sibling with no dimensions), the offset advanced by a fixed **one world
+ * unit** per canvas instead. That is only ever right for a caller whose
+ * canvases are one unit wide: anything wider (or, on a vertical axis, taller)
+ * overlapped its neighbour, and by its whole excess — a canvas-space caller,
+ * where a page is a few thousand units across, stacked its entire manifest on
+ * one spot. Preserving a canvas's authored scale is a statement about its
+ * SIZE; it was never a statement about where the next one goes.
+ */
 export declare function getCanvasDisplayLayouts(sources: PositionedTileSource[], options: {
     mode: ViewingMode;
     direction: ViewingDirection;
@@ -4408,6 +4427,20 @@ export type PositionedTileSource = {
 };
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
+    /**
+     * Dimensions to stand in for a Canvas that declares none, instead of
+     * refusing to resolve it at all.
+     *
+     * Opt-in, and deliberately: every caller but one wants a spec-violating
+     * canvas dropped, because it has no geometry to place an image or an
+     * annotation in. The Canvas2D renderer is the exception — it must still lay
+     * such a canvas out, from a median of its siblings, and reflow it if an
+     * image service later reports real dimensions (user story 32). It reads the
+     * declared dimensions separately, through
+     * {@link getDeclaredCanvasDimensions}, so what it gets back here is only
+     * ever the source descriptor; the placeholder never reaches layout.
+     */
+    fallbackCanvasDimensions?: CanvasDimensions;
 };
 type GetViewerTileSourcesParams = {
     canvases: any[];
@@ -4445,8 +4478,24 @@ export type ResolvedCanvasImage = {
     width: number;
     height: number;
 };
+type CanvasDimensions = {
+    width: number;
+    height: number;
+};
 export declare function getRegionString(region: RegionRect): string;
 export { getCanvasLabel, getCanvasId };
+/**
+ * The dimensions a raw Canvas actually declares, or `null` where it declares
+ * none usable.
+ *
+ * Exported so a caller can tell "the manifest says 1200x900" apart from "the
+ * manifest says nothing and something guessed for it" — a distinction
+ * {@link ResolvedCanvasImage} cannot carry, because its `canvasWidth`/
+ * `canvasHeight` are always numbers. The renderer needs it: a declared
+ * dimension is authoritative forever, while a missing one is a placeholder to
+ * be replaced the moment an image service reports the truth.
+ */
+export declare function getDeclaredCanvasDimensions(canvas: unknown): CanvasDimensions | null;
 export declare function resolveCanvasImage(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage | null;
 export declare function resolveAllCanvasImages(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage[];
 export declare function getCanvasTileSource(canvas: any, options?: ResolveCanvasImageOptions): TileSource | null;

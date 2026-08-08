@@ -1,10 +1,16 @@
-// Gap (in normalized world units) inserted between adjacent canvases in
-// paged/continuous layouts. Deliberately *not* exported: this module is the one
-// layout implementation in the repository, so a caller that wants the spacing
-// that is actually on screen — the live viewer and the export path alike — gets
-// it by omitting the `gap` option rather than by importing the number and
-// reconstructing the layout itself. It stays an option so a caller with its own
-// spacing (and, later, a configured one) can pass it.
+// Gap (in normalized world units, where a canvas is one unit wide) inserted
+// between adjacent canvases in paged/continuous layouts. Deliberately *not*
+// exported: this module is the one layout implementation in the repository, so
+// a caller that wants the spacing that is actually on screen — the live viewer
+// and the export path alike — gets it by omitting the `gap` option rather than
+// by importing the number and reconstructing the layout itself. It stays an
+// option so a caller with its own spacing (and, later, a configured one) can
+// pass it.
+//
+// A caller laying out in a space where a canvas is NOT one unit wide — the
+// Canvas2D renderer, whose world is canvas space, i.e. manifest Canvas pixels —
+// must pass its own `gap`, because this number would be a sub-pixel hairline
+// there. See `renderer/planScene.layoutCanvases`.
 const DEFAULT_MULTI_CANVAS_GAP = 0.0125;
 
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
@@ -159,6 +165,25 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
     };
 }
 
+/**
+ * Position every canvas in the world, in the caller's own units.
+ *
+ * ## Why each canvas advances by its own extent
+ *
+ * A multi-canvas world is laid out by walking the canvases and advancing a
+ * cumulative offset. That offset advances by the canvas's **real extent** —
+ * `width` along a horizontal axis, `height` along a vertical one — in every
+ * mode and whether or not normalization is on.
+ *
+ * It did not always. When normalization was off (`preserveCanvasScale`, or a
+ * sibling with no dimensions), the offset advanced by a fixed **one world
+ * unit** per canvas instead. That is only ever right for a caller whose
+ * canvases are one unit wide: anything wider (or, on a vertical axis, taller)
+ * overlapped its neighbour, and by its whole excess — a canvas-space caller,
+ * where a page is a few thousand units across, stacked its entire manifest on
+ * one spot. Preserving a canvas's authored scale is a statement about its
+ * SIZE; it was never a statement about where the next one goes.
+ */
 export function getCanvasDisplayLayouts(
     sources: PositionedTileSource[],
     options: {
@@ -205,13 +230,15 @@ export function getCanvasDisplayLayouts(
             options.direction === 'right-to-left' ||
             options.direction === 'bottom-to-top';
 
+        // Advance by each canvas's OWN extent, always — never by a fixed one
+        // world unit when normalization is off. See the note on this function.
         for (const layout of scaled) {
             if (isVertical) {
                 layout.y = isReverse ? -offset : offset;
-                offset += (canNormalize ? layout.height : 1) + gap;
+                offset += layout.height + gap;
             } else {
                 layout.x = isReverse ? -offset : offset;
-                offset += (canNormalize ? layout.width : 1) + gap;
+                offset += layout.width + gap;
             }
         }
     } else if (options.mode === 'paged') {
@@ -223,8 +250,7 @@ export function getCanvasDisplayLayouts(
                 ? scaled.slice(index + 1)
                 : scaled.slice(0, index);
             layout.x = previous.reduce(
-                (offset, item) =>
-                    offset + (canNormalize ? item.width : 1) + gap,
+                (offset, item) => offset + item.width + gap,
                 0,
             );
             layout.y = (spreadHeight - layout.height) / 2;

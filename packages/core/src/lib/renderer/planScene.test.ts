@@ -15,17 +15,23 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { getVisibleCanvasEntries } from '../components/viewerControls';
+import { toPlannerCanvases } from './canvasDescriptors';
 import { planScene, planViewportLimits } from './planScene';
 import { tileKey } from './tilePyramid';
 import type {
     ImageServiceFacts,
     PlannerBudgets,
     PlannerCanvas,
+    ViewingDirection,
     Viewport,
 } from './types';
 
 const BUDGETS: PlannerBudgets = {
     byteBudget: 64 * 1024 * 1024,
+    // A round 1% rather than the shipped figure, so every position asserted
+    // below is arithmetic the test states rather than a default it inherits.
+    gapFraction: 0.01,
     marginFactor: 1.5,
     pyramidThreshold: 400,
     boxThreshold: 40,
@@ -239,6 +245,375 @@ describe('planScene', () => {
         const canvases = [staticCanvas('c1', 1000, 750)];
 
         expect(plan(canvases)).toEqual(plan(canvases));
+    });
+});
+
+/**
+ * Multi-canvas layout: paged spreads, the four viewing directions, and
+ * `preserveCanvasScale`.
+ *
+ * The positions are the shared layout function's (`components/osdLayout`),
+ * expressed in the renderer's own units — canvas space, where a page is
+ * thousands of units across rather than one. Every expectation below is
+ * arithmetic stated in the test: `gapFraction` is 0.01 and the gap is that
+ * fraction of the median canvas extent along the axis the world flows in.
+ */
+describe('planScene — multi-canvas layout', () => {
+    /** The gap for a world whose canvases are all this wide. */
+    function gapFor(...extents: number[]) {
+        const sorted = [...extents].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        const centre =
+            sorted.length % 2 === 0
+                ? (sorted[middle - 1] + sorted[middle]) / 2
+                : sorted[middle];
+        return BUDGETS.gapFraction * centre;
+    }
+
+    const recto = staticCanvas('recto', 1000, 750);
+    const verso = staticCanvas('verso', 1000, 750);
+
+    it('lays a facing-page spread out side by side, in canvas-space units', () => {
+        const gap = gapFor(1000, 1000);
+        const result = plan([recto, verso], { mode: 'paged' });
+
+        expect(result.layout).toEqual([
+            { canvasId: 'recto', x: 0, y: 0, width: 1000, height: 750 },
+            {
+                canvasId: 'verso',
+                x: 1000 + gap,
+                y: 0,
+                width: 1000,
+                height: 750,
+            },
+        ]);
+    });
+
+    it('reverses the spread for a right-to-left manifest', () => {
+        // The reading order, not the array order: the first canvas is the one on
+        // the RIGHT (user story 15).
+        const gap = gapFor(1000, 1000);
+        const result = plan([recto, verso], {
+            mode: 'paged',
+            direction: 'right-to-left',
+        });
+
+        expect(result.layout.map((rect) => rect.x)).toEqual([1000 + gap, 0]);
+    });
+
+    it('leaves a single-canvas world at the origin at its manifest size', () => {
+        // The geometry the manifest declares, in every mode: canvas space and
+        // world space coincide, which is what the geometric e2e assertions are
+        // written against.
+        for (const mode of ['individuals', 'paged', 'continuous'] as const) {
+            expect(plan([recto], { mode }).layout).toEqual([
+                { canvasId: 'recto', x: 0, y: 0, width: 1000, height: 750 },
+            ]);
+        }
+    });
+
+    it('stacks individuals mode at the origin: only one canvas is ever shown', () => {
+        expect(plan([recto, verso], { mode: 'individuals' }).layout).toEqual([
+            { canvasId: 'recto', x: 0, y: 0, width: 1000, height: 750 },
+            { canvasId: 'verso', x: 0, y: 0, width: 1000, height: 750 },
+        ]);
+    });
+
+    describe('viewing direction', () => {
+        const flowed = (direction: ViewingDirection) =>
+            plan([recto, verso], { mode: 'continuous', direction }).layout;
+
+        it('flows left to right', () => {
+            const gap = gapFor(1000, 1000);
+            expect(flowed('left-to-right').map((rect) => rect.x)).toEqual([
+                0,
+                1000 + gap,
+            ]);
+        });
+
+        it('flows right to left', () => {
+            const gap = gapFor(1000, 1000);
+            const [first, second] = flowed('right-to-left');
+            expect(first.x).toBeCloseTo(0, 6);
+            expect(second.x).toBeCloseTo(-(1000 + gap), 6);
+        });
+
+        it('flows top to bottom, spaced by heights rather than widths', () => {
+            // The gap is a fraction of the extent along the FLOW axis, so a
+            // vertical world is spaced by the median height. Measured on widths
+            // it would read differently for a portrait manifest and a landscape
+            // one at the same visual size.
+            const gap = gapFor(750, 750);
+            expect(flowed('top-to-bottom').map((rect) => rect.y)).toEqual([
+                0,
+                750 + gap,
+            ]);
+        });
+
+        it('flows bottom to top', () => {
+            const gap = gapFor(750, 750);
+            const [first, second] = flowed('bottom-to-top');
+            expect(first.y).toBeCloseTo(0, 6);
+            expect(second.y).toBeCloseTo(-(750 + gap), 6);
+        });
+    });
+
+    describe('normalization and preserveCanvasScale', () => {
+        const wide = staticCanvas('wide', 1000, 750);
+        const tall = staticCanvas('tall', 800, 1200);
+
+        it('normalizes mixed canvases to the median height by default', () => {
+            // Existing, user-visible layout semantics, carried across the
+            // renderer swap: median height 975, so the two scale by 1.3 and
+            // 0.8125 respectively.
+            const result = plan([wide, tall], { mode: 'paged' });
+
+            expect(result.layout.map((rect) => rect.height)).toEqual([
+                975, 975,
+            ]);
+            expect(result.layout.map((rect) => rect.width)).toEqual([
+                1300, 650,
+            ]);
+        });
+
+        it('clamps normalization to the [0.25, 4] scale range', () => {
+            const result = plan(
+                [
+                    staticCanvas('sliver', 1000, 10),
+                    staticCanvas('middle', 1000, 1000),
+                    staticCanvas('column', 1000, 10_000),
+                ],
+                { mode: 'paged' },
+            );
+
+            expect(result.layout.map((rect) => rect.width)).toEqual([
+                4000, 1000, 250,
+            ]);
+        });
+
+        it('keeps every canvas at its authored size under preserveCanvasScale', () => {
+            const result = plan([wide, tall], {
+                mode: 'paged',
+                preserveCanvasScale: true,
+            });
+
+            expect(result.layout.map((rect) => rect.width)).toEqual([
+                1000, 800,
+            ]);
+            expect(result.layout.map((rect) => rect.height)).toEqual([
+                750, 1200,
+            ]);
+        });
+
+        it('places mixed aspect ratios WITHOUT overlap under preserveCanvasScale', () => {
+            // The regression. Layout used to advance a fixed ONE WORLD UNIT per
+            // canvas when normalization was off — which, in a world where a page
+            // is a thousand units across, stacked the whole spread on one spot.
+            // Against that behaviour `tall` lands at x ≈ 1, i.e. 999 units
+            // inside `wide`.
+            const result = plan([wide, tall], {
+                mode: 'paged',
+                preserveCanvasScale: true,
+            });
+
+            const [first, second] = result.layout;
+            expect(second.x).toBeGreaterThanOrEqual(first.x + first.width);
+            expect(second.x).toBeCloseTo(1000 + gapFor(1000, 800), 6);
+        });
+
+        it('places mixed aspect ratios without overlap in a vertical world too', () => {
+            const result = plan([wide, tall], {
+                mode: 'continuous',
+                direction: 'top-to-bottom',
+                preserveCanvasScale: true,
+            });
+
+            const [first, second] = result.layout;
+            expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
+            expect(second.y).toBeCloseTo(750 + gapFor(750, 1200), 6);
+        });
+
+        it('centres the shorter page in the spread', () => {
+            const result = plan([wide, tall], {
+                mode: 'paged',
+                preserveCanvasScale: true,
+            });
+
+            expect(result.layout.map((rect) => rect.y)).toEqual([
+                (1200 - 750) / 2,
+                0,
+            ]);
+        });
+    });
+
+    describe('canvases with no declared dimensions', () => {
+        const unsized: PlannerCanvas = {
+            id: 'unsized',
+            width: null,
+            height: null,
+            source: { kind: 'static', url: 'https://example.test/unsized.jpg' },
+        };
+
+        it('positions an unsized canvas from the median of its siblings', () => {
+            // Never blocked on a fetch: "just fetch its dimensions" is the
+            // reflex, and it restores the fetch storm for any manifest with
+            // sparse metadata (spec §Coordinate model and layout).
+            const result = plan(
+                [
+                    staticCanvas('a', 1000, 750),
+                    unsized,
+                    staticCanvas('c', 1200, 900),
+                ],
+                { mode: 'paged' },
+            );
+
+            const guessed = result.layout[1];
+            // Median width (1000, 1200) = 1100; median height (750, 900) = 825.
+            // Normalized to the median height of the three, which the guess is
+            // by construction, so its own scale is 1.
+            expect(guessed.width).toBeCloseTo(1100, 6);
+            expect(guessed.height).toBeCloseTo(825, 6);
+        });
+
+        it('repositions it when the image service reports real dimensions', () => {
+            const canvases = [staticCanvas('a', 1000, 750), unsized];
+            const guessed = plan(canvases, {
+                mode: 'paged',
+                preserveCanvasScale: true,
+            });
+            const reflowed = plan(canvases, {
+                mode: 'paged',
+                preserveCanvasScale: true,
+                knownMetadata: {
+                    unsized: { width: 400, height: 300, version: 3 },
+                },
+            });
+
+            expect(guessed.layout[1]).toMatchObject({
+                width: 1000,
+                height: 750,
+            });
+            expect(reflowed.layout[1]).toMatchObject({
+                width: 400,
+                height: 300,
+            });
+        });
+
+        it('never lets service dimensions move a canvas the manifest DID size', () => {
+            // The other half of the rule, and the one that matters more: manifest
+            // and service dimensions disagreeing is routine, and if the service
+            // won, the thing under the user's cursor would move as tiles landed
+            // and annotation geometry — persisted in canvas space — would break.
+            const result = plan([staticCanvas('a', 1000, 750)], {
+                knownMetadata: { a: { width: 4000, height: 3000, version: 3 } },
+            });
+
+            expect(result.layout).toEqual([
+                { canvasId: 'a', x: 0, y: 0, width: 1000, height: 750 },
+            ]);
+        });
+
+        it('drops an unsized canvas only when nothing in the manifest has dimensions', () => {
+            expect(plan([unsized], { mode: 'paged' }).layout).toEqual([]);
+        });
+    });
+
+    describe('tiers and residency across several canvases', () => {
+        // Median height 562.5, so the two scale by 0.75 and 1.5 and both are
+        // laid out at 750x562.5 — `little` at half again its manifest size.
+        const mixedSpread = [
+            staticCanvas('big', 1000, 750),
+            staticCanvas('little', 500, 375),
+        ];
+
+        it('decides the tier from the LAID-OUT rect, not the manifest size', () => {
+            // Normalization scales a canvas to the median height, so a small
+            // canvas beside large siblings covers more screen than its manifest
+            // figure predicts. At a 600 threshold `little` is a thumbnail by its
+            // manifest (effectiveSize 433) and a pyramid by its rect (649).
+            const result = plan(mixedSpread, {
+                mode: 'paged',
+                budgets: { ...BUDGETS, pyramidThreshold: 600 },
+            });
+
+            expect(result.layout[1]).toMatchObject({
+                width: 750,
+                height: 562.5,
+            });
+            expect(result.tiers.little).toBe('pyramid');
+        });
+
+        it('derives the zoom floor from the laid-out rects', () => {
+            const result = plan(mixedSpread, { mode: 'paged' });
+
+            // Both rects are 750x562.5 after normalization, so the median
+            // effective size is sqrt(750 * 562.5) rather than either manifest
+            // figure.
+            expect(result.minZoom).toBeCloseTo(
+                BUDGETS.boxThreshold / Math.sqrt(750 * 562.5),
+                10,
+            );
+        });
+
+        it('holds only the base level of a canvas outside viewport-plus-margin', () => {
+            // The claim the residency margin rests on, checked with more than one
+            // canvas in the world for the first time: a spread whose far page is
+            // off screen must cost its base tile and nothing else, or a paged
+            // manifest pays for two full pyramids on every page turn.
+            const spread = plan(
+                [
+                    serviceCanvas('near', 4096, 4096),
+                    serviceCanvas('far', 4096, 4096),
+                ],
+                {
+                    mode: 'paged',
+                    preserveCanvasScale: true,
+                    knownMetadata: { near: FACTS, far: FACTS },
+                    // Zoomed into the near page; the far one starts beyond
+                    // x = 4096 and is nowhere near the margin box.
+                    viewport: viewport({
+                        centre: { x: 500, y: 500 },
+                        scale: 0.5,
+                    }),
+                },
+            );
+
+            const farLevels = spread.tileRequests
+                .filter((request) => request.canvasId === 'far')
+                .map((request) => request.level);
+            const nearLevels = spread.tileRequests
+                .filter((request) => request.canvasId === 'near')
+                .map((request) => request.level);
+
+            expect(farLevels).toEqual([0]);
+            expect(new Set(nearLevels).size).toBeGreaterThan(1);
+        });
+
+        it('orders the required set centre-out ACROSS canvases, not per canvas', () => {
+            const result = plan(
+                [
+                    serviceCanvas('near', 4096, 4096),
+                    serviceCanvas('far', 4096, 4096),
+                ],
+                {
+                    mode: 'paged',
+                    preserveCanvasScale: true,
+                    knownMetadata: { near: FACTS, far: FACTS },
+                    viewport: viewport({
+                        centre: { x: 500, y: 500 },
+                        scale: 0.5,
+                    }),
+                },
+            );
+
+            const priorities = result.tileRequests.map(
+                (request) => request.priority,
+            );
+            expect(priorities).toEqual([...priorities].sort((a, b) => a - b));
+            // …and the far canvas really is behind the near one, rather than the
+            // list happening to be sorted within each canvas.
+            expect(result.tileRequests.at(-1)!.canvasId).toBe('far');
+        });
     });
 });
 
@@ -811,43 +1186,131 @@ describe('planScene — size-ladder sources', () => {
 });
 
 /**
+ * Opening a long paged manifest, along the chain `CanvasHost` actually runs:
+ * raw manifest JSON → the visible spread → planner canvases → a scene plan.
+ *
+ * The claim under test is the one that makes the whole epic possible — opening
+ * a manifest costs O(1) network requests regardless of its length, because
+ * layout comes from manifest Canvas dimensions and never from `info.json`.
+ */
+describe('planScene — opening a 40-canvas paged manifest', () => {
+    const CANVASES = Array.from({ length: 40 }, (_, index) => ({
+        id: `https://example.test/canvas/${index}`,
+        type: 'Canvas',
+        width: 1000,
+        height: 1400,
+        items: [
+            {
+                id: `https://example.test/page/${index}`,
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        id: `https://example.test/anno/${index}`,
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        body: {
+                            id: `https://images.test/${index}/full/max/0/default.jpg`,
+                            type: 'Image',
+                            service: [
+                                {
+                                    id: `https://images.test/${index}`,
+                                    type: 'ImageService3',
+                                    profile: 'level2',
+                                },
+                            ],
+                        },
+                        target: `https://example.test/canvas/${index}`,
+                    },
+                ],
+            },
+        ],
+    }));
+
+    function openAt(currentCanvasIndex: number) {
+        const visible = getVisibleCanvasEntries({
+            canvases: CANVASES,
+            currentCanvasId: CANVASES[currentCanvasIndex].id,
+            currentCanvasIndex,
+            viewingMode: 'paged',
+            pagedOffset: 0,
+        });
+
+        return plan(toPlannerCanvases(visible.map((entry) => entry.canvas)), {
+            mode: 'paged',
+            viewport: viewport({ centre: { x: 1000, y: 700 }, scale: 0.4 }),
+        });
+    }
+
+    it('lays the spread out with no metadata at all', () => {
+        // Nothing has been fetched — `knownMetadata` is empty — and both pages
+        // still have a position and a size.
+        expect(openAt(0).layout).toHaveLength(2);
+    });
+
+    it('asks for metadata only for the two canvases on screen', () => {
+        expect(openAt(0).metadataRequests).toEqual([
+            'https://example.test/canvas/0',
+            'https://example.test/canvas/1',
+        ]);
+    });
+
+    it('asks for two more when the reader turns the page, not thirty-eight', () => {
+        expect(openAt(2).metadataRequests).toEqual([
+            'https://example.test/canvas/2',
+            'https://example.test/canvas/3',
+        ]);
+    });
+});
+
+/**
  * The cheap half of the planner, for the two questions the host asks on every
  * pointer sample.
  */
 describe('planViewportLimits', () => {
+    /** The same world a `plan(...)` call describes, minus everything it costs. */
+    function limits(
+        canvases: PlannerCanvas[],
+        overrides: Partial<Parameters<typeof planViewportLimits>[0]> = {},
+    ) {
+        return planViewportLimits({
+            canvases,
+            mode: 'individuals',
+            direction: 'left-to-right',
+            preserveCanvasScale: false,
+            knownMetadata: {},
+            budgets: BUDGETS,
+            ...overrides,
+        });
+    }
+
     it('agrees with a full plan on the layout and the derived zoom floor', () => {
         const canvases = [
             serviceCanvas('c1', 4000, 3000),
             staticCanvas('c2', 1000, 750),
         ];
         const full = plan(canvases, {
+            mode: 'paged',
             knownMetadata: { c1: FACTS },
         });
-        const limits = planViewportLimits(canvases, BUDGETS.boxThreshold);
 
-        expect(limits.layout).toEqual(full.layout);
-        expect(limits.minZoom).toBe(full.minZoom);
+        expect(limits(canvases, { mode: 'paged' }).layout).toEqual(full.layout);
+        expect(limits(canvases, { mode: 'paged' }).minZoom).toBe(full.minZoom);
     });
 
     it('drops the same unlayoutable canvases a full plan does', () => {
-        const canvases = [
-            staticCanvas('c1', 1000, 750),
-            staticCanvas('bad', 0, 750),
-        ];
+        const canvases = [staticCanvas('bad', 0, 0)];
 
-        expect(
-            planViewportLimits(canvases, BUDGETS.boxThreshold).layout,
-        ).toEqual(plan(canvases).layout);
+        expect(limits(canvases).layout).toEqual(plan(canvases).layout);
     });
 
-    it('needs neither the viewport, the metadata, nor the resident set', () => {
+    it('needs neither the viewport nor the resident set', () => {
         // The whole point: none of the inputs that make a full plan expensive —
         // building the pyramid and enumerating the required tile set — are even
         // in this signature, so a clamp cannot accidentally pay for them. A
         // pointer drag clamps per event; planning stays once per frame.
         const canvases = [serviceCanvas('c1', 4000, 3000)];
 
-        const atHome = planViewportLimits(canvases, BUDGETS.boxThreshold);
+        const atHome = limits(canvases);
         const zoomedIn = plan(canvases, {
             knownMetadata: { c1: FACTS },
             viewport: viewport({ scale: 8 }),

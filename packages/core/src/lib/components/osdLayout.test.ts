@@ -77,6 +77,127 @@ describe('getCanvasDisplayLayouts', () => {
         expect(result.sources[1]).toMatchObject({ x: 1 + gap, width: 1 });
     });
 
+    describe('advancing by each canvas’s real extent', () => {
+        // The regression suite for the one layout bug this epic fixes: with
+        // normalization off, the offset used to advance a fixed ONE WORLD UNIT
+        // per canvas regardless of the canvas's extent. Every case below fails
+        // against that behaviour.
+        function wide(canvasId: string, width: number, height: number) {
+            return {
+                canvasId,
+                x: 0,
+                y: 0,
+                // A caller laying out in its own space — canvas space, where a
+                // page is thousands of units across — rather than in the
+                // normalized world where a canvas happens to be one unit.
+                width,
+                sourceWidth: width,
+                sourceHeight: height,
+                tileSource: `${canvasId}-source`,
+            };
+        }
+
+        it('does not overlap wide canvases in continuous mode with preserveCanvasScale', () => {
+            const result = getCanvasDisplayLayouts(
+                [wide('a', 1200, 900), wide('b', 1000, 1500)],
+                {
+                    mode: 'continuous',
+                    direction: 'left-to-right',
+                    preserveCanvasScale: true,
+                    gap,
+                },
+            );
+
+            // The old behaviour put `b` at x = 1 + gap, i.e. 1199 units inside
+            // `a`.
+            expect(result.layouts[1].x).toBeCloseTo(1200 + gap);
+            expect(result.layouts[1].x).toBeGreaterThanOrEqual(
+                result.layouts[0].x + result.layouts[0].width,
+            );
+        });
+
+        it('does not overlap tall canvases in a vertical continuous world', () => {
+            const result = getCanvasDisplayLayouts(
+                [wide('a', 1200, 900), wide('b', 1000, 1500)],
+                {
+                    mode: 'continuous',
+                    direction: 'top-to-bottom',
+                    preserveCanvasScale: true,
+                    gap,
+                },
+            );
+
+            expect(result.layouts[1].y).toBeCloseTo(900 + gap);
+            expect(result.layouts[1].y).toBeGreaterThanOrEqual(
+                result.layouts[0].y + result.layouts[0].height,
+            );
+        });
+
+        it('does not overlap paged canvases with mixed aspect ratios', () => {
+            const result = getCanvasDisplayLayouts(
+                [
+                    wide('a', 1200, 900),
+                    wide('b', 1000, 1500),
+                    wide('c', 800, 800),
+                ],
+                {
+                    mode: 'paged',
+                    direction: 'left-to-right',
+                    preserveCanvasScale: true,
+                    gap,
+                },
+            );
+
+            expect(result.layouts.map((layout) => layout.x)).toEqual([
+                0,
+                1200 + gap,
+                1200 + gap + 1000 + gap,
+            ]);
+        });
+
+        it('does not overlap paged canvases with mixed aspect ratios in RTL', () => {
+            const result = getCanvasDisplayLayouts(
+                [wide('a', 1200, 900), wide('b', 1000, 1500)],
+                {
+                    mode: 'paged',
+                    direction: 'right-to-left',
+                    preserveCanvasScale: true,
+                    gap,
+                },
+            );
+
+            // Reading order is right to left, so the FIRST canvas sits to the
+            // right of the second — and clear of it.
+            expect(result.layouts[1].x).toBe(0);
+            expect(result.layouts[0].x).toBeCloseTo(1000 + gap);
+        });
+
+        it('advances by real extents when a sibling has no dimensions at all', () => {
+            // Normalization is off here not because the caller asked but
+            // because one canvas cannot be measured — the same branch, and the
+            // same overlap.
+            const result = getCanvasDisplayLayouts(
+                [
+                    wide('a', 1200, 900),
+                    {
+                        canvasId: 'b',
+                        tileSource: 'b-source',
+                        x: 0,
+                        y: 0,
+                        width: 1000,
+                    },
+                ],
+                {
+                    mode: 'continuous',
+                    direction: 'left-to-right',
+                    gap,
+                },
+            );
+
+            expect(result.layouts[1].x).toBeCloseTo(1200 + gap);
+        });
+    });
+
     it('normalizes continuous canvases with different heights', () => {
         const result = getCanvasDisplayLayouts(
             [source('a', 1000, 1000), source('b', 1000, 4000)],

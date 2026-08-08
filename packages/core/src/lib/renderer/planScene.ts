@@ -37,20 +37,31 @@
  * Which services take that branch is decided by `isSizeLadderSource`, and the
  * decision is load-bearing: "advertises no tiles" alone is not level0.
  *
+ * ## Layout
+ *
+ * `layoutCanvases` below is a **translation**, not an implementation: the
+ * positions come from the shared layout function in `components/osdLayout`,
+ * which the export path uses too, so there is one set of coordinates for a
+ * given manifest and no cumulative-offset arithmetic anywhere in the renderer.
+ * What this module owns is the geometry each canvas is laid out *with*
+ * (`resolveGeometry`) and the conversion of the layout module's normalized gap
+ * into canvas-space units.
+ *
  * ## What is still to come
  *
- * - multi-canvas layout (paged, continuous, viewing direction,
- *   `preserveCanvasScale`, the inter-canvas gap) — ticket 07, which replaces
- *   `layoutCanvases` below with the shared layout function;
+ * - continuous mode's virtualization: the layout function already positions a
+ *   continuous world, but the host deliberately feeds it only the canvases on
+ *   screen, because laying out an 800-folio manifest without eviction is the
+ *   behaviour this epic exists to remove — ticket 08;
  * - distance-based eviction and the byte budget — ticket 08;
  * - thumbnail resolution and its quantized ladder — ticket 09.
  *
- * `mode`, `direction`, `preserveCanvasScale`, and `budgets.byteBudget` are
- * therefore accepted and not yet read. They are in the signature from the first
- * version deliberately: the contract is fixed, so later tickets add behaviour
- * rather than re-cut the seam.
+ * `budgets.byteBudget` is therefore accepted and not yet read. It is in the
+ * signature from the first version deliberately: the contract is fixed, so
+ * later tickets add behaviour rather than re-cut the seam.
  */
 
+import { getCanvasDisplayLayouts } from '../components/osdLayout';
 import {
     buildSizeLadder,
     chooseRung,
@@ -76,6 +87,7 @@ import type {
     LayoutRect,
     PlannerCanvas,
     PlanSceneInput,
+    PlanWorldInput,
     Point,
     ResidencyTier,
     ScenePlan,
@@ -90,13 +102,15 @@ function isUsableDimension(value: unknown): value is number {
     return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
-function isLayoutable(canvas: PlannerCanvas): boolean {
-    return (
-        isUsableDimension(canvas.width) &&
-        isUsableDimension(canvas.height) &&
-        typeof canvas.id === 'string' &&
-        canvas.id.length > 0
-    );
+function hasUsableId(canvas: PlannerCanvas): boolean {
+    return typeof canvas.id === 'string' && canvas.id.length > 0;
+}
+
+/** A canvas with the geometry layout will actually use, in canvas space. */
+interface SizedCanvas {
+    canvas: PlannerCanvas;
+    width: number;
+    height: number;
 }
 
 /**
@@ -115,37 +129,6 @@ export function effectiveSize(
     return Math.sqrt(width * scale * height * scale);
 }
 
-/**
- * Single-canvas layout, in canvas space.
- *
- * Ticket 07 replaces this with the shared layout function that already handles
- * paged and continuous worlds, viewing direction, the median-height
- * normalization, and the inter-canvas gap. Until then the only supported world
- * is one canvas at the origin — which is exactly the geometry the manifest
- * declares, so nothing here can shift when metadata arrives later.
- */
-function layoutCanvases(canvases: PlannerCanvas[]): LayoutRect[] {
-    return canvases.map((canvas) => ({
-        canvasId: canvas.id,
-        x: 0,
-        y: 0,
-        width: canvas.width,
-        height: canvas.height,
-    }));
-}
-
-function assignTier(
-    canvas: PlannerCanvas,
-    scale: number,
-    pyramidThreshold: number,
-    boxThreshold: number,
-): ResidencyTier {
-    const size = effectiveSize(canvas.width, canvas.height, scale);
-    if (size >= pyramidThreshold) return 'pyramid';
-    if (size >= boxThreshold) return 'thumbnail';
-    return 'box';
-}
-
 function median(values: number[]): number {
     const sorted = [...values].sort((a, b) => a - b);
     const middle = Math.floor(sorted.length / 2);
@@ -155,21 +138,163 @@ function median(values: number[]): number {
 }
 
 /**
+ * The geometry each canvas is laid out with, in canvas space.
+ *
+ * Three rules, in this order, and the order is the decision:
+ *
+ * 1. **The manifest wins, permanently.** Declared Canvas dimensions are the
+ *    authoritative geometry even where the image service disagrees — which is
+ *    routine, and is why the canvas-space/image-space distinction exists.
+ *    Service dimensions govern only the tile pyramid, and the image is fitted
+ *    into its manifest-declared box, so layout never shifts when tiles arrive.
+ *    The alternative moves the thing under the user's cursor as tiles load, and
+ *    breaks annotation geometry, which is already persisted in canvas space.
+ * 2. **A canvas the manifest never sized takes what a service reports** — the
+ *    *reflow*. This is the only case in which fetched metadata can move
+ *    anything, and it moves it because there was nothing there to contradict.
+ * 3. **Failing both, the median of its siblings.** A guess, and deliberately a
+ *    guess: "just fetch it" is the reflex, and it is what restores the fetch
+ *    storm for any manifest with sparse metadata. Positioning is never blocked
+ *    on a request (spec §Coordinate model and layout).
+ *
+ * A canvas with no id, and one that rule 3 cannot help either (nothing in the
+ * manifest has dimensions), is dropped rather than laid out as NaN.
+ */
+function resolveGeometry(
+    canvases: PlannerCanvas[],
+    knownMetadata: Record<string, ImageServiceFacts>,
+): SizedCanvas[] {
+    const usable = canvases.filter(hasUsableId);
+
+    const declared = usable.filter(
+        (canvas) =>
+            isUsableDimension(canvas.width) && isUsableDimension(canvas.height),
+    );
+    const guess =
+        declared.length > 0
+            ? {
+                  width: median(declared.map((canvas) => canvas.width!)),
+                  height: median(declared.map((canvas) => canvas.height!)),
+              }
+            : null;
+
+    return usable
+        .map((canvas): SizedCanvas | null => {
+            if (
+                isUsableDimension(canvas.width) &&
+                isUsableDimension(canvas.height)
+            ) {
+                return { canvas, width: canvas.width, height: canvas.height };
+            }
+
+            const facts = knownMetadata[canvas.id];
+            if (
+                facts &&
+                isUsableDimension(facts.width) &&
+                isUsableDimension(facts.height)
+            ) {
+                return { canvas, width: facts.width, height: facts.height };
+            }
+
+            return guess
+                ? { canvas, width: guess.width, height: guess.height }
+                : null;
+        })
+        .filter((sized): sized is SizedCanvas => sized !== null);
+}
+
+/**
+ * Multi-canvas layout, in canvas space — delegated **entirely** to the shared
+ * layout function in `components/osdLayout`.
+ *
+ * There is one layout implementation in this repository and this is not it.
+ * Paged spreads, the four viewing directions, median-height normalization, the
+ * `[0.25, 4]` scale clamp, and the cumulative inter-canvas offset all live
+ * there, are exercised from Node, and are shared with the export path. A second
+ * copy here would be a second set of positions for the same manifest.
+ *
+ * What this function does own is the **translation between the two callers'
+ * units**. The layout module's world is normalized (a canvas is one unit wide);
+ * the renderer's world is canvas space, where a page is a few thousand units
+ * across. Passing each canvas's real extent as its layout `width` is what puts
+ * the answer back in canvas space, and it is why the gap has to be computed
+ * here: an absolute default expressed in normalized units would be a sub-pixel
+ * hairline in this one.
+ *
+ * The gap is a fraction of the median extent along the axis the world flows in,
+ * so it reads the same on a folio manifest and a postage-stamp one, and so a
+ * vertical world is spaced by heights rather than by widths.
+ */
+function layoutCanvases(
+    sized: SizedCanvas[],
+    input: PlanWorldInput,
+): LayoutRect[] {
+    if (sized.length === 0) return [];
+
+    const isVertical =
+        input.direction === 'top-to-bottom' ||
+        input.direction === 'bottom-to-top';
+    const flowExtents = sized.map((entry) =>
+        isVertical && input.mode === 'continuous' ? entry.height : entry.width,
+    );
+
+    return getCanvasDisplayLayouts(
+        sized.map((entry) => ({
+            canvasId: entry.canvas.id,
+            x: 0,
+            y: 0,
+            width: entry.width,
+            sourceWidth: entry.width,
+            sourceHeight: entry.height,
+            // Layout carries a payload through untouched; the renderer needs
+            // none, because it looks its canvases up by id.
+            tileSource: null,
+        })),
+        {
+            mode: input.mode,
+            direction: input.direction,
+            preserveCanvasScale: input.preserveCanvasScale,
+            gap: input.budgets.gapFraction * median(flowExtents),
+        },
+    ).layouts;
+}
+
+/**
+ * The tier is decided from the canvas's **projected** size — its LAYOUT rect
+ * scaled by the viewport, not its manifest dimensions.
+ *
+ * The two are the same only in a single-canvas world. Normalization scales a
+ * canvas to the median height, so a page the manifest declares at 400 px and
+ * layout draws at 4000 covers ten times the screen the manifest figure
+ * predicts; deciding from the manifest would put a canvas that fills the
+ * viewport in the box tier.
+ */
+function assignTier(
+    rect: LayoutRect,
+    scale: number,
+    pyramidThreshold: number,
+    boxThreshold: number,
+): ResidencyTier {
+    const size = effectiveSize(rect.width, rect.height, scale);
+    if (size >= pyramidThreshold) return 'pyramid';
+    if (size >= boxThreshold) return 'thumbnail';
+    return 'box';
+}
+
+/**
  * The zoom floor, **derived** rather than fixed: the scale at which the median
  * canvas reaches the box threshold. Below it there is no information on screen.
  * This scales with the manifest instead of being a tuned percentage of home
  * zoom, which is what lets an 800-folio manifest and a one-page manifest both
  * stop somewhere meaningful.
+ *
+ * Measured on the laid-out rects for the same reason the tier is: normalization
+ * is what decides how big a canvas actually is on screen.
  */
-function deriveMinZoom(
-    canvases: PlannerCanvas[],
-    boxThreshold: number,
-): number {
-    if (canvases.length === 0) return 0;
+function deriveMinZoom(layout: LayoutRect[], boxThreshold: number): number {
+    if (layout.length === 0) return 0;
 
-    const sizes = canvases.map((canvas) =>
-        Math.sqrt(canvas.width * canvas.height),
-    );
+    const sizes = layout.map((rect) => Math.sqrt(rect.width * rect.height));
 
     return boxThreshold / median(sizes);
 }
@@ -185,18 +310,22 @@ function deriveMinZoom(
  * a 120 Hz pinch, for two numbers that depend on neither. Tile enumeration
  * belongs to the frame loop, once per frame (see `CanvasHost.paint`).
  *
- * Neither output depends on the viewport, on image-service metadata, or on what
- * is resident — which is exactly why this can skip all of it, and why the two
- * cannot drift: `planScene` returns these very values by calling this.
+ * Neither output depends on the viewport or on what is resident — which is
+ * exactly why this can skip all of it, and why the two cannot drift: `planScene`
+ * returns these very values by calling this.
  */
-export function planViewportLimits(
-    canvases: PlannerCanvas[],
-    boxThreshold: number,
-): { layout: LayoutRect[]; minZoom: number } {
-    const layoutable = canvases.filter(isLayoutable);
+export function planViewportLimits(input: PlanWorldInput): {
+    layout: LayoutRect[];
+    minZoom: number;
+} {
+    const layout = layoutCanvases(
+        resolveGeometry(input.canvases, input.knownMetadata),
+        input,
+    );
+
     return {
-        layout: layoutCanvases(layoutable),
-        minZoom: deriveMinZoom(layoutable, boxThreshold),
+        layout,
+        minZoom: deriveMinZoom(layout, input.budgets.boxThreshold),
     };
 }
 
@@ -454,15 +583,14 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     // backing store is describing.
     const dpr = input.dpr && input.dpr > 0 ? input.dpr : 1;
 
-    const layoutable = canvases.filter(isLayoutable);
     // The same function the host's per-sample clamping calls, so the world the
     // pan constraint is measured against can never diverge from the world that
     // is painted.
-    const { layout, minZoom } = planViewportLimits(
-        canvases,
-        budgets.boxThreshold,
-    );
+    const { layout, minZoom } = planViewportLimits(input);
     const rects = new Map(layout.map((rect) => [rect.canvasId, rect]));
+    // Laid out, therefore plannable — and in layout's own order, so a canvas
+    // dropped for having no usable geometry is absent from both.
+    const layoutable = canvases.filter((canvas) => rects.has(canvas.id));
 
     const tiers: Record<string, ResidencyTier> = {};
     const evictable: string[] = [];
@@ -472,8 +600,9 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     const tileDraws: TileDraw[] = [];
 
     for (const canvas of layoutable) {
+        const rect = rects.get(canvas.id)!;
         const tier = assignTier(
-            canvas,
+            rect,
             viewport.scale,
             budgets.pyramidThreshold,
             budgets.boxThreshold,
@@ -516,7 +645,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             planPyramid(
                 canvas,
                 pyramid,
-                rects.get(canvas.id)!,
+                rect,
                 viewport,
                 dpr,
                 budgets.minPixelRatio,
@@ -552,7 +681,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             planSizeLadder(
                 canvas,
                 ladder,
-                rects.get(canvas.id)!,
+                rect,
                 viewport,
                 dpr,
                 budgets.minPixelRatio,
@@ -575,7 +704,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         planPyramid(
             canvas,
             derived,
-            rects.get(canvas.id)!,
+            rect,
             viewport,
             dpr,
             budgets.minPixelRatio,

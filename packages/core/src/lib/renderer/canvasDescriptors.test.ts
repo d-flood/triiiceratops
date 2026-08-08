@@ -124,6 +124,43 @@ describe('toPlannerCanvas', () => {
         ).toBeNull();
     });
 
+    it('reports null geometry for a Canvas that declares no dimensions', () => {
+        // A spec violation the viewer still has to render (user story 32).
+        // Reported as "unknown" rather than guessed HERE, because the guess is
+        // a median of the canvas's siblings and a reflow when an image service
+        // answers — neither of which this function can see.
+        const unsized = v3Canvas(STATIC_BODY, {
+            width: undefined,
+            height: undefined,
+        });
+
+        expect(toPlannerCanvas(unsized)).toMatchObject({
+            id: 'https://example.test/canvas/1',
+            width: null,
+            height: null,
+            source: { kind: 'static' },
+        });
+    });
+
+    it('reports null geometry for a Canvas whose dimensions are unusable', () => {
+        expect(
+            toPlannerCanvas(v3Canvas(STATIC_BODY, { width: 0, height: 750 })),
+        ).toMatchObject({ width: null, height: null });
+    });
+
+    it('keeps an unsized canvas in the list rather than dropping it', () => {
+        const canvases = toPlannerCanvases([
+            v3Canvas(STATIC_BODY),
+            v3Canvas(STATIC_BODY, {
+                id: 'https://example.test/canvas/2',
+                width: undefined,
+                height: undefined,
+            }),
+        ]);
+
+        expect(canvases).toHaveLength(2);
+    });
+
     it('drops unusable canvases rather than emitting holes', () => {
         expect(
             toPlannerCanvases([v3Canvas(STATIC_BODY), { type: 'Canvas' }]),
