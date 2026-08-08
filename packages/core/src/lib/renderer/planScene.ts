@@ -99,6 +99,8 @@ import {
     quantizeRung,
     resolveThumbnail,
     THUMBNAIL_BASE_RUNG,
+    THUMBNAIL_RUNGS,
+    type ThumbnailSource,
 } from './thumbnailLadder';
 import {
     buildPyramid,
@@ -722,6 +724,39 @@ function thumbnailKey(canvasId: string, url: string): TileKey {
 }
 
 /**
+ * The largest rung at or below `wanted` whose image this canvas already holds,
+ * or `wanted` when it holds none of them.
+ *
+ * Asked only while the view is MOVING, and it answers on its first probe in the
+ * ordinary case — a canvas resident at the rung it wants costs one resolve and
+ * one `Set` lookup, which is what it cost before. The walk only runs while a
+ * gesture has carried the projection across a rung boundary and the new rung is
+ * gated off, which is precisely the window in which the alternative is a blank
+ * canvas.
+ *
+ * Bounded by {@link THUMBNAIL_RUNGS}, so it is at most five probes even in the
+ * worst case, and it is a question about residency rather than about history:
+ * the planner holds no per-canvas state between frames and this does not give
+ * it any.
+ */
+function residentRungAtOrBelow(
+    canvasId: string,
+    wanted: number,
+    resolveAt: (rung: number) => ThumbnailSource,
+    residentTiles: ReadonlySet<TileKey>,
+): number {
+    for (let index = THUMBNAIL_RUNGS.indexOf(wanted); index >= 0; index -= 1) {
+        const rung = THUMBNAIL_RUNGS[index];
+        const resolved = resolveAt(rung);
+        if (resolved.kind !== 'url') continue;
+        if (residentTiles.has(thumbnailKey(canvasId, resolved.url)))
+            return rung;
+    }
+
+    return wanted;
+}
+
+/**
  * The required set and the draw for one **thumbnail-tier** canvas: a single
  * small image, sized to its projection and quantized to a rung.
  *
@@ -741,6 +776,7 @@ function planThumbnail(
     viewport: Viewport,
     dpr: number,
     minPixelRatio: number,
+    maxDecodedPixels: number,
     facts: ImageServiceFacts | undefined,
     viewStable: boolean,
     residentTiles: ReadonlySet<TileKey>,
@@ -749,10 +785,35 @@ function planThumbnail(
     metadataRequests: string[],
     unresolved: string[],
 ): ResidencyTier {
+    const resolveAt = (rung: number): ThumbnailSource =>
+        resolveThumbnail({
+            thumbnailUrl: canvas.thumbnailUrl,
+            source: canvas.source,
+            facts,
+            rung,
+            minPixelRatio,
+            maxDecodedPixels,
+            imageWidth: canvas.width,
+        });
+
     // DEVICE pixels across, for the same reason level selection is measured in
     // them: the viewport is CSS pixels, and a thumbnail chosen from those is
     // visibly soft on a 2x screen.
-    const wanted = quantizeRung(rect.width * viewport.scale * dpr);
+    const projected = quantizeRung(rect.width * viewport.scale * dpr);
+    // **The gesture freeze.** The view-stable gate below refuses NEW requests
+    // during a gesture, and a rung that changes mid-pinch turns that refusal
+    // into a blank canvas: the required set and the draws are both derived from
+    // the current rungs, so the image already decoded at the previous rung is
+    // in neither and the canvas paints its 32 px base stretched over 250 — or,
+    // for a ladder whose base rung the cap refused, nothing at all. That is
+    // exactly the "blanks the instant the reader touched it" failure the gate
+    // exists to prevent, arriving through the rung rather than through the
+    // gate. While the view is moving, the canvas therefore keeps painting the
+    // largest rung it actually HOLDS, and picks the projection back up the
+    // frame the motion stops.
+    const wanted = viewStable
+        ? projected
+        : residentRungAtOrBelow(canvas.id, projected, resolveAt, residentTiles);
 
     const box: Box = {
         x: rect.x,
@@ -781,13 +842,7 @@ function planThumbnail(
     let needsMetadata = false;
 
     rungs.forEach((rung, index) => {
-        const resolved = resolveThumbnail({
-            thumbnailUrl: canvas.thumbnailUrl,
-            source: canvas.source,
-            facts,
-            rung,
-            minPixelRatio,
-        });
+        const resolved = resolveAt(rung);
 
         if (resolved.kind === 'metadata') {
             needsMetadata = true;
@@ -937,6 +992,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                 viewport,
                 dpr,
                 budgets.minPixelRatio,
+                budgets.maxDecodedPixels,
                 knownMetadata[canvas.id],
                 viewStable,
                 residentTiles,

@@ -108,6 +108,26 @@ export const MULTI_CANVAS_GAP_FRACTION = 0.0125;
 export const TILE_IN_FLIGHT_LIMIT = 6;
 
 /**
+ * The bounded in-flight `info.json` window.
+ *
+ * The tier and the view-stable gate decide WHICH canvases may ask; this decides
+ * how many may ask at once, and without it the two together are only a delay.
+ * At the derived zoom floor roughly fifty canvases sit in the residency window,
+ * every one of them is thumbnail tier, and a level0 manifest resolves every one
+ * of them to "fetch `info.json`" — so the first frame after a flick settles
+ * would start fifty simultaneous metadata requests, which is the fetch storm
+ * this epic exists to remove arriving one frame later rather than not at all
+ * (spec §Thumbnail resolution: "under the same gate and concurrency cap as
+ * thumbnail fetches").
+ *
+ * The same number as {@link TILE_IN_FLIGHT_LIMIT} and for the same reason,
+ * spelled separately because metadata and tiles are two windows: they are
+ * different servers' worth of latency and either may be tuned without the
+ * other.
+ */
+export const METADATA_IN_FLIGHT_LIMIT = 6;
+
+/**
  * How many times a tile URL may fail before it is permanently dead. Two is one
  * retry — enough for a blip, and short of re-requesting a 404 every frame it is
  * visible.

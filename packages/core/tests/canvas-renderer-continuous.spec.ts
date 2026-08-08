@@ -40,6 +40,7 @@ import {
 } from './helpers/numberedGrid';
 import {
     DEFAULT_BUDGETS,
+    METADATA_IN_FLIGHT_LIMIT,
     MULTI_CANVAS_GAP_FRACTION,
 } from '../src/lib/renderer/rendererDefaults';
 
@@ -330,6 +331,28 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
     test('clamps zooming out at the derived floor, and issues no request storm', async ({
         page,
     }) => {
+        // Peak CONCURRENT `info.json`, not the total. The tier and the
+        // view-stable gate decide which canvases may ask and when; without a
+        // concurrency cap on top of them the first frame after a flick settles
+        // starts one request per thumbnail-tier canvas in the residency window
+        // — roughly fifty here — which is the fetch storm this epic exists to
+        // remove, arriving one frame later rather than not at all. Counted from
+        // request events rather than through `page.route`, which would add
+        // latency of its own and change the thing being measured.
+        let concurrentInfo = 0;
+        let peakConcurrentInfo = 0;
+        const isInfo = (url: string) => url.includes('/info.json');
+        page.on('request', (request) => {
+            if (!isInfo(request.url())) return;
+            concurrentInfo += 1;
+            peakConcurrentInfo = Math.max(peakConcurrentInfo, concurrentInfo);
+        });
+        const settle = (request: { url(): string }) => {
+            if (isInfo(request.url())) concurrentInfo -= 1;
+        };
+        page.on('requestfinished', settle);
+        page.on('requestfailed', settle);
+
         // The floor is DERIVED — the zoom at which the median canvas reaches
         // the box threshold — not a percentage of home zoom. Below it every
         // canvas is confetti and there is nothing to lose; the old path's floor
@@ -382,5 +405,17 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
         expect((await getStats(page)).tileRequestCount).toBe(
             atFloor.tileRequestCount,
         );
+
+        // Metadata is capped as well as gated. This fixture's services are
+        // level 2, so its thumbnail-tier canvases construct their URLs from the
+        // manifest and never ask at all — which is the bound holding one level
+        // up, and would break loudly here if the ladder ever started asking per
+        // canvas. The cap itself is unit-tested in `imageService.test.ts`,
+        // where a level0 service can be described without an 800-canvas
+        // level0 fixture.
+        expect(
+            peakConcurrentInfo,
+            `peak ${peakConcurrentInfo} concurrent info.json requests over the zoom-out to the floor`,
+        ).toBeLessThanOrEqual(METADATA_IN_FLIGHT_LIMIT);
     });
 });

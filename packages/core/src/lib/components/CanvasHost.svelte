@@ -577,6 +577,14 @@
      * network again. That is what makes opening a single-canvas manifest cost
      * exactly one `info.json` request rather than one per frame — and what
      * replaces the old renderer's `Promise.all` over every source.
+     *
+     * It is also safe to hand it fifty ids at once, which at the derived zoom
+     * floor it will be: `imageServiceCache` holds a bounded in-flight window
+     * (`rendererDefaults.METADATA_IN_FLIGHT_LIMIT`) and queues the rest, so
+     * metadata is under a concurrency cap as well as under the tier and the
+     * view-stable gate — the three bounds the spec asks for, not two of them.
+     * The list arrives centre-out from the planner and is re-emitted every
+     * frame, so the queue drains nearest-first.
      */
     function requestMetadata(canvasIds: string[]): void {
         for (const canvasId of canvasIds) {
@@ -2270,6 +2278,17 @@
                 cachedTileCount: tiles.cachedTileCount,
                 /** Required set plus opportunistic cache — the budgeted total. */
                 decodedBytes: tiles.decodedBytes,
+                /**
+                 * The required set alone.
+                 *
+                 * The difference is what the budget can actually act on: the
+                 * cache is the only thing `trim` evicts, so `requiredBytes`
+                 * above the ceiling is the one state in which the ceiling is
+                 * genuinely exceeded and no eviction can help. Reachable
+                 * through the declared-thumbnail rung, which the spec requires
+                 * to be used as-is whatever size it turns out to be.
+                 */
+                requiredBytes: tiles.requiredBytes,
                 /** The ceiling that total is asserted against. */
                 byteBudget: tiles.byteBudget,
                 tileRequestCount: tiles.requestCount,

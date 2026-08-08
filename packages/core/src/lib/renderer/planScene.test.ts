@@ -1616,6 +1616,64 @@ describe('planScene — the thumbnail tier', () => {
             ).toEqual(held);
         });
 
+        it('keeps painting the resident rung when a pinch crosses a rung boundary', () => {
+            // The gate refuses NEW requests during a gesture, so a rung that
+            // changes mid-pinch turns that refusal into a blank canvas: both the
+            // required set and the draws are derived from the current rungs, and
+            // the image already decoded is in neither. The canvas would paint
+            // its 32 px base stretched over 250 — the "blanks the instant the
+            // reader touched it" failure arriving through the rung rather than
+            // through the gate.
+            const canvases = [serviceCanvas('c1', 1000, 1000)];
+            // 1000 * 0.1 = 100 device px, which rounds up to the 128 rung.
+            const settled = plan(canvases, {
+                viewport: viewport({ scale: 0.1 }),
+            });
+            const held = new Set(
+                settled.thumbnailRequests.map((request) => request.key),
+            );
+            expect(
+                settled.thumbnailRequests.map((request) => request.rung),
+            ).toEqual([32, 128]);
+
+            // The reader pinches out: the projection now wants 256, which is
+            // gated off and which nothing holds.
+            const pinching = plan(canvases, {
+                viewport: viewport({ scale: 0.2 }),
+                viewStable: false,
+                residentTiles: held,
+            });
+
+            expect(pinching.tiers.c1).toBe('thumbnail');
+            expect(new Set(pinching.tileDraws.map((draw) => draw.key))).toEqual(
+                held,
+            );
+            // And still nothing new is asked for: the gate is intact.
+            expect(
+                new Set(
+                    pinching.thumbnailRequests.map((request) => request.key),
+                ),
+            ).toEqual(held);
+        });
+
+        it('picks the projection back up the frame the motion stops', () => {
+            const canvases = [serviceCanvas('c1', 1000, 1000)];
+            const held = new Set(
+                plan(canvases, {
+                    viewport: viewport({ scale: 0.1 }),
+                }).thumbnailRequests.map((request) => request.key),
+            );
+
+            const stopped = plan(canvases, {
+                viewport: viewport({ scale: 0.2 }),
+                residentTiles: held,
+            });
+
+            expect(
+                stopped.thumbnailRequests.map((request) => request.rung),
+            ).toEqual([32, 256]);
+        });
+
         it('is open by default, which is what an idle caller is describing', () => {
             expect(
                 thumbnailPlan([serviceCanvas('c1', 1000, 1000)])
@@ -1689,6 +1747,62 @@ describe('planScene — the thumbnail tier', () => {
 
             expect(again).toEqual(once);
             expect(again.metadataRequests).toEqual([]);
+        });
+
+        /**
+         * The ordinary shape a level0 service actually has: a Cantaloupe/IIP
+         * derivative set off a large master. The cheapest image is 1.7 MB
+         * decoded and is a perfectly good thumbnail.
+         */
+        const DERIVATIVES: ImageServiceFacts = {
+            width: 12_000,
+            height: 9000,
+            level0: true,
+            version: 3,
+            sizes: [
+                { width: 750, height: 563 },
+                { width: 1500, height: 1125 },
+                { width: 3000, height: 2250 },
+            ],
+        };
+
+        it('is NOT the answer for an ordinary level0 derivative set', () => {
+            // Rungs 3 and 4 of the ladder are the two that exist for level0. A
+            // refusal that caught this shape would put most real level0
+            // manifests in the box tier — the acceptance criterion "scrolling an
+            // 800-canvas manifest shows page images, not empty boxes" failing on
+            // exactly the manifests it was written for.
+            const result = thumbnailPlan([level0Canvas('c1')], {
+                knownMetadata: { c1: DERIVATIVES },
+            });
+
+            expect(result.tiers.c1).toBe('thumbnail');
+            expect(result.unresolvedThumbnails).toEqual([]);
+            expect(
+                result.thumbnailRequests.map((request) => request.url),
+            ).toContain('https://images.test/c1/full/750,/0/default.jpg');
+        });
+
+        it('is the same answer at every zoom, so the tier cannot flip under a reader', () => {
+            // "Box tier permanently, logged once" is a claim about the manifest
+            // and the service's facts. A rung-relative refusal would make it a
+            // claim about the viewport: refused at the floor with a log entry
+            // saying "permanently", accepted one zoom step in, refused again on
+            // the way back out with no second log — a canvas oscillating across
+            // a rung boundary.
+            for (const scale of [0.05, 0.1, 0.2, 0.3]) {
+                const at = plan([level0Canvas('c1')], {
+                    viewport: viewport({ scale }),
+                    knownMetadata: { c1: HOPELESS },
+                });
+                expect(at.tiers.c1).toBe('box');
+
+                const usable = plan([level0Canvas('c1')], {
+                    viewport: viewport({ scale }),
+                    knownMetadata: { c1: DERIVATIVES },
+                });
+                expect(usable.tiers.c1).toBe('thumbnail');
+            }
         });
 
         it('does not report a canvas that is merely waiting for its info.json', () => {

@@ -266,6 +266,16 @@ test.describe('Canvas2D renderer — level0 size-ladder source', () => {
         // Settle at a coarse view first, then forget everything the opening fit
         // asked for. What is under test is which rung THIS view requires, and
         // the whole ladder above it has been released by now.
+        //
+        // With the byte budget at zero, for the reason the sibling test below
+        // states: since ticket 08 a rung dropped from the required set moves to
+        // the **opportunistic cache** rather than being closed, and the opening
+        // fit puts the canvas above the pyramid threshold — so it asks for the
+        // top rung, and magnifying back into it PROMOTES that rung out of the
+        // cache with no request at all. The assertion below is about which rung
+        // the ladder chooses, not about whether the cache happened to still
+        // hold it, and without this the test passes or fails on cache timing.
+        await setByteBudget(page, 0);
         await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.35 });
         await nextPaint(page);
         await nextPaint(page);

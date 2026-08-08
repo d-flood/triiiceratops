@@ -138,6 +138,24 @@ export interface TileScheduler {
      * opportunistic cache. The number the byte budget is stated against.
      */
     readonly decodedBytes: number;
+    /**
+     * Decoded bytes held by the **required set** alone.
+     *
+     * Beside {@link decodedBytes} because the budget can only be enforced
+     * against the difference. `trim` evicts from the opportunistic cache and
+     * from nothing else — the required set is never evicted while it is
+     * required (CONTEXT.md) — so `requiredBytes > byteBudget` is the one state
+     * in which the ceiling is genuinely exceeded and no eviction can help.
+     *
+     * It is reachable: the declared-thumbnail rung is used **as-is** because the
+     * spec says so, and a manifest that declares its full-resolution image as
+     * each Canvas's `thumbnail` therefore requires fifty full-resolution
+     * decodes at the derived zoom floor. Refusing that is not the answer — the
+     * publisher's own answer is the first rung of the ladder for good reasons —
+     * but going over the ceiling silently is not either. This is the counter
+     * that says so.
+     */
+    readonly requiredBytes: number;
     /** Requests started, including retries. Test/diagnostic only. */
     readonly requestCount: number;
     /** The byte ceiling in force, for the host's counters to report. */
@@ -271,6 +289,13 @@ export function createTileScheduler(
      * or not. That is not a leak — it is the budget correctly reporting that
      * the required set itself is too big, which is a question for the planner's
      * residency window and not one an LRU can answer.
+     *
+     * So the ceiling is a bound on the CACHE, and only a bound on the total
+     * while the required set fits underneath it. Thumbnails ride this scheduler
+     * and are therefore counted, which is the honest reading — but "thumbnail
+     * pixels sit under the byte ceiling" would be an overstatement, and
+     * {@link TileScheduler.requiredBytes} is what a host reads to tell the two
+     * apart.
      */
     function trim(): void {
         for (const key of cached.keys()) {
@@ -448,6 +473,11 @@ export function createTileScheduler(
         },
         get decodedBytes() {
             return decodedBytes;
+        },
+        get requiredBytes() {
+            let bytes = 0;
+            for (const entry of resident.values()) bytes += entry.bytes;
+            return bytes;
         },
         get requestCount() {
             return requestCount;

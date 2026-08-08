@@ -243,4 +243,120 @@ describe('createImageServiceCache', () => {
 
         expect(fetchJson).toHaveBeenCalledTimes(2);
     });
+
+    describe('the bounded in-flight window', () => {
+        /**
+         * A fetch that never settles on its own, so the number of calls made IS
+         * the number outstanding.
+         */
+        function blockingCache(maxConcurrent: number) {
+            const release: Array<() => void> = [];
+            const fetchJson = vi.fn(
+                () =>
+                    new Promise<{ status: number; json: unknown }>(
+                        (resolve) => {
+                            release.push(() =>
+                                resolve({ status: 200, json: LEVEL2_V3 }),
+                            );
+                        },
+                    ),
+            );
+
+            return {
+                cache: createImageServiceCache({ fetchJson, maxConcurrent }),
+                fetchJson,
+                release,
+            };
+        }
+
+        const services = (count: number) =>
+            Array.from({ length: count }, (_, index) => `${SERVICE}/${index}`);
+
+        it('never has more than the cap outstanding, however many are asked at once', async () => {
+            // The failure this prevents: at the derived zoom floor ~50 canvases
+            // are in the residency window, every one is thumbnail tier, and a
+            // level0 manifest resolves every one to "fetch info.json". Gated but
+            // uncapped, the first frame after a flick settles starts fifty
+            // simultaneous requests — the fetch storm the epic exists to remove,
+            // one frame later rather than not at all.
+            const { cache, fetchJson, release } = blockingCache(6);
+
+            for (const service of services(50)) void cache.ensure(service);
+            await Promise.resolve();
+
+            expect(fetchJson).toHaveBeenCalledTimes(6);
+
+            // A slot freed admits exactly one more.
+            release[0]();
+            await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledTimes(7));
+        });
+
+        it('drains the queue in the order it was asked, which is centre-out', async () => {
+            // The planner emits its list ordered by distance from the viewport
+            // centre and re-emits it every frame, so FIFO here is the priority
+            // the reader cares about.
+            const { cache, fetchJson, release } = blockingCache(1);
+
+            for (const service of services(3)) void cache.ensure(service);
+            await Promise.resolve();
+
+            expect(fetchJson).toHaveBeenLastCalledWith(
+                `${SERVICE}/0/info.json`,
+            );
+
+            release[0]();
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenLastCalledWith(
+                    `${SERVICE}/1/info.json`,
+                ),
+            );
+        });
+
+        it('still dedupes a queued service, so a frame loop does not fill the queue', async () => {
+            // `ensure` is called every frame with the planner's whole list. A
+            // service waiting for a slot must join the pending promise exactly
+            // as an in-flight one does, or sixty frames of waiting would become
+            // sixty queue entries.
+            const { cache, fetchJson, release } = blockingCache(1);
+
+            const first = cache.ensure(`${SERVICE}/a`);
+            void cache.ensure(`${SERVICE}/b`);
+            const again = cache.ensure(`${SERVICE}/b`);
+            void cache.ensure(`${SERVICE}/b`);
+
+            release[0]();
+            await first;
+            await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledTimes(2));
+
+            release[1]();
+            await expect(again).resolves.toMatchObject({ width: 4096 });
+            expect(fetchJson).toHaveBeenCalledTimes(2);
+        });
+
+        it('frees its slot when a service fails, so one bad server cannot stall the queue', async () => {
+            const release: Array<(status: number) => void> = [];
+            const fetchJson = vi.fn(
+                () =>
+                    new Promise<{ status: number; json: unknown }>(
+                        (resolve) => {
+                            release.push((status) =>
+                                resolve({ status, json: null }),
+                            );
+                        },
+                    ),
+            );
+            const cache = createImageServiceCache({
+                fetchJson,
+                maxConcurrent: 1,
+            });
+
+            void cache.ensure(`${SERVICE}/a`);
+            void cache.ensure(`${SERVICE}/b`);
+            await Promise.resolve();
+            expect(fetchJson).toHaveBeenCalledTimes(1);
+
+            release[0](500);
+            await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledTimes(2));
+        });
+    });
 });
