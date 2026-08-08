@@ -23,9 +23,21 @@ import {
     predictScreenPoint,
     setView,
 } from './helpers/numberedGrid';
+import { VELOCITY_WINDOW_MS } from '../src/lib/renderer/rendererDefaults';
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const ROOT = '[data-testid="canvas-renderer-root"]';
+
+/**
+ * Long enough that a release afterwards carries no momentum.
+ *
+ * Derived from the recogniser's own velocity window rather than written as a
+ * literal: release velocity is measured over that window, so a still hold
+ * outlasting it has a velocity of zero by construction. A literal would keep
+ * working by luck and quietly turn these drag specs into flick specs the day the
+ * window is tuned upwards.
+ */
+const HOLD_STILL_MS = VELOCITY_WINDOW_MS * 2;
 
 test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -134,7 +146,7 @@ test.describe('Canvas2D renderer — static image', () => {
         // else. Releasing straight from a fast move is a flick and carries
         // momentum by design (ticket 10) — a different behaviour, asserted
         // separately in `canvas-renderer-input.spec.ts`.
-        await page.waitForTimeout(150);
+        await page.waitForTimeout(HOLD_STILL_MS);
         await page.mouse.up();
 
         // And it stays there: no spring settles it somewhere else afterwards.
@@ -163,7 +175,7 @@ test.describe('Canvas2D renderer — static image', () => {
         );
         // Held still before releasing: a flick would add momentum on top of
         // the delta under test. See the note in the drag test above.
-        await page.waitForTimeout(150);
+        await page.waitForTimeout(HOLD_STILL_MS);
         await page.mouse.up();
         await nextPaint(page);
 

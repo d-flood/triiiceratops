@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { planScene } from './planScene';
+import { planScene, planViewportLimits } from './planScene';
 import { tileKey } from './tilePyramid';
 import type {
     ImageServiceFacts,
@@ -455,5 +455,56 @@ describe('planScene — tiled sources', () => {
 
         expect(result.tileRequests).toEqual([]);
         expect(result.metadataRequests).toEqual([]);
+    });
+});
+
+/**
+ * The cheap half of the planner, for the two questions the host asks on every
+ * pointer sample.
+ */
+describe('planViewportLimits', () => {
+    it('agrees with a full plan on the layout and the derived zoom floor', () => {
+        const canvases = [
+            serviceCanvas('c1', 4000, 3000),
+            staticCanvas('c2', 1000, 750),
+        ];
+        const full = plan(canvases, {
+            knownMetadata: { c1: FACTS },
+        });
+        const limits = planViewportLimits(canvases, BUDGETS.boxThreshold);
+
+        expect(limits.layout).toEqual(full.layout);
+        expect(limits.minZoom).toBe(full.minZoom);
+    });
+
+    it('drops the same unlayoutable canvases a full plan does', () => {
+        const canvases = [
+            staticCanvas('c1', 1000, 750),
+            staticCanvas('bad', 0, 750),
+        ];
+
+        expect(
+            planViewportLimits(canvases, BUDGETS.boxThreshold).layout,
+        ).toEqual(plan(canvases).layout);
+    });
+
+    it('needs neither the viewport, the metadata, nor the resident set', () => {
+        // The whole point: none of the inputs that make a full plan expensive —
+        // building the pyramid and enumerating the required tile set — are even
+        // in this signature, so a clamp cannot accidentally pay for them. A
+        // pointer drag clamps per event; planning stays once per frame.
+        const canvases = [serviceCanvas('c1', 4000, 3000)];
+
+        const atHome = planViewportLimits(canvases, BUDGETS.boxThreshold);
+        const zoomedIn = plan(canvases, {
+            knownMetadata: { c1: FACTS },
+            viewport: viewport({ scale: 8 }),
+        });
+
+        expect(atHome.minZoom).toBe(zoomedIn.minZoom);
+        expect(atHome.layout).toEqual(zoomedIn.layout);
+        // …and the full plan at that zoom really did enumerate tiles, so the
+        // comparison above is between the cheap answer and an expensive one.
+        expect(zoomedIn.tileRequests.length).toBeGreaterThan(0);
     });
 });

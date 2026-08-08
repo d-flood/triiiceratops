@@ -22,6 +22,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import {
     findFeature,
+    getStats,
     getView,
     nextPaint,
     openGridManifest,
@@ -108,7 +109,13 @@ function readTrace(page: Page): Promise<MotionTrace> {
  */
 const DISPATCH = (
     element: Element,
-    args: { type: string; id: number; x: number; y: number },
+    args: {
+        type: string;
+        id: number;
+        x: number;
+        y: number;
+        buttons: number;
+    },
 ) => {
     const rect = element.getBoundingClientRect();
     element.dispatchEvent(
@@ -117,6 +124,11 @@ const DISPATCH = (
             pointerType: 'mouse',
             isPrimary: true,
             button: 0,
+            // Set explicitly, and NOT left to default to 0: a mouse move with
+            // no button held is a hover, and the renderer ends the gesture on
+            // one (a lost capture would otherwise leave the pointer stuck
+            // down). A synthesized drag has to say it is a drag.
+            buttons: args.buttons,
             bubbles: true,
             cancelable: true,
             clientX: rect.left + args.x,
@@ -130,10 +142,11 @@ function dispatchPointer(
     type: string,
     point: { x: number; y: number },
     id = 1,
+    buttons = type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
 ): Promise<void> {
     return page
         .locator(SURFACE)
-        .evaluate(DISPATCH, { type, id, x: point.x, y: point.y });
+        .evaluate(DISPATCH, { type, id, x: point.x, y: point.y, buttons });
 }
 
 /**
@@ -162,6 +175,7 @@ async function flickLeft(page: Page): Promise<number> {
                     pointerType: 'mouse',
                     isPrimary: true,
                     button: 0,
+                    buttons: type === 'pointerup' ? 0 : 1,
                     bubbles: true,
                     cancelable: true,
                     clientX: rect.left + x,
@@ -301,6 +315,7 @@ test.describe('Canvas2D renderer — gestures', () => {
                     pointerType: 'mouse',
                     isPrimary: true,
                     button: 0,
+                    buttons: 1,
                     bubbles: true,
                     cancelable: true,
                     clientX: rect.left + 200,
@@ -538,5 +553,257 @@ test.describe('Canvas2D renderer — gestures', () => {
             visible.some((feature) => feature !== null),
             'the whole image was dragged off screen',
         ).toBe(true);
+    });
+    test('a burst of wheel notches lands exactly where the same notches settled one at a time do', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+
+        // Anchored at the viewport centre so the comparison is about the SCALE
+        // the notches accumulate to and nothing else.
+        const start = { centre: { x: 600, y: 450 }, scale: 0.5 };
+        const notch = (count: number) =>
+            page.locator(SURFACE).evaluate((element, n) => {
+                const rect = element.getBoundingClientRect();
+                for (let i = 0; i < n; i += 1) {
+                    element.dispatchEvent(
+                        new WheelEvent('wheel', {
+                            deltaY: -100,
+                            deltaMode: 0,
+                            bubbles: true,
+                            cancelable: true,
+                            clientX: rect.left + rect.width / 2,
+                            clientY: rect.top + rect.height / 2,
+                        }),
+                    );
+                }
+            }, count);
+
+        // Five notches inside one task: not a single frame of easing happens in
+        // between, so every notch sees a scale that has not moved yet. Deltas
+        // accumulated against the eased scale rather than the target would all
+        // land on top of each other and this would end up one notch deep.
+        await setView(page, start);
+        await notch(5);
+        await settled(page);
+        const fast = (await getView(page)).scale;
+
+        // The same five, each allowed to finish first.
+        await setView(page, start);
+        for (let i = 0; i < 5; i += 1) {
+            await notch(1);
+            await settled(page);
+        }
+        const slow = (await getView(page)).scale;
+
+        expect(fast).toBeCloseTo(slow, 6);
+        // …and both really zoomed, so equality is not two no-ops agreeing.
+        expect(fast).toBeGreaterThan(start.scale * 3);
+    });
+
+    test('a drag plans the scene once per frame, never once per pointer event', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 0.5 });
+
+        // A press and eight moves inside ONE task, so no frame can run in the
+        // middle: every scene plan counted here would have been built by the
+        // input handlers themselves. A plan enumerates the required tile set and
+        // allocates a fresh resident-key set, which at pointer rates is hundreds
+        // a second — the clamping a pan and a pinch do must not need one.
+        const planned = await page.locator(SURFACE).evaluate((element) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: RendererHandle & {
+                        getStats(): { scenePlanCount: number };
+                    };
+                }
+            ).__triiiceratopsRenderer!;
+            const rect = element.getBoundingClientRect();
+            const send = (type: string, x: number, y: number, held: number) => {
+                element.dispatchEvent(
+                    new PointerEvent(type, {
+                        pointerId: 1,
+                        pointerType: 'mouse',
+                        isPrimary: true,
+                        button: 0,
+                        buttons: held,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: rect.left + x,
+                        clientY: rect.top + y,
+                    }),
+                );
+            };
+
+            const before = handle.getStats().scenePlanCount;
+            send('pointerdown', 400, 300, 1);
+            for (let step = 1; step <= 8; step += 1) {
+                send('pointermove', 400 - step * 12, 300 + step * 9, 1);
+            }
+            const during = handle.getStats().scenePlanCount;
+            send('pointerup', 400 - 8 * 12, 300 + 8 * 9, 0);
+
+            return { before, during };
+        });
+
+        expect(
+            planned.during - planned.before,
+            'the drag built a scene plan per pointer event',
+        ).toBe(0);
+
+        await settled(page);
+        // The drag still happened, and the frame loop still plans.
+        const stats = await getStats(page);
+        expect(stats.scenePlanCount).toBeGreaterThan(planned.during);
+        expect((await getView(page)).centre.x).toBeGreaterThan(600);
+    });
+
+    test('a mouse move with no button held neither pans nor becomes half a pinch', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 0.5 });
+
+        // A drag whose release the renderer never sees: capture lost to a system
+        // gesture, a window switch, or a `pointerup` swallowed elsewhere. The
+        // browser keeps sending moves, now with no button held.
+        await dispatchPointer(page, 'pointerdown', { x: 400, y: 300 });
+        await dispatchPointer(page, 'pointermove', { x: 340, y: 300 });
+        const dragged = await getView(page);
+        expect(dragged.centre.x).toBeGreaterThan(600);
+
+        await dispatchPointer(page, 'pointermove', { x: 200, y: 300 }, 1, 0);
+        await dispatchPointer(page, 'pointermove', { x: 100, y: 420 }, 1, 0);
+        await nextPaint(page);
+
+        const hovered = await getView(page);
+        expect(
+            hovered.centre.x,
+            'the image panned from a hover — the pointer was stuck down',
+        ).toBeCloseTo(dragged.centre.x, 6);
+        expect(hovered.centre.y).toBeCloseTo(dragged.centre.y, 6);
+
+        // And the next real press is a fresh PAN, not a second finger: a stuck
+        // pointer would make this a pinch and scale the image.
+        await dispatchPointer(page, 'pointerdown', { x: 400, y: 300 }, 2);
+        await dispatchPointer(page, 'pointermove', { x: 370, y: 300 }, 2);
+
+        // Read before the release, which over a socket is a flick: momentum is
+        // a separate behaviour with its own spec, and it would land on top of
+        // the delta under test here.
+        const after = await getView(page);
+        expect(
+            after.scale,
+            'the press was arbitrated as a pinch — a pointer was still stuck down',
+        ).toBeCloseTo(dragged.scale, 10);
+        expect(after.centre.x).toBeCloseTo(
+            dragged.centre.x + 30 / dragged.scale,
+            4,
+        );
+
+        await dispatchPointer(page, 'pointerup', { x: 370, y: 300 }, 2);
+        await settled(page);
+    });
+
+    test('a press during an animated zoom does not freeze it part-way', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 0.5 });
+
+        const before = await getView(page);
+        // Press and release without moving, one frame into the animation. A
+        // click is not a viewport gesture — it is reserved for annotation
+        // selection — so the zoom it interrupted must still arrive.
+        const wasMoving = await page.locator(SURFACE).evaluate((element) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: RendererHandle;
+                }
+            ).__triiiceratopsRenderer!;
+            const rect = element.getBoundingClientRect();
+            const send = (type: string, held: number) => {
+                element.dispatchEvent(
+                    new PointerEvent(type, {
+                        pointerId: 1,
+                        pointerType: 'mouse',
+                        isPrimary: true,
+                        button: 0,
+                        buttons: held,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: rect.left + rect.width / 2,
+                        clientY: rect.top + rect.height / 2,
+                    }),
+                );
+            };
+
+            void handle.zoomAt({ x: rect.width / 2, y: rect.height / 2 }, 2);
+
+            return new Promise<boolean>((resolve) => {
+                requestAnimationFrame(() => {
+                    const moving = handle.isMoving();
+                    send('pointerdown', 1);
+                    send('pointerup', 0);
+                    resolve(moving);
+                });
+            });
+        });
+
+        expect(
+            wasMoving,
+            'the zoom had already finished, so the press interrupted nothing',
+        ).toBe(true);
+
+        await settled(page);
+        expect((await getView(page)).scale).toBeCloseTo(before.scale * 2, 6);
+    });
+
+    test('a resize re-clamps a centre the new viewport makes illegal', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+
+        // The test handle writes the viewport RAW, with no constraint — which is
+        // how a centre the pan constraint would never have produced gets in.
+        // A resize must not leave it there: the constraint depends on the
+        // viewport as well as the world, so widening the window can make a legal
+        // centre illegal, and nothing else re-runs it.
+        await setView(page, { centre: { x: 90_000, y: 60_000 }, scale: 0.5 });
+
+        const size = page.viewportSize()!;
+        await page.setViewportSize({
+            width: size.width - 120,
+            height: size.height - 90,
+        });
+        await settled(page);
+
+        const after = await getView(page);
+        expect(after.centre.x).toBeLessThan(90_000);
+        expect(after.centre.y).toBeLessThan(60_000);
+
+        // Polled rather than read once: WebKit takes a repaint or two to catch
+        // up with a resized backing store, and the assertion is about where the
+        // viewport ended up, not how quickly the engine redraws.
+        await expect
+            .poll(
+                async () => {
+                    const visible = await Promise.all([
+                        findFeature(page, 'alpha'),
+                        findFeature(page, 'bravo'),
+                        findFeature(page, 'charlie'),
+                        findFeature(page, 'delta'),
+                        findFeature(page, 'echo'),
+                    ]);
+                    return visible.some((feature) => feature !== null);
+                },
+                {
+                    timeout: 10_000,
+                    message: 'the resize left the image off screen',
+                },
+            )
+            .toBe(true);
     });
 });

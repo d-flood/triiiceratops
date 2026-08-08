@@ -36,7 +36,8 @@
     import { reconcileImages } from '../renderer/imageRequests';
     import { imageServiceCache } from '../renderer/imageService';
     import { paintScene } from '../renderer/paintScene';
-    import { planScene } from '../renderer/planScene';
+    import { planScene, planViewportLimits } from '../renderer/planScene';
+    import { pointerSample } from '../renderer/pointerSamples';
     import { createTileScheduler } from '../renderer/tileScheduler';
     import {
         ANIMATION_TIME_CONSTANT,
@@ -62,6 +63,7 @@
     } from '../renderer/rendererDefaults';
     import type {
         ImageServiceFacts,
+        LayoutRect,
         PlannerCanvas,
         Point,
         ScenePlan,
@@ -193,7 +195,18 @@
         );
     });
 
+    /**
+     * How many full scene plans this renderer has built.
+     *
+     * Exposed through the test handle because "planning is once per frame" is a
+     * claim only a counter can hold: a plan enumerates the required tile set, so
+     * a clamp that quietly asked for one would cost several enumerations per
+     * pointer event and show up as nothing but heat.
+     */
+    let scenePlanCount = 0;
+
     function currentPlan(): ScenePlan {
+        scenePlanCount += 1;
         return planScene({
             canvases: plannerCanvases,
             mode: viewerState.viewingMode,
@@ -233,15 +246,33 @@
         }
     }
 
-    function worldBounds(plan: ScenePlan) {
-        if (plan.layout.length === 0) return null;
+    /**
+     * The world's layout and derived zoom floor, WITHOUT planning the scene.
+     *
+     * Clamping runs on every pointer sample — a pan clamps its centre, a pinch
+     * clamps its scale too, and momentum clamps once per frame on top of the
+     * paint. A full `currentPlan()` builds the pyramid, enumerates the required
+     * tile set, and allocates a fresh resident-key set for each one, which at a
+     * 120 Hz pinch is hundreds of scene plans a second for two numbers that
+     * depend on neither the viewport nor residency. Enumeration stays where
+     * `paint()`'s comment says it belongs: once per frame, in the frame loop.
+     */
+    function viewportLimits() {
+        return planViewportLimits(
+            plannerCanvases,
+            DEFAULT_BUDGETS.boxThreshold,
+        );
+    }
+
+    function worldBounds(layout: LayoutRect[]) {
+        if (layout.length === 0) return null;
 
         let minX = Infinity;
         let minY = Infinity;
         let maxX = -Infinity;
         let maxY = -Infinity;
 
-        for (const rect of plan.layout) {
+        for (const rect of layout) {
             minX = Math.min(minX, rect.x);
             minY = Math.min(minY, rect.y);
             maxX = Math.max(maxX, rect.x + rect.width);
@@ -252,19 +283,20 @@
     }
 
     /** The scale at which the whole world fits — the zoom ceiling's reference. */
-    function homeScale(): number {
-        const bounds = worldBounds(currentPlan());
+    function homeScale(layout: LayoutRect[]): number {
+        const bounds = worldBounds(layout);
         if (!bounds || viewport.width === 0 || viewport.height === 0) return 1;
         return fitBounds(bounds, viewport).scale;
     }
 
     function clampScale(scale: number): number {
-        const plan = currentPlan();
-        const max = homeScale() * MAX_ZOOM_FACTOR;
+        const limits = viewportLimits();
+        const max = homeScale(limits.layout) * MAX_ZOOM_FACTOR;
         // The floor is DERIVED (the zoom at which the median canvas reaches the
         // box threshold), not a tuned percentage of home zoom. Guard the
         // degenerate empty-world case, where it is 0.
-        const min = plan.minZoom > 0 ? Math.min(plan.minZoom, max) : max / 1e6;
+        const min =
+            limits.minZoom > 0 ? Math.min(limits.minZoom, max) : max / 1e6;
         return clamp(scale, min, max);
     }
 
@@ -277,7 +309,7 @@
      * for getting back.
      */
     function constrained(centre: Point, scale: number): Point {
-        const bounds = worldBounds(currentPlan());
+        const bounds = worldBounds(viewportLimits().layout);
         if (!bounds) return centre;
         return constrainCentre(
             centre,
@@ -322,7 +354,7 @@
 
     /** The whole-world fit. `animated` is false only when the scene changed. */
     function fitWorld(animated = false) {
-        const bounds = worldBounds(currentPlan());
+        const bounds = worldBounds(viewportLimits().layout);
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const fit = fitBounds(bounds, viewport);
@@ -537,6 +569,21 @@
         // so adopt the whole-world fit.
         if (!hadSize && width > 0 && height > 0) {
             fitWorld();
+        } else if (width > 0 && height > 0) {
+            // The constraint is a function of the VIEWPORT as well as the world,
+            // so a resize can leave a legal centre illegal — widening the window
+            // reveals emptiness beside an image that was flush against the edge.
+            // Re-clamped here rather than left for the next input, which may
+            // never come. The animation target is moved with it, so an animation
+            // in flight lands somewhere legal too.
+            const scale = clampScale(viewport.scale);
+            viewport = {
+                ...viewport,
+                scale,
+                centre: constrained(viewport.centre, scale),
+            };
+            targetScale = clampScale(targetScale);
+            targetCentre = constrained(targetCentre, targetScale);
         }
 
         requestFrame();
@@ -616,18 +663,12 @@
     /**
      * A pointer sample in surface-local screen coordinates.
      *
-     * The timestamp is `performance.now()` rather than `event.timeStamp`: the
-     * momentum it feeds is integrated against `requestAnimationFrame`
-     * timestamps, and mixing two clocks makes flick velocity wrong by whatever
-     * the offset between them happens to be.
+     * The mapping — including which clock stamps the sample, which is what
+     * decides flick velocity — lives in `renderer/pointerSamples.ts` so it can
+     * be asserted without a browser.
      */
     function sampleOf(event: PointerEvent) {
-        return {
-            id: event.pointerId,
-            x: event.clientX - surfaceOrigin.x,
-            y: event.clientY - surfaceOrigin.y,
-            time: performance.now(),
-        };
+        return pointerSample(event, surfaceOrigin);
     }
 
     /**
@@ -666,20 +707,39 @@
         refreshSurfaceOrigin();
         capturePointer(event.pointerId);
 
-        // A pointer-down takes control **in this frame**: any in-flight
-        // animation or glide stops where it is rather than continuing to move
-        // under the finger. Doing this here, synchronously, rather than on the
-        // next frame is the whole of "touching down during momentum stops it in
-        // the same frame".
-        targetCentre = { ...viewport.centre };
-        targetScale = viewport.scale;
-        animating = false;
+        // Momentum stops **in this frame**, unconditionally. Doing it here,
+        // synchronously, rather than on the next frame is the whole of "touching
+        // down during momentum stops it in the same frame": a glide is the
+        // continuation of the user's own last gesture, and a hand arriving on
+        // the surface is unambiguously a request for it to stop.
+        //
+        // An ANIMATION is deliberately NOT truncated here. A wheel zoom or a
+        // double-tap zoom is a discrete jump the user asked for, and a press
+        // alone is not a viewport gesture: single click is unbound, reserved for
+        // annotation selection (spec §Input and animation), so freezing the zoom
+        // part-way would make a stray click a viewport change. The animation is
+        // instead truncated by the first gesture that actually MOVES the
+        // viewport — `setViewDirect` clears `animating` on the first pan or
+        // pinch update — which is the same ownership decision the arbiter
+        // already made, and which a held input claim therefore never triggers.
         momentum = null;
 
         gestures.down(sampleOf(event));
     }
 
     function handlePointerMove(event: PointerEvent) {
+        // A mouse with no button held is not dragging. Without this a lost or
+        // refused pointer capture — the button released over a native drag, a
+        // window switch, a `pointerup` swallowed by another element — leaves the
+        // recogniser holding a pointer that pans on every hover, and makes the
+        // next real press read as a second finger, i.e. a pinch. `buttons` is
+        // meaningless for touch and pen contacts, which report 1 while down and
+        // are ended by `pointerup`/`pointercancel`.
+        if (event.pointerType === 'mouse' && event.buttons === 0) {
+            handlePointerCancel(event);
+            return;
+        }
+
         applyGesture(gestures.move(sampleOf(event)));
     }
 
@@ -688,6 +748,14 @@
         releasePointer(event.pointerId);
     }
 
+    /**
+     * Also bound to `lostpointercapture`.
+     *
+     * Losing capture is how the browser says the input is no longer ours, and
+     * without ending the gesture there the pointer is stuck down forever. After
+     * a normal `pointerup` this is a no-op: the recogniser no longer tracks the
+     * pointer, so the implicit capture release that follows finds nothing.
+     */
     function handlePointerCancel(event: PointerEvent) {
         applyGesture(gestures.cancel(sampleOf(event)));
         releasePointer(event.pointerId);
@@ -792,12 +860,28 @@
             WHEEL_PAGE_PIXELS,
         );
 
+        // Accumulated against the TARGET, not against the scale the easing
+        // happens to have reached. Notches arriving faster than the animation
+        // settles would otherwise each build on a partly-applied predecessor, so
+        // ten quick notches would land well short of ten slow ones — and that
+        // asymmetry reads as "the trackpad zooms less than the mouse wheel",
+        // which is exactly what tempts a device-detection branch. There is none,
+        // and the cause is here.
         const nextScale = clampScale(
-            viewport.scale * Math.exp(-deltaY * WHEEL_ZOOM_RATE),
+            targetScale * Math.exp(-deltaY * WHEEL_ZOOM_RATE),
         );
 
+        // Anchored in the view the notch is heading for, for the same reason:
+        // resolving the anchor in a half-eased view and applying it at the
+        // target scale mixes two views, and the mismatch compounds across a
+        // burst. Idle, the target IS the viewport and this is the plain
+        // pointer-anchored zoom.
         setViewAnimated(
-            anchoredZoomCentre(viewport, anchor, nextScale),
+            anchoredZoomCentre(
+                { ...viewport, centre: targetCentre, scale: targetScale },
+                anchor,
+                nextScale,
+            ),
             nextScale,
             WHEEL_TIME_CONSTANT,
         );
@@ -926,6 +1010,11 @@
                 residentTileCount: tiles.residentTileCount,
                 decodedBytes: tiles.decodedBytes,
                 tileRequestCount: tiles.requestCount,
+                /**
+                 * Full scene plans built. Once per painted frame — never per
+                 * pointer event, which is what the drag test asserts.
+                 */
+                scenePlanCount,
             }),
             nextPaint,
         };
@@ -1002,6 +1091,7 @@
         onpointermove={handlePointerMove}
         onpointerup={handlePointerUp}
         onpointercancel={handlePointerCancel}
+        onlostpointercapture={handlePointerCancel}
         onwheel={handleWheel}
     ></canvas>
 </div>

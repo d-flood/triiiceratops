@@ -18,6 +18,27 @@ function recogniser(overrides: Partial<GestureConfig> = {}) {
     return new GestureRecogniser({ ...CONFIG, ...overrides });
 }
 
+/**
+ * A recogniser whose single arbitration point grants nothing — which is exactly
+ * what a held phase-2 **input claim** will do (CONTEXT.md §Renderer domain /
+ * *Input claim*).
+ *
+ * No claim API is exposed in this phase, so this stands in for one by
+ * overriding the arbiter itself. That is the point of the tests below: they
+ * pin the contract that a claim suppresses pan and zoom **entirely**, so the
+ * eventual two-line claim change cannot quietly leave double-tap zoom and flick
+ * momentum firing behind the claimant's back.
+ */
+class ClaimedRecogniser extends GestureRecogniser {
+    protected override arbitrate() {
+        return 'none' as const;
+    }
+}
+
+function claimed(overrides: Partial<GestureConfig> = {}) {
+    return new ClaimedRecogniser({ ...CONFIG, ...overrides });
+}
+
 describe('gesture ownership', () => {
     it('owns nothing until a pointer is down', () => {
         expect(recogniser().owner).toBe('none');
@@ -355,5 +376,69 @@ describe('taps', () => {
         expect(gestures.up({ id: 2, x: 200, y: 200, time: 130 }).kind).toBe(
             'none',
         );
+    });
+});
+
+/**
+ * The whole reason the single arbitration point exists. A claim is defined as
+ * suppressing pan AND zoom for its duration, so nothing the recogniser reports
+ * while one is held may move the viewport — including the two outcomes that are
+ * only decided at release.
+ */
+describe('a gesture the arbiter never granted', () => {
+    it('reports no pan', () => {
+        const gestures = claimed();
+        gestures.down({ id: 1, x: 100, y: 100, time: 0 });
+        expect(gestures.move({ id: 1, x: 200, y: 140, time: 16 })).toEqual({
+            kind: 'none',
+        });
+    });
+
+    it('reports no pinch', () => {
+        const gestures = claimed();
+        gestures.down({ id: 1, x: 100, y: 200, time: 0 });
+        gestures.down({ id: 2, x: 300, y: 200, time: 10 });
+        expect(gestures.move({ id: 1, x: 50, y: 200, time: 20 })).toEqual({
+            kind: 'none',
+        });
+    });
+
+    it('reports no flick on release, however fast the trail', () => {
+        const gestures = claimed();
+        gestures.down({ id: 1, x: 0, y: 0, time: 0 });
+        for (let i = 1; i <= 5; i += 1) {
+            gestures.move({ id: 1, x: i * 20, y: 0, time: i * 16 });
+        }
+
+        // The same trail flicks at 1250 px/s when the arbiter grants the pan;
+        // a claim must not leave momentum gliding under the claimant.
+        expect(gestures.up({ id: 1, x: 100, y: 0, time: 80 })).toEqual({
+            kind: 'none',
+        });
+    });
+
+    it('reports no double tap', () => {
+        const gestures = claimed();
+        gestures.down({ id: 1, x: 200, y: 200, time: 0 });
+        gestures.up({ id: 1, x: 200, y: 200, time: 40 });
+        gestures.down({ id: 2, x: 200, y: 200, time: 150 });
+
+        expect(gestures.up({ id: 2, x: 200, y: 200, time: 180 })).toEqual({
+            kind: 'none',
+        });
+    });
+
+    it('leaves no half-tap behind that could pair with a later one', () => {
+        // Taps made under a claim are not the claimant's to donate: a tap while
+        // the claim is held, then a tap after it lifts, is two single taps.
+        const gestures = claimed();
+        gestures.down({ id: 1, x: 200, y: 200, time: 0 });
+        gestures.up({ id: 1, x: 200, y: 200, time: 40 });
+
+        const released = recogniser();
+        released.down({ id: 2, x: 200, y: 200, time: 150 });
+        expect(released.up({ id: 2, x: 200, y: 200, time: 180 })).toEqual({
+            kind: 'none',
+        });
     });
 });

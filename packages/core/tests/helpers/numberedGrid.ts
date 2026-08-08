@@ -109,6 +109,12 @@ export interface RendererStats {
     residentTileCount: number;
     decodedBytes: number;
     tileRequestCount: number;
+    /**
+     * Full scene plans built. A plan enumerates the required tile set, so this
+     * is what makes "planning is once per frame, never once per pointer event"
+     * an assertable claim rather than a comment.
+     */
+    scenePlanCount: number;
 }
 
 export async function getStats(page: Page): Promise<RendererStats> {

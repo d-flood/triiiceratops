@@ -12,6 +12,14 @@
  * consumer owns a gesture. Nothing else in the renderer branches on "am I
  * panning or pinching?".
  *
+ * That includes the **discrete** outcomes. A tap, a double tap, and a flick are
+ * decided at pointer-up, long after arbitration ran, so they are gated on the
+ * ownership captured when the gesture's first pointer went down (see
+ * `gestureOwned`). Without that gate a held claim would silence pan and pinch
+ * while `up()` still emitted a double-tap zoom and a momentum glide — which is
+ * not what a claim means: it suppresses pan **and** zoom for its duration
+ * (CONTEXT.md §Renderer domain / *Input claim*).
+ *
  * That single point is the whole reason this module exists as something more
  * than a pair of handlers on the canvas. The phase-2 **input claim** API — a
  * consumer (the annotation drawing layer) temporarily owning pointer input and
@@ -119,6 +127,15 @@ export class GestureRecogniser {
      * however briefly its last finger lingers.
      */
     private multiTouch = false;
+    /**
+     * Whether {@link GestureRecogniser.arbitrate} granted this gesture to a
+     * viewport consumer at any point since its first pointer went down.
+     *
+     * This is what carries the arbiter's decision forward to the discrete
+     * outcomes, which are only knowable at release. Reset when the last pointer
+     * lifts, so the next gesture is arbitrated afresh.
+     */
+    private gestureOwned = false;
     /** The previous tap, waiting to be paired into a double tap. */
     private pendingTap: { x: number; y: number; time: number } | null = null;
 
@@ -135,10 +152,16 @@ export class GestureRecogniser {
      * renderer is this function's return value.
      *
      * Phase 2's input claim is granted here: a held claim returns `'none'`,
-     * which suppresses pan and pinch for its duration without any other handler
-     * knowing a claim exists. Nothing grants one today.
+     * which suppresses pan, pinch, flick momentum, and double-tap zoom for its
+     * duration without any other handler knowing a claim exists. Nothing grants
+     * one today.
+     *
+     * `protected` rather than `private` only so the claim-suppression contract
+     * can be pinned by a test that overrides it (see `gestureArbiter.test.ts`).
+     * That is deliberately not a claim API: nothing outside this class can grant
+     * or release one, and the host never calls it.
      */
-    private arbitrate(): GestureOwner {
+    protected arbitrate(): GestureOwner {
         if (this.pointers.length >= 2) return 'pinch';
         if (this.pointers.length === 1) return 'pan';
         return 'none';
@@ -157,6 +180,7 @@ export class GestureRecogniser {
 
         this.currentOwner = this.arbitrate();
         if (this.currentOwner === 'pinch') this.multiTouch = true;
+        if (this.currentOwner !== 'none') this.gestureOwned = true;
 
         return NONE;
     }
@@ -223,14 +247,26 @@ export class GestureRecogniser {
 
         const wasLast = this.pointers.length === 1;
         const wasMultiTouch = this.multiTouch;
+        const wasOwned = this.gestureOwned;
         this.pointers.splice(this.pointers.indexOf(pointer), 1);
         this.currentOwner = this.arbitrate();
-        if (this.pointers.length === 0) this.multiTouch = false;
+        if (this.pointers.length === 0) {
+            this.multiTouch = false;
+            this.gestureOwned = false;
+        }
 
         // Lifting one finger of a pinch leaves a pan in progress: no momentum
         // yet, and the surviving pointer's own position is already the
         // reference the next pan delta is measured from.
         if (!wasLast || !deliberate) return NONE;
+
+        // The arbiter never granted this gesture, so it has no outcome — not a
+        // flick, and not a tap either. Returning before `tap` also leaves
+        // `pendingTap` untouched: a press made under a claim must not become
+        // half of a later double tap. This is the same decision `arbitrate`
+        // made at pointer-down, carried forward to the one place that could
+        // otherwise move the viewport behind its back.
+        if (!wasOwned) return NONE;
 
         if (!wasMultiTouch && pointer.travelled <= this.config.tapSlop) {
             return this.tap(sample);

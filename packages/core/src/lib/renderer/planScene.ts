@@ -156,6 +156,32 @@ function deriveMinZoom(
     return boxThreshold / median(sizes);
 }
 
+/**
+ * The two things about a scene that bound the **viewport** — the world's layout
+ * and the derived zoom floor — without planning the scene.
+ *
+ * A separate, cheap entry point because the host clamps on every pointer sample:
+ * a pan clamps its centre, a pinch clamps its scale as well, and momentum clamps
+ * once per frame. Answering those from a full {@link planScene} would build the
+ * pyramid and enumerate the required tile set several hundred times a second at
+ * a 120 Hz pinch, for two numbers that depend on neither. Tile enumeration
+ * belongs to the frame loop, once per frame (see `CanvasHost.paint`).
+ *
+ * Neither output depends on the viewport, on image-service metadata, or on what
+ * is resident — which is exactly why this can skip all of it, and why the two
+ * cannot drift: `planScene` returns these very values by calling this.
+ */
+export function planViewportLimits(
+    canvases: PlannerCanvas[],
+    boxThreshold: number,
+): { layout: LayoutRect[]; minZoom: number } {
+    const layoutable = canvases.filter(isLayoutable);
+    return {
+        layout: layoutCanvases(layoutable),
+        minZoom: deriveMinZoom(layoutable, boxThreshold),
+    };
+}
+
 /** The viewport as a canvas-space box. */
 function viewportBox(viewport: Viewport): Box {
     const halfWidth = viewport.width / (2 * viewport.scale);
@@ -270,7 +296,13 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     const residentTiles = input.residentTiles ?? new Set<TileKey>();
 
     const layoutable = canvases.filter(isLayoutable);
-    const layout = layoutCanvases(layoutable);
+    // The same function the host's per-sample clamping calls, so the world the
+    // pan constraint is measured against can never diverge from the world that
+    // is painted.
+    const { layout, minZoom } = planViewportLimits(
+        canvases,
+        budgets.boxThreshold,
+    );
     const rects = new Map(layout.map((rect) => [rect.canvasId, rect]));
 
     const tiers: Record<string, ResidencyTier> = {};
@@ -345,6 +377,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         thumbnailRequests: [],
         metadataRequests,
         evictable,
-        minZoom: deriveMinZoom(layoutable, budgets.boxThreshold),
+        minZoom,
     };
 }
