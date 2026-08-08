@@ -37,6 +37,36 @@ type SelectedChoiceLookup = (canvasId: string) => string | undefined;
 const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
 
 /**
+ * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of the
+ * **thumbnail tier**'s ladder (spec §Thumbnail resolution).
+ *
+ * Read straight off raw IIIF JSON: `thumbnail` is spelled the same in v2 and
+ * v3, may be a bare string, a resource object, or an array of either, and the
+ * resource's id is `id` in v3 and `@id` in v2. There is no `getThumbnail()`
+ * accessor to fall back to — the `remove-manifesto` epic removed it — and this
+ * branch must not be replaced by an image-service discovery fetch merely
+ * because the canvas no longer arrives wrapped.
+ *
+ * Deliberately **not** `utils/getThumbnailSrc.resolveThumbnailResourceSrc`,
+ * which is the thumbnail gallery's helper and answers a different question: it
+ * prefers a URL constructed from the resource's image service at a size baked
+ * in by its caller. The ladder wants the URL the publisher actually published —
+ * used as-is, at whatever size they chose, costing no discovery — and reaches
+ * its own rungs for a service, at a rung the projection decides.
+ */
+export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
+    const declared = (canvas as { thumbnail?: unknown } | null)?.thumbnail;
+    const resource = Array.isArray(declared) ? declared[0] : declared;
+
+    if (typeof resource === 'string') return resource || null;
+    if (!resource || typeof resource !== 'object') return null;
+
+    const entry = resource as Record<string, unknown>;
+    const id = entry.id ?? entry['@id'];
+    return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
+/**
  * One canvas's source descriptor.
  *
  * The ordering mirrors `getCanvasTileSource`, so which URL a canvas resolves to
@@ -106,6 +136,7 @@ export function toPlannerCanvas(
         width: declared?.width ?? null,
         height: declared?.height ?? null,
         source,
+        thumbnailUrl: getDeclaredThumbnailUrl(canvas),
     };
 }
 

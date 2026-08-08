@@ -1374,6 +1374,380 @@ describe('planScene — size-ladder sources', () => {
  * a manifest costs O(1) network requests regardless of its length, because
  * layout comes from manifest Canvas dimensions and never from `info.json`.
  */
+/**
+ * The **thumbnail tier**: one small image per canvas, sized to its projection
+ * and quantized to a rung.
+ *
+ * This is what fills the grey boxes between the two thresholds. The resolution
+ * ladder itself is `thumbnailLadder.test.ts`; what is asserted here is what the
+ * PLANNER does with it — how many requests one canvas is worth, in what order
+ * they arrive, and the two gates that keep a viewport holding fifty of these
+ * canvases from becoming a request storm.
+ */
+describe('planScene — the thumbnail tier', () => {
+    /** effectiveSize ≈ 1000 * 0.2 = 200: below 400, above 40. */
+    const THUMBNAIL_VIEW = viewport({ scale: 0.2 });
+
+    function thumbnailPlan(
+        canvases: PlannerCanvas[],
+        overrides: Partial<Parameters<typeof planScene>[0]> = {},
+    ) {
+        return plan(canvases, { viewport: THUMBNAIL_VIEW, ...overrides });
+    }
+
+    function level0Canvas(id: string): PlannerCanvas {
+        return {
+            id,
+            width: 1000,
+            height: 1000,
+            source: {
+                kind: 'service',
+                serviceId: `https://images.test/${id}`,
+                profile: 'level0',
+            },
+        };
+    }
+
+    it('gives a thumbnail-tier canvas a whole image instead of a pyramid', () => {
+        const result = thumbnailPlan([serviceCanvas('c1', 1000, 1000)]);
+
+        expect(result.tiers.c1).toBe('thumbnail');
+        expect(result.tileRequests).toEqual([]);
+        expect(result.thumbnailRequests.map((request) => request.url)).toEqual([
+            // The base rung, and the rung the projection wants: 1000 canvas
+            // units at scale 0.2 is 200 device px, which rounds UP to 256.
+            'https://images.test/c1/full/32,/0/default.jpg',
+            'https://images.test/c1/full/256,/0/default.jpg',
+        ]);
+    });
+
+    it('costs a level 1/2 canvas no info.json at all', () => {
+        // The whole point of rung 2. An ordinary manifest fills its grey boxes
+        // from manifest data alone.
+        const result = thumbnailPlan([serviceCanvas('c1', 1000, 1000)]);
+
+        expect(result.metadataRequests).toEqual([]);
+    });
+
+    it('uses a declared thumbnail as-is, and asks a level0 service nothing', () => {
+        // The acceptance criterion this ladder's first rung exists for.
+        const declared = 'https://example.test/thumb.jpg';
+        const result = thumbnailPlan([
+            { ...level0Canvas('c1'), thumbnailUrl: declared },
+        ]);
+
+        expect(result.metadataRequests).toEqual([]);
+        expect(result.thumbnailRequests.map((request) => request.url)).toEqual([
+            declared,
+        ]);
+        // One URL for both rungs is ONE request and one texture: the identity
+        // is the URL, not the rung.
+        expect(result.thumbnailRequests).toHaveLength(1);
+    });
+
+    it('asks a level0 service for its info.json, bounded by the tier', () => {
+        // Rung 3. The bound is what makes it not-a-storm — the storm was
+        // fetching all N regardless of tier — so the same canvas below the box
+        // threshold asks for nothing at all.
+        const inTier = thumbnailPlan([level0Canvas('c1')]);
+        const belowTier = plan([level0Canvas('c1')], {
+            viewport: viewport({ scale: 0.01 }),
+        });
+
+        expect(inTier.metadataRequests).toEqual(['c1']);
+        expect(inTier.thumbnailRequests).toEqual([]);
+        expect(belowTier.tiers.c1).toBe('box');
+        expect(belowTier.metadataRequests).toEqual([]);
+    });
+
+    it('takes the advertised size once the info.json has landed', () => {
+        const result = thumbnailPlan([level0Canvas('c1')], {
+            knownMetadata: {
+                c1: {
+                    width: 4000,
+                    height: 4000,
+                    level0: true,
+                    version: 3,
+                    sizes: [
+                        { width: 62, height: 62 },
+                        { width: 250, height: 250 },
+                        { width: 1000, height: 1000 },
+                    ],
+                },
+            },
+        });
+
+        expect(result.metadataRequests).toEqual([]);
+        expect(result.thumbnailRequests.map((request) => request.url)).toEqual([
+            'https://images.test/c1/full/62,/0/default.jpg',
+            'https://images.test/c1/full/250,/0/default.jpg',
+        ]);
+    });
+
+    describe('quantization', () => {
+        it('produces a SMALL set of distinct URLs across a continuous zoom', () => {
+            // The naive implementation computes the exact projected size: every
+            // zoom step mints a fresh URL, every one misses the HTTP cache, and
+            // a pinch generates a request per frame per canvas.
+            const urls = new Set<string>();
+
+            // A continuous sweep across the whole thumbnail band — 300 frames
+            // of a pinch, which is about five seconds of one.
+            for (let step = 0; step < 300; step += 1) {
+                const scale = 0.05 + (step * 0.35) / 300;
+                for (const request of thumbnailPlan(
+                    [serviceCanvas('c1', 1000, 1000)],
+                    { viewport: viewport({ scale }) },
+                ).thumbnailRequests) {
+                    urls.add(request.url);
+                }
+            }
+
+            expect(urls.size).toBeLessThanOrEqual(5);
+        });
+
+        it('rounds the rung UP, so a thumbnail is never asked to cover more pixels than it has', () => {
+            const wanted = (scale: number) =>
+                thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                    viewport: viewport({ scale }),
+                }).thumbnailRequests.at(-1)?.rung;
+
+            // 1000 canvas units at 0.06 is 60 device px.
+            expect(wanted(0.06)).toBe(64);
+            expect(wanted(0.065)).toBe(128);
+        });
+
+        it('asks for device pixels, not CSS pixels', () => {
+            // A thumbnail chosen from CSS pixels is visibly soft on a 2x screen,
+            // for the same reason a pyramid level chosen from them never reaches
+            // full resolution.
+            const onePx = thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                viewport: viewport({ scale: 0.06 }),
+            });
+            const twoPx = thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                viewport: viewport({ scale: 0.06 }),
+                dpr: 2,
+            });
+
+            expect(onePx.thumbnailRequests.at(-1)?.rung).toBe(64);
+            expect(twoPx.thumbnailRequests.at(-1)?.rung).toBe(128);
+        });
+    });
+
+    describe('the base rung', () => {
+        it('holds the cheapest rung beneath the chosen one, so a zoom re-sharpens rather than blanking', () => {
+            const result = thumbnailPlan([serviceCanvas('c1', 1000, 1000)]);
+
+            expect(
+                result.thumbnailRequests.map((request) => request.rung),
+            ).toEqual([32, 256]);
+        });
+
+        it('collapses to ONE request where the projection already wants the base rung', () => {
+            // The derived zoom floor's own case: every canvas in the residency
+            // window is thumbnail tier down there, so this is the difference
+            // between fifty requests and a hundred.
+            const result = thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                // A lower box threshold than the block's, so a canvas can sit
+                // in the tier while its projection still wants the base rung.
+                budgets: { ...BUDGETS, boxThreshold: 10 },
+                viewport: viewport({ scale: 0.03 }),
+            });
+
+            expect(result.tiers.c1).toBe('thumbnail');
+            expect(result.thumbnailRequests).toHaveLength(1);
+            expect(result.thumbnailRequests[0].rung).toBe(32);
+        });
+    });
+
+    describe('the view-stable gate', () => {
+        const CANVASES = [serviceCanvas('c1', 1000, 1000), level0Canvas('c2')];
+
+        it('issues no thumbnail and no metadata request while the view is moving', () => {
+            // A flick passes over hundreds of canvases that are never dwelt on.
+            // Asking for each as it goes by is most of the storm on its own.
+            const moving = thumbnailPlan(CANVASES, { viewStable: false });
+
+            expect(moving.thumbnailRequests).toEqual([]);
+            expect(moving.metadataRequests).toEqual([]);
+        });
+
+        it('issues them the moment the view stops', () => {
+            const stopped = thumbnailPlan(CANVASES, { viewStable: true });
+
+            expect(stopped.thumbnailRequests.length).toBeGreaterThan(0);
+            expect(stopped.metadataRequests).toEqual(['c2']);
+        });
+
+        it('gates a PYRAMID-tier canvas’s metadata too', () => {
+            const moving = plan([serviceCanvas('c1', 1000, 1000)], {
+                viewStable: false,
+            });
+
+            expect(moving.tiers.c1).toBe('pyramid');
+            expect(moving.metadataRequests).toEqual([]);
+        });
+
+        it('does not gate TILES, so a canvas being dragged does not go blank', () => {
+            const moving = plan([serviceCanvas('c1', 1000, 1000)], {
+                knownMetadata: { c1: FACTS },
+                viewStable: false,
+            });
+
+            expect(moving.tileRequests.length).toBeGreaterThan(0);
+        });
+
+        it('keeps a thumbnail already decoded in the required set through a gesture', () => {
+            // Dropped from the required set it would be demoted to the
+            // opportunistic cache and stop painting — a canvas that blanks the
+            // instant the reader touches it.
+            const stable = thumbnailPlan([serviceCanvas('c1', 1000, 1000)]);
+            const held = new Set(
+                stable.thumbnailRequests.map((request) => request.key),
+            );
+
+            const moving = thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                viewStable: false,
+                residentTiles: held,
+            });
+
+            expect(
+                new Set(moving.thumbnailRequests.map((request) => request.key)),
+            ).toEqual(held);
+        });
+
+        it('is open by default, which is what an idle caller is describing', () => {
+            expect(
+                thumbnailPlan([serviceCanvas('c1', 1000, 1000)])
+                    .thumbnailRequests.length,
+            ).toBeGreaterThan(0);
+        });
+    });
+
+    describe('priority', () => {
+        it('orders thumbnails centre-out, so the page being looked at arrives first', () => {
+            const canvases = Array.from({ length: 5 }, (_, index) =>
+                serviceCanvas(`c${index}`, 1000, 1000),
+            );
+
+            const result = plan(canvases, {
+                mode: 'continuous',
+                // Framed on canvas 2, four canvases wide.
+                viewport: viewport({
+                    centre: { x: 2 * 1010 + 500, y: 500 },
+                    scale: 0.2,
+                }),
+            });
+
+            const order = result.thumbnailRequests.map(
+                (request) => request.canvasId,
+            );
+            // Nearest first — and not in discovery order, which would be c0.
+            expect(order[0]).toBe('c2');
+            expect(
+                result.thumbnailRequests.every(
+                    (request, index) =>
+                        index === 0 ||
+                        request.priority >=
+                            result.thumbnailRequests[index - 1].priority,
+                ),
+            ).toBe(true);
+        });
+    });
+
+    describe('a canvas with no usable thumbnail', () => {
+        /** Level0, no sizes, no tiles: the only legal request is the master. */
+        const HOPELESS: ImageServiceFacts = {
+            width: 12_000,
+            height: 9000,
+            level0: true,
+            version: 3,
+        };
+
+        it('lands in the box tier rather than downloading a 108-megapixel master', () => {
+            const result = thumbnailPlan([level0Canvas('c1')], {
+                knownMetadata: { c1: HOPELESS },
+            });
+
+            expect(result.tiers.c1).toBe('box');
+            expect(result.thumbnailRequests).toEqual([]);
+            expect(result.unresolvedThumbnails).toEqual(['c1']);
+        });
+
+        it('is reported for the host to log, and is never retried', () => {
+            // A retry loop across hundreds of canvases against one badly-behaved
+            // institutional server is the worst kind of bug to diagnose
+            // remotely. The decision is a pure function of the manifest and the
+            // service's facts, so it is the same answer on every frame and no
+            // request is ever issued.
+            const once = thumbnailPlan([level0Canvas('c1')], {
+                knownMetadata: { c1: HOPELESS },
+            });
+            const again = thumbnailPlan([level0Canvas('c1')], {
+                knownMetadata: { c1: HOPELESS },
+            });
+
+            expect(again).toEqual(once);
+            expect(again.metadataRequests).toEqual([]);
+        });
+
+        it('does not report a canvas that is merely waiting for its info.json', () => {
+            expect(
+                thumbnailPlan([level0Canvas('c1')]).unresolvedThumbnails,
+            ).toEqual([]);
+        });
+
+        it('does not report a static canvas, whose one image the host paints whole', () => {
+            const result = thumbnailPlan([staticCanvas('c1', 1000, 1000)]);
+
+            expect(result.tiers.c1).toBe('thumbnail');
+            expect(result.unresolvedThumbnails).toEqual([]);
+            expect(result.thumbnailRequests).toEqual([]);
+        });
+    });
+
+    describe('painting', () => {
+        it('draws a resident thumbnail over the canvas’s whole layout rect', () => {
+            const first = thumbnailPlan([serviceCanvas('c1', 1000, 1000)]);
+            const resident = new Set(
+                first.thumbnailRequests.map((request) => request.key),
+            );
+
+            const result = thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                residentTiles: resident,
+            });
+
+            expect(result.tileDraws).toHaveLength(2);
+            expect(result.tileDraws[0]).toMatchObject({
+                x: 0,
+                y: 0,
+                width: 1000,
+                height: 1000,
+            });
+            // Coarsest first, so the chosen rung paints OVER the base one.
+            expect(result.tileDraws[0].level).toBe(0);
+            expect(result.tileDraws[1].level).toBe(1);
+        });
+
+        it('draws nothing for a thumbnail that is not held', () => {
+            expect(
+                thumbnailPlan([serviceCanvas('c1', 1000, 1000)]).tileDraws,
+            ).toEqual([]);
+        });
+    });
+
+    it('releases a thumbnail when the canvas drops to the box tier', () => {
+        // The nesting rule, one tier down: a canvas below the box threshold is
+        // a layout rect and nothing else.
+        const result = plan([serviceCanvas('c1', 1000, 1000)], {
+            viewport: viewport({ scale: 0.01 }),
+        });
+
+        expect(result.tiers.c1).toBe('box');
+        expect(result.thumbnailRequests).toEqual([]);
+    });
+});
+
 describe('planScene — opening a 40-canvas paged manifest', () => {
     const CANVASES = Array.from({ length: 40 }, (_, index) => ({
         id: `https://example.test/canvas/${index}`,
@@ -1712,6 +2086,66 @@ describe('planScene — an 800-canvas continuous manifest', () => {
         expect(pyramidCanvases(atFloor)).toEqual([]);
         expect(atFloor.tileRequests).toEqual([]);
         expect(atFloor.metadataRequests).toEqual([]);
+    });
+
+    it('keeps the derived zoom floor cheap, where the window holds dozens of thumbnails', () => {
+        // The floor is where the thumbnail tier is at its widest: the residency
+        // window BOUNDS the count, it does not make it small, so several dozen
+        // canvases are in the tier at once. What keeps that affordable is that
+        // each is worth at most TWO requests — the base rung and the rung the
+        // projection wants, both at the bottom of the ladder down here — and
+        // that they go through the same bounded, centre-out, byte-budgeted
+        // window as the tiles.
+        const floor = readingZoom(400).minZoom;
+        const atFloor = plan(CANVASES, {
+            mode: 'continuous',
+            viewport: viewport({
+                centre: { x: 400 * PITCH, y: PAGE.height / 2 },
+                scale: floor,
+            }),
+        });
+
+        const thumbnailCanvases = Object.values(atFloor.tiers).filter(
+            (tier) => tier === 'thumbnail',
+        );
+        expect(thumbnailCanvases.length).toBeGreaterThan(20);
+
+        expect(atFloor.thumbnailRequests.length).toBeLessThanOrEqual(
+            thumbnailCanvases.length * 2,
+        );
+        // The two cheapest rungs in the ladder, and nothing above them: at the
+        // floor a folio is a few dozen pixels across, so this is a few
+        // kilobytes per canvas rather than a whole-image download apiece.
+        expect(
+            Math.max(
+                ...atFloor.thumbnailRequests.map((request) => request.rung),
+            ),
+        ).toBeLessThanOrEqual(64);
+
+        // Bounded by the VIEWPORT, not by the manifest: the same frame on a
+        // manifest a twentieth the length asks for as many as it has canvases,
+        // never eight hundred.
+        expect(atFloor.thumbnailRequests.length).toBeLessThan(COUNT / 8);
+        // Nearest the centre first, so what the reader is looking at fills in
+        // before the edges of the screen do.
+        expect(atFloor.thumbnailRequests[0].canvasId).toBe(name(400));
+    });
+
+    it('asks for nothing at all while a flick is in flight', () => {
+        // A flick across an 800-folio manifest passes over hundreds of canvases
+        // that are never dwelt on. Without the gate every one of them would be
+        // worth a thumbnail and an `info.json` on its way past.
+        const flicking = plan(CANVASES, {
+            mode: 'continuous',
+            viewport: viewport({
+                centre: { x: 400 * PITCH, y: PAGE.height / 2 },
+                scale: readingZoom(400).minZoom,
+            }),
+            viewStable: false,
+        });
+
+        expect(flicking.thumbnailRequests).toEqual([]);
+        expect(flicking.metadataRequests).toEqual([]);
     });
 
     it('keeps the scene alive at a deep zoom into the inter-canvas gutter', () => {
