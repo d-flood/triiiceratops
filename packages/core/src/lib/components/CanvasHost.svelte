@@ -25,15 +25,17 @@
      * ## Scope
      *
      * One canvas — a static image or a tiled image service; the full pointer
-     * input model (drag, flick momentum, pinch, wheel, double-tap). The
-     * size-ladder source is ticket 06, multi-canvas layout ticket 07, keyboard
-     * and focus ticket 11, annotation overlays ticket 14.
+     * input model (drag, flick momentum, pinch, wheel, double-tap), keyboard
+     * operation, and reduced motion. The size-ladder source is ticket 06,
+     * multi-canvas layout ticket 07, annotation overlays ticket 14.
      */
     import { onMount } from 'svelte';
 
+    import { getMessages } from '../state/i18n.svelte';
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
     import { GestureRecogniser } from '../renderer/gestureArbiter';
     import { reconcileImages } from '../renderer/imageRequests';
+    import { PAN_KEYS, keyPanVelocity } from '../renderer/keyboardPan';
     import {
         imageServiceCache,
         type ImageServiceFailure,
@@ -48,6 +50,10 @@
         DOUBLE_TAP_MS,
         DOUBLE_TAP_SLOP,
         DOUBLE_TAP_ZOOM_FACTOR,
+        KEY_PAN_SHIFT_FACTOR,
+        KEY_PAN_SPEED,
+        KEY_PAN_STEP,
+        KEY_ZOOM_FACTOR,
         MAX_DEVICE_PIXEL_RATIO,
         MAX_ZOOM_FACTOR,
         MIN_FLICK_SPEED,
@@ -88,6 +94,8 @@
         viewerState,
     }: { tileSources: unknown; viewerState: ViewerState } = $props();
 
+    const m = getMessages();
+
     let root: HTMLDivElement | undefined = $state();
     let surface: HTMLCanvasElement | undefined = $state();
 
@@ -124,6 +132,40 @@
      * fast the image appears to be moving.
      */
     let momentum: Point | null = null;
+    /**
+     * Held-key pan velocity, in **screen** px/s, or `null` when no arrow is
+     * down.
+     *
+     * Distinct from `momentum` because it does not decay: a held key travels at
+     * a steady rate for as long as it is held, and only becomes momentum — with
+     * the same friction as a flick — when the key comes up.
+     */
+    let keyPan: Point | null = null;
+    /**
+     * Which bound pan keys are currently down. See `renderer/keyboardPan.ts`.
+     *
+     * A plain record for the same reason `images` below is one, and not a
+     * `SvelteSet`: it is read by the frame loop and by the key handlers, never
+     * by the reactive graph, so reactivity would only schedule an effect per
+     * key-repeat event.
+     */
+    const heldPanKeys: Record<string, true> = Object.create(null);
+    /** Whether Shift is held, tracked separately so it can be pressed second. */
+    let panShift = false;
+    /**
+     * Whether the user has asked for reduced motion.
+     *
+     * Read from `matchMedia` rather than from CSS because **this viewport's
+     * easing is JS-driven**: the global CSS guard in `styles/base.css` zeroes
+     * transition and animation durations, and not one frame of a wheel zoom, a
+     * fit, or a flick passes through either. Honoring the preference here is
+     * the behaviour change the spec calls for (§Reduced motion) — snap-to
+     * instead of glide.
+     *
+     * Deliberately not `$state`: it is read by the frame loop and by input
+     * handlers, never by the reactive graph.
+     */
+    let reducedMotion = false;
     let frameHandle: number | null = null;
     let lastFrameTime = 0;
     /** Resolved once the next painted frame has landed (e2e determinism). */
@@ -369,12 +411,24 @@
      * Ease towards a view. The path discrete (double-tap, wheel) and
      * programmatic (fit, toolbar zoom) input takes — animation exists to fill
      * the gap between two states the user jumped between.
+     *
+     * Under reduced motion the gap is simply not filled: the view is adopted in
+     * this frame. This is the single choke point for **every** animated
+     * viewport change, which is what makes "all viewport animation becomes
+     * instant" a property of the component rather than of each caller
+     * remembering to check.
      */
     function setViewAnimated(
         centre: Point,
         scale: number,
         timeConstant: number,
     ) {
+        if (reducedMotion) {
+            momentum = null;
+            setViewDirect(centre, scale);
+            return;
+        }
+
         targetScale = scale;
         targetCentre = constrained(centre, scale);
         animationTimeConstant = timeConstant;
@@ -451,6 +505,7 @@
         const elapsed = Math.max(0, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
 
+        if (keyPan) stepKeyPan(elapsed);
         if (momentum) stepMomentum(elapsed);
 
         if (animating) {
@@ -502,11 +557,37 @@
 
         paint();
 
-        if (animating || momentum) {
+        if (animating || momentum || keyPan) {
             scheduleFrame();
         } else {
             settlePaintWaiters();
         }
+    }
+
+    /**
+     * One frame of held-key panning.
+     *
+     * Deliberately **undecayed**, unlike `stepMomentum`: the key is still down,
+     * so the user is still asking to move, and applying friction to a held key
+     * would make it crawl to a halt while held. The rate is a constant, which
+     * is exactly the "steady rate, no acceleration, no judder" the ticket asks
+     * for — and it holds however often the OS repeats the key-down, because
+     * repeats never touch the velocity (`keyboardPan.keyPanVelocity` is a
+     * function of which keys are down).
+     */
+    function stepKeyPan(elapsed: number) {
+        if (!keyPan) return;
+
+        const centre = constrained(
+            {
+                x: viewport.centre.x + (keyPan.x * elapsed) / viewport.scale,
+                y: viewport.centre.y + (keyPan.y * elapsed) / viewport.scale,
+            },
+            viewport.scale,
+        );
+
+        viewport = { ...viewport, centre };
+        targetCentre = { ...centre };
     }
 
     /**
@@ -658,6 +739,39 @@
     function unwatchDevicePixelRatio() {
         dprQuery?.removeEventListener?.('change', handleDevicePixelRatioChange);
         dprQuery = null;
+    }
+
+    /**
+     * Track `prefers-reduced-motion`.
+     *
+     * Watched rather than read once: the preference is a system setting a user
+     * can change while the viewer is open, and someone turning it on is asking
+     * for the motion to stop now, not at the next reload. Read in `onMount`, so
+     * nothing here touches `window` at module scope.
+     */
+    let motionQuery: MediaQueryList | null = null;
+
+    function handleMotionPreferenceChange(event: MediaQueryListEvent) {
+        reducedMotion = event.matches;
+        // An animation already in flight is left to land: cutting it mid-glide
+        // is itself a jump. What matters is that the next one does not start.
+    }
+
+    function watchReducedMotion() {
+        if (typeof window.matchMedia !== 'function') return;
+
+        const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+        reducedMotion = query.matches;
+        query.addEventListener?.('change', handleMotionPreferenceChange);
+        motionQuery = query;
+    }
+
+    function unwatchReducedMotion() {
+        motionQuery?.removeEventListener?.(
+            'change',
+            handleMotionPreferenceChange,
+        );
+        motionQuery = null;
     }
 
     // ── Input ────────────────────────────────────────────────────────────
@@ -837,6 +951,11 @@
             }
 
             case 'flick':
+                // Momentum is motion the user did not ask for frame by frame —
+                // the viewport keeps going after the hand has left. Under
+                // reduced motion the release simply stops (spec §Reduced
+                // motion); the pan itself, being direct, is untouched.
+                if (reducedMotion) return;
                 momentum = update.velocity;
                 requestFrame();
                 return;
@@ -920,6 +1039,190 @@
         );
     }
 
+    // ── Keyboard ─────────────────────────────────────────────────────────
+    //
+    // Every binding here is on the SURFACE ELEMENT, never on the document.
+    // Arrow keys already rove focus inside the viewer's menus, listboxes, and
+    // panels, and a document-level listener would pan the image from all of
+    // them (spec §Keyboard). The surface being focusable is what scopes these:
+    // no focus, no keydown, no binding.
+    //
+    // Page Up/Down are deliberately unbound — see `renderer/keyboardPan.ts`.
+
+    function heldKeyCount(): number {
+        return Object.keys(heldPanKeys).length;
+    }
+
+    function clearHeldKeys() {
+        for (const key of Object.keys(heldPanKeys)) delete heldPanKeys[key];
+    }
+
+    /**
+     * Recompute the held-key velocity and start (or keep) the frame loop.
+     *
+     * Called on every key-down for a bound key, INCLUDING OS repeats. That is
+     * safe precisely because `keyPanVelocity` is a function of which keys are
+     * down: a repeat recomputes the same velocity rather than adding to it.
+     */
+    function startKeyPan() {
+        const velocity = keyPanVelocity(Object.keys(heldPanKeys), panShift, {
+            panSpeed: KEY_PAN_SPEED,
+            shiftFactor: KEY_PAN_SHIFT_FACTOR,
+        });
+        if (!velocity) {
+            stopKeyPan();
+            return;
+        }
+
+        // A key press is a viewport gesture, so it truncates whatever the
+        // viewport was doing — the same ownership decision `setViewDirect`
+        // makes for a drag.
+        animating = false;
+        momentum = null;
+        keyPan = velocity;
+        requestFrame();
+    }
+
+    /** Stop dead, carrying nothing over. Used when focus leaves mid-hold. */
+    function stopKeyPan() {
+        keyPan = null;
+    }
+
+    /**
+     * A bound key came up.
+     *
+     * With other arrows still down the velocity is simply recomputed. With the
+     * last one released the travel becomes momentum and decays under the same
+     * friction as a flick (spec §Keyboard) — under reduced motion it just
+     * stops.
+     *
+     * `momentum` is the negation of `keyPan`: momentum is the *pointer's*
+     * velocity (`stepMomentum` subtracts it from the centre), where `keyPan` is
+     * the centre's own.
+     */
+    function releaseKeyPan() {
+        if (heldKeyCount() > 0) {
+            startKeyPan();
+            return;
+        }
+
+        const last = keyPan;
+        keyPan = null;
+        if (!last || reducedMotion) return;
+
+        momentum = { x: -last.x, y: -last.y };
+        requestFrame();
+    }
+
+    /**
+     * One instant pan step — the reduced-motion form of held-key panning.
+     *
+     * Here a per-repeat step IS the right model: with no velocity and no
+     * easing there is nothing to accelerate, and stepping is what the
+     * preference asks for.
+     */
+    function stepPanInstant(direction: Point, shift: boolean) {
+        const step = KEY_PAN_STEP * (shift ? KEY_PAN_SHIFT_FACTOR : 1);
+        setViewDirect(
+            {
+                x: viewport.centre.x + (direction.x * step) / viewport.scale,
+                y: viewport.centre.y + (direction.y * step) / viewport.scale,
+            },
+            viewport.scale,
+        );
+    }
+
+    /**
+     * Animated zoom about the viewport centre — the `+`/`-` binding.
+     *
+     * Accumulated against the TARGET rather than the current scale, for the
+     * same reason `handleWheel` is: a held key repeats far faster than the
+     * animation settles, and building each step on a partly-eased predecessor
+     * would make a held key cover less ground than the same number of
+     * deliberate presses.
+     */
+    function zoomByKey(factor: number) {
+        setViewAnimated(
+            { ...targetCentre },
+            clampScale(targetScale * factor),
+            ANIMATION_TIME_CONSTANT,
+        );
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+        // A modified key belongs to the browser or the OS (Ctrl+Minus is the
+        // page zoom, Cmd+Left is history). Shift is ours — it is the "pan
+        // further" modifier.
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+        if (event.key === 'Shift') {
+            panShift = true;
+            if (heldKeyCount() > 0) startKeyPan();
+            return;
+        }
+
+        const direction = PAN_KEYS[event.key];
+        if (direction) {
+            event.preventDefault();
+            panShift = event.shiftKey;
+
+            if (reducedMotion) {
+                stepPanInstant(direction, event.shiftKey);
+                return;
+            }
+
+            heldPanKeys[event.key] = true;
+            startKeyPan();
+            return;
+        }
+
+        switch (event.key) {
+            // `=` and `_` are the unshifted keys `+` and `-` share, so a
+            // keyboard that needs Shift for `+` works without it too.
+            case '+':
+            case '=':
+                event.preventDefault();
+                zoomByKey(KEY_ZOOM_FACTOR);
+                return;
+            case '-':
+            case '_':
+                event.preventDefault();
+                zoomByKey(1 / KEY_ZOOM_FACTOR);
+                return;
+            case '0':
+            case 'Home':
+                event.preventDefault();
+                fitWorld(true);
+                return;
+        }
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+        if (event.key === 'Shift') {
+            panShift = false;
+            if (heldKeyCount() > 0) startKeyPan();
+            return;
+        }
+
+        if (!PAN_KEYS[event.key]) return;
+        event.preventDefault();
+        delete heldPanKeys[event.key];
+        releaseKeyPan();
+    }
+
+    /**
+     * Focus left the surface mid-hold.
+     *
+     * The key-up will be delivered somewhere else, so without this the view
+     * pans forever. Stops dead rather than handing over to momentum: a glide
+     * that outlives the focus it was driven from has no author.
+     */
+    function handleBlur() {
+        clearHeldKeys();
+        panShift = false;
+        stopKeyPan();
+    }
+
     // ── Source loading ───────────────────────────────────────────────────
 
     /**
@@ -968,6 +1271,10 @@
 
     onMount(() => {
         if (!root || !surface) return;
+
+        // Before anything can animate: the first fit and every input path
+        // downstream of it consult this.
+        watchReducedMotion();
 
         /*
          * `{ alpha: true }` is DELIBERATE, not an oversight — do not "optimize"
@@ -1037,7 +1344,7 @@
                 zoomAnchored(anchor, factor);
                 return nextPaint();
             },
-            isMoving: () => animating || momentum !== null,
+            isMoving: () => animating || momentum !== null || keyPan !== null,
             /**
              * Residency and decoded-byte counters.
              *
@@ -1067,10 +1374,13 @@
         return () => {
             observer.disconnect();
             unwatchDevicePixelRatio();
+            unwatchReducedMotion();
             if (frameHandle !== null) cancelAnimationFrame(frameHandle);
             frameHandle = null;
             animating = false;
             momentum = null;
+            clearHeldKeys();
+            keyPan = null;
             settlePaintWaiters();
             for (const id of Object.keys(images)) delete images[id];
             // Also clears the in-flight requests: an `onload` that lands after
@@ -1122,11 +1432,47 @@
     its whole subtree (this painted the canvas stock-light in every theme).
     Guarded by src/packaging/viewerRootUnique.test.ts.
 -->
+<!--
+    The image surface is a real tab stop with a role and an accessible name
+    (spec §Keyboard).
+
+    The focus target is this WRAPPER rather than the `<canvas>` inside it, and
+    that is the same division of labour the spec draws for overlays: the canvas
+    paints pixels, a DOM layer carries the focusable, labelled targets. A canvas
+    element is interactive content in its own right, so giving it a widget role
+    is a contradiction assistive technology has no good answer to; the box
+    around it has no implicit role to contradict. Clicking the canvas still
+    focuses this, because the browser focuses the nearest focusable ancestor.
+
+    `role="application"` because arrow keys mean something HERE that they do not
+    mean anywhere else in the viewer: a screen reader must pass them through
+    rather than use them to browse its own way around. This is the narrowest
+    scope that claim can be made in — one element, whose only child paints.
+
+    It sits ahead of the annotation overlay's focusable shapes in DOM order, so
+    Tab goes surface → annotations: the picture before the things marked on it.
+
+    The two suppressions below are recorded in lint-allowlist.md. Svelte's
+    heuristic classifies every ARIA role outside the widget set as
+    non-interactive, and `application` — whose entire purpose is to declare that
+    this element handles its own keys — is one of them. There is no role that
+    both describes a pan/zoom surface honestly and satisfies the heuristic, and
+    the accessible name, focus ring, and key bindings the rules exist to demand
+    are all present.
+-->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
     bind:this={root}
     class="renderer-root"
     class:has-bg={!viewerState.config.transparentBackground}
     data-testid="canvas-renderer-root"
+    tabindex="0"
+    role="application"
+    aria-label={m.canvas_surface_label()}
+    onkeydown={handleKeyDown}
+    onkeyup={handleKeyUp}
+    onblur={handleBlur}
 >
     <canvas
         bind:this={surface}
@@ -1167,5 +1513,34 @@
         width: 100%;
         height: 100%;
         touch-action: none;
+    }
+
+    /*
+     * The visible focus ring — a NEW visual affordance, and an accepted design
+     * cost rather than an oversight. The OpenSeadragon path suppressed focus on
+     * this surface outright (`tabIndex: ''`, "This prevents the focus outline
+     * from appearing"); a surface that is operable by keyboard must show where
+     * the keyboard is (WCAG 2.4.7).
+     *
+     * Drawn INSIDE the element (`outline-offset` is negative, where the global
+     * rule in styles/base.css offsets outward). The surface fills the viewer to
+     * its edges, so an outward ring would be drawn over the chrome that abuts
+     * it, or clipped away entirely by an overflow boundary. Thicker than the
+     * global 2px for the same reason: there is no gap between ring and content
+     * to separate them.
+     *
+     * `:focus-visible`, not `:focus`, so clicking the image to pan does not
+     * ring it.
+     *
+     * `--tri-color-primary-TEXT`, not `--tri-color-primary`: the raw primary is
+     * a fill colour and reaches only 2.03:1 (light) and 1.40:1 (teal) against
+     * `--tri-viewer-bg`, well short of the 3:1 a focus indicator owes under
+     * WCAG 1.4.11. The `-text` variant is the palette's legible-on-a-surface
+     * form and clears it in all four themes. Gated by `pnpm test:contrast`,
+     * which carries the pairing.
+     */
+    .renderer-root:focus-visible {
+        outline: 3px solid var(--tri-color-primary-text);
+        outline-offset: -3px;
     }
 </style>

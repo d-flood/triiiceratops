@@ -146,5 +146,6 @@
     "plugin_error_description": "{plugin} konnte nicht ausgeführt werden und wurde isoliert, damit der Rest des Viewers weiter funktioniert.",
     "plugin_error_phase": "Fehlgeschlagen in der Phase {phase}.",
     "plugin_error_retry": "Erneut versuchen",
-    "plugin_error_close": "Fehlerdetails schließen"
+    "plugin_error_close": "Fehlerdetails schließen",
+    "canvas_surface_label": "Bildfläche – mit den Pfeiltasten verschieben, mit Plus und Minus zoomen, mit Null einpassen"
 }

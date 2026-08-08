@@ -143,5 +143,6 @@
     "plugin_error_description": "{plugin} could not run and has been isolated so the rest of the viewer keeps working.",
     "plugin_error_phase": "Failed during the {phase} phase.",
     "plugin_error_retry": "Retry",
-    "plugin_error_close": "Close error details"
+    "plugin_error_close": "Close error details",
+    "canvas_surface_label": "Image surface — pan with the arrow keys, zoom with plus and minus, fit with zero"
 }

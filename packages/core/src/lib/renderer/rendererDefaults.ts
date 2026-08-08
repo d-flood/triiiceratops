@@ -26,6 +26,14 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
      * "is this better?" unanswerable.
      */
     minPixelRatio: 0.5,
+    /**
+     * 16 megapixels — 64 MB decoded — for one **size-ladder source** rung.
+     *
+     * Comfortably above an ordinary manuscript scan (a 4000x3000 page is 12 MP,
+     * and must not be capped) and far below the 100+ megapixel level0 scans that
+     * are the reason this exists at all.
+     */
+    maxDecodedPixels: 16 * 1024 * 1024,
 };
 
 /**
@@ -148,6 +156,35 @@ export const MIN_FLICK_SPEED = 120;
  * `gestureArbiter.GestureConfig.minVelocitySpanMs`.
  */
 export const MIN_VELOCITY_SPAN_MS = 16;
+
+/**
+ * Steady speed of a held arrow key, in screen px/s.
+ *
+ * A speed, not a step: a held key drives a velocity (spec §Keyboard), so this
+ * is how fast the view travels for as long as the key is down, independent of
+ * the OS key-repeat rate.
+ */
+export const KEY_PAN_SPEED = 700;
+
+/** How much further Shift+arrow travels, as a multiple of `KEY_PAN_SPEED`. */
+export const KEY_PAN_SHIFT_FACTOR = 3;
+
+/**
+ * Screen px one arrow key moves the view under `prefers-reduced-motion:
+ * reduce`, where held-key panning becomes instant stepping and there is no
+ * velocity to speak of. Roughly a quarter-second of `KEY_PAN_SPEED`, so a held
+ * key covers comparable ground either way.
+ */
+export const KEY_PAN_STEP = 160;
+
+/**
+ * Zoom factor for one `+`/`-` press.
+ *
+ * Smaller than `DOUBLE_TAP_ZOOM_FACTOR`: a key is easy to press repeatedly (and
+ * repeats on its own when held), so a finer step gives keyboard users the
+ * control a pointer gets from the wheel.
+ */
+export const KEY_ZOOM_FACTOR = 1.5;
 
 /**
  * Fraction of the smaller of the world and viewport extents that must stay
