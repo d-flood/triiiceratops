@@ -21,3 +21,9 @@ manifest Canvas geometry.
   declared dimensions match its image, "current view" exports are unchanged.
   Where a manifest's Canvas dimensions disagree with its image's, the export now
   matches the manifest — the same geometry annotations are stored in.
+
+  Note the interim divergence this creates: the current viewer still lays out
+  from the image service's dimensions, so for such a mismatched manifest a
+  "current view" export is laid out from the manifest box while the viewer on
+  screen is not. Export is the correct side of that; the viewer catches up when
+  the new renderer lands, and the viewer is deliberately left alone here.

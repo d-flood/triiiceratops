@@ -274,6 +274,88 @@ describe('resolveExportSizeOptions', () => {
         }
     });
 
+    it('offers exactly the whole-image URLs the renderer would request for a size-ladder service', async () => {
+        // The export ladder and the renderer's size-ladder source are the same
+        // model (`renderer/sizeLadder`), which is what stops the two from
+        // drifting into offering a size nobody can fetch.
+        fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                '@context': 'http://iiif.io/api/image/2/context.json',
+                '@id': 'https://example.org/iiif/level0-image',
+                profile: ['http://iiif.io/api/image/2/level0.json'],
+                width: 4000,
+                height: 3000,
+                sizes: [
+                    { width: 500, height: 375 },
+                    { width: 1000, height: 750 },
+                    { width: 4000, height: 3000 },
+                ],
+            }),
+        } as Response);
+
+        const resolved = resolveCanvasImage(createLevel0Canvas())!;
+        const options = await resolveExportSizeOptions(resolved);
+
+        expect(options).toEqual([
+            {
+                width: 4000,
+                height: 3000,
+                label: '4000 × 3000px',
+                // Version 2 spells the whole image `full`; version 3 `max`.
+                url: 'https://example.org/iiif/level0-image/full/full/0/default.jpg',
+            },
+            {
+                width: 1000,
+                height: 750,
+                label: '1000 × 750px',
+                url: 'https://example.org/iiif/level0-image/full/1000,/0/default.jpg',
+            },
+            {
+                width: 500,
+                height: 375,
+                label: '500 × 375px',
+                url: 'https://example.org/iiif/level0-image/full/500,/0/default.jpg',
+            },
+        ]);
+    });
+
+    it('offers one whole image per advertised scale factor for a level0 service with tiles', async () => {
+        // The other level0 shape: a real pyramid, every level of which is also
+        // available whole. Only the ADVERTISED factors appear — a level0 server
+        // holds no derivative for any other.
+        fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                '@context': 'http://iiif.io/api/image/3/context.json',
+                id: 'https://example.org/iiif/level0-image',
+                type: 'ImageService3',
+                profile: 'level0',
+                width: 4000,
+                height: 3000,
+                tiles: [{ width: 512, scaleFactors: [1, 4] }],
+            }),
+        } as Response);
+
+        const resolved = resolveCanvasImage(createLevel0Canvas())!;
+        const options = await resolveExportSizeOptions(resolved);
+
+        expect(options).toEqual([
+            {
+                width: 4000,
+                height: 3000,
+                label: '4000 × 3000px',
+                url: 'https://example.org/iiif/level0-image/full/max/0/default.jpg',
+            },
+            {
+                width: 1000,
+                height: 750,
+                label: '1000 × 750px',
+                url: 'https://example.org/iiif/level0-image/full/1000,/0/default.jpg',
+            },
+        ]);
+    });
+
     it('falls back to the native resource when info.json is unavailable', async () => {
         fetchSpy = vi
             .spyOn(globalThis, 'fetch')

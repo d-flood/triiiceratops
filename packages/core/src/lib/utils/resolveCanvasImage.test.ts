@@ -594,9 +594,7 @@ describe('resolveAllCanvasImages', () => {
     it('returns every image of a IIIF v2 composite canvas', () => {
         // Several images assembled into one page. All of them must resolve —
         // truncating to the first is the silent data loss the epic exists to
-        // stop. (Their `on` fragments are not yet read as positions: v2
-        // fragment targeting is unchanged by ticket 06 and is not part of the
-        // frozen baseline.)
+        // stop — and each must land where its `on` fragment puts it.
         const canvas = {
             '@id': 'canvas-composite',
             '@type': 'sc:Canvas',
@@ -621,6 +619,22 @@ describe('resolveAllCanvasImages', () => {
         ).toEqual([
             'https://example.org/image/left.jpg',
             'https://example.org/image/right.jpg',
+        ]);
+
+        // The v2 spelling of the fragment is `on`, not `target`. Read only from
+        // `target`, both halves landed at the origin at full canvas width, one
+        // on top of the other. Positions are normalized by the canvas's WIDTH
+        // on both axes, so the right-hand page starts at 800/1600.
+        expect(
+            resolveAllCanvasImages(canvas).map(({ x, y, width, height }) => ({
+                x,
+                y,
+                width,
+                height,
+            })),
+        ).toEqual([
+            { x: 0, y: 0, width: 0.5, height: 0.625 },
+            { x: 0.5, y: 0, width: 0.5, height: 0.625 },
         ]);
     });
 

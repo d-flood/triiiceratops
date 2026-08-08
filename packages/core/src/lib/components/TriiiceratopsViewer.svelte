@@ -23,6 +23,7 @@
         getMessages,
         provideActiveLocale,
     } from '../state/i18n.svelte';
+    import { watchReducedMotion } from '../state/reducedMotion';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
@@ -74,7 +75,9 @@
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
+    import { CANVAS_RENDERER } from '../renderer/rendererFlag';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
+    import CanvasHost from './CanvasHost.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
     import MetadataPanel from './MetadataPanel.svelte';
@@ -91,9 +94,23 @@
     // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
 
-    const prefersReducedMotion =
-        browser &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /**
+     * `prefers-reduced-motion`, from the viewer-wide watcher.
+     *
+     * WATCHED, not read once at init: the renderer honors the preference live
+     * (`CanvasHost` stops the viewport the moment it is turned on), and a
+     * chrome that only sampled it at mount would go on gliding its drawer and
+     * its panels after the same toggle — one viewer giving two answers about
+     * whether it respects the setting. Every transition below reads this at the
+     * instant it starts, so a change reaches the next one. SSR-safe: the helper
+     * reports `false` off the browser and never calls back.
+     */
+    let prefersReducedMotion = $state(false);
+    onDestroy(
+        watchReducedMotion((reduced) => {
+            prefersReducedMotion = reduced;
+        }),
+    );
 
     /**
      * Open the expanded gallery as a drawer sliding out of its dock edge — a
@@ -1126,7 +1143,10 @@
     // (slideWidth outro). Holding this signal true across that window lets the
     // docked rail stay put — full size, not collapsing — until the column is
     // actually gone, then hand off to the floating toolbar in one atomic swap.
-    const SIDEBAR_ANIM_MS = prefersReducedMotion ? 0 : 200;
+    // `$derived`, because `prefersReducedMotion` is now watched rather than
+    // sampled at init: a latch sized to an animation that no longer runs would
+    // hold the rail for 200ms of nothing after the preference is turned on.
+    const SIDEBAR_ANIM_MS = $derived(prefersReducedMotion ? 0 : 200);
 
     let leftSidebarPresent = $state(false);
     $effect(() => {
@@ -1442,6 +1462,21 @@
                             {/if}
                         </div>
                     </div>
+                {:else if CANVAS_RENDERER}
+                    <!--
+                        The development-only build flag (spec §Rollout). In a
+                        published build `CANVAS_RENDERER` is a compile-time
+                        literal, so exactly one of these two branches survives
+                        tree-shaking and the other renderer costs no bytes. On
+                        the dev server and under vitest it is a real global,
+                        which is what lets the two run side by side and be
+                        compared directly. Ticket 18 deletes the flag and the
+                        OpenSeadragon branch together.
+                    -->
+                    <CanvasHost
+                        {tileSources}
+                        viewerState={internalViewerState}
+                    />
                 {:else}
                     <OSDViewer
                         {tileSources}

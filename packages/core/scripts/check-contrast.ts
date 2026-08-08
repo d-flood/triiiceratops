@@ -30,6 +30,8 @@ export type ThemeName = (typeof THEMES)[number];
  * pairings are only ever rendered as large text or non-text UI glyphs (3:1).
  */
 const AA_NORMAL = 4.5;
+/** WCAG 2.2 — 1.4.11 Non-text Contrast: UI component boundaries, focus rings. */
+const AA_NON_TEXT = 3;
 
 export interface Pairing {
     fg: string;
@@ -124,6 +126,22 @@ export const PAIRINGS: Pairing[] = [
 
     // Primary used as text/icon on a neutral panel surface
     { fg: '--tri-color-primary-text', bg: '--tri-panel-bg', min: AA_NORMAL },
+
+    /*
+     * The image surface's focus ring — its OUTER band against its INNER one.
+     *
+     * Not "the ring against the viewer background": the ring is drawn inside
+     * the surface, where its neighbour is the canvas, i.e. arbitrary image
+     * pixels (and with `transparentBackground` set, the host page's unknown
+     * backdrop). No pairing against a token could describe what is actually
+     * adjacent to it on screen. So the ring is two-tone and carries its own
+     * contrast — `--tri-color-primary-text` outside, `--tri-viewer-bg` inside —
+     * and THIS is the pairing that has to clear 3:1 (a focus indicator is a
+     * non-text UI component, 1.4.11 / 2.4.11). It is checked rather than
+     * assumed because the ring is a new affordance: the previous renderer
+     * suppressed focus on this surface entirely.
+     */
+    { fg: '--tri-color-primary-text', bg: '--tri-viewer-bg', min: AA_NON_TEXT },
 ];
 
 // ---------------------------------------------------------------------------

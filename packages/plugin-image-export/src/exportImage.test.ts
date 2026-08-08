@@ -106,6 +106,31 @@ function createSingleImageCanvas(id: string) {
     };
 }
 
+/**
+ * A canvas declaring a 1000x1000 box painted by a 1000x2000 image — manifest
+ * Canvas dimensions and image-service dimensions disagreeing, which is the
+ * case that separates canvas geometry from image geometry.
+ */
+function createMismatchedCanvas() {
+    return {
+        id: 'mismatched',
+        width: 1000,
+        height: 1000,
+        items: annotationPages({
+            body: {
+                id: 'https://example.org/image/mismatched.jpg',
+                width: 1000,
+                height: 2000,
+                service: {
+                    id: 'https://example.org/iiif/mismatched',
+                    type: 'ImageService2',
+                    profile: 'http://iiif.io/api/image/2/level1.json',
+                },
+            },
+        }),
+    };
+}
+
 function createViewerState(overrides: Record<string, unknown> = {}) {
     return {
         canvases: [],
@@ -282,10 +307,13 @@ describe('current world (paged mode)', () => {
     });
 
     it('keeps a composite canvas at its full manifest height', () => {
-        // Two half-width images side by side on an 800x1000 canvas. The world
-        // is one canvas tall, so the ladder must offer the canvas's own 0.8
-        // aspect ratio — laying each image out from its own half-width box is
-        // what keeps the second image from being clipped away.
+        // Two half-width images side by side on an 800x1000 canvas. Each is
+        // laid out from its own half-width box, so the two together span the
+        // whole canvas and the world ladder comes out at the canvas's own 0.8
+        // aspect ratio rather than a single member image's 0.4. This is a
+        // regression pin on the multi-image-per-canvas case surviving the move
+        // to the shared layout function; the arithmetic is unchanged from
+        // before it.
         const viewerState = createViewerState({
             canvases: [createCompositeCanvas()],
             canvasId: 'canvas-1',
@@ -298,27 +326,10 @@ describe('current world (paged mode)', () => {
     });
 
     it('lays out from the manifest canvas box when the image disagrees', () => {
-        // A canvas declaring a 1000x1000 box painted by a 1000x2000 image: the
-        // manifest's dimensions are the geometry, so the world is square.
-        const canvas = {
-            id: 'mismatched',
-            width: 1000,
-            height: 1000,
-            items: annotationPages({
-                body: {
-                    id: 'https://example.org/image/mismatched.jpg',
-                    width: 1000,
-                    height: 2000,
-                    service: {
-                        id: 'https://example.org/iiif/mismatched',
-                        type: 'ImageService2',
-                        profile: 'http://iiif.io/api/image/2/level1.json',
-                    },
-                },
-            }),
-        };
+        // The manifest's dimensions are the geometry, so the world is square
+        // even though the image painting it is 1:2.
         const viewerState = createViewerState({
-            canvases: [canvas],
+            canvases: [createMismatchedCanvas()],
             canvasId: 'mismatched',
             currentCanvasIndex: 0,
             viewingMode: 'individuals',
@@ -326,6 +337,32 @@ describe('current world (paged mode)', () => {
 
         const original = resolveWorldSizeOptions(viewerState)[0]!;
         expect(original.width / original.height).toBeCloseTo(1, 5);
+    });
+
+    it('draws a mismatched image inside the world it sized, not past it', async () => {
+        // The size ladder and the composed entries must be derived from the
+        // same box. Sizing the world from the manifest Canvas while drawing
+        // each image at its *image-service* aspect makes the image overflow
+        // the page and composeImages silently clips the overflow away — here
+        // that would be a 1000x2000 draw onto a 1000x1000 page.
+        const viewerState = createViewerState({
+            canvases: [createMismatchedCanvas()],
+            canvasId: 'mismatched',
+            currentCanvasIndex: 0,
+            viewingMode: 'individuals',
+        });
+
+        const original = resolveWorldSizeOptions(viewerState)[0]!;
+        await exportCurrentWorld(viewerState, original);
+
+        const [entries, pageWidth, pageHeight] =
+            vi.mocked(composeImages).mock.calls[0]!;
+        expect(entries).toHaveLength(1);
+        const [only] = entries as any[];
+        expect(only.x + only.width).toBeLessThanOrEqual(pageWidth);
+        expect(only.y + only.height).toBeLessThanOrEqual(pageHeight);
+        // And it fills the square box rather than being letterboxed inside it.
+        expect(only.width / only.height).toBeCloseTo(1, 5);
     });
 
     it('throws when nothing is visible in the viewer', async () => {

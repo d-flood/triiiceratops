@@ -5,6 +5,10 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 import { coverage } from '../../vitest.coverage.js';
+// A fake IIIF Image API service for the tiled e2e fixture. Dev-server only —
+// the plugin declares `apply: 'serve'`, so it is in no build.
+// @ts-expect-error - plain ESM fixture helper, deliberately untyped
+import { iiifFixture } from './scripts/iiifFixturePlugin.mjs';
 
 /**
  * The framework substrate (`src/lib/framework/registration.ts`) dynamic-imports
@@ -47,6 +51,7 @@ function elementArtifactStub() {
 export default defineConfig({
     plugins: [
         elementArtifactStub(),
+        iiifFixture(),
         paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',

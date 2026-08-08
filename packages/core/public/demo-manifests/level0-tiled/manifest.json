@@ -1,0 +1,50 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/demo-manifests/level0-tiled/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Level0 image service with tiles"]
+    },
+    "summary": {
+        "en": [
+            "A manifest whose canvas is backed by a IIIF Image API level0 service that DOES advertise tiles. A level0 service serves only pre-generated files, so the fake service in scripts/iiifFixturePlugin.mjs answers 404 for any request whose implied scale factor it did not advertise — which is what makes 'level selection never requests a non-advertised scale factor' a test rather than a claim. It paints the same numbered grid as the other renderer fixtures, and its Canvas dimensions equal the image's pixel dimensions, so the geometric assertions carry over unchanged."
+        ]
+    },
+    "items": [
+        {
+            "id": "/demo-manifests/level0-tiled/canvas/one",
+            "type": "Canvas",
+            "label": { "en": ["Level0 tiled grid"] },
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/demo-manifests/level0-tiled/page/one",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/level0-tiled/annotation/one",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/iiif-fixture/l0-tiled-one/full/max/0/default.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900,
+                                "service": [
+                                    {
+                                        "id": "/iiif-fixture/l0-tiled-one",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/demo-manifests/level0-tiled/canvas/one"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

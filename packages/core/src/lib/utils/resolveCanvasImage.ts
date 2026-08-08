@@ -119,15 +119,25 @@ function getCanvasDimensions(canvas: any): CanvasDimensions | null {
     return { width, height };
 }
 
+/**
+ * The `#xywh=` fragment a painting annotation targets, if it targets one.
+ *
+ * `target` is the v3 spelling and `on` the v2 one, and both are read here. Only
+ * `target` was, which silently dropped the region of every raw v2 composite
+ * canvas — an image painting a sub-rectangle of its canvas landed at the origin
+ * at full size, on top of its siblings. The renderer spec promises
+ * region-targeted canvases (user story 30), so this is fixed rather than
+ * recorded as a deviation.
+ */
 function parseTargetRegion(annotation: any): {
     x: number;
     y: number;
     width: number;
     height: number;
 } | null {
-    const region = normalizeIiifTargets(annotation?.target).find(
-        (target) => target.xywh,
-    )?.xywh;
+    const region = normalizeIiifTargets(
+        annotation?.target ?? annotation?.on,
+    ).find((target) => target.xywh)?.xywh;
 
     if (!region) return null;
 

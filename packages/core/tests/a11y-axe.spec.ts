@@ -1,6 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+import { useCanvasRenderer } from './helpers/numberedGrid';
+
 /*
  * Automated WCAG 2.2 AA scan suite (ticket 23).
  *
@@ -108,4 +110,24 @@ test('axe: viewing-mode flyout open × all themes', async ({ page }) => {
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await scanAllThemes(page, 'flyout-open');
+});
+
+/*
+ * The first-party Canvas2D renderer adds a tab stop the OpenSeadragon path
+ * never had: a focusable, labelled image surface (ticket 11). The scans above
+ * exercise the shipping renderer, so this one selects the new renderer and
+ * re-runs the same matrix with that tab stop present — a focusable element with
+ * a role and no accessible name, or an unreachable one, is exactly what axe
+ * catches.
+ */
+test('axe: Canvas2D renderer (focusable image surface) × all themes', async ({
+    page,
+}) => {
+    test.slow();
+    await useCanvasRenderer(page);
+    await loadViewer(page);
+    await page
+        .locator('[data-testid="canvas-renderer-root"]')
+        .waitFor({ timeout: 60000 });
+    await scanAllThemes(page, 'canvas-renderer');
 });

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops Canvas2D renderer — shadow DOM fixture</title>
+        <!--
+            Shadow-DOM fixture for the first-party Canvas2D renderer.
+
+            Unlike the wc-parity fixtures, this one loads the custom element
+            from SOURCE through the dev server rather than from a built dist/
+            artifact. That is deliberate: the development-only renderer flag is
+            pinned to a literal in the published builds (so the unselected
+            renderer is tree-shaken out), and is left an ordinary mutable global
+            here — which is the only way to exercise the new renderer inside a
+            shadow root while the built artifacts still ship the OpenSeadragon
+            path. Ticket 18 deletes the flag, and this page can then load dist/
+            like its siblings.
+        -->
+        <script>
+            globalThis.__TRIIICERATOPS_CANVAS_RENDERER__ = true;
+        </script>
+        <script type="module" src="/src/lib/custom-element.ts"></script>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #v {
+                display: block;
+                width: 800px;
+                height: 600px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/demo-manifests/static-image/manifest.json"
+            theme="dark"
+        ></triiiceratops-viewer>
+    </body>
+</html>

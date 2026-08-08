@@ -224,3 +224,52 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   runs through `tsc`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-31 · **Review by:** 2027-01-31
+
+### 7. `a11y_no_noninteractive_tabindex`, `a11y_no_noninteractive_element_interactions` — `packages/core/src/lib/components/CanvasHost.svelte`
+
+- **Codes:** `a11y_no_noninteractive_tabindex`,
+  `a11y_no_noninteractive_element_interactions` (Svelte compiler)
+- **Mechanism:** two rule-named `<!-- svelte-ignore ... -->` comments on the
+  Canvas2D renderer's root element — the focusable image surface. Both are
+  **element-scoped**: a `svelte-ignore` comment suppresses only the rules it
+  names, and only on the single element that immediately follows it. Nothing
+  else in this component, and no other component, loses either check — which is
+  the strongest argument for taking the suppression this narrowly rather than
+  disabling the rules in `eslint.config.js` or the Svelte compiler options.
+- **Rationale:** the image surface is a focusable pan/zoom widget
+  (`tabindex="0"`, `role="application"`, `aria-label`, a visible `:focus-visible`
+  ring, and `keydown`/`keyup` handlers). Svelte's heuristic classifies every ARIA
+  role outside the widget set as non-interactive, and `application` — whose
+  entire purpose is to declare that this element handles its own keys, so
+  assistive technology passes arrows through rather than using them to browse —
+  is one of them. No role both describes a pan/zoom surface honestly and
+  satisfies the heuristic (`region`, `group`, and `img` are non-interactive too),
+  and the affordances the two rules exist to demand are all present. The focus
+  target is the wrapper rather than the `<canvas>` because a canvas is
+  interactive content in its own right, so a widget role on it is a
+  contradiction — the same canvas-paints / DOM-carries-the-targets split the
+  renderer spec draws for overlays.
+- **Constraint this creates:** `role="application"` suppresses browse mode for
+  the element's whole **subtree**, not just the element. Today the only child is
+  the `<canvas>`, which has nothing to browse. Any future non-canvas descendant
+  — ticket 12's per-canvas error UI and ticket 14's annotation overlay are both
+  slated to land inside `.renderer-root` — must either carry `role="document"`
+  (restoring browse mode for its own subtree) or be hoisted out and rendered as
+  a sibling; otherwise its text becomes unreadable to NVDA and JAWS users. The
+  role itself stays: it is the only one those screen readers pass arrow keys
+  through, which is what makes the surface operable at all. Noted in the markup
+  comment above the element.
+- **Behavior test:** `packages/core/tests/a11y-keyboard.spec.ts` — the
+  "Canvas2D renderer — keyboard" journeys: tab reachability, accessible name,
+  the two-tone focus ring asserted by width and by both resolved token colours,
+  held-arrow panning at a steady rate, Shift+arrow panning further (with Shift
+  pressed second and released first), momentum carrying onward on release, a
+  hold ending on blur and under the key-swallowing Meta modifier, `+`/`-` zoom
+  (including that a held `+` does not compound per OS key repeat), `0`/`Home`
+  fit, and bindings not firing when the surface is unfocused. Reduced-motion
+  stepping — one step per deliberate press, none per repeat — is in
+  `packages/core/tests/a11y-reduced-motion.spec.ts`. Plus
+  `packages/core/tests/a11y-axe.spec.ts` scanning the viewer with the new tab
+  stop present.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-07 · **Review by:** 2027-02-07

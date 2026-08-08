@@ -4,11 +4,16 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
+import { rendererFlagDefine } from './rendererFlag.build';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
     // Never copy demo dev-server static assets into the published dist.
     publicDir: false,
+    // Pin the development-only renderer flag to a literal so the unselected
+    // renderer is tree-shaken out of this artifact entirely (spec §Rollout).
+    define: rendererFlagDefine(),
     plugins: [
         svelte({
             configFile: false,
