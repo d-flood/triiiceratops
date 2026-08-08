@@ -42,6 +42,15 @@
  * and `tilePyramid.tileUrl` already committed the renderer to `default` for the
  * same reason. Spelling the same service two different ways depending on
  * whether it happened to advertise tiles would be worse than either answer.
+ *
+ * The one case that answer gets wrong is a **frozen pre-2016 static tree**,
+ * whose files are all spelled `native` and which therefore 404s every rung. A
+ * ladder has no coarser fallback there — the whole ladder dies and the canvas
+ * is blank for the life of the page — so `rungUrl` can also spell a version 2
+ * rung `native`, and every rung request carries that spelling as its
+ * `TileRequest.fallback`. The scheduler tries it once, per service, only after
+ * `default` has actually failed (see `tileScheduler`): the happy path still
+ * asks one way.
  */
 
 import type { TilePyramid } from './tilePyramid';
@@ -110,15 +119,20 @@ export function isLevel0Profile(profile: unknown): boolean {
 function usableSizes(
     facts: ImageServiceFacts,
 ): Array<{ width: number; height: number }> {
-    const seen = new Set<number>();
+    // Keyed on BOTH dimensions, matching `imageExport`'s export ladder. Width
+    // alone would silently drop the second of two derivatives a service really
+    // does hold separately — `{1000, 750}` and `{1000, 563}` are two files, and
+    // the offered sizes and the requested sizes have to stay the same list.
+    const seen = new Set<string>();
     const sizes: Array<{ width: number; height: number }> = [];
 
     for (const size of facts.sizes ?? []) {
         if (!(size?.width > 0) || !(size?.height > 0)) continue;
         // Larger than the image itself is not a derivative the server holds.
         if (size.width > facts.width || size.height > facts.height) continue;
-        if (seen.has(size.width)) continue;
-        seen.add(size.width);
+        const key = `${size.width}x${size.height}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         sizes.push({ width: size.width, height: size.height });
     }
 
@@ -126,14 +140,20 @@ function usableSizes(
 }
 
 /**
- * The size ladder for a service that advertises no tiling, or `null` if its
- * dimensions are unusable.
+ * The size ladder for a **level0** service that advertises no tiling, or `null`
+ * if its dimensions are unusable.
  *
- * A service advertising **no sizes either** still gets a ladder — one rung, the
- * whole image. Level0 compliance requires the full-size image to be available
- * at the canonical whole-image URL, so that rung always exists; the alternative
- * is a permanently blank canvas, which is what the OpenSeadragon path does with
- * such a service today.
+ * Level0 is the caller's precondition, not this function's guess — see
+ * `planScene`, which will not take this branch for a service that merely
+ * omitted `tiles`. A level 1/2 service can answer any region at any size, so a
+ * ladder for one would turn "no tiles advertised" into a full-resolution
+ * whole-image download that no budget can refuse.
+ *
+ * A level0 service advertising **no sizes either** still gets a ladder — one
+ * rung, the whole image. Level0 compliance requires the full-size image to be
+ * available at the canonical whole-image URL, so that rung always exists; the
+ * alternative is a permanently blank canvas, which is what the OpenSeadragon
+ * path does with such a service today.
  */
 export function buildSizeLadder(
     serviceId: string,
@@ -201,8 +221,17 @@ export function ladderFromPyramid(pyramid: TilePyramid): SizeLadder {
  * the file a level0 derivative generator writes for the original. Every other
  * rung takes the width-only form, which is what those generators write for the
  * entries in `sizes[]`.
+ *
+ * `quality` is `default` everywhere in the happy path (see the module comment).
+ * The only caller that passes anything else is the one building the `native`
+ * fallback a version 2 request carries, which is reached only after `default`
+ * has failed.
  */
-export function rungUrl(ladder: SizeLadder, rung: LadderRung): string {
+export function rungUrl(
+    ladder: SizeLadder,
+    rung: LadderRung,
+    quality: 'default' | 'native' = 'default',
+): string {
     // Version 2 compares width alone and version 3 compares both, matching the
     // OpenSeadragon path's whole-image URL exactly.
     const isFullSize =
@@ -216,8 +245,45 @@ export function rungUrl(ladder: SizeLadder, rung: LadderRung): string {
             : 'full'
         : `${rung.width},`;
 
-    // `default`, never `native` — see the module comment.
-    return `${ladder.serviceId}/full/${size}/0/default.${ladder.format}`;
+    return `${ladder.serviceId}/full/${size}/0/${quality}.${ladder.format}`;
+}
+
+/**
+ * The `native`-quality spelling of a rung, and the scope the answer is
+ * remembered for — or `null` when there is no plausible second spelling.
+ *
+ * Only a version 2 service has one: `native` belongs to Image API 1 and 2.0,
+ * and version 3 never had it. See {@link rungUrl} and `TileRequest.fallback`.
+ */
+export function rungFallback(
+    ladder: SizeLadder,
+    rung: LadderRung,
+): { url: string; group: string } | null {
+    if (ladder.version !== 2) return null;
+    return {
+        url: rungUrl(ladder, rung, 'native'),
+        // The service, not the rung: one 404 answers the question for the whole
+        // ladder, which is the difference between one wasted request and one
+        // per rung.
+        group: ladder.serviceId,
+    };
+}
+
+/**
+ * Whether even the cheapest image this service offers is over the
+ * decoded-pixel ceiling.
+ *
+ * {@link chooseRung} degrades to that rung anyway — a blank canvas is worse
+ * than one oversized decode, and there is nothing coarser to fall back to — so
+ * this is how the override is made **diagnosable** instead of silent. The
+ * planner reports it as `ScenePlan.overCapCanvases`.
+ */
+export function exceedsDecodedPixelCap(
+    ladder: SizeLadder,
+    maxDecodedPixels: number,
+): boolean {
+    const cheapest = ladder.rungs[0];
+    return cheapest.width * cheapest.height > maxDecodedPixels;
 }
 
 /**
@@ -233,13 +299,26 @@ export function rungUrl(ladder: SizeLadder, rung: LadderRung): string {
  *    accepted. Without this one level0 manifest defeats the memory budget the
  *    rest of the renderer is built around. The smallest rung is always kept, so
  *    a cap below every rung degrades to the cheapest image rather than to
- *    nothing.
+ *    nothing — reported, not silent: see {@link exceedsDecodedPixelCap}.
+ *
+ *    The affordable set is the **contiguous prefix** up to the first rung over
+ *    the cap, not every rung under it. `sizes[]` has no required ordering by
+ *    area — `{800x8000}` then `{1000x1000}` is legal — so filtering would leave
+ *    a gapped set whose chain (`planScene.planSizeLadder` requires everything
+ *    below the chosen rung) reintroduces exactly the image the cap refused.
+ *    Cut at the first refusal and the chain is bounded too: ladders are
+ *    geometric in practice, so it sums to roughly 4/3 of the chosen rung.
  * 2. **The same promotion rule the pyramid uses** — the `minPixelRatio` walk,
- *    finest to coarsest (see `tilePyramid.chooseLevel`). Deliberately the same
- *    rule rather than "the smallest rung at or above what is needed": that is
- *    how the OpenSeadragon path chooses, so which image is requested at which
- *    zoom does not shift, and it means one budget governs sharpness for both
- *    source kinds instead of two that can drift apart.
+ *    finest to coarsest (see `tilePyramid.chooseLevel`): the largest rung that
+ *    is not oversampled past `minPixelRatio` device pixels per rung pixel, so
+ *    at 0.5 the chosen rung may be as much as half the width actually needed
+ *    and the last half-step of sharpness is traded for the smaller decode.
+ *    Deliberately this rather than "the smallest rung at or above what is
+ *    needed": that is how the OpenSeadragon path chooses, so which image is
+ *    requested at which zoom does not shift, and it means one budget governs
+ *    sharpness for both source kinds instead of two that can drift apart. The
+ *    consequence — a gapped ladder can leave a rung visibly upscaled — is a
+ *    recorded deviation from the spec's earlier wording (TRACKER Notes).
  */
 export function chooseRung(
     ladder: SizeLadder,
@@ -249,10 +328,17 @@ export function chooseRung(
 ): LadderRung {
     const { rungs } = ladder;
 
-    const affordable = rungs.filter(
-        (rung) => rung.width * rung.height <= maxDecodedPixels,
-    );
-    const candidates = affordable.length > 0 ? affordable : [rungs[0]];
+    let affordableCount = 0;
+    while (
+        affordableCount < rungs.length &&
+        rungs[affordableCount].width * rungs[affordableCount].height <=
+            maxDecodedPixels
+    ) {
+        affordableCount += 1;
+    }
+
+    const candidates =
+        affordableCount > 0 ? rungs.slice(0, affordableCount) : [rungs[0]];
 
     for (let index = candidates.length - 1; index >= 0; index -= 1) {
         const rung = candidates[index];

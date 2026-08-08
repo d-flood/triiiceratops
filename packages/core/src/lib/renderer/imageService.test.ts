@@ -68,6 +68,26 @@ describe('parseImageService', () => {
         expect(facts?.sizes).toEqual([{ width: 512, height: 384 }]);
     });
 
+    it('records the declared compliance level0, which no advertised key implies', () => {
+        // The one fact read off `profile`. "Advertises no tiles" is NOT the
+        // same claim — level 1/2 services omit `tiles` too, and answer any
+        // region anyway — so without this the renderer cannot tell a size
+        // ladder from a service it may tile itself.
+        expect(parseImageService(LEVEL2_V3)?.level0).toBeUndefined();
+        expect(
+            parseImageService({ ...LEVEL2_V3, profile: 'level0' })?.level0,
+        ).toBe(true);
+        expect(
+            parseImageService({
+                '@context': 'http://iiif.io/api/image/2/context.json',
+                '@id': SERVICE,
+                profile: ['http://iiif.io/api/image/2/level0.json'],
+                width: 1000,
+                height: 800,
+            })?.level0,
+        ).toBe(true);
+    });
+
     it('rejects a document with no usable dimensions', () => {
         expect(parseImageService({ width: 0, height: 10 })).toBeNull();
         expect(parseImageService({})).toBeNull();

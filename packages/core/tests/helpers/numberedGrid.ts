@@ -66,6 +66,21 @@ export const LEVEL0_TILED_MANIFEST =
 export const LEVEL0_SIZES_MANIFEST =
     '/demo-manifests/level0-sizes/manifest.json';
 
+/**
+ * The size-ladder source as a **frozen pre-2016 static tree**: an Image API 2
+ * level0 service whose files were all generated with the deprecated `native`
+ * quality, and which 404s `default`.
+ *
+ * The renderer asks every version 2 service for `default` — 2.1 requires it and
+ * a 2.0 document is indistinguishable from a 2.1 one. For a ladder every rung
+ * shares that parameter, so being wrong here is not a blurrier canvas: it is
+ * every rung 404ing into the negative cache and a canvas blank for the life of
+ * the page. This fixture renders only if the one-request-per-service fallback
+ * works.
+ */
+export const LEVEL0_SIZES_V2_MANIFEST =
+    '/demo-manifests/level0-sizes-v2/manifest.json';
+
 /** The image services the tiled fixture's two canvases are backed by. */
 export const TILED_SERVICES = ['/iiif-fixture/one', '/iiif-fixture/two'];
 

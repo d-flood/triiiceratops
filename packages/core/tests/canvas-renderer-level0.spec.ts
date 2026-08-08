@@ -8,6 +8,10 @@
  * - a level0 service that advertises only **sizes** is a **size-ladder source**:
  *   no tiling ever, one whole image per rung.
  *
+ * A third fixture covers the shape the renderer's `default`-over-`native`
+ * quality choice gets wrong — a frozen pre-2016 version 2 tree — because for a
+ * ladder that is not a blurrier canvas but a permanently blank one.
+ *
  * What makes these tests worth running rather than duplicating the planner's
  * unit tests is the fixture service (`scripts/iiifFixturePlugin.mjs`), which
  * behaves like a real level0 endpoint: it is a tree of pre-generated files, so
@@ -31,13 +35,15 @@ import {
     getStats,
     GRID_FEATURES,
     LEVEL0_SIZES_MANIFEST,
+    LEVEL0_SIZES_V2_MANIFEST,
     LEVEL0_TILED_MANIFEST,
     nextPaint,
     openRendererManifest,
     setView,
 } from './helpers/numberedGrid';
 
-const IMAGE_PATTERN = /\/iiif-fixture\/l0-[^/]+\/[^/]+\/[^/]+\/0\/[^/]+\.png$/;
+const IMAGE_PATTERN =
+    /\/iiif-fixture\/l0-[^/]+\/[^/]+\/[^/]+\/0\/[^/]+\.(png|jpg)$/;
 
 /** The advertised whole-image widths of both fixtures, over a 1200x900 grid. */
 const ADVERTISED_WIDTHS = [1200, 600, 300, 150];
@@ -134,6 +140,79 @@ test.describe('Canvas2D renderer — level0 with tiles', () => {
                 { timeout: 20_000 },
             )
             .toBe(true);
+    });
+});
+
+/** The `quality` a fixture image request asks for. */
+function requestQuality(url: string): string {
+    return url.split('/0/')[1].split('.')[0];
+}
+
+test.describe('Canvas2D renderer — level0 ladder on a native-only version 2 tree', () => {
+    test('recovers from the deprecated quality, and asks the wrong way only once per service', async ({
+        page,
+    }) => {
+        const traffic = recordTraffic(page);
+
+        // Opening at all is half the assertion. `openRendererManifest` waits
+        // for a grid feature to be on the canvas, and this service holds no
+        // `default` file at ANY rung — so without the fallback every rung 404s,
+        // each burns its one retry, the negative cache closes over the whole
+        // ladder, and the canvas is blank for the life of the page.
+        await openRendererManifest(page, LEVEL0_SIZES_V2_MANIFEST);
+
+        const refused = traffic.answered.filter(
+            ({ url }) => requestQuality(url) === 'default',
+        );
+        // The happy path still asks one way: `default` is tried first, because
+        // that is the right answer for every endpoint built since 2016.
+        expect(refused.length).toBeGreaterThan(0);
+        for (const { url, status } of refused) {
+            expect(status, `${url} was unexpectedly served`).toBe(404);
+        }
+        expect(
+            traffic.answered.some(
+                ({ url, status }) =>
+                    requestQuality(url) === 'native' && status === 200,
+            ),
+        ).toBe(true);
+
+        // The answer is remembered for the SERVICE, not for the rung: every
+        // rung fetched from here goes straight to the spelling that works, so
+        // the discovery is paid for once rather than once per rung.
+        //
+        // Zoomed out past the box tier first, which releases the whole ladder —
+        // otherwise the rungs are still resident and nothing is re-requested.
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.01 });
+        await expect
+            .poll(
+                async () => {
+                    await nextPaint(page);
+                    return (await getStats(page)).decodedBytes;
+                },
+                { timeout: 20_000 },
+            )
+            .toBe(0);
+
+        traffic.answered.length = 0;
+        traffic.asked.length = 0;
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 2 });
+        await expect
+            .poll(
+                async () => {
+                    await nextPaint(page);
+                    return traffic.asked.length;
+                },
+                { timeout: 20_000 },
+            )
+            .toBeGreaterThan(0);
+
+        for (const url of traffic.asked) {
+            expect(
+                requestQuality(url),
+                `${url} re-asked the dead spelling`,
+            ).toBe('native');
+        }
     });
 });
 

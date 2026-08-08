@@ -76,6 +76,7 @@ function plan(draws: TileDraw[]): ScenePlan {
         thumbnailRequests: [],
         metadataRequests: [],
         evictable: [],
+        overCapCanvases: [],
         minZoom: 0.01,
     };
 }

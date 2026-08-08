@@ -78,10 +78,23 @@ export interface ImageServiceFacts {
     sizes?: Array<{ width: number; height: number }>;
     /**
      * Advertised tile width. Absent means the service advertises no tiling at
-     * all — a size-ladder source (ticket 06), which gets no pyramid.
+     * all — which is a **size-ladder source only when the service is also
+     * level0**. A level 1/2 service may legally omit `tiles` and still answer
+     * any region at any size, so absence alone says nothing about which source
+     * kind this is; see `planScene`.
      */
     tileSize?: number | null;
     scaleFactors?: number[];
+    /**
+     * Whether the document's own `profile` declares compliance level0.
+     *
+     * The one fact the renderer takes from a profile rather than from what a
+     * service advertises, and it is load-bearing twice: a tile-less service is
+     * a size-ladder source only if it is level0 (otherwise it is an ordinary
+     * pyramid whose tile size the renderer chooses), and a level0 service's
+     * whole-image requests must be snapped to a size it actually generated.
+     */
+    level0?: boolean;
     /** IIIF Image API major version, which decides `quality` in a tile URL. */
     version?: 2 | 3;
     /** Image format extension for tile requests. Defaults to `jpg`. */
@@ -164,6 +177,25 @@ export interface TileRequest {
      * discovery order — and is re-sorted as the viewport moves.
      */
     priority: number;
+    /**
+     * A second spelling of the same image, tried **once** if `url` fails, and
+     * remembered for `group` so the rest of that group skips the failed
+     * spelling entirely.
+     *
+     * It exists for exactly one deviation the renderer knowingly takes: a
+     * version 2 service is asked for `default` quality, never the deprecated
+     * `native`, because a 2.0 document is indistinguishable from a 2.1 one
+     * (`imageService.parseVersion`). That answer is right for every endpoint
+     * built since 2016 and wrong for a frozen static tree that only ever
+     * generated `native` files — and for a **size-ladder source** every rung
+     * shares the quality parameter, so getting it wrong is not a blurrier
+     * canvas but a permanently blank one once the negative cache closes over
+     * the whole ladder.
+     *
+     * One request per broken service buys the answer, and the happy path never
+     * spells a URL two ways: the fallback is only ever reached from a failure.
+     */
+    fallback?: { url: string; group: string };
 }
 
 /**
@@ -236,6 +268,18 @@ export interface ScenePlan {
     metadataRequests: string[];
     /** Canvas ids droppable under budget pressure. */
     evictable: string[];
+    /**
+     * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
+     * their service offers exceeds it.
+     *
+     * The cap normally degrades to blur: a rung above it is refused and a
+     * coarser one is taken. When even the cheapest rung is over the ceiling
+     * there is no coarser one, and the choice is between a blank canvas and a
+     * decode the budget said no to. The renderer draws it — never blank wins —
+     * and reports it here rather than overriding the budget in silence. Ticket
+     * 12 owns what a host does with this.
+     */
+    overCapCanvases: string[];
     /** The derived zoom floor, in the same units as `Viewport.scale`. */
     minZoom: number;
 }

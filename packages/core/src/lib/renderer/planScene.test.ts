@@ -570,16 +570,36 @@ describe('planScene — size-ladder sources', () => {
         ],
     };
 
+    /**
+     * The advertised `sizes[]` is what makes this a ladder: the profile says
+     * level2, and a service publishing prepared whole images can be asked for
+     * one whatever its compliance level.
+     */
     const ladderCanvas = serviceCanvas('c1', 1000, 1000);
+
+    /**
+     * The other evidence a tile-less service is a size-ladder source: a
+     * declared level0 profile, read off the manifest with no fetch at all.
+     * Used for the services that advertise no sizes either.
+     */
+    const level0Canvas: PlannerCanvas = {
+        ...ladderCanvas,
+        source: {
+            kind: 'service',
+            serviceId: 'https://images.test/c1',
+            profile: 'level0',
+        },
+    };
 
     function ladderPlan(
         scale: number,
         budgets: Partial<PlannerBudgets> = {},
         residentTiles?: Set<string>,
+        facts: ImageServiceFacts = LADDER_FACTS,
     ) {
         return plan([ladderCanvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale }),
-            knownMetadata: { c1: LADDER_FACTS },
+            knownMetadata: { c1: facts },
             budgets: { ...BUDGETS, ...budgets },
             residentTiles,
         });
@@ -679,10 +699,11 @@ describe('planScene — size-ladder sources', () => {
     });
 
     it('falls back to the whole image for a level0 service advertising nothing at all', () => {
-        // No tiles and no sizes. Level0 compliance still guarantees the full
-        // image at the canonical whole-image URL, and a blank canvas is worse
-        // than one heavy request.
-        const result = plan([ladderCanvas], {
+        // No tiles and no sizes, but a declared level0 profile — which is what
+        // says the missing keys MEAN something. Level0 compliance guarantees
+        // the full image at the canonical whole-image URL, and a blank canvas
+        // is worse than one heavy request.
+        const result = plan([level0Canvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
             knownMetadata: { c1: { width: 800, height: 1000, version: 2 } },
         });
@@ -691,6 +712,101 @@ describe('planScene — size-ladder sources', () => {
             // Version 2 spells the whole image `full`, version 3 `max`.
             'https://images.test/c1/full/full/0/default.jpg',
         ]);
+    });
+
+    it('does NOT make a ladder of a tile-less level 1/2 service', () => {
+        // `tiles` is optional at every compliance level, and Cantaloupe and IIP
+        // both ship configurations that omit it while still answering any
+        // region at any size. Read as a ladder, such a service has exactly one
+        // rung — the whole master — and the decoded-pixel cap cannot refuse it,
+        // because `chooseRung` must keep the cheapest rung rather than paint
+        // nothing. A 12000x9000 scan would be 108 megapixels on a phone.
+        const result = plan([ladderCanvas], {
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
+            knownMetadata: {
+                c1: { width: 12_000, height: 9_000, version: 3 },
+            },
+            budgets: { ...BUDGETS, maxDecodedPixels: 4 * 1024 * 1024 },
+        });
+
+        const urls = result.tileRequests.map((request) => request.url);
+        // A derived power-of-two pyramid instead. Its base level is a whole
+        // image like a ladder's, but a DOWNSCALED one — never `max`, and never
+        // wider than the tile size the renderer chose.
+        expect(urls).not.toContain(
+            'https://images.test/c1/full/max/0/default.jpg',
+        );
+        expect(urls.length).toBeGreaterThan(1);
+        for (const url of urls) {
+            expect(url).toMatch(
+                /\/(\d+,\d+,\d+,\d+|full)\/\d+,\/0\/default\.jpg$/,
+            );
+            const width = Number(url.match(/\/(\d+),\/0\//)![1]);
+            expect(width).toBeLessThanOrEqual(512);
+        }
+    });
+
+    it('holds only the base rung of a ladder canvas outside the residency margin', () => {
+        // Under ticket 07's multi-canvas layout this is the difference between
+        // a canvas two spreads away holding its full-resolution scan resident
+        // for ever — required-set membership, not visibility, drives eviction —
+        // and holding the one cheap image that stops it blanking on return.
+        const near = plan([ladderCanvas], {
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale: 4 }),
+            knownMetadata: { c1: LADDER_FACTS },
+        });
+        const far = plan([ladderCanvas], {
+            viewport: viewport({ centre: { x: 50_000, y: 500 }, scale: 4 }),
+            knownMetadata: { c1: LADDER_FACTS },
+        });
+
+        expect(near.tileRequests.length).toBeGreaterThan(1);
+        expect(far.tileRequests.map((request) => request.level)).toEqual([0]);
+        expect(far.tileDraws).toEqual([]);
+    });
+
+    it('reports a canvas whose cheapest image is already over the cap', () => {
+        // The cap degrades to blur while there is anything coarser to fall back
+        // to. When there is not, the renderer still draws — never blank — and
+        // says so, rather than overriding the budget in silence.
+        const result = plan([level0Canvas], {
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
+            knownMetadata: {
+                c1: { width: 8000, height: 8000, version: 3 },
+            },
+            budgets: { ...BUDGETS, maxDecodedPixels: 1024 },
+        });
+
+        expect(result.overCapCanvases).toEqual(['c1']);
+        expect(result.tileRequests).toHaveLength(1);
+    });
+
+    it('leaves a canvas within the cap out of `overCapCanvases`', () => {
+        expect(ladderPlan(8).overCapCanvases).toEqual([]);
+    });
+
+    it('carries the deprecated `native` spelling as a fallback on version 2 rungs only', () => {
+        // A frozen pre-2016 static tree serves `.../native.jpg` and nothing
+        // else. Every rung of a ladder shares the quality parameter, so getting
+        // it wrong is not a blurrier canvas — it is every rung 404ing, the
+        // negative cache closing over the whole ladder, and a canvas blank for
+        // the life of the page. One request per broken service buys the answer.
+        const v2 = ladderPlan(1, {}, undefined, {
+            ...LADDER_FACTS,
+            version: 2,
+        });
+        for (const request of v2.tileRequests) {
+            expect(request.fallback).toEqual({
+                url: request.url.replace('/default.', '/native.'),
+                // The service, not the rung: one answer for the whole ladder.
+                group: 'https://images.test/c1',
+            });
+        }
+
+        // Version 3 never had `native`, so there is no second spelling to try.
+        for (const request of ladderPlan(1).tileRequests) {
+            expect(request.fallback).toBeUndefined();
+        }
     });
 });
 

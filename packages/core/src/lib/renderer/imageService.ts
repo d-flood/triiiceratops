@@ -34,6 +34,7 @@
  * OpenSeadragon path still uses it.
  */
 
+import { isLevel0Profile } from './sizeLadder';
 import type { ImageServiceFacts } from './types';
 
 function firstString(value: unknown): string | null {
@@ -100,6 +101,12 @@ export function parseImageService(json: unknown): ImageServiceFacts | null {
         height,
         version: parseVersion(document),
     };
+
+    // The only thing read off `profile`. Everything else the renderer decides
+    // from what the service ADVERTISES, which is right even when a profile is
+    // missing or lies — but "may this service be asked for an arbitrary
+    // region?" has no advertised form, so the declaration is all there is.
+    if (isLevel0Profile(document.profile)) facts.level0 = true;
 
     const tiles = Array.isArray(document.tiles) ? document.tiles[0] : null;
     if (tiles && typeof tiles === 'object') {

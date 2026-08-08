@@ -26,6 +26,22 @@
  *    for that URL. Without it a 404 tile is re-requested every frame it is
  *    visible.
  *
+ * ## The one alternate spelling
+ *
+ * A request may carry a `fallback`: a second URL for the same pixels, and the
+ * group the answer holds for. It exists for the version 2 `default`/`native`
+ * quality deviation (`sizeLadder`), where the renderer's answer is right for
+ * every modern endpoint and wrong for a frozen static tree — and where, for a
+ * **size-ladder source**, being wrong means every rung 404s and the canvas is
+ * blank for the life of the page rather than merely blurrier.
+ *
+ * It is spent, not free: the retry a failed request already gets is redirected
+ * to the fallback rather than added to, so the attempt budget is unchanged; and
+ * a fallback that works is remembered for its group, so the rest of that
+ * service goes straight to the working spelling. The failure counter and the
+ * negative cache stay keyed on the request's ORIGINAL url, so one tile is one
+ * entry however it was spelled.
+ *
  * ## Counters
  *
  * Resident tile count and total decoded bytes are exposed as a first-class
@@ -131,10 +147,21 @@ export function createTileScheduler(
     const inFlight = new Map<TileKey, AbortController>();
     /** Wanted, not yet started. Rebuilt every update, so it re-sorts for free. */
     let queued: TileRequest[] = [];
-    /** URL → consecutive real failures. Aborts are not failures. */
+    /**
+     * A request's ORIGINAL url → consecutive real failures. Aborts are not
+     * failures. Keyed on the original rather than on whatever spelling was
+     * actually fetched, so a request with a `fallback` still gets one attempt
+     * budget rather than one per spelling.
+     */
     const failures = new Map<string, number>();
     /** The negative cache: URLs that will never be requested again. */
     const dead = new Set<string>();
+    /**
+     * Fallback groups whose alternate spelling is known to be the working one.
+     * A group joins on the first fallback that succeeds, so the rest of that
+     * service skips the spelling already proven wrong.
+     */
+    const fallbackGroups = new Set<string>();
 
     let decodedBytes = 0;
     let requestCount = 0;
@@ -161,6 +188,19 @@ export function createTileScheduler(
         inFlight.set(request.key, controller);
         requestCount += 1;
 
+        // The alternate spelling is used on the retry of a request that has
+        // already failed once, and immediately for a group whose alternate is
+        // known to work. A first attempt on a fresh group is always the
+        // canonical url — the fallback costs one wasted request per broken
+        // service, and nothing at all for a service that is not broken.
+        const fallback =
+            request.fallback &&
+            ((failures.get(request.url) ?? 0) > 0 ||
+                fallbackGroups.has(request.fallback.group))
+                ? request.fallback
+                : null;
+        const url = fallback ? fallback.url : request.url;
+
         /**
          * Retire THIS attempt, and only if it is still the current one.
          *
@@ -180,7 +220,7 @@ export function createTileScheduler(
 
         void (async () => {
             try {
-                const blob = await fetchTile(request.url, controller.signal);
+                const blob = await fetchTile(url, controller.signal);
                 const tile = await decodeTile(blob);
 
                 retire();
@@ -212,6 +252,10 @@ export function createTileScheduler(
                     resident.set(request.key, { tile, bytes });
                     decodedBytes += bytes;
                     failures.delete(request.url);
+                    // Recorded only on a fallback that actually served pixels,
+                    // which is what makes it one wasted request for the whole
+                    // service instead of one per tile.
+                    if (fallback) fallbackGroups.add(fallback.group);
                     options.onChange?.();
                 }
             } catch {

@@ -34,6 +34,8 @@
  * A **size-ladder source** — a level0 service that advertises only fixed whole
  * images — is planned by `planSizeLadder` below, which expresses each rung as a
  * one-tile level so the same residency, priority, and blur-up rules apply.
+ * Which services take that branch is decided by `isSizeLadderSource`, and the
+ * decision is load-bearing: "advertises no tiles" alone is not level0.
  *
  * ## What is still to come
  *
@@ -52,12 +54,16 @@
 import {
     buildSizeLadder,
     chooseRung,
+    exceedsDecodedPixelCap,
+    isLevel0Profile,
+    rungFallback,
     rungUrl,
     type SizeLadder,
 } from './sizeLadder';
 import {
     buildPyramid,
     chooseLevel,
+    DERIVED_TILE_SIZE,
     tileCanvasRect,
     tileKey,
     tilesIntersecting,
@@ -66,6 +72,7 @@ import {
     type TilePyramid,
 } from './tilePyramid';
 import type {
+    ImageServiceFacts,
     LayoutRect,
     PlannerCanvas,
     PlanSceneInput,
@@ -352,6 +359,7 @@ function planSizeLadder(
     viewport: Viewport,
     dpr: number,
     minPixelRatio: number,
+    marginFactor: number,
     maxDecodedPixels: number,
     residentTiles: ReadonlySet<TileKey>,
     requests: TileRequest[],
@@ -364,6 +372,16 @@ function planSizeLadder(
         width: rect.width,
         height: rect.height,
     };
+    // The residency margin, applied to rungs exactly as `planPyramid` applies
+    // it to levels — and for the same reason. A rung is a whole image, so a
+    // canvas two spreads away that kept its chain would hold its FULL
+    // RESOLUTION scan resident: required-set membership drives eviction, so
+    // nothing would ever release it.
+    //
+    // The base rung is the one exception, mirroring `level.level === 0 ? null
+    // : margin`: it is the cheapest image the service has and it is what
+    // guarantees the canvas is never blank when it comes back into view.
+    const inMargin = intersects(box, inflate(visible, marginFactor));
 
     // The same quantity `planPyramid` computes, so one `minPixelRatio` governs
     // sharpness for both source kinds.
@@ -381,8 +399,10 @@ function planSizeLadder(
 
     for (const rung of ladder.rungs) {
         if (rung.index > current.index) break;
+        if (rung.index > 0 && !inMargin) break;
 
         const key = tileKey(canvas.id, rung.index, 0, 0);
+        const fallback = rungFallback(ladder, rung);
 
         requests.push({
             key,
@@ -390,12 +410,41 @@ function planSizeLadder(
             level: rung.index,
             url: rungUrl(ladder, rung),
             priority,
+            ...(fallback ? { fallback } : {}),
         });
 
         if (residentTiles.has(key) && intersects(box, visible)) {
             draws.push({ key, level: rung.index, ...box });
         }
     }
+}
+
+/**
+ * Whether a **tile-less** service is a size-ladder source rather than a level
+ * 1/2 endpoint that merely omitted `tiles`.
+ *
+ * Only asked once `buildPyramid` has already declined, and it needs positive
+ * evidence of level0 rather than the absence of tiling: guessing "level0"
+ * from a missing key turns every tile-less level 1/2 service into a
+ * whole-master download (see the call site).
+ *
+ * Advertised `sizes[]` counts as that evidence on its own. A service that
+ * publishes a list of prepared whole images can always be asked for one of
+ * them, whatever its compliance level, and preferring that list to a derived
+ * grid is both cheaper and closer to what it wants to serve. Failing that, the
+ * declared profile decides — from `info.json` if it was parsed there, and
+ * otherwise from the manifest, which `resolveCanvasImage` reads without any
+ * fetch at all.
+ */
+function isSizeLadderSource(
+    facts: ImageServiceFacts,
+    profile: string | null,
+): boolean {
+    return (
+        (facts.sizes?.length ?? 0) > 0 ||
+        facts.level0 === true ||
+        isLevel0Profile(profile)
+    );
 }
 
 export function planScene(input: PlanSceneInput): ScenePlan {
@@ -417,6 +466,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
 
     const tiers: Record<string, ResidencyTier> = {};
     const evictable: string[] = [];
+    const overCapCanvases: string[] = [];
     const metadataRequests: string[] = [];
     const tileRequests: TileRequest[] = [];
     const tileDraws: TileDraw[] = [];
@@ -457,13 +507,10 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             continue;
         }
 
-        // Which source kind a service is comes from what it ADVERTISES, not
-        // from its declared profile. A level0 service that advertises tiles is
-        // an ordinary pyramid whose levels happen to be restricted to the
-        // advertised scale factors — which `buildPyramid` already is, because
+        // A service that advertises tiles is an ordinary pyramid, whatever its
+        // compliance level — a level0 one simply has its levels restricted to
+        // the advertised scale factors, which `buildPyramid` already is because
         // it builds levels from `scaleFactors` when the service declares them.
-        // Only a service advertising no tiling at all is a size-ladder source,
-        // and that is exactly what `buildPyramid` returns `null` for.
         const pyramid = buildPyramid(canvas.source.serviceId, facts);
         if (pyramid) {
             planPyramid(
@@ -481,17 +528,58 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             continue;
         }
 
-        const ladder = buildSizeLadder(canvas.source.serviceId, facts);
-        if (!ladder) continue;
+        // No tiles advertised — which is TWO different services, and treating
+        // them alike is how the decoded-pixel cap gets defeated.
+        //
+        // A level0 service without tiles is a size-ladder source: fixed whole
+        // images, and if it advertises no sizes either, the one canonical
+        // whole-image URL level0 compliance guarantees. A level 1/2 service
+        // without tiles is not — `tiles` is optional at every compliance level,
+        // and Cantaloupe and IIP both ship configurations that omit it, while
+        // still answering any region at any size. Given a ladder, such a
+        // service's only rung is `full/max`: the entire master, 108 megapixels
+        // for a 12000x9000 scan, and the cap cannot refuse it because
+        // `chooseRung` must keep the cheapest rung to avoid a blank canvas.
+        // It gets a derived power-of-two pyramid instead.
+        if (isSizeLadderSource(facts, canvas.source.profile)) {
+            const ladder = buildSizeLadder(canvas.source.serviceId, facts);
+            if (!ladder) continue;
 
-        planSizeLadder(
+            if (exceedsDecodedPixelCap(ladder, budgets.maxDecodedPixels)) {
+                overCapCanvases.push(canvas.id);
+            }
+
+            planSizeLadder(
+                canvas,
+                ladder,
+                rects.get(canvas.id)!,
+                viewport,
+                dpr,
+                budgets.minPixelRatio,
+                budgets.marginFactor,
+                budgets.maxDecodedPixels,
+                residentTiles,
+                tileRequests,
+                tileDraws,
+            );
+            continue;
+        }
+
+        const derived = buildPyramid(
+            canvas.source.serviceId,
+            facts,
+            DERIVED_TILE_SIZE,
+        );
+        if (!derived) continue;
+
+        planPyramid(
             canvas,
-            ladder,
+            derived,
             rects.get(canvas.id)!,
             viewport,
             dpr,
             budgets.minPixelRatio,
-            budgets.maxDecodedPixels,
+            budgets.marginFactor,
             residentTiles,
             tileRequests,
             tileDraws,
@@ -511,6 +599,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         thumbnailRequests: [],
         metadataRequests,
         evictable,
+        overCapCanvases,
         minZoom,
     };
 }

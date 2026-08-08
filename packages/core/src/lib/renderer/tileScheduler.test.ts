@@ -343,6 +343,77 @@ describe('createTileScheduler', () => {
         expect(tiles.requestCount).toBe(2);
     });
 
+    it('spends the retry of a failed request on its alternate spelling', async () => {
+        // The version 2 `default`/`native` deviation: right for every endpoint
+        // built since 2016, wrong for a frozen static tree — and for a
+        // size-ladder source, being wrong means every rung dies and the canvas
+        // is blank for the life of the page rather than merely blurrier.
+        const net = controllableFetch();
+        const tiles = scheduler(net, { maxInFlight: 2, maxAttempts: 2 });
+        const canonical = 'https://images.test/abc/tile-0.jpg';
+        const alternate = 'https://images.test/abc/tile-0.native.jpg';
+
+        const withFallback = (index: number): TileRequest => ({
+            ...request(index),
+            fallback: {
+                url: `https://images.test/abc/tile-${index}.native.jpg`,
+                group: 'https://images.test/abc',
+            },
+        });
+
+        tiles.update([withFallback(0)]);
+        await flush();
+
+        // The happy path asks one way only: the fallback is reached from a
+        // failure, never speculatively.
+        expect(net.byUrl(canonical)).toHaveLength(1);
+        expect(net.byUrl(alternate)).toHaveLength(0);
+
+        net.byUrl(canonical)[0].reject();
+        await flush();
+
+        // The retry it already had, redirected. No extra attempt was granted.
+        expect(net.byUrl(alternate)).toHaveLength(1);
+        net.byUrl(alternate)[0].resolve();
+        await flush();
+
+        // And remembered for the SERVICE: one wasted request buys the answer
+        // for the whole ladder, not one per rung.
+        tiles.update([withFallback(0), withFallback(1)]);
+        await flush();
+        expect(net.byUrl('https://images.test/abc/tile-1.jpg')).toHaveLength(0);
+        expect(
+            net.byUrl('https://images.test/abc/tile-1.native.jpg'),
+        ).toHaveLength(1);
+    });
+
+    it('kills a request whose alternate spelling fails too, on its original url', async () => {
+        const net = controllableFetch();
+        const tiles = scheduler(net, { maxInFlight: 2, maxAttempts: 2 });
+        const canonical = 'https://images.test/abc/tile-0.jpg';
+        const alternate = 'https://images.test/abc/tile-0.native.jpg';
+        const broken: TileRequest = {
+            ...request(0),
+            fallback: { url: alternate, group: 'https://images.test/abc' },
+        };
+
+        tiles.update([broken]);
+        await flush();
+        net.byUrl(canonical)[0].reject();
+        await flush();
+        net.byUrl(alternate)[0].reject();
+        await flush();
+
+        // Two attempts total, then permanently dead — the failure counter and
+        // the negative cache are keyed on the original url, so a second
+        // spelling cannot buy a second budget.
+        for (let frame = 0; frame < 5; frame += 1) {
+            tiles.update([broken]);
+            await flush();
+        }
+        expect(tiles.requestCount).toBe(2);
+    });
+
     it('does not count an abort as a failure', async () => {
         const net = controllableFetch();
         const tiles = scheduler(net, { maxInFlight: 2, maxAttempts: 2 });

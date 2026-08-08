@@ -102,6 +102,37 @@ describe('buildPyramid', () => {
     it('has no pyramid for a service with no usable dimensions', () => {
         expect(buildPyramid(SERVICE, facts({ width: 0 }))).toBeNull();
     });
+
+    it('derives a grid for a tile-less service the caller says is not level0', () => {
+        // `tiles` is optional at every compliance level. A level 1/2 service
+        // that omits it still answers arbitrary regions, so the renderer picks
+        // the grid — the alternative is treating it as a size ladder whose only
+        // rung is the whole master.
+        const pyramid = buildPyramid(
+            SERVICE,
+            facts({ tileSize: undefined, scaleFactors: undefined }),
+            512,
+        )!;
+
+        expect(pyramid.tileSize).toBe(512);
+        expect(pyramid.levels.map((level) => level.scaleFactor)).toEqual([
+            8, 4, 2, 1,
+        ]);
+        expect(pyramid.levels[0].columns * pyramid.levels[0].rows).toBe(1);
+    });
+
+    it('refuses to derive a grid for a level0 service, whatever the caller offers', () => {
+        // For level0 the missing `tiles` key IS the meaning: there are no
+        // region derivatives on disk, so every URL a derived grid minted would
+        // 404 into the permanent negative cache.
+        expect(
+            buildPyramid(
+                SERVICE,
+                facts({ tileSize: undefined, level0: true }),
+                512,
+            ),
+        ).toBeNull();
+    });
 });
 
 describe('tileRegion', () => {
@@ -161,6 +192,54 @@ describe('tileUrl', () => {
         const pyramid = buildPyramid(SERVICE, facts({ format: 'png' }))!;
 
         expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toMatch(/\.png$/);
+    });
+
+    it('snaps a level0 whole-image request to a width the service actually generated', () => {
+        // A level0 tree writes whole-image derivatives only for the entries in
+        // `sizes[]`. 1201 wide over factors [1,2,4,8] puts the base level at
+        // `ceil(1201/8) = 151,` — while the generator, rounding down, wrote
+        // `150,`. Unsnapped that is a permanent 404 behind the negative cache:
+        // no base level, so no blur-up, on every canvas of the manifest.
+        const pyramid = buildPyramid(
+            SERVICE,
+            facts({
+                width: 1201,
+                height: 901,
+                tileSize: 256,
+                level0: true,
+                sizes: [
+                    { width: 150, height: 112 },
+                    { width: 300, height: 225 },
+                    { width: 600, height: 450 },
+                    { width: 1201, height: 901 },
+                ],
+            }),
+        )!;
+
+        expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toBe(
+            `${SERVICE}/full/150,/0/default.jpg`,
+        );
+        // Only WHOLE-IMAGE requests snap: a region has no `sizes[]` entry to
+        // snap to, and the level's own scaling is what the server applies.
+        expect(tileUrl(pyramid, pyramid.levels[1], 0, 0)).toBe(
+            `${SERVICE}/0,0,1024,901/256,/0/default.jpg`,
+        );
+    });
+
+    it('does not snap a level 1/2 service, which can answer any width exactly', () => {
+        const pyramid = buildPyramid(
+            SERVICE,
+            facts({
+                width: 1201,
+                height: 901,
+                tileSize: 256,
+                sizes: [{ width: 150, height: 112 }],
+            }),
+        )!;
+
+        expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toBe(
+            `${SERVICE}/full/151,/0/default.jpg`,
+        );
     });
 });
 

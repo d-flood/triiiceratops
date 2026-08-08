@@ -30,6 +30,22 @@
 
 import type { ImageServiceFacts, LayoutRect, TileKey } from './types';
 
+/**
+ * Tile width to use when a level 1/2 service advertises no `tiles` at all.
+ *
+ * Legal and common — Cantaloupe and IIP both ship configurations that omit the
+ * key — and such a service still answers arbitrary regions, so the renderer may
+ * pick the grid itself. Lives here rather than with the shipped budgets because
+ * it is not policy: it is the one number {@link buildPyramid} cannot derive from
+ * the service, and the caller passes it in explicitly so no code path can start
+ * inventing a tile grid by accident.
+ *
+ * 512 rather than 256: at one derived level per power of two, a larger tile
+ * means a quarter of the requests for the same pixels, against a server whose
+ * per-request cost is a fresh crop-and-scale of the master.
+ */
+export const DERIVED_TILE_SIZE = 512;
+
 /** One level of the pyramid. */
 export interface PyramidLevel {
     /** 0 is the base (coarsest) level; the last is full resolution. */
@@ -61,6 +77,24 @@ export interface TilePyramid {
      */
     version: 2 | 3;
     format: string;
+    /**
+     * Advertised whole-image widths, ascending, for a **level0** service — and
+     * `null` for every other service.
+     *
+     * A level0 endpoint is a tree of pre-generated files: it holds a whole-image
+     * derivative only for the entries in `sizes[]`. The base level of a level0
+     * pyramid is a single tile covering the whole image, so its request is a
+     * whole-image request, and `ceil(width / scaleFactor)` is not guaranteed to
+     * be one of those entries — with `width: 1201` and factors `[1,2,4,8]` the
+     * base level asks for `151,` while the generator wrote `150,`. That is a
+     * permanent 404 behind the negative cache, i.e. a blank base level, i.e. a
+     * canvas with no blur-up at all. Snapping to the nearest advertised width
+     * (see {@link tileUrl}) is what keeps the request to a file that exists.
+     *
+     * `null` for level 1/2 because those services compute on demand: any width
+     * is a real answer there, and snapping would silently coarsen it.
+     */
+    wholeImageWidths: number[] | null;
 }
 
 /** A tile's region, in full-resolution image pixels. */
@@ -88,8 +122,7 @@ export function tileKey(
     return `${canvasId}#${level}/${column},${row}`;
 }
 
-function usableTileSize(facts: ImageServiceFacts): number | null {
-    const size = facts.tileSize;
+function usableTileSize(size: number | null | undefined): number | null {
     if (typeof size !== 'number' || !Number.isFinite(size) || size < 1) {
         return null;
     }
@@ -139,18 +172,31 @@ function resolveScaleFactors(
 }
 
 /**
- * The pyramid for an image service, or `null` when it advertises no tiling.
+ * The pyramid for an image service, or `null` when no tile grid may be built
+ * for it.
  *
  * `null` is not a failure: a level0 service advertising only fixed whole-image
  * sizes is a **size-ladder source**, which has no pyramid by definition and is
  * ticket 06's job. Returning `null` is what keeps this module from inventing a
  * tile grid the server cannot serve.
+ *
+ * `fallbackTileSize` is for the *other* tile-less service — a level 1/2
+ * endpoint that simply does not advertise `tiles`, which is legal and common
+ * (Cantaloupe and IIP both ship configurations that omit it). Such a service
+ * answers arbitrary regions, so the renderer may choose the grid itself:
+ * `resolveScaleFactors` derives the usual power-of-two chain and the caller
+ * supplies the tile width. It is deliberately **not** applied when the service
+ * declares level0 — there the missing `tiles` key is the whole of the meaning,
+ * and any region request would 404.
  */
 export function buildPyramid(
     serviceId: string,
     facts: ImageServiceFacts,
+    fallbackTileSize?: number,
 ): TilePyramid | null {
-    const tileSize = usableTileSize(facts);
+    const tileSize =
+        usableTileSize(facts.tileSize) ??
+        (facts.level0 ? null : usableTileSize(fallbackTileSize));
     if (!tileSize) return null;
     if (!(facts.width > 0) || !(facts.height > 0)) return null;
 
@@ -177,6 +223,15 @@ export function buildPyramid(
         levels,
         version: facts.version === 2 ? 2 : 3,
         format: facts.format || 'jpg',
+        wholeImageWidths: facts.level0
+            ? [
+                  ...new Set(
+                      (facts.sizes ?? [])
+                          .map((size) => size.width)
+                          .filter((width) => width > 0),
+                  ),
+              ].sort((a, b) => a - b)
+            : null,
     };
 }
 
@@ -202,11 +257,35 @@ export function tileRegion(
 }
 
 /**
+ * The advertised whole-image width closest to `width`, or `width` itself when
+ * the service advertises none to choose from. Ties go to the smaller, which is
+ * the cheaper decode.
+ */
+function snapWholeImageWidth(pyramid: TilePyramid, width: number): number {
+    const widths = pyramid.wholeImageWidths;
+    if (!widths || widths.length === 0) return width;
+
+    let best = widths[0];
+    for (const candidate of widths) {
+        if (Math.abs(candidate - width) < Math.abs(best - width)) {
+            best = candidate;
+        }
+    }
+    return best;
+}
+
+/**
  * The IIIF Image API request URL for one tile.
  *
  * The size parameter is the width-only form (`w,`), which is required from
  * level 1 upwards — the `w,h` form is a level 2 feature, and nothing here needs
  * it since the aspect ratio of a clipped edge tile is preserved either way.
+ *
+ * A **whole-image** request from a level0 service is snapped to the nearest
+ * width the service advertises, because that service holds files rather than an
+ * image processor; see {@link TilePyramid.wholeImageWidths}. Nothing else is
+ * snapped: a partial-region request has no `sizes[]` entry to snap to, and a
+ * level 1/2 service can answer any width exactly.
  */
 export function tileUrl(
     pyramid: TilePyramid,
@@ -226,7 +305,8 @@ export function tileUrl(
         ? 'full'
         : `${region.x},${region.y},${region.width},${region.height}`;
 
-    const size = Math.max(1, Math.ceil(region.width / level.scaleFactor));
+    const exact = Math.max(1, Math.ceil(region.width / level.scaleFactor));
+    const size = isWholeImage ? snapWholeImageWidth(pyramid, exact) : exact;
 
     // `default`, never `native`. Version 2.1 deprecated `native` and requires
     // `default` from compliance level 1 upwards, and a 2.0 document is
