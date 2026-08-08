@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
+import { KEY_PAN_STEP } from '../src/lib/renderer/rendererDefaults';
+
 import { getView, openGridManifest, setView } from './helpers/numberedGrid';
 
 /*
@@ -121,6 +123,19 @@ test('transitions are present WITHOUT the reduced-motion preference', async ({
  */
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
+/** The focusable wrapper — where the key bindings live (spec §Keyboard). */
+const ROOT = '[data-testid="canvas-renderer-root"]';
+
+/** Whether the renderer reports itself in motion right now. */
+function moving(page: Page): Promise<boolean> {
+    return page.locator(SURFACE).evaluate((element) =>
+        (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer: RendererHandle;
+            }
+        ).__triiiceratopsRenderer.isMoving(),
+    );
+}
 
 interface RendererHandle {
     getView(): { centre: { x: number; y: number }; scale: number };
@@ -269,6 +284,84 @@ test('the viewport does not animate under reduced motion', async ({ page }) => {
         after,
         'the release carried momentum despite reduced motion',
     ).toBeCloseTo(atRelease, 6);
+});
+
+test('held-arrow panning becomes instant stepping under reduced motion', async ({
+    page,
+}) => {
+    test.slow();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openGridManifest(page);
+    await setView(page, { centre: { x: 300, y: 450 }, scale: 3 });
+
+    const step = (scale: number) => KEY_PAN_STEP / scale;
+
+    // One press, one step — arrived, not travelled.
+    await page.locator(ROOT).focus();
+    const before = await getView(page);
+    await page.keyboard.press('ArrowRight');
+    const stepped = await getView(page);
+    expect(
+        stepped.centre.x - before.centre.x,
+        'the arrow did not step the view',
+    ).toBeCloseTo(step(before.scale), 3);
+    expect(await moving(page), 'the step eased instead of arriving').toBe(
+        false,
+    );
+
+    // Shift still pans further — the same multiple as the velocity path.
+    await page.keyboard.press('Shift+ArrowRight');
+    const shifted = await getView(page);
+    expect(shifted.centre.x - stepped.centre.x).toBeCloseTo(
+        step(stepped.scale) * 3,
+        3,
+    );
+
+    /*
+     * And HOLDING the key does not multiply that step by the OS repeat rate.
+     *
+     * This is the trap the whole reduced-motion branch turns on. Key repeat
+     * fires at roughly 30 Hz, so a step per key-down event would travel
+     * `KEY_PAN_STEP` × 30 ≈ 4800 screen px/s — seven times the `KEY_PAN_SPEED`
+     * glide the preference exists to spare this user, and with Shift, twenty.
+     * Reduced motion would then be the more violent, less controllable of the
+     * two paths, which is exactly the inversion WCAG 2.3.3 forbids.
+     *
+     * Synthesized, because Playwright sends one keydown and never repeats it:
+     * `repeat: true` is the event the OS actually sends, and the only way to
+     * hold the key down in a test.
+     */
+    const held = await getView(page);
+    await page.locator(ROOT).evaluate((element) => {
+        for (let i = 0; i < 30; i += 1) {
+            element.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: 'ArrowRight',
+                    repeat: true,
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            );
+        }
+    });
+    expect(
+        (await getView(page)).centre.x,
+        'a held arrow stepped once per OS key repeat under reduced motion',
+    ).toBeCloseTo(held.centre.x, 6);
+
+    // A real hold likewise starts no velocity: it steps once, on the press.
+    const beforeHold = await getView(page);
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(400);
+    await page.keyboard.up('ArrowRight');
+    expect(
+        (await getView(page)).centre.x - beforeHold.centre.x,
+        'the hold drove a velocity despite reduced motion',
+    ).toBeCloseTo(step(beforeHold.scale), 3);
+    expect(
+        await moving(page),
+        'the release carried momentum despite reduced motion',
+    ).toBe(false);
 });
 
 test('the viewport DOES animate without the reduced-motion preference', async ({

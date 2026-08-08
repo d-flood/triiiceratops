@@ -170,10 +170,16 @@ export const KEY_PAN_SPEED = 700;
 export const KEY_PAN_SHIFT_FACTOR = 3;
 
 /**
- * Screen px one arrow key moves the view under `prefers-reduced-motion:
- * reduce`, where held-key panning becomes instant stepping and there is no
- * velocity to speak of. Roughly a quarter-second of `KEY_PAN_SPEED`, so a held
- * key covers comparable ground either way.
+ * Screen px one arrow key **press** moves the view under
+ * `prefers-reduced-motion: reduce`, where held-key panning becomes instant
+ * stepping and there is no velocity to speak of.
+ *
+ * Per deliberate press, NOT per key-down: OS key repeat fires at roughly 30 Hz,
+ * so a step per repeat would travel about 4800 px/s — seven times the
+ * `KEY_PAN_SPEED` glide the reduced-motion user opted out of, which inverts
+ * WCAG 2.3.3. `CanvasHost.handleKeyDown` drops repeats on this path; the size
+ * here is one comfortable nudge (roughly a quarter-second of `KEY_PAN_SPEED`),
+ * not a rate.
  */
 export const KEY_PAN_STEP = 160;
 

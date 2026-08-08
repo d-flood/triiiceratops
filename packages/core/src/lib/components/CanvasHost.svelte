@@ -87,6 +87,7 @@
         fitBounds,
         normalizeWheelDelta,
     } from '../renderer/viewportMath';
+    import { watchReducedMotion } from '../state/reducedMotion';
     import type { ViewerState } from '../state/viewer.svelte';
 
     let {
@@ -742,36 +743,41 @@
     }
 
     /**
-     * Track `prefers-reduced-motion`.
-     *
-     * Watched rather than read once: the preference is a system setting a user
-     * can change while the viewer is open, and someone turning it on is asking
-     * for the motion to stop now, not at the next reload. Read in `onMount`, so
-     * nothing here touches `window` at module scope.
+     * Track `prefers-reduced-motion`, through the viewer-wide watcher in
+     * `state/reducedMotion.ts` — the same one the chrome's transitions consult,
+     * so a mid-session toggle reaches the viewport and the drawer at the same
+     * instant. Subscribed in `onMount`, so nothing here touches `window` at
+     * module scope.
      */
-    let motionQuery: MediaQueryList | null = null;
+    let unwatchMotion: (() => void) | null = null;
 
-    function handleMotionPreferenceChange(event: MediaQueryListEvent) {
-        reducedMotion = event.matches;
+    function handleMotionPreferenceChange(reduced: boolean) {
+        reducedMotion = reduced;
+        if (!reduced) return;
+
+        // Turning the preference ON is a request for the motion to stop NOW,
+        // and the two continuous velocities are motion the user is no longer
+        // asking for frame by frame. Without this the surface goes on coasting
+        // at `KEY_PAN_SPEED` from a still-live `keyPan` while the reduced-motion
+        // branch of `handleKeyDown` also steps it instantly on top — faster
+        // than the animated path the user just opted out of.
+        //
+        // Same teardown as `handleBlur`: a hold whose key-up may now be
+        // delivered under different rules is a hold with no author.
+        handleBlur();
+        momentum = null;
+
         // An animation already in flight is left to land: cutting it mid-glide
         // is itself a jump. What matters is that the next one does not start.
     }
 
-    function watchReducedMotion() {
-        if (typeof window.matchMedia !== 'function') return;
-
-        const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-        reducedMotion = query.matches;
-        query.addEventListener?.('change', handleMotionPreferenceChange);
-        motionQuery = query;
+    function startWatchingReducedMotion() {
+        unwatchMotion = watchReducedMotion(handleMotionPreferenceChange);
     }
 
     function unwatchReducedMotion() {
-        motionQuery?.removeEventListener?.(
-            'change',
-            handleMotionPreferenceChange,
-        );
-        motionQuery = null;
+        unwatchMotion?.();
+        unwatchMotion = null;
     }
 
     // ── Input ────────────────────────────────────────────────────────────
@@ -869,7 +875,17 @@
         // viewport — `setViewDirect` clears `animating` on the first pan or
         // pinch update — which is the same ownership decision the arbiter
         // already made, and which a held input claim therefore never triggers.
+        //
+        // A held ARROW ends here for the momentum reason, not the animation
+        // one: it is a continuous velocity, and the hand arriving asks for it
+        // to stop just as unambiguously. Left running, each frame would add
+        // `KEY_PAN_SPEED` on top of every `setViewDirect` the drag performs and
+        // the image would slide out from under the cursor, breaking the one
+        // invariant a drag has. (Symmetrically, an arrow released mid-drag would
+        // hand its velocity to `momentum` with the pointer still down.) The
+        // key-up still arrives and finds nothing held, which is a no-op.
         momentum = null;
+        handleBlur();
 
         gestures.down(sampleOf(event));
     }
@@ -1117,9 +1133,14 @@
     /**
      * One instant pan step — the reduced-motion form of held-key panning.
      *
-     * Here a per-repeat step IS the right model: with no velocity and no
-     * easing there is nothing to accelerate, and stepping is what the
-     * preference asks for.
+     * One step per **deliberate press**: `handleKeyDown` drops OS key repeats
+     * before calling this. A step per repeat event would travel
+     * `KEY_PAN_STEP` × ~30 per second — several times faster, and far less
+     * controllable, than the `KEY_PAN_SPEED` glide the reduced-motion user
+     * opted out of, which is precisely the inversion WCAG 2.3.3 exists to
+     * prevent. Rate must never be a function of how many repeats the OS chose
+     * to send; the animated path gets that from the velocity model, and this
+     * path gets it by counting only presses.
      */
     function stepPanInstant(direction: Point, shift: boolean) {
         const step = KEY_PAN_STEP * (shift ? KEY_PAN_SHIFT_FACTOR : 1);
@@ -1149,7 +1170,38 @@
         );
     }
 
+    /**
+     * The discrete bindings: **one press, one step.**
+     *
+     * Unlike an arrow — which drives a velocity, so the thirtieth repeat
+     * recomputes the same rate the first one did — these ACCUMULATE against
+     * the animation target. An OS repeat at ~30 Hz would compound
+     * `KEY_ZOOM_FACTOR` thirty times a second (1.5¹² ≈ 130× in under half a
+     * second, straight into `clampScale`'s ceiling) and re-arm the fit
+     * animation on every repeat. A repeat is not a second deliberate press.
+     */
+    const DISCRETE_KEYS = new Set(['+', '=', '-', '_', '0', 'Home']);
+
+    /**
+     * A hold cannot survive the Meta key.
+     *
+     * While Meta (Cmd) is down, macOS delivers no `keyup` for other keys. Hold
+     * an arrow, press Cmd, release the arrow, release Cmd, and `handleKeyUp`
+     * never sees the arrow at all: it stays in `heldPanKeys`, the surface pans
+     * forever, the frame loop never settles, and every `nextPaint` waiter
+     * hangs with it. Treat the modifier arriving — on either a key-down or a
+     * key-up — as the end of any hold, which is the same thing losing focus
+     * means.
+     */
+    function endHoldUnderMeta(event: KeyboardEvent): boolean {
+        if (!event.metaKey) return false;
+        handleBlur();
+        return true;
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
+        if (endHoldUnderMeta(event)) return;
+
         // A modified key belongs to the browser or the OS (Ctrl+Minus is the
         // page zoom, Cmd+Left is history). Shift is ours — it is the "pan
         // further" modifier.
@@ -1167,7 +1219,10 @@
             panShift = event.shiftKey;
 
             if (reducedMotion) {
-                stepPanInstant(direction, event.shiftKey);
+                // Repeats dropped: see `stepPanInstant`. The held-key velocity
+                // is deliberately not started either — under the preference a
+                // held arrow simply does nothing more than its first press.
+                if (!event.repeat) stepPanInstant(direction, event.shiftKey);
                 return;
             }
 
@@ -1176,28 +1231,33 @@
             return;
         }
 
+        // Claimed and de-repeated in one place, so no binding below can forget
+        // either.
+        if (!DISCRETE_KEYS.has(event.key)) return;
+        event.preventDefault();
+        if (event.repeat) return;
+
         switch (event.key) {
             // `=` and `_` are the unshifted keys `+` and `-` share, so a
             // keyboard that needs Shift for `+` works without it too.
             case '+':
             case '=':
-                event.preventDefault();
                 zoomByKey(KEY_ZOOM_FACTOR);
                 return;
             case '-':
             case '_':
-                event.preventDefault();
                 zoomByKey(1 / KEY_ZOOM_FACTOR);
                 return;
             case '0':
             case 'Home':
-                event.preventDefault();
                 fitWorld(true);
                 return;
         }
     }
 
     function handleKeyUp(event: KeyboardEvent) {
+        if (endHoldUnderMeta(event)) return;
+
         if (event.key === 'Shift') {
             panShift = false;
             if (heldKeyCount() > 0) startKeyPan();
@@ -1211,16 +1271,40 @@
     }
 
     /**
-     * Focus left the surface mid-hold.
+     * Focus left the surface mid-hold — and the general "this hold is over,
+     * and its key-up is not coming" teardown.
      *
      * The key-up will be delivered somewhere else, so without this the view
      * pans forever. Stops dead rather than handing over to momentum: a glide
      * that outlives the focus it was driven from has no author.
+     *
+     * Also reached from the Meta guard, from the reduced-motion watcher, and
+     * from the window-level listeners below. Every one of those is the same
+     * failure — a key-up that will never arrive — and a stranded `keyPan` is
+     * not merely a visual bug: the frame loop never settles, `isMoving()`
+     * stays true, and `nextPaint` waiters never resolve.
      */
     function handleBlur() {
         clearHeldKeys();
         panShift = false;
         stopKeyPan();
+    }
+
+    /**
+     * The window itself lost the keyboard (alt-tab, a native menu, a devtools
+     * window), or the tab went to the background.
+     *
+     * The element's own `blur` does not always fire for these — and when the
+     * OS takes the keyboard mid-hold the key-up lands in whatever took it.
+     * This is the safety net that makes "the surface can never be left panning
+     * forever" true rather than merely usual.
+     */
+    function handleWindowBlur() {
+        handleBlur();
+    }
+
+    function handleVisibilityChange() {
+        if (document.hidden) handleBlur();
     }
 
     // ── Source loading ───────────────────────────────────────────────────
@@ -1274,7 +1358,7 @@
 
         // Before anything can animate: the first fit and every input path
         // downstream of it consult this.
-        watchReducedMotion();
+        startWatchingReducedMotion();
 
         /*
          * `{ alpha: true }` is DELIBERATE, not an oversight — do not "optimize"
@@ -1300,6 +1384,12 @@
         observer.observe(root);
         measure();
         watchDevicePixelRatio();
+
+        // The only document/window-level listeners this component installs, and
+        // they bind nothing: they end a hold, they never start one. The
+        // bindings themselves stay on the surface element (spec §Keyboard).
+        window.addEventListener('blur', handleWindowBlur);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         /*
          * Internal test handle for the geometric e2e assertions, which need a
@@ -1375,6 +1465,11 @@
             observer.disconnect();
             unwatchDevicePixelRatio();
             unwatchReducedMotion();
+            window.removeEventListener('blur', handleWindowBlur);
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange,
+            );
             if (frameHandle !== null) cancelAnimationFrame(frameHandle);
             frameHandle = null;
             animating = false;
@@ -1448,6 +1543,17 @@
     mean anywhere else in the viewer: a screen reader must pass them through
     rather than use them to browse its own way around. This is the narrowest
     scope that claim can be made in — one element, whose only child paints.
+
+    CONSTRAINT ON THIS SUBTREE, for whoever adds the next child: `application`
+    suppresses browse mode for the WHOLE subtree, not just this element, and it
+    is the only role NVDA and JAWS pass arrows through — so it stays. The price
+    is that any non-canvas descendant becomes unreadable in browse mode:
+    ordinary text, a heading, an error message, a list of annotations would all
+    be skipped over. Ticket 12's error UI and ticket 14's annotation overlay are
+    both slated to land inside here. Each such child must either carry
+    `role="document"` (which restores browse mode for its own subtree) or be
+    hoisted OUT of this element and rendered as a sibling. Recorded in
+    lint-allowlist.md entry 7.
 
     It sits ahead of the annotation overlay's focusable shapes in DOM order, so
     Tab goes surface → annotations: the picture before the things marked on it.
@@ -1532,15 +1638,42 @@
      * `:focus-visible`, not `:focus`, so clicking the image to pan does not
      * ring it.
      *
-     * `--tri-color-primary-TEXT`, not `--tri-color-primary`: the raw primary is
-     * a fill colour and reaches only 2.03:1 (light) and 1.40:1 (teal) against
-     * `--tri-viewer-bg`, well short of the 3:1 a focus indicator owes under
-     * WCAG 1.4.11. The `-text` variant is the palette's legible-on-a-surface
-     * form and clears it in all four themes. Gated by `pnpm test:contrast`,
-     * which carries the pairing.
+     * **TWO-TONE, and that is what makes it visible at all.** Drawn inside, the
+     * ring's neighbour is not the viewer background but the CANVAS — arbitrary
+     * image pixels, which whenever the image fills the viewport is the common
+     * case, not the exception. With `transparentBackground` set there is not
+     * even a known colour behind it. A single-colour indicator over content
+     * nobody chose has no contrast guarantee at all, so the ring carries its own
+     * contrast: an outer band in `--tri-color-primary-text` and an inner band in
+     * `--tri-viewer-bg`, which clear 3:1 AGAINST EACH OTHER in all four themes
+     * (the standard technique for an indicator over unknown content, and the
+     * adjacent-contrast allowance in WCAG 2.4.11/1.4.11). Whatever the image is
+     * doing underneath, one of the two bands stands off it. Gated by
+     * `pnpm test:contrast`, which carries the pairing.
+     *
+     * `--tri-color-primary-TEXT`, not `--tri-color-primary`, for the outer band:
+     * the raw primary is a fill colour and reaches only 2.03:1 (light) and
+     * 1.40:1 (teal) against `--tri-viewer-bg`. The `-text` variant is the
+     * palette's legible-on-a-surface form.
+     *
+     * The inner band is a PSEUDO-ELEMENT rather than a second `box-shadow` on
+     * the root: an inset shadow paints above the element's background but below
+     * its content, so the canvas would cover it. An absolutely-positioned
+     * pseudo-element is positioned content and paints above the in-flow canvas
+     * — the same place the outline itself lands.
      */
     .renderer-root:focus-visible {
         outline: 3px solid var(--tri-color-primary-text);
         outline-offset: -3px;
+    }
+
+    .renderer-root:focus-visible::after {
+        content: '';
+        position: absolute;
+        /* Immediately inside the outline's 3px band, so the two are adjacent
+           with no image pixels between them. */
+        inset: 3px;
+        pointer-events: none;
+        box-shadow: inset 0 0 0 2px var(--tri-viewer-bg);
     }
 </style>
