@@ -641,6 +641,44 @@ describe('createTileScheduler — the opportunistic cache', () => {
         expect(tiles.decodedBytes).toBe(TILE_BYTES);
     });
 
+    it('caches nothing at a zero byte budget: a dropped tile is closed on the spot', async () => {
+        // `byteBudget: 0` is the meaningful "no opportunistic cache" setting,
+        // and it is load-bearing rather than incidental: every assertion in the
+        // describe block above is about the REQUIRED set alone because the
+        // scheduler is built with it, and four browser specs turn it off so
+        // their tile counts mean what they say. Trim's guard is what makes it
+        // true — relax it to `<`, or add a keep-at-least-one heuristic, and
+        // every other unit test here still passes while those four specs start
+        // failing with nothing naming the cause.
+        const net = controllableFetch();
+        const closes: Array<() => void> = [];
+        const tiles = createTileScheduler({
+            maxInFlight: 4,
+            maxAttempts: 2,
+            byteBudget: 0,
+            fetchTile: net.fetchTile,
+            decodeTile: () => {
+                const close = vi.fn();
+                closes.push(close);
+                return Promise.resolve({ width: 10, height: 20, close });
+            },
+        });
+
+        await hold(tiles, net, [0, 1]);
+        expect(tiles.residentTileCount).toBe(2);
+
+        // Tile 0 leaves the required set. There is no budget to hold it under,
+        // so it is closed in this call rather than cached.
+        tiles.update([request(1)]);
+
+        expect(tiles.cachedTileCount).toBe(0);
+        expect(tiles.residentTileCount).toBe(1);
+        // The required set alone, exactly — nothing held on its behalf.
+        expect(tiles.decodedBytes).toBe(TILE_BYTES);
+        expect(closes[0]).toHaveBeenCalled();
+        expect(closes[1]).not.toHaveBeenCalled();
+    });
+
     it('closes the cache on dispose', async () => {
         const net = controllableFetch();
         const tiles = scheduler(net, {

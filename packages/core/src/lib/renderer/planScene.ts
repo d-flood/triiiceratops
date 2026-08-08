@@ -73,6 +73,12 @@
 
 import { getCanvasDisplayLayouts } from '../components/osdLayout';
 import {
+    boxContains,
+    distanceToBox,
+    nearestRect,
+    worldBounds,
+} from './layoutQueries';
+import {
     buildSizeLadder,
     chooseRung,
     exceedsDecodedPixelCap,
@@ -98,7 +104,6 @@ import type {
     PlannerCanvas,
     PlanSceneInput,
     PlanWorldInput,
-    Point,
     ResidencyTier,
     ScenePlan,
     TileDraw,
@@ -345,8 +350,9 @@ function deriveMinZoom(layout: LayoutRect[], boxThreshold: number): number {
 }
 
 /**
- * The two things about a scene that bound the **viewport** — the world's layout
- * and the derived zoom floor — without planning the scene.
+ * The three things about a scene that bound the **viewport** — the world's
+ * layout, its outer bounds, and the derived zoom floor — without planning the
+ * scene.
  *
  * A separate, cheap entry point because the host clamps on every pointer sample:
  * a pan clamps its centre, a pinch clamps its scale as well, and momentum clamps
@@ -355,12 +361,19 @@ function deriveMinZoom(layout: LayoutRect[], boxThreshold: number): number {
  * a 120 Hz pinch, for two numbers that depend on neither. Tile enumeration
  * belongs to the frame loop, once per frame (see `CanvasHost.paint`).
  *
- * Neither output depends on the viewport or on what is resident — which is
- * exactly why this can skip all of it, and why the two cannot drift: `planScene`
+ * No output depends on the viewport or on what is resident — which is exactly
+ * why this can skip all of it, and why the two cannot drift: `planScene`
  * returns these very values by calling this.
+ *
+ * `bounds` is here rather than left to the caller for the same reason the memo
+ * around this function exists: the pan constraint runs on every pointer sample
+ * and a min/max over 800 rects per sample is the very O(manifest)-per-sample
+ * shape this entry point was split out to avoid. Computed once, beside the
+ * layout it summarizes.
  */
 export function planViewportLimits(input: PlanWorldInput): {
     layout: LayoutRect[];
+    bounds: Box | null;
     minZoom: number;
 } {
     const layout = layoutCanvases(
@@ -370,6 +383,7 @@ export function planViewportLimits(input: PlanWorldInput): {
 
     return {
         layout,
+        bounds: worldBounds(layout),
         minZoom: deriveMinZoom(layout, input.budgets.boxThreshold),
     };
 }
@@ -408,6 +422,9 @@ function inflate(box: Box, factor: number): Box {
     };
 }
 
+/** Contains nothing, so an empty world reaches no fallback. */
+const EMPTY_BOX: Box = { x: 0, y: 0, width: -1, height: -1 };
+
 function intersects(a: Box, b: Box): boolean {
     return (
         a.x < b.x + b.width &&
@@ -415,24 +432,6 @@ function intersects(a: Box, b: Box): boolean {
         a.y < b.y + b.height &&
         b.y < a.y + a.height
     );
-}
-
-/**
- * Canvas-space distance from a point to the **nearest point of** a box — zero
- * when the box contains it.
- *
- * Distance to the box, deliberately not to its centre. A coarse tile is huge in
- * canvas space, so its centre can be far from the viewport centre while the tile
- * covers it: measured centre-to-centre, the base tile that guarantees the viewer
- * is never blank is scheduled *behind* dozens of current-level tiles at any
- * off-centre entry point (a deep link, a programmatic view), which is exactly
- * where blur-up is needed most.
- */
-function distanceToBox(point: Point, box: Box): number {
-    const nearestX = Math.min(Math.max(point.x, box.x), box.x + box.width);
-    const nearestY = Math.min(Math.max(point.y, box.y), box.y + box.height);
-
-    return Math.hypot(point.x - nearestX, point.y - nearestY);
 }
 
 /**
@@ -467,6 +466,21 @@ function distanceToBox(point: Point, box: Box): number {
  * reader scrolled to canvas 400 directly or arrived by way of canvas 700, and
  * it is why eviction is distance-based rather than LRU: an LRU makes residency
  * a function of scroll history, which is neither reproducible nor testable.
+ *
+ * **A viewport INSIDE the world always holds something**, and that is a rule
+ * rather than a consequence of the two above. Both of them key off
+ * *intersection* with a layout rect, and a viewport can be inside the world and
+ * intersect none: the inter-canvas gutter is a fraction of a page wide, so a
+ * deep enough zoom centred inside it makes even the inflated margin narrower
+ * than the gap. Every canvas would then be box tier — every tile and texture
+ * released, the viewer blank until the reader happened to pan back out.
+ *
+ * Scoped to a centre within the world's own bounds, deliberately. A viewport
+ * the world is nowhere near really must hold nothing: that is the nesting rule
+ * ("a canvas leaving the pyramid tier releases everything, base level
+ * included") and the thing that keeps an 800-folio manifest from holding 800
+ * base tiles. The gutter is not that case — the reader is *in* the manifest,
+ * between two of its pages.
  */
 function residencyWindow(
     layout: LayoutRect[],
@@ -477,19 +491,41 @@ function residencyWindow(
     const margin = inflate(visible, marginFactor);
     const resident = new Set<string>();
 
-    layout.forEach((rect, index) => {
-        if (intersects(rect, margin)) resident.add(rect.canvasId);
-        if (!intersects(rect, visible)) return;
-
+    /** A canvas and the two the reader could turn to next. */
+    function addWithNeighbours(index: number): void {
         // The neighbours by INDEX, not by distance: "the next page" is a
         // statement about reading order, and it stays correct in a
         // right-to-left or bottom-to-top world, where the next canvas is at a
         // lower coordinate rather than a higher one.
-        const before = layout[index - 1];
-        const after = layout[index + 1];
-        if (before) resident.add(before.canvasId);
-        if (after) resident.add(after.canvasId);
+        for (const rect of [
+            layout[index - 1],
+            layout[index],
+            layout[index + 1],
+        ]) {
+            if (rect) resident.add(rect.canvasId);
+        }
+    }
+
+    layout.forEach((rect, index) => {
+        if (intersects(rect, margin)) resident.add(rect.canvasId);
+        if (intersects(rect, visible)) addWithNeighbours(index);
     });
+
+    // A zero-area viewport is not "in the gutter" — it is a surface that has
+    // not been measured yet, and it must not be given a reason to fetch.
+    const inWorld =
+        visible.width > 0 &&
+        visible.height > 0 &&
+        boxContains(worldBounds(layout) ?? EMPTY_BOX, viewport.centre);
+
+    if (resident.size === 0 && inWorld) {
+        // Nothing intersected, and the centre is inside the world: the
+        // viewport is in a gutter between two canvases. The nearest canvas is
+        // the one the reader is standing between, so it and its neighbours are
+        // exactly what the window held one pixel either side.
+        const nearest = nearestRect(layout, viewport.centre);
+        if (nearest) addWithNeighbours(layout.indexOf(nearest));
+    }
 
     return resident;
 }
@@ -703,7 +739,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     const nearby = residencyWindow(layout, viewport, budgets.marginFactor);
 
     const tiers: Record<string, ResidencyTier> = {};
-    const evictable: string[] = [];
     const overCapCanvases: string[] = [];
     const metadataRequests: string[] = [];
     const tileRequests: TileRequest[] = [];
@@ -722,15 +757,12 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                   budgets.boxThreshold,
               )
             : 'box';
-        tiers[canvas.id] = tier;
-
         // A box-tier canvas holds no network resource and no texture, so
-        // whatever it held is droppable. Residency is a pure function of the
-        // viewport: the same viewport always yields the same set, regardless of
-        // how the user arrived (spec — eviction is distance-based, not LRU).
-        if (tier === 'box') {
-            evictable.push(canvas.id);
-        }
+        // whatever it held is droppable — which the tier map already says.
+        // There is deliberately no second `evictable` list beside it: one
+        // residency vocabulary, and nothing allocating ~795 canvas ids a frame
+        // for a reader that does not exist.
+        tiers[canvas.id] = tier;
 
         // A static-image source has exactly one known URL and no service, so it
         // has nothing to discover and nothing to tile (user story 29).
@@ -842,7 +874,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         tileDraws: tileDraws.sort((a, b) => a.level - b.level),
         thumbnailRequests: [],
         metadataRequests,
-        evictable,
         overCapCanvases,
         minZoom,
     };

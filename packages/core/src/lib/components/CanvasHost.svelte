@@ -55,6 +55,12 @@
         imageServiceCache,
         type ImageServiceFailure,
     } from '../renderer/imageService';
+    import {
+        boxContains,
+        fitTargetBounds,
+        navigationTargetBounds,
+        reflowShift,
+    } from '../renderer/layoutQueries';
     import { paintScene } from '../renderer/paintScene';
     import { planScene, planViewportLimits } from '../renderer/planScene';
     import { pointerSample } from '../renderer/pointerSamples';
@@ -87,6 +93,7 @@
         WHEEL_TIME_CONSTANT,
         WHEEL_ZOOM_RATE,
     } from '../renderer/rendererDefaults';
+    import type { Box } from '../renderer/tilePyramid';
     import type {
         ImageServiceFacts,
         LayoutRect,
@@ -105,6 +112,7 @@
         constrainCentre,
         fitBounds,
         normalizeWheelDelta,
+        zoomRange,
     } from '../renderer/viewportMath';
     import { watchReducedMotion } from '../state/reducedMotion';
     import type { ViewerState } from '../state/viewer.svelte';
@@ -214,9 +222,10 @@
      *
      * A `let` for exactly one member: `byteBudget` is the only budget that is
      * not knowable before mount, because which ceiling a device gets is a
-     * question for `matchMedia` (`rendererDefaults.resolveByteBudget`). Nothing
-     * else in here varies at runtime, and nothing here is configuration — the
-     * public surface for these is ticket 13's.
+     * question for `matchMedia` (`rendererDefaults.resolveByteBudget`) — and it
+     * is a live one, so this is reassigned whenever that query changes (see
+     * `applyByteBudget`). Nothing else in here varies at runtime, and nothing
+     * here is configuration — the public surface for these is ticket 13's.
      *
      * Deliberately not `$state`: read by the frame loop, never by the reactive
      * graph.
@@ -464,6 +473,9 @@
                 }
                 delete metadataFailures[canvasId];
                 if (knownMetadata[canvasId] === facts) return;
+                // Captured BEFORE the write below, which is what re-lays the
+                // world out. See `compensateForReflow`.
+                const beforeReflow = viewportLimits().layout;
                 // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A
                 // canvas the manifest never sized is laid out from a guess and
                 // reflowed to the facts below, so evicting an entry would put
@@ -479,10 +491,47 @@
                 // place rather than replaced, so the memo cannot see it by
                 // identity and is told instead.
                 metadataRevision += 1;
+                compensateForReflow(beforeReflow);
                 // Tiles can only be planned now that the pyramid is knowable.
                 loadedGeneration += 1;
             });
         }
+    }
+
+    /**
+     * Hold the page the reader is looking at still across a reflow.
+     *
+     * A canvas the manifest never sized is laid out from a guess and re-laid
+     * out when its `info.json` lands (ticket 07). In continuous mode every
+     * canvas is positioned by a cumulative offset, so re-sizing canvas N moves
+     * canvases N+1..799 — and on a manifest with no declared dimensions that
+     * happens on *every* folio, because every folio entering the residency
+     * window fetches metadata. Uncompensated, the content jumps sideways under
+     * the cursor each time a fetch lands. The planner's fixed-point test says
+     * the reflow terminates; it says nothing about the viewport, which is this.
+     *
+     * The delta is measured on the canvas under the viewport centre — the one
+     * the reader is on, and therefore the one that must not move. Everything
+     * else is free to shift: the reflow really did change where it is.
+     */
+    function compensateForReflow(before: LayoutRect[]) {
+        const limits = viewportLimits();
+        const shift = reflowShift(before, limits.layout, viewport.centre);
+        if (shift.x === 0 && shift.y === 0) return;
+
+        // The rect the fit target was memoized from has been replaced.
+        fitTargetMemo = null;
+
+        const moved = (point: Point) =>
+            constrained(
+                { x: point.x + shift.x, y: point.y + shift.y },
+                viewport.scale,
+            );
+
+        viewport = { ...viewport, centre: moved(viewport.centre) };
+        // Moved too, or an animation in flight would drag the reader back to a
+        // target expressed in the world's old coordinates.
+        targetCentre = moved(targetCentre);
     }
 
     /**
@@ -524,66 +573,81 @@
     }
 
     /**
-     * The bounds a fit is measured against: in continuous mode the **current
-     * canvas**, and the whole world in every other mode.
+     * The last fit target, and the layout it was found in.
      *
-     * The distinction only exists once continuous mode carries a whole
-     * manifest, and it is not cosmetic. Fitting an 800-folio world puts every
-     * page at one pixel across — below the box threshold, so the manifest opens
-     * on a screen with nothing on it, and below the derived zoom floor, so the
-     * scale is not even reachable. In every other mode the world IS the spread
-     * and this is the same answer as before, which is why paged and individuals
-     * behaviour is untouched.
-     *
-     * The zoom CEILING is measured from here too (`homeScale`), which is what
-     * keeps "how far may I zoom into this page" a question about the page
-     * rather than about how many pages happen to follow it. Panning is not:
-     * `constrained` stays on the whole world, because scrolling the manifest is
-     * the whole point of the mode.
+     * The scan itself is `layoutQueries.nearestRect`; this only avoids
+     * repeating it. `clampScale` runs on every pointer sample, so an 800-rect
+     * scan per sample is the same O(manifest)-per-sample cost `limitsMemo`
+     * exists to remove — and the answer changes only when the viewport centre
+     * leaves the canvas it is standing on, which a containment test answers
+     * without touching another rect.
      */
-    function fitTargetBounds(layout: LayoutRect[]) {
-        if (viewerState.viewingMode === 'continuous') {
-            const current = layout.find(
-                (rect) => rect.canvasId === viewerState.canvasId,
-            );
-            if (current) return current;
+    let fitTargetMemo: { layout: LayoutRect[]; rect: Box } | null = null;
+
+    /**
+     * The bounds a fit is measured against, and the zoom ceiling's reference:
+     * in continuous mode the canvas **under the viewport centre**, and the
+     * whole world in every other mode (where the world IS the spread on
+     * screen, so paged and individuals behaviour is untouched).
+     *
+     * The reasoning lives in `layoutQueries.fitTargetBounds`, which is where it
+     * is tested; this is the memo around it. Panning is deliberately not
+     * measured from here — `constrained` stays on the whole world, because
+     * scrolling the manifest is the point of the mode.
+     */
+    function fitBoundsTarget(limits: ReturnType<typeof viewportLimits>) {
+        if (viewerState.viewingMode !== 'continuous') return limits.bounds;
+
+        const centre = viewport.centre;
+        if (
+            fitTargetMemo &&
+            fitTargetMemo.layout === limits.layout &&
+            boxContains(fitTargetMemo.rect, centre)
+        ) {
+            return fitTargetMemo.rect;
         }
-        return worldBounds(layout);
+
+        const rect = fitTargetBounds(limits.layout, centre, true);
+        if (rect) fitTargetMemo = { layout: limits.layout, rect };
+        return rect;
     }
 
-    function worldBounds(layout: LayoutRect[]) {
-        if (layout.length === 0) return null;
-
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
-        for (const rect of layout) {
-            minX = Math.min(minX, rect.x);
-            minY = Math.min(minY, rect.y);
-            maxX = Math.max(maxX, rect.x + rect.width);
-            maxY = Math.max(maxY, rect.y + rect.height);
-        }
-
-        return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    /**
+     * The bounds NAVIGATION lands on — the canvas the viewer says is current,
+     * which in continuous mode is not the one the reader has scrolled to.
+     *
+     * Distinct from {@link fitBoundsTarget} for the reason spelled out in
+     * `layoutQueries.navigationTargetBounds`: choosing a folio from the canvas
+     * list is a request to travel there, and pressing `0` after scrolling is a
+     * request not to travel at all.
+     */
+    function navigationBoundsTarget(limits: ReturnType<typeof viewportLimits>) {
+        if (viewerState.viewingMode !== 'continuous') return limits.bounds;
+        return navigationTargetBounds(
+            limits.layout,
+            viewerState.canvasId,
+            viewport.centre,
+            true,
+        );
     }
 
     /** The scale at which a fit lands — the zoom ceiling's reference. */
-    function homeScale(layout: LayoutRect[]): number {
-        const bounds = fitTargetBounds(layout);
+    function homeScale(limits: ReturnType<typeof viewportLimits>): number {
+        const bounds = fitBoundsTarget(limits);
         if (!bounds || viewport.width === 0 || viewport.height === 0) return 1;
         return fitBounds(bounds, viewport).scale;
     }
 
     function clampScale(scale: number): number {
         const limits = viewportLimits();
-        const max = homeScale(limits.layout) * MAX_ZOOM_FACTOR;
         // The floor is DERIVED (the zoom at which the median canvas reaches the
-        // box threshold), not a tuned percentage of home zoom. Guard the
-        // degenerate empty-world case, where it is 0.
-        const min =
-            limits.minZoom > 0 ? Math.min(limits.minZoom, max) : max / 1e6;
+        // box threshold), not a tuned percentage of home zoom, so it can land
+        // above the ceiling; `zoomRange` owns what happens then.
+        const { min, max } = zoomRange(
+            homeScale(limits),
+            limits.minZoom,
+            MAX_ZOOM_FACTOR,
+        );
         return clamp(scale, min, max);
     }
 
@@ -596,7 +660,7 @@
      * for getting back.
      */
     function constrained(centre: Point, scale: number): Point {
-        const bounds = worldBounds(viewportLimits().layout);
+        const bounds = viewportLimits().bounds;
         if (!bounds) return centre;
         return constrainCentre(
             centre,
@@ -652,17 +716,28 @@
     }
 
     /**
-     * Fit — the whole world, or the current canvas in continuous mode (see
-     * {@link fitTargetBounds}). `animated` is false only when the scene changed.
-     *
-     * In continuous mode this is also how **canvas navigation** happens: the
-     * scene effect re-runs when the current canvas changes and refits onto it,
-     * which is the same path paged and individuals mode already took when their
-     * spread changed. Scrolling by hand never touches it, because a drag does
-     * not change the current canvas.
+     * Fit — the whole world, or in continuous mode the canvas the reader is
+     * looking at (see {@link fitBoundsTarget}). The `0`/`Home` path.
      */
     function fitWorld(animated = false) {
-        const bounds = fitTargetBounds(viewportLimits().layout);
+        applyFit(fitBoundsTarget(viewportLimits()), animated);
+    }
+
+    /**
+     * Fit the canvas the VIEWER says is current — how **canvas navigation**
+     * happens in continuous mode, and what the first measured frame adopts.
+     *
+     * The scene effect re-runs when the current canvas changes and refits onto
+     * it, which is the same path paged and individuals mode already took when
+     * their spread changed. Scrolling by hand never touches it, because a drag
+     * does not change the current canvas — and, since ticket 08's review, does
+     * not change what {@link fitWorld} fits either.
+     */
+    function fitCurrentCanvas(animated = false) {
+        applyFit(navigationBoundsTarget(viewportLimits()), animated);
+    }
+
+    function applyFit(bounds: Box | null, animated: boolean) {
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const fit = fitBounds(bounds, viewport);
@@ -922,9 +997,11 @@
         viewport = { ...viewport, width, height };
 
         // The first time the container has a size there is no view to preserve,
-        // so adopt the whole-world fit.
+        // so adopt the fit of whatever the viewer says is current — which on a
+        // deep link into folio 400 is folio 400, not the folio the un-scrolled
+        // viewport centre happens to sit on.
         if (!hadSize && width > 0 && height > 0) {
-            fitWorld();
+            fitCurrentCanvas();
         } else if (width > 0 && height > 0) {
             // The constraint is a function of the VIEWPORT as well as the world,
             // so a resize can leave a legal centre illegal — widening the window
@@ -981,6 +1058,54 @@
     function unwatchDevicePixelRatio() {
         dprQuery?.removeEventListener?.('change', handleDevicePixelRatioChange);
         dprQuery = null;
+    }
+
+    /**
+     * The media queries the byte ceiling is resolved from, kept live.
+     *
+     * `(pointer: coarse) and (hover: none)` is a LIVE question, not a
+     * device-identity one, and the two watchers either side of this one already
+     * treat their queries that way. A tablet that gains a trackpad mid-session
+     * stops being the device the mobile ceiling was chosen for; more to the
+     * point, one that *loses* its keyboard is left holding a 128 MB decoded
+     * cache on a machine the browser will kill a tab on for far less, which is
+     * the case the two ceilings exist to separate.
+     *
+     * Keyed by the query text this component passed in rather than by
+     * `MediaQueryList.media`, which the platform is free to re-serialize.
+     *
+     * A plain Map, deliberately not a `SvelteMap`: it is read by
+     * `resolveByteBudget` and by the change listener, never by the reactive
+     * graph.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const byteBudgetQueries = new Map<string, MediaQueryList>();
+
+    function byteBudgetMatches(query: string): boolean {
+        let held = byteBudgetQueries.get(query);
+        if (!held) {
+            held = window.matchMedia(query);
+            held.addEventListener?.('change', applyByteBudget);
+            byteBudgetQueries.set(query, held);
+        }
+        return held.matches;
+    }
+
+    function applyByteBudget() {
+        const byteBudget = resolveByteBudget(byteBudgetMatches);
+        if (byteBudget === budgets.byteBudget) return;
+
+        budgets = { ...budgets, byteBudget };
+        // Trims on the way down, so dropping to the mobile ceiling releases the
+        // pixels over it in this call rather than at the next frame.
+        tiles.setByteBudget(byteBudget);
+    }
+
+    function unwatchByteBudget() {
+        for (const query of byteBudgetQueries.values()) {
+            query.removeEventListener?.('change', applyByteBudget);
+        }
+        byteBudgetQueries.clear();
     }
 
     /**
@@ -1601,18 +1726,11 @@
         // downstream of it consult this.
         startWatchingReducedMotion();
 
-        // Which decoded-byte ceiling this device gets. Asked here rather than
-        // at module scope because it is a `matchMedia` question, and the
-        // renderer's module graph must load on a server with none.
-        if (typeof window.matchMedia === 'function') {
-            budgets = {
-                ...DEFAULT_BUDGETS,
-                byteBudget: resolveByteBudget(
-                    (query) => window.matchMedia(query).matches,
-                ),
-            };
-            tiles.setByteBudget(budgets.byteBudget);
-        }
+        // Which decoded-byte ceiling this device gets, and it stays subscribed:
+        // asked here rather than at module scope because it is a `matchMedia`
+        // question, and the renderer's module graph must load on a server with
+        // none.
+        if (typeof window.matchMedia === 'function') applyByteBudget();
 
         /*
          * `{ alpha: true }` is DELIBERATE, not an oversight — do not "optimize"
@@ -1759,6 +1877,7 @@
             observer.disconnect();
             unwatchDevicePixelRatio();
             unwatchReducedMotion();
+            unwatchByteBudget();
             window.removeEventListener('blur', handleWindowBlur);
             document.removeEventListener(
                 'visibilitychange',
@@ -1800,7 +1919,7 @@
         // the frame loop, where the tier that gates them is known.
         void plannerCanvases;
 
-        fitWorld();
+        fitCurrentCanvas();
         requestFrame();
     });
 

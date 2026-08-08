@@ -222,18 +222,22 @@ describe('planScene', () => {
         expect(result.metadataRequests).toEqual([]);
     });
 
-    it('holds nothing evictable while every canvas is required', () => {
+    it('holds every canvas at a real tier while every canvas is required', () => {
         const result = plan([staticCanvas('c1', 1000, 750)]);
 
-        expect(result.evictable).toEqual([]);
+        expect(result.tiers).toEqual({ c1: 'pyramid' });
     });
 
-    it('marks a box-tier canvas evictable: it has left the required set', () => {
+    it('drops a canvas to the box tier: it has left the required set', () => {
+        // The tier map is the ONE residency vocabulary. There is deliberately
+        // no second `evictable` list beside it saying the same thing — it
+        // named every box-tier canvas, which on an 800-folio manifest is ~795
+        // strings a frame for a reader that never existed.
         const result = plan([staticCanvas('c1', 1000, 750)], {
             viewport: viewport({ scale: 0.02 }),
         });
 
-        expect(result.evictable).toEqual(['c1']);
+        expect(result.tiers.c1).toBe('box');
     });
 
     it('never lays out NaN, whatever the manifest declares', () => {
@@ -1684,7 +1688,6 @@ describe('planScene — an 800-canvas continuous manifest', () => {
                 (request) => request.canvasId === name(400),
             ),
         ).toEqual([]);
-        expect(gone.evictable).toContain(name(400));
     });
 
     it('holds no pyramid at the derived zoom floor, and asks for nothing', () => {
@@ -1709,6 +1712,34 @@ describe('planScene — an 800-canvas continuous manifest', () => {
         expect(pyramidCanvases(atFloor)).toEqual([]);
         expect(atFloor.tileRequests).toEqual([]);
         expect(atFloor.metadataRequests).toEqual([]);
+    });
+
+    it('keeps the scene alive at a deep zoom into the inter-canvas gutter', () => {
+        // Both residency rules key off INTERSECTION with a layout rect, and a
+        // viewport can intersect none: the gutter is a fraction of a page wide,
+        // so past a certain zoom even the inflated margin is narrower than the
+        // gap. Every canvas would then be box tier — every tile and texture
+        // released, the viewer blank — until the reader happened to pan back
+        // out. The window is total by construction instead.
+        const gutter = 400 * PITCH - (PITCH - PAGE.width) / 2;
+        const deep = plan(CANVASES, {
+            mode: 'continuous',
+            viewport: viewport({
+                centre: { x: gutter, y: PAGE.height / 2 },
+                // A viewport far narrower than the gutter it is centred in, so
+                // the margin cannot reach either page.
+                scale: 800 / ((PITCH - PAGE.width) / 4),
+            }),
+        });
+
+        expect(pyramidCanvases(deep).sort()).toEqual(
+            [name(398), name(399), name(400)].sort(),
+        );
+        // …and the window stays bounded: it is the nearest canvas and its
+        // neighbours, not a fallback to the whole manifest.
+        expect(
+            Object.values(deep.tiers).filter((tier) => tier !== 'box'),
+        ).toHaveLength(3);
     });
 
     it('decides the tier the same way in a left-to-right and a top-to-bottom world', () => {

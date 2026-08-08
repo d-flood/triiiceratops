@@ -312,8 +312,6 @@ export interface ScenePlan {
     thumbnailRequests: ThumbnailRequest[];
     /** Canvas ids needing an `info.json` fetch now. */
     metadataRequests: string[];
-    /** Canvas ids droppable under budget pressure. */
-    evictable: string[];
     /**
      * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
      * their service offers exceeds it.

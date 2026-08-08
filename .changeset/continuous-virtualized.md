@@ -32,6 +32,12 @@ Continuous viewing mode now works on a manifest of arbitrary length.
 - **Zooming out now stops where pages become too small to read.** The floor is
   derived — the zoom at which the median canvas reaches the box threshold — so
   it scales with the manifest instead of being a tuned percentage of home zoom.
-  The zoom ceiling and "fit" are correspondingly measured from the current
-  canvas in continuous mode rather than from the whole world, which on a long
-  manifest was a scale at which every page was one pixel across.
+  The zoom ceiling and "fit" are correspondingly measured from the folio on
+  screen in continuous mode rather than from the whole world, which on a long
+  manifest was a scale at which every page was one pixel across. Pressing `0`
+  after scrolling fits the folio the reader is looking at; choosing a folio from
+  the canvas list still travels to it.
+- **A folio the manifest never sized no longer jumps as its dimensions
+  arrive.** Its neighbours are re-laid out when the `info.json` lands, as
+  before, but the viewport moves with them, so the page under the reader's
+  cursor stays where it was.
