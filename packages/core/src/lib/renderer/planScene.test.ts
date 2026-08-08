@@ -30,6 +30,8 @@ const BUDGETS: PlannerBudgets = {
     pyramidThreshold: 400,
     boxThreshold: 40,
     minPixelRatio: 0.5,
+    // Generous by default, so only the tests that are about the cap see it.
+    maxDecodedPixels: 64 * 1024 * 1024,
 };
 
 function staticCanvas(
@@ -544,21 +546,151 @@ describe('planScene — tiled sources', () => {
         expect(drawn).toContain(onScreen);
         expect(drawn).not.toContain(inMarginOnly);
     });
+});
 
-    it('plans no tiles for a service advertising no tiling: that is a size-ladder source', () => {
-        const result = plan([serviceCanvas('c1', 1000, 1000)], {
-            viewport: fit,
-            knownMetadata: {
-                c1: {
-                    width: 4096,
-                    height: 4096,
-                    sizes: [{ width: 1024, height: 1024 }],
-                },
-            },
+/**
+ * The **size-ladder source**: a level0 service that advertises only fixed whole
+ * images (spec §Source kinds). No tiling, ever — the nearest advertised whole
+ * image at or above what is needed, capped against a decoded-pixel ceiling.
+ */
+describe('planScene — size-ladder sources', () => {
+    /**
+     * A level0 service with a geometric ladder over a 4096-square image. No
+     * `tileSize`, which is what makes it a ladder rather than a pyramid.
+     */
+    const LADDER_FACTS: ImageServiceFacts = {
+        width: 4096,
+        height: 4096,
+        version: 3,
+        sizes: [
+            { width: 512, height: 512 },
+            { width: 1024, height: 1024 },
+            { width: 2048, height: 2048 },
+            { width: 4096, height: 4096 },
+        ],
+    };
+
+    const ladderCanvas = serviceCanvas('c1', 1000, 1000);
+
+    function ladderPlan(
+        scale: number,
+        budgets: Partial<PlannerBudgets> = {},
+        residentTiles?: Set<string>,
+    ) {
+        return plan([ladderCanvas], {
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale }),
+            knownMetadata: { c1: LADDER_FACTS },
+            budgets: { ...BUDGETS, ...budgets },
+            residentTiles,
+        });
+    }
+
+    /** The width in the whole-image request each rung asks for. */
+    function requestedWidths(requests: Array<{ url: string }>): string[] {
+        return requests.map((request) => request.url.split('/full/')[1]);
+    }
+
+    it('requests whole images, never a region, and only at advertised sizes', () => {
+        const result = ladderPlan(1);
+
+        // Every URL is `{service}/full/{size}/0/{quality}.{format}` — region
+        // `full`, because that is the only region a level0 service serves.
+        for (const request of result.tileRequests) {
+            expect(request.url.startsWith('https://images.test/c1/full/')).toBe(
+                true,
+            );
+        }
+        expect(requestedWidths(result.tileRequests)).toEqual([
+            '512,/0/default.jpg',
+            '1024,/0/default.jpg',
+        ]);
+    });
+
+    it('promotes through the ladder as the canvas grows on screen', () => {
+        // The canvas is 1000 units wide, so `scale` is device pixels per 1000
+        // image pixels. Each step doubles the projection and the ladder follows.
+        const widthsAt = (scale: number) =>
+            requestedWidths(ladderPlan(scale).tileRequests);
+
+        expect(widthsAt(0.5)).toEqual(['512,/0/default.jpg']);
+        expect(widthsAt(1)).toEqual([
+            '512,/0/default.jpg',
+            '1024,/0/default.jpg',
+        ]);
+        expect(widthsAt(4)).toEqual([
+            '512,/0/default.jpg',
+            '1024,/0/default.jpg',
+            '2048,/0/default.jpg',
+            'max/0/default.jpg',
+        ]);
+    });
+
+    it('spells the full-resolution rung `max`, which is the file a level0 service holds', () => {
+        const urls = ladderPlan(8).tileRequests.map((request) => request.url);
+
+        expect(urls).toContain('https://images.test/c1/full/max/0/default.jpg');
+    });
+
+    it('holds the chain below the chosen rung, so zooming out is instant and nothing blanks', () => {
+        const result = ladderPlan(4);
+
+        // Rung index doubles as the level: coarsest first, ascending, no gaps.
+        expect(result.tileRequests.map((request) => request.level)).toEqual([
+            0, 1, 2, 3,
+        ]);
+    });
+
+    it('does not promote past the decoded-pixel cap', () => {
+        // At this zoom the uncapped ladder reaches the 4096-square top rung —
+        // 16 megapixels, 64 MB decoded. Capped at 2 megapixels it settles for
+        // the 1024 rung and accepts the upscaling blur, which is what keeps one
+        // level0 manifest from defeating the whole memory budget.
+        expect(requestedWidths(ladderPlan(8).tileRequests)).toContain(
+            'max/0/default.jpg',
+        );
+
+        const capped = ladderPlan(8, { maxDecodedPixels: 2 * 1024 * 1024 });
+        expect(requestedWidths(capped.tileRequests)).toEqual([
+            '512,/0/default.jpg',
+            '1024,/0/default.jpg',
+        ]);
+    });
+
+    it('paints the resident rungs coarsest first, over the whole canvas', () => {
+        const coarse = tileKey('c1', 0, 0, 0);
+        const fine = tileKey('c1', 1, 0, 0);
+
+        const result = ladderPlan(1, {}, new Set([fine, coarse]));
+
+        expect(result.tileDraws).toEqual([
+            { key: coarse, level: 0, x: 0, y: 0, width: 1000, height: 1000 },
+            { key: fine, level: 1, x: 0, y: 0, width: 1000, height: 1000 },
+        ]);
+    });
+
+    it('releases everything when the canvas leaves the pyramid tier', () => {
+        // The per-rung rules are nested inside the canvas tier exactly as the
+        // per-level ones are: a ladder canvas below the tier holds nothing.
+        const result = ladderPlan(0.01);
+
+        expect(result.tiers.c1).not.toBe('pyramid');
+        expect(result.tileRequests).toEqual([]);
+        expect(result.tileDraws).toEqual([]);
+    });
+
+    it('falls back to the whole image for a level0 service advertising nothing at all', () => {
+        // No tiles and no sizes. Level0 compliance still guarantees the full
+        // image at the canonical whole-image URL, and a blank canvas is worse
+        // than one heavy request.
+        const result = plan([ladderCanvas], {
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
+            knownMetadata: { c1: { width: 800, height: 1000, version: 2 } },
         });
 
-        expect(result.tileRequests).toEqual([]);
-        expect(result.metadataRequests).toEqual([]);
+        expect(result.tileRequests.map((request) => request.url)).toEqual([
+            // Version 2 spells the whole image `full`, version 3 `max`.
+            'https://images.test/c1/full/full/0/default.jpg',
+        ]);
     });
 });
 

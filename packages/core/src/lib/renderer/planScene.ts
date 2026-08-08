@@ -31,9 +31,12 @@
  * screen and ordered coarsest first — which is **blur-up**: an incomplete
  * current level paints over the coarse chain rather than over nothing.
  *
+ * A **size-ladder source** — a level0 service that advertises only fixed whole
+ * images — is planned by `planSizeLadder` below, which expresses each rung as a
+ * one-tile level so the same residency, priority, and blur-up rules apply.
+ *
  * ## What is still to come
  *
- * - the size-ladder source kind — ticket 06;
  * - multi-canvas layout (paged, continuous, viewing direction,
  *   `preserveCanvasScale`, the inter-canvas gap) — ticket 07, which replaces
  *   `layoutCanvases` below with the shared layout function;
@@ -46,6 +49,12 @@
  * rather than re-cut the seam.
  */
 
+import {
+    buildSizeLadder,
+    chooseRung,
+    rungUrl,
+    type SizeLadder,
+} from './sizeLadder';
 import {
     buildPyramid,
     chooseLevel,
@@ -317,6 +326,78 @@ function planPyramid(
     }
 }
 
+/**
+ * The required set and the draw list for one **size-ladder source** — a level0
+ * service that advertises only fixed whole images and can never be tiled.
+ *
+ * Deliberately expressed as tiles: a rung is a one-tile "level" covering the
+ * whole canvas, keyed in the same namespace as a pyramid tile (a canvas is one
+ * kind or the other, so the keys cannot collide). That is not a trick — it is
+ * what makes every rule the scheduler and the painter already implement apply
+ * here for free: abort on supersede, the centre-out priority queue, the negative
+ * cache, off-thread decode, the decoded-byte counter, and blur-up paint order.
+ * Modelled as a separate "whole image" channel instead, each of those would have
+ * to be written a second time, and a size-ladder canvas would be the one place
+ * in the renderer where residency is not a pure function of the viewport.
+ *
+ * The chain below the chosen rung is required for the same reason the pyramid's
+ * coarse chain is: ladders are geometric in practice, so the whole chain is
+ * roughly a third of the chosen rung, and holding it is what makes zooming out
+ * instant and an arriving rung paint over something rather than over nothing.
+ */
+function planSizeLadder(
+    canvas: PlannerCanvas,
+    ladder: SizeLadder,
+    rect: LayoutRect,
+    viewport: Viewport,
+    dpr: number,
+    minPixelRatio: number,
+    maxDecodedPixels: number,
+    residentTiles: ReadonlySet<TileKey>,
+    requests: TileRequest[],
+    draws: TileDraw[],
+): void {
+    const visible = viewportBox(viewport);
+    const box: Box = {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+    };
+
+    // The same quantity `planPyramid` computes, so one `minPixelRatio` governs
+    // sharpness for both source kinds.
+    const imageScale = (viewport.scale * dpr * rect.width) / ladder.width;
+    const current = chooseRung(
+        ladder,
+        imageScale,
+        minPixelRatio,
+        maxDecodedPixels,
+    );
+
+    // Every rung covers the whole canvas, so there is nothing to intersect and
+    // one priority for all of them.
+    const priority = distanceToBox(viewport.centre, box);
+
+    for (const rung of ladder.rungs) {
+        if (rung.index > current.index) break;
+
+        const key = tileKey(canvas.id, rung.index, 0, 0);
+
+        requests.push({
+            key,
+            canvasId: canvas.id,
+            level: rung.index,
+            url: rungUrl(ladder, rung),
+            priority,
+        });
+
+        if (residentTiles.has(key) && intersects(box, visible)) {
+            draws.push({ key, level: rung.index, ...box });
+        }
+    }
+}
+
 export function planScene(input: PlanSceneInput): ScenePlan {
     const { canvases, viewport, budgets, knownMetadata } = input;
     const residentTiles = input.residentTiles ?? new Set<TileKey>();
@@ -376,18 +457,41 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             continue;
         }
 
+        // Which source kind a service is comes from what it ADVERTISES, not
+        // from its declared profile. A level0 service that advertises tiles is
+        // an ordinary pyramid whose levels happen to be restricted to the
+        // advertised scale factors — which `buildPyramid` already is, because
+        // it builds levels from `scaleFactors` when the service declares them.
+        // Only a service advertising no tiling at all is a size-ladder source,
+        // and that is exactly what `buildPyramid` returns `null` for.
         const pyramid = buildPyramid(canvas.source.serviceId, facts);
-        // No tiling advertised: a size-ladder source, which is ticket 06.
-        if (!pyramid) continue;
+        if (pyramid) {
+            planPyramid(
+                canvas,
+                pyramid,
+                rects.get(canvas.id)!,
+                viewport,
+                dpr,
+                budgets.minPixelRatio,
+                budgets.marginFactor,
+                residentTiles,
+                tileRequests,
+                tileDraws,
+            );
+            continue;
+        }
 
-        planPyramid(
+        const ladder = buildSizeLadder(canvas.source.serviceId, facts);
+        if (!ladder) continue;
+
+        planSizeLadder(
             canvas,
-            pyramid,
+            ladder,
             rects.get(canvas.id)!,
             viewport,
             dpr,
             budgets.minPixelRatio,
-            budgets.marginFactor,
+            budgets.maxDecodedPixels,
             residentTiles,
             tileRequests,
             tileDraws,

@@ -44,6 +44,28 @@ export const TILED_MANIFEST = '/demo-manifests/tiled/manifest.json';
  * it.
  */
 export const TILED_V2_MANIFEST = '/demo-manifests/tiled-v2/manifest.json';
+
+/**
+ * The grid through a **level0 service that advertises tiles** — an ordinary
+ * pyramid whose levels are restricted to the advertised scale factors.
+ *
+ * The fixture service answers 404 for any other factor, so a level chosen
+ * outside the advertised set is a blank canvas rather than a subtle difference.
+ */
+export const LEVEL0_TILED_MANIFEST =
+    '/demo-manifests/level0-tiled/manifest.json';
+
+/**
+ * The grid through a **size-ladder source**: a level0 service advertising only
+ * fixed whole-image sizes, with no tiling at all.
+ *
+ * The fixture service answers 404 for every region but `full` and every size it
+ * did not advertise, so a renderer that tries to tile this canvas paints
+ * nothing.
+ */
+export const LEVEL0_SIZES_MANIFEST =
+    '/demo-manifests/level0-sizes/manifest.json';
+
 /** The image services the tiled fixture's two canvases are backed by. */
 export const TILED_SERVICES = ['/iiif-fixture/one', '/iiif-fixture/two'];
 
@@ -106,8 +128,25 @@ export async function openGridManifest(page: Page): Promise<void> {
  * pyramid → schedule → decode → paint path.
  */
 export async function openTiledManifest(page: Page): Promise<void> {
+    await openRendererManifest(page, TILED_MANIFEST);
+}
+
+/**
+ * Open any manifest with the Canvas2D renderer selected, and wait until the
+ * grid is genuinely on the canvas.
+ *
+ * Waiting for a feature rather than for a network idle is what makes this
+ * usable for every source kind: for a tiled canvas it means the whole
+ * `info.json` → pyramid → schedule → decode → paint path completed, and for a
+ * size-ladder canvas the same path through the ladder. A source kind the
+ * renderer cannot resolve simply never paints, and the wait fails.
+ */
+export async function openRendererManifest(
+    page: Page,
+    manifest: string,
+): Promise<void> {
     await useCanvasRenderer(page);
-    await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+    await page.goto(`/?manifest=${manifest}`, {
         waitUntil: 'domcontentloaded',
     });
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 20_000 });

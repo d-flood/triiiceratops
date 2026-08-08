@@ -3,11 +3,14 @@ import {
     getRegionString,
     type ResolvedCanvasImage,
 } from './resolveCanvasImage';
+import { parseImageService } from '../renderer/imageService';
 import {
-    createIiifTileSource,
-    isIiifLevel0Profile,
-    getFullImageUrlForLevel,
-} from '../components/osdTileSources';
+    buildSizeLadder,
+    isLevel0Profile,
+    ladderFromPyramid,
+    rungUrl,
+} from '../renderer/sizeLadder';
+import { buildPyramid } from '../renderer/tilePyramid';
 
 // Browsers cap 2D canvas dimensions/area (commonly ~16k px per side and/or
 // ~268MP total). Stay well under that so composite/world exports never
@@ -173,7 +176,7 @@ export function getResolvedImageExportUrl(
     resolved: ResolvedCanvasImage,
     options: { width?: number; height?: number } = {},
 ): string | null {
-    if (isIiifLevel0Profile(resolved.serviceProfile)) {
+    if (isLevel0Profile(resolved.serviceProfile)) {
         return resolved.resourceId ?? null;
     }
 
@@ -194,53 +197,56 @@ export function getResolvedImageExportUrl(
     return resolved.resourceId ?? null;
 }
 
+/**
+ * The exact resolutions a level0 service can be exported at.
+ *
+ * A level0 service serves only precomputed derivatives, so an export ladder for
+ * one is not a set of fractions of the original — it is the list of images that
+ * actually exist. Derived here from the fetched Image API JSON through the
+ * renderer's own source model (`renderer/sizeLadder`), which is the second
+ * consumer that model has: what export offers and what the renderer requests
+ * are now provably the same list, and neither an `openseadragon` import nor an
+ * OpenSeadragon tile-source instance is involved.
+ *
+ * Both level0 shapes answer here. A service advertising `tiles` has a pyramid,
+ * and every level of it is available as a whole image; a service advertising
+ * only `sizes[]` is a **size-ladder source** and those sizes are the ladder.
+ */
 async function resolveLevel0SizeOptions(
     resolved: ResolvedCanvasImage,
 ): Promise<ExportSizeOption[]> {
     if (!resolved.serviceId) return [];
 
-    const infoUrl = resolved.serviceId.endsWith('/info.json')
-        ? resolved.serviceId
-        : `${resolved.serviceId}/info.json`;
+    const serviceId = resolved.serviceId.endsWith('/info.json')
+        ? resolved.serviceId.slice(0, -'/info.json'.length)
+        : resolved.serviceId;
 
     try {
-        const response = await fetch(infoUrl);
+        const response = await fetch(`${serviceId}/info.json`);
         if (!response.ok) return [];
-        const data = await response.json();
 
-        const osdModule = await import('openseadragon');
-        const OSD = (osdModule as any).default || osdModule;
-        const tileSource = createIiifTileSource(OSD, data, infoUrl);
+        const facts = parseImageService(await response.json());
+        if (!facts) return [];
 
-        if (
-            !tileSource ||
-            typeof tileSource.minLevel !== 'number' ||
-            typeof tileSource.maxLevel !== 'number' ||
-            typeof tileSource.getLevelScale !== 'function'
-        ) {
-            return [];
-        }
+        const pyramid = buildPyramid(serviceId, facts);
+        const ladder = pyramid
+            ? ladderFromPyramid(pyramid)
+            : buildSizeLadder(serviceId, facts);
+        if (!ladder) return [];
 
         const seen = new Set<string>();
         const options: ExportSizeOption[] = [];
 
-        for (
-            let level = tileSource.minLevel;
-            level <= tileSource.maxLevel;
-            level += 1
-        ) {
-            const scale = tileSource.getLevelScale(level);
-            const width = Math.ceil(tileSource.width * scale);
-            const height = Math.ceil(tileSource.height * scale);
-            const key = `${width}x${height}`;
+        for (const rung of ladder.rungs) {
+            const key = `${rung.width}x${rung.height}`;
             if (seen.has(key)) continue;
             seen.add(key);
 
             options.push({
-                width,
-                height,
-                label: `${width} × ${height}px`,
-                url: getFullImageUrlForLevel(tileSource, level),
+                width: rung.width,
+                height: rung.height,
+                label: `${rung.width} × ${rung.height}px`,
+                url: rungUrl(ladder, rung),
             });
         }
 
@@ -325,7 +331,7 @@ function resolvePresetSizeOptions(
 export async function resolveExportSizeOptions(
     resolved: ResolvedCanvasImage,
 ): Promise<ExportSizeOption[]> {
-    if (isIiifLevel0Profile(resolved.serviceProfile)) {
+    if (isLevel0Profile(resolved.serviceProfile)) {
         const levelOptions = await resolveLevel0SizeOptions(resolved);
         if (levelOptions.length) return levelOptions;
 

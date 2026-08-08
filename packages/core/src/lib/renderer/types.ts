@@ -14,10 +14,13 @@ export type { ViewingDirection, ViewingMode };
 /**
  * Where a canvas's pixels come from.
  *
- * `static` is one known URL. `service` is an image service the planner turns
- * into a tile pyramid once its `info.json` has been fetched — a service that
- * advertises no tiles (level0 sizes-only) becomes the **size-ladder source**
- * in ticket 06 and paints nothing until then.
+ * `static` is one known URL. `service` is an image service the planner resolves
+ * once its `info.json` has been fetched — into a tile pyramid when it advertises
+ * tiles (`tilePyramid`), and otherwise into a **size-ladder source**
+ * (`sizeLadder`), which is the level0 shape that can serve only fixed whole
+ * images. Which of the two a service is comes from what it advertises, not from
+ * its declared profile: a profile can be missing, and a level0 service that
+ * advertises tiles is an ordinary pyramid.
  */
 export type SourceDescriptor =
     | { kind: 'static'; url: string }
@@ -109,6 +112,17 @@ export interface PlannerBudgets {
      * `tilePyramid.chooseLevel`.
      */
     minPixelRatio: number;
+    /**
+     * Ceiling, in decoded pixels, on one whole image a **size-ladder source**
+     * may be promoted to.
+     *
+     * Only that source kind needs it, and only it can be defeated without it: a
+     * tile is bounded by the tile size, but a size ladder's top rung is the
+     * whole scan, and for a large manuscript that is a 100+ megapixel JPEG whose
+     * decode pins hundreds of megabytes and can hard-crash a phone. Past the cap
+     * the blur is accepted. See `sizeLadder.chooseRung`.
+     */
+    maxDecodedPixels: number;
 }
 
 /** Which of the three treatments a canvas receives this frame. */
