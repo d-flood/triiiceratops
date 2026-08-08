@@ -87,3 +87,71 @@ export const WHEEL_PAGE_PIXELS = WHEEL_LINE_PIXELS * 24;
  * high-resolution scan.
  */
 export const MAX_ZOOM_FACTOR = 128;
+
+/**
+ * Time constant, in seconds, for **discrete and programmatic** motion:
+ * double-tap zoom, toolbar zoom, fit, canvas navigation.
+ *
+ * Longer than `WHEEL_TIME_CONSTANT`, because these fill a genuine jump between
+ * two states the user asked for rather than smoothing a stream of small steps.
+ * It is the OpenSeadragon path's `springStiffness: 7.0` expressed as the
+ * equivalent 1/e time — the motion the current viewer already has.
+ *
+ * Continuous input (drag, pinch) uses **no** time constant at all: it is
+ * applied directly (spec §Input and animation).
+ */
+export const ANIMATION_TIME_CONSTANT = 1 / 7;
+
+/**
+ * Zoom factor for one double-click / double-tap. Carried forward from the
+ * OpenSeadragon path's `zoomPerClick: 2.0`.
+ *
+ * Single click stays unbound (`clickToZoom: false` there): it is reserved for
+ * annotation selection.
+ */
+export const DOUBLE_TAP_ZOOM_FACTOR = 2;
+
+/**
+ * Time constant, in seconds, of the friction that decays flick momentum. About
+ * a third of a second to fall to 1/e, which reads as sliding to a stop rather
+ * than as either a hard cut or a drift.
+ */
+export const MOMENTUM_TIME_CONSTANT = 0.325;
+
+/** Speed, in screen px/s, below which momentum stops rather than crawls. */
+export const MOMENTUM_MIN_SPEED = 8;
+
+/** Screen px a press may travel and still count as a tap. */
+export const TAP_SLOP = 6;
+
+/** Longest gap between two taps that still reads as a double tap, in ms. */
+export const DOUBLE_TAP_MS = 320;
+
+/** How far apart two taps may be and still pair, in screen px. */
+export const DOUBLE_TAP_SLOP = 24;
+
+/**
+ * How far back release velocity is measured, in ms — a few frames, so a flick
+ * reflects how the finger was actually moving as it left rather than the whole
+ * drag's average.
+ */
+export const VELOCITY_WINDOW_MS = 90;
+
+/** Speed, in screen px/s, below which a release carries no momentum at all. */
+export const MIN_FLICK_SPEED = 120;
+
+/**
+ * Shortest pointer trail, in ms, that carries usable timing — one frame.
+ *
+ * A gesture whose samples all land inside a single task (coalesced moves
+ * delivered together, or a synthesized sequence) says nothing about speed; see
+ * `gestureArbiter.GestureConfig.minVelocitySpanMs`.
+ */
+export const MIN_VELOCITY_SPAN_MS = 16;
+
+/**
+ * Fraction of the smaller of the world and viewport extents that must stay
+ * visible on each axis. See `viewportMath.constrainCentre`: this is what stops
+ * a drag or a flick putting the image off screen with no way back.
+ */
+export const VISIBILITY_RATIO = 0.5;

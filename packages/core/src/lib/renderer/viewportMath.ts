@@ -63,6 +63,77 @@ export function fitBounds(
 }
 
 /**
+ * Keep the world within reach of the viewport.
+ *
+ * Without this, pan is unbounded: a drag — and much more easily a flick, which
+ * keeps travelling after the finger has left — can put the world arbitrarily
+ * far off screen, at which point the viewer is a blank rectangle with no
+ * affordance for getting back. The OpenSeadragon path constrained the pan on
+ * release; this constrains it continuously, so the image never leaves at all
+ * rather than springing back afterwards.
+ *
+ * `visibilityRatio` is the fraction of the **smaller** of the two extents (the
+ * world's or the viewport's, per axis) that must stay in view. Taking the
+ * smaller of the two is what makes one rule cover both regimes: zoomed in, the
+ * world is larger than the viewport and the rule keeps the viewport covered;
+ * zoomed out, the viewport is larger and the rule keeps the world on screen.
+ * At `1` the world may never part from the viewport edge at all.
+ *
+ * The allowed centre range is never empty for `0 <= visibilityRatio <= 1`, so
+ * this always has an answer and never oscillates.
+ */
+export function constrainCentre(
+    centre: Point,
+    scale: number,
+    world: { x: number; y: number; width: number; height: number },
+    size: { width: number; height: number },
+    visibilityRatio: number,
+): Point {
+    if (!(scale > 0) || world.width <= 0 || world.height <= 0) return centre;
+
+    return {
+        x: constrainAxis(
+            centre.x,
+            world.x,
+            world.width,
+            size.width / scale,
+            visibilityRatio,
+        ),
+        y: constrainAxis(
+            centre.y,
+            world.y,
+            world.height,
+            size.height / scale,
+            visibilityRatio,
+        ),
+    };
+}
+
+/**
+ * One axis of {@link constrainCentre}. `window` is the visible extent in
+ * canvas space (screen extent ÷ scale).
+ */
+function constrainAxis(
+    centre: number,
+    worldMin: number,
+    worldExtent: number,
+    window: number,
+    visibilityRatio: number,
+): number {
+    if (window <= 0 || !Number.isFinite(window)) return centre;
+
+    const required = visibilityRatio * Math.min(worldExtent, window);
+    const worldMax = worldMin + worldExtent;
+    // The viewport spans [centre - window/2, centre + window/2]; requiring its
+    // overlap with [worldMin, worldMax] to be at least `required` is these two
+    // bounds, rearranged.
+    const low = worldMin + required - window / 2;
+    const high = worldMax - required + window / 2;
+
+    return clamp(centre, low, high);
+}
+
+/**
  * Zoom about a screen point: the canvas-space point under `anchor` stays under
  * `anchor` (spec §Input and animation, user story 7).
  *

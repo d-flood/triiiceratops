@@ -24,25 +24,37 @@
      *
      * ## Scope
      *
-     * One canvas — a static image or a tiled image service — with drag and
-     * wheel zoom. The size-ladder source is ticket 06, multi-canvas layout
-     * ticket 07, momentum/pinch/double-click ticket 10, keyboard and focus
-     * ticket 11, annotation overlays ticket 14.
+     * One canvas — a static image or a tiled image service; the full pointer
+     * input model (drag, flick momentum, pinch, wheel, double-tap). The
+     * size-ladder source is ticket 06, multi-canvas layout ticket 07, keyboard
+     * and focus ticket 11, annotation overlays ticket 14.
      */
     import { onMount } from 'svelte';
 
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
+    import { GestureRecogniser } from '../renderer/gestureArbiter';
     import { reconcileImages } from '../renderer/imageRequests';
     import { imageServiceCache } from '../renderer/imageService';
     import { paintScene } from '../renderer/paintScene';
     import { planScene } from '../renderer/planScene';
     import { createTileScheduler } from '../renderer/tileScheduler';
     import {
+        ANIMATION_TIME_CONSTANT,
         DEFAULT_BUDGETS,
+        DOUBLE_TAP_MS,
+        DOUBLE_TAP_SLOP,
+        DOUBLE_TAP_ZOOM_FACTOR,
         MAX_DEVICE_PIXEL_RATIO,
         MAX_ZOOM_FACTOR,
+        MIN_FLICK_SPEED,
+        MIN_VELOCITY_SPAN_MS,
+        MOMENTUM_MIN_SPEED,
+        MOMENTUM_TIME_CONSTANT,
+        TAP_SLOP,
         TILE_IN_FLIGHT_LIMIT,
         TILE_MAX_ATTEMPTS,
+        VELOCITY_WINDOW_MS,
+        VISIBILITY_RATIO,
         WHEEL_LINE_PIXELS,
         WHEEL_PAGE_PIXELS,
         WHEEL_TIME_CONSTANT,
@@ -60,6 +72,7 @@
         approach,
         approachScale,
         clamp,
+        constrainCentre,
         fitBounds,
         normalizeWheelDelta,
     } from '../renderer/viewportMath';
@@ -84,12 +97,28 @@
         centre: { x: 0, y: 0 },
         scale: 1,
     };
-    // Where an animated input is heading. Drag writes `viewport` directly and
-    // keeps these in step; wheel writes only these and lets the frame loop
-    // approach them.
+    // Where an animated input is heading. Continuous input (drag, pinch)
+    // writes `viewport` directly and keeps these in step; discrete and
+    // programmatic input writes only these and lets the frame loop approach
+    // them.
     let targetCentre: Point = { x: 0, y: 0 };
     let targetScale = 1;
     let animating = false;
+    /**
+     * The time constant the current animation is running at.
+     *
+     * Wheel and discrete input ease at different rates — wheel only just
+     * enough to read as smoothing, a double-tap or a fit far enough to read as
+     * travel — so the rate belongs to the animation, not to the loop.
+     */
+    let animationTimeConstant = WHEEL_TIME_CONSTANT;
+    /**
+     * Flick momentum, in **screen** px/s, or `null` when nothing is coasting.
+     *
+     * Screen rather than canvas space so a zoom mid-glide does not change how
+     * fast the image appears to be moving.
+     */
+    let momentum: Point | null = null;
     let frameHandle: number | null = null;
     let lastFrameTime = 0;
     /** Resolved once the next painted frame has landed (e2e determinism). */
@@ -239,15 +268,74 @@
         return clamp(scale, min, max);
     }
 
-    function fitWorld() {
+    /**
+     * The centre, moved as little as necessary to keep the world in view.
+     *
+     * Applied to every centre this component adopts — direct or animated —
+     * because momentum in particular will otherwise carry the image off screen
+     * after the finger has left, leaving a blank viewport with no affordance
+     * for getting back.
+     */
+    function constrained(centre: Point, scale: number): Point {
+        const bounds = worldBounds(currentPlan());
+        if (!bounds) return centre;
+        return constrainCentre(
+            centre,
+            scale,
+            bounds,
+            viewport,
+            VISIBILITY_RATIO,
+        );
+    }
+
+    /**
+     * Adopt a view **now**, with no easing. The path continuous input takes.
+     */
+    function setViewDirect(centre: Point, scale: number) {
+        const next = constrained(centre, scale);
+        viewport = { ...viewport, centre: next, scale };
+        targetCentre = { ...next };
+        targetScale = scale;
+        animating = false;
+        requestFrame();
+    }
+
+    /**
+     * Ease towards a view. The path discrete (double-tap, wheel) and
+     * programmatic (fit, toolbar zoom) input takes — animation exists to fill
+     * the gap between two states the user jumped between.
+     */
+    function setViewAnimated(
+        centre: Point,
+        scale: number,
+        timeConstant: number,
+    ) {
+        targetScale = scale;
+        targetCentre = constrained(centre, scale);
+        animationTimeConstant = timeConstant;
+        animating = true;
+        // A new target supersedes a glide; they are two ways of moving the same
+        // viewport and running both would fight.
+        momentum = null;
+        requestFrame();
+    }
+
+    /** The whole-world fit. `animated` is false only when the scene changed. */
+    function fitWorld(animated = false) {
         const bounds = worldBounds(currentPlan());
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const fit = fitBounds(bounds, viewport);
+        if (animated) {
+            setViewAnimated(fit.centre, fit.scale, ANIMATION_TIME_CONSTANT);
+            return;
+        }
+
         viewport = { ...viewport, centre: fit.centre, scale: fit.scale };
         targetCentre = fit.centre;
         targetScale = fit.scale;
         animating = false;
+        momentum = null;
     }
 
     /**
@@ -298,24 +386,31 @@
         const elapsed = Math.max(0, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
 
+        if (momentum) stepMomentum(elapsed);
+
         if (animating) {
+            // Zoom interpolates in LOG space (`approachScale`), not linearly:
+            // a step from 1× to 2× and one from 8× to 16× then take the same
+            // time and cover the same perceived distance. Linear interpolation
+            // makes the same gesture lurch at one end of the range and crawl at
+            // the other.
             const scale = approachScale(
                 viewport.scale,
                 targetScale,
-                WHEEL_TIME_CONSTANT,
+                animationTimeConstant,
                 elapsed,
             );
             const centre = {
                 x: approach(
                     viewport.centre.x,
                     targetCentre.x,
-                    WHEEL_TIME_CONSTANT,
+                    animationTimeConstant,
                     elapsed,
                 ),
                 y: approach(
                     viewport.centre.y,
                     targetCentre.y,
-                    WHEEL_TIME_CONSTANT,
+                    animationTimeConstant,
                     elapsed,
                 ),
             };
@@ -342,11 +437,50 @@
 
         paint();
 
-        if (animating) {
+        if (animating || momentum) {
             scheduleFrame();
         } else {
             settlePaintWaiters();
         }
+    }
+
+    /**
+     * One frame of coasting after a flick.
+     *
+     * The velocity carries the viewport and is itself decayed by the same
+     * exponential approach — towards zero instead of towards a target — so
+     * friction is frame-rate independent for the same reason the easing is.
+     *
+     * Momentum that runs into the pan constraint stops on that axis rather than
+     * grinding against the wall for the rest of its decay.
+     */
+    function stepMomentum(elapsed: number) {
+        if (!momentum) return;
+
+        const wanted = {
+            x: viewport.centre.x - (momentum.x * elapsed) / viewport.scale,
+            y: viewport.centre.y - (momentum.y * elapsed) / viewport.scale,
+        };
+        const centre = constrained(wanted, viewport.scale);
+
+        // Compared against the UNconstrained centre: a component that was
+        // clipped has hit the edge and has nowhere left to go.
+        const next = {
+            x: centre.x === wanted.x ? momentum.x : 0,
+            y: centre.y === wanted.y ? momentum.y : 0,
+        };
+
+        viewport = { ...viewport, centre };
+        targetCentre = { ...centre };
+
+        const decayed = {
+            x: approach(next.x, 0, MOMENTUM_TIME_CONSTANT, elapsed),
+            y: approach(next.y, 0, MOMENTUM_TIME_CONSTANT, elapsed),
+        };
+        momentum =
+            Math.hypot(decayed.x, decayed.y) < MOMENTUM_MIN_SPEED
+                ? null
+                : decayed;
     }
 
     function paint() {
@@ -448,74 +582,203 @@
 
     // ── Input ────────────────────────────────────────────────────────────
     //
-    // Pointer Events only: one input path, no mouse/touch/legacy branches.
+    // Pointer Events only: one input path, no mouse/touch/legacy branches, and
+    // no double-click event either — a double TAP and a double CLICK are the
+    // same gesture here, recognised once from pointer samples.
+    //
+    // The governing rule (spec §Input and animation): **continuous input is
+    // never animated; discrete and programmatic input always is.** Drag and
+    // pinch land in `setViewDirect`; wheel, double-tap, and fit land in
+    // `setViewAnimated`.
+    //
+    // Which gesture is running is decided in exactly one place — the
+    // recogniser's `arbitrate` — and never re-derived here. That is the seam
+    // the phase-2 input-claim API is granted at (`renderer/gestureArbiter.ts`).
 
-    let dragPointerId: number | null = null;
-    let lastPointer: Point = { x: 0, y: 0 };
+    const gestures = new GestureRecogniser({
+        tapSlop: TAP_SLOP,
+        doubleTapMs: DOUBLE_TAP_MS,
+        doubleTapSlop: DOUBLE_TAP_SLOP,
+        velocityWindowMs: VELOCITY_WINDOW_MS,
+        minVelocitySpanMs: MIN_VELOCITY_SPAN_MS,
+        minFlickSpeed: MIN_FLICK_SPEED,
+    });
+
+    /** Client-space origin of the surface, refreshed when a gesture starts. */
+    let surfaceOrigin: Point = { x: 0, y: 0 };
+
+    function refreshSurfaceOrigin() {
+        if (!surface) return;
+        const rect = surface.getBoundingClientRect();
+        surfaceOrigin = { x: rect.left, y: rect.top };
+    }
+
+    /**
+     * A pointer sample in surface-local screen coordinates.
+     *
+     * The timestamp is `performance.now()` rather than `event.timeStamp`: the
+     * momentum it feeds is integrated against `requestAnimationFrame`
+     * timestamps, and mixing two clocks makes flick velocity wrong by whatever
+     * the offset between them happens to be.
+     */
+    function sampleOf(event: PointerEvent) {
+        return {
+            id: event.pointerId,
+            x: event.clientX - surfaceOrigin.x,
+            y: event.clientY - surfaceOrigin.y,
+            time: performance.now(),
+        };
+    }
+
+    /**
+     * Capture is best-effort.
+     *
+     * `setPointerCapture` throws `NotFoundError` for a pointer the element is
+     * not currently receiving — a pointer the browser already cancelled, or a
+     * synthesized one. Capture is an optimisation (it keeps a drag alive when
+     * the pointer leaves the element); losing it must not abort the gesture,
+     * which the recogniser tracks independently.
+     */
+    function capturePointer(pointerId: number) {
+        try {
+            surface?.setPointerCapture(pointerId);
+        } catch {
+            /* not capturable — the gesture proceeds uncaptured */
+        }
+    }
+
+    function releasePointer(pointerId: number) {
+        try {
+            surface?.releasePointerCapture?.(pointerId);
+        } catch {
+            /* already released, or never captured */
+        }
+    }
 
     function handlePointerDown(event: PointerEvent) {
-        if (!surface || dragPointerId !== null || !event.isPrimary) return;
+        if (!surface) return;
         // Left button (or a touch/pen contact, which also reports 0) only. A
         // right-button press opens the context menu, and starting a pan under it
         // leaves the image sliding behind an open menu with no pointer-up to
         // end the drag.
         if (event.button !== 0) return;
 
-        dragPointerId = event.pointerId;
-        lastPointer = { x: event.clientX, y: event.clientY };
-        surface.setPointerCapture(event.pointerId);
+        refreshSurfaceOrigin();
+        capturePointer(event.pointerId);
 
-        // A pointer-down takes control: any in-flight wheel animation stops
-        // where it is rather than continuing to glide under the finger.
+        // A pointer-down takes control **in this frame**: any in-flight
+        // animation or glide stops where it is rather than continuing to move
+        // under the finger. Doing this here, synchronously, rather than on the
+        // next frame is the whole of "touching down during momentum stops it in
+        // the same frame".
         targetCentre = { ...viewport.centre };
         targetScale = viewport.scale;
         animating = false;
+        momentum = null;
+
+        gestures.down(sampleOf(event));
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+        applyGesture(gestures.move(sampleOf(event)));
+    }
+
+    function handlePointerUp(event: PointerEvent) {
+        applyGesture(gestures.up(sampleOf(event)));
+        releasePointer(event.pointerId);
+    }
+
+    function handlePointerCancel(event: PointerEvent) {
+        applyGesture(gestures.cancel(sampleOf(event)));
+        releasePointer(event.pointerId);
     }
 
     /**
-     * Drag is **direct**: the transform is updated here, 1:1, with no smoothing
-     * and no spring. This is the single most important behavioural difference
-     * from the OpenSeadragon path, which animates the pan target through the
-     * same spring it uses for zoom and so trails the pointer.
+     * Turn a recognised gesture into a viewport change.
+     *
+     * Drag and pinch are **direct**: the transform is updated here, 1:1, with
+     * no smoothing and no spring. This is the single most important
+     * behavioural difference from the OpenSeadragon path, which animates the
+     * pan target through the same spring it uses for zoom and so trails the
+     * pointer. Painting is still once per frame — the transform is what must be
+     * direct, not the number of draw calls.
      */
-    function handlePointerMove(event: PointerEvent) {
-        if (event.pointerId !== dragPointerId) return;
+    function applyGesture(update: ReturnType<GestureRecogniser['move']>) {
+        switch (update.kind) {
+            case 'pan':
+                setViewDirect(
+                    {
+                        x: viewport.centre.x - update.dx / viewport.scale,
+                        y: viewport.centre.y - update.dy / viewport.scale,
+                    },
+                    viewport.scale,
+                );
+                return;
 
-        const dx = event.clientX - lastPointer.x;
-        const dy = event.clientY - lastPointer.y;
-        lastPointer = { x: event.clientX, y: event.clientY };
+            case 'pinch': {
+                // Scale about the midpoint the fingers were at, then translate
+                // by the midpoint's own movement. Composed, that is "the world
+                // under the two fingers follows the two fingers".
+                const scale = clampScale(viewport.scale * update.scaleBy);
+                const anchored = anchoredZoomCentre(
+                    viewport,
+                    update.anchor,
+                    scale,
+                );
+                setViewDirect(
+                    {
+                        x: anchored.x - update.dx / scale,
+                        y: anchored.y - update.dy / scale,
+                    },
+                    scale,
+                );
+                return;
+            }
 
-        const centre = {
-            x: viewport.centre.x - dx / viewport.scale,
-            y: viewport.centre.y - dy / viewport.scale,
-        };
-        viewport = { ...viewport, centre };
-        targetCentre = { ...centre };
+            case 'flick':
+                momentum = update.velocity;
+                requestFrame();
+                return;
 
-        // Painting is still once per frame — the transform is what must be
-        // direct, not the number of draw calls.
-        requestFrame();
+            case 'doubleTap':
+                zoomAnchored(update.point, DOUBLE_TAP_ZOOM_FACTOR);
+                return;
+
+            // A single tap reports `none` and therefore changes nothing: it is
+            // reserved for annotation selection (spec §Input and animation).
+            case 'none':
+                return;
+        }
     }
 
-    function endDrag(event: PointerEvent) {
-        if (event.pointerId !== dragPointerId) return;
-        // Momentum on release is ticket 10.
-        dragPointerId = null;
-        surface?.releasePointerCapture?.(event.pointerId);
+    /** Animated zoom by `factor`, holding the world point under `anchor`. */
+    function zoomAnchored(anchor: Point, factor: number) {
+        const scale = clampScale(viewport.scale * factor);
+        setViewAnimated(
+            anchoredZoomCentre(viewport, anchor, scale),
+            scale,
+            ANIMATION_TIME_CONSTANT,
+        );
     }
 
     /**
      * Wheel zoom is animated with a short time constant and anchors at the
      * pointer: the world point under the cursor stays under the cursor.
+     *
+     * There is deliberately **no trackpad-versus-mouse branch** here or
+     * anywhere else. All wheel input is animated by the same constant. The
+     * usual heuristics — delta magnitude, `ctrlKey`, the platform — all have
+     * counterexamples and would be wrong on someone's hardware. This is a
+     * decision, not an omission; the "fix" is tempting and must not be applied.
      */
     function handleWheel(event: WheelEvent) {
         if (!surface) return;
         event.preventDefault();
 
-        const rect = surface.getBoundingClientRect();
+        refreshSurfaceOrigin();
         const anchor = {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
+            x: event.clientX - surfaceOrigin.x,
+            y: event.clientY - surfaceOrigin.y,
         };
 
         // `deltaY` is normalized to pixels first: the event declares its own
@@ -533,10 +796,11 @@
             viewport.scale * Math.exp(-deltaY * WHEEL_ZOOM_RATE),
         );
 
-        targetScale = nextScale;
-        targetCentre = anchoredZoomCentre(viewport, anchor, nextScale);
-        animating = true;
-        requestFrame();
+        setViewAnimated(
+            anchoredZoomCentre(viewport, anchor, nextScale),
+            nextScale,
+            WHEEL_TIME_CONSTANT,
+        );
     }
 
     // ── Source loading ───────────────────────────────────────────────────
@@ -632,12 +896,24 @@
                 targetCentre = { ...view.centre };
                 targetScale = view.scale;
                 animating = false;
+                momentum = null;
                 return nextPaint();
             },
+            /**
+             * Fit-bounds is ANIMATED (spec §Input and animation: programmatic
+             * input always is). `nextPaint` already resolves only once the
+             * viewport has settled, so callers need no extra wait.
+             */
             fit: () => {
-                fitWorld();
+                fitWorld(true);
                 return nextPaint();
             },
+            /** Animated zoom about a surface-local point — the toolbar's shape. */
+            zoomAt: (anchor: Point, factor: number) => {
+                zoomAnchored(anchor, factor);
+                return nextPaint();
+            },
+            isMoving: () => animating || momentum !== null,
             /**
              * Residency and decoded-byte counters.
              *
@@ -659,6 +935,8 @@
             unwatchDevicePixelRatio();
             if (frameHandle !== null) cancelAnimationFrame(frameHandle);
             frameHandle = null;
+            animating = false;
+            momentum = null;
             settlePaintWaiters();
             for (const id of Object.keys(images)) delete images[id];
             // Also clears the in-flight requests: an `onload` that lands after
@@ -722,8 +1000,8 @@
         data-testid="canvas-renderer-surface"
         onpointerdown={handlePointerDown}
         onpointermove={handlePointerMove}
-        onpointerup={endDrag}
-        onpointercancel={endDrag}
+        onpointerup={handlePointerUp}
+        onpointercancel={handlePointerCancel}
         onwheel={handleWheel}
     ></canvas>
 </div>

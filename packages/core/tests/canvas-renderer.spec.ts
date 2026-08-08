@@ -130,6 +130,11 @@ test.describe('Canvas2D renderer — static image', () => {
         );
         expect(during.scale).toBeCloseTo(before.scale, 10);
 
+        // Held still before releasing, so this asserts the DRAG and nothing
+        // else. Releasing straight from a fast move is a flick and carries
+        // momentum by design (ticket 10) — a different behaviour, asserted
+        // separately in `canvas-renderer-input.spec.ts`.
+        await page.waitForTimeout(150);
         await page.mouse.up();
 
         // And it stays there: no spring settles it somewhere else afterwards.
@@ -156,6 +161,9 @@ test.describe('Canvas2D renderer — static image', () => {
             box.x + box.width / 2 + delta.x,
             box.y + box.height / 2 + delta.y,
         );
+        // Held still before releasing: a flick would add momentum on top of
+        // the delta under test. See the note in the drag test above.
+        await page.waitForTimeout(150);
         await page.mouse.up();
         await nextPaint(page);
 

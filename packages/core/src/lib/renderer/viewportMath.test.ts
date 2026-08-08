@@ -6,6 +6,7 @@ import {
     approach,
     approachScale,
     canvasToScreen,
+    constrainCentre,
     fitBounds,
     normalizeWheelDelta,
     screenToCanvas,
@@ -129,6 +130,23 @@ describe('animation', () => {
         expect(Math.log(low / 1)).toBeCloseTo(Math.log(high / 8), 10);
     });
 
+    it('feels uniform across a 100x range: one doubling costs the same everywhere', () => {
+        // The whole point of easing in log space. Linear interpolation makes
+        // the same gesture lurch at one end of the range and crawl at the
+        // other; here every doubling in a 100x span takes the same fraction of
+        // its journey in the same time.
+        const covered = [0.05, 0.2, 1, 4].map((from) =>
+            Math.log2(approachScale(from, from * 2, 0.1, 0.05) / from),
+        );
+
+        for (const fraction of covered) {
+            expect(fraction).toBeCloseTo(covered[0], 12);
+        }
+        // …and it is a real fraction of the doubling, not zero or all of it.
+        expect(covered[0]).toBeGreaterThan(0.1);
+        expect(covered[0]).toBeLessThan(0.9);
+    });
+
     /*
      * The first frame of a wheel animation routinely arrives with a
      * non-positive elapsed: the rAF callback is scheduled from the input
@@ -182,5 +200,109 @@ describe('normalizeWheelDelta', () => {
         expect(
             normalizeWheelDelta(Number.POSITIVE_INFINITY, 1, LINE, PAGE),
         ).toBe(0);
+    });
+});
+
+describe('constrainCentre', () => {
+    const WORLD = { x: 0, y: 0, width: 1000, height: 800 };
+    const SIZE = { width: 800, height: 600 };
+
+    it('leaves a centre that is already legal untouched', () => {
+        // scale 1: the 800x600 window sits wholly inside the 1000x800 world.
+        expect(
+            constrainCentre({ x: 500, y: 400 }, 1, WORLD, SIZE, 0.5),
+        ).toEqual({ x: 500, y: 400 });
+    });
+
+    it('stops the world being dragged off screen entirely', () => {
+        const far = constrainCentre(
+            { x: 999_999, y: -999_999 },
+            1,
+            WORLD,
+            SIZE,
+            0.5,
+        );
+
+        // With the viewport (800 wide) smaller than the world (1000), half the
+        // viewport must stay covered: the centre may not pass 400px beyond
+        // either world edge.
+        expect(far.x).toBeCloseTo(1000 - 400 + 400, 10);
+        expect(far.y).toBeCloseTo(0 + 300 - 300, 10);
+    });
+
+    it('measures the requirement against the world when the world is smaller', () => {
+        // scale 0.2: the window is 4000x3000 canvas units, dwarfing the world.
+        const constrained = constrainCentre(
+            { x: 999_999, y: 0 },
+            0.2,
+            WORLD,
+            SIZE,
+            1,
+        );
+
+        // At ratio 1 with a smaller world, the whole world must stay inside the
+        // window: the centre may go no further than half a window past the
+        // world's near edge.
+        expect(constrained.x).toBeCloseTo(0 + 4000 / 2, 10);
+    });
+
+    it('pins the world to the viewport edge at a visibility ratio of 1', () => {
+        // World larger than the window (scale 1 → 800x600 window): the window
+        // may not leave the world at all.
+        const left = constrainCentre({ x: -500, y: 400 }, 1, WORLD, SIZE, 1);
+        expect(left.x).toBeCloseTo(400, 10);
+
+        const right = constrainCentre({ x: 5000, y: 400 }, 1, WORLD, SIZE, 1);
+        expect(right.x).toBeCloseTo(600, 10);
+    });
+
+    it('never produces an empty range, whatever the zoom', () => {
+        for (const scale of [0.01, 0.1, 0.5, 1, 4, 40]) {
+            for (const ratio of [0, 0.25, 0.5, 1]) {
+                const low = constrainCentre(
+                    { x: -1e9, y: -1e9 },
+                    scale,
+                    WORLD,
+                    SIZE,
+                    ratio,
+                );
+                const high = constrainCentre(
+                    { x: 1e9, y: 1e9 },
+                    scale,
+                    WORLD,
+                    SIZE,
+                    ratio,
+                );
+                expect(low.x).toBeLessThanOrEqual(high.x);
+                expect(low.y).toBeLessThanOrEqual(high.y);
+                // …and the world centre is always reachable.
+                expect(
+                    constrainCentre(
+                        { x: 500, y: 400 },
+                        scale,
+                        WORLD,
+                        SIZE,
+                        ratio,
+                    ),
+                ).toEqual({ x: 500, y: 400 });
+            }
+        }
+    });
+
+    it('is a no-op for a degenerate world or scale rather than returning NaN', () => {
+        const centre = { x: 12, y: 34 };
+        expect(constrainCentre(centre, 0, WORLD, SIZE, 0.5)).toEqual(centre);
+        expect(
+            constrainCentre(
+                centre,
+                1,
+                { x: 0, y: 0, width: 0, height: 0 },
+                SIZE,
+                0.5,
+            ),
+        ).toEqual(centre);
+        expect(
+            constrainCentre(centre, 1, WORLD, { width: 0, height: 0 }, 0.5),
+        ).toEqual(centre);
     });
 });
