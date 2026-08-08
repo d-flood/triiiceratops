@@ -40,7 +40,7 @@ const EXTERNAL = [/^openseadragon(\/|$)/, /^@annotorious\//];
  *   `dist/logging/logger.js`. A private copy here would be a second gate that
  *   nothing can reach — and worse: with `configureLogging` unreachable from
  *   this entry's exports, `debugEnabled` becomes a provable constant `false`
- *   and the minifier DELETES the `state`-cadence `osdViewer` probe outright, so
+ *   and the minifier DELETES the `state`-cadence viewport probe outright, so
  *   the warning is not merely silent in the artifact, it is absent from it.
  *
  * Both specifiers are relative and `dist/testing/index.js` sits at the same
