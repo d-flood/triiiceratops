@@ -22,6 +22,19 @@ import { expect, type Page } from '@playwright/test';
 
 export const GRID_MANIFEST = '/demo-manifests/static-image/manifest.json';
 
+/**
+ * The same numbered grid, delivered through a IIIF Image API level 2 service
+ * with a real tile pyramid (see `scripts/iiifFixturePlugin.mjs`).
+ *
+ * Deliberately the same picture as the static fixture, so every geometric
+ * expectation written for ticket 04 carries over to deep zoom unchanged — a
+ * tile-seam or level-selection regression shows up as a feature landing in the
+ * wrong place, not as a new set of numbers to maintain.
+ */
+export const TILED_MANIFEST = '/demo-manifests/tiled/manifest.json';
+/** The image services the tiled fixture's two canvases are backed by. */
+export const TILED_SERVICES = ['/iiif-fixture/one', '/iiif-fixture/two'];
+
 /** Canvas-space (== image-space, for this fixture) coordinates of each feature. */
 export const GRID_FEATURES = {
     alpha: { x: 200, y: 150, color: [230, 0, 0] },
@@ -71,6 +84,43 @@ export async function openGridManifest(page: Page): Promise<void> {
     await expect
         .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
         .not.toBeNull();
+}
+
+/**
+ * Open the tiled fixture with the Canvas2D renderer selected.
+ *
+ * Waits for a feature to be findable, which for a tiled canvas means the base
+ * level has been fetched, decoded, and painted — the whole `info.json` →
+ * pyramid → schedule → decode → paint path.
+ */
+export async function openTiledManifest(page: Page): Promise<void> {
+    await useCanvasRenderer(page);
+    await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+        waitUntil: 'domcontentloaded',
+    });
+    await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 20_000 });
+    await expect
+        .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+        .not.toBeNull();
+}
+
+/** The renderer's residency counters. */
+export interface RendererStats {
+    residentTileCount: number;
+    decodedBytes: number;
+    tileRequestCount: number;
+}
+
+export async function getStats(page: Page): Promise<RendererStats> {
+    return page.locator(SURFACE).evaluate((element) => {
+        const handle = (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer?: { getStats(): RendererStats };
+            }
+        ).__triiiceratopsRenderer;
+        if (!handle) throw new Error('renderer test handle not installed');
+        return handle.getStats();
+    }) as Promise<RendererStats>;
 }
 
 export async function getView(page: Page): Promise<RendererView> {

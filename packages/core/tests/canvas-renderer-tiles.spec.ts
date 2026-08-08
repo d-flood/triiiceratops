@@ -1,0 +1,453 @@
+/**
+ * Seam 2 — tiled deep zoom (ticket 05).
+ *
+ * What is asserted here is what only a browser can answer: network behaviour
+ * (how many requests, in what order, cancelled or not) and painted pixels (blur
+ * -up coverage, tile seams). Ordering policy, the cancellation rule, cache keys
+ * and the negative cache are decisions over planner output and are unit-tested
+ * against a fake fetch in `src/lib/renderer/*.test.ts`; nothing is duplicated
+ * here.
+ *
+ * The fixture is a fake IIIF level 2 service on the dev server
+ * (`scripts/iiifFixturePlugin.mjs`) painting the SAME numbered grid the static
+ * fixture uses, so ticket 04's geometric expectations carry over verbatim.
+ *
+ * Chromium only: everything here is scheduling and coordinate maths, and
+ * widening the matrix would buy noise rather than coverage.
+ */
+
+import { expect, test, type Page, type Request } from '@playwright/test';
+
+import {
+    expectFeatureOnModel,
+    findFeature,
+    getStats,
+    getView,
+    GRID_FEATURES,
+    nextPaint,
+    openTiledManifest,
+    setView,
+    TILED_MANIFEST,
+    useCanvasRenderer,
+} from './helpers/numberedGrid';
+
+const SURFACE = '[data-testid="canvas-renderer-surface"]';
+
+/** Tile requests, distinguished from any other image the page may fetch. */
+const TILE_PATTERN = /\/iiif-fixture\/[^/]+\/[^/]+\/[^/]+\/0\/default\.png$/;
+const INFO_PATTERN = /\/iiif-fixture\/[^/]+\/info\.json$/;
+
+test.skip(
+    ({ browserName }) => browserName !== 'chromium',
+    'The tiled renderer slice is Chromium-only.',
+);
+
+/**
+ * The region a tile URL asks for, in image pixels — `null` for the whole image.
+ *
+ * Parsed rather than assumed so an ordering assertion can be about *where* a
+ * tile is, which is the property that matters, rather than about the shape of
+ * the URL.
+ */
+function tileRegion(
+    url: string,
+): { x: number; y: number; width: number; height: number } | null {
+    const match = url.match(/\/iiif-fixture\/[^/]+\/([^/]+)\//);
+    if (!match) return null;
+    if (match[1] === 'full') {
+        return { x: 0, y: 0, width: 1200, height: 900 };
+    }
+    const parts = match[1].split(',').map(Number);
+    if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) {
+        return null;
+    }
+    return { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
+}
+
+function recordRequests(page: Page, pattern: RegExp): string[] {
+    const urls: string[] = [];
+    page.on('request', (request: Request) => {
+        if (pattern.test(request.url())) urls.push(request.url());
+    });
+    return urls;
+}
+
+/** The alpha channel at a canvas-local CSS pixel. 0 means nothing was painted. */
+async function alphaAt(page: Page, x: number, y: number): Promise<number> {
+    return page.locator(SURFACE).evaluate(
+        (element, point) => {
+            const canvas = element as HTMLCanvasElement;
+            const ctx = canvas.getContext('2d')!;
+            const scaleX = canvas.width / canvas.clientWidth;
+            const scaleY = canvas.height / canvas.clientHeight;
+            return ctx.getImageData(
+                Math.round(point.x * scaleX),
+                Math.round(point.y * scaleY),
+                1,
+                1,
+            ).data[3];
+        },
+        { x, y },
+    );
+}
+
+test.describe('Canvas2D renderer — tiled deep zoom', () => {
+    test('opening a single-canvas view issues exactly one info.json request', async ({
+        page,
+    }) => {
+        await useCanvasRenderer(page);
+        const infoRequests = recordRequests(page, INFO_PATTERN);
+
+        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        await page.locator(SURFACE).waitFor({ state: 'visible' });
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+            .not.toBeNull();
+
+        // Several frames' worth of planning, each of which re-emits the same
+        // metadata request. The cache is what makes that one fetch — the old
+        // renderer's `Promise.all` over every source is what this replaces.
+        await nextPaint(page);
+        await nextPaint(page);
+
+        expect(infoRequests).toEqual([
+            expect.stringContaining('/iiif-fixture/one/info.json'),
+        ]);
+    });
+
+    test('revisiting a canvas issues no second metadata request', async ({
+        page,
+    }) => {
+        await useCanvasRenderer(page);
+        const infoRequests = recordRequests(page, INFO_PATTERN);
+
+        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+            .not.toBeNull();
+
+        await page.getByLabel('Next Canvas').click();
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+            .not.toBeNull();
+        await page.getByLabel('Previous Canvas').click();
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+            .not.toBeNull();
+
+        // Metadata and decoded pixels are two caches with two lifetimes: the
+        // tiles were released on the way out, the facts were not.
+        const first = infoRequests.filter((url) =>
+            url.includes('/iiif-fixture/one/'),
+        );
+        expect(first).toHaveLength(1);
+    });
+
+    test('lands a named feature on its predicted screen pixel within 1px at deep zoom', async ({
+        page,
+    }) => {
+        await openTiledManifest(page);
+
+        // Well past the fit scale, so the current level is full resolution and
+        // the feature is painted from several tiles' worth of pyramid.
+        for (const scale of [0.5, 1.5, 4]) {
+            await setView(page, { centre: GRID_FEATURES.alpha, scale });
+
+            // Polled, not asserted once: the first frame at a new zoom is
+            // deliberately the coarse chain magnified — that is blur-up — and a
+            // marker resampled up from level 0 has a centroid good to a coarse
+            // pixel, not to a screen one. What is asserted is that the current
+            // level lands and brings the feature onto its predicted pixel.
+            await expect
+                .poll(
+                    async () => {
+                        const view = await getView(page);
+                        const found = await findFeature(page, 'alpha');
+                        if (!found) return Infinity;
+                        const expected = {
+                            x:
+                                (GRID_FEATURES.alpha.x - view.centre.x) *
+                                    view.scale +
+                                view.width / 2,
+                            y:
+                                (GRID_FEATURES.alpha.y - view.centre.y) *
+                                    view.scale +
+                                view.height / 2,
+                        };
+                        return Math.max(
+                            Math.abs(found.x - expected.x),
+                            Math.abs(found.y - expected.y),
+                        );
+                    },
+                    { timeout: 20_000 },
+                )
+                .toBeLessThanOrEqual(1);
+        }
+    });
+
+    test('never blanks while zooming from fit to full resolution', async ({
+        page,
+    }) => {
+        await openTiledManifest(page);
+        const view = await getView(page);
+        const centre = { x: view.width / 2, y: view.height / 2 };
+
+        // `setView` resolves on the very NEXT painted frame, so at each step
+        // the tiles for the newly promoted level cannot have arrived yet. That
+        // the centre is still painted is blur-up doing its job: the coarse
+        // chain is resident and gets painted underneath.
+        for (const scale of [0.4, 0.8, 1.6, 3.2, 6.4]) {
+            await setView(page, { centre: GRID_FEATURES.bravo, scale });
+            expect(
+                await alphaAt(page, centre.x, centre.y),
+                `blank at scale ${scale}`,
+            ).toBeGreaterThan(0);
+        }
+    });
+
+    test('zooming back out is immediate: the coarse chain is still resident', async ({
+        page,
+    }) => {
+        await openTiledManifest(page);
+        const view = await getView(page);
+        const centre = { x: view.width / 2, y: view.height / 2 };
+
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 6.4 });
+        await expect
+            .poll(() => getStats(page).then((stats) => stats.residentTileCount))
+            .toBeGreaterThan(1);
+
+        // Straight back out, and read the first frame painted there. Nothing
+        // has been fetched in between, so anything on screen was already held.
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.4 });
+        expect(await alphaAt(page, centre.x, centre.y)).toBeGreaterThan(0);
+        await expectFeatureOnModel(page, 'bravo', 1);
+    });
+
+    test('asks for the tile under the viewport centre first, not the first one discovered', async ({
+        page,
+    }) => {
+        await openTiledManifest(page);
+
+        // Let the fit view's own tiles finish, so what is recorded below is one
+        // plan's ordering rather than two overlapping ones.
+        await expect
+            .poll(() => getStats(page).then((stats) => stats.tileRequestCount))
+            .toBeGreaterThan(0);
+        for (let frame = 0; frame < 5; frame += 1) await nextPaint(page);
+
+        const requested = recordRequests(page, TILE_PATTERN);
+        // Off-centre on purpose: a scheduler that started at the top-left of
+        // the grid, or that kept discovery order, would pass a centred test.
+        const centre = { x: 500, y: 400 };
+        await setView(page, { centre, scale: 2.5 });
+        await expect.poll(() => requested.length).toBeGreaterThanOrEqual(6);
+
+        // The window is fed straight off the priority queue, so the first
+        // requests to leave it are in centre-out order. Distances are measured
+        // in image space, which is this fixture's canvas space too.
+        const distances = requested.slice(0, 6).map((url) => {
+            const region = tileRegion(url)!;
+            return Math.hypot(
+                region.x + region.width / 2 - centre.x,
+                region.y + region.height / 2 - centre.y,
+            );
+        });
+
+        expect(
+            distances,
+            `not centre-out: ${requested.slice(0, 6).join('\n')}`,
+        ).toEqual([...distances].sort((a, b) => a - b));
+    });
+
+    test('keeps in-flight tile requests inside the configured window', async ({
+        page,
+    }) => {
+        await useCanvasRenderer(page);
+
+        let active = 0;
+        let peak = 0;
+        await page.route(TILE_PATTERN, async (route) => {
+            active += 1;
+            peak = Math.max(peak, active);
+            // Held open long enough that the renderer would run ahead of the
+            // window if it had none.
+            await new Promise((resolve) => setTimeout(resolve, 120));
+            active -= 1;
+            await route.continue();
+        });
+
+        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        await page.locator(SURFACE).waitFor({ state: 'visible' });
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 30_000 })
+            .not.toBeNull();
+
+        // A zoom asks for far more tiles than the window can hold at once.
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 4 });
+        await expect.poll(() => peak, { timeout: 30_000 }).toBeGreaterThan(1);
+
+        expect(peak).toBeLessThanOrEqual(6);
+    });
+
+    test('aborts superseded tile requests rather than completing them', async ({
+        page,
+    }) => {
+        await useCanvasRenderer(page);
+
+        // Slow tiles, so a request is still outstanding when the view moves on.
+        await page.route(TILE_PATTERN, async (route) => {
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            await route.continue();
+        });
+
+        const aborted: string[] = [];
+        page.on('requestfailed', (request) => {
+            if (!TILE_PATTERN.test(request.url())) return;
+            if (request.failure()?.errorText.includes('ABORTED')) {
+                aborted.push(request.url());
+            }
+        });
+
+        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        await page.locator(SURFACE).waitFor({ state: 'visible' });
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 30_000 })
+            .not.toBeNull();
+
+        // A fast pan across the image: each step supersedes the last step's
+        // required set while its tiles are still in flight.
+        await setView(page, { centre: { x: 150, y: 150 }, scale: 4 });
+        for (const x of [400, 700, 1000, 700, 400, 150]) {
+            await setView(page, { centre: { x, y: 150 }, scale: 4 });
+        }
+
+        await expect
+            .poll(() => aborted.length, { timeout: 30_000 })
+            .toBeGreaterThan(0);
+    });
+
+    test('requests a failing tile at most twice, ever', async ({ page }) => {
+        await useCanvasRenderer(page);
+
+        // One tile of the full-resolution level, chosen by its region so the
+        // choice survives any change in how a URL is spelled.
+        const brokenTile = /\/iiif-fixture\/one\/512,256,256,256\//;
+        const attempts: string[] = [];
+        await page.route(brokenTile, async (route) => {
+            attempts.push(route.request().url());
+            await route.fulfill({ status: 404, body: 'gone' });
+        });
+
+        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+            waitUntil: 'domcontentloaded',
+        });
+        await page.locator(SURFACE).waitFor({ state: 'visible' });
+        await expect
+            .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+            .not.toBeNull();
+
+        // Sit at a zoom where that tile is required, across many frames. Without
+        // a permanent negative entry it would be re-requested on every one.
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 4 });
+        await expect.poll(() => attempts.length).toBeGreaterThan(0);
+        for (let frame = 0; frame < 20; frame += 1) await nextPaint(page);
+
+        expect(attempts).toHaveLength(2);
+    });
+
+    test('paints no seams between tiles at fractional zoom', async ({
+        page,
+    }) => {
+        await openTiledManifest(page);
+
+        // A deliberately awkward scale and centre: whole-numbered ones snap
+        // tile edges onto device pixels for free and would hide the bug.
+        await setView(page, {
+            centre: { x: 613.37, y: 451.19 },
+            scale: 1.7321,
+        });
+        // Let the level fill in, so the scan crosses real tile boundaries
+        // rather than one stretched coarse tile.
+        await expect
+            .poll(
+                () => getStats(page).then((stats) => stats.residentTileCount),
+                {
+                    timeout: 20_000,
+                },
+            )
+            .toBeGreaterThan(4);
+        await nextPaint(page);
+
+        // A seam is a column the painter left transparent: the canvas never
+        // paints a background, so a gap between two tiles reads as alpha 0.
+        const gaps = await page.locator(SURFACE).evaluate((element) => {
+            const canvas = element as HTMLCanvasElement;
+            const ctx = canvas.getContext('2d')!;
+            const { data } = ctx.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height,
+            );
+
+            let transparent = 0;
+            const y = Math.floor(canvas.height / 2);
+            for (let x = 0; x < canvas.width; x += 1) {
+                if (data[(y * canvas.width + x) * 4 + 3] === 0)
+                    transparent += 1;
+            }
+            return transparent;
+        });
+
+        // The image more than covers the viewport at this zoom, so every pixel
+        // of the scanline is inside it.
+        expect(gaps).toBe(0);
+    });
+
+    test('reports resident tiles and decoded bytes, and they follow what is held', async ({
+        page,
+    }) => {
+        await openTiledManifest(page);
+
+        const atFit = await getStats(page);
+        expect(atFit.residentTileCount).toBeGreaterThan(0);
+        expect(atFit.decodedBytes).toBeGreaterThan(0);
+
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 4 });
+        await expect
+            .poll(
+                () => getStats(page).then((stats) => stats.residentTileCount),
+                { timeout: 20_000 },
+            )
+            .toBeGreaterThan(atFit.residentTileCount);
+
+        const zoomed = await getStats(page);
+        // Decoded bytes track the tiles, not the request history: browser heap
+        // metrics could not see this at all, since decoded images live outside
+        // the JS heap.
+        expect(zoomed.decodedBytes).toBeGreaterThan(atFit.decodedBytes);
+        expect(
+            zoomed.decodedBytes / zoomed.residentTileCount,
+        ).toBeLessThanOrEqual(
+            // Nothing bigger than one 256x256 RGBA tile per resident tile.
+            256 * 256 * 4,
+        );
+
+        // Back out, and the current level's tiles are released again.
+        await setView(page, { centre: GRID_FEATURES.bravo, scale: 0.4 });
+        await nextPaint(page);
+        const backOut = await getStats(page);
+        expect(backOut.residentTileCount).toBeLessThan(
+            zoomed.residentTileCount,
+        );
+    });
+});

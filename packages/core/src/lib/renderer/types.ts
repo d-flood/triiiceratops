@@ -14,12 +14,10 @@ export type { ViewingDirection, ViewingMode };
 /**
  * Where a canvas's pixels come from.
  *
- * The three source kinds of the spec arrive over several tickets; this ticket
- * implements `static` only. `service` is carried in the type from the first
- * version so canvases backed by an image service are described rather than
- * discarded, but nothing acts on it yet: the planner emits no metadata request
- * for one and the host paints nothing for it. Ticket 05 makes a `service`
- * canvas fetch its `info.json` and tile; ticket 06 adds the size ladder.
+ * `static` is one known URL. `service` is an image service the planner turns
+ * into a tile pyramid once its `info.json` has been fetched — a service that
+ * advertises no tiles (level0 sizes-only) becomes the **size-ladder source**
+ * in ticket 06 and paints nothing until then.
  */
 export type SourceDescriptor =
     | { kind: 'static'; url: string }
@@ -61,14 +59,30 @@ export interface Viewport {
     scale: number;
 }
 
-/** Image-service facts already fetched for a canvas. */
+/**
+ * Image-service facts already fetched for a canvas — everything `info.json`
+ * says that the renderer acts on.
+ *
+ * These govern the **tile pyramid only**. Geometry comes from the manifest
+ * Canvas and wins permanently, so `width`/`height` disagreeing with the
+ * manifest's cannot move anything on screen (spec §Coordinate model and
+ * layout).
+ */
 export interface ImageServiceFacts {
     width: number;
     height: number;
     /** Advertised whole-image sizes, if the service declares any. */
     sizes?: Array<{ width: number; height: number }>;
+    /**
+     * Advertised tile width. Absent means the service advertises no tiling at
+     * all — a size-ladder source (ticket 06), which gets no pyramid.
+     */
     tileSize?: number | null;
     scaleFactors?: number[];
+    /** IIIF Image API major version, which decides `quality` in a tile URL. */
+    version?: 2 | 3;
+    /** Image format extension for tile requests. Defaults to `jpg`. */
+    format?: string;
 }
 
 /**
@@ -86,6 +100,13 @@ export interface PlannerBudgets {
     pyramidThreshold: number;
     /** `effectiveSize` below which a canvas is in the box tier. */
     boxThreshold: number;
+    /**
+     * How blurry a pyramid level may be before the next finer one is promoted,
+     * as level pixels per screen pixel. Carried forward from the OpenSeadragon
+     * path at its current value so sharpness-versus-speed does not visibly
+     * shift (ticket 05 §Contract).
+     */
+    minPixelRatio: number;
 }
 
 /** Which of the three treatments a canvas receives this frame. */
@@ -100,13 +121,49 @@ export interface LayoutRect {
     height: number;
 }
 
-/** A tile the painter wants but does not have. Populated from ticket 05. */
+/**
+ * A tile's stable identity: canvas, level, and position in that level's grid.
+ *
+ * Built by `tilePyramid.tileKey`; opaque everywhere else. It is what the
+ * scheduler keys residency on and what a **tile draw** names, so the planner
+ * can decide what to paint without holding any pixels.
+ */
+export type TileKey = string;
+
+/**
+ * One tile of the **required set** — what must be resident, not what is
+ * missing. The scheduler skips the ones it already holds and releases anything
+ * absent from the list, so residency stays a pure function of the viewport
+ * rather than of what happened to be fetched.
+ */
 export interface TileRequest {
+    key: TileKey;
     canvasId: string;
+    /** 0 is the base (coarsest) level; larger is finer. */
     level: number;
     url: string;
-    /** Distance from the viewport centre; the queue is ordered by this. */
+    /**
+     * Distance in canvas space from the viewport centre to the tile's centre.
+     * The queue is ordered by this, so tiles arrive centre-out rather than in
+     * discovery order — and is re-sorted as the viewport moves.
+     */
     priority: number;
+}
+
+/**
+ * One tile the painter should draw, and the canvas-space box it occupies.
+ *
+ * Ordered coarsest level first, which is what implements **blur-up**: the
+ * coarse chain is resident, so an incomplete current level is painted over
+ * something rather than over nothing, and the viewer is never blank.
+ */
+export interface TileDraw {
+    key: TileKey;
+    level: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
 }
 
 /** A whole-image request sized to a canvas's projection, quantized to a rung. */
@@ -125,6 +182,14 @@ export interface PlanSceneInput {
     /** canvasId → image-service facts already fetched. */
     knownMetadata: Record<string, ImageServiceFacts>;
     budgets: PlannerBudgets;
+    /**
+     * Which tiles the host currently holds decoded.
+     *
+     * Read only to decide `tileDraws` — what can be painted this frame is a
+     * planner decision like every other, and passing residency in as data keeps
+     * the planner pure while leaving the painter with nothing to decide.
+     */
+    residentTiles?: ReadonlySet<TileKey>;
 }
 
 /**
@@ -135,10 +200,12 @@ export interface ScenePlan {
     layout: LayoutRect[];
     /** canvasId → tier. */
     tiers: Record<string, ResidencyTier>;
-    /** Ordered by priority, nearest the viewport centre first. */
+    /** The required set, ordered by priority — nearest the viewport centre first. */
     tileRequests: TileRequest[];
+    /** What to paint, coarsest level first. Only tiles the host already holds. */
+    tileDraws: TileDraw[];
     thumbnailRequests: ThumbnailRequest[];
-    /** Canvas ids needing an `info.json` fetch now. Populated from ticket 05. */
+    /** Canvas ids needing an `info.json` fetch now. */
     metadataRequests: string[];
     /** Canvas ids droppable under budget pressure. */
     evictable: string[];

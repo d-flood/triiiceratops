@@ -19,7 +19,31 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
     pyramidThreshold: 320,
     /** `effectiveSize` in CSS px below which a canvas is a layout rect only. */
     boxThreshold: 24,
+    /**
+     * Carried forward from OpenSeadragon unchanged, unlike every other number
+     * here: it governs level promotion, so changing it would visibly shift
+     * sharpness-versus-speed at the same time as the renderer swap and make
+     * "is this better?" unanswerable.
+     */
+    minPixelRatio: 0.5,
 };
+
+/**
+ * The bounded in-flight tile window.
+ *
+ * The OpenSeadragon path caps concurrency at nothing at all (`imageLoaderLimit:
+ * 0`) while requesting at most one new tile per frame (`maxTilesPerFrame: 1`) —
+ * slow to ask, then all at once. A window is the other way round: ask for
+ * everything immediately, let at most this many be outstanding.
+ */
+export const TILE_IN_FLIGHT_LIMIT = 6;
+
+/**
+ * How many times a tile URL may fail before it is permanently dead. Two is one
+ * retry — enough for a blip, and short of re-requesting a 404 every frame it is
+ * visible.
+ */
+export const TILE_MAX_ATTEMPTS = 2;
 
 /**
  * Backing-store cap. Above 2 the extra pixels cost memory and fill rate far out

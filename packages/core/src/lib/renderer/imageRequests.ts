@@ -37,8 +37,9 @@ export function reconcileImages(
     held: Readonly<Record<string, string>>,
     canvases: readonly PlannerCanvas[],
 ): ImageReconciliation {
-    // Tiled sources are ticket 05: a `service` canvas holds no static image, so
-    // it is "wanted" by nothing here and anything held for it is dropped.
+    // A `service` canvas paints tiles, which the tile scheduler holds — it has
+    // no whole-canvas image, so it is "wanted" by nothing here and anything
+    // held for it is dropped.
     const wanted = new Map<string, string>();
     for (const canvas of canvases) {
         if (canvas.source.kind !== 'static') continue;

@@ -18,16 +18,24 @@
  * config for free.
  */
 
-import type { LayoutRect, ScenePlan, Viewport } from './types';
+import type { LayoutRect, ScenePlan, TileKey, Viewport } from './types';
 
-/**
- * What the host has decoded and can hand the painter, keyed by canvas id.
- *
- * A plain record rather than a `Map`: nothing here mutates it, and a record
- * keeps the painter free of any reactivity question about the container it is
- * handed.
- */
-export type PaintSources = Readonly<Record<string, CanvasImageSource>>;
+/** What the host has decoded and can hand the painter. */
+export interface PaintSources {
+    /**
+     * canvasId → the whole-canvas image of a static source.
+     *
+     * A plain record rather than a `Map`: nothing here mutates it, and a record
+     * keeps the painter free of any reactivity question about the container it
+     * is handed.
+     */
+    images: Readonly<Record<string, CanvasImageSource>>;
+    /**
+     * Tile key → decoded tile. A lookup rather than a record because the
+     * scheduler owns the tiles and hands out no copy of its map.
+     */
+    tiles: (key: TileKey) => CanvasImageSource | undefined;
+}
 
 /**
  * Apply the viewport transform, so subsequent draw calls are in **canvas
@@ -70,6 +78,40 @@ function drawCanvasImage(
 }
 
 /**
+ * Draw one tile in **device pixels**, with its edges snapped to whole ones.
+ *
+ * Snapping is what removes hairline seams between adjacent tiles at fractional
+ * scale. Two tiles sharing an edge compute the same coordinate for it, so
+ * rounding sends both to the same device pixel: no gap, no double-drawn column.
+ * Left to fractional coordinates, the resampler blends each edge against
+ * transparent black and a one-pixel bright line appears down every tile
+ * boundary.
+ *
+ * The cost is at most half a device pixel of placement error, which is inside
+ * the geometric assertions' one-CSS-pixel gate.
+ */
+function drawTile(
+    ctx: CanvasRenderingContext2D,
+    box: { x: number; y: number; width: number; height: number },
+    viewport: Viewport,
+    dpr: number,
+    image: CanvasImageSource,
+): void {
+    const scale = viewport.scale * dpr;
+    const originX = (viewport.width / 2) * dpr - viewport.centre.x * scale;
+    const originY = (viewport.height / 2) * dpr - viewport.centre.y * scale;
+
+    const left = Math.round(box.x * scale + originX);
+    const top = Math.round(box.y * scale + originY);
+    const right = Math.round((box.x + box.width) * scale + originX);
+    const bottom = Math.round((box.y + box.height) * scale + originY);
+
+    if (right <= left || bottom <= top) return;
+
+    ctx.drawImage(image, left, top, right - left, bottom - top);
+}
+
+/**
  * Paint one frame.
  *
  * `ctx` is expected to be sized in device pixels (`width`/`height` on the
@@ -94,9 +136,25 @@ export function paintScene(
         // A box-tier canvas is its layout rect only: no network, no texture.
         if (plan.tiers[rect.canvasId] === 'box') continue;
 
-        const image = sources[rect.canvasId];
+        const image = sources.images[rect.canvasId];
         if (!image) continue;
 
         drawCanvasImage(ctx, rect, image);
     }
+
+    if (plan.tileDraws.length > 0) {
+        // Tiles are drawn in device space so their edges can be snapped; the
+        // plan already has them ordered coarsest first, so blur-up is simply
+        // paint order.
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        for (const draw of plan.tileDraws) {
+            const tile = sources.tiles(draw.key);
+            if (!tile) continue;
+            drawTile(ctx, draw, viewport, dpr, tile);
+        }
+    }
+
+    // Left in the viewport transform whatever was painted: the **paint hook**
+    // (ticket 14) must receive exactly the transform the tiles were drawn with.
+    applyViewportTransform(ctx, viewport, dpr);
 }

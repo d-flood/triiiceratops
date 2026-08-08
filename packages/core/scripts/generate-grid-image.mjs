@@ -21,6 +21,14 @@
  * that a failing screenshot is legible to a human debugging it.
  *
  * A hand-rolled PNG encoder (zlib is in Node) keeps this dependency-free.
+ *
+ * ## Also a module
+ *
+ * `draw`, `renderRegion`, and `encodePng` are exported, and the file write only
+ * happens when this file is *run*. The fake IIIF image service that backs the
+ * tiled e2e fixture (`scripts/iiifFixturePlugin.mjs`) renders its tiles from the
+ * same pixels, so the tiled fixture and the static one are the same picture and
+ * the geometric assertions carry over to deep zoom unchanged.
  */
 
 import { deflateSync } from 'node:zlib';
@@ -119,7 +127,7 @@ function drawDigits(pixels, text, x, y, scale) {
     }
 }
 
-function draw() {
+export function draw() {
     const pixels = createPixels();
 
     for (let x = 0; x <= WIDTH; x += CELL) {
@@ -183,10 +191,10 @@ function chunk(type, data) {
     return Buffer.concat([length, typeAndData, crc]);
 }
 
-function encodePng(pixels) {
+export function encodePng(pixels, width = WIDTH, height = HEIGHT) {
     const ihdr = Buffer.alloc(13);
-    ihdr.writeUInt32BE(WIDTH, 0);
-    ihdr.writeUInt32BE(HEIGHT, 4);
+    ihdr.writeUInt32BE(width, 0);
+    ihdr.writeUInt32BE(height, 4);
     ihdr.writeUInt8(8, 8); // bit depth
     ihdr.writeUInt8(2, 9); // colour type: truecolour
     ihdr.writeUInt8(0, 10); // compression
@@ -195,9 +203,9 @@ function encodePng(pixels) {
 
     // Filter type 0 (None) per scanline: the image is flat colour blocks, so
     // predictive filters buy little and cost clarity.
-    const stride = WIDTH * 3;
-    const raw = Buffer.alloc((stride + 1) * HEIGHT);
-    for (let y = 0; y < HEIGHT; y += 1) {
+    const stride = width * 3;
+    const raw = Buffer.alloc((stride + 1) * height);
+    for (let y = 0; y < height; y += 1) {
         raw[y * (stride + 1)] = 0;
         Buffer.from(pixels.buffer, pixels.byteOffset + y * stride, stride).copy(
             raw,
@@ -213,10 +221,50 @@ function encodePng(pixels) {
     ]);
 }
 
-const outPath = resolve(
-    __dirname,
-    '../public/demo-manifests/static-image/numbered-grid.png',
-);
-mkdirSync(dirname(outPath), { recursive: true });
-writeFileSync(outPath, encodePng(draw()));
-process.stdout.write(`wrote ${outPath} (${WIDTH}x${HEIGHT})\n`);
+/**
+ * A IIIF Image API region of the grid, resampled to `targetWidth`.
+ *
+ * Nearest-neighbour on purpose: it is exact at scale factor 1, which is the
+ * level the deep-zoom geometric assertions land on, and it leaves the marker
+ * colours untouched at every coarser level so a centroid search still finds
+ * them. A box filter would blend markers toward the background and shrink the
+ * matched set for no benefit here.
+ */
+export function renderRegion(source, region, targetWidth, targetHeight) {
+    const out = new Uint8Array(targetWidth * targetHeight * 3);
+
+    for (let y = 0; y < targetHeight; y += 1) {
+        const sourceY = Math.min(
+            HEIGHT - 1,
+            region.y + Math.floor((y * region.height) / targetHeight),
+        );
+        for (let x = 0; x < targetWidth; x += 1) {
+            const sourceX = Math.min(
+                WIDTH - 1,
+                region.x + Math.floor((x * region.width) / targetWidth),
+            );
+            const from = (sourceY * WIDTH + sourceX) * 3;
+            const to = (y * targetWidth + x) * 3;
+            out[to] = source[from];
+            out[to + 1] = source[from + 1];
+            out[to + 2] = source[from + 2];
+        }
+    }
+
+    return out;
+}
+
+// Only when RUN, never when imported: the fake image service imports this file
+// for `draw`/`renderRegion` and must not write to the repository to do it.
+if (
+    process.argv[1] &&
+    resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+    const outPath = resolve(
+        __dirname,
+        '../public/demo-manifests/static-image/numbered-grid.png',
+    );
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, encodePng(draw()));
+    process.stdout.write(`wrote ${outPath} (${WIDTH}x${HEIGHT})\n`);
+}

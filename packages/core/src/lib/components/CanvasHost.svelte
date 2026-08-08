@@ -6,7 +6,9 @@
      * It owns the canvas element, the viewport, and pointer input; it owns no
      * scene decisions. Every frame it asks `planScene` what the scene is and
      * hands the resulting **scene plan** to `paintScene`. Nothing here decides
-     * what is resident or at which tier.
+     * what is resident or at which tier — including which tiles: the scheduler
+     * is handed the planner's **required set** once per frame and does exactly
+     * what it says.
      *
      * Mounted instead of `OSDViewer` when the development-only build flag
      * selects this renderer (see `renderer/rendererFlag.ts`). Ticket 18 deletes
@@ -22,26 +24,32 @@
      *
      * ## Scope
      *
-     * One canvas, one static-image source, drag and wheel zoom. Tiles are
-     * ticket 05, multi-canvas layout ticket 07, momentum/pinch/double-click
-     * ticket 10, keyboard and focus ticket 11, annotation overlays ticket 14.
+     * One canvas — a static image or a tiled image service — with drag and
+     * wheel zoom. The size-ladder source is ticket 06, multi-canvas layout
+     * ticket 07, momentum/pinch/double-click ticket 10, keyboard and focus
+     * ticket 11, annotation overlays ticket 14.
      */
     import { onMount } from 'svelte';
 
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
     import { reconcileImages } from '../renderer/imageRequests';
+    import { imageServiceCache } from '../renderer/imageService';
     import { paintScene } from '../renderer/paintScene';
     import { planScene } from '../renderer/planScene';
+    import { createTileScheduler } from '../renderer/tileScheduler';
     import {
         DEFAULT_BUDGETS,
         MAX_DEVICE_PIXEL_RATIO,
         MAX_ZOOM_FACTOR,
+        TILE_IN_FLIGHT_LIMIT,
+        TILE_MAX_ATTEMPTS,
         WHEEL_LINE_PIXELS,
         WHEEL_PAGE_PIXELS,
         WHEEL_TIME_CONSTANT,
         WHEEL_ZOOM_RATE,
     } from '../renderer/rendererDefaults';
     import type {
+        ImageServiceFacts,
         PlannerCanvas,
         Point,
         ScenePlan,
@@ -101,8 +109,36 @@
      * simply discarded.
      */
     const imageUrls: Record<string, string> = Object.create(null);
-    /** Bumped when a decoded image arrives, to re-run the paint effect. */
+    /** Bumped when a decoded image or tile arrives, to re-run the paint effect. */
     let loadedGeneration = $state(0);
+
+    /**
+     * The tile scheduler: everything about asking for, decoding, holding, and
+     * releasing tiles. It is handed the **required set** once per frame, from
+     * `paint()`, and makes no scene decisions of its own.
+     *
+     * Instance-scoped, unlike the metadata cache below — decoded pixels belong
+     * to this renderer and die with it. Constructing it touches nothing, so it
+     * is as safe on a server as the rest of the module graph.
+     */
+    const tiles = createTileScheduler({
+        maxInFlight: TILE_IN_FLIGHT_LIMIT,
+        maxAttempts: TILE_MAX_ATTEMPTS,
+        onChange: () => {
+            loadedGeneration += 1;
+        },
+    });
+
+    /**
+     * canvasId → the image-service facts the planner may use.
+     *
+     * A per-renderer view onto the page-shared `imageServiceCache`, which is
+     * what keeps metadata and pixels on **two lifetimes**: this record is
+     * rebuilt on remount, the cache behind it is not, so re-entering a canvas
+     * costs no `info.json` request.
+     */
+    const knownMetadata: Record<string, ImageServiceFacts> =
+        Object.create(null);
 
     /**
      * The canvases this renderer is showing, in **canvas space**.
@@ -135,9 +171,37 @@
             direction: viewerState.viewingDirection,
             preserveCanvasScale: viewerState.preserveCanvasScale,
             viewport,
-            knownMetadata: {},
+            knownMetadata,
             budgets: DEFAULT_BUDGETS,
+            residentTiles: tiles.residentKeys(),
         });
+    }
+
+    /**
+     * Fetch the `info.json` of every canvas the planner says needs one.
+     *
+     * Called once per frame with the planner's list, which is safe because the
+     * cache is the thing that dedupes: a hit costs nothing, a miss in flight
+     * joins the existing request, and a permanent failure never touches the
+     * network again. That is what makes opening a single-canvas manifest cost
+     * exactly one `info.json` request rather than one per frame — and what
+     * replaces the old renderer's `Promise.all` over every source.
+     */
+    function requestMetadata(canvasIds: string[]): void {
+        for (const canvasId of canvasIds) {
+            const canvas = plannerCanvases.find(
+                (entry) => entry.id === canvasId,
+            );
+            if (canvas?.source.kind !== 'service') continue;
+
+            const { serviceId } = canvas.source;
+            void imageServiceCache.ensure(serviceId).then((facts) => {
+                if (!facts || knownMetadata[canvasId] === facts) return;
+                knownMetadata[canvasId] = facts;
+                // Tiles can only be planned now that the pyramid is knowable.
+                loadedGeneration += 1;
+            });
+        }
     }
 
     function worldBounds(plan: ScenePlan) {
@@ -287,7 +351,17 @@
 
     function paint() {
         if (!ctx) return;
-        paintScene(ctx, currentPlan(), viewport, images, dpr);
+
+        const plan = currentPlan();
+
+        // Reconciled ONCE PER FRAME, from the frame loop — never from a pointer
+        // handler. Pointer events outpace frames during a drag, so per-event
+        // reconciliation would generate (and abort) several required sets per
+        // frame for no gain.
+        tiles.update(plan.tileRequests);
+        requestMetadata(plan.metadataRequests);
+
+        paintScene(ctx, plan, viewport, { images, tiles: tiles.get }, dpr);
     }
 
     /**
@@ -564,6 +638,19 @@
                 fitWorld();
                 return nextPaint();
             },
+            /**
+             * Residency and decoded-byte counters.
+             *
+             * A first-class renderer feature, not a test retrofit: browser heap
+             * metrics cannot gate tile memory, because decoded images live
+             * outside the JS heap and a heap ceiling reads near-flat while tiles
+             * leak. Ticket 13 promotes these to real query-only state.
+             */
+            getStats: () => ({
+                residentTileCount: tiles.residentTileCount,
+                decodedBytes: tiles.decodedBytes,
+                tileRequestCount: tiles.requestCount,
+            }),
             nextPaint,
         };
 
@@ -577,6 +664,11 @@
             // Also clears the in-flight requests: an `onload` that lands after
             // unmount finds no wanted URL and discards itself.
             for (const id of Object.keys(imageUrls)) delete imageUrls[id];
+            // Aborts every outstanding tile request and closes every decoded
+            // tile. The METADATA cache is deliberately left alone: it is
+            // page-shared and outlives the renderer, which is what makes
+            // remounting free.
+            tiles.dispose();
         };
     });
 
@@ -600,7 +692,8 @@
     });
 
     $effect(() => {
-        // Repaint when a decoded image lands.
+        // Repaint when a decoded image, a decoded tile, or image-service
+        // metadata lands.
         void loadedGeneration;
         requestFrame();
     });
