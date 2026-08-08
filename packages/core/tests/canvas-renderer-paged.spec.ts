@@ -26,7 +26,7 @@ import {
     predictScreenPoint,
     setView,
 } from './helpers/numberedGrid';
-import { DEFAULT_BUDGETS } from '../src/lib/renderer/rendererDefaults';
+import { MULTI_CANVAS_GAP_FRACTION } from '../src/lib/renderer/rendererDefaults';
 
 test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -39,12 +39,12 @@ const PAGE = { width: 1200, height: 900 };
 /**
  * Where the second page starts, in world units.
  *
- * Stated here rather than queried: the gap is a fraction of the median canvas
- * extent along the flow axis, and every canvas in this fixture is the same
+ * Stated here rather than queried: the gap is a fraction of the median laid-out
+ * canvas extent along the flow axis, and every canvas in this fixture is the same
  * width, so the median IS the page width. Normalization is the identity for the
  * same reason, which is why no scale factor appears.
  */
-const VERSO_X = PAGE.width + DEFAULT_BUDGETS.gapFraction * PAGE.width;
+const VERSO_X = PAGE.width + MULTI_CANVAS_GAP_FRACTION * PAGE.width;
 
 /**
  * Open the spread.
@@ -126,7 +126,7 @@ test.describe('Canvas2D renderer — paged spreads', () => {
         );
         const actual = await findFeature(page, 'bravo');
 
-        const gapPixels = DEFAULT_BUDGETS.gapFraction * PAGE.width * view.scale;
+        const gapPixels = MULTI_CANVAS_GAP_FRACTION * PAGE.width * view.scale;
 
         expect(actual).not.toBeNull();
         expect(

@@ -638,9 +638,50 @@ describe('viewerControls helpers', () => {
             ).toEqual(['facing-pages']);
         });
 
+        it('falls through an EMPTY v3 `behavior` to the v2 hint beside it', () => {
+            // `[]` is truthy, so "v3 if present" written as a truthiness test
+            // discards the only hint the document carries. This is not a
+            // hypothetical shape: v2→v3 converters emit `"behavior": []` on
+            // every canvas while leaving `viewingHint` in place, which would
+            // re-pair exactly the single-page plate the v2 reader exists to
+            // keep unpaired.
+            expect(
+                getCanvasBehaviors({
+                    behavior: [],
+                    viewingHint: 'non-paged',
+                }),
+            ).toEqual(['non-paged']);
+            expect(
+                getCanvasBehaviors({
+                    behavior: '',
+                    viewingHint: 'facing-pages',
+                }),
+            ).toEqual(['facing-pages']);
+        });
+
+        it('does not pair a converted canvas whose empty `behavior` shadows its hint', () => {
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                {
+                    ...createImageCanvas('canvas-2'),
+                    behavior: [],
+                    viewingHint: 'non-paged',
+                },
+                createImageCanvas('canvas-3'),
+                createImageCanvas('canvas-4'),
+            ];
+
+            expect(
+                getPagedCanvasGroups(canvases, 1).map((group) =>
+                    group.entries.map((entry) => entry.canvasId),
+                ),
+            ).toEqual([['canvas-1'], ['canvas-2'], ['canvas-3', 'canvas-4']]);
+        });
+
         it('is total', () => {
             expect(getCanvasBehaviors(null)).toEqual([]);
             expect(getCanvasBehaviors({})).toEqual([]);
+            expect(getCanvasBehaviors({ behavior: [] })).toEqual([]);
         });
     });
 

@@ -9,8 +9,8 @@
 //
 // A caller laying out in a space where a canvas is NOT one unit wide — the
 // Canvas2D renderer, whose world is canvas space, i.e. manifest Canvas pixels —
-// must pass its own `gap`, because this number would be a sub-pixel hairline
-// there. See `renderer/planScene.layoutCanvases`.
+// passes a `gapFraction` instead, because this number would be a sub-pixel
+// hairline there. See `renderer/planScene.layoutCanvases`.
 const DEFAULT_MULTI_CANVAS_GAP = 0.0125;
 
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
@@ -43,6 +43,27 @@ export interface CanvasGeometry {
     width?: number | null;
     sourceWidth?: number | null;
     sourceHeight?: number | null;
+    /**
+     * The extent of the whole **Canvas box** in world units — the box the
+     * source's `x`/`y`/`width` are positions within — when it is larger than
+     * what this source paints.
+     *
+     * A painting annotation may target a sub-region of its Canvas
+     * (`#xywh=0,0,600,900` on a 1200x900 Canvas), and then the painted extent
+     * is *half* the Canvas. Layout advances the cumulative offset by the Canvas
+     * box, never by the painted extent: the next canvas goes after the whole
+     * page, not after the part of it that happens to carry an image. Omitted,
+     * the painted extent is used, which is right for the common case where a
+     * source fills its canvas.
+     *
+     * In world units like everything else here, deliberately *not* the
+     * manifest's Canvas pixel dimensions (`ResolvedCanvasImage.canvasWidth`):
+     * the OpenSeadragon path's world is normalized, so its Canvas box is 1 unit
+     * wide by construction, while the renderer's world is canvas space, where
+     * it is the manifest figure.
+     */
+    canvasBoxWidth?: number | null;
+    canvasBoxHeight?: number | null;
 }
 
 /** Where layout placed one source, in world units. */
@@ -79,8 +100,12 @@ interface GroupedSource extends SourcePayload {
 interface CanvasGroup {
     canvasId: string;
     sources: GroupedSource[];
+    /** The painted extent: how far the sources themselves reach. */
     width: number;
     height: number | null;
+    /** The Canvas box, which the painted extent may be a sub-region of. */
+    canvasWidth: number;
+    canvasHeight: number | null;
 }
 
 interface CanvasLayoutResult {
@@ -106,6 +131,28 @@ function median(values: number[]) {
         : sorted[middle];
 }
 
+/**
+ * The absolute gap, from whichever spelling the caller used.
+ *
+ * `flowExtents` are the laid-out (post-normalization) extents along the flow
+ * axis, so a fractional gap is a fraction of the very quantity it is inserted
+ * between. Resolved from the unnormalized extents instead — which is what a
+ * caller outside this module can see — it is wrong by the normalization scale,
+ * and invisibly so: a spread of a 4000x1000 and a 500x4000 canvas is laid out
+ * 10000 and 312.5 wide, and a gutter measured on the raw widths is a fifth of
+ * what it should be.
+ */
+function resolveGap(
+    options: { gap?: number; gapFraction?: number },
+    flowExtents: number[],
+): number {
+    if (typeof options.gap === 'number') return options.gap;
+    if (typeof options.gapFraction === 'number' && flowExtents.length > 0) {
+        return options.gapFraction * median(flowExtents);
+    }
+    return DEFAULT_MULTI_CANVAS_GAP;
+}
+
 function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
     const groups = new Map<string, CanvasGroup>();
 
@@ -123,7 +170,14 @@ function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
 
         let group = groups.get(canvasId);
         if (!group) {
-            group = { canvasId, sources: [], width: 0, height: null };
+            group = {
+                canvasId,
+                sources: [],
+                width: 0,
+                height: null,
+                canvasWidth: 0,
+                canvasHeight: null,
+            };
             groups.set(canvasId, group);
         }
 
@@ -139,6 +193,20 @@ function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
             localHeight === null
                 ? null
                 : Math.max(group.height ?? 0, localY + localHeight);
+
+        // The Canvas box falls back to the painted extent, which is what it is
+        // whenever a source fills its canvas — the common case, and the only
+        // one the callers' existing fixtures exercise.
+        const boxWidth =
+            getDimension(source.canvasBoxWidth) ?? localX + localWidth;
+        const boxHeight =
+            getDimension(source.canvasBoxHeight) ??
+            (localHeight === null ? null : localY + localHeight);
+        group.canvasWidth = Math.max(group.canvasWidth, boxWidth);
+        group.canvasHeight =
+            boxHeight === null
+                ? null
+                : Math.max(group.canvasHeight ?? 0, boxHeight);
     });
 
     return [...groups.values()];
@@ -183,6 +251,23 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
  * where a page is a few thousand units across, stacked its entire manifest on
  * one spot. Preserving a canvas's authored scale is a statement about its
  * SIZE; it was never a statement about where the next one goes.
+ *
+ * The extent that advances the offset is the **Canvas box**
+ * (`canvasBoxWidth`/`canvasBoxHeight`), not the painted extent. A canvas whose
+ * painting annotation targets a sub-region paints half a page and still
+ * occupies a whole one; advancing by what it painted would pull every canvas
+ * after it backwards.
+ *
+ * ## Why the gap has two spellings
+ *
+ * `gap` is an absolute length in the caller's units. `gapFraction` is a
+ * fraction of the median laid-out extent **along the axis the world flows in**,
+ * resolved here — after normalization, so it is measured in the same units as
+ * the widths it separates, and on the axis this function has already decided.
+ * A caller whose world is canvas space cannot express the spacing any other
+ * way: an absolute default is a hairline there, and a fraction it resolved
+ * itself would be a fraction of the *unnormalized* extents, on an axis it had
+ * to guess a second time.
  */
 export function getCanvasDisplayLayouts(
     sources: PositionedTileSource[],
@@ -190,11 +275,18 @@ export function getCanvasDisplayLayouts(
         mode: ViewingMode;
         direction: ViewingDirection;
         preserveCanvasScale?: boolean;
-        /** Defaults to the spacing the viewer itself lays out with. */
+        /**
+         * Absolute inter-canvas spacing, in the caller's own units. Defaults to
+         * the spacing the viewer itself lays out with.
+         */
         gap?: number;
+        /**
+         * Inter-canvas spacing as a fraction of the median laid-out canvas
+         * extent along the flow axis. Ignored when `gap` is given.
+         */
+        gapFraction?: number;
     },
 ): CanvasLayoutResult {
-    const gap = options.gap ?? DEFAULT_MULTI_CANVAS_GAP;
     const groups = groupSources(sources);
 
     if (options.mode === 'individuals' || groups.length <= 1) {
@@ -216,16 +308,32 @@ export function getCanvasDisplayLayouts(
             scale,
             width: group.width * scale,
             height: (group.height ?? 1) * scale,
+            // What the offset advances by: the Canvas box, which is the painted
+            // extent unless the caller said otherwise.
+            advanceWidth: group.canvasWidth * scale,
+            advanceHeight: (group.canvasHeight ?? 1) * scale,
             x: 0,
             y: 0,
         };
     });
 
+    // The one place the flow axis is decided. `planScene` used to decide it a
+    // second time to translate its gap fraction, which is a rule that can drift:
+    // teaching paged mode a vertical direction here would silently leave that
+    // caller computing a gutter from widths.
+    const flowsVertically =
+        options.mode === 'continuous' &&
+        (options.direction === 'top-to-bottom' ||
+            options.direction === 'bottom-to-top');
+    const gap = resolveGap(
+        options,
+        scaled.map((layout) =>
+            flowsVertically ? layout.advanceHeight : layout.advanceWidth,
+        ),
+    );
+
     if (options.mode === 'continuous') {
         let offset = 0;
-        const isVertical =
-            options.direction === 'top-to-bottom' ||
-            options.direction === 'bottom-to-top';
         const isReverse =
             options.direction === 'right-to-left' ||
             options.direction === 'bottom-to-top';
@@ -233,12 +341,12 @@ export function getCanvasDisplayLayouts(
         // Advance by each canvas's OWN extent, always — never by a fixed one
         // world unit when normalization is off. See the note on this function.
         for (const layout of scaled) {
-            if (isVertical) {
+            if (flowsVertically) {
                 layout.y = isReverse ? -offset : offset;
-                offset += layout.height + gap;
+                offset += layout.advanceHeight + gap;
             } else {
                 layout.x = isReverse ? -offset : offset;
-                offset += layout.width + gap;
+                offset += layout.advanceWidth + gap;
             }
         }
     } else if (options.mode === 'paged') {
@@ -250,7 +358,7 @@ export function getCanvasDisplayLayouts(
                 ? scaled.slice(index + 1)
                 : scaled.slice(0, index);
             layout.x = previous.reduce(
-                (offset, item) => offset + item.width + gap,
+                (offset, item) => offset + item.advanceWidth + gap,
                 0,
             );
             layout.y = (spreadHeight - layout.height) / 2;

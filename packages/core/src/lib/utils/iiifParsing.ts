@@ -367,6 +367,12 @@ export function getCanvasChoices(canvas: any) {
     return [];
 }
 
+/** Either spelling's value as a list, dropping empties and non-values. */
+function toBehaviorList(value: unknown): unknown[] {
+    if (value === null || value === undefined || value === '') return [];
+    return Array.isArray(value) ? value : [value];
+}
+
 /**
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
@@ -393,11 +399,18 @@ export function getCanvasBehaviors(canvas: any): string[] {
     // `canvas.getBehavior()`, which `manifesto.js` defined on Range, Collection
     // and Manifest but NEVER on Canvas, so it was dead from the day it was
     // written — its removal was never evidence that either spelling was covered.
-    const raw = canvas?.behavior || canvas?.viewingHint || [];
+    //
+    // The first NON-EMPTY of the two, not the first truthy: `"behavior": []`
+    // is an empty array, which is truthy, and it is exactly what a v2→v3
+    // converter emits on every canvas while leaving `viewingHint` in place. A
+    // truthiness test there discards the only hint the document carries and
+    // re-pairs the single-page plate this function exists to keep unpaired.
+    const behaviors = [
+        toBehaviorList(canvas?.behavior),
+        toBehaviorList(canvas?.viewingHint),
+    ].find((list) => list.length > 0);
 
-    if (!raw) return [];
-    const behaviors = Array.isArray(raw) ? raw : [raw];
-    return behaviors.map((value) => {
+    return (behaviors ?? []).map((value) => {
         const normalized = String(value).trim().toLowerCase();
         const segments = normalized.split(/[#/:]/);
         return segments[segments.length - 1] || normalized;

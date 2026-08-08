@@ -306,6 +306,13 @@ export function toLayoutSource(source: any): PositionedTileSource {
         x: positioned ? source.x : 0,
         y: positioned ? source.y : 0,
         width: positioned ? source.width : 1,
+        // The Canvas box, not the painted extent: `width` above is the fraction
+        // of the Canvas this source paints, and layout must advance past the
+        // whole page. Normalized, so it is 1 unit wide by construction; the
+        // height rides along from the resolver when it knows the Canvas's
+        // aspect ratio.
+        canvasBoxWidth: 1,
+        canvasBoxHeight: positioned ? source.canvasBoxHeight : null,
         sourceWidth: tileSource?.width,
         sourceHeight: tileSource?.height,
     };

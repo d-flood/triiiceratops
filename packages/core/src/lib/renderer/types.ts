@@ -119,22 +119,6 @@ export interface ImageServiceFacts {
 export interface PlannerBudgets {
     /** Decoded-pixel byte ceiling for the opportunistic cache. */
     byteBudget: number;
-    /**
-     * Inter-canvas gap, as a fraction of the median canvas extent along the
-     * axis the world flows in.
-     *
-     * A **fraction**, not a length, because the renderer's world is canvas
-     * space — manifest Canvas pixels — where a page is a few thousand units
-     * across and any absolute default would be either a hairline or a chasm
-     * depending on the manifest. The shared layout function takes an absolute
-     * `gap`, so `planScene` multiplies this out before calling it; it is the
-     * caller's job precisely because only the caller knows its own units (see
-     * `components/osdLayout`).
-     *
-     * Not configuration: no public surface exposes it, and none is added here
-     * (spec §Out of Scope). It is a budget so tests can supply their own.
-     */
-    gapFraction: number;
     /** Residency margin as a factor the viewport rect is inflated by. */
     marginFactor: number;
     /** `effectiveSize` at or above which a canvas is in the pyramid tier. */
@@ -265,6 +249,26 @@ export interface PlanWorldInput {
     mode: ViewingMode;
     direction: ViewingDirection;
     preserveCanvasScale: boolean;
+    /**
+     * Inter-canvas gap, as a fraction of the median **laid-out** canvas extent
+     * along the axis the world flows in.
+     *
+     * A **fraction**, not a length, because the renderer's world is canvas
+     * space — manifest Canvas pixels — where a page is a few thousand units
+     * across and any absolute default would be either a hairline or a chasm
+     * depending on the manifest. It is passed through to the shared layout
+     * function, which resolves it after normalization and on the axis it has
+     * already chosen (see `components/osdLayout`).
+     *
+     * Here rather than in {@link PlannerBudgets} because it is a statement
+     * about where canvases go, like `mode` and `direction` beside it, and not a
+     * byte, pixel, or threshold quantity. Tuning the budgets must not be able
+     * to move canvases on screen as a side effect.
+     *
+     * Not configuration: no public surface exposes it, and none is added here
+     * (spec §Out of Scope).
+     */
+    gapFraction: number;
     /** canvasId → image-service facts already fetched. */
     knownMetadata: Record<string, ImageServiceFacts>;
     budgets: PlannerBudgets;

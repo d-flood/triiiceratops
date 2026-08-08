@@ -99,11 +99,19 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function scheduler(
     net: ReturnType<typeof controllableFetch>,
-    options: { maxInFlight?: number; maxAttempts?: number } = {},
+    options: {
+        maxInFlight?: number;
+        maxAttempts?: number;
+        byteBudget?: number;
+    } = {},
 ) {
     return createTileScheduler({
         maxInFlight: options.maxInFlight ?? 2,
         maxAttempts: options.maxAttempts ?? 2,
+        // No opportunistic cache by default, which is what makes every
+        // assertion below about the REQUIRED set alone. The cache has its own
+        // describe block, with its own budget.
+        byteBudget: options.byteBudget ?? 0,
         fetchTile: net.fetchTile,
         decodeTile,
     });
@@ -240,6 +248,7 @@ describe('createTileScheduler', () => {
         const tiles = createTileScheduler({
             maxInFlight: 2,
             maxAttempts: 2,
+            byteBudget: 0,
             fetchTile: net.fetchTile,
             decodeTile: () => {
                 const close = vi.fn();
@@ -273,6 +282,7 @@ describe('createTileScheduler', () => {
         const tiles = createTileScheduler({
             maxInFlight: 4,
             maxAttempts: 2,
+            byteBudget: 0,
             fetchTile: net.fetchTile,
             decodeTile: decodes.decodeTile,
         });
@@ -438,6 +448,7 @@ describe('createTileScheduler', () => {
         const tiles = createTileScheduler({
             maxInFlight: 2,
             maxAttempts: 2,
+            byteBudget: 0,
             fetchTile: net.fetchTile,
             decodeTile,
             onChange,
@@ -471,5 +482,178 @@ describe('createTileScheduler', () => {
         tiles.update([request(9)]);
         await flush();
         expect(net.byUrl('https://images.test/abc/tile-9.jpg')).toHaveLength(0);
+    });
+});
+
+/**
+ * The **opportunistic cache** (ticket 08): what was recently dropped from the
+ * required set, held under an LRU capped by a byte budget.
+ *
+ * A tile here is 10x20 at 4 bytes per pixel — 800 bytes — so a budget stated in
+ * whole tiles below is arithmetic rather than a magic number.
+ */
+const TILE_BYTES = 10 * 20 * 4;
+
+describe('createTileScheduler — the opportunistic cache', () => {
+    /** Fetch, settle, and hold the given tiles as the required set. */
+    async function hold(
+        tiles: ReturnType<typeof createTileScheduler>,
+        net: ReturnType<typeof controllableFetch>,
+        indices: number[],
+    ) {
+        tiles.update(indices.map((index) => request(index)));
+        await flush();
+        net.settleAll();
+        await flush();
+    }
+
+    it('holds a dropped tile rather than closing it, and takes it back with no request', async () => {
+        const net = controllableFetch();
+        const tiles = scheduler(net, {
+            maxInFlight: 4,
+            byteBudget: 8 * TILE_BYTES,
+        });
+
+        await hold(tiles, net, [0, 1]);
+        expect(tiles.residentTileCount).toBe(2);
+
+        // Scrolled away. The required set is smaller; nothing was released.
+        tiles.update([request(2)]);
+        expect(tiles.residentTileCount).toBe(0);
+        expect(tiles.cachedTileCount).toBe(2);
+        expect(tiles.decodedBytes).toBe(2 * TILE_BYTES);
+
+        // Scrolled back. Both come out of the cache, and the network is never
+        // asked a second time.
+        const before = tiles.requestCount;
+        tiles.update([request(0), request(1)]);
+        expect(tiles.residentTileCount).toBe(2);
+        expect(tiles.cachedTileCount).toBe(0);
+        expect(tiles.requestCount).toBe(before);
+        expect(net.byUrl('https://images.test/abc/tile-0.jpg')).toHaveLength(1);
+    });
+
+    it('asks for a repaint when a cached tile comes back, since no decode will', async () => {
+        const net = controllableFetch();
+        const onChange = vi.fn();
+        const tiles = createTileScheduler({
+            maxInFlight: 4,
+            maxAttempts: 2,
+            byteBudget: 8 * TILE_BYTES,
+            fetchTile: net.fetchTile,
+            decodeTile,
+            onChange,
+        });
+
+        await hold(tiles, net, [0]);
+        onChange.mockClear();
+
+        tiles.update([request(1)]);
+        await flush();
+        onChange.mockClear();
+
+        // Nothing lands: the tile was already decoded. Without this the frame
+        // that would paint it is never scheduled.
+        tiles.update([request(0)]);
+        expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('evicts the least recently dropped tile first', async () => {
+        const net = controllableFetch();
+        const tiles = scheduler(net, {
+            maxInFlight: 4,
+            // Room for the one required tile and exactly one cached one.
+            byteBudget: 2 * TILE_BYTES,
+        });
+
+        await hold(tiles, net, [0, 1]);
+        // Drop 0, then 1: 1 is the more recent, so 0 is the one that goes.
+        tiles.update([request(1), request(2)]);
+        await flush();
+        net.settleAll();
+        await flush();
+        tiles.update([request(2)]);
+
+        expect(tiles.decodedBytes).toBeLessThanOrEqual(2 * TILE_BYTES);
+        // Tile 1 survived and comes back free; tile 0 has to be refetched.
+        const before = tiles.requestCount;
+        tiles.update([request(1), request(2)]);
+        expect(tiles.requestCount).toBe(before);
+
+        tiles.update([request(0), request(2)]);
+        await flush();
+        expect(tiles.requestCount).toBeGreaterThan(before);
+    });
+
+    it('never evicts a tile that is still required, however tight the budget', async () => {
+        const net = controllableFetch();
+        // A budget below what the required set alone costs. The cache gives up
+        // everything and then stops: the required set is never evicted while it
+        // is required, and a required set that is over budget is the planner's
+        // residency window to answer for, not the LRU's.
+        const tiles = scheduler(net, { maxInFlight: 4, byteBudget: 1 });
+
+        await hold(tiles, net, [0, 1, 2]);
+
+        expect(tiles.residentTileCount).toBe(3);
+        expect(tiles.cachedTileCount).toBe(0);
+        expect(tiles.decodedBytes).toBe(3 * TILE_BYTES);
+    });
+
+    it('stays under the byte budget through sustained scrolling', async () => {
+        const net = controllableFetch();
+        const budget = 6 * TILE_BYTES;
+        const tiles = scheduler(net, { maxInFlight: 8, byteBudget: budget });
+
+        // Two tiles required at a time, walking forward forty steps — far more
+        // than the budget could ever hold, which is the point.
+        for (let step = 0; step < 40; step += 1) {
+            await hold(tiles, net, [step, step + 1]);
+            expect(tiles.decodedBytes).toBeLessThanOrEqual(budget);
+        }
+
+        expect(tiles.residentTileCount).toBe(2);
+    });
+
+    it('closes what the budget evicts rather than leaking it outside the JS heap', async () => {
+        const net = controllableFetch();
+        const closes: Array<() => void> = [];
+        const tiles = createTileScheduler({
+            maxInFlight: 4,
+            maxAttempts: 2,
+            byteBudget: TILE_BYTES,
+            fetchTile: net.fetchTile,
+            decodeTile: () => {
+                const close = vi.fn();
+                closes.push(close);
+                return Promise.resolve({ width: 10, height: 20, close });
+            },
+        });
+
+        await hold(tiles, net, [0]);
+        await hold(tiles, net, [1]);
+
+        // Tile 0 was cached, then pushed out by tile 1 arriving. An
+        // `ImageBitmap` dropped without `close()` leaks past both the heap
+        // metrics and `decodedBytes`, which is the counter that exists to see
+        // exactly this.
+        expect(closes[0]).toHaveBeenCalled();
+        expect(tiles.decodedBytes).toBe(TILE_BYTES);
+    });
+
+    it('closes the cache on dispose', async () => {
+        const net = controllableFetch();
+        const tiles = scheduler(net, {
+            maxInFlight: 4,
+            byteBudget: 8 * TILE_BYTES,
+        });
+
+        await hold(tiles, net, [0, 1]);
+        tiles.update([]);
+        expect(tiles.cachedTileCount).toBe(2);
+
+        tiles.dispose();
+        expect(tiles.cachedTileCount).toBe(0);
+        expect(tiles.decodedBytes).toBe(0);
     });
 });

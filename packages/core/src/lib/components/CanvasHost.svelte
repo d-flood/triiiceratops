@@ -25,15 +25,27 @@
      * ## Scope
      *
      * The canvases on screen — one in individuals mode, a facing-page spread in
-     * paged mode — from any of the three source kinds; the full pointer input
-     * model (drag, flick momentum, pinch, wheel, double-tap), keyboard
-     * operation, and reduced motion. Continuous mode still shows one canvas:
-     * the whole manifest arrives with the virtualization that makes it
-     * affordable, in ticket 08. Annotation overlays are ticket 14.
+     * paged mode, and the **whole manifest** in continuous mode — from any of
+     * the three source kinds; the full pointer input model (drag, flick
+     * momentum, pinch, wheel, double-tap), keyboard operation, and reduced
+     * motion. Annotation overlays are ticket 14.
+     *
+     * ## Virtualization (ticket 08)
+     *
+     * A continuous manifest of any length is laid out in full, because layout
+     * is pure arithmetic over manifest dimensions and costs no network. What is
+     * bounded is what may HOLD anything: the planner's residency window keeps
+     * everything but the canvases near the viewport in the box tier, so opening
+     * an 800-folio manuscript costs O(1) requests, and the tile scheduler's
+     * byte-budgeted **opportunistic cache** bounds the pixels. This component's
+     * share of that is three things: feeding the planner the whole manifest,
+     * loading a static canvas's image only while it is out of the box tier, and
+     * telling the scheduler which byte ceiling this device gets.
      */
-    import { onMount } from 'svelte';
+    import { onMount, untrack } from 'svelte';
 
     import { getMessages } from '../state/i18n.svelte';
+    import { getCanvasId } from '../utils/iiifIds';
     import { getVisibleCanvasEntries } from './viewerControls';
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
     import { GestureRecogniser } from '../renderer/gestureArbiter';
@@ -63,6 +75,8 @@
         MIN_VELOCITY_SPAN_MS,
         MOMENTUM_MIN_SPEED,
         MOMENTUM_TIME_CONSTANT,
+        MULTI_CANVAS_GAP_FRACTION,
+        resolveByteBudget,
         TAP_SLOP,
         TILE_IN_FLIGHT_LIMIT,
         TILE_MAX_ATTEMPTS,
@@ -76,8 +90,10 @@
     import type {
         ImageServiceFacts,
         LayoutRect,
+        PlannerBudgets,
         PlannerCanvas,
         Point,
+        ResidencyTier,
         ScenePlan,
         Viewport,
     } from '../renderer/types';
@@ -193,6 +209,21 @@
     let loadedGeneration = $state(0);
 
     /**
+     * The planner's policy inputs — thresholds, the residency margin, and the
+     * decoded-byte ceiling.
+     *
+     * A `let` for exactly one member: `byteBudget` is the only budget that is
+     * not knowable before mount, because which ceiling a device gets is a
+     * question for `matchMedia` (`rendererDefaults.resolveByteBudget`). Nothing
+     * else in here varies at runtime, and nothing here is configuration — the
+     * public surface for these is ticket 13's.
+     *
+     * Deliberately not `$state`: read by the frame loop, never by the reactive
+     * graph.
+     */
+    let budgets = DEFAULT_BUDGETS;
+
+    /**
      * The tile scheduler: everything about asking for, decoding, holding, and
      * releasing tiles. It is handed the **required set** once per frame, from
      * `paint()`, and makes no scene decisions of its own.
@@ -204,6 +235,10 @@
     const tiles = createTileScheduler({
         maxInFlight: TILE_IN_FLIGHT_LIMIT,
         maxAttempts: TILE_MAX_ATTEMPTS,
+        // The desktop ceiling until `onMount` has a window to ask which one
+        // this device actually gets. Constructing the scheduler lazily instead
+        // would put a null check on every call site for one number.
+        byteBudget: budgets.byteBudget,
         onChange: () => {
             loadedGeneration += 1;
         },
@@ -220,6 +255,30 @@
     const knownMetadata: Record<string, ImageServiceFacts> =
         Object.create(null);
 
+    /** Bumped whenever {@link knownMetadata} gains an entry. */
+    let metadataRevision = 0;
+
+    /**
+     * The last answer `viewportLimits()` gave, and the inputs it gave it for.
+     *
+     * Memoized because clamping runs on every pointer sample and layout is now
+     * a function of the WHOLE manifest: at a 120 Hz pinch on an 800-folio
+     * world, laying all 800 canvases out twice per sample is several percent of
+     * a core spent re-deriving an answer that changes only when the manifest,
+     * the mode, or a canvas's fetched dimensions do. The memo is keyed on
+     * exactly those; `planViewportLimits` remains the pure function it was and
+     * this holds nothing it decided.
+     */
+    let limitsMemo: {
+        canvases: PlannerCanvas[];
+        mode: ReturnType<typeof worldInput>['mode'];
+        direction: ReturnType<typeof worldInput>['direction'];
+        preserveCanvasScale: boolean;
+        budgets: PlannerBudgets;
+        metadataRevision: number;
+        value: ReturnType<typeof planViewportLimits>;
+    } | null = null;
+
     /**
      * canvasId → why its image service has no facts, for the canvases where one
      * failed.
@@ -235,21 +294,60 @@
     /**
      * The canvases this renderer is showing, in **canvas space**.
      *
-     * Which canvases those are is `getVisibleCanvasEntries`' decision, not this
-     * component's — the same function the choice controls, the search-result
-     * offsets, and the OpenSeadragon path all ask, so the renderer can never
-     * disagree with the rest of the viewer about what a spread is. In paged
-     * mode that is the facing-page group; otherwise it is the current canvas
-     * alone.
+     * **Continuous mode is the whole manifest**, all 800 folios of it. That is
+     * not the fetch storm this epic exists to remove, and the distinction is
+     * the ticket: laying a canvas out is arithmetic over manifest dimensions
+     * and costs nothing, while FETCHING for it is gated by the planner's
+     * residency window, which keeps every canvas the viewport is nowhere near
+     * in the box tier. The world has to be positioned in full either way —
+     * scrolling to folio 400 is a coordinate, and its coordinate is the sum of
+     * the 399 canvases before it.
      *
-     * **Continuous mode is deliberately still one canvas.** Feeding the whole
-     * manifest in would be a one-line change and exactly the behaviour this
-     * epic exists to remove: layout would place all 800 folios, every one of
-     * them would be pyramid tier, and nothing would evict. It arrives with
-     * virtualization, in ticket 08.
+     * In every other mode which canvases those are is `getVisibleCanvasEntries`'
+     * decision, not this component's — the same function the choice controls,
+     * the search-result offsets, and the OpenSeadragon path all ask, so the
+     * renderer can never disagree with the rest of the viewer about what a
+     * spread is. In paged mode that is the facing-page group; otherwise it is
+     * the current canvas alone.
      */
     const plannerCanvases: PlannerCanvas[] = $derived.by(() => {
         if (!viewerState.manifestId || !viewerState.canvasId) return [];
+
+        if (viewerState.viewingMode === 'continuous') {
+            const canvases = viewerState.canvases;
+            // Track exactly TWO signals per canvas — its id, and the Choice
+            // selected on it — and nothing else.
+            //
+            // `viewerState.canvases` is raw manifest JSON behind a deep
+            // `$state` proxy, so every property this walk touches would
+            // otherwise become a dependency of this derivation: on 800 folios
+            // that is tens of thousands of signals to create and to invalidate,
+            // and it costs seconds. What this derivation actually depends on is
+            // which canvases there are and which Choice each has, so those are
+            // read tracked and the walk itself is untracked. The manifest JSON
+            // is immutable once cached, which is what makes that sound.
+            // A plain Map, not a SvelteMap: it is built and consumed inside
+            // this one derivation and is unreachable afterwards, so there is
+            // nothing for reactivity to notify. A SvelteMap here would create a
+            // signal per folio for no reader at all.
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity
+            const choices = new Map<string, string | undefined>();
+            for (const canvas of canvases) {
+                const canvasId = getCanvasId(canvas);
+                if (canvasId) {
+                    choices.set(
+                        canvasId,
+                        viewerState.getSelectedChoice(canvasId),
+                    );
+                }
+            }
+
+            return untrack(() =>
+                toPlannerCanvases(canvases, (canvasId) =>
+                    choices.get(canvasId),
+                ),
+            );
+        }
 
         const visible = getVisibleCanvasEntries({
             // `viewerState.canvases`, not `getCanvases(manifestId)`: the
@@ -272,6 +370,17 @@
     });
 
     /**
+     * The same canvases, by id.
+     *
+     * Built once per change rather than searched per lookup: on an 800-folio
+     * manifest a linear `find` per metadata request is 2400 comparisons a
+     * frame, for an answer that changes only when the manifest does.
+     */
+    const canvasesById: Map<string, PlannerCanvas> = $derived(
+        new Map(plannerCanvases.map((canvas) => [canvas.id, canvas])),
+    );
+
+    /**
      * How many full scene plans this renderer has built.
      *
      * Exposed through the test handle because "planning is once per frame" is a
@@ -280,6 +389,17 @@
      * pointer event and show up as nothing but heat.
      */
     let scenePlanCount = 0;
+
+    /**
+     * The tier map of the last plan built — a counter, not held scene state.
+     *
+     * A scene plan is a value produced and discarded each frame; this keeps the
+     * one record the residency counters report from, at no cost, because it is
+     * the very object the plan already allocated. "Only the canvases near the
+     * viewport hold anything" is a claim about NAMES on a long manifest, and a
+     * count cannot carry it. Ticket 13 promotes it to real query-only state.
+     */
+    let lastTiers: Record<string, ResidencyTier> = {};
 
     /**
      * Everything that decides where the canvases are — shared verbatim by the
@@ -293,8 +413,9 @@
             mode: viewerState.viewingMode,
             direction: viewerState.viewingDirection,
             preserveCanvasScale: viewerState.preserveCanvasScale,
+            gapFraction: MULTI_CANVAS_GAP_FRACTION,
             knownMetadata,
-            budgets: DEFAULT_BUDGETS,
+            budgets,
         };
     }
 
@@ -323,9 +444,7 @@
      */
     function requestMetadata(canvasIds: string[]): void {
         for (const canvasId of canvasIds) {
-            const canvas = plannerCanvases.find(
-                (entry) => entry.id === canvasId,
-            );
+            const canvas = canvasesById.get(canvasId);
             if (canvas?.source.kind !== 'service') continue;
 
             const { serviceId } = canvas.source;
@@ -345,7 +464,21 @@
                 }
                 delete metadataFailures[canvasId];
                 if (knownMetadata[canvasId] === facts) return;
+                // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A
+                // canvas the manifest never sized is laid out from a guess and
+                // reflowed to the facts below, so evicting an entry would put
+                // the guess back — resizing the canvas, changing its tier, and
+                // provoking the very fetch whose answer was just dropped. The
+                // planner asserts the fixed point (`planScene.test.ts` §the
+                // reflow terminates); ticket 08's byte budget must evict
+                // decoded pixels only, never these facts, which is also what
+                // "metadata is cached separately from decoded pixels, with a
+                // longer lifetime" means in the spec.
                 knownMetadata[canvasId] = facts;
+                // The one input to `viewportLimits`' memo that is mutated in
+                // place rather than replaced, so the memo cannot see it by
+                // identity and is told instead.
+                metadataRevision += 1;
                 // Tiles can only be planned now that the pyramid is knowable.
                 loadedGeneration += 1;
             });
@@ -364,7 +497,58 @@
      * `paint()`'s comment says it belongs: once per frame, in the frame loop.
      */
     function viewportLimits() {
-        return planViewportLimits(worldInput());
+        const input = worldInput();
+        if (
+            limitsMemo &&
+            limitsMemo.canvases === input.canvases &&
+            limitsMemo.mode === input.mode &&
+            limitsMemo.direction === input.direction &&
+            limitsMemo.preserveCanvasScale === input.preserveCanvasScale &&
+            limitsMemo.budgets === input.budgets &&
+            limitsMemo.metadataRevision === metadataRevision
+        ) {
+            return limitsMemo.value;
+        }
+
+        const value = planViewportLimits(input);
+        limitsMemo = {
+            canvases: input.canvases,
+            mode: input.mode,
+            direction: input.direction,
+            preserveCanvasScale: input.preserveCanvasScale,
+            budgets: input.budgets,
+            metadataRevision,
+            value,
+        };
+        return value;
+    }
+
+    /**
+     * The bounds a fit is measured against: in continuous mode the **current
+     * canvas**, and the whole world in every other mode.
+     *
+     * The distinction only exists once continuous mode carries a whole
+     * manifest, and it is not cosmetic. Fitting an 800-folio world puts every
+     * page at one pixel across — below the box threshold, so the manifest opens
+     * on a screen with nothing on it, and below the derived zoom floor, so the
+     * scale is not even reachable. In every other mode the world IS the spread
+     * and this is the same answer as before, which is why paged and individuals
+     * behaviour is untouched.
+     *
+     * The zoom CEILING is measured from here too (`homeScale`), which is what
+     * keeps "how far may I zoom into this page" a question about the page
+     * rather than about how many pages happen to follow it. Panning is not:
+     * `constrained` stays on the whole world, because scrolling the manifest is
+     * the whole point of the mode.
+     */
+    function fitTargetBounds(layout: LayoutRect[]) {
+        if (viewerState.viewingMode === 'continuous') {
+            const current = layout.find(
+                (rect) => rect.canvasId === viewerState.canvasId,
+            );
+            if (current) return current;
+        }
+        return worldBounds(layout);
     }
 
     function worldBounds(layout: LayoutRect[]) {
@@ -385,9 +569,9 @@
         return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
     }
 
-    /** The scale at which the whole world fits — the zoom ceiling's reference. */
+    /** The scale at which a fit lands — the zoom ceiling's reference. */
     function homeScale(layout: LayoutRect[]): number {
-        const bounds = worldBounds(layout);
+        const bounds = fitTargetBounds(layout);
         if (!bounds || viewport.width === 0 || viewport.height === 0) return 1;
         return fitBounds(bounds, viewport).scale;
     }
@@ -467,9 +651,18 @@
         requestFrame();
     }
 
-    /** The whole-world fit. `animated` is false only when the scene changed. */
+    /**
+     * Fit — the whole world, or the current canvas in continuous mode (see
+     * {@link fitTargetBounds}). `animated` is false only when the scene changed.
+     *
+     * In continuous mode this is also how **canvas navigation** happens: the
+     * scene effect re-runs when the current canvas changes and refits onto it,
+     * which is the same path paged and individuals mode already took when their
+     * spread changed. Scrolling by hand never touches it, because a drag does
+     * not change the current canvas.
+     */
     function fitWorld(animated = false) {
-        const bounds = worldBounds(viewportLimits().layout);
+        const bounds = fitTargetBounds(viewportLimits().layout);
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const fit = fitBounds(bounds, viewport);
@@ -657,10 +850,28 @@
                 : decayed;
     }
 
+    /**
+     * The canvases allowed to hold a whole decoded image this frame.
+     *
+     * The static-image half of virtualization, and it needs saying because a
+     * static source has no tile scheduler to bound it: fed the whole manifest,
+     * the ticket-07 reconciliation would start 800 `<img>` loads on open — the
+     * same fetch storm as 800 `info.json` requests, in a different costume. The
+     * tier is the gate, and it is the planner's, so pixels are released by the
+     * same distance rule the tiles are.
+     */
+    function imageBearingCanvases(plan: ScenePlan): PlannerCanvas[] {
+        return plannerCanvases.filter(
+            (canvas) =>
+                plan.tiers[canvas.id] && plan.tiers[canvas.id] !== 'box',
+        );
+    }
+
     function paint() {
         if (!ctx) return;
 
         const plan = currentPlan();
+        lastTiers = plan.tiers;
 
         // Reconciled ONCE PER FRAME, from the frame loop — never from a pointer
         // handler. Pointer events outpace frames during a drag, so per-event
@@ -668,6 +879,9 @@
         // frame for no gain.
         tiles.update(plan.tileRequests);
         requestMetadata(plan.metadataRequests);
+        // Before painting, so a canvas that left the window stops painting in
+        // the frame it left rather than the one after.
+        loadStaticImages(imageBearingCanvases(plan));
 
         paintScene(ctx, plan, viewport, { images, tiles: tiles.get }, dpr);
     }
@@ -1387,6 +1601,19 @@
         // downstream of it consult this.
         startWatchingReducedMotion();
 
+        // Which decoded-byte ceiling this device gets. Asked here rather than
+        // at module scope because it is a `matchMedia` question, and the
+        // renderer's module graph must load on a server with none.
+        if (typeof window.matchMedia === 'function') {
+            budgets = {
+                ...DEFAULT_BUDGETS,
+                byteBudget: resolveByteBudget(
+                    (query) => window.matchMedia(query).matches,
+                ),
+            };
+            tiles.setByteBudget(budgets.byteBudget);
+        }
+
         /*
          * `{ alpha: true }` is DELIBERATE, not an oversight — do not "optimize"
          * it to `{ alpha: false }`.
@@ -1463,6 +1690,21 @@
             },
             isMoving: () => animating || momentum !== null || keyPan !== null,
             /**
+             * Adopt a different decoded-byte ceiling.
+             *
+             * Budgets are planner inputs precisely so a test can state its own
+             * rather than assert a shipped default (spec §Further Notes). The
+             * shipped desktop figure is 128 MB, which the fixture manifests
+             * could not approach if they tried, so a browser assertion about
+             * the budget being honoured is only meaningful against a budget the
+             * test chose.
+             */
+            setBudget: (bytes: number) => {
+                budgets = { ...budgets, byteBudget: bytes };
+                tiles.setByteBudget(bytes);
+                return nextPaint();
+            },
+            /**
              * Residency and decoded-byte counters.
              *
              * A first-class renderer feature, not a test retrofit: browser heap
@@ -1472,7 +1714,12 @@
              */
             getStats: () => ({
                 residentTileCount: tiles.residentTileCount,
+                /** Tiles held in the byte-budgeted opportunistic cache. */
+                cachedTileCount: tiles.cachedTileCount,
+                /** Required set plus opportunistic cache — the budgeted total. */
                 decodedBytes: tiles.decodedBytes,
+                /** The ceiling that total is asserted against. */
+                byteBudget: tiles.byteBudget,
                 tileRequestCount: tiles.requestCount,
                 /**
                  * Full scene plans built. Once per painted frame — never per
@@ -1480,6 +1727,26 @@
                  */
                 scenePlanCount,
             }),
+            /**
+             * Which canvases held what, at the last plan.
+             *
+             * Names, not counts: "only the canvases near the viewport hold
+             * anything" is the claim this epic exists for, and on an 800-folio
+             * manifest a count would pass just as happily with the wrong three
+             * canvases resident. `boxCount` is a count because the box tier is
+             * everything else by construction.
+             */
+            getResidency: () => {
+                const pyramid: string[] = [];
+                const thumbnail: string[] = [];
+                let boxCount = 0;
+                for (const [canvasId, tier] of Object.entries(lastTiers)) {
+                    if (tier === 'pyramid') pyramid.push(canvasId);
+                    else if (tier === 'thumbnail') thumbnail.push(canvasId);
+                    else boxCount += 1;
+                }
+                return { pyramid, thumbnail, boxCount };
+            },
             /**
              * canvasId → why its image service failed, for the canvases whose
              * metadata never arrived. The seam ticket 12's error UI reads.
@@ -1528,9 +1795,11 @@
         // computes: a new canvas, mode, or direction produces new sources, and
         // that is when the view must be refitted.
         void tileSources;
-        const canvases = plannerCanvases;
+        // Read so the effect re-runs when the manifest or the mode changes and
+        // the world has to be refitted; the images themselves are reconciled in
+        // the frame loop, where the tier that gates them is known.
+        void plannerCanvases;
 
-        loadStaticImages(canvases);
         fitWorld();
         requestFrame();
     });

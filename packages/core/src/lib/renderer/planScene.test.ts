@@ -27,11 +27,12 @@ import type {
     Viewport,
 } from './types';
 
+// A round 1% rather than the shipped figure, so every position asserted below
+// is arithmetic the test states rather than a default it inherits.
+const GAP_FRACTION = 0.01;
+
 const BUDGETS: PlannerBudgets = {
     byteBudget: 64 * 1024 * 1024,
-    // A round 1% rather than the shipped figure, so every position asserted
-    // below is arithmetic the test states rather than a default it inherits.
-    gapFraction: 0.01,
     marginFactor: 1.5,
     pyramidThreshold: 400,
     boxThreshold: 40,
@@ -123,6 +124,7 @@ function plan(
         mode: 'individuals',
         direction: 'left-to-right',
         preserveCanvasScale: false,
+        gapFraction: GAP_FRACTION,
         viewport: viewport(),
         knownMetadata: {},
         budgets: BUDGETS,
@@ -234,11 +236,15 @@ describe('planScene', () => {
         expect(result.evictable).toEqual(['c1']);
     });
 
-    it('ignores canvases with unusable dimensions rather than laying out NaN', () => {
+    it('never lays out NaN, whatever the manifest declares', () => {
+        // A zero, a negative, or a NaN is not a dimension. The canvas is still
+        // laid out — a canvas the renderer refuses to place is a canvas it can
+        // never ask metadata for — but the axis the manifest DID state survives.
         const result = plan([staticCanvas('c1', 0, 750)]);
 
-        expect(result.layout).toEqual([]);
-        expect(result.tiers).toEqual({});
+        expect(result.layout[0]).toMatchObject({ height: 750 });
+        expect(result.layout[0].width).toBeGreaterThan(0);
+        expect(result.tiers.c1).toBeDefined();
     });
 
     it('is deterministic: the same input produces an equal plan', () => {
@@ -256,10 +262,12 @@ describe('planScene', () => {
  * expressed in the renderer's own units — canvas space, where a page is
  * thousands of units across rather than one. Every expectation below is
  * arithmetic stated in the test: `gapFraction` is 0.01 and the gap is that
- * fraction of the median canvas extent along the axis the world flows in.
+ * fraction of the median LAID-OUT canvas extent along the axis the world flows
+ * in — the extents after normalization, not the manifest figures, which are a
+ * different quantity whenever normalization is not the identity.
  */
 describe('planScene — multi-canvas layout', () => {
-    /** The gap for a world whose canvases are all this wide. */
+    /** The gap for a world laid out at these extents along the flow axis. */
     function gapFor(...extents: number[]) {
         const sorted = [...extents].sort((a, b) => a - b);
         const middle = Math.floor(sorted.length / 2);
@@ -267,7 +275,7 @@ describe('planScene — multi-canvas layout', () => {
             sorted.length % 2 === 0
                 ? (sorted[middle - 1] + sorted[middle]) / 2
                 : sorted[middle];
-        return BUDGETS.gapFraction * centre;
+        return GAP_FRACTION * centre;
     }
 
     const recto = staticCanvas('recto', 1000, 750);
@@ -513,8 +521,142 @@ describe('planScene — multi-canvas layout', () => {
             ]);
         });
 
-        it('drops an unsized canvas only when nothing in the manifest has dimensions', () => {
-            expect(plan([unsized], { mode: 'paged' }).layout).toEqual([]);
+        it('lays out a lone unsized canvas and asks for the metadata that will fix it', () => {
+            // The path users actually take: the host feeds the planner only the
+            // canvases on screen, which in individuals and continuous mode is
+            // ONE — so an unsized canvas there has no siblings to take a median
+            // from. Dropping it looks safe and is a dead end: no rect means no
+            // tier, no tier means no metadata request, and no request means the
+            // reflow that would size it can never fire. The folio is blank
+            // permanently, and blank again every time the user pages back to it
+            // (user story 32).
+            const result = plan([
+                {
+                    id: 'lonely',
+                    width: null,
+                    height: null,
+                    source: {
+                        kind: 'service',
+                        serviceId: 'https://images.test/lonely',
+                        profile: 'level2',
+                    },
+                },
+            ]);
+
+            expect(result.layout).toHaveLength(1);
+            expect(result.layout[0].width).toBeGreaterThan(0);
+            expect(result.layout[0].height).toBeGreaterThan(0);
+            expect(result.tiers.lonely).toBe('pyramid');
+            expect(result.metadataRequests).toEqual(['lonely']);
+        });
+
+        it('reflows the lone unsized canvas once its service answers', () => {
+            const lonely: PlannerCanvas = {
+                id: 'lonely',
+                width: null,
+                height: null,
+                source: {
+                    kind: 'service',
+                    serviceId: 'https://images.test/lonely',
+                    profile: 'level2',
+                },
+            };
+
+            const reflowed = plan([lonely], {
+                knownMetadata: { lonely: { width: 1600, height: 1200 } },
+            });
+
+            expect(reflowed.layout[0]).toMatchObject({
+                width: 1600,
+                height: 1200,
+            });
+        });
+
+        it('drops a canvas with no usable id, and only that', () => {
+            // The one remaining drop: an unkeyed canvas cannot be named by a
+            // tier, a request, or a draw, so there is nothing to lay out FOR.
+            const result = plan(
+                [{ ...unsized, id: '' }, staticCanvas('a', 1000, 750)],
+                {
+                    mode: 'paged',
+                },
+            );
+
+            expect(result.layout.map((rect) => rect.canvasId)).toEqual(['a']);
+        });
+
+        it('keeps the axis the manifest DID declare when the other is missing', () => {
+            // Half a declaration is still a declaration. Taking both axes from
+            // the median silently overrides a figure the manifest was explicit
+            // about — and this canvas would be laid out 1000 wide instead of the
+            // 2400 it states.
+            const halfSized: PlannerCanvas = {
+                id: 'half',
+                width: 2400,
+                height: 0,
+                source: { kind: 'static', url: 'https://example.test/h.jpg' },
+            };
+            const result = plan(
+                [
+                    staticCanvas('a', 1000, 750),
+                    halfSized,
+                    staticCanvas('c', 1000, 750),
+                ],
+                { mode: 'paged', preserveCanvasScale: true },
+            );
+
+            // The stated width, kept; the missing height taken from the
+            // siblings' 4:3 aspect ratio rather than from their absolute size.
+            expect(result.layout[1]).toMatchObject({
+                width: 2400,
+                height: 1800,
+            });
+        });
+
+        it('reaches a fixed point: the reflow does not re-enter the guess', () => {
+            // The reflow terminates only because the host's `knownMetadata` is
+            // append-only (`CanvasHost.requestMetadata`). Asserted here, in the
+            // pure function, because the invariant it rests on lives in a Svelte
+            // component: were a byte budget to evict facts alongside tiles, a
+            // canvas would fall back to the guess, resize, re-enter the pyramid
+            // tier, refetch, and resize back — thrashing at the tier boundary
+            // with nothing failing.
+            const canvases = [staticCanvas('a', 1000, 750), unsized];
+            const knownMetadata = {
+                unsized: { width: 400, height: 300, version: 3 as const },
+            };
+
+            const once = plan(canvases, { mode: 'paged', knownMetadata });
+            const twice = plan(canvases, { mode: 'paged', knownMetadata });
+
+            expect(twice.layout).toEqual(once.layout);
+            expect(twice.metadataRequests).toEqual(once.metadataRequests);
+        });
+    });
+
+    describe('the inter-canvas gap under normalization', () => {
+        it('measures the gap on the laid-out extents, not the manifest ones', () => {
+            // Median height 2500, so the two scale by 2.5 and 0.625 and are laid
+            // out 10000 and 312.5 wide. The gap is 1% of the median of THOSE
+            // (5156.25), not of the raw widths (2250): measured on the manifest
+            // figures it is a different quantity on a different axis, and the
+            // seam the reader sees is wrong by the normalization scale — 0.28%
+            // of the drawn recto instead of 1%.
+            const result = plan(
+                [
+                    staticCanvas('recto', 4000, 1000),
+                    staticCanvas('verso', 500, 4000),
+                ],
+                { mode: 'paged' },
+            );
+
+            expect(result.layout.map((rect) => rect.width)).toEqual([
+                10000, 312.5,
+            ]);
+            expect(result.layout[1].x).toBeCloseTo(
+                10000 + GAP_FRACTION * 5156.25,
+                6,
+            );
         });
     });
 
@@ -1122,21 +1264,56 @@ describe('planScene — size-ladder sources', () => {
     });
 
     it('holds only the base rung of a ladder canvas outside the residency margin', () => {
-        // Under ticket 07's multi-canvas layout this is the difference between
-        // a canvas two spreads away holding its full-resolution scan resident
-        // for ever — required-set membership, not visibility, drives eviction —
-        // and holding the one cheap image that stops it blanking on return.
-        const near = plan([ladderCanvas], {
+        // The next page: inside the residency window because it is the ±1
+        // canvas beyond the one on screen, but outside the residency MARGIN.
+        // A rung is a whole image, so a neighbour that kept its chain would
+        // hold its full-resolution scan resident — required-set membership, not
+        // visibility, drives eviction, so nothing would ever release it. The
+        // one cheap image it does hold is what stops it blanking on arrival.
+        const nextPage: PlannerCanvas = {
+            ...serviceCanvas('c2', 1000, 1000),
+            source: {
+                kind: 'service',
+                serviceId: 'https://images.test/c2',
+                profile: 'level2',
+            },
+        };
+
+        // Framed inside canvas 1 (x 0..1000) at scale 4: the margin reaches
+        // x 350..650, and canvas 2 starts at 1010.
+        const result = plan([ladderCanvas, nextPage], {
+            mode: 'continuous',
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 4 }),
-            knownMetadata: { c1: LADDER_FACTS },
+            knownMetadata: { c1: LADDER_FACTS, c2: LADDER_FACTS },
         });
+
+        const levelsOf = (canvasId: string) =>
+            result.tileRequests
+                .filter((request) => request.canvasId === canvasId)
+                .map((request) => request.level);
+
+        expect(result.tiers).toEqual({ c1: 'pyramid', c2: 'pyramid' });
+        expect(levelsOf('c1').length).toBeGreaterThan(1);
+        expect(levelsOf('c2')).toEqual([0]);
+        // …and nothing of the neighbour is painted: the margin exists to
+        // prefetch, not to paint.
+        expect(result.tileDraws.every((draw) => !draw.key.includes('c2'))).toBe(
+            true,
+        );
+    });
+
+    it('releases even the base rung once the canvas is out of the residency window', () => {
+        // The nesting rule at its sharpest (spec §Further Notes): "the base
+        // level is never evicted" is scoped to the pyramid tier, and a canvas
+        // the viewport is nowhere near is not in it. Applied without that
+        // scope, an 800-folio manifest holds 800 base images for ever.
         const far = plan([ladderCanvas], {
             viewport: viewport({ centre: { x: 50_000, y: 500 }, scale: 4 }),
             knownMetadata: { c1: LADDER_FACTS },
         });
 
-        expect(near.tileRequests.length).toBeGreaterThan(1);
-        expect(far.tileRequests.map((request) => request.level)).toEqual([0]);
+        expect(far.tiers.c1).toBe('box');
+        expect(far.tileRequests).toEqual([]);
         expect(far.tileDraws).toEqual([]);
     });
 
@@ -1277,6 +1454,7 @@ describe('planViewportLimits', () => {
             mode: 'individuals',
             direction: 'left-to-right',
             preserveCanvasScale: false,
+            gapFraction: GAP_FRACTION,
             knownMetadata: {},
             budgets: BUDGETS,
             ...overrides,
@@ -1297,7 +1475,7 @@ describe('planViewportLimits', () => {
         expect(limits(canvases, { mode: 'paged' }).minZoom).toBe(full.minZoom);
     });
 
-    it('drops the same unlayoutable canvases a full plan does', () => {
+    it('sizes an undeclared canvas exactly as a full plan does', () => {
         const canvases = [staticCanvas('bad', 0, 0)];
 
         expect(limits(canvases).layout).toEqual(plan(canvases).layout);
@@ -1321,5 +1499,248 @@ describe('planViewportLimits', () => {
         // …and the full plan at that zoom really did enumerate tiles, so the
         // comparison above is between the cheap answer and an expensive one.
         expect(zoomedIn.tileRequests.length).toBeGreaterThan(0);
+    });
+});
+
+/**
+ * Ticket 08 — continuous mode on a manifest of arbitrary length.
+ *
+ * The claim the whole epic exists for: an 800-folio manuscript opens
+ * immediately, scrolls smoothly, and holds bounded memory, because only the
+ * canvases near the viewport hold anything. Exercised through **raw manifest
+ * JSON** along the chain `CanvasHost` actually runs — raw Canvases →
+ * `toPlannerCanvases` → a scene plan — so the fixture is evidence about the
+ * renderer rather than about a hand-built descriptor list.
+ *
+ * Every position below is arithmetic this file states. The canvases are all
+ * 1200x900, so median-height normalization is the identity and the gap is
+ * `GAP_FRACTION` of 1200 — canvas *i* begins at `i * 1212`.
+ */
+describe('planScene — an 800-canvas continuous manifest', () => {
+    const COUNT = 800;
+    const PAGE = { width: 1200, height: 900 };
+    /** Canvas width plus the resolved gap: `GAP_FRACTION` of the median. */
+    const PITCH = PAGE.width + GAP_FRACTION * PAGE.width;
+
+    function rawCanvases(count: number) {
+        return Array.from({ length: count }, (_, index) => ({
+            id: `https://example.test/canvas/${index}`,
+            type: 'Canvas',
+            width: PAGE.width,
+            height: PAGE.height,
+            items: [
+                {
+                    id: `https://example.test/page/${index}`,
+                    type: 'AnnotationPage',
+                    items: [
+                        {
+                            id: `https://example.test/anno/${index}`,
+                            type: 'Annotation',
+                            motivation: 'painting',
+                            body: {
+                                id: `https://images.test/${index}/full/max/0/default.jpg`,
+                                type: 'Image',
+                                service: [
+                                    {
+                                        id: `https://images.test/${index}`,
+                                        type: 'ImageService3',
+                                        profile: 'level2',
+                                    },
+                                ],
+                            },
+                            target: `https://example.test/canvas/${index}`,
+                        },
+                    ],
+                },
+            ],
+        }));
+    }
+
+    const CANVASES = toPlannerCanvases(rawCanvases(COUNT));
+    const name = (index: number) => `https://example.test/canvas/${index}`;
+
+    /**
+     * Reading zoom on canvas `index`: the page fitted to the viewport height,
+     * framed on its centre. At this scale the viewport box is exactly one page
+     * wide, so which canvases are on screen is not a matter of taste.
+     */
+    function readingZoom(index: number, count = COUNT) {
+        return plan(
+            count === COUNT ? CANVASES : toPlannerCanvases(rawCanvases(count)),
+            {
+                mode: 'continuous',
+                viewport: viewport({
+                    centre: {
+                        x: index * PITCH + PAGE.width / 2,
+                        y: PAGE.height / 2,
+                    },
+                    scale: 600 / PAGE.height,
+                }),
+            },
+        );
+    }
+
+    function pyramidCanvases(result: ReturnType<typeof plan>): string[] {
+        return Object.entries(result.tiers)
+            .filter(([, tier]) => tier === 'pyramid')
+            .map(([canvasId]) => canvasId);
+    }
+
+    it('lays out every canvas without a single request', () => {
+        // Layout is pure arithmetic over manifest dimensions, so the world is
+        // fully positioned before anything is fetched — which is what makes
+        // scrolling to canvas 400 possible at all, and what stops opening
+        // costing 800 `info.json` requests (spec §Coordinate model and layout).
+        const result = readingZoom(0);
+
+        expect(result.layout).toHaveLength(COUNT);
+        expect(result.layout[400]).toEqual({
+            canvasId: name(400),
+            x: 400 * PITCH,
+            y: 0,
+            width: PAGE.width,
+            height: PAGE.height,
+        });
+    });
+
+    it('opens with O(1) network requests, not O(n)', () => {
+        const opened = readingZoom(0);
+
+        expect(opened.metadataRequests).toEqual([name(0), name(1)]);
+
+        // The number that must not grow: the same frame on a manifest a
+        // twentieth the length asks for exactly as much.
+        const short = readingZoom(0, 40);
+        expect(opened.metadataRequests).toHaveLength(
+            short.metadataRequests.length,
+        );
+        expect(opened.tileRequests).toHaveLength(short.tileRequests.length);
+    });
+
+    it('leaves exactly the expected canvases holding pyramids at canvas 400', () => {
+        // By name, not by count: the page on screen and its two neighbours —
+        // the ±1 canvas rule, which is what makes turning the page instant.
+        expect(pyramidCanvases(readingZoom(400)).sort()).toEqual(
+            [name(399), name(400), name(401)].sort(),
+        );
+        expect(readingZoom(400).metadataRequests).toEqual([
+            name(399),
+            name(400),
+            name(401),
+        ]);
+    });
+
+    it('gives the same resident set arriving at 400 directly and by way of 700', () => {
+        // Residency is a pure function of viewport position, which is the whole
+        // reason eviction is distance-based rather than LRU: an LRU makes the
+        // resident set a function of scroll history — non-reproducible, and
+        // effectively untestable. Here the history is expressed as the tiles
+        // the host is still holding from canvas 700, which must change what is
+        // PAINTED and nothing about what is REQUIRED.
+        const viaSevenHundred = readingZoom(700);
+        const stale = new Set(
+            viaSevenHundred.tileRequests.map((request) => request.key),
+        );
+
+        const direct = readingZoom(400);
+        const afterScrolling = plan(CANVASES, {
+            mode: 'continuous',
+            viewport: viewport({
+                centre: { x: 400 * PITCH + PAGE.width / 2, y: PAGE.height / 2 },
+                scale: 600 / PAGE.height,
+            }),
+            residentTiles: stale,
+        });
+
+        expect(afterScrolling.tiers).toEqual(direct.tiers);
+        expect(afterScrolling.tileRequests).toEqual(direct.tileRequests);
+        // …and none of what canvas 700 left behind is painted at canvas 400.
+        expect(afterScrolling.tileDraws).toEqual(direct.tileDraws);
+    });
+
+    it('holds a bounded required set however long the manifest is', () => {
+        // 800 canvases, and the required set is the same size as it is on a
+        // 40-canvas manifest at the same relative position. The naive
+        // implementation — one base tile per canvas, because the tier is
+        // decided from projected size and ignores position — is O(n) here.
+        const long = readingZoom(20);
+        const short = readingZoom(20, 40);
+
+        expect(long.tileRequests).toHaveLength(short.tileRequests.length);
+        expect(pyramidCanvases(long)).toHaveLength(3);
+    });
+
+    it('releases everything a canvas held once it is out of the window', () => {
+        // The nesting rule: "the base level is never evicted" is scoped to the
+        // pyramid tier. Canvas 400 held a pyramid a moment ago; two pages on it
+        // holds nothing at all, base level included.
+        const there = readingZoom(400);
+        const gone = readingZoom(404);
+
+        expect(there.tiers[name(400)]).toBe('pyramid');
+        expect(gone.tiers[name(400)]).toBe('box');
+        expect(
+            gone.tileRequests.filter(
+                (request) => request.canvasId === name(400),
+            ),
+        ).toEqual([]);
+        expect(gone.evictable).toContain(name(400));
+    });
+
+    it('holds no pyramid at the derived zoom floor, and asks for nothing', () => {
+        // Zooming out stops where the median canvas reaches the box threshold.
+        // At that floor every canvas is confetti, so there is nothing to lose —
+        // and, critically, nothing to fetch: a floor that still planned tiles
+        // would turn "zoom all the way out" into a request storm.
+        const floor = readingZoom(400).minZoom;
+        expect(floor).toBeCloseTo(
+            BUDGETS.boxThreshold / Math.sqrt(PAGE.width * PAGE.height),
+            10,
+        );
+
+        const atFloor = plan(CANVASES, {
+            mode: 'continuous',
+            viewport: viewport({
+                centre: { x: 400 * PITCH, y: PAGE.height / 2 },
+                scale: floor,
+            }),
+        });
+
+        expect(pyramidCanvases(atFloor)).toEqual([]);
+        expect(atFloor.tileRequests).toEqual([]);
+        expect(atFloor.metadataRequests).toEqual([]);
+    });
+
+    it('decides the tier the same way in a left-to-right and a top-to-bottom world', () => {
+        // The orientation-invariance the spec rejects projected HEIGHT for. A
+        // portrait page flowing left-to-right and a landscape page flowing
+        // top-to-bottom, at equal projected area, must decide alike; thresholded
+        // on height, the first is a thumbnail (20x30 px) and the second a box
+        // (30x20 px) at identical visual size.
+        const portrait = plan(
+            [staticCanvas('p0', 600, 1350), staticCanvas('p1', 600, 1350)],
+            {
+                mode: 'continuous',
+                direction: 'left-to-right',
+                viewport: viewport({
+                    centre: { x: 300, y: 675 },
+                    scale: 0.4,
+                }),
+            },
+        );
+        const landscape = plan(
+            [staticCanvas('l0', 1350, 600), staticCanvas('l1', 1350, 600)],
+            {
+                mode: 'continuous',
+                direction: 'top-to-bottom',
+                viewport: viewport({
+                    centre: { x: 675, y: 300 },
+                    scale: 0.4,
+                }),
+            },
+        );
+
+        expect(portrait.tiers.p0).toBe(landscape.tiers.l0);
+        expect(portrait.tiers.p0).toBe('thumbnail');
     });
 });

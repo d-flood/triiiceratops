@@ -22,9 +22,18 @@ export type RegionRect = {
 export type PositionedTileSource = {
     canvasId: string;
     tileSource: TileSource;
+    /** Position and PAINTED extent, normalized by the Canvas's own width. */
     x: number;
     y: number;
     width: number;
+    /**
+     * The whole Canvas box in the same normalized units — 1 unit wide by
+     * construction, and as many tall as the Canvas's aspect ratio. Distinct
+     * from `width` for a source that paints a sub-region, and it is what layout
+     * advances the next canvas past (see `components/osdLayout`).
+     */
+    canvasBoxWidth: number;
+    canvasBoxHeight: number | null;
 };
 
 type ResolveCanvasImageOptions = {
@@ -522,6 +531,18 @@ export function getCanvasTileSources(
                 x: resolved.x,
                 y: resolved.y,
                 width: resolved.width,
+                // The whole Canvas, in this world's normalized units: `x`,
+                // `y` and `width` above are all divided by the Canvas's own
+                // width, so the Canvas box is 1 unit wide by construction and
+                // as many tall as its aspect ratio. Layout advances by this
+                // rather than by `width`, which is the PAINTED extent and is
+                // less than a whole page whenever the painting annotation
+                // targets a sub-region.
+                canvasBoxWidth: 1,
+                canvasBoxHeight:
+                    resolved.canvasWidth > 0
+                        ? resolved.canvasHeight / resolved.canvasWidth
+                        : null,
             } satisfies PositionedTileSource;
         })
         .filter((result): result is PositionedTileSource => result !== null);
