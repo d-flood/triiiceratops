@@ -6,6 +6,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
+import { terserElementBuilds } from './src/packaging/terserElement';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -36,6 +37,9 @@ export default defineConfig({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
         }),
+        // The same second pass the IIFE gets, from the same module, so the two
+        // artifacts cannot be minified to different settings.
+        terserElementBuilds(),
     ],
     esbuild: {
         pure: ['console.log', 'console.debug'],

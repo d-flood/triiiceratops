@@ -15,13 +15,22 @@
  * substrate dynamic-imports resolves to a file that is actually on disk.
  *
  * It then asserts the artifacts themselves are worth importing: each must carry
- * the wrapper's custom-element attribute map, and exactly ONE custom-element
- * registration. Neither failure mode is visible anywhere else. Both entry points
- * read the compiler's `element` static through an `as unknown as
- * { element: CustomElementConstructor }` cast, which erases the only type-level
- * evidence it exists, so a degraded element type-checks clean; and
- * `scripts/size-check.mjs` fails only on growth, so a bundle that LOST work
- * reads to it as an improvement.
+ * the wrapper's custom-element attribute map. That failure mode is visible
+ * nowhere else. Both entry points read the compiler's `element` static through
+ * an `as unknown as { element: CustomElementConstructor }` cast, which erases
+ * the only type-level evidence it exists, so a degraded element type-checks
+ * clean; and `scripts/size-check.mjs` fails only on growth, so a bundle that
+ * LOST work reads to it as an improvement.
+ *
+ * This script also used to count `create_custom_element(…)` call shapes, to
+ * catch a global `compilerOptions.customElement: true` compiling all ~31
+ * components as custom elements. It cannot: with the terser pass added in
+ * `src/packaging/terserElement.ts`, a single call site gets the helper INLINED,
+ * so the correct artifact has no call left to match while the regression keeps
+ * the helper shared and every one of its 31 calls intact — the heuristic read 0
+ * for right and 31 for wrong. The count moved to `wrapperCustomElementGuard` in
+ * `src/packaging/elementCompileOptions.ts`, which counts the compiler's own
+ * output during the same `build:element` run and gets an exact number.
  *
  * Run directly: `node ./scripts/check-element-artifact.mjs`.
  */
@@ -87,17 +96,13 @@ const ELEMENT_ARTIFACTS = [
 const CUSTOM_ELEMENT_ATTRIBUTE = /attribute\s*:\s*['"][a-z-]+['"]/g;
 
 /**
- * One `create_custom_element(Component, props, slots, exports, use_shadow_dom)`
- * call per component compiled as a custom element. The helper's own name is
- * minified away; what survives is the call's `[slots], [exports], true` tail.
- *
- * A shape heuristic, not a parse: it would also match an unrelated call with
- * two array arguments and a trailing boolean. It is only asked to tell 1 from
- * the ~31 that a global `compilerOptions.customElement: true` produces, and it
- * is only consulted once the signal above says the wrapper compiled correctly.
+ * The `static get observedAttributes()` of Svelte's custom-element base class:
+ * the mechanism that turns the map above into observed attributes. Present in
+ * both minifier shapes, because neither the getter name (spec-defined) nor the
+ * attribute strings are manglable with property mangling off — which is exactly
+ * what this pairing is here to notice if it is ever turned on.
  */
-const CREATE_CUSTOM_ELEMENT_CALL =
-    /\[[^[\]]*\]\s*,\s*\[[^[\]]*\]\s*,\s*(?:!0|true)\s*\)/g;
+const OBSERVED_ATTRIBUTES = /static\s+get\s+observedAttributes\s*\(\s*\)/;
 
 for (const artifact of ELEMENT_ARTIFACTS) {
     const name = path.relative(process.cwd(), artifact);
@@ -117,16 +122,13 @@ for (const artifact of ELEMENT_ARTIFACTS) {
         continue;
     }
 
-    const registrations = code.match(CREATE_CUSTOM_ELEMENT_CALL)?.length ?? 0;
-    if (registrations !== 1) {
+    if (!OBSERVED_ATTRIBUTES.test(code)) {
         problems.push(
-            `${name} contains ${registrations} custom-element registration(s); the ` +
-                `wrapper's is the only one allowed. A global ` +
-                `\`compilerOptions.customElement: true\` puts every component in the ` +
-                `graph through custom-element codegen — the element builds must ` +
-                `narrow it with \`dynamicCompileOptions\` instead. (A count of 0 ` +
-                `instead means CREATE_CUSTOM_ELEMENT_CALL in this script no longer ` +
-                `matches the minifier's output.)`,
+            `${name} declares custom-element attributes but no ` +
+                `\`static get observedAttributes()\`, so nothing ever observes ` +
+                `them. The minifier rewrote Svelte's custom-element base class — ` +
+                `check that terser property mangling has not been enabled in ` +
+                `src/packaging/terserElement.ts.`,
         );
     }
 }
@@ -139,5 +141,6 @@ if (problems.length > 0) {
 
 console.log(
     `check-element-artifact: ${checked} dynamic element-bundle import(s) resolve; ` +
-        `${ELEMENT_ARTIFACTS.length} artifact(s) register exactly one custom element.`,
+        `${ELEMENT_ARTIFACTS.length} artifact(s) carry the wrapper's attribute map ` +
+        `and observe it.`,
 );

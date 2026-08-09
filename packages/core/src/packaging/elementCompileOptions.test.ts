@@ -17,11 +17,17 @@ import {
  * `create_custom_element(...)` registration nobody instantiates, plus the
  * compiler's `custom_element_props_identifier` warning.
  *
- * The built artifacts are checked elsewhere, so nothing here runs a build:
- * `scripts/check-element-artifact.mjs` counts registrations in both bundles
- * during `build:element`, and `distributions.test.ts` loads the IIFE and
- * asserts it defines exactly the one element.
+ * The counting half of that rule now lives in the guard's `transform` hook,
+ * reading the Svelte compiler's own output, so these tests feed it the two
+ * shapes the compiler emits rather than running a build. The artifacts are
+ * still checked on their own terms elsewhere:
+ * `scripts/check-element-artifact.mjs` requires the wrapper's attribute map in
+ * both bundles during `build:element`, and `distributions.test.ts` loads the
+ * IIFE and asserts it defines exactly the one element.
  */
+
+/** What `svelte.compile({ customElement: true })` appends to a component. */
+const CODEGEN = `customElements.define('x-y', $.create_custom_element(X, {}, [], [], true));`;
 
 /** Paths both copies of the rule must answer identically. */
 const PATHS = [
@@ -97,6 +103,19 @@ describe('elementOnlyCustomElement', () => {
 });
 
 describe('wrapperCustomElementGuard', () => {
+    /** A guard that has seen the wrapper compiled as a custom element. */
+    function guardWithWrapper() {
+        const guard = wrapperCustomElementGuard();
+        guard.dynamicCompileOptions({
+            filename: `/abs/path/lib/components/${CUSTOM_ELEMENT_WRAPPER}`,
+        });
+        guard.plugin.transform(
+            CODEGEN,
+            `/abs/path/lib/components/${CUSTOM_ELEMENT_WRAPPER}`,
+        );
+        return guard;
+    }
+
     it('fails the build when the wrapper name matched nothing', () => {
         const guard = wrapperCustomElementGuard();
         guard.dynamicCompileOptions({
@@ -109,13 +128,41 @@ describe('wrapperCustomElementGuard', () => {
         expect(() => guard.plugin.buildEnd()).toThrow(/renamed, moved/i);
     });
 
-    it('passes once the wrapper has been seen', () => {
+    it('passes once the wrapper has been seen and compiled', () => {
+        expect(() => guardWithWrapper().plugin.buildEnd()).not.toThrow();
+    });
+
+    it('fails when a second component was compiled as a custom element', () => {
+        // What a global `compilerOptions.customElement: true` does: every
+        // component in the graph gets codegen nobody instantiates.
+        const guard = guardWithWrapper();
+        guard.plugin.transform(CODEGEN, '/abs/path/lib/MetadataPanel.svelte');
+
+        expect(() => guard.plugin.buildEnd()).toThrow(
+            /2 component\(s\).*MetadataPanel\.svelte/s,
+        );
+    });
+
+    it('fails when nothing was compiled as a custom element at all', () => {
+        // `customElement: false` everywhere, including the wrapper: the bundle
+        // registers no element and the size gate reads the loss as a win.
         const guard = wrapperCustomElementGuard();
-        expect(
-            guard.dynamicCompileOptions({
-                filename: `/abs/path/lib/components/${CUSTOM_ELEMENT_WRAPPER}`,
-            }),
-        ).toEqual({ customElement: true });
+        guard.dynamicCompileOptions({
+            filename: `/abs/path/lib/components/${CUSTOM_ELEMENT_WRAPPER}`,
+        });
+
+        expect(() => guard.plugin.buildEnd()).toThrow(/0 component\(s\)/);
+    });
+
+    it('ignores the compiler’s non-component sub-modules', () => {
+        // `Foo.svelte?svelte&type=style` is the same file's stylesheet, and a
+        // plain `.ts` module naming the helper is not a compiled component.
+        const guard = guardWithWrapper();
+        guard.plugin.transform(
+            CODEGEN,
+            '/abs/path/Other.svelte?svelte&type=style',
+        );
+        guard.plugin.transform(CODEGEN, '/abs/path/internal/client.js');
 
         expect(() => guard.plugin.buildEnd()).not.toThrow();
     });

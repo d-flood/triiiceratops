@@ -16,6 +16,24 @@ import { basename } from 'node:path';
 export const CUSTOM_ELEMENT_WRAPPER = 'TriiiceratopsViewerElement.svelte';
 
 /**
+ * The runtime helper Svelte's custom-element codegen emits, exactly once per
+ * component it compiles as a custom element, and never for a component it
+ * compiles ordinarily. Counting it across the compiled `.svelte` modules is the
+ * whole rule, stated as a number.
+ */
+const CUSTOM_ELEMENT_CODEGEN = /create_custom_element\s*\(/g;
+
+/**
+ * The compiled component module, and only it. vite-plugin-svelte gives the
+ * component itself a bare id and every sub-module a query
+ * (`Foo.svelte?svelte&type=style`), so a query means "not the JS I am counting".
+ * Undercounting fails this guard closed — 0 is as loud as 31.
+ */
+function isComponentModule(id: string): boolean {
+    return !id.includes('?') && id.endsWith('.svelte');
+}
+
+/**
  * `dynamicCompileOptions` hook for vite-plugin-svelte: upgrade the wrapper to a
  * custom element and leave every other component an ordinary Svelte component.
  *
@@ -56,22 +74,46 @@ export function elementOnlyCustomElement({
  *
  * So a stale name here ships a correct bundle and a noisy build. That is a
  * drifted config rather than a broken artifact, and this is the cheapest place
- * to say so. The artifact is guarded on its own terms elsewhere:
- * `scripts/check-element-artifact.mjs` requires the wrapper's attribute map and
- * exactly one registration in each bundle, and `distributions.test.ts` runs the
- * built IIFE and watches it define the element.
+ * to say so.
+ *
+ * The second rule this plugin enforces is the one that costs bytes, and it is
+ * counted rather than named: across the whole build graph, exactly ONE compiled
+ * component may carry custom-element codegen. It is asserted here, on the
+ * compiler's own output, and not on the shipped bundle, because the bundle
+ * cannot answer the question. `scripts/check-element-artifact.mjs` used to count
+ * `create_custom_element(…)` call shapes in the minified text; terser inlines a
+ * helper with a single call site, so the correct artifact has no call left to
+ * count while the 31-component regression keeps the helper shared and its 31
+ * calls intact. A text heuristic that reads 0 for "right" and 31 for "wrong" is
+ * not a count. The compiled modules give the exact number for free.
+ *
+ * What still guards the artifacts themselves: `check-element-artifact.mjs`
+ * requires the wrapper's attribute map in each bundle, and
+ * `distributions.test.ts` runs the built IIFE and watches it define exactly
+ * `triiiceratops-viewer`.
  */
 export function wrapperCustomElementGuard() {
     let upgraded = 0;
+    /** Compiled component modules carrying custom-element codegen, by id. */
+    const codegen = new Map<string, number>();
     return {
         dynamicCompileOptions(options: { filename: string }) {
             const compileOptions = elementOnlyCustomElement(options);
             if (compileOptions) upgraded += 1;
             return compileOptions;
         },
-        /** Register alongside `svelte()` in the element build configs. */
+        /**
+         * Register alongside `svelte()` in the element build configs, AFTER it
+         * in the plugins array — this reads what the Svelte compiler emitted.
+         */
         plugin: {
             name: 'triiiceratops:require-custom-element-wrapper',
+            transform(code: string, id: string) {
+                if (!isComponentModule(id)) return null;
+                const sites = code.match(CUSTOM_ELEMENT_CODEGEN)?.length ?? 0;
+                if (sites > 0) codegen.set(id, sites);
+                return null;
+            },
             buildEnd(error?: Error) {
                 // A build that already failed has its own error to report.
                 if (error) return;
@@ -85,6 +127,21 @@ export function wrapperCustomElementGuard() {
                             `CUSTOM_ELEMENT_WRAPPER in ` +
                             `src/packaging/elementCompileOptions.ts and the copy of ` +
                             `the name in svelte.config.js.`,
+                    );
+                }
+                let total = 0;
+                for (const sites of codegen.values()) total += sites;
+                if (total !== 1) {
+                    throw new Error(
+                        `${total} component(s) in this build were compiled as ` +
+                            `custom elements; "${CUSTOM_ELEMENT_WRAPPER}" is the ` +
+                            `only one allowed. A global ` +
+                            `\`compilerOptions.customElement: true\` puts every ` +
+                            `component in the graph through custom-element codegen ` +
+                            `— the element builds must keep it \`false\` and narrow ` +
+                            `with \`dynamicCompileOptions\` instead. Compiled as ` +
+                            `custom elements: ` +
+                            `[${[...codegen.keys()].join(', ') || 'none'}].`,
                     );
                 }
             },

@@ -6,6 +6,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
+import { terserElementBuilds } from './src/packaging/terserElement';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -45,6 +46,10 @@ export default defineConfig({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
         }),
+        // Second minification pass, over what esbuild writes. Deliberately not
+        // `build.minify: 'terser'`: replacing esbuild rather than following it
+        // measures thousands of gzip bytes worse. See src/packaging/terserElement.ts.
+        terserElementBuilds(),
     ],
     esbuild: {
         pure: ['console.log', 'console.debug'],
