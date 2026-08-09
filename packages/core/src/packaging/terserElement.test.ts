@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import type { Plugin } from 'vite';
 
 import {
     ELEMENT_TERSER_OPTIONS,
@@ -9,9 +7,35 @@ import {
     terserElementBuilds,
 } from './terserElement';
 
-/** A throwaway output directory standing in for `dist/`. */
-function outDir(): string {
-    return mkdtempSync(join(tmpdir(), 'terser-element-'));
+/*
+ * The two hooks, unwrapped from Rollup's `{ order, handler }` object form and
+ * narrowed to the slices this plugin actually reads. Calling them directly is
+ * the point: the plugin's failure mode is not running at all, so the tests
+ * drive the hooks rather than a build.
+ */
+type RenderChunk = (
+    code: string,
+    chunk: { fileName: string },
+) => Promise<{ code: string } | null>;
+
+type WriteBundle = (
+    options: Record<string, unknown>,
+    bundle: Record<string, { type: 'chunk' | 'asset'; fileName: string }>,
+) => void;
+
+function renderChunkOf(plugin: Plugin): RenderChunk {
+    const hook = plugin.renderChunk;
+    if (typeof hook !== 'object' || hook === null) {
+        throw new Error('renderChunk must use the object form to set `order`.');
+    }
+    return hook.handler as unknown as RenderChunk;
+}
+
+function writeBundleOf(plugin: Plugin): WriteBundle {
+    const hook = plugin.writeBundle;
+    return (typeof hook === 'function'
+        ? hook
+        : hook!.handler) as unknown as WriteBundle;
 }
 
 describe('ELEMENT_TERSER_OPTIONS', () => {
@@ -34,9 +58,11 @@ describe('ELEMENT_TERSER_OPTIONS', () => {
     });
 
     it('mangles identifiers but never property names', () => {
-        // Property mangling would rename the `attribute` keys of the wrapper's
-        // custom-element props definition, so attribute reflection would stop
-        // working while the element went on registering.
+        // Property mangling renames the `attribute` keys of the wrapper's
+        // custom-element props definition, so attribute reflection stops
+        // working while the element goes on registering. Built and measured:
+        // `scripts/check-element-artifact.mjs` is what notices, because its
+        // attribute-map regex drops to zero matches.
         const mangle = ELEMENT_TERSER_OPTIONS.mangle;
         expect(mangle).not.toBe(false);
         if (typeof mangle === 'object' && mangle !== null) {
@@ -96,73 +122,58 @@ describe('minifyElementChunk', () => {
 });
 
 describe('terserElementBuilds', () => {
-    it('rewrites every emitted JS chunk on disk', async () => {
-        const dir = outDir();
-        const plugin = terserElementBuilds();
+    it('runs its renderChunk last, after esbuild minifies', () => {
+        // `vite:esbuild-transpile` minifies in `renderChunk` with no `order`,
+        // so `post` is what makes this pass unambiguously the second one.
+        // `writeBundle` would not: Rollup classifies it as a PARALLEL hook.
+        const hook = terserElementBuilds().renderChunk;
+        expect(typeof hook).toBe('object');
+        expect((hook as { order?: string }).order).toBe('post');
+    });
+
+    it('returns the minified chunk to Rollup rather than writing it', async () => {
+        // Returning it keeps the in-memory bundle equal to the shipped file,
+        // which is what `vite:reporter` reads its sizes from.
         const before =
             'function f(x){var y=x*2;var z=y+1;return z}globalThis.f=f;';
-        writeFileSync(join(dir, 'element.js'), before);
-
-        await plugin.writeBundle(
-            { dir },
-            {
-                'element.js': {
-                    type: 'chunk',
-                    fileName: 'element.js',
-                    code: before,
-                },
-            },
-        );
-
-        const after = readFileSync(join(dir, 'element.js'), 'utf8');
-        expect(after.length).toBeLessThan(before.length);
+        const result = await renderChunkOf(terserElementBuilds())(before, {
+            fileName: 'element.js',
+        });
+        expect(result?.code.length).toBeLessThan(before.length);
     });
 
-    it('leaves non-chunk assets untouched', async () => {
-        const dir = outDir();
-        const plugin = terserElementBuilds();
-        const css = '.a{color:red}';
-        writeFileSync(join(dir, 'element.css'), css);
-
-        await plugin.writeBundle(
-            { dir },
-            {
-                'element.css': { type: 'asset', fileName: 'element.css' },
-                'element.js': {
-                    type: 'chunk',
-                    fileName: 'element.js',
-                    code: 'globalThis.x=1;',
-                },
-            },
-        );
-
-        expect(readFileSync(join(dir, 'element.css'), 'utf8')).toBe(css);
-    });
-
-    it('fails the build when the bundle contained no chunk to minify', async () => {
-        // A silently-skipping post-build pass is how a size gate quietly stops
-        // measuring a minified artifact; make the omission loud instead.
-        const dir = outDir();
+    it('names the offending chunk when terser cannot parse it', async () => {
         await expect(
-            terserElementBuilds().writeBundle(
-                { dir },
+            renderChunkOf(terserElementBuilds())('function (){', {
+                fileName: 'broken.js',
+            }),
+        ).rejects.toThrow(/broken\.js/);
+    });
+
+    it('fails the build when it never minified a chunk', () => {
+        // A silently-skipping minification pass is how a size gate quietly
+        // stops measuring a minified artifact; make the omission loud instead.
+        const plugin = terserElementBuilds();
+        expect(() =>
+            writeBundleOf(plugin)(
+                { dir: '/out' },
                 { 'element.css': { type: 'asset', fileName: 'element.css' } },
             ),
-        ).rejects.toThrow(/no JavaScript chunk/i);
+        ).toThrow(/no JavaScript chunk/i);
     });
 
-    it('fails when the output directory is unknown', async () => {
-        await expect(
-            terserElementBuilds().writeBundle(
-                {},
+    it('passes once a chunk has been minified', async () => {
+        const plugin = terserElementBuilds();
+        await renderChunkOf(plugin)('globalThis.x=1;', {
+            fileName: 'element.js',
+        });
+        expect(() =>
+            writeBundleOf(plugin)(
+                { dir: '/out' },
                 {
-                    'element.js': {
-                        type: 'chunk',
-                        fileName: 'element.js',
-                        code: 'globalThis.x=1;',
-                    },
+                    'element.js': { type: 'chunk', fileName: 'element.js' },
                 },
             ),
-        ).rejects.toThrow(/output directory/i);
+        ).not.toThrow();
     });
 });

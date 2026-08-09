@@ -23,12 +23,12 @@
  * LOST work reads to it as an improvement.
  *
  * This script also used to count `create_custom_element(…)` call shapes, to
- * catch a global `compilerOptions.customElement: true` compiling all ~31
+ * catch a global `compilerOptions.customElement: true` compiling all 34
  * components as custom elements. It cannot: with the terser pass added in
  * `src/packaging/terserElement.ts`, a single call site gets the helper INLINED,
  * so the correct artifact has no call left to match while the regression keeps
- * the helper shared and every one of its 31 calls intact — the heuristic read 0
- * for right and 31 for wrong. The count moved to `wrapperCustomElementGuard` in
+ * the helper shared and every one of its 34 calls intact — the heuristic read 0
+ * for right and 34 for wrong. The count moved to `wrapperCustomElementGuard` in
  * `src/packaging/elementCompileOptions.ts`, which counts the compiler's own
  * output during the same `build:element` run and gets an exact number.
  *
@@ -92,15 +92,25 @@ const ELEMENT_ARTIFACTS = [
  * but one with no attribute map at all: `manifest-id`, `canvas-id`, `theme` and
  * the rest silently stop being attributes, and the element goes on registering
  * as if nothing happened.
+ *
+ * This is ALSO the only check here that notices terser property mangling. That
+ * was built and measured: with `mangle: { properties: true }` in
+ * `src/packaging/terserElement.ts`, the artifact keeps `"manifest-id"` as a
+ * string and keeps `static get observedAttributes()` — the getter name is in
+ * terser's `domprops` reserved list, and `mangle.properties.builtins` defaults
+ * to `false` — but every `attribute:` key is renamed away, and this regex drops
+ * to zero matches.
  */
 const CUSTOM_ELEMENT_ATTRIBUTE = /attribute\s*:\s*['"][a-z-]+['"]/g;
 
 /**
  * The `static get observedAttributes()` of Svelte's custom-element base class:
- * the mechanism that turns the map above into observed attributes. Present in
- * both minifier shapes, because neither the getter name (spec-defined) nor the
- * attribute strings are manglable with property mangling off — which is exactly
- * what this pairing is here to notice if it is ever turned on.
+ * the mechanism that turns the map above into observed attributes.
+ *
+ * A presence assertion on the base class, nothing subtler. Both minifier shapes
+ * keep the name verbatim because it is spec-defined, so what this catches is the
+ * base class going missing or being replaced wholesale — a Svelte custom-element
+ * codegen change, not a minifier setting.
  */
 const OBSERVED_ATTRIBUTES = /static\s+get\s+observedAttributes\s*\(\s*\)/;
 
@@ -117,7 +127,11 @@ for (const artifact of ELEMENT_ARTIFACTS) {
             `${name} declares no custom-element attributes: the wrapper's ` +
                 `<svelte:options customElement={{ props: … }} /> block did not reach ` +
                 `the bundle. <triiiceratops-viewer> would still register, and would ` +
-                `ignore manifest-id, canvas-id, theme and every other attribute.`,
+                `ignore manifest-id, canvas-id, theme and every other ` +
+                `attribute. The other way to get here is terser property ` +
+                `mangling: check that \`mangle\` in ` +
+                `src/packaging/terserElement.ts has not grown a ` +
+                `\`properties\` setting.`,
         );
         continue;
     }
@@ -126,9 +140,8 @@ for (const artifact of ELEMENT_ARTIFACTS) {
         problems.push(
             `${name} declares custom-element attributes but no ` +
                 `\`static get observedAttributes()\`, so nothing ever observes ` +
-                `them. The minifier rewrote Svelte's custom-element base class — ` +
-                `check that terser property mangling has not been enabled in ` +
-                `src/packaging/terserElement.ts.`,
+                `them. Svelte's custom-element base class is not in this ` +
+                `bundle, or no longer declares the getter under that name.`,
         );
     }
 }

@@ -27,7 +27,7 @@ const CUSTOM_ELEMENT_CODEGEN = /create_custom_element\s*\(/g;
  * The compiled component module, and only it. vite-plugin-svelte gives the
  * component itself a bare id and every sub-module a query
  * (`Foo.svelte?svelte&type=style`), so a query means "not the JS I am counting".
- * Undercounting fails this guard closed — 0 is as loud as 31.
+ * Undercounting fails this guard closed — 0 is as loud as 34.
  */
 function isComponentModule(id: string): boolean {
     return !id.includes('?') && id.endsWith('.svelte');
@@ -67,7 +67,7 @@ export function elementOnlyCustomElement({
  * the wrapper declares its own `<svelte:options customElement={{…}}>` — so the
  * wrapper gets its `element` static, with its full attribute map, whether or not
  * this hook ever names it. The narrowing that matters is `customElement: false`
- * in the three configs, which keeps the other ~30 components out of
+ * in the three configs, which keeps the other 33 components out of
  * custom-element codegen. What this hook adds on top is the wrapper's exemption
  * from that `false`, which shows up only as the absence of the compiler's
  * `options_missing_custom_element` warning.
@@ -83,14 +83,14 @@ export function elementOnlyCustomElement({
  * cannot answer the question. `scripts/check-element-artifact.mjs` used to count
  * `create_custom_element(…)` call shapes in the minified text; terser inlines a
  * helper with a single call site, so the correct artifact has no call left to
- * count while the 31-component regression keeps the helper shared and its 31
- * calls intact. A text heuristic that reads 0 for "right" and 31 for "wrong" is
+ * count while the 34-component regression keeps the helper shared and its 34
+ * calls intact. A text heuristic that reads 0 for "right" and 34 for "wrong" is
  * not a count. The compiled modules give the exact number for free.
  *
  * What still guards the artifacts themselves: `check-element-artifact.mjs`
  * requires the wrapper's attribute map in each bundle, and
- * `distributions.test.ts` runs the built IIFE and watches it define exactly
- * `triiiceratops-viewer`.
+ * `distributions.test.ts` runs both built artifacts and watches each define
+ * exactly `triiiceratops-viewer`.
  */
 export function wrapperCustomElementGuard() {
     let upgraded = 0;

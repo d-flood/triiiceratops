@@ -7,7 +7,7 @@
  * rather than following it, and measures 4,646 gzip bytes WORSE than running
  * terser over what esbuild already produced. Both orderings were measured; see
  * the epic spec. So the configs keep `build.minify: true` and register this
- * plugin, which reads the written chunk back and minifies it again.
+ * plugin, which minifies each rendered chunk a second time.
  *
  * The options are fixed by the same measurements:
  *
@@ -21,7 +21,15 @@
  *     definition is a plain object whose `attribute` keys and `'manifest-id'`
  *     style string values ARE the attribute contract, and a renamed key leaves
  *     `<triiiceratops-viewer>` registering happily while ignoring every
- *     attribute it is given.
+ *     attribute it is given. Turning it on was built and measured: the artifact
+ *     keeps its `static get observedAttributes()` (that name is in terser's
+ *     `domprops` reserved list) and keeps the `"manifest-id"` string, but every
+ *     `attribute:` key is gone. `scripts/check-element-artifact.mjs` catches
+ *     exactly that, and only that.
+ *
+ * `mangle.toplevel` is left at its default `false`, as is `module`, so terser
+ * renames nothing at the top level of either artifact. Both are single
+ * self-contained bundles whose top-level names esbuild has already shortened.
  *
  * Neither element config enables `sourcemap`, so there is no map to chain and
  * none is generated here.
@@ -32,10 +40,8 @@
  * bundler, and byte-for-byte that path is unchanged by this module's existence.
  */
 
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-
 import { minify, type MinifyOptions } from 'terser';
+import type { Plugin } from 'vite';
 
 /**
  * The measured terser configuration for the element artifacts. Exported so the
@@ -73,76 +79,52 @@ export async function minifyElementChunk(
     return result.code;
 }
 
-/*
- * The slices of Rollup's `writeBundle` arguments this plugin reads. Typed
- * structurally rather than imported from rollup so this stays a plain
- * build-time helper, and so the test can call the hook with a literal.
- */
-interface WriteBundleOutputOptions {
-    dir?: string;
-}
-
-interface BundleEntry {
-    type: 'chunk' | 'asset';
-    fileName: string;
-    code?: string;
-}
-
-export interface TerserElementPlugin {
-    name: string;
-    writeBundle(
-        options: WriteBundleOutputOptions,
-        bundle: Record<string, BundleEntry>,
-    ): Promise<void>;
-}
-
 /**
- * Rollup plugin running {@link minifyElementChunk} over every JS chunk after
- * Vite has written it.
+ * Rollup plugin running {@link minifyElementChunk} over every JS chunk Vite
+ * renders.
  *
- * `writeBundle` rather than `renderChunk`, because esbuild's minifier is itself
- * a `renderChunk` hook and the ordering between two of them is a plugin-order
- * question; running after the write is unambiguously second.
+ * `renderChunk` with `order: 'post'`, because esbuild's minifier is itself a
+ * `renderChunk` hook (`vite:esbuild-transpile`) and this pass has to be the
+ * second one. `renderChunk` is one of Rollup's SEQUENTIAL hooks and honours
+ * `order`, so `'post'` is an actual guarantee of running last rather than a
+ * plugin-array coincidence. `writeBundle`, the obvious alternative, is a
+ * PARALLEL hook: it would be less ordered, not more, and minifying there means
+ * rewriting the file behind Rollup's back — the in-memory bundle would keep the
+ * pre-terser code, so `vite:reporter` would print sizes the shipped file does
+ * not have and any other `writeBundle` post-processor touching the same file
+ * would race this one.
  *
- * A pass that finds nothing to do throws. This plugin's whole output is bytes
- * that nothing else observes — `scripts/size-check.mjs` only fails on GROWTH,
- * so an artifact that silently stopped being terser-processed reads to the gate
- * as a change to re-baseline, and the saving would be handed back without a
- * single failing check.
+ * A build in which this plugin never minified anything throws from
+ * `writeBundle`. This plugin's whole output is bytes that nothing else observes
+ * — `scripts/size-check.mjs` only fails on GROWTH, so an artifact that silently
+ * stopped being terser-processed reads to the gate as a change to re-baseline,
+ * and the saving would be handed back without a single failing check. The
+ * plugin is typed as Vite's `Plugin` for the other half of that: a renamed or
+ * re-signatured hook is a compile error here rather than a plugin that
+ * type-checks clean and quietly does nothing.
  */
-export function terserElementBuilds(): TerserElementPlugin {
+export function terserElementBuilds(): Plugin {
+    let minified = 0;
     return {
         name: 'triiiceratops:terser-element',
-        async writeBundle(options, bundle) {
-            const chunks = Object.values(bundle).filter(
-                (entry): entry is BundleEntry & { code: string } =>
-                    entry.type === 'chunk' && typeof entry.code === 'string',
-            );
-            if (chunks.length === 0) {
-                throw new Error(
-                    `triiiceratops:terser-element found no JavaScript chunk to ` +
-                        `minify. The element build emitted only ` +
-                        `[${Object.keys(bundle).join(', ')}], so the terser pass ` +
-                        `ran over nothing and the shipped artifact is ` +
-                        `esbuild-minified only.`,
-                );
-            }
-            if (options.dir === undefined) {
-                throw new Error(
-                    `triiiceratops:terser-element cannot find the output ` +
-                        `directory: Rollup passed no \`dir\`. The element builds ` +
-                        `must emit into \`build.outDir\`, not to a single \`file\`.`,
-                );
-            }
-            const dir = options.dir;
-            await Promise.all(
-                chunks.map(async (chunk) => {
-                    const code = await minifyElementChunk(
-                        chunk.code,
-                        chunk.fileName,
-                    );
-                    await writeFile(join(dir, chunk.fileName), code, 'utf8');
-                }),
+        renderChunk: {
+            order: 'post',
+            async handler(code, chunk) {
+                minified += 1;
+                return {
+                    code: await minifyElementChunk(code, chunk.fileName),
+                    map: null,
+                };
+            },
+        },
+        writeBundle(_options, bundle) {
+            if (minified > 0) return;
+            throw new Error(
+                `triiiceratops:terser-element found no JavaScript chunk to ` +
+                    `minify. The element build emitted only ` +
+                    `[${Object.keys(bundle).join(', ')}], so the terser pass ` +
+                    `ran over nothing and the shipped artifact is ` +
+                    `esbuild-minified only.`,
             );
         },
     };
