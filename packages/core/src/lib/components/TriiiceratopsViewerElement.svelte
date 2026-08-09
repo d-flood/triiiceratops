@@ -1,8 +1,9 @@
 <!--
     svelte-check runs with `customElement: false` (ticket 22) so ordinary
     components are not analyzed as custom elements. This wrapper IS compiled as a
-    custom element in the real element builds (vite.config.element*.ts, static
-    `customElement: true`), so the customElement options below are correct there.
+    custom element in the real element builds (vite.config.element*.ts, which
+    upgrade this one file via `dynamicCompileOptions`), so the customElement
+    options below are correct there.
     svelte-check cannot apply per-file customElement, so it emits
     `options_missing_custom_element` for this one file; that single code is
     ignored via the `--compiler-warnings` flag on the `check` script and recorded

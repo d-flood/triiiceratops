@@ -3209,9 +3209,15 @@ export declare class ViewerState {
      */
     destroyAllPlugins(): void;
     /**
-     * Inventoried members whose changes wake subscribers, derived from the state
-     * inventory so the watcher and the inventory cannot drift: `command` and
+     * Inventoried members whose changes wake subscribers: `command` and
      * `observable` members notify; `internal` and `query-only` members never do.
+     *
+     * The list is checked in as `notifying-members.ts` rather than derived from
+     * `state-inventory.ts` here, because that derivation pulled the inventory's
+     * review prose — classifications, mutator lists, and 72 explanatory notes —
+     * into the shipped bundle for the sake of 47 strings. `state-inventory.test.ts`
+     * recomputes the derivation and fails if the two ever disagree, so the
+     * watcher and the inventory still cannot drift.
      */
     private static readonly WATCHED_MEMBERS;
     /**

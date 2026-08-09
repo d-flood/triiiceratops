@@ -12,7 +12,7 @@
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
-import { STATE_INVENTORY } from './state-inventory.js';
+import { NOTIFYING_MEMBERS } from './notifying-members.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { logger, isDebugEnabled } from '../logging/logger';
 import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
@@ -2669,16 +2669,18 @@ export class ViewerState {
     // top of this; `invokeSubscriptionListener` is the seam ticket 09 replaces.
 
     /**
-     * Inventoried members whose changes wake subscribers, derived from the state
-     * inventory so the watcher and the inventory cannot drift: `command` and
+     * Inventoried members whose changes wake subscribers: `command` and
      * `observable` members notify; `internal` and `query-only` members never do.
+     *
+     * The list is checked in as `notifying-members.ts` rather than derived from
+     * `state-inventory.ts` here, because that derivation pulled the inventory's
+     * review prose — classifications, mutator lists, and 72 explanatory notes —
+     * into the shipped bundle for the sake of 47 strings. `state-inventory.test.ts`
+     * recomputes the derivation and fails if the two ever disagree, so the
+     * watcher and the inventory still cannot drift.
      */
     private static readonly WATCHED_MEMBERS: readonly string[] =
-        STATE_INVENTORY.filter(
-            (entry) =>
-                entry.classification === 'command' ||
-                entry.classification === 'observable',
-        ).map((entry) => entry.member);
+        NOTIFYING_MEMBERS;
 
     // These are ECMAScript #private fields (not TS `private`) on purpose: they
     // carry no plugin contract and must stay invisible to the state inventory's

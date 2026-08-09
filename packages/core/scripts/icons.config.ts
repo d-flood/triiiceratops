@@ -6,69 +6,113 @@
  * `src/lib/generated/icons.ts` (gitignored) — a module of raw SVG-inner-content
  * strings rendered by `src/lib/components/Icon.svelte`.
  *
- * To add an icon: add its Phosphor PascalCase name below, then rebuild
- * (`pnpm gen:icons` or any build). Only the names listed here are generated, so
- * the production graph never carries `phosphor-svelte` or the full icon set.
+ * Only `CORE_ICONS` is generated, and only at the weights each glyph declares.
+ * `Icon.svelte` indexes the table dynamically (`icons[weight]?.[name]`), so a
+ * glyph nothing renders can never be tree-shaken out of the element bundle —
+ * every surplus entry is shipped bytes. The table is therefore SPARSE: a glyph
+ * appears under `bold`/`fill` only where the chrome actually asks for it, and
+ * `Icon.svelte`'s `?? icons.regular[name]` fallback keeps an unlisted weight
+ * rendering the regular glyph instead of nothing.
+ *
+ * Sparseness fails silently — a missing entry is a blank square at runtime, not
+ * a build error — so `scripts/check-icon-coverage.mjs` re-derives the rendered
+ * (name, weight) pairs from the source and fails the build when one is absent.
+ * It runs at the head of `build:element`.
+ *
+ * To add an icon: add its Phosphor PascalCase name below (with any non-regular
+ * weights it renders at), then rebuild (`pnpm gen:icons` or any build).
  *
  * Naming: entries use Phosphor's PascalCase component names (e.g. `ArrowClockwise`);
  * the generator maps them to `@phosphor-icons/core` kebab-case asset filenames
  * (`arrow-clockwise.svg`, and `arrow-clockwise-bold.svg` for non-regular weights).
  */
 
-/** Weights generated for every listed icon. `regular` is the default at render. */
+/** The weight vocabulary. `regular` is the default at render and always generated. */
 export const ICON_WEIGHTS = ['regular', 'bold', 'fill'] as const;
 
-/** Phosphor PascalCase names used across the core chrome and first-party plugins. */
-export const ICON_NAMES = [
+export type IconWeight = (typeof ICON_WEIGHTS)[number];
+
+/** Weights that must be declared per glyph; `regular` is implicit. */
+export type ExtraIconWeight = Exclude<IconWeight, 'regular'>;
+
+/**
+ * Glyphs the core chrome and the shared UI package render, mapped to the
+ * NON-regular weights each is rendered at. Every listed glyph is generated at
+ * `regular`; an empty array means regular only.
+ *
+ * The `bold` entries are the panel-header glyphs — five of them reach
+ * `PanelStackSection` as single-glyph components (`src/lib/components/icons/`)
+ * rendered as `<panel.icon weight="bold">`, and `ListDashes` is bold inline in
+ * `AnnotationPanel`. The `fill` entries are the theme controls.
+ */
+export const CORE_ICONS = {
+    ArrowCounterClockwise: [],
+    ArrowsLeftRight: [],
+    BookOpen: [],
+    CaretDown: [],
+    CaretLeft: [],
+    CaretRight: [],
+    CaretUp: [],
+    ChatCenteredText: ['bold'],
+    Check: [],
+    Copy: [],
+    CornersIn: [],
+    CornersOut: [],
+    Eye: [],
+    EyeSlash: [],
+    File: [],
+    Folder: ['bold'],
+    Gear: [],
+    GithubLogo: [],
+    ImageBroken: [],
+    Info: ['bold'],
+    List: [],
+    ListBullets: ['bold'],
+    ListDashes: ['bold'],
+    MagnifyingGlass: ['bold'],
+    MagnifyingGlassMinus: [],
+    MagnifyingGlassPlus: [],
+    Moon: ['fill'],
+    Palette: ['fill'],
+    Scroll: [],
+    ShareNetwork: [],
+    Slideshow: [],
+    Stack: [],
+    Sun: ['fill'],
+    X: [],
+} as const satisfies Record<string, readonly ExtraIconWeight[]>;
+
+export type IconName = keyof typeof CORE_ICONS;
+
+/**
+ * Glyphs only the first-party plugin packages render. Recorded here so the
+ * shared vocabulary stays in one place, but NOT generated: each plugin inlines
+ * the Phosphor path data it needs in its own `src/icons.ts` and hands core a
+ * framework-neutral `IconDescriptor`, so none of these ever resolve through
+ * core's table. Generating them would put 14 unreachable glyphs (× 3 weights)
+ * in every element bundle.
+ *
+ * Move a name up into `CORE_ICONS` if the core chrome starts rendering it.
+ */
+export const PLUGIN_ONLY_ICON_NAMES = [
     'ArrowClockwise',
-    'ArrowCounterClockwise',
-    'ArrowsLeftRight',
-    'BookOpen',
-    'CaretDown',
-    'CaretLeft',
-    'CaretRight',
-    'CaretUp',
-    'ChatCenteredText',
-    'Check',
     'CircleHalf',
-    'Copy',
-    'CornersIn',
-    'CornersOut',
     'DownloadSimple',
     'Drop',
-    'Eye',
-    'EyeSlash',
-    'File',
     'FilePdf',
-    'Folder',
-    'Gear',
-    'GithubLogo',
-    'ImageBroken',
-    'Info',
-    'List',
-    'ListBullets',
-    'ListDashes',
-    'MagnifyingGlass',
-    'MagnifyingGlassMinus',
-    'MagnifyingGlassPlus',
-    'Moon',
-    'Palette',
     'PencilSimple',
     'Plus',
     'Polygon',
     'Rectangle',
-    'Scroll',
     'SelectionInverse',
-    'ShareNetwork',
     'Sliders',
-    'Slideshow',
-    'Stack',
-    'Sun',
     'Target',
     'Trash',
     'Warning',
-    'X',
 ] as const;
 
-export type IconName = (typeof ICON_NAMES)[number];
-export type IconWeight = (typeof ICON_WEIGHTS)[number];
+/** Every glyph name this project knows about, core-rendered or plugin-only. */
+export const KNOWN_ICON_NAMES = [
+    ...Object.keys(CORE_ICONS),
+    ...PLUGIN_ONLY_ICON_NAMES,
+] as const;
