@@ -11,6 +11,7 @@ import {
     STATE_INVENTORY,
     type StateInventoryEntry,
 } from './state-inventory';
+import { NOTIFYING_MEMBERS } from './notifying-members';
 
 vi.mock('./manifests.svelte', () => ({
     manifestsState: {
@@ -274,6 +275,36 @@ describe('ViewerState state inventory', () => {
                 `"${member}" must have a state-inventory entry`,
             ).toBe(true);
         }
+    });
+
+    // The runtime no longer imports the inventory: `ViewerState.WATCHED_MEMBERS`
+    // reads the checked-in `NOTIFYING_MEMBERS` list so the inventory's review
+    // prose stays out of the shipped bundle. That makes drift possible for the
+    // first time, so it is asserted here — including order, because the two are
+    // meant to be the same derivation, not merely the same set. Reclassifying a
+    // member, adding one, or editing either file alone turns this red.
+    it('keeps the checked-in notifying-member list equal to the inventory derivation', () => {
+        const derived = STATE_INVENTORY.filter(
+            (entry) =>
+                entry.classification === 'command' ||
+                entry.classification === 'observable',
+        ).map((entry) => entry.member);
+
+        expect(NOTIFYING_MEMBERS).toEqual(derived);
+    });
+
+    // Guards the wiring, not just the data. The list above could agree with the
+    // inventory perfectly while the watcher read some narrowed or reordered
+    // variant of it, and dropping a member from the watcher silently costs that
+    // member its notifications.
+    it('watches exactly the checked-in notifying members', () => {
+        const watched = (
+            ViewerState as unknown as {
+                WATCHED_MEMBERS: readonly string[];
+            }
+        ).WATCHED_MEMBERS;
+
+        expect(watched).toEqual(NOTIFYING_MEMBERS);
     });
 });
 
