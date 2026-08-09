@@ -1,3 +1,5 @@
+import { basename } from 'node:path';
+
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import("@sveltejs/vite-plugin-svelte").SvelteConfig} */
@@ -27,8 +29,16 @@ export default {
         // ordinary components out of custom-element analysis). Under Vite, this
         // upgrades ONLY the wrapper to a custom element for configs that would
         // otherwise leave it a plain component.
+        //
+        // This must stay in lockstep with `elementOnlyCustomElement` in
+        // src/packaging/elementCompileOptions.ts. It cannot import it: node
+        // and svelte-check load this file as plain JS. The parity test in
+        // src/packaging/elementCompileOptions.test.ts imports both and pins
+        // them to the same answers instead.
         dynamicCompileOptions({ filename }) {
-            if (filename.endsWith('TriiiceratopsViewerElement.svelte')) {
+            // Whole basename, not a suffix — `endsWith` would also claim
+            // `NotTriiiceratopsViewerElement.svelte`.
+            if (basename(filename) === 'TriiiceratopsViewerElement.svelte') {
                 return { customElement: true };
             }
             return undefined;

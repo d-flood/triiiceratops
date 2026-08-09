@@ -4,10 +4,13 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
-import { elementOnlyCustomElement } from './src/packaging/elementCompileOptions';
+import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Upgrades the wrapper AND fails the build if the wrapper was never found.
+const customElementGuard = wrapperCustomElementGuard();
 
 export default defineConfig({
     // Never copy demo dev-server static assets into the published dist.
@@ -35,8 +38,9 @@ export default defineConfig({
             // the same `dynamicCompileOptions`; this build cannot read that file
             // (see `configFile: false` above), so it repeats the rule.
             compilerOptions: { customElement: false },
-            dynamicCompileOptions: elementOnlyCustomElement,
+            dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
         }),
+        customElementGuard.plugin,
         paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',

@@ -14,16 +14,24 @@ import { PUBLIC_CSS_TOKENS } from '../lib/theme/publicTokens';
  * layout — so `import 'triiiceratops/style.css'` produced an unstyled viewer.
  */
 
-// src/build → repo root
-const REPO = resolve(__dirname, '..', '..');
-const dist = (f: string) => resolve(REPO, 'dist', f);
+// src/packaging → package root
+const PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const dist = (f: string) => resolve(PACKAGE_ROOT, 'dist', f);
 
 const THEMES = ['light', 'dark', 'teal', 'dracula'] as const;
 
 function build(config: string) {
     execSync(`pnpm exec vite build --config ${config}`, {
-        cwd: REPO,
+        cwd: PACKAGE_ROOT,
         stdio: 'pipe',
+        // vitest sets NODE_ENV=test, and vite only defaults NODE_ENV when it is
+        // unset — so an inherited environment makes `isProduction` false and
+        // vite-plugin-svelte compile `dev: true`. These builds write into the
+        // real `dist/` with `emptyOutDir: false`, so that dev artifact would sit
+        // there afterwards, in exactly the place `scripts/size-check.mjs` and
+        // `pnpm size:baseline` read: running `pnpm test` and then
+        // `pnpm size:baseline` would re-record a ~1.4 MB bundle as the budget.
+        env: { ...process.env, NODE_ENV: 'production' },
     });
 }
 
@@ -221,6 +229,41 @@ describe('published distributions ship styles + themes', () => {
             for (const theme of THEMES) {
                 expect(js, `theme "${theme}" missing`).toContain(theme);
             }
+        });
+
+        /*
+         * The end of the chain the other guards check in pieces: whatever the
+         * compile options did, does loading this file put <triiiceratops-viewer>
+         * in the registry, and nothing else?
+         *
+         * Worth running rather than grepping. The entry point hands
+         * `customElements.define` a constructor it read off the compiled
+         * component through an `as unknown as { element: … }` cast, so an
+         * element that was never generated type-checks exactly like one that
+         * was, and reaches `define` as `undefined`. Executing the bundle is also
+         * the one assertion no minifier can mislead.
+         */
+        it('defines exactly the one custom element when loaded', () => {
+            const js = readFileSync(
+                dist('triiiceratops-element.iife.js'),
+                'utf8',
+            );
+            const defined: string[] = [];
+            const define = customElements.define.bind(customElements);
+            customElements.define = (tag, ctor, options) => {
+                defined.push(tag);
+                define(tag, ctor, options);
+            };
+            try {
+                new Function(js)();
+            } finally {
+                customElements.define = define;
+            }
+
+            expect(defined).toEqual(['triiiceratops-viewer']);
+            expect(customElements.get('triiiceratops-viewer')).toBeTypeOf(
+                'function',
+            );
         });
     });
 

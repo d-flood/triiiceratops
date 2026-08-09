@@ -4,10 +4,13 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
-import { elementOnlyCustomElement } from './src/packaging/elementCompileOptions';
+import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Upgrades the wrapper AND fails the build if the wrapper was never found.
+const customElementGuard = wrapperCustomElementGuard();
 
 // Standards-based ESM registration entry for the Web Component, for bundler
 // consumers (ticket 10). Behavior is identical to the self-contained IIFE
@@ -26,8 +29,9 @@ export default defineConfig({
             // Only the wrapper gets custom-element codegen; see
             // elementCompileOptions.ts for why a global flag is wrong.
             compilerOptions: { customElement: false },
-            dynamicCompileOptions: elementOnlyCustomElement,
+            dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
         }),
+        customElementGuard.plugin,
         paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
