@@ -5,17 +5,21 @@
  * string assigned to a DOM HTML sink (`innerHTML`, `<template>.innerHTML`,
  * `outerHTML`, …). Svelte 5 renders every component by assigning its compiled
  * template markup to `<template>.innerHTML` (`create_fragment_from_html`), and
- * the viewer/plugins render trusted, build-time or already-sanitized markup
- * through `{@html}`. Neither path can pass a `TrustedHTML` object, so the only
- * way the viewer can render under Trusted Types is a **default** policy that
- * certifies these strings.
+ * the viewer/plugins render trusted, build-time markup through `{@html}`.
+ * Neither path can pass a `TrustedHTML` object, so the only way the viewer can
+ * render under Trusted Types is a **default** policy that certifies these
+ * strings.
  *
- * This is a pass-through default policy by design: triiiceratops sanitizes
- * untrusted HTML upstream (see `utils/sanitizeHtml` + `SanitizedHtml.svelte`)
- * before it ever reaches a sink, and everything else fed to `{@html}` is the
- * viewer's own build-time markup (icons, the shadow-root stylesheet). The policy
- * therefore attests already-trusted markup rather than re-sanitizing — which
- * would corrupt the viewer's own `<style>`/SVG output.
+ * This is a pass-through default policy by design: every string it attests is
+ * the viewer's own build-time markup (the generated icon SVG, the plugin icon
+ * descriptor's inner SVG, the shadow-root stylesheet) or Svelte's own compiled
+ * templates. The policy therefore attests already-trusted markup rather than
+ * re-sanitizing — which would corrupt the viewer's own `<style>`/SVG output.
+ *
+ * Untrusted HTML no longer passes through here at all. `utils/sanitizeHtml`'s
+ * `renderIiifRichText` builds a `DocumentFragment` out of fresh nodes and
+ * `SanitizedHtml.svelte` inserts it with `replaceChildren`, so IIIF rich text
+ * reaches no HTML sink and needs no certification.
  *
  * Good-citizen guards:
  * - No-op when Trusted Types is unavailable (all non-Chromium engines today, and

@@ -41,8 +41,9 @@ Rules:
   so ordinary components are not analyzed as custom elements (that is what
   removed the ~18 `custom_element_props_identifier` warnings). This wrapper IS
   compiled as a custom element in the real element builds
-  (`vite.config.element.ts` / `vite.config.element-esm.ts`, static
-  `customElement: true`), where the `customElement` options are correct.
+  (`vite.config.element.ts` / `vite.config.element-esm.ts`, which upgrade this
+  one file via `dynamicCompileOptions`), where the `customElement` options are
+  correct.
   svelte-check cannot apply per-file compiler options, so it emits this single
   false positive; the element itself is verified end-to-end.
 - **Behavior test:** `packages/core/tests/wc-parity.spec.ts` — the
@@ -325,5 +326,34 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   the diagnostic set's effect (a throwing layer is reported once and never stops a
   frame). The function-local temporaries have no observable behaviour to pin: they
   do not outlive the call.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-08 · **Review by:** 2027-02-08
+
+### 9. `svelte/no-dom-manipulating` — `packages/core/src/lib/components/SanitizedHtml.svelte`
+
+- **Code:** `svelte/no-dom-manipulating` (eslint, `eslint-plugin-svelte`)
+- **Mechanism:** one rule-named `eslint-disable-next-line` on the single
+  `host?.replaceChildren(fragment)` call inside the component's `$effect`.
+- **Rationale:** the rule's hazard is a divergence between the real DOM and the
+  DOM Svelte believes it owns. There is nothing to diverge from here: the
+  template is `<svelte:element this={tag} bind:this={host} class={className}>`
+  with **no children at all**, so every child of that element is written by this
+  one call and by nothing else. The manipulation is the point of the component.
+  IIIF rich text is untrusted publisher markup; `renderIiifRichText` parses it
+  inertly and returns a `DocumentFragment` of freshly constructed nodes from
+  IIIF's allowlist, and inserting _nodes_ rather than assigning a string is what
+  keeps untrusted markup away from every HTML sink — including under a
+  `require-trusted-types-for 'script'` policy. The alternative the rule steers
+  toward, `{@html}`, is precisely the sink this change exists to remove.
+  `replaceChildren` is also the reset: a changed `html` prop clears the previous
+  render in the same call, so no stale node survives.
+- **Behavior test:**
+  `packages/core/src/lib/utils/sanitizeHtml.test.ts` pins the fragment the
+  component inserts (allowlist in, everything else out);
+  `packages/core/src/lib/components/AnnotationPanel.bodies.svelte.test.ts`
+  pins the rendered DOM through a real `ViewerState`; and
+  `packages/core/tests/rich-text-xss.spec.ts` drives a hostile manifest through
+  the built custom element in a real browser and asserts nothing executed while
+  the legitimate content still rendered.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-08 · **Review by:** 2027-02-08

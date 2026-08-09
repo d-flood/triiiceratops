@@ -976,6 +976,26 @@ type SearchProvider = (
 >;
 ```
 
+`before`, `match` and `after` are **plain text**. The search panel renders them
+as text nodes, so any markup you return is displayed as visible characters
+rather than interpreted — a search service cannot inject elements or script into
+the host page.
+
+The one thing the viewer does interpret is the highlight delimiter. Wrap the
+matched term in `<mark>…</mark>`, literally or entity-encoded as
+`&lt;mark&gt;…&lt;/mark&gt;`, and the panel renders a real `<mark>` element
+around that run.
+
+Only the **bare, lowercase** tag is a delimiter. `<mark class="hit">`, `<MARK>`
+and any other variation are excerpt text, and now render as visible characters —
+so emit the tag exactly as spelled above.
+
+Because a service that escapes its excerpt escapes the surrounding text too, the
+five basic entities (`&amp;` `&lt;` `&gt;` `&quot;` `&#39;`) are decoded in each
+run before display, so `AT&amp;T` reads as `AT&T` rather than showing the entity.
+Exactly one level comes off, so `&amp;lt;mark&amp;gt;` displays as the literal
+text `&lt;mark&gt;` and highlights nothing.
+
 === "React"
 
     ```tsx

@@ -57,6 +57,7 @@ import {
     type CollectionItem,
 } from '../utils/collections';
 import { getCanvasLabel } from '../utils/canvasLabels';
+import { segmentHighlights } from '../utils/highlightSegments';
 import type { CanvasRegion } from '../utils/contentState';
 import {
     findCanvasIndexById,
@@ -1909,14 +1910,6 @@ export class ViewerState {
         return null;
     }
 
-    /** Helper to unescape HTML-encoded mark tags */
-    private decodeMark(str: string): string {
-        if (!str) return '';
-        return str
-            .replace(/&lt;mark&gt;/g, '<mark>')
-            .replace(/&lt;\/mark&gt;/g, '</mark>');
-    }
-
     /**
      * The display label for a canvas in a search-result group.
      *
@@ -2024,9 +2017,9 @@ export class ViewerState {
                     );
                     group.hits.push({
                         type: 'hit',
-                        before: this.decodeMark(hit.before),
-                        match: this.decodeMark(hit.match),
-                        after: this.decodeMark(hit.after),
+                        before: hit.before || '',
+                        match: hit.match || '',
+                        after: hit.after || '',
                         bounds,
                         allBounds,
                     });
@@ -2059,11 +2052,10 @@ export class ViewerState {
                     );
                     group.hits.push({
                         type: 'resource',
-                        match: this.decodeMark(
+                        match:
                             res.resource && res.resource.chars
                                 ? res.resource.chars
                                 : res.chars || '',
-                        ),
                         bounds: boundsArray[0] || null,
                         allBounds: boundsArray,
                     });
@@ -2169,16 +2161,16 @@ export class ViewerState {
             if (context) {
                 group.hits.push({
                     type: 'hit',
-                    before: this.decodeMark(context.before),
-                    match: this.decodeMark(context.match),
-                    after: this.decodeMark(context.after),
+                    before: context.before,
+                    match: context.match,
+                    after: context.after,
                     bounds,
                     allBounds,
                 });
             } else {
                 group.hits.push({
                     type: 'resource',
-                    match: this.decodeMark(bodyText),
+                    match: bodyText,
                     bounds,
                     allBounds,
                 });
@@ -2214,7 +2206,12 @@ export class ViewerState {
                     canvasId,
                     resource: {
                         '@type': 'cnt:ContentAsText',
-                        chars: hit.match,
+                        // Plain text, like every other excerpt field: the
+                        // annotation panel shows `chars` to the reader, so the
+                        // mark delimiters have to come off first.
+                        chars: segmentHighlights(hit.match)
+                            .map((segment) => segment.text)
+                            .join(''),
                     },
                     isSearchHit: true,
                 }));

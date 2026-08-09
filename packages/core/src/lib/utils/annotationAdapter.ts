@@ -413,7 +413,11 @@ export function extractBody(annotation: any): {
     const processResource = (r: any) => {
         const val = r.chars || r.value || r['cnt:chars'] || '';
         if (val) {
-            const isHtml = r.format === 'text/html' || r.type === 'TextualBody';
+            // Only a declared format may route a body through the rich-text
+            // path. IIIF defaults `TextualBody` to `text/plain`, so the type
+            // says nothing about markup; a transcription containing `<` or `&`
+            // has to survive as those characters.
+            const isHtml = r.format === 'text/html';
             bodies.push({
                 value: val,
                 isHtml,

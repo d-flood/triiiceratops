@@ -300,7 +300,7 @@ function resolveModuleFile(p) {
 /**
  * Total byte size of the static import graph reachable from an ESM entry file,
  * following only the package's OWN emitted files (relative specifiers). Bare
- * specifiers (svelte, dompurify, …) are external runtime deps a consumer's
+ * specifiers (svelte, …) are external runtime deps a consumer's
  * bundler provides, so they are not part of the package's shipped byte cost.
  * This is what makes `core:esm-entry-graph` meaningful even though the emitted
  * `dist/index.js` is only a thin re-export shell.

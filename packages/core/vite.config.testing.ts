@@ -10,8 +10,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * its transitive deps (`esm-env`, `clsx`) and `#client/*` internal imports — so
  * the chunk is self-contained and runs in a project that installed only the
  * tarball + vitest, with no Svelte tooling or runtime required. There is no
- * heavy browser-only runtime dependency left to externalize: core's only
- * runtime dependency is `dompurify`, and the renderer is first-party.
+ * heavy browser-only runtime dependency left to externalize: core has no runtime
+ * dependencies at all, and the renderer is first-party.
  *
  * The one exception is module IDENTITY, below, which is a different question.
  */

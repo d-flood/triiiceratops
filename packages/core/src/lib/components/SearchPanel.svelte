@@ -6,6 +6,7 @@
     import { SvelteSet } from 'svelte/reactivity';
     import { getCanvasId } from './viewerControls';
     import { Button, TextInput, Badge, Spinner } from './ui';
+    import { segmentHighlights } from '../utils/highlightSegments';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -79,6 +80,22 @@
         }
     });
 </script>
+
+<!--
+    A search excerpt, rendered as TEXT.
+
+    `SearchHit.before`, `match` and `after` are plain text by contract, and any
+    host-supplied `SearchProvider` or remote IIIF Content Search service fills
+    them. They used to reach a raw HTML sink with nothing but a `&lt;mark&gt;`
+    un-escaper in the way, which let a search service execute script in the host
+    page. The segmenter consumes the `<mark>` delimiters and hands back runs of
+    text; everything else lands in a text node and is shown as characters.
+-->
+{#snippet excerpt(
+    text: string,
+)}{#each segmentHighlights(text) as segment, i (i)}{#if segment.highlighted}<mark
+                >{segment.text}</mark
+            >{:else}{segment.text}{/if}{/each}{/snippet}
 
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
@@ -187,15 +204,18 @@
                         <div class="excerpts">
                             {#each visibleHits as result, i (i)}{#if i > 0}<span
                                         class="separator">|</span
-                                    >{/if}{#if result.type === 'hit'}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
-                                        >{@html result.before}</span
-                                    ><span class="match">
-                                        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                                        {@html result.match}
-                                    </span><!-- eslint-disable-next-line svelte/no-at-html-tags --><span
-                                        >{@html result.after}</span
-                                    >{:else}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
-                                        >{@html result.match}</span
+                                    >{/if}{#if result.type === 'hit'}<span
+                                        >{@render excerpt(
+                                            result.before ?? '',
+                                        )}</span
+                                    ><span class="match"
+                                        >{@render excerpt(result.match)}</span
+                                    ><span
+                                        >{@render excerpt(
+                                            result.after ?? '',
+                                        )}</span
+                                    >{:else}<span
+                                        >{@render excerpt(result.match)}</span
                                     >{/if}{/each}{#if group.hits.length > INITIAL_EXCERPT_COUNT}
                                 <Button
                                     ghost
