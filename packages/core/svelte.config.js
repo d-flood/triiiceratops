@@ -16,8 +16,8 @@ export default {
     //
     // The shadow-DOM CSS path is unaffected: the element builds
     // (vite.config.element*.ts) set `configFile: false` and carry their own
-    // static `customElement: true` + `emitCss: false`, so they never read this
-    // file.
+    // `emitCss: false` plus their own copy of the wrapper-only rule below
+    // (src/packaging/elementCompileOptions.ts), so they never read this file.
     compilerOptions: {
         customElement: false,
     },

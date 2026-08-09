@@ -4,6 +4,9 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
+import { elementOnlyCustomElement } from './src/packaging/elementCompileOptions';
+import { minifyCssPreprocessor } from './src/packaging/minifyCss';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Standards-based ESM registration entry for the Web Component, for bundler
@@ -18,8 +21,12 @@ export default defineConfig({
     plugins: [
         svelte({
             configFile: false,
+            preprocess: [minifyCssPreprocessor()],
             emitCss: false,
-            compilerOptions: { customElement: true },
+            // Only the wrapper gets custom-element codegen; see
+            // elementCompileOptions.ts for why a global flag is wrong.
+            compilerOptions: { customElement: false },
+            dynamicCompileOptions: elementOnlyCustomElement,
         }),
         paraglideVitePlugin({
             project: './project.inlang',

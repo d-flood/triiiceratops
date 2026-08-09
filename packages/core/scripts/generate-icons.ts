@@ -8,6 +8,13 @@
  * strings. `src/lib/components/Icon.svelte` owns the `<svg>` wrapper (sizing,
  * color, accessibility), so only the inner `<path>`/shape markup is stored here.
  *
+ * The emitted table is SPARSE: every `CORE_ICONS` glyph is written under
+ * `regular`, but only the glyphs that declare `bold`/`fill` are written under
+ * those weights. That is why the emitted type keeps `regular` total while the
+ * other weights are `Partial` — it is `Icon.svelte`'s `?? icons.regular[name]`
+ * fallback that makes an absent weight degrade to the regular glyph rather than
+ * render nothing. `scripts/check-icon-coverage.mjs` guards the difference.
+ *
  * This replaces the `phosphor-svelte` runtime dependency (whose required `vite`
  * peer dependency is structurally unsuitable for a library) with build-time
  * generation. Run directly: `node ./scripts/generate-icons.ts` (Node strips the
@@ -17,7 +24,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { ICON_NAMES, ICON_WEIGHTS } from './icons.config.ts';
+import { CORE_ICONS, ICON_WEIGHTS } from './icons.config.ts';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -59,7 +66,17 @@ function extractInner(svg: string, source: string): string {
     return match[1].trim();
 }
 
-const nameUnion = ICON_NAMES.map((n) => JSON.stringify(n)).join(' | ');
+const coreNames = Object.keys(CORE_ICONS) as (keyof typeof CORE_ICONS)[];
+
+/** Names to generate for one weight: everything at `regular`, declarers elsewhere. */
+function namesForWeight(weight: string): (keyof typeof CORE_ICONS)[] {
+    if (weight === 'regular') return coreNames;
+    return coreNames.filter((name) =>
+        (CORE_ICONS[name] as readonly string[]).includes(weight),
+    );
+}
+
+const nameUnion = coreNames.map((n) => JSON.stringify(n)).join(' | ');
 const weightUnion = ICON_WEIGHTS.map((w) => JSON.stringify(w)).join(' | ');
 
 const lines: string[] = [];
@@ -77,13 +94,20 @@ lines.push(`export type IconName = ${nameUnion};`);
 lines.push(`export type IconWeight = ${weightUnion};`);
 lines.push('');
 lines.push(
-    'export const icons: Record<IconWeight, Record<IconName, string>> = {',
+    '/* Sparse: `regular` is total, the other weights carry only declarers. */',
 );
+lines.push(
+    'type IconTable = Record<IconWeight, Partial<Record<IconName, string>>> & {',
+);
+lines.push('    regular: Record<IconName, string>;');
+lines.push('};');
+lines.push('');
+lines.push('export const icons: IconTable = {');
 
 let generated = 0;
 for (const weight of ICON_WEIGHTS) {
     lines.push(`    ${weight}: {`);
-    for (const name of ICON_NAMES) {
+    for (const name of namesForWeight(weight)) {
         const file = resolveAsset(weight, assetFile(name, weight));
         if (!file) {
             throw new Error(
@@ -106,6 +130,10 @@ if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 const outFile = join(outDir, 'icons.ts');
 writeFileSync(outFile, lines.join('\n'), 'utf8');
 
+const perWeight = ICON_WEIGHTS.map(
+    (w) => `${w}: ${namesForWeight(w).length}`,
+).join(', ');
+
 console.log(
-    `generate-icons: wrote ${generated} SVG string(s) (${ICON_NAMES.length} icons × ${ICON_WEIGHTS.length} weights) to src/lib/generated/icons.ts`,
+    `generate-icons: wrote ${generated} SVG string(s) for ${coreNames.length} core icon(s) (${perWeight}) to src/lib/generated/icons.ts`,
 );
