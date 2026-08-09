@@ -25,7 +25,9 @@ async function runJourney(page: import('@playwright/test').Page) {
     await expect(page.locator('#triiiceratops-viewer')).toBeVisible();
     await expect(page.locator('.loading')).not.toBeVisible({ timeout: 20000 });
     await expect(
-        page.locator('#triiiceratops-viewer .osd-background'),
+        page.locator(
+            '#triiiceratops-viewer [data-testid="canvas-renderer-root"]',
+        ),
     ).toBeVisible({ timeout: 10000 });
 
     // Exercise a state change (drives dispatch + derived recomputation).

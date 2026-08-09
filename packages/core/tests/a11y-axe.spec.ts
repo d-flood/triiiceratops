@@ -1,8 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-import { useCanvasRenderer } from './helpers/numberedGrid';
-
 /*
  * Automated WCAG 2.2 AA scan suite (ticket 23).
  *
@@ -18,7 +16,7 @@ import { useCanvasRenderer } from './helpers/numberedGrid';
  * page load per state rather than one per cell.
  */
 
-// Axe + OSD is heavy: parallel cold page loads saturate the dev server. Run
+// Axe + the renderer is heavy: parallel cold page loads saturate the dev server. Run
 // this file's scans in a single worker (CI already runs workers=1). Keeps the
 // state × theme matrix reliable without touching playwright.config.ts.
 test.describe.configure({ mode: 'serial' });
@@ -53,8 +51,8 @@ async function loadViewer(page: Page, query = ''): Promise<void> {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
     });
-    // Wait for the chrome (toolbar) rather than OSD tile rendering: the a11y
-    // scan audits the DOM/chrome, and OSD rendering is heavy enough that waiting
+    // Wait for the chrome (toolbar) rather than tile rendering: the a11y
+    // scan audits the DOM/chrome, and tile rendering is heavy enough that waiting
     // on it flakes under parallel workers.
     await page
         .locator('[aria-controls="tri-flyout-viewing-mode"]')
@@ -113,18 +111,17 @@ test('axe: viewing-mode flyout open × all themes', async ({ page }) => {
 });
 
 /*
- * The first-party Canvas2D renderer adds a tab stop the OpenSeadragon path
- * never had: a focusable, labelled image surface (ticket 11). The scans above
- * exercise the shipping renderer, so this one selects the new renderer and
- * re-runs the same matrix with that tab stop present — a focusable element with
- * a role and no accessible name, or an unreachable one, is exactly what axe
- * catches.
+ * The renderer adds a tab stop the previous one never had: a focusable,
+ * labelled image surface (ticket 11). The scans above wait for the chrome, so
+ * they can race the surface's own mount; this one waits for the image surface
+ * itself and re-runs the whole matrix with that tab stop guaranteed present —
+ * a focusable element with a role and no accessible name, or an unreachable
+ * one, is exactly what axe catches.
  */
 test('axe: Canvas2D renderer (focusable image surface) × all themes', async ({
     page,
 }) => {
     test.slow();
-    await useCanvasRenderer(page);
     await loadViewer(page);
     await page
         .locator('[data-testid="canvas-renderer-root"]')

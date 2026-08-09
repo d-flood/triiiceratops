@@ -262,7 +262,7 @@ describe('planScene', () => {
  * Multi-canvas layout: paged spreads, the four viewing directions, and
  * `preserveCanvasScale`.
  *
- * The positions are the shared layout function's (`components/osdLayout`),
+ * The positions are the shared layout function's (`components/canvasLayout`),
  * expressed in the renderer's own units — canvas space, where a page is
  * thousands of units across rather than one. Every expectation below is
  * arithmetic stated in the test: `gapFraction` is 0.01 and the gap is that
@@ -934,7 +934,7 @@ describe('planScene — tiled sources', () => {
             );
 
         // The ratio is device pixels per LEVEL pixel: a higher one accepts a
-        // blurrier level, which is OpenSeadragon's direction carried forward
+        // blurrier level, which is the previous renderer's direction carried forward
         // with the value.
         expect(at(2)).toBeLessThan(at(0.25));
     });
@@ -1204,8 +1204,24 @@ describe('planScene — size-ladder sources', () => {
         const result = ladderPlan(1, {}, new Set([fine, coarse]));
 
         expect(result.tileDraws).toEqual([
-            { key: coarse, level: 0, x: 0, y: 0, width: 1000, height: 1000 },
-            { key: fine, level: 1, x: 0, y: 0, width: 1000, height: 1000 },
+            {
+                key: coarse,
+                canvasId: 'c1',
+                level: 0,
+                x: 0,
+                y: 0,
+                width: 1000,
+                height: 1000,
+            },
+            {
+                key: fine,
+                canvasId: 'c1',
+                level: 1,
+                x: 0,
+                y: 0,
+                width: 1000,
+                height: 1000,
+            },
         ]);
     });
 
@@ -1300,9 +1316,12 @@ describe('planScene — size-ladder sources', () => {
         expect(levelsOf('c1').length).toBeGreaterThan(1);
         expect(levelsOf('c2')).toEqual([0]);
         // …and nothing of the neighbour is painted: the margin exists to
-        // prefetch, not to paint.
-        expect(result.tileDraws.every((draw) => !draw.key.includes('c2'))).toBe(
-            true,
+        // prefetch, not to paint. Asserted on `canvasId` rather than on the key's
+        // spelling, because that is the field the HOST reads — "does this canvas
+        // have anything on screen this frame?" is what decides whether an error
+        // placeholder may cover it (`CanvasHost.updateCanvasErrors`).
+        expect(result.tileDraws.map((draw) => draw.canvasId)).not.toContain(
+            'c2',
         );
     });
 

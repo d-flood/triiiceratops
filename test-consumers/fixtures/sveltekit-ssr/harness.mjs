@@ -21,7 +21,7 @@ export default {
             'SSR HTML must contain the server-rendered viewer root',
         ).toContain('id="triiiceratops-viewer"');
 
-        // 2. Hydrate + operate: OSD paints the first canvas post-hydration.
+        // 2. Hydrate + operate: the renderer paints the first canvas post-hydration.
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
         await expect(
             page.locator('#triiiceratops-viewer canvas').first(),

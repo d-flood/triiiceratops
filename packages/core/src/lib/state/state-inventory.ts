@@ -369,7 +369,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'tileSourceError',
         classification: 'observable',
-        notes: 'Tile-source auth/load failure written by core in response to a renderer load failure; no mutator.',
+        notes: 'Tile-source auth/load failure written by core in response to a renderer load failure; no mutator. Shape unchanged by ticket 12, meaning narrowed: per-canvas error state inside the renderer (`renderer/canvasErrors.ts`) is now the source of truth, and this is the DERIVED viewer-level view of it — raised only once every canvas laid out has failed, which in continuous mode is effectively unreachable (the layout is the whole manifest and metadata is lazy, so a canvas nobody has scrolled to has no error entry and counts as working) and in the single-canvas case is exactly right, because the chrome for it is a full cover over the renderer and raising it while a sibling folio still works would blank a working viewer mid-scroll. Deliberately NOT joined by a per-canvas member: the per-canvas record is renderer instrumentation (the host test handle’s `getCanvasErrors`), like the residency and decoded-byte counters beside it, and ticket 12 puts exposing it out of scope. No ticket currently promotes it to query-only state.',
     },
 
     // ---- Viewport -------------------------------------------------------------
@@ -428,6 +428,23 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Surface size in CSS pixels. Changes only on resize, but it is a renderer measurement rather than viewer state and is read on demand beside the other viewport queries. No command: the host sizes the surface, not a plugin.',
     },
 
+    // ---- The paint hook -------------------------------------------------------
+    {
+        member: 'paintLayerRevision',
+        classification: 'internal',
+        notes: 'Bumped when a paint layer is registered or released, so the renderer host repaints a layer that arrived while the viewport was idle. Reactive, unlike the layer LIST behind it: registration happens a handful of times per session where drawing happens per frame.',
+    },
+    {
+        member: 'paintLayerRegistry',
+        classification: 'internal',
+        notes: 'The ordered paint-layer registry behind registerPaintLayer (`renderer/paintLayers.ts`). Held here rather than in the renderer host so a layer may be registered before a renderer mounts and survives a remount. Not reactive: it is read once per painted frame.',
+    },
+    {
+        member: 'paintLayers',
+        classification: 'internal',
+        notes: 'The registry’s ordered snapshot, read by the renderer host once per painted frame. Internal rather than query-only: a plugin registers a layer and is called back, it does not read the list — and a per-frame read that is not viewer state would only invite polling.',
+    },
+
     // ---- Plugin registration -------------------------------------------------
     {
         member: 'pluginMenuButtons',
@@ -479,7 +496,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'annotationEditBus',
         classification: 'internal',
-        notes: 'Transitional per-viewer edit channel shared by OSDViewer and the annotation-editor plugin; mutated by direct reassignment, no stable contract yet (annotation editor migrates in ticket 17).',
+        notes: 'Transitional per-viewer edit channel shared by the annotation shape overlay and the annotation-editor plugin; mutated by direct reassignment, no stable contract yet (the annotation editor returns with the phase-2 drawing layer).',
     },
     {
         member: 'collectionThumbnailHydrationId',

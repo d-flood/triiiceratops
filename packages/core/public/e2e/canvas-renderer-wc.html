@@ -9,17 +9,10 @@
 
             Unlike the wc-parity fixtures, this one loads the custom element
             from SOURCE through the dev server rather than from a built dist/
-            artifact. That is deliberate: the development-only renderer flag is
-            pinned to a literal in the published builds (so the unselected
-            renderer is tree-shaken out), and is left an ordinary mutable global
-            here — which is the only way to exercise the new renderer inside a
-            shadow root while the built artifacts still ship the OpenSeadragon
-            path. Ticket 18 deletes the flag, and this page can then load dist/
-            like its siblings.
+            artifact, so the renderer specs need no build step to run. The
+            wc-parity fixtures cover the built artifacts; what this page is for
+            is the renderer inside a shadow root.
         -->
-        <script>
-            globalThis.__TRIIICERATOPS_CANVAS_RENDERER__ = true;
-        </script>
         <script type="module" src="/src/lib/custom-element.ts"></script>
         <style>
             html,

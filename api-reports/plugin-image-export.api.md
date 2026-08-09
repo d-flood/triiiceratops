@@ -47,7 +47,7 @@ export declare function getVisibleCanvasesForDownload(viewerState: ViewerState):
 /**
  * Resolution options for downloading everything currently laid out together
  * in the viewer (e.g. a two-page spread in `paged` viewing mode). Reuses the
- * same layout math OSD itself uses (`getCanvasDisplayLayouts`), so the
+ * same layout math the viewer itself uses (`getCanvasDisplayLayouts`), so the
  * downloaded image matches what's on screen; there's no single native
  * reference size across canvases, so this offers a relative ladder against
  * the first image's own native width as the reference scale.

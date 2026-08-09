@@ -48,9 +48,9 @@ export interface ViewerSelectorOptions<T> {
     /**
      * Which notification wakes the projection. `state` (the default) is the
      * batched inventoried-member watcher; `frame` additionally wakes on the
-     * live OpenSeadragon instance's own animation events, which is how
-     * continuous viewport values (zoom, pan, rotation, bounds) are read
-     * reactively.
+     * renderer's own animation events, through `ViewerState.subscribeFrame`,
+     * which is how the query-only viewport values (`viewportScale`,
+     * `viewportCentre`, `viewportBounds`) are read reactively.
      */
     cadence?: SelectorCadence;
 }

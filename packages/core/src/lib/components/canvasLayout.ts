@@ -31,9 +31,8 @@ export type ViewingDirection =
  * codebase (see `ResolvedCanvasImage`), and a caller may legitimately lay out
  * from a different space. They are passed in rather than read off a tile source
  * so that layout can run before (or entirely without) any image service being
- * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
- * because that is what it has to hand; manifest Canvas dimensions are the
- * authoritative geometry everywhere else.
+ * fetched. Manifest Canvas dimensions are the authoritative geometry; a caller
+ * passing image-service dimensions is describing pixels, not placement.
  */
 export interface CanvasGeometry {
     canvasId?: string | null;
@@ -58,9 +57,9 @@ export interface CanvasGeometry {
      *
      * In world units like everything else here, deliberately *not* the
      * manifest's Canvas pixel dimensions (`ResolvedCanvasImage.canvasWidth`):
-     * the OpenSeadragon path's world is normalized, so its Canvas box is 1 unit
-     * wide by construction, while the renderer's world is canvas space, where
-     * it is the manifest figure.
+     * the export path's world is normalized, so its Canvas box is 1 unit wide by
+     * construction, while the renderer's world is canvas space, where it is the
+     * manifest figure.
      */
     canvasBoxWidth?: number | null;
     canvasBoxHeight?: number | null;

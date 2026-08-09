@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Registry smoke test (post-publish, pre-release gate).
 //
-// After the promote job publishes the six tarballs, this installs the EXACT
-// published versions from the real npm registry into a throwaway minimal consumer
-// and asserts the published packages actually resolve and load. It gates GitHub
-// release creation: the release job only runs if this passes.
+// After the promote job publishes the release manifest's tarballs (five today),
+// this installs the EXACT published versions from the real npm registry into a
+// throwaway minimal consumer and asserts the published packages actually resolve
+// and load. It gates GitHub release creation: the release job only runs if this
+// passes.
 //
 // It deliberately fetches from the registry (not the workspace, not the packed
 // tarballs) so it exercises what a real user gets: registry metadata, tarball
@@ -213,7 +214,7 @@ async function main() {
     console.log(
         '[smoke] npm install (exact published versions from the registry)',
     );
-    npmInstall(dir, registry, 'all six packages');
+    npmInstall(dir, registry, `all ${packages.length} published packages`);
 
     // The published core's own peer metadata drives the per-framework stage
     // below, so the smoke installs exactly the versions the release claims to
@@ -231,8 +232,8 @@ async function main() {
     for (const peer of ['react', 'svelte', 'vue']) {
         const declared = typeof corePeers[peer] === 'string';
         const optional = corePeerMeta[peer]?.optional === true;
-        // Not installed HERE either: this consumer depends on all six published
-        // packages and nothing else, so npm auto-installing a framework peer
+        // Not installed HERE either: this consumer depends on every published
+        // package in the manifest and nothing else, so npm auto-installing a peer
         // would show up as a resolved directory.
         const absent = !existsSync(
             join(dir, 'node_modules', peer, 'package.json'),

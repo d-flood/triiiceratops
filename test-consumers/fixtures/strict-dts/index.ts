@@ -6,9 +6,9 @@
 // fails the fixture.
 //
 // It was `strict-osd-types`, and it existed because the renderer pass-through
-// put `OpenSeadragon.Viewer` and `Partial<OpenSeadragon.Options>` in core's
-// public `.d.ts`, which a strict consumer could not resolve without installing
-// `@types/openseadragon` themselves. That is the whole problem the first-party
+// put a third-party viewer type and its options object in core's public
+// `.d.ts`, which a strict consumer could not resolve without installing that
+// library's `@types` package by hand. That is the whole problem the first-party
 // viewport API removed: no third-party type crosses this boundary at all now.
 // The fixture survives because `skipLibCheck: false` over the WHOLE graph still
 // catches a type leak — the check outlived the leak it was written for.

@@ -8,10 +8,10 @@
  * the renderer's module graph is a hard failure here rather than a silent
  * success against happy-dom's shims.
  *
- * Being first-party code, the renderer needs no dynamic import to be SSR-safe
- * (unlike the OpenSeadragon component, which defers its library import for
- * exactly this reason). The requirement reduces to: nothing at module scope
- * touches the DOM, and the canvas is created on mount.
+ * Being first-party code, the renderer needs no dynamic import to be SSR-safe —
+ * the previous renderer's component deferred its library import for exactly this
+ * reason. The requirement reduces to: nothing at module scope touches the DOM,
+ * and the canvas is created on mount.
  */
 
 import { render } from 'svelte/server';
@@ -30,20 +30,17 @@ describe('renderer module evaluation', () => {
     });
 
     it('imports the whole renderer graph without reaching for anything', async () => {
-        const [planner, painter, math, descriptors, flag] = await Promise.all([
+        const [planner, painter, math, descriptors] = await Promise.all([
             import('./planScene'),
             import('./paintScene'),
             import('./viewportMath'),
             import('./canvasDescriptors'),
-            import('./rendererFlag'),
         ]);
 
         expect(typeof planner.planScene).toBe('function');
         expect(typeof painter.paintScene).toBe('function');
         expect(typeof math.canvasToScreen).toBe('function');
         expect(typeof descriptors.toPlannerCanvases).toBe('function');
-        // Undefined global → the shipping renderer, with no ReferenceError.
-        expect(flag.CANVAS_RENDERER).toBe(false);
     });
 });
 

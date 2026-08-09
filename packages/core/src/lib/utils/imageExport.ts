@@ -205,8 +205,8 @@ export function getResolvedImageExportUrl(
  * actually exist. Derived here from the fetched Image API JSON through the
  * renderer's own source model (`renderer/sizeLadder`), which is the second
  * consumer that model has: what export offers and what the renderer requests
- * are now provably the same list, and neither an `openseadragon` import nor an
- * OpenSeadragon tile-source instance is involved.
+ * are now provably the same list, and no third-party tile-source object is
+ * involved.
  *
  * Both level0 shapes answer here. A service advertising `tiles` has a pyramid,
  * and every level of it is available as a whole image; a service advertising

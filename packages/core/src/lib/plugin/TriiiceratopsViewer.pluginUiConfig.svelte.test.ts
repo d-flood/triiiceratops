@@ -21,45 +21,6 @@ import type { SdkPlugin } from '../types/plugin';
 import type { ViewerConfig } from '../types/config';
 import type { ViewerState } from '../state/viewer.svelte';
 
-vi.mock('openseadragon', () => ({
-    default: Object.assign(
-        vi.fn(() => ({
-            addHandler: vi.fn(),
-            removeHandler: vi.fn(),
-            removeAllHandlers: vi.fn(),
-            destroy: vi.fn(),
-            open: vi.fn(),
-            close: vi.fn(),
-            forceRedraw: vi.fn(),
-            setMouseNavEnabled: vi.fn(),
-            addOverlay: vi.fn(),
-            removeOverlay: vi.fn(),
-            clearOverlays: vi.fn(),
-            viewport: {
-                getZoom: vi.fn(() => 1),
-                getMaxZoom: vi.fn(() => 10),
-                getMinZoom: vi.fn(() => 0.1),
-                zoomTo: vi.fn(),
-                zoomBy: vi.fn(),
-                panTo: vi.fn(),
-                goHome: vi.fn(),
-                fitBounds: vi.fn(),
-                getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1, height: 1 })),
-            },
-            world: {
-                getItemCount: vi.fn(() => 0),
-                getItemAt: vi.fn(),
-                addHandler: vi.fn(),
-                removeHandler: vi.fn(),
-            },
-            drawer: { canvas: null },
-            container: null,
-            element: null,
-        })),
-        { Rect: vi.fn(), Point: vi.fn(), ControlAnchor: {} },
-    ),
-}));
-
 const ICON = {
     kind: 'svg',
     inner: '<circle data-double-icon="1" />',

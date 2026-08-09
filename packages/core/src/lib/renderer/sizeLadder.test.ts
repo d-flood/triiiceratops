@@ -177,9 +177,9 @@ describe('rungUrl', () => {
     });
 
     it('does not call the largest advertised size `max` when it is not the full image', () => {
-        // The OpenSeadragon path adopts the largest advertised size AS the
-        // image dimensions, so it asks this service for `full/full` and gets
-        // back the 4000px original it cannot decode. The advertised width is
+        // The previous renderer adopted the largest advertised size AS the
+        // image dimensions, so it asked this service for `full/full` and got
+        // back the 4000px original it could not decode. The advertised width is
         // the only honest request.
         const ladder = buildSizeLadder('https://ex.org/img', {
             ...SIZES_ONLY,

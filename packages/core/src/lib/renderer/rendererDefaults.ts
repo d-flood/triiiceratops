@@ -33,7 +33,7 @@ export const MOBILE_BYTE_BUDGET = 48 * 1024 * 1024;
  * A statement about the INPUT, not about the user agent: this is the one
  * question a device sniff would have been asked, and `(pointer: coarse)` is the
  * only form of it the platform answers honestly. The spec deletes the
- * OpenSeadragon path's device-sniffing *drawer* selection outright; a memory
+ * previous renderer's device-sniffing *drawer* selection outright; a memory
  * ceiling is a different question, and it is one the platform has an API for.
  */
 export const MOBILE_BUDGET_QUERY = '(pointer: coarse) and (hover: none)';
@@ -66,7 +66,7 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
     /** `effectiveSize` in CSS px below which a canvas is a layout rect only. */
     boxThreshold: 24,
     /**
-     * Carried forward from OpenSeadragon unchanged, unlike every other number
+     * Carried forward from the previous renderer unchanged, unlike every other number
      * here: it governs level promotion, so changing it would visibly shift
      * sharpness-versus-speed at the same time as the renderer swap and make
      * "is this better?" unanswerable.
@@ -86,10 +86,12 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
  * The gutter between adjacent canvases, as a fraction of the median laid-out
  * canvas extent along the axis the world flows in.
  *
- * The same 1.25% the OpenSeadragon path lays out with — that path's world is
- * normalized so a canvas is one unit wide, and its gap is the literal 0.0125 in
- * `components/osdLayout`. Expressed as a fraction here because this renderer's
- * world is canvas space, where the same number would be a sub-pixel hairline.
+ * The same 1.25% the shared layout function's own default gap expresses. That
+ * default is an absolute length for a caller whose world is normalized so a
+ * canvas is one unit wide — the export path — and is the literal 0.0125 in
+ * `components/canvasLayout`. Expressed as a fraction here because this
+ * renderer's world is canvas space, where the same number would be a sub-pixel
+ * hairline. Two spellings of one figure, and the only two callers there are.
  *
  * Deliberately NOT a member of {@link DEFAULT_BUDGETS}: it decides where
  * canvases are, and a ticket tuning the byte and threshold budgets must not
@@ -100,7 +102,7 @@ export const MULTI_CANVAS_GAP_FRACTION = 0.0125;
 /**
  * The bounded in-flight tile window.
  *
- * The OpenSeadragon path caps concurrency at nothing at all (`imageLoaderLimit:
+ * The previous renderer capped concurrency at nothing at all (`imageLoaderLimit:
  * 0`) while requesting at most one new tile per frame (`maxTilesPerFrame: 1`) —
  * slow to ask, then all at once. A window is the other way round: ask for
  * everything immediately, let at most this many be outstanding.
@@ -183,7 +185,7 @@ export const MAX_ZOOM_FACTOR = 128;
  *
  * Longer than `WHEEL_TIME_CONSTANT`, because these fill a genuine jump between
  * two states the user asked for rather than smoothing a stream of small steps.
- * It is the OpenSeadragon path's `springStiffness: 7.0` expressed as the
+ * It is the previous renderer's `springStiffness: 7.0` expressed as the
  * equivalent 1/e time — the motion the current viewer already has.
  *
  * Continuous input (drag, pinch) uses **no** time constant at all: it is
@@ -193,7 +195,7 @@ export const ANIMATION_TIME_CONSTANT = 1 / 7;
 
 /**
  * Zoom factor for one double-click / double-tap. Carried forward from the
- * OpenSeadragon path's `zoomPerClick: 2.0`.
+ * previous renderer's `zoomPerClick: 2.0`.
  *
  * Single click stays unbound (`clickToZoom: false` there): it is reserved for
  * annotation selection.
@@ -204,7 +206,7 @@ export const DOUBLE_TAP_ZOOM_FACTOR = 2;
  * Zoom factor for one **toolbar / API** zoom step (`ViewerState.zoomIn` and
  * `zoomOut`), and the default behind `ViewerConfig.renderer.zoomPerClick`.
  *
- * Carried forward from the OpenSeadragon path's toolbar, which zoomed in by
+ * Carried forward from the previous renderer's toolbar, which zoomed in by
  * 1.2 and out by 0.8. Those were not each other's inverse, so a zoom-in
  * followed by a zoom-out did not return to where it started; one factor
  * applied in both directions fixes that without changing how big a step feels.

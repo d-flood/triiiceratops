@@ -8,8 +8,8 @@ description: "Validate a plugin without a full application using @triiiceratops/
 `@triiiceratops/plugin-sdk/testing` lets you validate a plugin without a full
 application. It mounts your plugin against a **test viewer context**: a real,
 compiled `ViewerState` (real commands, real batched notifications) with recording
-doubles for the style, UI, and locale services and an injectable OSD stub that
-defaults to absent. The harness is fake; the state is never fake, so a passing
+doubles for the style, UI, and locale services and an injectable renderer
+stand-in that defaults to absent. The harness is fake; the state is never fake, so a passing
 test reflects production semantics.
 
 The kit runs in a plain vitest project — no Svelte tooling required — because the
@@ -36,7 +36,7 @@ headless state comes from core's compiled `triiiceratops/testing` entry.
 ## The flush timing rule
 
 Notifications are **batched** and delivered on the reactive flush, never
-synchronously inside a command. After a command (or a locale/OSD change),
+synchronously inside a command. After a command (or a locale/renderer change),
 `await flush()` before asserting a subscriber reacted:
 
 ```ts
@@ -121,7 +121,7 @@ import { createExamplePlugin } from './my-plugin';
 runPluginConformance(() => createExamplePlugin());
 ```
 
-## OSD-dependent behavior
+## Renderer-dependent behavior
 
 The kit ships **no** Annotorious fake, but it does ship a headless renderer
 stand-in — the renderer is first-party now, so there is one right answer to what
@@ -153,6 +153,14 @@ async function readinessExample() {
 Genuine pixel behaviour still belongs at the browser seam.
 
 ## Testing an annotation storage adapter
+
+!!! warning "Paused with the plugin"
+
+    `@triiiceratops/plugin-annotation-editor` is
+    [paused and no longer published](plugin-annotation-editor.md) in this release
+    line, so this subpath is only installable from `1.0.0-rc.7` (which needs
+    `triiiceratops@1.0.0-rc.36`). The API below is unaffected by the pause and is
+    what returns with the phase-2 drawing layer.
 
 Annotation-editor adapters have their own conformance API in
 `@triiiceratops/plugin-annotation-editor/testing`. It checks

@@ -329,9 +329,10 @@ const label = useViewerSelector(viewer, (state) =>
 ### Selector cadence
 
 The `cadence` option chooses which notification wakes a projection: the default
-`state` for anything in the viewer's state inventory, and `frame` for continuous
-OpenSeadragon viewport values (zoom, pan, rotation, bounds) that are deliberately
-not mirrored into viewer state. [Selector cadence](configuration.md#selector-cadence)
+`state` for anything in the viewer's state inventory, and `frame` for the
+query-only viewport values (scale, centre, bounds, container size) that the
+renderer answers per frame and that are deliberately not mirrored into viewer
+state. [Selector cadence](configuration.md#selector-cadence)
 explains the split and why it exists; the Vue call is one option:
 
 ```vue
@@ -647,7 +648,7 @@ nothing is registered.
 On the server, `<TriiiceratopsViewer>` renders an **inert host** — the
 `<triiiceratops-viewer>` tag carrying the attribute tier (`manifest-id`,
 `canvas-id`, `theme`) and your forwarded host attributes, and nothing else. No
-shadow-DOM internals, no property-tier values, no OpenSeadragon. The client's
+shadow-DOM internals, no property-tier values, no renderer. The client's
 first render emits the identical attribute set, so hydration reuses and upgrades
 the same host with no mismatch, and viewer internals initialize only in the
 browser.
@@ -717,7 +718,7 @@ See [debug diagnostics](configuration.md#debug-diagnostics).
 
 `triiiceratops/testing` builds a handle backed by a **real** `ViewerState` — real
 commands, real batched notifications, the real selector runtime `useViewerSelector()`
-consults — with no DOM viewer, no custom element, no OpenSeadragon, and no
+consults — with no DOM viewer, no custom element, no renderer surface, and no
 network. Run it under `jsdom` or `happy-dom` — which a Vue test runner already
 provides — because the published entry bundles a `fetch` polyfill that reaches for
 a `self` global, so bare Node fails with `ReferenceError: self is not defined`

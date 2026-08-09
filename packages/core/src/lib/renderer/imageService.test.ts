@@ -163,6 +163,53 @@ describe('createImageServiceCache', () => {
         expect(cache.failure(SERVICE)).toBe('load');
     });
 
+    /*
+     * The query a HOST needs, and the reason it is not `failure()`. A failure
+     * with attempts left is a claim the next `ensure` may withdraw, so an error
+     * placeholder shown on it flashes: a 503 records `load`, the placeholder
+     * appears, the retry succeeds, and it disappears again. `spent` is "the
+     * question is closed".
+     */
+    it('reports a failure as spent only once nothing will ask again', async () => {
+        const { cache } = cacheWith(async () => ({ status: 503, json: null }));
+
+        // Nothing has failed at all.
+        expect(cache.spent(SERVICE)).toBe(false);
+
+        // Attempt one of two: a kind is already reportable, but the question is
+        // still open.
+        expect(await cache.ensure(SERVICE)).toBeNull();
+        expect(cache.failure(SERVICE)).toBe('load');
+        expect(cache.spent(SERVICE)).toBe(false);
+
+        // Attempt two exhausts the allowance.
+        expect(await cache.ensure(SERVICE)).toBeNull();
+        expect(cache.spent(SERVICE)).toBe(true);
+    });
+
+    it('reports a deterministic failure as spent on the first attempt', async () => {
+        // A 401 is an ANSWER, so there is no second attempt to wait for and a
+        // reader can be told immediately.
+        const auth = cacheWith(async () => ({ status: 401, json: null }));
+        await auth.cache.ensure(SERVICE);
+        expect(auth.cache.spent(SERVICE)).toBe(true);
+
+        const junk = cacheWith(async () => ({ status: 200, json: {} }));
+        await junk.cache.ensure(SERVICE);
+        expect(junk.cache.spent(SERVICE)).toBe(true);
+    });
+
+    it('reopens the question on a mount, so a spent transient failure stops being spent', async () => {
+        const { cache } = cacheWith(async () => ({ status: 503, json: null }));
+
+        await cache.ensure(SERVICE);
+        await cache.ensure(SERVICE);
+        expect(cache.spent(SERVICE)).toBe(true);
+
+        cache.retryTransientFailures();
+        expect(cache.spent(SERVICE)).toBe(false);
+    });
+
     it('distinguishes an authentication failure from a load failure', async () => {
         const { cache } = cacheWith(async () => ({ status: 401, json: null }));
 

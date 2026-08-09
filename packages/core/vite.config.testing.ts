@@ -5,19 +5,16 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/**
- * Kept external — the heavy, browser-only runtime dependencies that are NOT in
- * the headless state's import graph (they are reached only through OSD/overlay
- * paths that never run headless). They stay external so they are never bundled;
- * if a future change did pull one in, it would still resolve from the
- * `triiiceratops` tarball's own `dependencies`.
+/*
+ * Dependency policy for this entry: EVERYTHING is bundled — notably Svelte and
+ * its transitive deps (`esm-env`, `clsx`) and `#client/*` internal imports — so
+ * the chunk is self-contained and runs in a project that installed only the
+ * tarball + vitest, with no Svelte tooling or runtime required. There is no
+ * heavy browser-only runtime dependency left to externalize: core's only
+ * runtime dependency is `dompurify`, and the renderer is first-party.
  *
- * Everything ELSE is BUNDLED — notably Svelte and its transitive deps
- * (`esm-env`, `clsx`) and `#client/*` internal imports, so the chunk is
- * self-contained and runs in a project that installed only the tarball +
- * vitest, with no Svelte tooling or runtime required.
+ * The one exception is module IDENTITY, below, which is a different question.
  */
-const EXTERNAL = [/^openseadragon(\/|$)/, /^@annotorious\//];
 
 /**
  * Kept external for a different and stricter reason: MODULE IDENTITY.
@@ -75,10 +72,10 @@ const SHARED_SPECIFIERS: readonly string[] = SHARED_MODULE_IDENTITY.map(
  * Svelte-compiled, self-contained chunk while leaving `svelte-package`'s
  * `dist/testing/index.d.ts` (the correct types) in place.
  *
- * Dependency policy: see {@link EXTERNAL}. In short, Svelte is bundled so the
- * entry runs in a plain vitest project that installed ONLY the tarball; the
- * heavy browser-only deps that are never in the headless graph stay external.
- * This is what the packed `vitest-kit` fixture verifies.
+ * Dependency policy: see the note at the top of this file. Svelte is bundled so
+ * the entry runs in a plain vitest project that installed ONLY the tarball; the
+ * only externals are the shared-identity modules. This is what the packed
+ * `vitest-kit` fixture verifies.
  */
 export default defineConfig({
     // Never copy demo dev-server static assets into the published dist.
@@ -123,11 +120,9 @@ export default defineConfig({
             // The shared-identity specifiers above are already the exact
             // strings the artifact must contain; leave them alone.
             makeAbsoluteExternalsRelative: false,
-            // Externalize ONLY the heavy tarball dependencies; bundle Svelte and
+            // Externalize ONLY the shared-identity modules; bundle Svelte and
             // its transitive closure so no Svelte tooling/runtime is required.
-            external: (id) =>
-                EXTERNAL.some((re) => re.test(id)) ||
-                SHARED_SPECIFIERS.includes(id),
+            external: (id) => SHARED_SPECIFIERS.includes(id),
             output: {
                 // Single self-contained file: any lazy import in the headless
                 // graph folds inline rather than emitting a sibling chunk.

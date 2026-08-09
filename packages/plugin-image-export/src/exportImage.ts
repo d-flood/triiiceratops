@@ -219,15 +219,10 @@ function buildWorldLayout(
                 // declares for it. The image service's dimensions are image
                 // space and are deliberately not used as canvas geometry.
                 //
-                // Interim divergence: the current OSD viewer still feeds
-                // layout the image service's dimensions (see
-                // `toLayoutSource` in core's `osdTileSources.ts`), so for a
-                // manifest whose Canvas dimensions disagree with its image,
-                // a "current view" export is laid out from the manifest box
-                // while the live viewer is not. Export is the correct one
-                // per SPEC ("manifest dimensions win permanently for
-                // geometry"); the divergence closes when the new renderer
-                // replaces that viewer path.
+                // The live renderer lays out from the same manifest box, so
+                // there is no divergence left between what a "current view"
+                // export composes and what the reader is looking at (SPEC:
+                // "manifest dimensions win permanently for geometry").
                 sourceWidth: resolved.width,
                 sourceHeight: resolved.height,
                 tileSource: { resolved },
@@ -264,7 +259,7 @@ function buildWorldLayout(
 /**
  * Resolution options for downloading everything currently laid out together
  * in the viewer (e.g. a two-page spread in `paged` viewing mode). Reuses the
- * same layout math OSD itself uses (`getCanvasDisplayLayouts`), so the
+ * same layout math the viewer itself uses (`getCanvasDisplayLayouts`), so the
  * downloaded image matches what's on screen; there's no single native
  * reference size across canvases, so this offers a relative ladder against
  * the first image's own native width as the reference scale.

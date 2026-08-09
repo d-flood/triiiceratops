@@ -11,7 +11,7 @@ import { expect } from '@playwright/test';
 async function drivePage(page, baseURL, pathname, pageErrors) {
     await page.goto(`${baseURL}/${pathname}`, { waitUntil: 'load' });
 
-    // The custom element upgrades and OSD paints inside the shadow root.
+    // The custom element upgrades and the renderer paints inside the shadow root.
     await expect(page.locator('triiiceratops-viewer')).toBeVisible({
         timeout: 30_000,
     });

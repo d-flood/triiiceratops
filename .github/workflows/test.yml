@@ -307,7 +307,10 @@ jobs:
     performance:
         name: Performance Comparison
         runs-on: ubuntu-latest
-        timeout-minutes: 60
+        # Headroom for the on-failure traced capture below, which builds base and
+        # head a second time (the comparison removes its worktrees when it ends,
+        # so there is nothing to reuse). Only a failing run pays it.
+        timeout-minutes: 90
         if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
 
         steps:
@@ -336,10 +339,45 @@ jobs:
 
             # Build base + head in isolated worktrees and compare medians +
             # sizes; enforce the committed perf-budgets.json ceilings.
+            #
+            # `--no-traces` so the numbers this job enforces are the same KIND of
+            # numbers `perf-budgets.json` holds. Playwright tracing with DOM
+            # snapshots is not evenly distributed across the scenarios: measured
+            # on this tree, `activate_image-manipulation` is 5.7 ms untraced and
+            # 64.6 ms traced (a style install forces a snapshot), while
+            # `first_canvas_render` barely moves. The budgets are captured
+            # untraced — deliberately, so tracing overhead is not baked into a
+            # ceiling — so gating a traced median against them fails on tracing
+            # cost rather than on a regression. Traces are a debugging aid;
+            # reproduce one locally by dropping this flag.
+            #
+            # This is no longer only a convention: `perf-budgets.json` records
+            # the tracing mode it was captured in (`"tracing": "off"`) and
+            # `compare.mjs` REFUSES to enforce those ceilings against a traced
+            # run. Dropping `--no-traces` here now fails loudly with "tracing
+            # mode mismatch" instead of failing as a phantom regression.
             - name: Run performance comparison
-              run: pnpm perf:compare --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
+              run: pnpm perf:compare --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}" --no-traces
 
-            # Raw measurement JSON + Playwright traces, downloadable from the run.
+            # Losing the trace is the price of an honest verdict, and it is worst
+            # exactly when a trace is wanted: the gating run above is untraced, so
+            # a red perf job yields no trace to open. Capture one here, only after
+            # the verdict is already in — a trace taken after the fact cannot
+            # contaminate a ceiling, and `if: failure()` guarantees the ordering.
+            #
+            # `continue-on-error` because this step's own verdict is meaningless
+            # by construction: it is traced, so the new tracing-mode gate rejects
+            # its comparison against the untraced ceilings, and it must not be
+            # able to turn a red job a different shade of red or a green one red.
+            # Its output is the trace zip and the raw JSON, not a pass/fail. A
+            # separate `--out-dir` under the same uploaded directory so it cannot
+            # overwrite the report the verdict came from.
+            - name: Capture traces for the failed comparison
+              if: failure()
+              continue-on-error: true
+              run: pnpm perf:compare --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}" --out-dir perf-results/traced
+
+            # Raw measurement JSON, downloadable from the run.
             - name: Upload performance artifacts
               if: always()
               uses: actions/upload-artifact@v7
@@ -413,9 +451,10 @@ jobs:
                   echo "$NEW_CHANGESETS"
 
     # Ticket 27: release reproducibility (required CI). Two independent clean
-    # builds of THIS SHA must produce byte-identical tarballs for all six
-    # publishable packages. This is what lets publication PROMOTE verified
-    # artifacts instead of rebuilding — a rebuild would land on the same bytes.
+    # builds of THIS SHA must produce byte-identical tarballs for every publishable
+    # package (five today — `scripts/release/packages.mjs` is the list). This is
+    # what lets publication PROMOTE verified artifacts instead of rebuilding — a
+    # rebuild would land on the same bytes.
     # `npm pack` normalises mtimes + gzip headers, so there is no variable
     # metadata to exclude (documented in scripts/release/verify-reproducible.mjs).
     reproducibility:
@@ -443,8 +482,9 @@ jobs:
               run: pnpm release:reproducible
 
     # Ticket 27: release artifacts (required CI, PRODUCER half of the promotion
-    # flow). Builds every package, packs the six `.tgz`, writes SHA256SUMS +
-    # release-manifest.json, and uploads them as a workflow artifact. The publish
+    # flow). Builds every package, packs one `.tgz` per publishable package (five
+    # today), writes SHA256SUMS + release-manifest.json, and uploads them as a
+    # workflow artifact. The publish
     # workflow downloads THIS artifact (matched by run id → commit SHA), verifies
     # the checksums, and runs `npm publish <tgz>` with no build of its own.
     release-artifacts:
@@ -471,10 +511,11 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            # build:all + npm pack the six publishable packages. Output goes to
+            # build:all + npm pack every publishable package (five today; the paused
+            # annotation-editor plugin is not one of them). Output goes to
             # RUNNER_TEMP so the tarballs never touch the tracked tree (keeps the
             # clean-build check below honest).
-            - name: Build + pack all six packages
+            - name: Build + pack the publishable packages
               run: pnpm release:pack --out "$RUNNER_TEMP/release-artifacts"
 
             # Prove the clean-build contract (ticket 22) still holds after packing:

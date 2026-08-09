@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCanvasDisplayLayouts } from './osdLayout';
+import { getCanvasDisplayLayouts } from './canvasLayout';
 
 const gap = 0.0125;
 
@@ -173,7 +173,7 @@ describe('getCanvasDisplayLayouts', () => {
         });
 
         it('advances by the CANVAS BOX, not by the part of it a source paints', () => {
-            // The OpenSeadragon caller's `width` is `region.width /
+            // The previous renderer's `width` was `region.width /
             // canvasWidth` — the PAINTED extent, which is less than one whole
             // canvas whenever the painting annotation targets a sub-region
             // (`#xywh=0,0,600,900` on a 1200x900 Canvas). Advancing by that

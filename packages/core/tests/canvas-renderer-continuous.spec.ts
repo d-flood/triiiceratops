@@ -133,7 +133,7 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
     test('opens an 800-canvas manifest with O(1) network requests', async ({
         page,
     }) => {
-        // The behaviour this epic exists to remove: the OpenSeadragon path
+        // The behaviour this epic exists to remove: the previous renderer
         // fetched every canvas's `info.json` in one parallel burst before
         // anything rendered, because layout was computed from resolved tile
         // sources rather than from the manifest. 800 folios, 800 requests.

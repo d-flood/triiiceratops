@@ -59,8 +59,8 @@ nothing else.
 !!! note "Works in SvelteKit out of the box"
 
     Bundler-neutral (no `import.meta.env` reliance) and SSR-safe — core
-    server-renders cleanly and lazily loads browser-only dependencies
-    (OpenSeadragon), so it hydrates without mismatch warnings. You do **not**
+    server-renders cleanly and initializes the browser-only image renderer
+    only on the client, so it hydrates without mismatch warnings. You do **not**
     need `export const ssr = false` or a browser-only guard. Import the
     stylesheet once in your root `+layout.svelte`.
 

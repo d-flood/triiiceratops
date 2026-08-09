@@ -59,15 +59,9 @@ importers:
 
   packages/core:
     dependencies:
-      '@types/openseadragon':
-        specifier: ^5.0.1
-        version: 5.0.1
       dompurify:
         specifier: ^3.4.11
         version: 3.4.12
-      openseadragon:
-        specifier: ^5.0.1
-        version: 5.0.1
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.12.1

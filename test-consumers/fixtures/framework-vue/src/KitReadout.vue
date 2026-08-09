@@ -1,6 +1,6 @@
 <script setup>
 // Reads a real `ViewerState` built by `triiiceratops/testing` — no viewer, no
-// custom element, no OpenSeadragon, no network — through the very same
+// custom element, no renderer, no network — through the very same
 // composable a mounted viewer would feed.
 import { useViewerSelector } from 'triiiceratops/vue';
 

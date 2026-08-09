@@ -1,105 +1,121 @@
 {
     "$schema": "./scripts/perf/perf-budgets.schema.json",
-    "baselineRef": "1.0.0-rc.25",
-    "capturedAt": "2026-07-27T23:37:38.363Z",
-    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median.",
+    "baselineRef": "working-tree@1cb6c5fe",
+    "renderer": "canvas",
+    "tracing": "off",
+    "capturedAt": "2026-08-08T18:23:18.772Z",
+    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it.",
     "thresholds": {
         "sizeRegressionPct": 0.05,
         "runtimePct": 0.1,
-        "runtimeAbsMs": 20
+        "runtimeAbsMs": 20,
+        "memoryPct": 0.1,
+        "memoryBytesFloorPct": 0.25,
+        "memoryBytesFloorMinBytes": 262144,
+        "memoryAbsTiles": 8
     },
     "size": {
         "core:esm-entry-graph": {
-            "bytes": 1059567,
-            "ceilingBytes": 1112546
+            "bytes": 47886,
+            "ceilingBytes": 50281
         },
         "core:style.css": {
-            "bytes": 13107,
-            "ceilingBytes": 13763
+            "bytes": 12995,
+            "ceilingBytes": 13645
         },
         "core:element-iife": {
-            "bytes": 820406,
-            "ceilingBytes": 861427
+            "bytes": 534162,
+            "ceilingBytes": 560871
         },
         "sdk:esm-entry-graph": {
-            "bytes": 32938,
-            "ceilingBytes": 34585
+            "bytes": 17144,
+            "ceilingBytes": 18002
         },
         "image-manipulation:esm": {
-            "bytes": 89616,
-            "ceilingBytes": 94097
+            "bytes": 88987,
+            "ceilingBytes": 93437
         },
         "image-manipulation:iife": {
-            "bytes": 63873,
-            "ceilingBytes": 67067
+            "bytes": 64100,
+            "ceilingBytes": 67305
         },
         "image-download:esm": {
-            "bytes": 107536,
-            "ceilingBytes": 112913
+            "bytes": 107711,
+            "ceilingBytes": 113097
         },
         "image-download:iife": {
-            "bytes": 368730,
-            "ceilingBytes": 387167
+            "bytes": 93259,
+            "ceilingBytes": 97922
         },
         "pdf-export:esm": {
-            "bytes": 121433,
-            "ceilingBytes": 127505
+            "bytes": 120481,
+            "ceilingBytes": 126506
         },
         "pdf-export:iife": {
-            "bytes": 536064,
-            "ceilingBytes": 562868
+            "bytes": 536892,
+            "ceilingBytes": 563737
         },
         "annotation-editor:esm": {
-            "bytes": 207811,
-            "ceilingBytes": 218202
+            "bytes": 171040,
+            "ceilingBytes": 179592
         },
         "annotation-editor:iife": {
-            "bytes": 1027722,
-            "ceilingBytes": 1079109
-        }
-    },
-    "acceptedSizeIncreases": {
-        "core:esm-entry-graph": {
-            "headBytes": 45000,
-            "reason": "manifesto.js (an external bare specifier the entry-graph measure never counted) was replaced by first-party utils/iiifParsing.js. The parsing cost moved in-tree rather than growing; remove this entry once main carries iiifParsing.js."
+            "bytes": 117702,
+            "ceilingBytes": 123588
         }
     },
     "runtime": {
         "initial_viewer_mount": {
-            "medianMs": 30.9,
-            "ceilingMs": 96.35
+            "medianMs": 13.5,
+            "ceilingMs": 70.25
         },
         "local_manifest_readiness": {
-            "medianMs": 56.7,
-            "ceilingMs": 135.05
+            "medianMs": 30.4,
+            "ceilingMs": 95.6
         },
         "first_canvas_render": {
-            "medianMs": 98.8,
-            "ceilingMs": 198.2
+            "medianMs": 34.6,
+            "ceilingMs": 101.9
         },
         "theme_switch": {
+            "medianMs": 1.8,
+            "ceilingMs": 52.7
+        },
+        "core_interaction": {
+            "medianMs": 2,
+            "ceilingMs": 53
+        },
+        "activate_image-manipulation": {
             "medianMs": 5.7,
             "ceilingMs": 58.55
         },
-        "core_interaction": {
-            "medianMs": 4.2,
-            "ceilingMs": 56.3
-        },
-        "activate_image-manipulation": {
-            "medianMs": 16.1,
-            "ceilingMs": 74.15
-        },
         "activate_image-download": {
-            "medianMs": 17.7,
-            "ceilingMs": 76.55
+            "medianMs": 5.9,
+            "ceilingMs": 58.85
         },
         "activate_pdf-export": {
-            "medianMs": 17.3,
-            "ceilingMs": 75.95
+            "medianMs": 6.5,
+            "ceilingMs": 59.75
+        }
+    },
+    "memory": {
+        "continuous_800_flick": {
+            "residentTileCount": 48,
+            "ceilingResidentTileCount": 80,
+            "requiredBytes": 9790200,
+            "ceilingRequiredBytes": 17132850,
+            "decodedBytes": 10711800,
+            "ceilingDecodedBytes": 18745650,
+            "byteBudget": 134217728
         },
-        "activate_annotation-editor": {
-            "medianMs": 16,
-            "ceilingMs": 74
+        "continuous_800_thumbnail_flick": {
+            "residentTileCount": 10,
+            "ceilingResidentTileCount": 23,
+            "requiredBytes": 998400,
+            "ceilingRequiredBytes": 1747200,
+            "decodedBytes": 1397760,
+            "ceilingDecodedBytes": 2446080,
+            "byteBudget": 134217728
         }
     }
 }

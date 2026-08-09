@@ -27,11 +27,10 @@
  *
  * ## What it replaces
  *
- * `components/osdTileSources.resolveTileSources` `Promise.all`s a `fetch` over
- * **every** source before anything renders — 800 requests for an 800-folio
+ * The previous renderer resolved its tile sources by `Promise.all`ing a `fetch`
+ * over **every** source before anything rendered — 800 requests for an 800-folio
  * manuscript. Here a canvas fetches its own metadata, once, when the planner
- * says it needs it. That module stays until ticket 18, because the
- * OpenSeadragon path still uses it.
+ * says it needs it.
  */
 
 import { METADATA_IN_FLIGHT_LIMIT } from './rendererDefaults';
@@ -166,6 +165,18 @@ export interface ImageServiceCache {
      * still loading. Ticket 12 owns what that looks like.
      */
     failure(serviceId: string): ImageServiceFailure | undefined;
+    /**
+     * Whether this service's failure is **spent** — an answer rather than an
+     * attempt.
+     *
+     * {@link failure} reports the kind as soon as one attempt has failed, which
+     * for a retryable failure is a claim the next `ensure` may withdraw. A host
+     * that showed an error placeholder on that would flash one on every 503 and
+     * take it away again a frame later. This is the query that says the question
+     * is closed: the failure is deterministic, or its attempt allowance is gone
+     * and nothing will ask again before the next mount.
+     */
+    spent(serviceId: string): boolean;
     /**
      * Facts for a service, fetching `info.json` at most once per attempt
      * allowance.
@@ -309,7 +320,7 @@ export function createImageServiceCache(
         try {
             const { status, json } = await fetchJson(`${serviceId}/info.json`);
             // The authentication/load distinction is preserved from the
-            // OpenSeadragon path: knowing whether logging in would help is the
+            // previous renderer: knowing whether logging in would help is the
             // difference between a useful error and a shrug (user story 27).
             // It is also an answer, so it is permanent — logging in is a new
             // page, and a new page is a new cache.
@@ -360,24 +371,30 @@ export function createImageServiceCache(
         }
     }
 
+    /**
+     * Spent, not necessarily settled: a transient failure stops being asked for
+     * once its attempts are gone, so a frame loop cannot turn an outage into a
+     * request storm, and `retryTransientFailures` reopens it on the next mount.
+     *
+     * One predicate for `ensure` and for `spent`, deliberately: "this service
+     * will not be asked again" and "a host may say this canvas failed" have to
+     * be the same condition, or a placeholder outlives a retry or precedes one.
+     */
+    function isSpent(serviceId: string): boolean {
+        const failed = failures.get(serviceId);
+        if (!failed) return false;
+        return failed.permanent || failed.attempts >= maxAttempts;
+    }
+
     return {
         get: (serviceId) => facts.get(serviceId),
         failure: (serviceId) => failures.get(serviceId)?.kind,
+        spent: isSpent,
         ensure(serviceId) {
             const known = facts.get(serviceId);
             if (known) return Promise.resolve(known);
 
-            // Spent, not necessarily settled: a transient failure stops being
-            // asked for once its attempts are gone, so a frame loop cannot turn
-            // an outage into a request storm, and `retryTransientFailures`
-            // reopens it on the next mount.
-            const failed = failures.get(serviceId);
-            if (
-                failed &&
-                (failed.permanent || failed.attempts >= maxAttempts)
-            ) {
-                return Promise.resolve(null);
-            }
+            if (isSpent(serviceId)) return Promise.resolve(null);
 
             const pending = inFlight.get(serviceId);
             if (pending) return pending;

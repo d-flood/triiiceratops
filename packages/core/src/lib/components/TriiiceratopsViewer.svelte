@@ -75,13 +75,12 @@
     import { getViewerTileSources } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
-    import { CANVAS_RENDERER } from '../renderer/rendererFlag';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
+    import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
     import CanvasHost from './CanvasHost.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
     import MetadataPanel from './MetadataPanel.svelte';
-    import OSDViewer from './OSDViewer.svelte';
     import PanelStack, { type PanelStackItem } from './PanelStack.svelte';
     import PluginMountHost from './PluginMountHost.svelte';
     import SearchPanel from './SearchPanel.svelte';
@@ -1462,23 +1461,14 @@
                             {/if}
                         </div>
                     </div>
-                {:else if CANVAS_RENDERER}
+                {:else}
                     <!--
-                        The development-only build flag (spec §Rollout). In a
-                        published build `CANVAS_RENDERER` is a compile-time
-                        literal, so exactly one of these two branches survives
-                        tree-shaking and the other renderer costs no bytes. On
-                        the dev server and under vitest it is a real global,
-                        which is what lets the two run side by side and be
-                        compared directly. Ticket 18 deletes the flag and the
-                        OpenSeadragon branch together.
+                        The one renderer. There is no renderer selection: the
+                        first-party Canvas2D host is what the viewer mounts, and
+                        no build flag, config option, or capability can change
+                        that (ADR 0012).
                     -->
                     <CanvasHost
-                        {tileSources}
-                        viewerState={internalViewerState}
-                    />
-                {:else}
-                    <OSDViewer
                         {tileSources}
                         viewerState={internalViewerState}
                     />
@@ -1506,6 +1496,23 @@
                 </div>
             {/if}
 
+            <!--
+                The annotation SHAPES, and then the connector lines between them
+                and the annotation panel. Two distinct concerns, both mounted
+                here rather than inside a renderer: they are bound to the `frame`
+                cadence and to the viewport coordinate helpers, so neither knows
+                which renderer is mounted.
+
+                The shape layer comes AFTER the renderer in DOM order, so Tab
+                reaches the image surface before the things marked on it, and it
+                is a SIBLING of the renderer root rather than a child — the
+                renderer root is `role="application"`, which suppresses browse
+                mode for its whole subtree and would hide these labels from NVDA
+                and JAWS. `.viewer-area` is the shared positioning context, which
+                is what makes the surface-local coordinates
+                `ViewerState.canvasToScreen` returns this layer's own.
+            -->
+            <AnnotationShapeOverlay />
             <AnnotationOverlay />
 
             <!-- Floating Toolbar (suppressed while the docked rail occupies its
@@ -1567,7 +1574,7 @@
         {/each}
 
         <!-- Expanded Gallery. An overlay layer covering the center column, so
-             OSD keeps its size underneath (no re-layout or re-fit when it
+             the renderer keeps its size underneath (no re-layout or re-fit when it
              collapses) and the side panels stay visible and usable. Last child
              of the column and z-index above the bands so it covers the docked
              strip site and the bottom plugin panels. -->

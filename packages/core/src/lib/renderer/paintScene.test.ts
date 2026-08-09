@@ -59,6 +59,7 @@ function tileDraws(columns: number, level = 1): TileDraw[] {
 
     return Array.from({ length: columns }, (_, column) => ({
         key: `c1#${level}/${column},0`,
+        canvasId: 'c1',
         level,
         x: column * span,
         y: 0,

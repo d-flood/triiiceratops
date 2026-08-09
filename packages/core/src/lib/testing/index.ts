@@ -11,7 +11,7 @@
  * - **Framework consumers.** {@link createTestViewerHandle} returns a real
  *   `ViewerHandle` over that same real state, so a React or Vue component that
  *   reads `useViewerSelector()` is unit-testable without mounting the custom
- *   element, loading OpenSeadragon, or fetching a manifest.
+ *   element, mounting a renderer, or fetching a manifest.
  *
  * Neither React, Vue, nor a DOM is required to import this module.
  *
@@ -127,7 +127,7 @@ export interface HeadlessViewerFixtures {
 }
 
 /**
- * Construct a real, live `ViewerState` with no DOM viewer and no OpenSeadragon.
+ * Construct a real, live `ViewerState` with no DOM viewer and no renderer.
  * This is the headless core of the SDK test kit's test viewer context: commands,
  * `subscribe`, and the batched notification flush all behave exactly as they do
  * in a mounted viewer.

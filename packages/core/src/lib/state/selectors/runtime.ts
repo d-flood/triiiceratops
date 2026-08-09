@@ -109,8 +109,9 @@ export interface SelectorProjection<T> {
  * - `onListenerError`: a subscription callback threw during delivery —
  *   `pluginerror` phase `subscription`. On the `state` cadence this is handed to
  *   `ViewerState.subscribe`, which owns that attribution seam; on the `frame`
- *   cadence the runtime routes it here itself, because no core guard sits on the
- *   OpenSeadragon event path.
+ *   cadence the runtime routes it here itself, because `subscribeFrame` has no
+ *   such seam: its own guard keeps one listener's throw from aborting the fan-out
+ *   and logs it, but it cannot say which plugin the listener belonged to.
  */
 export interface SelectorRuntimeOptions {
     onProjectionError?: (error: unknown) => void;

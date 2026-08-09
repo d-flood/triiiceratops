@@ -491,7 +491,7 @@ function surfaceAware(context: PluginContext) {
 
     const render = (isOpen: boolean) => {
         if (isOpen) {
-            // Start polling, attach an expensive OSD handler, resume an
+            // Start polling, attach an expensive frame handler, resume an
             // animation — whatever is wasted while nobody can see it.
         } else {
             // Pause it. Keep your state: the plugin is still activated.
@@ -568,8 +568,67 @@ async function markCentre(context: PluginContext) {
 
 `whenRendererReady` resolves `void`: there is no object to hand over. It means
 "the renderer has a sized surface and accepts commands", and it is not the old
-OSD-readiness helper renamed — that one promised a third-party viewer instance,
+readiness helper renamed — that one promised a third-party viewer instance,
 which no longer exists.
+
+### Drawing into the image: the paint hook
+
+`viewerState.registerPaintLayer({ id, order, draw })` registers a layer the
+renderer calls **each frame, after the tiles are painted**, with the 2D context
+and the transform the tiles were drawn with. Lower `order` draws first; layers
+sharing an `order` are called in registration order. It returns an idempotent
+unregister.
+
+The context arrives already transformed, so a layer draws in the renderer's
+**laid-out world** and cannot desync from the image the way an overlay
+repositioned on an event can. That world is not canvas space: every canvas of the
+manifest has a rect in it, placed beside its neighbours, and layout may have
+resized that rect (facing pages are normalized to a shared height). So a layer
+holding geometry in canvas space — which is how IIIF annotations are persisted —
+converts it first:
+
+- `frame.canvasToWorld(point, canvasId)` and
+  `frame.canvasBoxToWorld(box, canvasId)` map canvas space into the space the
+  context is in, and answer `null` for a canvas this frame did not lay out.
+- `frame.canvases` gives each laid-out canvas's rect directly, for a layer that
+  wants to draw a whole page rather than something on one.
+- `frame.transform` carries the matrix as numbers for a layer that would rather
+  work in device pixels.
+
+```ts
+import type { PaintFrame, PluginContext } from 'triiiceratops';
+
+function markRegion(context: PluginContext, canvasId: string) {
+    return context.viewerState.registerPaintLayer({
+        id: 'my-plugin:region',
+        order: 10,
+        draw: (ctx: CanvasRenderingContext2D, frame: PaintFrame) => {
+            // The region in the Canvas's own coordinates — as an annotation
+            // stores it — mapped into the space the context is in.
+            const box = frame.canvasBoxToWorld(
+                { x: 100, y: 200, width: 300, height: 400 },
+                canvasId,
+            );
+            if (!box) return; // that canvas is not on screen this frame
+
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2 / frame.transform.scale; // 2 device px, any zoom
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+        },
+    });
+}
+```
+
+Registering before a renderer mounts is fine: the layer is kept and drawn when
+one arrives, and it survives a remount. A layer that throws is reported once and
+skipped; it never stops the renderer painting.
+
+**Painted pixels are invisible to assistive technology.** They have no focus, no
+accessible name, and no keyboard reach — and an automated scan cannot report a
+missing element. Anything a reader must perceive or operate needs a DOM element
+beside the picture: the canvas paints pixels, a parallel DOM layer carries the
+focusable, labelled targets, both projected from one geometry. Core's own
+annotation shape overlay works exactly that way.
 
 ### Capabilities
 

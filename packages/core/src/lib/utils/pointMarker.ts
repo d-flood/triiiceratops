@@ -1,6 +1,6 @@
 /**
  * Shared point-marker styling for the annotation editor. A point looks the same
- * whether it is rendered read-only (OSDViewer overlay), selected, or edited, so
+ * whether it is rendered read-only (the viewer's shape overlay), selected, or edited, so
  * the radius/fill/stroke live in one place consumed by both the viewer overlay
  * and the editor's Annotorious styling (spec §3.4).
  */

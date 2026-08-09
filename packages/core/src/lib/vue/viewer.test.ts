@@ -40,12 +40,6 @@ import type { TriiiceratopsViewerElement } from '../framework/index.js';
 import type { TriiiceratopsViewerInstance } from './handle.js';
 import { TriiiceratopsViewer } from './viewer.js';
 
-vi.mock('openseadragon', async () => {
-    const { createOsdModuleMock } =
-        await import('../test/utils/realViewerElement.js');
-    return createOsdModuleMock();
-});
-
 const { defineRealViewerElement, installInertAnimations, settle, VIEWER_TAG } =
     await import('../test/utils/realViewerElement.js');
 

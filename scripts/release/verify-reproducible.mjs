@@ -2,9 +2,10 @@
 // Release-reproducibility gate (required CI).
 //
 // Two independent clean builds of the SAME source tree must produce byte-identical
-// tarballs for all six publishable packages. This proves publication can safely
-// PROMOTE the artifacts required CI verified instead of rebuilding: a rebuild at
-// publish time would land on the same bytes anyway.
+// tarballs for every publishable package (`PUBLISHABLE_PACKAGES`, five today — the
+// annotation-editor plugin is paused). This proves publication can safely PROMOTE
+// the artifacts required CI verified instead of rebuilding: a rebuild at publish
+// time would land on the same bytes anyway.
 //
 // Method: clean every package `dist/`, build + pack into dir A; clean again,
 // build + pack into dir B; compare the two `SHA256SUMS`. Both output dirs are

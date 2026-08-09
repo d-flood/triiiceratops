@@ -13,9 +13,12 @@
  * make a consumer's viewer install a toolbar button and a panel whose "Edit"
  * does nothing at all, with no error anywhere. A structured
  * `PluginCompatibilityError` naming the missing capability is the honest
- * report, and this file pins it. **Ticket 15** owns the rest of the
- * disposition: the changeset, the README pointer, pinning/unpublishing, and
- * removing the package from the aggregate build/test/lint scripts.
+ * report, and this file pins it.
+ *
+ * The package itself is PAUSED — unpublished (`private: true`), left in the
+ * workspace, and still building/checking/testing/linting clean. `README.md`
+ * carries the disposition: why, the last core version it works against, and the
+ * phase-2 paint hook + input-claim API the editing surface returns on.
  */
 
 import { describe, expect, it } from 'vitest';

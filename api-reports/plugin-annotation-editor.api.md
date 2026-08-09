@@ -170,8 +170,9 @@ export { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
  * therefore keeps declaring `osd@5`, a capability core retired with no
  * successor — so activation FAILS loudly with the structured capability error
  * rather than the plugin activating cleanly and installing a button that does
- * nothing. See `AnnotationEditorController.svelte`; ticket 15 owns the full
- * disposition (changeset, README, pinning, aggregate scripts).
+ * nothing. The package is PAUSED (unpublished), not deleted: see `README.md` for
+ * the disposition, the last core version it works against, and what phase 2
+ * rebuilds it on. `AnnotationEditorController.svelte` is where it goes inert.
  */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 import type { AnnotationEditorConfig } from './types';

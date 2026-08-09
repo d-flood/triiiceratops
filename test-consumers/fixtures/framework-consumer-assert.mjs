@@ -614,7 +614,6 @@ export async function assertFrameworkFixture(ctx, options) {
         'searchprovider',
         'themeconfig',
         'initialcanvasregion',
-        'openseadragon',
         'viewer-root',
         'shadowroot',
     ]) {

@@ -18,6 +18,11 @@ import { logger, isDebugEnabled } from '../logging/logger';
 import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
 import { isRendererPort } from '../renderer/rendererPortBrand.js';
+import {
+    createPaintLayerRegistry,
+    type PaintLayer,
+    type RegisteredPaintLayer,
+} from '../renderer/paintLayers.js';
 import { ZOOM_PER_CLICK as DEFAULT_ZOOM_PER_CLICK } from '../renderer/rendererDefaults.js';
 import {
     NEUTRAL_IMAGE_ADJUSTMENTS,
@@ -814,6 +819,76 @@ export class ViewerState {
                 logger.error('viewer frame listener failed', error);
             }
         }
+    }
+
+    // ---- The paint hook ------------------------------------------------------
+
+    /**
+     * How many times the layer list has changed — the one notifying signal the
+     * registry needs.
+     *
+     * The renderer host watches it so a layer registered while the viewport is
+     * idle is drawn immediately rather than at whatever unrelated repaint comes
+     * next. It changes when a layer is added or removed, which is a handful of
+     * times per session, so reactivity costs nothing here — where making the
+     * LIST itself reactive would wake the batched state watcher from inside the
+     * frame loop, sixty times a second, which is the cost the `frame` cadence
+     * exists to avoid.
+     *
+     * @internal
+     */
+    paintLayerRevision: number = $state(0);
+
+    /**
+     * The registered paint layers, ordered.
+     *
+     * Held in viewer state rather than in the renderer host for two reasons: a
+     * consumer may register a layer before any renderer has mounted, and a
+     * renderer remount must not silently drop every layer.
+     */
+    private paintLayerRegistry = createPaintLayerRegistry({
+        onChange: () => {
+            this.paintLayerRevision += 1;
+        },
+        onRefused: (message) => logger.warn(message),
+    });
+
+    /**
+     * Register an ordered layer drawn into the image surface each frame, after
+     * the tiles, with the 2D context and the transform the tiles were drawn
+     * with — so an overlay drawn here cannot desync from the image.
+     *
+     * Returns an idempotent unregister. A layer whose `id` is not a non-empty
+     * string, whose `draw` is not a function, or whose `id` is already taken is
+     * refused with a warning and a no-op unregister, so a caller never has to
+     * branch on whether registration worked.
+     *
+     * Lower `order` draws first; layers sharing an `order` are called in
+     * registration order. A layer that throws is reported once and skipped for
+     * the rest of that frame; it never stops the renderer painting.
+     *
+     * **Painted pixels are invisible to assistive technology.** Anything a
+     * reader must perceive or operate needs a DOM element with an accessible
+     * name beside the picture — the canvas paints pixels, a parallel DOM layer
+     * carries the focusable, labelled targets. A layer registered here is
+     * decoration, or a second rendering of geometry the DOM already carries.
+     *
+     * The first-party renderer is the only renderer, so a registered layer is
+     * always drawn once a host is mounted; before that, registration succeeds
+     * and nothing is drawn, because there is no context to hand over yet.
+     */
+    registerPaintLayer(layer: PaintLayer): () => void {
+        return this.paintLayerRegistry.register(layer);
+    }
+
+    /**
+     * The layers to draw this frame, in call order. Read by the renderer host
+     * once per frame.
+     *
+     * @internal
+     */
+    get paintLayers(): readonly RegisteredPaintLayer[] {
+        return this.paintLayerRegistry.layers;
     }
 
     /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
@@ -2249,8 +2324,8 @@ export class ViewerState {
     pluginFlyouts: PluginFlyout[] = $state([]);
 
     /**
-     * Per-viewer annotation-edit channel shared by OSDViewer and the annotation
-     * editor plugin. Keeping this on ViewerState scopes edit requests and the
+     * Per-viewer annotation-edit channel shared by the annotation shape overlay
+     * and the annotation-editor plugin. Keeping this on ViewerState scopes edit requests and the
      * active edit id to one viewer instance instead of using global listeners.
      */
     annotationEditBus: {

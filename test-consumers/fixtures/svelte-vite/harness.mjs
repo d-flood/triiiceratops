@@ -11,7 +11,7 @@ export default {
     async assert({ page, baseURL, pageErrors }) {
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // The viewer mounts and OSD paints the first canvas.
+        // The viewer mounts and the renderer paints the first canvas.
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });

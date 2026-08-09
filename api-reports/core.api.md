@@ -178,7 +178,7 @@ type TriiiceratopsViewer = ReturnType<typeof TriiiceratopsViewer>;
 export default TriiiceratopsViewer;
 
 // ======================================================================
-// FILE: dist/components/osdLayout.d.ts
+// FILE: dist/components/canvasLayout.d.ts
 // ======================================================================
 export type ViewingMode = 'individuals' | 'paged' | 'continuous';
 export type ViewingDirection = 'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top';
@@ -192,9 +192,8 @@ export type ViewingDirection = 'left-to-right' | 'right-to-left' | 'top-to-botto
  * codebase (see `ResolvedCanvasImage`), and a caller may legitimately lay out
  * from a different space. They are passed in rather than read off a tile source
  * so that layout can run before (or entirely without) any image service being
- * fetched. The OpenSeadragon renderer passes resolved image-service dimensions
- * because that is what it has to hand; manifest Canvas dimensions are the
- * authoritative geometry everywhere else.
+ * fetched. Manifest Canvas dimensions are the authoritative geometry; a caller
+ * passing image-service dimensions is describing pixels, not placement.
  */
 export interface CanvasGeometry {
     canvasId?: string | null;
@@ -219,9 +218,9 @@ export interface CanvasGeometry {
      *
      * In world units like everything else here, deliberately *not* the
      * manifest's Canvas pixel dimensions (`ResolvedCanvasImage.canvasWidth`):
-     * the OpenSeadragon path's world is normalized, so its Canvas box is 1 unit
-     * wide by construction, while the renderer's world is canvas space, where
-     * it is the manifest figure.
+     * the export path's world is normalized, so its Canvas box is 1 unit wide by
+     * construction, while the renderer's world is canvas space, where it is the
+     * manifest figure.
      */
     canvasBoxWidth?: number | null;
     canvasBoxHeight?: number | null;
@@ -1010,7 +1009,7 @@ export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvas
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
 export { DEFAULT_POINT_RADIUS, resolvePointRadius, type PointStyle, } from './utils/pointMarker';
-export { getCanvasDisplayLayouts } from './components/osdLayout';
+export { getCanvasDisplayLayouts } from './components/canvasLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
@@ -1029,6 +1028,7 @@ export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorRep
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
 export type { ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint, } from './types/viewport';
 export { NEUTRAL_IMAGE_ADJUSTMENTS, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
+export type { PaintCanvasPlacement, PaintFrame, PaintLayer, PaintLayerDraw, PaintTransform, } from './renderer/paintLayers';
 export type { TriiiceratopsViewerElement } from './types/viewerElement';
 export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
 export type { Logger, LogLevel, LogSink } from './logging/logger';
@@ -1132,7 +1132,8 @@ export declare const pluginApiVersion = "1.0.0";
  * security permissions.
  *
  * **Empty, deliberately.** The one capability that ever existed here declared
- * the bundled OpenSeadragon major, because the renderer's surface belonged to a
+ * the bundled major of the third-party renderer, because that renderer's
+ * surface belonged to a
  * third party and core could only promise the pass-through field's existence and
  * timing. The renderer is now first-party and its surface is governed by core's
  * own semver, which `coreRange` already negotiates — so that capability was
@@ -1392,9 +1393,9 @@ export interface ViewerSelectorOptions<T> {
     /**
      * Which notification wakes the projection. `state` (the default) is the
      * batched inventoried-member watcher; `frame` additionally wakes on the
-     * live OpenSeadragon instance's own animation events, which is how
-     * continuous viewport values (zoom, pan, rotation, bounds) are read
-     * reactively.
+     * renderer's own animation events, through `ViewerState.subscribeFrame`,
+     * which is how the query-only viewport values (`viewportScale`,
+     * `viewportCentre`, `viewportBounds`) are read reactively.
      */
     cadence?: SelectorCadence;
 }
@@ -1519,6 +1520,235 @@ export type TriiiceratopsViewerRef = ViewerHandle;
 export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): ReactElement;
 
 // ======================================================================
+// FILE: dist/renderer/paintLayers.d.ts
+// ======================================================================
+/**
+ * The **paint hook**: an ordered layer a consumer registers, called each frame
+ * after the tiles are painted, with the 2D context and the current transform
+ * (CONTEXT.md **Paint hook**).
+ *
+ * ## Why a hook rather than an overlay
+ *
+ * A DOM overlay is repositioned in *response* to the image having moved: an
+ * event fires, a derived value recomputes every shape's pixel rect, and styles
+ * are written. That is structurally one frame late, and during a pan the shapes
+ * visibly trail the image. A paint layer is called **inside** the frame the
+ * tiles were drawn in, with the same matrix, so desync is not merely unlikely —
+ * there is no second coordinate source for it to drift against.
+ *
+ * ## What this module owns, and what it does not
+ *
+ * Everything here is DOM-free arithmetic and bookkeeping: which layers exist, in
+ * what order they are called, and what happens when one of them throws. The
+ * context, the transform, and the frame loop belong to the renderer host
+ * (`components/CanvasHost.svelte`); the public registration surface belongs to
+ * `ViewerState.registerPaintLayer`. Neither of those can be unit-tested without
+ * a browser, and both are thin over this.
+ *
+ * ## The accessibility rule this module cannot enforce
+ *
+ * > The canvas paints pixels; a parallel DOM layer carries the focusable,
+ * > labelled targets.
+ *
+ * Canvas-drawn shapes are invisible to assistive technology: no focus, no
+ * accessible name, no keyboard reach, and an automated scan cannot catch their
+ * absence because the elements simply would not exist. Anything a reader must
+ * perceive or operate needs a DOM element beside the painted pixels, from one
+ * source of geometry. A layer registered here is decoration or a second
+ * rendering of something the DOM already carries — never the only copy.
+ */
+import type { LayoutRect } from './types.js';
+import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
+/**
+ * The matrix the tiles were drawn with, as numbers.
+ *
+ * The context handed to a layer already has this applied, so a layer that draws
+ * in **world space** — the renderer's laid-out coordinate space, in which every
+ * canvas of the manifest has a rect — needs none of it. It is carried explicitly
+ * for the layer that wants device pixels instead: reset the transform, and
+ * `x_device = x_world * scale + offsetX`.
+ *
+ * `scale` has `dpr` folded in, exactly as `paintScene.applyViewportTransform`
+ * folds it, which is what keeps a layer's ink on the same sub-pixel grid as the
+ * tiles rather than half a device pixel off it.
+ */
+export interface PaintTransform {
+    /** Device pixels per world unit — the viewport scale times `dpr`. */
+    scale: number;
+    /** Device-pixel x of the world origin. */
+    offsetX: number;
+    /** Device-pixel y of the world origin. */
+    offsetY: number;
+    /** The backing-store ratio already folded into {@link scale}. */
+    dpr: number;
+}
+/** Where a canvas sits in the space the context is transformed into. */
+export interface PaintCanvasPlacement {
+    canvasId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+/**
+ * What a layer is told about the frame it is drawing into.
+ *
+ * The canvas placements are here because the space the context is in is the
+ * renderer's **world**, and a manifest with more than one canvas on screen lays
+ * them side by side: without knowing where a canvas is, a layer drawing "on
+ * folio 12" has nothing to anchor to. They are this frame's own rects, so a
+ * layer cannot be looking at a layout the tiles were not drawn from.
+ *
+ * ## World space is not canvas space, and the conversion is here
+ *
+ * The context's space is the world, and the public boundary's space is **canvas
+ * space** — the IIIF Canvas's own `width`/`height`, which is already how
+ * annotation geometry is persisted. The two differ by more than an offset: a
+ * canvas's rect is placed beside its neighbours AND may have been resized by
+ * layout (median-height normalization for a facing-page spread, and whenever
+ * `preserveCanvasScale` is off). A layer holding geometry in canvas space
+ * therefore cannot use a rect alone, and `rect.width === canvas.width` is false
+ * in exactly the cases this viewer exists for.
+ *
+ * {@link canvasToWorld} and {@link canvasBoxToWorld} are that conversion, so the
+ * hook can express a canvas-anchored layer without a plugin re-deriving the
+ * mapping — or, worse, going back to raw Canvas JSON for the declared
+ * dimensions, which would put image-space/canvas-space arithmetic back on the
+ * plugin boundary this epic's coordinate contract removes it from. They are
+ * methods rather than four more numbers per placement for that reason: the rule
+ * (a fraction of the rect, with a canvas whose manifest declared no dimensions
+ * falling back to its laid-out extent) is one decision with one wrong answer,
+ * and it belongs on this side of the boundary.
+ */
+export interface PaintFrame {
+    transform: PaintTransform;
+    /** The surface's size in CSS pixels. */
+    width: number;
+    height: number;
+    /** The canvases in the scene, in paint order. */
+    canvases: readonly PaintCanvasPlacement[];
+    /**
+     * Canvas space → the space the context is in, for one canvas of this frame.
+     *
+     * `null` when `canvasId` is not one of {@link canvases} — a canvas that is
+     * not laid out this frame has no position to answer with, and answering
+     * anyway would draw the layer's ink somewhere wrong.
+     */
+    canvasToWorld(point: ViewportPoint, canvasId: string): ViewportPoint | null;
+    /** Canvas space → the space the context is in, for a box. */
+    canvasBoxToWorld(box: ViewportBox, canvasId: string): ViewportBox | null;
+}
+/** A layer's drawing callback. */
+export type PaintLayerDraw = (ctx: CanvasRenderingContext2D, frame: PaintFrame) => void;
+/** A layer, as a consumer registers it. */
+export interface PaintLayer {
+    /**
+     * A stable identifier, unique within one viewer. It is how a refused
+     * duplicate registration is reported and how a throwing layer is named in
+     * the log, so it should say which consumer owns it (`myPlugin:handles`).
+     */
+    id: string;
+    /**
+     * Where in the stack this layer draws. Lower draws first, so a higher
+     * `order` paints over a lower one; layers sharing an `order` are called in
+     * registration order. Defaults to `0`.
+     */
+    order?: number;
+    draw: PaintLayerDraw;
+}
+/** A layer the registry accepted, with its ordering resolved. */
+export interface RegisteredPaintLayer {
+    id: string;
+    order: number;
+    /** Registration sequence — the tie-break that makes ordering total. */
+    sequence: number;
+    draw: PaintLayerDraw;
+}
+export interface PaintLayerRegistry {
+    /**
+     * Register a layer. Returns an idempotent unregister; a refused
+     * registration returns a no-op one, so a caller never has to branch.
+     */
+    register(layer: PaintLayer): () => void;
+    /**
+     * The layers to draw, in call order. A frozen snapshot rebuilt on change
+     * rather than sorted per frame: registration happens a handful of times per
+     * session and drawing happens sixty times a second.
+     */
+    readonly layers: readonly RegisteredPaintLayer[];
+}
+/**
+ * Order layers deterministically: by `order`, then by registration sequence.
+ *
+ * The sequence tie-break is what makes the order **total**. `Array.sort` is
+ * required to be stable since ES2019, but the input here is a `Set`'s iteration
+ * order, and relying on two separate guarantees to get one property is how a
+ * paint order silently changes between engines.
+ */
+export declare function sortPaintLayers(layers: Iterable<RegisteredPaintLayer>): RegisteredPaintLayer[];
+/**
+ * The registry behind `ViewerState.registerPaintLayer`.
+ *
+ * It lives in viewer state rather than in the renderer host for two reasons: a
+ * consumer may register before any renderer has mounted, and a renderer remount
+ * must not silently drop every layer. The host reads the list each frame.
+ *
+ * `onChange` is how the host learns to repaint — a layer registered while the
+ * viewport is idle would otherwise not appear until something unrelated moved.
+ */
+export declare function createPaintLayerRegistry(options?: {
+    onChange?: () => void;
+    /** Told why a registration was refused, for the developer's console. */
+    onRefused?: (message: string) => void;
+}): PaintLayerRegistry;
+/**
+ * Call every layer, in order, with the context transformed as the tiles were.
+ *
+ * Each layer is wrapped in `save`/`restore` and in a `try`. Both matter, and for
+ * the same reason: a layer runs inside the renderer's own frame, between the
+ * tiles and whatever comes next.
+ *
+ * - **`save`/`restore`** means a layer that leaves a clip, an alpha, or a
+ *   transform behind cannot change what the next layer draws — or what the next
+ *   FRAME draws, since the context outlives the call.
+ * - **`try`** means a layer that throws does not abort the frame. Without it one
+ *   consumer's bug stops the renderer painting at all, and the exception lands
+ *   inside a `requestAnimationFrame` callback where nothing can act on it.
+ *
+ * The error is handed out rather than logged here so the caller can say it once
+ * per layer: a layer that throws does it every frame, and sixty identical
+ * console errors a second is indistinguishable from a hang.
+ */
+export declare function drawPaintLayers(ctx: CanvasRenderingContext2D, layers: readonly RegisteredPaintLayer[], frame: PaintFrame, onError: (layer: RegisteredPaintLayer, error: unknown) => void): void;
+/**
+ * This frame's placements, from the scene plan's layout.
+ *
+ * A mapping function rather than the layout rects themselves: `LayoutRect` is
+ * the planner's own type and carries whatever the planner needs it to, where
+ * {@link PaintCanvasPlacement} is a public promise about four numbers and an id.
+ */
+export declare function paintCanvasPlacements(layout: readonly LayoutRect[]): PaintCanvasPlacement[];
+/** A Canvas's declared dimensions, `null` where the manifest omits one. */
+export type DeclaredCanvasSize = (canvasId: string) => {
+    width: number | null;
+    height: number | null;
+};
+/**
+ * This frame's canvas half: where each canvas is, and how to get into that space
+ * from canvas space.
+ *
+ * Built once per frame beside the transform, from the SAME layout the tiles were
+ * drawn from — which is what makes a layer's conversion agree with the picture
+ * rather than with whatever layout is current by the time the layer runs.
+ *
+ * The placement index is built **lazily**, on the first conversion: an 800-folio
+ * manifest lays out hundreds of rects per frame, and a layer that only reads
+ * `canvases` (core's own page-placeholder layer, for one) must not pay for a map
+ * it never looks anything up in.
+ */
+export declare function paintCanvasSpace(layout: readonly LayoutRect[], declaredSize: DeclaredCanvasSize): Pick<PaintFrame, 'canvases' | 'canvasToWorld' | 'canvasBoxToWorld'>;
+
+// ======================================================================
 // FILE: dist/renderer/rendererPort.d.ts
 // ======================================================================
 /**
@@ -1531,11 +1761,10 @@ export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): Re
  * issue viewport commands without knowing which renderer is mounted. Plugins
  * never see it — they see the `ViewerState` methods below it.
  *
- * Two hosts implement it while the development-only renderer flag keeps both
- * renderers in the repository: `CanvasHost.svelte` (first-party Canvas2D) and
- * `OSDViewer.svelte` (the OpenSeadragon path ticket 18 deletes). That is the
- * entire reason the seam is an interface rather than direct calls into the
- * Canvas2D host.
+ * One host implements it — `CanvasHost.svelte` — now that the previous renderer
+ * is gone. It stays an interface rather than direct calls into that host because
+ * it is also what the shipped renderer stand-in implements for plugin tests, and
+ * because it is the line viewer state is not allowed to reach across.
  *
  * **Coordinates.** Every point and box crossing this interface is in **canvas
  * space** — the IIIF Canvas's own `width`/`height` — or in **screen space**,
@@ -1590,6 +1819,414 @@ export interface RendererPort {
      * need". Returns an idempotent unsubscribe.
      */
     onFrame(listener: () => void): () => void;
+}
+
+// ======================================================================
+// FILE: dist/renderer/types.d.ts
+// ======================================================================
+/**
+ * The renderer's vocabulary as types (CONTEXT.md §Renderer domain).
+ *
+ * Everything here is plain data. Nothing in this module — or anywhere else in
+ * the renderer's module graph — touches `window`, `document`, or `navigator` at
+ * module scope, which is what keeps the viewer server-renderable and the
+ * planner runnable in plain Node.
+ */
+import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
+export type { ViewingDirection, ViewingMode };
+/**
+ * Where a canvas's pixels come from.
+ *
+ * `static` is one known URL. `service` is an image service the planner resolves
+ * once its `info.json` has been fetched — into a tile pyramid when it advertises
+ * tiles (`tilePyramid`), and otherwise into a **size-ladder source**
+ * (`sizeLadder`), which is the level0 shape that can serve only fixed whole
+ * images. Which of the two a service is comes from what it advertises, not from
+ * its declared profile: a profile can be missing, and a level0 service that
+ * advertises tiles is an ordinary pyramid.
+ */
+export type SourceDescriptor = {
+    kind: 'static';
+    url: string;
+} | {
+    kind: 'service';
+    serviceId: string;
+    profile: string | null;
+};
+/**
+ * One canvas as the planner sees it: an identity, its geometry in **canvas
+ * space** (manifest Canvas `width`/`height`), and where its pixels come from.
+ *
+ * Geometry is manifest geometry, never image-service geometry: layout must not
+ * depend on any fetch (spec §Coordinate model and layout). Where the two
+ * disagree — which is routine — the manifest wins permanently, so nothing on
+ * screen moves when tiles arrive.
+ *
+ * `width`/`height` are `null` for a canvas whose manifest declares no usable
+ * dimensions, which is a spec violation the viewer still has to render (user
+ * story 32). Such a canvas is laid out from the **median of its siblings** and
+ * repositioned if an image service later reports real ones — never blocked on a
+ * fetch, which is the reflex that restores the fetch storm for any manifest
+ * with sparse metadata. See `planScene.resolveGeometry`.
+ */
+export interface PlannerCanvas {
+    id: string;
+    width: number | null;
+    height: number | null;
+    source: SourceDescriptor;
+    /**
+     * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of
+     * the **thumbnail tier**'s resolution ladder, used as-is with the size
+     * ladder ignored (spec §Thumbnail resolution).
+     *
+     * A **raw-JSON** fact: `thumbnail` is spelled the same in IIIF v2 and v3
+     * and is read straight off the manifest by
+     * `canvasDescriptors.getDeclaredThumbnailUrl`. It is deliberately carried
+     * on the descriptor rather than looked up per frame, because it costs a
+     * walk of the Canvas and the host builds descriptors once per manifest
+     * (`CanvasHost.plannerCanvases`) rather than once per frame.
+     *
+     * `null` where the Canvas declares none, which is the usual case and simply
+     * means the ladder starts at its second rung.
+     */
+    thumbnailUrl?: string | null;
+}
+/** A point in canvas space. */
+export interface Point {
+    x: number;
+    y: number;
+}
+/**
+ * The viewport, in canvas space plus screen size.
+ *
+ * `scale` is screen pixels per canvas-space unit — the single number that
+ * relates the two spaces. `centre` is the canvas-space point at the middle of
+ * the viewport.
+ */
+export interface Viewport {
+    /** Viewport width in CSS pixels. */
+    width: number;
+    /** Viewport height in CSS pixels. */
+    height: number;
+    centre: Point;
+    scale: number;
+}
+/**
+ * Image-service facts already fetched for a canvas — everything `info.json`
+ * says that the renderer acts on.
+ *
+ * These govern the **tile pyramid only**. Geometry comes from the manifest
+ * Canvas and wins permanently, so `width`/`height` disagreeing with the
+ * manifest's cannot move anything on screen (spec §Coordinate model and
+ * layout).
+ */
+export interface ImageServiceFacts {
+    width: number;
+    height: number;
+    /** Advertised whole-image sizes, if the service declares any. */
+    sizes?: Array<{
+        width: number;
+        height: number;
+    }>;
+    /**
+     * Advertised tile width. Absent means the service advertises no tiling at
+     * all — which is a **size-ladder source only when the service is also
+     * level0**. A level 1/2 service may legally omit `tiles` and still answer
+     * any region at any size, so absence alone says nothing about which source
+     * kind this is; see `planScene`.
+     */
+    tileSize?: number | null;
+    scaleFactors?: number[];
+    /**
+     * Whether the document's own `profile` declares compliance level0.
+     *
+     * The one fact the renderer takes from a profile rather than from what a
+     * service advertises, and it is load-bearing twice: a tile-less service is
+     * a size-ladder source only if it is level0 (otherwise it is an ordinary
+     * pyramid whose tile size the renderer chooses), and a level0 service's
+     * whole-image requests must be snapped to a size it actually generated.
+     */
+    level0?: boolean;
+    /** IIIF Image API major version, which decides `quality` in a tile URL. */
+    version?: 2 | 3;
+    /** Image format extension for tile requests. Defaults to `jpg`. */
+    format?: string;
+}
+/**
+ * Planner inputs that are policy rather than fact.
+ *
+ * Every value here is provisional (spec §Further Notes) and supplied by the
+ * caller precisely so tests never assert against shipped defaults.
+ */
+export interface PlannerBudgets {
+    /** Decoded-pixel byte ceiling for the opportunistic cache. */
+    byteBudget: number;
+    /** Residency margin as a factor the viewport rect is inflated by. */
+    marginFactor: number;
+    /** `effectiveSize` at or above which a canvas is in the pyramid tier. */
+    pyramidThreshold: number;
+    /** `effectiveSize` below which a canvas is in the box tier. */
+    boxThreshold: number;
+    /**
+     * The least **device** pixels per level pixel a level may carry before the
+     * next coarser one is taken instead. At 0.5, up to 2× oversampling is
+     * tolerated; a *higher* value accepts a blurrier level. Carried forward from
+     * the previous renderer at its value, with its semantics, so
+     * sharpness-versus-speed does not visibly shift (ticket 05 §Contract). See
+     * `tilePyramid.chooseLevel`.
+     */
+    minPixelRatio: number;
+    /**
+     * Ceiling, in decoded pixels, on one whole image a **size-ladder source**
+     * may be promoted to.
+     *
+     * Only that source kind needs it, and only it can be defeated without it: a
+     * tile is bounded by the tile size, but a size ladder's top rung is the
+     * whole scan, and for a large manuscript that is a 100+ megapixel JPEG whose
+     * decode pins hundreds of megabytes and can hard-crash a phone. Past the cap
+     * the blur is accepted. See `sizeLadder.chooseRung`.
+     */
+    maxDecodedPixels: number;
+}
+/** Which of the three treatments a canvas receives this frame. */
+export type ResidencyTier = 'pyramid' | 'thumbnail' | 'box';
+/** Where layout placed one canvas, in canvas space. */
+export interface LayoutRect {
+    canvasId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+/**
+ * A tile's stable identity: canvas, level, and position in that level's grid.
+ *
+ * Built by `tilePyramid.tileKey`; opaque everywhere else. It is what the
+ * scheduler keys residency on and what a **tile draw** names, so the planner
+ * can decide what to paint without holding any pixels.
+ */
+export type TileKey = string;
+/**
+ * One tile of the **required set** — what must be resident, not what is
+ * missing. The scheduler skips the ones it already holds and releases anything
+ * absent from the list, so residency stays a pure function of the viewport
+ * rather than of what happened to be fetched.
+ */
+export interface TileRequest {
+    key: TileKey;
+    canvasId: string;
+    /** 0 is the base (coarsest) level; larger is finer. */
+    level: number;
+    url: string;
+    /**
+     * Distance in canvas space from the viewport centre to the tile's centre.
+     * The queue is ordered by this, so tiles arrive centre-out rather than in
+     * discovery order — and is re-sorted as the viewport moves.
+     */
+    priority: number;
+    /**
+     * A second spelling of the same image, tried **once** if `url` fails, and
+     * remembered for `group` so the rest of that group skips the failed
+     * spelling entirely.
+     *
+     * It exists for exactly one deviation the renderer knowingly takes: a
+     * version 2 service is asked for `default` quality, never the deprecated
+     * `native`, because a 2.0 document is indistinguishable from a 2.1 one
+     * (`imageService.parseVersion`). That answer is right for every endpoint
+     * built since 2016 and wrong for a frozen static tree that only ever
+     * generated `native` files — and for a **size-ladder source** every rung
+     * shares the quality parameter, so getting it wrong is not a blurrier
+     * canvas but a permanently blank one once the negative cache closes over
+     * the whole ladder.
+     *
+     * One request per broken service buys the answer, and the happy path never
+     * spells a URL two ways: the fallback is only ever reached from a failure.
+     */
+    fallback?: {
+        url: string;
+        group: string;
+    };
+}
+/**
+ * One tile the painter should draw, and the canvas-space box it occupies.
+ *
+ * Ordered coarsest level first, which is what implements **blur-up**: the
+ * coarse chain is resident, so an incomplete current level is painted over
+ * something rather than over nothing, and the viewer is never blank.
+ */
+export interface TileDraw {
+    key: TileKey;
+    /**
+     * Which canvas this draw belongs to.
+     *
+     * The painter does not need it — a draw carries its own box. The HOST does:
+     * "does this canvas have anything on screen this frame?" is the question that
+     * decides whether an opaque error placeholder may cover it, and a canvas can
+     * have a failure recorded against its image service while a public declared
+     * thumbnail paints perfectly well over the same rect. Answered from the key's
+     * spelling instead, that question would be a string parse over an identifier
+     * that is a URI.
+     */
+    canvasId: string;
+    level: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+/**
+ * A whole-image request sized to a canvas's projection, quantized to a rung.
+ *
+ * A {@link TileRequest} by extension, and that is not a convenience: it means
+ * the scheduler's abort-on-supersede, centre-out priority queue, bounded
+ * in-flight window, negative cache, off-thread decode, and byte-budgeted
+ * **opportunistic cache** all apply to thumbnails without a second
+ * implementation of any of them — the same reasoning that expresses a
+ * **size-ladder source**'s rungs as one-tile levels (`planScene.planSizeLadder`).
+ * The host hands the two lists to one scheduler, so the concurrency cap really
+ * is global and a thumbnail and a tile compete on distance from the viewport
+ * centre rather than on which list they arrived in.
+ *
+ * `rung` is carried beyond what the scheduler needs, because "a continuous zoom
+ * produces a small set of distinct URLs" is a claim about the quantization and
+ * a test has to be able to read it.
+ */
+export interface ThumbnailRequest extends TileRequest {
+    /** The quantized ladder rung, in device pixels of requested width. */
+    rung: number;
+}
+/**
+ * Everything that decides **where the canvases are** — and nothing else.
+ *
+ * Deliberately a separate input from {@link PlanSceneInput}: the world's layout
+ * and the zoom floor derived from it depend on neither the viewport nor
+ * residency, and the host asks for them on every pointer sample. Splitting the
+ * inputs is what makes `planViewportLimits` cheap by construction rather than
+ * by discipline — a caller cannot accidentally pay for tile enumeration when
+ * the viewport is not even in the signature.
+ *
+ * `knownMetadata` is here because geometry can depend on it in exactly one
+ * case: a canvas whose manifest declared no dimensions is repositioned when an
+ * image service reports real ones.
+ */
+export interface PlanWorldInput {
+    canvases: PlannerCanvas[];
+    mode: ViewingMode;
+    direction: ViewingDirection;
+    preserveCanvasScale: boolean;
+    /**
+     * Inter-canvas gap, as a fraction of the median **laid-out** canvas extent
+     * along the axis the world flows in.
+     *
+     * A **fraction**, not a length, because the renderer's world is canvas
+     * space — manifest Canvas pixels — where a page is a few thousand units
+     * across and any absolute default would be either a hairline or a chasm
+     * depending on the manifest. It is passed through to the shared layout
+     * function, which resolves it after normalization and on the axis it has
+     * already chosen (see `components/canvasLayout`).
+     *
+     * Here rather than in {@link PlannerBudgets} because it is a statement
+     * about where canvases go, like `mode` and `direction` beside it, and not a
+     * byte, pixel, or threshold quantity. Tuning the budgets must not be able
+     * to move canvases on screen as a side effect.
+     *
+     * Not configuration: no public surface exposes it, and none is added here
+     * (spec §Out of Scope).
+     */
+    gapFraction: number;
+    /** canvasId → image-service facts already fetched. */
+    knownMetadata: Record<string, ImageServiceFacts>;
+    budgets: PlannerBudgets;
+}
+export interface PlanSceneInput extends PlanWorldInput {
+    viewport: Viewport;
+    /**
+     * Device pixels per CSS pixel of the backing store, defaulting to 1.
+     *
+     * A planner input rather than a painter detail: the viewport is measured in
+     * CSS pixels, so this is the only thing that says how many pixels the
+     * display can actually resolve, and level selection is a question about
+     * pixels the screen can show (`tilePyramid.chooseLevel`). Left out of
+     * {@link Viewport} because the viewport is the coordinate model — a device
+     * ratio moves nothing in canvas space.
+     */
+    dpr?: number;
+    /**
+     * Which tiles the host currently holds decoded.
+     *
+     * Read only to decide `tileDraws` — what can be painted this frame is a
+     * planner decision like every other, and passing residency in as data keeps
+     * the planner pure while leaving the painter with nothing to decide.
+     */
+    residentTiles?: ReadonlySet<TileKey>;
+    /**
+     * Whether the view has stopped moving — no gesture in progress, no spring
+     * settling, no momentum, no held key. Defaults to `true`, which is what an
+     * idle caller and every test that does not care are describing.
+     *
+     * **The view-stable gate** (spec §Tile scheduling). No thumbnail and no
+     * `info.json` request is issued while this is false. A flick passes over
+     * hundreds of canvases that are never dwelt on, and asking for each one as
+     * it goes by is most of the request storm on its own — so the ones the
+     * reader actually stops at are the only ones asked for.
+     *
+     * It gates **discovery**, not residency: tiles are unaffected (a pyramid-
+     * tier canvas is one the reader is looking at, and letting it go blank
+     * during a drag would be worse than the requests), and a thumbnail already
+     * decoded stays in the required set so it keeps painting through the
+     * gesture rather than being demoted and blanking.
+     */
+    viewStable?: boolean;
+}
+/**
+ * The planner's pure output for one frame. A value produced and discarded each
+ * frame — not state anything holds.
+ */
+export interface ScenePlan {
+    layout: LayoutRect[];
+    /** canvasId → tier. */
+    tiers: Record<string, ResidencyTier>;
+    /** The required set, ordered by priority — nearest the viewport centre first. */
+    tileRequests: TileRequest[];
+    /** What to paint, coarsest level first. Only tiles the host already holds. */
+    tileDraws: TileDraw[];
+    /**
+     * The **thumbnail tier**'s share of the required set, ordered by priority
+     * beside `tileRequests` and fed to the same scheduler.
+     */
+    thumbnailRequests: ThumbnailRequest[];
+    /** Canvas ids needing an `info.json` fetch now. */
+    metadataRequests: string[];
+    /**
+     * Canvas ids that reached the end of the thumbnail ladder with nothing
+     * usable, and are therefore **box tier permanently**.
+     *
+     * Reported rather than logged because the planner is pure, and reported at
+     * all because a silently blank canvas is indistinguishable from one still
+     * loading. The host logs each id **once** (`CanvasHost.reportUnresolvedThumbnails`),
+     * keyed on the canvas id alone — which it may do because the decision is a
+     * pure function of the manifest and the service's facts and of NOTHING
+     * ELSE. In particular it does not depend on the rung, so it cannot change
+     * as the reader zooms: `thumbnailLadder` refuses on decoded pixels, a
+     * property of the images the service offers, rather than on any
+     * rung-relative comparison. If that ever stops being true the report has to
+     * be keyed on the pair and "permanently" has to come out of this sentence.
+     */
+    unresolvedThumbnails: string[];
+    /**
+     * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
+     * their service offers exceeds it.
+     *
+     * The cap normally degrades to blur: a rung above it is refused and a
+     * coarser one is taken. When even the cheapest rung is over the ceiling
+     * there is no coarser one, and the choice is between a blank canvas and a
+     * decode the budget said no to. The renderer draws it — never blank wins —
+     * and reports it here rather than overriding the budget in silence. Ticket
+     * 12 owns what a host does with this.
+     */
+    overCapCanvases: string[];
+    /** The derived zoom floor, in the same units as `Viewport.scale`. */
+    minZoom: number;
 }
 
 // ======================================================================
@@ -1670,7 +2307,7 @@ export declare const manifestsState: ManifestsState;
  * A published entry point of its own because it must be importable WITHOUT the
  * viewer's Svelte graph: `@triiiceratops/plugin-sdk` re-exports it to plugin
  * authors, and core's own framework wrappers build on it. Nothing here imports
- * Svelte, OpenSeadragon, or the plugin SDK.
+ * Svelte, the renderer, or the plugin SDK.
  */
 export { createSelectorRuntime } from './runtime.js';
 export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, SelectorRuntime, SelectorRuntimeOptions, } from './runtime.js';
@@ -1783,8 +2420,9 @@ export interface SelectorProjection<T> {
  * - `onListenerError`: a subscription callback threw during delivery —
  *   `pluginerror` phase `subscription`. On the `state` cadence this is handed to
  *   `ViewerState.subscribe`, which owns that attribution seam; on the `frame`
- *   cadence the runtime routes it here itself, because no core guard sits on the
- *   OpenSeadragon event path.
+ *   cadence the runtime routes it here itself, because `subscribeFrame` has no
+ *   such seam: its own guard keeps one listener's throw from aborting the fan-out
+ *   and logs it, but it cannot say which plugin the listener belonged to.
  */
 export interface SelectorRuntimeOptions {
     onProjectionError?: (error: unknown) => void;
@@ -1814,6 +2452,7 @@ export declare function createSelectorRuntime(viewerState: ViewerState, options?
 // ======================================================================
 import type { ViewerErrorReporter } from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
+import { type PaintLayer, type RegisteredPaintLayer } from '../renderer/paintLayers.js';
 import { type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportPoint } from '../types/viewport.js';
 import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
@@ -2140,6 +2779,61 @@ export declare class ViewerState {
      * (or land inside the renderer's own dispatch).
      */
     private emitFrame;
+    /**
+     * How many times the layer list has changed — the one notifying signal the
+     * registry needs.
+     *
+     * The renderer host watches it so a layer registered while the viewport is
+     * idle is drawn immediately rather than at whatever unrelated repaint comes
+     * next. It changes when a layer is added or removed, which is a handful of
+     * times per session, so reactivity costs nothing here — where making the
+     * LIST itself reactive would wake the batched state watcher from inside the
+     * frame loop, sixty times a second, which is the cost the `frame` cadence
+     * exists to avoid.
+     *
+     * @internal
+     */
+    paintLayerRevision: number;
+    /**
+     * The registered paint layers, ordered.
+     *
+     * Held in viewer state rather than in the renderer host for two reasons: a
+     * consumer may register a layer before any renderer has mounted, and a
+     * renderer remount must not silently drop every layer.
+     */
+    private paintLayerRegistry;
+    /**
+     * Register an ordered layer drawn into the image surface each frame, after
+     * the tiles, with the 2D context and the transform the tiles were drawn
+     * with — so an overlay drawn here cannot desync from the image.
+     *
+     * Returns an idempotent unregister. A layer whose `id` is not a non-empty
+     * string, whose `draw` is not a function, or whose `id` is already taken is
+     * refused with a warning and a no-op unregister, so a caller never has to
+     * branch on whether registration worked.
+     *
+     * Lower `order` draws first; layers sharing an `order` are called in
+     * registration order. A layer that throws is reported once and skipped for
+     * the rest of that frame; it never stops the renderer painting.
+     *
+     * **Painted pixels are invisible to assistive technology.** Anything a
+     * reader must perceive or operate needs a DOM element with an accessible
+     * name beside the picture — the canvas paints pixels, a parallel DOM layer
+     * carries the focusable, labelled targets. A layer registered here is
+     * decoration, or a second rendering of geometry the DOM already carries.
+     *
+     * The first-party renderer is the only renderer, so a registered layer is
+     * always drawn once a host is mounted; before that, registration succeeds
+     * and nothing is drawn, because there is no context to hand over yet.
+     */
+    registerPaintLayer(layer: PaintLayer): () => void;
+    /**
+     * The layers to draw this frame, in call order. Read by the renderer host
+     * once per frame.
+     *
+     * @internal
+     */
+    get paintLayers(): readonly RegisteredPaintLayer[];
     /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
     zoomIn(): void;
     /** Zoom out one step, about the viewport centre. The toolbar's `−`. */
@@ -2377,8 +3071,8 @@ export declare class ViewerState {
     /** Plugin-registered flyouts (compact popovers anchored to the toolbar button) */
     pluginFlyouts: PluginFlyout[];
     /**
-     * Per-viewer annotation-edit channel shared by OSDViewer and the annotation
-     * editor plugin. Keeping this on ViewerState scopes edit requests and the
+     * Per-viewer annotation-edit channel shared by the annotation shape overlay
+     * and the annotation-editor plugin. Keeping this on ViewerState scopes edit requests and the
      * active edit id to one viewer instance instead of using global listeners.
      */
     annotationEditBus: {
@@ -2635,7 +3329,7 @@ export { ManifestsState, manifestsState } from './state/manifests.svelte';
  * - **Framework consumers.** {@link createTestViewerHandle} returns a real
  *   `ViewerHandle` over that same real state, so a React or Vue component that
  *   reads `useViewerSelector()` is unit-testable without mounting the custom
- *   element, loading OpenSeadragon, or fetching a manifest.
+ *   element, mounting a renderer, or fetching a manifest.
  *
  * Neither React, Vue, nor a DOM is required to import this module.
  *
@@ -2701,7 +3395,7 @@ export interface HeadlessViewerFixtures {
     };
 }
 /**
- * Construct a real, live `ViewerState` with no DOM viewer and no OpenSeadragon.
+ * Construct a real, live `ViewerState` with no DOM viewer and no renderer.
  * This is the headless core of the SDK test kit's test viewer context: commands,
  * `subscribe`, and the batched notification flush all behave exactly as they do
  * in a mounted viewer.
@@ -3608,7 +4302,7 @@ export interface ViewerConfig {
      */
     pagedViewOffset?: boolean;
     /**
-     * Preserve authored IIIF canvas scale in multi-canvas OpenSeadragon layouts.
+     * Preserve authored IIIF canvas scale in multi-canvas layouts.
      * When false, paged and continuous modes normalize canvas display heights
      * so unusually wide/tall canvases remain readable and comparable.
      * Single-canvas individuals mode is unchanged.
@@ -4255,7 +4949,7 @@ import type { SearchProvider } from './config';
  * `viewerState` property returns.
  *
  * It means only that state can be bound. It does not mean a manifest has
- * loaded, OpenSeadragon is ready, or a requested canvas is visible — read
+ * loaded, the renderer is ready, or a requested canvas is visible — read
  * `viewerState` (or the `statechange` family) for that.
  *
  * Ordinary state changes do not repeat it. A disconnection that destroys the
@@ -4896,7 +5590,7 @@ export declare function resolveAllLanguageValues(value: unknown, preferredLocale
 // ======================================================================
 /**
  * Shared point-marker styling for the annotation editor. A point looks the same
- * whether it is rendered read-only (OSDViewer overlay), selected, or edited, so
+ * whether it is rendered read-only (the viewer's shape overlay), selected, or edited, so
  * the radius/fill/stroke live in one place consumed by both the viewer overlay
  * and the editor's Annotorious styling (spec §3.4).
  */
@@ -4948,7 +5642,7 @@ export type PositionedTileSource = {
      * The whole Canvas box in the same normalized units — 1 unit wide by
      * construction, and as many tall as the Canvas's aspect ratio. Distinct
      * from `width` for a source that paints a sub-region, and it is what layout
-     * advances the next canvas past (see `components/osdLayout`).
+     * advances the next canvas past (see `components/canvasLayout`).
      */
     canvasBoxWidth: number;
     canvasBoxHeight: number | null;
@@ -5320,9 +6014,9 @@ export interface ViewerSelectorOptions<T> {
     /**
      * Which notification wakes the projection. `state` (the default) is the
      * batched inventoried-member watcher; `frame` additionally wakes on the
-     * live OpenSeadragon instance's own animation events, which is how
-     * continuous viewport values (zoom, pan, rotation, bounds) are read
-     * reactively.
+     * renderer's own animation events, through `ViewerState.subscribeFrame`,
+     * which is how the query-only viewport values (`viewportScale`,
+     * `viewportCentre`, `viewportBounds`) are read reactively.
      */
     cadence?: SelectorCadence;
 }

@@ -13,8 +13,9 @@
  * therefore keeps declaring `osd@5`, a capability core retired with no
  * successor — so activation FAILS loudly with the structured capability error
  * rather than the plugin activating cleanly and installing a button that does
- * nothing. See `AnnotationEditorController.svelte`; ticket 15 owns the full
- * disposition (changeset, README, pinning, aggregate scripts).
+ * nothing. The package is PAUSED (unpublished), not deleted: see `README.md` for
+ * the disposition, the last core version it works against, and what phase 2
+ * rebuilds it on. `AnnotationEditorController.svelte` is where it goes inert.
  */
 import {
     definePlugin,
@@ -64,8 +65,8 @@ export function createAnnotationEditorPlugin(
         pluginApiRange: '^1.0.0',
         // Unsatisfiable on purpose (see the module comment): core retired
         // `osd@5` with no successor, so this is how the plugin reports that it
-        // is retired instead of silently doing nothing. Ticket 15 removes it
-        // along with the package.
+        // is paused instead of silently doing nothing. It comes off when the
+        // phase-2 drawing layer replaces the Annotorious binding.
         requiredCapabilities: ['osd@5'],
         icon: ICON,
         target: config.target ?? 'panel',

@@ -4,7 +4,7 @@ import { expect } from '@playwright/test';
 // from the packed `triiiceratops` tarball and activates the migrated
 // `@triiiceratops/plugin-image-manipulation` plugin (packed ESM entry) through
 // the viewer's `plugins` prop. The journey proves the tracer end to end: the
-// plugin's flyout opens, a filter slider is adjusted, and the OSD canvas gets
+// plugin's flyout opens, a filter slider is adjusted, and the renderer canvas gets
 // the corresponding CSS filter.
 export default {
     name: 'plugin-image-manip-svelte',
@@ -20,7 +20,7 @@ export default {
     async assert({ page, baseURL, pageErrors }) {
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // Viewer mounts and OSD paints the first canvas (OSD readiness).
+        // Viewer mounts and the renderer paints the first canvas (renderer readiness).
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });
@@ -49,7 +49,7 @@ export default {
         await expect(brightness).toBeVisible({ timeout: 10_000 });
         await brightness.fill('150');
 
-        // The OSD drawer canvas receives the CSS filter (brightness(1.5)).
+        // The renderer's canvas receives the CSS filter (brightness(1.5)).
         await expect
             .poll(
                 () =>
@@ -65,7 +65,7 @@ export default {
             )
             .toBe(true);
 
-        // Confirm the exact filter value landed on the OSD canvas.
+        // Confirm the exact filter value landed on the renderer's canvas.
         const filter = await page.evaluate(() => {
             const canvases = document.querySelectorAll(
                 '#triiiceratops-viewer canvas',

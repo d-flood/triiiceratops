@@ -62,7 +62,7 @@ export {
 // match what is on screen calls this rather than reconstructing the arrangement
 // from a shared spacing constant, which is why no gap constant is exported
 // alongside it (omitting the `gap` option gives the viewer's own spacing).
-export { getCanvasDisplayLayouts } from './components/osdLayout';
+export { getCanvasDisplayLayouts } from './components/canvasLayout';
 
 // Visible canvas entries for the current viewport.
 export { getVisibleCanvasEntries } from './components/viewerControls';

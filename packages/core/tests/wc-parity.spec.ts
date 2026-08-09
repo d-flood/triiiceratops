@@ -103,7 +103,7 @@ async function drive(
     expect(props.manifestId).toBe('/demo-manifests/e2e/manifest.json');
     expect(props.theme).toBe('dark');
 
-    // Renders a manifest: an OSD canvas appears inside the (open) shadow root.
+    // Renders a manifest: the renderer's canvas appears inside the (open) shadow root.
     const canvas = page.locator('triiiceratops-viewer canvas').first();
     await expect(canvas).toBeVisible({ timeout: 20000 });
 

@@ -3,7 +3,7 @@
  *
  * Scheduling *is* the perceived performance of a deep-zoom viewer. Rasterizing
  * was never the bottleneck — network scheduling and image decode are, and the
- * OpenSeadragon path this replaces asks for at most one new tile per animation
+ * previous renderer asked for at most one new tile per animation
  * frame while capping concurrency not at all: slow to ask, then all at once.
  *
  * The scheduler makes no scene decisions. It is handed the **required set** by
@@ -221,6 +221,33 @@ export function createTileScheduler(
      */
     const cached = new Map<TileKey, { tile: DecodedTile; bytes: number }>();
     const inFlight = new Map<TileKey, AbortController>();
+    /**
+     * Attempts started and not yet settled — **aborting ones included**.
+     *
+     * This, not `inFlight.size`, is what the window is counted against, because
+     * the two differ exactly where it matters. `update` drops an aborted key
+     * from `inFlight` synchronously so the tile is re-requestable, but
+     * `abort()` does not retire the request: the socket stays busy until the
+     * cancellation actually lands. Sizing the window on `inFlight.size` would
+     * therefore hand the freed slot to a replacement in the same task as the
+     * `abort()` — and a sustained pan aborts and replaces the required set every
+     * frame, so the surplus stacks rather than settling. Measured page-side on
+     * the 800-canvas fixture over a throttled connection, a pan reached ELEVEN
+     * simultaneous live `fetch` operations against a limit of six, the surplus
+     * being requests this scheduler had already aborted.
+     *
+     * What this cannot buy is the browser's own teardown: `fetch` rejects on
+     * `abort()` at once while the cancellation is reported tens of milliseconds
+     * later, and nothing tells a page when the socket is really released. So the
+     * bound is stated over live fetch operations, which is the most this module
+     * can honestly promise — see `canvas-renderer-thumbnails.spec.ts`'s
+     * `watchTraffic`, which observes the difference.
+     *
+     * A counter rather than a set: nothing needs to enumerate these, only to
+     * know that the wire is not free yet. Each attempt decrements it exactly
+     * once, after its fetch and decode have settled either way.
+     */
+    let outstanding = 0;
     /** Wanted, not yet started. Rebuilt every update, so it re-sorts for free. */
     let queued: TileRequest[] = [];
     /**
@@ -307,7 +334,7 @@ export function createTileScheduler(
     function pump(): void {
         if (disposed) return;
 
-        while (inFlight.size < maxInFlight && queued.length > 0) {
+        while (outstanding < maxInFlight && queued.length > 0) {
             start(queued.shift()!);
         }
     }
@@ -315,6 +342,7 @@ export function createTileScheduler(
     function start(request: TileRequest): void {
         const controller = new AbortController();
         inFlight.set(request.key, controller);
+        outstanding += 1;
         requestCount += 1;
 
         // The alternate spelling is used on the retry of a request that has
@@ -337,9 +365,12 @@ export function createTileScheduler(
          * so a superseded attempt can settle after the same tile has been
          * re-required and restarted. Keyed by tile alone, its late arrival would
          * delete the *new* attempt's controller: that request becomes
-         * untrackable and unabortable, `inFlight.size` undercounts so the window
-         * opens past its limit, and the tile is re-queued every frame because
-         * nothing records it as in flight.
+         * untrackable and unabortable, and the tile is re-queued every frame
+         * because nothing records it as in flight.
+         *
+         * This map is identity, not accounting — {@link outstanding} is what
+         * bounds the window — so a stale delete here cannot open the window past
+         * its limit. It can still lose a request, which is enough.
          */
         function retire(): void {
             if (inFlight.get(request.key) === controller) {
@@ -409,6 +440,10 @@ export function createTileScheduler(
                 }
             }
 
+            // Exactly once per attempt, on both paths, and only now: the slot
+            // this attempt occupies is not free while its request is still
+            // being torn down. An abort reaches here through the `catch`.
+            outstanding -= 1;
             pump();
         })();
     }
@@ -421,6 +456,10 @@ export function createTileScheduler(
                 requests.map((request) => [request.key, request]),
             );
 
+            // Dropped from the identity map immediately, so the tile is
+            // re-requestable the moment it is required again — but NOT from the
+            // window, which goes on counting it until the request actually
+            // settles (see {@link outstanding}).
             for (const [key, controller] of inFlight) {
                 if (required.has(key)) continue;
                 controller.abort();

@@ -2,7 +2,7 @@
     "name": "@triiiceratops/plugin-annotation-editor",
     "version": "1.0.0-rc.7",
     "type": "module",
-    "description": "Annotation editor plugin for the triiiceratops IIIF viewer, authored on @triiiceratops/plugin-sdk.",
+    "description": "PAUSED — annotation editing is unavailable while the viewer's renderer is first-party; it returns with the phase-2 drawing layer. Last worked against triiiceratops@1.0.0-rc.36. See README.md.",
     "license": "MIT",
     "author": "David Flood",
     "repository": {
@@ -15,7 +15,7 @@
         "access": "public",
         "provenance": true
     },
-    "private": false,
+    "private": true,
     "engines": {
         "node": ">=22"
     },
@@ -41,7 +41,7 @@
         "./iife": "./dist/iife.js"
     },
     "scripts": {
-        "build": "pnpm build:esm && pnpm build:iife && pnpm build:types",
+        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:types",
         "build:esm": "BUILD_FORMAT=es vite build",
         "build:iife": "BUILD_FORMAT=iife vite build",
         "build:types": "tsc -p tsconfig.build.json",

@@ -31,7 +31,8 @@ export const pluginApiVersion = '1.0.0';
  * security permissions.
  *
  * **Empty, deliberately.** The one capability that ever existed here declared
- * the bundled OpenSeadragon major, because the renderer's surface belonged to a
+ * the bundled major of the third-party renderer, because that renderer's
+ * surface belonged to a
  * third party and core could only promise the pass-through field's existence and
  * timing. The renderer is now first-party and its surface is governed by core's
  * own semver, which `coreRange` already negotiates — so that capability was

@@ -24,7 +24,7 @@
         "./vite": "./vite.js"
     },
     "scripts": {
-        "build": "tsc -p tsconfig.build.json",
+        "build": "pnpm clean && tsc -p tsconfig.build.json",
         "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.build.json --noEmit",
         "test": "vitest run --passWithNoTests",
         "test:coverage": "vitest run --coverage --passWithNoTests",

@@ -1,11 +1,6 @@
 /**
  * Seam 2 — the first tracer bullet through the first-party Canvas2D renderer.
  *
- * These specs select the renderer per test through the development-only flag
- * (an ordinary mutable global on the dev server), so the rest of the suite goes
- * on exercising the OpenSeadragon path in the same run — which is exactly the
- * side-by-side comparison the expand half of the epic exists for.
- *
  * Chromium only for this slice: everything asserted here is coordinate maths
  * and Pointer Events, and widening the matrix before the renderer has tiles
  * would buy noise rather than coverage.
@@ -74,9 +69,6 @@ test.describe('Canvas2D renderer — static image', () => {
     }) => {
         await openGridManifest(page);
 
-        // The OpenSeadragon host is not mounted at all — the flag selects one
-        // renderer, never both.
-        await expect(page.locator('.osd-root')).toHaveCount(0);
         await expect(page.locator(SURFACE)).toBeVisible();
 
         const view = await getView(page);
@@ -130,7 +122,7 @@ test.describe('Canvas2D renderer — static image', () => {
         // Read the transform IMMEDIATELY, with no settling wait: drag is
         // direct, so the full delta is already applied in the pointer-move
         // handler. A renderer that animates the pan target — as the
-        // OpenSeadragon path does — would still be part-way there.
+        // previous one did — would still be part-way there.
         const during = await getView(page);
         expect(during.centre.x).toBeCloseTo(
             before.centre.x - delta.x / before.scale,

@@ -8,11 +8,10 @@
  * issue viewport commands without knowing which renderer is mounted. Plugins
  * never see it — they see the `ViewerState` methods below it.
  *
- * Two hosts implement it while the development-only renderer flag keeps both
- * renderers in the repository: `CanvasHost.svelte` (first-party Canvas2D) and
- * `OSDViewer.svelte` (the OpenSeadragon path ticket 18 deletes). That is the
- * entire reason the seam is an interface rather than direct calls into the
- * Canvas2D host.
+ * One host implements it — `CanvasHost.svelte` — now that the previous renderer
+ * is gone. It stays an interface rather than direct calls into that host because
+ * it is also what the shipped renderer stand-in implements for plugin tests, and
+ * because it is the line viewer state is not allowed to reach across.
  *
  * **Coordinates.** Every point and box crossing this interface is in **canvas
  * space** — the IIIF Canvas's own `width`/`height` — or in **screen space**,

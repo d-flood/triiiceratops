@@ -16,7 +16,7 @@ export const PLUGIN_CONTEXT_KEY = Symbol(
 
 /** What `view.mount` passes to the Flyout through the context map. */
 export interface FlyoutContext {
-    /** The Activation-scoped filter state + OSD wiring (survives close→reopen). */
+    /** The Activation-scoped filter state + viewer wiring (survives close→reopen). */
     readonly controller: FilterController;
     /** The per-viewer locale service (active-locale-aware string resolution). */
     readonly locale: PluginLocaleService;
