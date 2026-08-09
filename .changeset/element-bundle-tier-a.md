@@ -5,10 +5,10 @@
 The self-contained custom element is now the smallest IIIF viewer measured, on
 raw bytes, gzip, and Brotli at the same time.
 
-`triiiceratops-element.iife.js` is **398,891 raw / 112,552 gzip / 92,985
+`triiiceratops-element.iife.js` is **398,892 raw / 112,556 gzip / 93,052
 Brotli**, down from 534,170 / 163,863 — 25.3% fewer raw bytes and 31.3% fewer
 gzip bytes. The ESM registration entry, `triiiceratops/element/register`, is
-417,501 / 118,452 / 98,484 and is now measured and published alongside it. For
+417,502 / 118,456 / 98,271 and is now measured and published alongside it. For
 context, TIFY — the nearest competitor — is 541,485 / 141,467 / 119,874. Nothing
 is code-split; both entries remain single self-contained files.
 

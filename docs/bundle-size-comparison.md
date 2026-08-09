@@ -19,7 +19,7 @@ Sorted by gzip, the metric integrators usually quote.
 
 | Viewer | Version | Browser assets counted | Raw | gzip | Brotli |
 | --- | --- | --- | ---: | ---: | ---: |
-| **Triiiceratops** | 1.0.0-rc.36 | self-contained element IIFE | **398,891** | **112,552** | **92,985** |
+| **Triiiceratops** | 1.0.0-rc.36 | self-contained element IIFE | **398,892** | **112,556** | **93,052** |
 | TIFY | 0.35.0 | `tify.js` + `tify.css` | 541,485 | 141,467 | 119,874 |
 | Diva.js | 7.4.0 | `diva.js` + OpenSeadragon 6.0.2 | 643,863 | 173,784 | 144,601 |
 | Canvas Panel | 1.0.74 | `bundle.js` + `bundle.css` | 604,070 | 180,757 | 140,948 |
@@ -69,8 +69,8 @@ self-contained. Earlier revisions of this document measured only the first.
 
 | Entry | File | Raw | gzip | Brotli |
 | --- | --- | ---: | ---: | ---: |
-| `triiiceratops/element` | `triiiceratops-element.iife.js` | 398,891 | 112,552 | 92,985 |
-| `triiiceratops/element/register` | `triiiceratops-element.js` | 417,501 | 118,452 | 98,484 |
+| `triiiceratops/element` | `triiiceratops-element.iife.js` | 398,892 | 112,556 | 93,052 |
+| `triiiceratops/element/register` | `triiiceratops-element.js` | 417,502 | 118,456 | 98,271 |
 
 The IIFE is what a `<script src>` tag loads and what the comparison table uses,
 because that is the official plain-HTML embed. The ESM entry is the same element
@@ -78,7 +78,7 @@ as a side-effect `import`, for consumers who reach it through a bundler; it is
 larger because ES output keeps module structure.
 
 A note for anyone comparing the two entries' history. The ESM artifact dropped
-from 671,046 to 417,501 raw bytes when the terser pass landed, against the
+from 671,046 to 417,502 raw bytes when the terser pass landed, against the
 IIFE's much smaller move, and that gap is not a measure of how much terser
 found. Vite preserves whitespace in ES library output — it disables esbuild's
 whitespace minification only, keeping identifier and syntax minification on —
@@ -105,13 +105,13 @@ pnpm size:check
 
 The `shrink-the-element-bundle` epic. Its starting point, from the previous
 revision of this document, was 534,170 raw / 163,863 gzip for the IIFE; it now
-measures 398,891 / 112,552, a reduction of 135,279 raw bytes (25.3%) and 51,311
+measures 398,892 / 112,556, a reduction of 135,278 raw bytes (25.3%) and 51,307
 gzip bytes (31.3%). The reductions, largest first:
 
 - **DOMPurify was retired** in favour of a first-party IIIF rich-text renderer,
   removing 29,546 raw bytes and leaving core's runtime `dependencies` empty.
 - **A terser pass was added** after esbuild in both element builds, worth a
-  further 7.9% of the IIFE's gzip bytes — 122,243 down to 112,552.
+  further 7.9% of the IIFE's gzip bytes — 122,243 down to 112,556.
 - **Component CSS is now minified.** `emitCss: false` puts scoped CSS into JS
   string literals, which bypassed the CSS pipeline entirely; 30,493 bytes of it
   were comments.
@@ -215,7 +215,7 @@ The AV-only chunks `3989` and `8341`, together 1.38 MiB raw, remained unloaded.
 
 Terser emits no source map for the element builds, so the composition below is
 attributed from the **esbuild-only** stage of the same pipeline — the 410,604
-raw bytes that terser then takes to 398,891. Proportions are what this table is
+raw bytes that terser then takes to 398,892. Proportions are what this table is
 for; the totals are 2.9% higher than what ships.
 
 A source-mapped reporting build attributed all but 25 of those bytes across 312
