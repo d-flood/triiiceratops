@@ -397,6 +397,90 @@ describe('annotationAdapter', () => {
             ).toEqual(['one', 'two']);
         });
 
+        /**
+         * IIIF defaults `TextualBody` to `text/plain`, so only a declared
+         * `format: "text/html"` may route a body through the rich-text path.
+         * Per ADR 0005 the format decision changes how a body renders, never
+         * whether it renders — every case below still yields a body.
+         */
+        describe('only a declared `text/html` format means rich text', () => {
+            it('treats a `TextualBody` with no format as plain text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-untyped-format',
+                        body: {
+                            type: 'TextualBody',
+                            value: 'Plain transcription',
+                        },
+                    }),
+                ).toEqual([
+                    {
+                        value: 'Plain transcription',
+                        isHtml: false,
+                        purpose: undefined,
+                        format: undefined,
+                    },
+                ]);
+            });
+
+            it('treats a declared `text/html` body as rich text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-html',
+                        body: {
+                            type: 'TextualBody',
+                            value: '<p>Hello</p>',
+                            format: 'text/html',
+                        },
+                    })[0],
+                ).toMatchObject({ value: '<p>Hello</p>', isHtml: true });
+            });
+
+            it('treats an unrelated format as plain text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-markdown',
+                        body: {
+                            type: 'TextualBody',
+                            value: '**not markup**',
+                            format: 'text/markdown',
+                        },
+                    })[0],
+                ).toMatchObject({ value: '**not markup**', isHtml: false });
+            });
+
+            it('leaves markup-looking characters in a plain-text body alone', () => {
+                const bodies = extractBody({
+                    id: 'anno-angle-brackets',
+                    body: {
+                        type: 'TextualBody',
+                        value: '<b>bold</b> & <i>italic</i>',
+                    },
+                });
+
+                // The panel renders a non-HTML body as a Svelte text
+                // expression, so the characters survive as characters.
+                expect(bodies).toHaveLength(1);
+                expect(bodies[0].value).toBe('<b>bold</b> & <i>italic</i>');
+                expect(bodies[0].isHtml).toBe(false);
+            });
+
+            it('keeps a v2 `resource` with no format as plain text', () => {
+                expect(
+                    extractBody({
+                        '@id': 'anno-v2-no-format',
+                        resource: {
+                            '@type': 'dctypes:Text',
+                            chars: '<script>alert(1)</script>',
+                        },
+                    })[0],
+                ).toMatchObject({
+                    value: '<script>alert(1)</script>',
+                    isHtml: false,
+                });
+            });
+        });
+
         it('falls back to the annotation label, then to a placeholder', () => {
             expect(
                 extractBody({ id: 'anno-label', label: 'Just a label' }),

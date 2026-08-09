@@ -1,0 +1,144 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/demo-manifests/e2e/rich-text-xss.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Rich text XSS fixture"]
+    },
+    "summary": {
+        "en": [
+            "legit-summary <b>bold</b> <a href=\"https://example.org/ok\">legit-link</a> <script>window.__xssFired.push('summary')</script><img src=\"x\" onerror=\"window.__xssFired.push('summary-img')\"><a href=\"javascript:window.__xssFired.push('summary-href')\">summary-trap</a><p style=\"position:fixed\">styled</p><style>body{display:none}</style>"
+        ]
+    },
+    "requiredStatement": {
+        "label": {
+            "en": ["Attribution"]
+        },
+        "value": {
+            "en": [
+                "legit-required <script>window.__xssFired.push('required')</script><img src=\"data:text/html,<script>window.__xssFired.push('required-data')</script>\">"
+            ]
+        }
+    },
+    "metadata": [
+        {
+            "label": {
+                "en": ["Manifest metadata"]
+            },
+            "value": {
+                "en": [
+                    "legit-manifest-metadata <script>window.__xssFired.push('manifest-metadata')</script><img src=\"y\" onerror=\"window.__xssFired.push('manifest-metadata-img')\">"
+                ]
+            }
+        }
+    ],
+    "items": [
+        {
+            "id": "/demo-manifests/e2e/rich-text/canvas/p1",
+            "type": "Canvas",
+            "height": 100,
+            "width": 100,
+            "label": {
+                "en": ["Page 1"]
+            },
+            "summary": {
+                "en": [
+                    "legit-canvas-summary <script>window.__xssFired.push('canvas-summary')</script>"
+                ]
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Canvas metadata"]
+                    },
+                    "value": {
+                        "en": [
+                            "legit-canvas-metadata <script>window.__xssFired.push('canvas-metadata')</script><a href=\"javascript:window.__xssFired.push('canvas-metadata-href')\">canvas-trap</a>"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/demo-manifests/e2e/rich-text/page/p1/1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/e2e/rich-text/annotation/p1-image",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f8fafc'/%3E%3Ccircle cx='50' cy='50' r='34' fill='%232563eb'/%3E%3C/svg%3E",
+                                "type": "Image",
+                                "format": "image/svg+xml",
+                                "height": 100,
+                                "width": 100
+                            },
+                            "target": "/demo-manifests/e2e/rich-text/canvas/p1"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/demo-manifests/e2e/rich-text/page/p1/comments",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/e2e/rich-text/annotation/html-body",
+                            "type": "Annotation",
+                            "motivation": "commenting",
+                            "body": {
+                                "type": "TextualBody",
+                                "format": "text/html",
+                                "value": "legit-annotation <b>bold</b> <script>window.__xssFired.push('annotation')</script><img src=\"z\" onerror=\"window.__xssFired.push('annotation-img')\">"
+                            },
+                            "target": "/demo-manifests/e2e/rich-text/canvas/p1#xywh=0,0,50,50"
+                        },
+                        {
+                            "id": "/demo-manifests/e2e/rich-text/annotation/linking-body",
+                            "type": "Annotation",
+                            "motivation": "linking",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "linking",
+                                "value": "javascript:window.__xssLinking('linking')"
+                            },
+                            "target": "/demo-manifests/e2e/rich-text/canvas/p1#xywh=50,50,50,50"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/demo-manifests/e2e/rich-text/canvas/p2",
+            "type": "Canvas",
+            "height": 100,
+            "width": 100,
+            "label": {
+                "en": ["Page 2"]
+            },
+            "items": [
+                {
+                    "id": "/demo-manifests/e2e/rich-text/page/p2/1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/e2e/rich-text/annotation/p2-image",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f8fafc'/%3E%3Ccircle cx='50' cy='50' r='34' fill='%232563eb'/%3E%3C/svg%3E",
+                                "type": "Image",
+                                "format": "image/svg+xml",
+                                "height": 100,
+                                "width": 100
+                            },
+                            "target": "/demo-manifests/e2e/rich-text/canvas/p2"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

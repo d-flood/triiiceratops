@@ -83,12 +83,12 @@ describe('MetadataPanel manifest scalars, v2 and v3', () => {
     }
 
     /**
-     * Summary and attribution go through `SanitizedHtml`, which renders an
-     * empty node under jsdom -- so their text is not assertable here. Their
-     * containers sit behind `{#if summary}` / `{#if attribution}`, so the
-     * element existing proves the derivation resolved to a non-empty string,
-     * which is exactly the v2-vs-v3 read under test. A regression that read
-     * only the v3 spelling would resolve `''` and render no element at all.
+     * Summary and attribution go through `SanitizedHtml`, which fills its host
+     * element from an effect rather than from the template. Their containers sit
+     * behind `{#if summary}` / `{#if attribution}`, so the element existing
+     * proves the derivation resolved to a non-empty string, which is exactly the
+     * v2-vs-v3 read under test. A regression that read only the v3 spelling
+     * would resolve `''` and render no element at all.
      */
     const rendered = (selector: string) =>
         document.querySelector(selector) !== null;

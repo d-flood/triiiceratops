@@ -2997,8 +2997,6 @@ export declare class ViewerState {
      * Total: every access is guarded, so no manifest shape makes this throw.
      */
     private discoverSearchService;
-    /** Helper to unescape HTML-encoded mark tags */
-    private decodeMark;
     /**
      * The display label for a canvas in a search-result group.
      *
@@ -4016,10 +4014,23 @@ export interface RequestConfig {
 // FILE: dist/types/config/search.d.ts
 // ======================================================================
 import type { SearchConfig } from './panels';
+/**
+ * One search result inside a {@link SearchResultGroup}.
+ *
+ * `before`, `match` and `after` are **plain text**, not markup. The viewer
+ * renders them as text nodes, so a provider that returns HTML sees its tags as
+ * visible characters rather than elements. The one exception is `<mark>`:
+ * highlight it with `<mark>…</mark>` — literal or entity-encoded as
+ * `&lt;mark&gt;…&lt;/mark&gt;` — and the viewer renders a real `<mark>` element
+ * around the run. Nothing else is interpreted.
+ */
 export interface SearchHit {
     type: 'hit' | 'resource';
+    /** Plain text preceding the match. `<mark>` delimiters are honoured. */
     before?: string;
+    /** The matched text, as plain text. `<mark>` delimiters are honoured. */
     match: string;
+    /** Plain text following the match. `<mark>` delimiters are honoured. */
     after?: string;
     bounds?: number[] | null;
     allBounds?: number[][];

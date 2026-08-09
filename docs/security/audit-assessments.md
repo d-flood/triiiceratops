@@ -17,11 +17,17 @@ cleanup, per the SPEC "Dependency, Type, And Generated-Code Policy":
 **Current status:** the audited production set is the **publishable** workspace
 packages — `scripts/audit-prod.mjs` skips `private: true` manifests, so the
 paused `@triiiceratops/plugin-annotation-editor` is not part of it. Across that
-set the gate reports **0 critical / 0 high / 1 moderate / 0 low**: DOMPurify
-`GHSA-55q2-fjhq-7xh7` (vulnerable `<=3.4.12`, patched `>=3.4.13`), which landed
-upstream after the assessments below were written and reaches `packages/core`
-through its direct `dompurify` dependency. It has **no applicability assessment
-yet** and no decision has been taken; that is the next action on this document.
+set the gate reports **0 critical / 0 high / 0 moderate / 0 low**, because
+`packages/core` now declares **no runtime dependencies at all**.
+
+The one finding this document previously carried open — DOMPurify
+`GHSA-55q2-fjhq-7xh7` (vulnerable `<=3.4.12`, patched `>=3.4.13`) — needs no
+applicability assessment: `dompurify` was **removed** rather than bumped. IIIF
+permits a narrow enough HTML subset that `utils/sanitizeHtml`'s
+`renderIiifRichText` parses untrusted markup inertly and rebuilds it from an
+explicit allowlist, so there is no general-purpose sanitizer in the graph to
+have advisories about. The DOMPurify assessments below are retained as the
+historical record of a dependency the viewer no longer has.
 
 A raw workspace-wide `pnpm audit --prod`, which does not skip private manifests,
 additionally reports one HIGH — `nanoid` `GHSA-28wg-ghj8-5hjv`, reachable only
@@ -47,7 +53,7 @@ entirely and replaced with build-time SVG codegen from the dependency-free
 
 | Package     | Was      | Now (resolved) | Rationale |
 | ----------- | -------- | -------------- | --------- |
-| `dompurify` | `^3.3.3` | `^3.4.11` (3.4.12) | Clears all DOMPurify advisories below (see assessment). |
+| `dompurify` | `^3.3.3` | *removed* | Bumped to `^3.4.11` (3.4.12) to clear the advisories below, then dropped entirely in favour of the first-party IIIF rich-text renderer. |
 
 ### Transitive fixes via root `pnpm.overrides`
 

@@ -5,6 +5,7 @@
     import { getMessages } from '../state/i18n.svelte';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
+    import { isSafeUrl } from '../utils/sanitizeHtml';
     import { Button, Badge } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -226,28 +227,48 @@
                                             {body.value}
                                         </Badge>
                                     {:else if body.purpose === 'linking'}
-                                        <a
-                                            href={body.value}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="link"
-                                            onclick={(e) => e.stopPropagation()}
-                                        >
-                                            <!-- Link Icon -->
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                width="12"
-                                                height="12"
-                                                fill="currentColor"
-                                                viewBox="0 0 256 256"
-                                                ><path
-                                                    d="M136.37,187.53a12,12,0,0,1,0,17l-5.94,5.94a60,60,0,0,1-84.88-84.88l24.12-24.12A60,60,0,0,1,152.06,99,12,12,0,1,1,135,116a36,36,0,0,0-50.93,1.57L60,141.66a36,36,0,0,0,50.93,50.93l5.94-5.94A12,12,0,0,1,136.37,187.53Zm81.51-149.41a60,60,0,0,0-84.88,0l-5.94,5.94a12,12,0,0,0,17,17l5.94-5.94a36,36,0,0,1,50.93,50.93l-24.11,24.12A36,36,0,0,1,121,140a12,12,0,1,0-17.08,17,60,60,0,0,0,82.39,2.46l24.12-24.12A60,60,0,0,0,217.88,38.12Z"
-                                                ></path></svg
+                                        <!--
+                                            The URL is the manifest's, so it gets
+                                            the same scheme check an `<a>` rebuilt
+                                            by the rich-text renderer gets: a
+                                            `javascript:` body would otherwise be
+                                            a live sink. A refused URL keeps its
+                                            text but loses the anchor as well as
+                                            the link: an `<a>` with no `href` is
+                                            neither focusable nor activatable, so
+                                            leaving one behind would offer a
+                                            keyboard user a link that is not
+                                            there.
+                                        -->
+                                        {#if isSafeUrl(body.value)}
+                                            <a
+                                                href={body.value}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="link"
+                                                onclick={(e) =>
+                                                    e.stopPropagation()}
                                             >
+                                                <!-- Link Icon -->
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="12"
+                                                    height="12"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 256 256"
+                                                    ><path
+                                                        d="M136.37,187.53a12,12,0,0,1,0,17l-5.94,5.94a60,60,0,0,1-84.88-84.88l24.12-24.12A60,60,0,0,1,152.06,99,12,12,0,1,1,135,116a36,36,0,0,0-50.93,1.57L60,141.66a36,36,0,0,0,50.93,50.93l5.94-5.94A12,12,0,0,1,136.37,187.53Zm81.51-149.41a60,60,0,0,0-84.88,0l-5.94,5.94a12,12,0,0,0,17,17l5.94-5.94a36,36,0,0,1,50.93,50.93l-24.11,24.12A36,36,0,0,1,121,140a12,12,0,1,0-17.08,17,60,60,0,0,0,82.39,2.46l24.12-24.12A60,60,0,0,0,217.88,38.12Z"
+                                                    ></path></svg
+                                                >
+                                                <span class="link-text"
+                                                    >{body.value}</span
+                                                >
+                                            </a>
+                                        {:else}
                                             <span class="link-text"
                                                 >{body.value}</span
                                             >
-                                        </a>
+                                        {/if}
                                     {:else if body.isHtml}
                                         <SanitizedHtml html={body.value} />
                                     {:else}
