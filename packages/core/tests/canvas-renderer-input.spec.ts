@@ -29,7 +29,17 @@ import {
     openGridManifest,
     setView,
 } from './helpers/numberedGrid';
-import { MAX_ZOOM_FACTOR } from '../src/lib/renderer/rendererDefaults';
+import {
+    MAX_ZOOM_FACTOR,
+    MIN_ZOOM_FRACTION,
+} from '../src/lib/renderer/rendererDefaults';
+
+/**
+ * The static grid fixture's first canvas, as its manifest declares it. The zoom
+ * floor is a statement about the canvas against the viewport, so the assertions
+ * below need both — and this is the manifest's half.
+ */
+const GRID_CANVAS = { width: 1200, height: 900 };
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 
@@ -487,7 +497,9 @@ test.describe('Canvas2D renderer — gestures', () => {
         expect(Math.abs(nowAt - local.x)).toBeLessThanOrEqual(0.001);
     });
 
-    test('zooming out stops at the derived floor', async ({ page }) => {
+    test('zooming out stops with the canvas at half the viewport', async ({
+        page,
+    }) => {
         await openGridManifest(page);
 
         const zoomOut = () =>
@@ -515,10 +527,26 @@ test.describe('Canvas2D renderer — gestures', () => {
         await settled(page);
         expect((await getView(page)).scale).toBeCloseTo(floor, 10);
 
-        // The floor is the PLANNER's derived one — the zoom at which a canvas
-        // reaches the box threshold — not a tuned fraction of home zoom, so it
-        // is well below the whole-world fit rather than at it. The exact value
-        // is the planner's to choose and is not asserted here.
+        // THE RULE, measured on the picture rather than on the number: at the
+        // floor the canvas covers half the viewport on the axis that constrains
+        // it, and the WHOLE canvas is inside the viewport on both.
+        const view = await getView(page);
+        const projected = {
+            width: GRID_CANVAS.width * view.scale,
+            height: GRID_CANVAS.height * view.scale,
+        };
+        const covered = Math.max(
+            projected.width / view.width,
+            projected.height / view.height,
+        );
+        expect(covered).toBeCloseTo(MIN_ZOOM_FRACTION, 3);
+        expect(projected.width).toBeLessThanOrEqual(view.width + 1);
+        expect(projected.height).toBeLessThanOrEqual(view.height + 1);
+
+        // …and fitting the canvas is still LEGAL from down here, which is the
+        // guarantee the floor is capped at the fit to preserve: a floor above the
+        // fit would make the home view itself illegal, and the clamp would drag a
+        // reader who pressed `0` straight back in.
         await page.locator(SURFACE).evaluate((element) =>
             (
                 element as HTMLCanvasElement & {
@@ -527,7 +555,63 @@ test.describe('Canvas2D renderer — gestures', () => {
             ).__triiiceratopsRenderer!.fit(),
         );
         await settled(page);
-        expect(floor).toBeLessThan((await getView(page)).scale);
+        const fitted = await getView(page);
+        expect(fitted.scale).toBeCloseTo(floor / MIN_ZOOM_FRACTION, 3);
+    });
+
+    test('lets a whole canvas fit however small the viewport is', async ({
+        page,
+    }) => {
+        // The requirement a floor expressed in absolute scale, or against the
+        // manifest's dimensions alone, gets wrong: someone narrows their window
+        // or opens the viewer on a phone, the fit scale drops with it, and a
+        // stored floor is suddenly ABOVE the scale that shows a whole page.
+        // Measured from the live viewport on every clamp, so it moves with it.
+        await openGridManifest(page);
+
+        for (const size of [
+            { width: 1280, height: 900 },
+            { width: 700, height: 500 },
+            { width: 380, height: 640 },
+        ]) {
+            await page.setViewportSize(size);
+            await settled(page);
+
+            // All the way out, from wherever the resize left it.
+            for (let i = 0; i < 12; i += 1) {
+                await page.locator(SURFACE).evaluate(
+                    (element, anchor) =>
+                        (
+                            element as HTMLCanvasElement & {
+                                __triiiceratopsRenderer?: RendererHandle;
+                            }
+                        ).__triiiceratopsRenderer!.zoomAt(anchor, 0.25),
+                    { x: 0, y: 0 },
+                );
+            }
+            await settled(page);
+
+            const view = await getView(page);
+            const label = `${size.width}x${size.height}`;
+            // The whole canvas is inside the viewport…
+            expect(
+                GRID_CANVAS.width * view.scale,
+                `canvas overflowed the ${label} viewport horizontally`,
+            ).toBeLessThanOrEqual(view.width + 1);
+            expect(
+                GRID_CANVAS.height * view.scale,
+                `canvas overflowed the ${label} viewport vertically`,
+            ).toBeLessThanOrEqual(view.height + 1);
+            // …and it has not shrunk past half of it, so the floor is doing its
+            // job at every one of these sizes rather than only the first.
+            expect(
+                Math.max(
+                    (GRID_CANVAS.width * view.scale) / view.width,
+                    (GRID_CANVAS.height * view.scale) / view.height,
+                ),
+                `canvas was under half the ${label} viewport`,
+            ).toBeCloseTo(MIN_ZOOM_FRACTION, 3);
+        }
     });
 
     // `zoomTo` documents its limits as inescapable. `fitBounds` is a sibling

@@ -62,9 +62,10 @@ function positiveInteger(value: unknown): number | null {
  * It deliberately does **not** decide the tile quality parameter. A 2.0 document
  * and a 2.1 one are indistinguishable — same `@context`, same profile URIs — and
  * 2.1 deprecated `native` in favour of `default`, so no answer this function can
- * give would justify asking for `native`. What the version does govern is the
- * whole-image request the size ladder and the thumbnail ladder build, where
- * version 2 spells the size `full` and version 3 spells it `max`.
+ * give would justify asking for `native`. What the version does govern is
+ * request size syntax: static version 3 tiles use canonical `w,h`, and the size
+ * ladder and thumbnail ladder spell a whole-image request `full` in version 2
+ * and `max` in version 3.
  */
 function parseVersion(json: Record<string, unknown>): 2 | 3 {
     const context = firstString(json['@context']) ?? '';
@@ -101,6 +102,9 @@ export function parseImageService(json: unknown): ImageServiceFacts | null {
         height,
         version: parseVersion(document),
     };
+
+    const requestBaseUri = firstString(document.id ?? document['@id']);
+    if (requestBaseUri) facts.requestBaseUri = requestBaseUri;
 
     // The only thing read off `profile`. Everything else the renderer decides
     // from what the service ADVERTISES, which is right even when a profile is

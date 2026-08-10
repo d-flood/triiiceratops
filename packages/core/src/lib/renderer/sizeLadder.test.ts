@@ -61,6 +61,18 @@ describe('isLevel0Profile', () => {
 });
 
 describe('buildSizeLadder', () => {
+    it('uses the service id declared by info.json', () => {
+        const signed = 'https://ex.org/signed/img';
+        const ladder = buildSizeLadder('https://ex.org/img', {
+            ...SIZES_ONLY,
+            requestBaseUri: signed,
+        })!;
+
+        expect(rungUrl(ladder, ladder.rungs[0])).toBe(
+            `${signed}/full/500,/0/default.jpg`,
+        );
+    });
+
     it('orders the advertised sizes smallest first and scales each to the image', () => {
         const ladder = buildSizeLadder('https://ex.org/img', {
             ...SIZES_ONLY,

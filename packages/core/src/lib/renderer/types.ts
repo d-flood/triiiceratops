@@ -97,6 +97,14 @@ export interface Viewport {
  * layout).
  */
 export interface ImageServiceFacts {
+    /**
+     * The image-service base URI declared by `info.json`.
+     *
+     * This may differ from the URI that fetched the document. Authentication
+     * gateways commonly return a signed base URI, and every image request must
+     * use that returned identity while metadata remains cached.
+     */
+    requestBaseUri?: string;
     width: number;
     height: number;
     /** Advertised whole-image sizes, if the service declares any. */

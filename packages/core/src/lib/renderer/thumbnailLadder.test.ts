@@ -196,6 +196,21 @@ describe('resolveThumbnail', () => {
     });
 
     describe('rung 3 — asking info.json, and only where it is needed', () => {
+        it('uses the service id declared by info.json', () => {
+            const signed = 'https://example.test/signed/abc';
+
+            expect(
+                resolve({
+                    facts: {
+                        requestBaseUri: signed,
+                        width: 4000,
+                        height: 3000,
+                        version: 3,
+                    },
+                }),
+            ).toMatchObject({ url: `${signed}/full/256,/0/default.jpg` });
+        });
+
         it('asks for metadata when the profile is level0', () => {
             expect(resolve({ source: service('level0') })).toEqual({
                 kind: 'metadata',

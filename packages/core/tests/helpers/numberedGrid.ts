@@ -393,6 +393,35 @@ export async function nextPaint(page: Page): Promise<void> {
 }
 
 /**
+ * How many device pixels on the surface are FULLY OPAQUE.
+ *
+ * The coarsest possible "is anything really on screen?" question, and the one
+ * that survives at a scale where a folio is a few pixels across and
+ * {@link findFeature} has no feature left to find. Core's own page-placeholder
+ * layer paints translucent ink and the surface is cleared to transparent, so an
+ * alpha of exactly 255 can only have come from a decoded image the scheduler
+ * fetched and the painter drew.
+ */
+export async function countOpaqueSurfacePixels(page: Page): Promise<number> {
+    return page.locator(SURFACE).evaluate((element) => {
+        const context = (element as HTMLCanvasElement).getContext('2d');
+        if (!context) throw new Error('no 2d context on the surface');
+        const { data } = context.getImageData(
+            0,
+            0,
+            (element as HTMLCanvasElement).width,
+            (element as HTMLCanvasElement).height,
+        );
+
+        let opaque = 0;
+        for (let index = 3; index < data.length; index += 4) {
+            if (data[index] === 255) opaque += 1;
+        }
+        return opaque;
+    });
+}
+
+/**
  * Where a named feature actually is on screen, in CSS pixels relative to the
  * canvas element — or `null` if none of its pixels are on screen.
  */

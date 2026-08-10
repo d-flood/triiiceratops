@@ -69,11 +69,9 @@ export interface TilePyramid {
     /** Ordered coarsest first. Never empty. */
     levels: PyramidLevel[];
     /**
-     * The service's Image API major version. Tile URLs are spelled identically
-     * in 2 and 3 — the width-only size form and `default` quality are valid in
-     * both — but the whole-image request the size-ladder source and the
-     * thumbnail ladder build is not (`full` in version 2, `max` in version 3),
-     * so the version is carried on the pyramid rather than discarded here.
+     * The service's Image API major version. It governs canonical static
+     * level0 tile sizes (`w,h` in version 3), and whole-image requests outside
+     * the pyramid (`full` in version 2, `max` in version 3).
      */
     version: 2 | 3;
     format: string;
@@ -216,7 +214,9 @@ export function buildPyramid(
     );
 
     return {
-        serviceId,
+        // `info.json` owns the base URI for image requests. It can differ from
+        // the URI that fetched the document when an auth gateway signs access.
+        serviceId: facts.requestBaseUri ?? serviceId,
         width: facts.width,
         height: facts.height,
         tileSize,
@@ -277,15 +277,17 @@ function snapWholeImageWidth(pyramid: TilePyramid, width: number): number {
 /**
  * The IIIF Image API request URL for one tile.
  *
- * The size parameter is the width-only form (`w,`), which is required from
- * level 1 upwards — the `w,h` form is a level 2 feature, and nothing here needs
- * it since the aspect ratio of a clipped edge tile is preserved either way.
+ * Dynamic services use the width-only form (`w,`), which is available from
+ * level 1 upwards without requiring the level 2 `w,h` feature. A version 3
+ * level0 tile tree instead receives the canonical two-dimensional size from the
+ * specification's tile calculation: the exact static file it advertised.
  *
- * A **whole-image** request from a level0 service is snapped to the nearest
- * width the service advertises, because that service holds files rather than an
- * image processor; see {@link TilePyramid.wholeImageWidths}. Nothing else is
- * snapped: a partial-region request has no `sizes[]` entry to snap to, and a
- * level 1/2 service can answer any width exactly.
+ * A version 3 level0 tile tree receives the explicit region even when one tile
+ * covers the image. Those static trees are required to hold the regions and
+ * two-dimensional sizes implied by `tiles[]`; they need not also hold an
+ * equivalent non-canonical `full/w,` file. Version 2 keeps the width-snapping
+ * behavior for whole-image level0 requests; see
+ * {@link TilePyramid.wholeImageWidths}.
  */
 export function tileUrl(
     pyramid: TilePyramid,
@@ -301,12 +303,20 @@ export function tileUrl(
         region.width === pyramid.width &&
         region.height === pyramid.height;
 
-    const regionParameter = isWholeImage
-        ? 'full'
-        : `${region.x},${region.y},${region.width},${region.height}`;
+    const numericRegion = `${region.x},${region.y},${region.width},${region.height}`;
+    const isStaticV3Tiles =
+        pyramid.version === 3 && pyramid.wholeImageWidths !== null;
+    const regionParameter =
+        isWholeImage && !isStaticV3Tiles ? 'full' : numericRegion;
 
-    const exact = Math.max(1, Math.ceil(region.width / level.scaleFactor));
-    const size = isWholeImage ? snapWholeImageWidth(pyramid, exact) : exact;
+    const exactWidth = Math.max(1, Math.ceil(region.width / level.scaleFactor));
+    const exactHeight = Math.max(
+        1,
+        Math.ceil(region.height / level.scaleFactor),
+    );
+    const size = isStaticV3Tiles
+        ? `${exactWidth},${exactHeight}`
+        : `${isWholeImage ? snapWholeImageWidth(pyramid, exactWidth) : exactWidth},`;
 
     // `default`, never `native`. Version 2.1 deprecated `native` and requires
     // `default` from compliance level 1 upwards, and a 2.0 document is
@@ -314,7 +324,7 @@ export function tileUrl(
     // `parseVersion` cannot tell them apart and asking for `native` on a
     // strictly-2.1 endpoint 404s every tile in the pyramid. `native` belongs to
     // version 1 only, which is not a source kind this renderer supports.
-    return `${pyramid.serviceId}/${regionParameter}/${size},/0/default.${pyramid.format}`;
+    return `${pyramid.serviceId}/${regionParameter}/${size}/0/default.${pyramid.format}`;
 }
 
 /** Where a tile lands in **canvas space**, given its canvas's layout rect. */

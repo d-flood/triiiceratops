@@ -180,6 +180,42 @@ export const WHEEL_PAGE_PIXELS = WHEEL_LINE_PIXELS * 24;
 export const MAX_ZOOM_FACTOR = 128;
 
 /**
+ * How small a canvas may get, as a fraction of the scale at which it exactly
+ * **fits** the viewport: **half**, so the reader can zoom out until the canvas
+ * covers half the viewport and no further.
+ *
+ * Two properties, and the pairing is the point.
+ *
+ * **Seeing a whole canvas is always reachable.** The floor is a fraction of the
+ * fit, so it is below the fit by construction, and `viewportMath.zoomRange` caps
+ * the renderer's own threshold at the fit as well. Resize the window, rotate a
+ * phone, open the viewer in a sidebar — the fit scale is recomputed from the live
+ * viewport, so the floor moves with it and the home view never falls outside the
+ * legal range. A floor expressed in absolute scale, or against the manifest's
+ * dimensions alone, would fail exactly here.
+ *
+ * **Zooming out stops while there is still a picture.** The alternative is
+ * `planScene`'s derived `minZoom` — the scale at which the median canvas reaches
+ * `boxThreshold` — which is the point past which there is nothing left to draw:
+ * on an ordinary manuscript a page about two dozen pixels across, still painted,
+ * still correct, and indistinguishable from an empty viewer.
+ *
+ * Half is stated per axis — half the viewport's width, or half its height,
+ * whichever is the *less* restrictive — and that is one number rather than two
+ * because the fit has already taken the constraining axis. `zoomRange` carries
+ * the arithmetic.
+ *
+ * The cost is the zoomed-out overview of a long manifest: at half the fit, a
+ * continuous world shows about two folios across rather than the ten an eighth
+ * would. Chosen deliberately — an overview of placeholder rectangles is not worth
+ * a floor that reads as a broken viewer.
+ *
+ * A fixed number in this phase. Author-facing `minZoom`/`maxZoom` settings are
+ * the intended home for it, and this is the default they will supply.
+ */
+export const MIN_ZOOM_FRACTION = 1 / 2;
+
+/**
  * Time constant, in seconds, for **discrete and programmatic** motion:
  * double-tap zoom, toolbar zoom, fit, canvas navigation.
  *

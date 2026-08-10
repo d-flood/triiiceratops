@@ -184,8 +184,11 @@ test.describe('Canvas2D renderer — level0 ladder on a native-only version 2 tr
         //
         // Zoomed out past the box tier first, which releases the whole ladder —
         // otherwise the rungs are still resident and nothing is re-requested.
+        // Down to ONE image rather than to none: the tier floor keeps the canvas
+        // the reader is centred on rendering at any scale, so what is left is a
+        // single thumbnail and none of the ladder.
         //
-        // The byte budget goes to zero for the same reason: since ticket 08 a
+        // The byte budget goes to zero for a related reason: since ticket 08 a
         // rung dropped from the required set moves to the **opportunistic
         // cache** rather than being closed, and a cached rung comes back with
         // no request at all — which is the right behaviour and the wrong
@@ -197,11 +200,11 @@ test.describe('Canvas2D renderer — level0 ladder on a native-only version 2 tr
             .poll(
                 async () => {
                     await nextPaint(page);
-                    return (await getStats(page)).decodedBytes;
+                    return (await getStats(page)).residentTileCount;
                 },
                 { timeout: 20_000 },
             )
-            .toBe(0);
+            .toBe(1);
 
         traffic.answered.length = 0;
         traffic.asked.length = 0;
@@ -315,9 +318,14 @@ test.describe('Canvas2D renderer — level0 size-ladder source', () => {
             )
             .toBeGreaterThan(1);
 
+        const zoomedIn = await getStats(page);
+
         // Far enough out that the canvas leaves the pyramid tier entirely. The
         // per-rung rules nest inside the canvas tier exactly as the per-level
-        // ones do, so everything — including the coarsest rung — is released.
+        // ones do, so every RUNG — including the coarsest — is released, and the
+        // canvas holds one thumbnail in their place. Not nothing: the tier floor
+        // keeps the canvas the reader is centred on rendering at any scale, so
+        // "released" here means one small image rather than a whole ladder.
         //
         // With the byte budget at zero, because since ticket 08 "released" has
         // two stages: a rung dropped from the required set moves to the
@@ -330,10 +338,16 @@ test.describe('Canvas2D renderer — level0 size-ladder source', () => {
             .poll(
                 async () => {
                     await nextPaint(page);
-                    return (await getStats(page)).decodedBytes;
+                    return (await getStats(page)).residentTileCount;
                 },
                 { timeout: 20_000 },
             )
-            .toBe(0);
+            .toBe(1);
+
+        const zoomedOut = await getStats(page);
+        expect(zoomedOut.decodedBytes).toBeGreaterThan(0);
+        // An order of magnitude down, which a ladder that kept even its coarsest
+        // rung beside the thumbnail could not be.
+        expect(zoomedOut.decodedBytes).toBeLessThan(zoomedIn.decodedBytes / 10);
     });
 });

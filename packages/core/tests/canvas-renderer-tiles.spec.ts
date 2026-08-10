@@ -44,6 +44,7 @@ const SURFACE = '[data-testid="canvas-renderer-surface"]';
  */
 const TILE_PATTERN = /\/iiif-fixture\/[^/]+\/[^/]+\/[^/]+\/0\/[^/]+\.png$/;
 const INFO_PATTERN = /\/iiif-fixture\/[^/]+\/info\.json$/;
+const NO_CORS_SERVICE = 'http://localhost:5175/iiif-fixture/no-cors';
 
 test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -100,6 +101,94 @@ async function alphaAt(page: Page, x: number, y: number): Promise<number> {
 }
 
 test.describe('Canvas2D renderer — tiled deep zoom', () => {
+    test('renders tiles from a server that does not grant CORS', async ({
+        page,
+    }) => {
+        const requestTypes: string[] = [];
+        page.on('request', (request) => {
+            if (request.url().startsWith(`${NO_CORS_SERVICE}/`)) {
+                requestTypes.push(request.resourceType());
+            }
+        });
+        await page.route(
+            'http://127.0.0.1:5175/no-cors-manifest.json',
+            (route) =>
+                route.fulfill({
+                    json: {
+                        id: 'http://127.0.0.1:5175/no-cors-manifest.json',
+                        type: 'Manifest',
+                        items: [
+                            {
+                                id: 'http://127.0.0.1:5175/no-cors/canvas',
+                                type: 'Canvas',
+                                width: 1200,
+                                height: 900,
+                                items: [
+                                    {
+                                        id: 'http://127.0.0.1:5175/no-cors/page',
+                                        type: 'AnnotationPage',
+                                        items: [
+                                            {
+                                                id: 'http://127.0.0.1:5175/no-cors/annotation',
+                                                type: 'Annotation',
+                                                motivation: 'painting',
+                                                target: 'http://127.0.0.1:5175/no-cors/canvas',
+                                                body: {
+                                                    id: `${NO_CORS_SERVICE}/full/max/0/default.png`,
+                                                    type: 'Image',
+                                                    width: 1200,
+                                                    height: 900,
+                                                    service: [
+                                                        {
+                                                            id: NO_CORS_SERVICE,
+                                                            type: 'ImageService3',
+                                                            profile: 'level2',
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                }),
+        );
+
+        await page.goto('/?manifest=/no-cors-manifest.json', {
+            waitUntil: 'domcontentloaded',
+        });
+        await page.locator(SURFACE).waitFor({ state: 'visible' });
+
+        await expect
+            .poll(async () => (await getStats(page)).residentTileCount, {
+                timeout: 20_000,
+            })
+            .toBeGreaterThan(0);
+        expect(requestTypes).toContain('image');
+
+        // The fallback restores the old renderer's display compatibility, and
+        // the browser enforces the same security boundary it did there: once a
+        // no-CORS image is drawn, pixel readback from that surface is forbidden.
+        await expect
+            .poll(() =>
+                page.locator(SURFACE).evaluate((element) => {
+                    const canvas = element as HTMLCanvasElement;
+                    try {
+                        canvas.getContext('2d')!.getImageData(0, 0, 1, 1);
+                        return false;
+                    } catch (error) {
+                        return (
+                            error instanceof DOMException &&
+                            error.name === 'SecurityError'
+                        );
+                    }
+                }),
+            )
+            .toBe(true);
+    });
+
     test('opening a single-canvas view issues exactly one info.json request', async ({
         page,
     }) => {

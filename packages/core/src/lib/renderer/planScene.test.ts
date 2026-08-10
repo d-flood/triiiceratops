@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { toPlannerCanvases } from './canvasDescriptors';
+import { parseImageService } from './imageService';
 import { planScene, planViewportLimits } from './planScene';
 import { tileKey } from './tilePyramid';
 import type {
@@ -24,6 +25,7 @@ import type {
     PlannerBudgets,
     PlannerCanvas,
     ViewingDirection,
+    TileKey,
     Viewport,
 } from './types';
 
@@ -132,6 +134,37 @@ function plan(
     });
 }
 
+/**
+ * A plan in which `c0` and `c4` are genuinely in the **box tier**: five folios
+ * 1000 units wide, framed on the middle one, at a scale far below
+ * `boxThreshold`.
+ *
+ * Five rather than one, because the size test is not the last word. The TIER
+ * FLOOR guarantees the canvas nearest the viewport centre and its two neighbours
+ * never fall below the thumbnail tier however far out the reader has zoomed — so
+ * a world small enough to be covered by that floor cannot demonstrate the box
+ * tier at all. Framed on `c2`, the floor is `c1`/`c2`/`c3` and the outer two are
+ * what the box tier's assertions are about.
+ */
+function belowBoxThreshold(
+    make: (id: string) => PlannerCanvas,
+    overrides: Partial<Parameters<typeof planScene>[0]> = {},
+) {
+    return plan(
+        Array.from({ length: 5 }, (_, index) => make(`c${index}`)),
+        {
+            mode: 'continuous',
+            viewport: viewport({
+                // The middle folio's centre: two pitches — canvas width plus the
+                // resolved gap — plus half a canvas.
+                centre: { x: 2 * (1000 + GAP_FRACTION * 1000) + 500, y: 375 },
+                scale: 0.02,
+            }),
+            ...overrides,
+        },
+    );
+}
+
 describe('planScene', () => {
     it('runs with no DOM globals present', () => {
         // Guards the environment this file relies on: if the suite ever gained
@@ -176,11 +209,13 @@ describe('planScene', () => {
 
     it('assigns the box tier below the box threshold', () => {
         // effectiveSize ≈ 866 * 0.02 ≈ 17: below 40.
-        const result = plan([staticCanvas('c1', 1000, 750)], {
-            viewport: viewport({ scale: 0.02 }),
-        });
+        //
+        // Asserted on a canvas the reader is not standing on — see
+        // `belowBoxThreshold` for why a one-canvas world cannot show this.
+        const result = belowBoxThreshold((id) => staticCanvas(id, 1000, 750));
 
-        expect(result.tiers).toEqual({ c1: 'box' });
+        expect(result.tiers.c0).toBe('box');
+        expect(result.tiers.c4).toBe('box');
     });
 
     it('decides the tier identically for a portrait and a landscape canvas of equal projected area', () => {
@@ -233,11 +268,9 @@ describe('planScene', () => {
         // no second `evictable` list beside it saying the same thing — it
         // named every box-tier canvas, which on an 800-folio manifest is ~795
         // strings a frame for a reader that never existed.
-        const result = plan([staticCanvas('c1', 1000, 750)], {
-            viewport: viewport({ scale: 0.02 }),
-        });
+        const result = belowBoxThreshold((id) => staticCanvas(id, 1000, 750));
 
-        expect(result.tiers.c1).toBe('box');
+        expect(result.tiers.c0).toBe('box');
     });
 
     it('never lays out NaN, whatever the manifest declares', () => {
@@ -788,20 +821,38 @@ describe('planScene — tiled sources', () => {
         expect(result.metadataRequests).toEqual([]);
     });
 
+    it('uses the service id returned by info.json for tile requests', () => {
+        const signed = 'https://images.test/signed/abc';
+        const facts = parseImageService({
+            ...FACTS,
+            id: signed,
+            type: 'ImageService3',
+        })!;
+        const result = plan([serviceCanvas('c1', 1000, 1000)], {
+            viewport: fit,
+            knownMetadata: { c1: facts },
+        });
+
+        expect(result.tileRequests.length).toBeGreaterThan(0);
+        expect(
+            result.tileRequests.every((request) =>
+                request.url.startsWith(`${signed}/`),
+            ),
+        ).toBe(true);
+    });
+
     it('asks for no metadata below the pyramid tier: the level rules nest inside the canvas tier', () => {
         // Applied without the tier gate, "the base level is never evicted"
         // would mean one resident base tile per canvas across a whole manifest.
         const thumbnail = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ scale: 0.2 }),
         });
-        const box = plan([serviceCanvas('c1', 1000, 1000)], {
-            viewport: viewport({ scale: 0.01 }),
-        });
+        const box = belowBoxThreshold((id) => serviceCanvas(id, 1000, 1000));
 
         expect(thumbnail.tiers.c1).toBe('thumbnail');
         expect(thumbnail.metadataRequests).toEqual([]);
-        expect(box.tiers.c1).toBe('box');
-        expect(box.metadataRequests).toEqual([]);
+        expect(box.tiers.c0).toBe('box');
+        expect(box.metadataRequests).not.toContain('c0');
     });
 
     it('keeps the coarse chain over viewport-plus-margin, not over the whole image', () => {
@@ -1469,14 +1520,12 @@ describe('planScene — the thumbnail tier', () => {
         // fetching all N regardless of tier — so the same canvas below the box
         // threshold asks for nothing at all.
         const inTier = thumbnailPlan([level0Canvas('c1')]);
-        const belowTier = plan([level0Canvas('c1')], {
-            viewport: viewport({ scale: 0.01 }),
-        });
+        const belowTier = belowBoxThreshold(level0Canvas);
 
         expect(inTier.metadataRequests).toEqual(['c1']);
         expect(inTier.thumbnailRequests).toEqual([]);
-        expect(belowTier.tiers.c1).toBe('box');
-        expect(belowTier.metadataRequests).toEqual([]);
+        expect(belowTier.tiers.c0).toBe('box');
+        expect(belowTier.metadataRequests).not.toContain('c0');
     });
 
     it('takes the advertised size once the info.json has landed', () => {
@@ -1576,6 +1625,159 @@ describe('planScene — the thumbnail tier', () => {
             expect(result.tiers.c1).toBe('thumbnail');
             expect(result.thumbnailRequests).toHaveLength(1);
             expect(result.thumbnailRequests[0].rung).toBe(32);
+        });
+    });
+
+    describe('the handover from the pyramid tier', () => {
+        /** The base level of any pyramid or ladder: level 0, one tile. */
+        const BASE = tileKey('c1', 0, 0, 0);
+        const CANVAS = serviceCanvas('c1', 1000, 1000);
+
+        /** In the thumbnail tier, holding `resident` and nothing else. */
+        function handover(resident: TileKey[]) {
+            return thumbnailPlan([CANVAS], {
+                knownMetadata: { c1: FACTS },
+                residentTiles: new Set(resident),
+            });
+        }
+
+        it('keeps painting the base level until the thumbnail arrives', () => {
+            // The defect: blur-up held WITHIN the pyramid tier and nowhere at the
+            // boundary out of it. Crossing the threshold released every tile
+            // while the thumbnail had not been asked for yet, so the canvas had
+            // nothing to paint for a whole round trip — one dropped frame against
+            // a fixture, the better part of a second against a real service.
+            const result = handover([BASE]);
+
+            expect(result.tiers.c1).toBe('thumbnail');
+            expect(result.tileDraws.map((draw) => draw.key)).toEqual([BASE]);
+            // Over the whole canvas: the base level is one tile covering the
+            // whole image, which is the same picture a thumbnail is.
+            expect(result.tileDraws[0]).toMatchObject({
+                x: 0,
+                y: 0,
+                width: 1000,
+                height: 1000,
+            });
+        });
+
+        it('keeps it REQUIRED, not merely held', () => {
+            // `tileDraws` is the required-AND-held subset, so a base tile left
+            // out of the request list would be demoted to the opportunistic
+            // cache and could not be painted — the blank frame again, arriving
+            // through eviction instead of through the tier.
+            const result = handover([BASE]);
+
+            expect(result.tileRequests.map((request) => request.key)).toEqual([
+                BASE,
+            ]);
+        });
+
+        it('stops carrying it the moment a thumbnail is resident', () => {
+            // Otherwise this is "the base level is never evicted", which on an
+            // 800-folio manifest means 800 resident base tiles — the thing the
+            // tier gate exists to prevent.
+            const thumbnailUrl =
+                'https://images.test/c1/full/256,/0/default.jpg';
+            const result = handover([BASE, `c1#thumb/${thumbnailUrl}`]);
+
+            expect(result.tileDraws.map((draw) => draw.key)).toEqual([
+                `c1#thumb/${thumbnailUrl}`,
+            ]);
+            expect(result.tileRequests).toEqual([]);
+        });
+
+        it('carries nothing for a canvas arriving from the box tier', () => {
+            // It holds no base tile, so there is nothing to carry and nothing to
+            // fetch: a canvas on its way IN costs exactly what it did before.
+            const result = handover([]);
+
+            expect(result.tileDraws).toEqual([]);
+            expect(result.tileRequests).toEqual([]);
+        });
+
+        it('carries nothing while the canvas has no service facts', () => {
+            // No facts, no pyramid, no URL to keep it required by. The metadata
+            // request is the thumbnail ladder's business, not this seam's.
+            const result = thumbnailPlan([CANVAS], {
+                residentTiles: new Set([BASE]),
+            });
+
+            expect(result.tileDraws).toEqual([]);
+            expect(result.tileRequests).toEqual([]);
+        });
+    });
+
+    describe('the tier floor', () => {
+        /**
+         * The scale at which a 1000-square canvas sits exactly ON the block's
+         * box threshold. Below it the size test alone sends the canvas — and in
+         * a one-canvas world therefore the whole scene — to the box tier.
+         */
+        const AT_THRESHOLD = BUDGETS.boxThreshold / 1000;
+
+        it('keeps the nearest canvas rendering at any scale, however far out', () => {
+            // The defect this exists for: past this point the viewer was the
+            // faint placeholder rects and nothing else, and the derived zoom
+            // floor did not save it, because the floor is derived from this very
+            // threshold and lands on the same boundary. Zoom bounds are a
+            // setting, still to come; zooming out must soften the picture, never
+            // extinguish it.
+            for (const factor of [0.999, 0.5, 1e-3, 1e-9]) {
+                const result = thumbnailPlan(
+                    [serviceCanvas('c1', 1000, 1000)],
+                    { viewport: viewport({ scale: AT_THRESHOLD * factor }) },
+                );
+
+                expect(result.tiers.c1).toBe('thumbnail');
+                // The base rung at least, and it paints: the required set and
+                // the draw list are both non-empty however small the projection.
+                expect(
+                    result.thumbnailRequests.map((request) => request.rung),
+                ).toContain(32);
+                expect(result.tileRequests).toEqual([]);
+            }
+        });
+
+        it('costs nothing when something is already above the box tier', () => {
+            // A no-op at every scale a reader actually reads at, which is what
+            // makes it safe to apply unconditionally rather than as a
+            // "is the scene blank?" second pass.
+            const reading = thumbnailPlan([serviceCanvas('c1', 1000, 1000)]);
+
+            expect(reading.tiers.c1).toBe('thumbnail');
+            expect(reading.thumbnailRequests.map((r) => r.rung)).toEqual([
+                32, 256,
+            ]);
+        });
+
+        it('does not reach a viewport the world is nowhere near', () => {
+            // The scoping the residency window states: a canvas the reader is
+            // nowhere near really must hold nothing. The floor is a promise
+            // about what is ON SCREEN, not a promise that a texture exists.
+            const away = thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                viewport: viewport({
+                    centre: { x: 900_000, y: 900_000 },
+                    scale: AT_THRESHOLD / 10,
+                }),
+            });
+
+            expect(away.tiers.c1).toBe('box');
+            expect(away.thumbnailRequests).toEqual([]);
+        });
+
+        it('still asks for nothing while the view is moving', () => {
+            // The floor promotes the TIER; it does not reopen the view-stable
+            // gate. A flick that ends up below the threshold asks for nothing,
+            // exactly as one above it does.
+            const flicking = thumbnailPlan([serviceCanvas('c1', 1000, 1000)], {
+                viewport: viewport({ scale: AT_THRESHOLD / 100 }),
+                viewStable: false,
+            });
+
+            expect(flicking.tiers.c1).toBe('thumbnail');
+            expect(flicking.thumbnailRequests).toEqual([]);
+            expect(flicking.metadataRequests).toEqual([]);
         });
     });
 
@@ -1872,12 +2074,12 @@ describe('planScene — the thumbnail tier', () => {
     it('releases a thumbnail when the canvas drops to the box tier', () => {
         // The nesting rule, one tier down: a canvas below the box threshold is
         // a layout rect and nothing else.
-        const result = plan([serviceCanvas('c1', 1000, 1000)], {
-            viewport: viewport({ scale: 0.01 }),
-        });
+        const result = belowBoxThreshold((id) => serviceCanvas(id, 1000, 1000));
 
-        expect(result.tiers.c1).toBe('box');
-        expect(result.thumbnailRequests).toEqual([]);
+        expect(result.tiers.c0).toBe('box');
+        expect(
+            result.thumbnailRequests.map((request) => request.canvasId),
+        ).not.toContain('c0');
     });
 });
 
@@ -2307,6 +2509,33 @@ describe('planScene — an 800-canvas continuous manifest', () => {
         expect(
             Object.values(deep.tiers).filter((tier) => tier !== 'box'),
         ).toHaveLength(3);
+    });
+
+    it('keeps three folios alive far BELOW the zoom floor, and only three', () => {
+        // The other half of "the scene is never entirely box tier". Zoomed out
+        // absurdly far, every one of the 800 folios is on screen and every one
+        // of them is below the box threshold — so "keep painting what is
+        // visible" is the O(manifest) fetch storm this epic removed, wearing a
+        // different hat. The floor is the nearest folio and its two neighbours,
+        // and the other 797 keep their placeholder rects and nothing else.
+        const belowFloor = plan(CANVASES, {
+            mode: 'continuous',
+            viewport: viewport({
+                centre: { x: 400 * PITCH, y: PAGE.height / 2 },
+                scale: readingZoom(400).minZoom / 1000,
+            }),
+        });
+
+        expect(
+            Object.entries(belowFloor.tiers)
+                .filter(([, tier]) => tier !== 'box')
+                .map(([canvasId]) => canvasId)
+                .sort(),
+        ).toEqual([name(399), name(400), name(401)].sort());
+        // One request each: the base rung IS the rung a folio this small wants.
+        expect(belowFloor.thumbnailRequests).toHaveLength(3);
+        expect(belowFloor.tileRequests).toEqual([]);
+        expect(belowFloor.metadataRequests).toEqual([]);
     });
 
     it('decides the tier the same way in a left-to-right and a top-to-bottom world', () => {

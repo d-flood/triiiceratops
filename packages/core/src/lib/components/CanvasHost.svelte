@@ -113,6 +113,7 @@
         MAX_ZOOM_FACTOR,
         MIN_FLICK_SPEED,
         MIN_VELOCITY_SPAN_MS,
+        MIN_ZOOM_FRACTION,
         MOMENTUM_MIN_SPEED,
         MOMENTUM_TIME_CONSTANT,
         MULTI_CANVAS_GAP_FRACTION,
@@ -856,13 +857,17 @@
 
     function clampScale(scale: number): number {
         const limits = viewportLimits();
-        // The floor is DERIVED (the zoom at which the median canvas reaches the
-        // box threshold), not a tuned percentage of home zoom, so it can land
-        // above the ceiling; `zoomRange` owns what happens then.
+        // TWO floors, and `zoomRange` owns both: the reader's — half the scale at
+        // which the canvas fits, so zooming out stops with the canvas covering
+        // half the viewport — and the renderer's derived one beneath it, capped at
+        // the fit so that seeing a whole canvas is reachable at any window size.
+        // `homeScale` is measured from the LIVE viewport on every call, which is
+        // what makes that hold across a resize and on a phone.
         const { min, max } = zoomRange(
             homeScale(limits),
             limits.minZoom,
             MAX_ZOOM_FACTOR,
+            MIN_ZOOM_FRACTION,
         );
         return clamp(scale, min, max);
     }

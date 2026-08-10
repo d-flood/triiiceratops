@@ -71,6 +71,11 @@
  * bounded, centre-out, byte-budgeted scheduler as the tiles, so the concurrency
  * cap is genuinely global and the nearest canvas is served first.
  *
+ * It also has a **floor** (`tierFloor` below): the canvas nearest the viewport
+ * centre and its two neighbours never fall below this tier, however far out the
+ * reader has zoomed. Projected size goes to zero, so without it there is a scale
+ * past which every canvas is box tier and the viewer paints nothing at all.
+ *
  * `budgets.byteBudget` is not read here: it bounds the **opportunistic cache**,
  * which holds what was recently dropped from the required set, and that is the
  * host's tile scheduler (`tileScheduler.ts`). The planner has no lever over it
@@ -547,6 +552,57 @@ function residencyWindow(
 }
 
 /**
+ * The canvases whose tier may never fall to `box`, however far out the reader
+ * has zoomed: the one nearest the viewport centre, and the two either side of it
+ * in reading order.
+ *
+ * **A scene is never entirely box tier**, and — exactly like the gutter rule in
+ * {@link residencyWindow} — that is a rule rather than a consequence of the
+ * arithmetic above it. The box tier is decided from projected size alone, and
+ * projected size goes to zero: past some scale EVERY canvas is below
+ * `boxThreshold`, every one of them releases its texture, and the viewer is the
+ * faint grey placeholder rects and nothing else. The derived zoom floor
+ * ({@link deriveMinZoom}) does not save it, because the floor is derived from
+ * the very same threshold — it is the scale at which the MEDIAN canvas reaches
+ * `boxThreshold`, so the two land on the same boundary and which side the
+ * comparison falls on is a rounding accident. A canvas narrower than the median,
+ * or a scale reached by a programmatic `setView` rather than through the clamp,
+ * is over the edge outright.
+ *
+ * Nothing about a zoom level is a reason to stop rendering. Zoom bounds are a
+ * SETTING, still to come; until they exist, zooming out further must degrade the
+ * picture, never extinguish it.
+ *
+ * Bounded to three canvases, and that bound is what makes this affordable. The
+ * reason the box tier exists is that a size-only gate hands all 800 folios of a
+ * long manifest a texture at once, and at extreme zoom-out all 800 of them are
+ * on screen — so "keep painting whatever is visible" is the fetch storm this
+ * epic removed, in a different costume. Three thumbnails at the base rung is
+ * ~6 KB, it is the page the reader is actually centred on plus the two they
+ * could turn to, and the other 797 keep their placeholder rects.
+ *
+ * Restricted to `nearby` so the scoping matches: a viewport the world is nowhere
+ * near holds nothing, and this does not give it a reason to hold something.
+ */
+function tierFloor(
+    layout: LayoutRect[],
+    viewport: Viewport,
+    nearby: ReadonlySet<string>,
+): Set<string> {
+    const floor = new Set<string>();
+    const nearest =
+        nearby.size > 0 ? nearestRect(layout, viewport.centre) : null;
+    if (!nearest) return floor;
+
+    const index = layout.indexOf(nearest);
+    for (const rect of [layout[index - 1], layout[index], layout[index + 1]]) {
+        if (rect && nearby.has(rect.canvasId)) floor.add(rect.canvasId);
+    }
+
+    return floor;
+}
+
+/**
  * The required set and the draw list for one pyramid-tier canvas.
  *
  * Priority is the canvas-space distance from the viewport centre to the tile —
@@ -903,6 +959,104 @@ function planThumbnail(
 }
 
 /**
+ * Keep the pyramid's **base level** on a thumbnail-tier canvas that has nothing
+ * else to paint.
+ *
+ * ## The blank second this removes
+ *
+ * Blur-up holds *within* the pyramid tier — an incomplete level paints over the
+ * coarse chain — and it held nowhere at the boundary out of it. Crossing
+ * `pyramidThreshold` released every tile the canvas had (the nesting rule, one
+ * tier up in `planScene`) while the thumbnail that replaces them had not been
+ * asked for yet, let alone answered. Tiles and thumbnails are two key namespaces,
+ * so the required set went from "eleven tiles" to "one thumbnail nobody holds"
+ * between two frames, and `tileDraws` — the resident subset — went empty.
+ *
+ * On a fixture service that is a flicker. On a real IIIF endpoint it is a round
+ * trip: the reader zooms out one notch, the page vanishes for the better part of
+ * a second, and then reappears soft. That is the single most visible defect in
+ * the renderer and it is invisible to a test whose service answers instantly.
+ *
+ * ## Why the base level is the right thing to keep
+ *
+ * It is one tile covering the whole image by construction, it is already decoded
+ * — the canvas held it a frame ago, because the base level is required at every
+ * pyramid level — and it is the same picture a thumbnail is, at a comparable
+ * resolution. So the handover costs no network at all and the reader sees the
+ * page soften rather than disappear.
+ *
+ * ## Why this is not "the base level is never evicted"
+ *
+ * That reading would mean 800 resident base tiles on an 800-folio manifest, which
+ * is what the tier gate exists to prevent. Two conditions keep this bounded to
+ * the handover it is named for:
+ *
+ * - **Only a base tile the canvas ALREADY HOLDS.** A canvas arriving from the box
+ *   tier holds nothing, so it carries nothing and costs nothing — it shows its
+ *   placeholder and then its thumbnail, exactly as before. Only a canvas on its
+ *   way DOWN from the pyramid tier can satisfy this, and there are never more of
+ *   those than were in the pyramid tier a moment ago.
+ * - **Only while the thumbnail is missing.** The caller asks only when
+ *   `planThumbnail` produced no draw. The frame the thumbnail lands, this stops
+ *   being reached, the base tile leaves the required set, and it is released
+ *   through the ordinary opportunistic cache.
+ *
+ * The residency probe is a bare `Set` lookup on a key built without the pyramid,
+ * so the pyramid is only built for a canvas that genuinely holds its base tile:
+ * on an 800-folio manifest at the zoom floor, none of them.
+ */
+function carryBaseLevel(
+    canvas: PlannerCanvas,
+    rect: LayoutRect,
+    facts: ImageServiceFacts | undefined,
+    residentTiles: ReadonlySet<TileKey>,
+    requests: TileRequest[],
+    draws: TileDraw[],
+): void {
+    if (!facts || canvas.source.kind !== 'service') return;
+
+    // The base level of a pyramid and the base rung of a ladder are the same
+    // key: level 0, one tile. Probed before anything is built, because this is
+    // the test that is false for every canvas but the one or two mid-handover.
+    const key = tileKey(canvas.id, 0, 0, 0);
+    if (!residentTiles.has(key)) return;
+
+    const pyramid = buildPyramid(canvas.source.serviceId, facts);
+    const ladder =
+        !pyramid && isSizeLadderSource(facts, canvas.source.profile)
+            ? buildSizeLadder(canvas.source.serviceId, facts)
+            : null;
+    const url = pyramid
+        ? tileUrl(pyramid, pyramid.levels[0], 0, 0)
+        : ladder
+          ? rungUrl(ladder, ladder.rungs[0])
+          : null;
+    if (!url) return;
+
+    const fallback = ladder ? rungFallback(ladder, ladder.rungs[0]) : undefined;
+    const box: Box = {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+    };
+
+    // Required, not merely held: `tileDraws` is the required-AND-held subset, so
+    // a base tile left out of the request list would be demoted to the
+    // opportunistic cache and could not be painted — which is the blank frame
+    // again, arriving through eviction instead of through the tier.
+    requests.push({
+        key,
+        canvasId: canvas.id,
+        level: 0,
+        url,
+        priority: 0,
+        ...(fallback ? { fallback } : {}),
+    });
+    draws.push({ key, canvasId: canvas.id, level: 0, ...box });
+}
+
+/**
  * Whether a **tile-less** service is a size-ladder source rather than a level
  * 1/2 endpoint that merely omitted `tiles`.
  *
@@ -952,6 +1106,15 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     // projected size, which is what keeps the required set a function of the
     // VIEWPORT rather than of the manifest's length.
     const nearby = residencyWindow(layout, viewport, budgets.marginFactor);
+    // Lazy, because the scan behind it costs O(manifest) and can only ever
+    // matter on a frame where a NEARBY canvas came out box tier — which is the
+    // zoomed-out case and nothing else. At reading zoom every member of the
+    // residency window projects large, so this is never built.
+    let floor: Set<string> | null = null;
+    const flooredTier = (canvasId: string): ResidencyTier =>
+        (floor ??= tierFloor(layout, viewport, nearby)).has(canvasId)
+            ? 'thumbnail'
+            : 'box';
 
     const tiers: Record<string, ResidencyTier> = {};
     const overCapCanvases: string[] = [];
@@ -966,14 +1129,20 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // Position first, size second. A canvas the viewport is nowhere near
         // holds nothing however large it would project — see `residencyWindow`
         // for why the size test alone cannot express that.
-        const tier = nearby.has(canvas.id)
-            ? assignTier(
-                  rect,
-                  viewport.scale,
-                  budgets.pyramidThreshold,
-                  budgets.boxThreshold,
-              )
-            : 'box';
+        let tier: ResidencyTier = 'box';
+        if (nearby.has(canvas.id)) {
+            tier = assignTier(
+                rect,
+                viewport.scale,
+                budgets.pyramidThreshold,
+                budgets.boxThreshold,
+            );
+            // ...and the tier floor last. Projected size goes to zero, so past
+            // some scale the size test puts EVERY canvas in the box tier and the
+            // viewer holds nothing at all; `tierFloor` is what keeps the page the
+            // reader is centred on rendering however far out they have zoomed.
+            if (tier === 'box') tier = flooredTier(canvas.id);
+        }
         // A box-tier canvas holds no network resource and no texture, so
         // whatever it held is droppable — which the tier map already says.
         // There is deliberately no second `evictable` list beside it: one
@@ -991,6 +1160,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // boxes. It can send the canvas to the box tier (nothing usable), so
         // the tier map is written from what it decides.
         if (tier === 'thumbnail') {
+            const drawsBefore = tileDraws.length;
             tiers[canvas.id] = planThumbnail(
                 canvas,
                 rect,
@@ -1006,6 +1176,18 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                 metadataRequests,
                 unresolvedThumbnails,
             );
+            // Nothing to paint yet, so the canvas keeps whatever the PYRAMID
+            // left it until its thumbnail lands. See `carryBaseLevel`.
+            if (tileDraws.length === drawsBefore) {
+                carryBaseLevel(
+                    canvas,
+                    rect,
+                    knownMetadata[canvas.id],
+                    residentTiles,
+                    tileRequests,
+                    tileDraws,
+                );
+            }
             continue;
         }
 

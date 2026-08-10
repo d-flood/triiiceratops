@@ -211,7 +211,7 @@ export function buildSizeLadder(
     );
 
     return {
-        serviceId,
+        serviceId: facts.requestBaseUri ?? serviceId,
         width: facts.width,
         height: facts.height,
         rungs,

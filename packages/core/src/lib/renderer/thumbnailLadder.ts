@@ -368,7 +368,13 @@ export function resolveThumbnail(
         // advertises tiles, which is a separate question this tier never asks.
         // `info.json` knows the real width, so the clamp uses it rather than
         // the manifest's guess at it.
-        return fromConstruction(serviceId, rung, version, format, facts.width);
+        return fromConstruction(
+            facts.requestBaseUri ?? serviceId,
+            rung,
+            version,
+            format,
+            facts.width,
+        );
     }
 
     // 4. A level0 service serves only files it generated. If it advertises

@@ -27,6 +27,7 @@ import {
     CONTINUOUS_MANIFEST,
     CONTINUOUS_PAGE,
     continuousCanvasId,
+    countOpaqueSurfacePixels,
     getResidency,
     getStats,
     getView,
@@ -298,6 +299,77 @@ test.describe('Canvas2D renderer — the thumbnail tier', () => {
                 .sort((a, b) => a - b),
         );
         expect(sizes.size).toBeLessThanOrEqual(THUMBNAIL_RUNGS.length);
+    });
+
+    test('never blanks crossing the pyramid boundary, even on a slow service', async ({
+        page,
+    }) => {
+        // **The handover.** Blur-up holds within the pyramid tier and held
+        // nowhere at the boundary out of it: crossing `pyramidThreshold`
+        // released every tile the canvas had while its thumbnail had not been
+        // asked for yet, so `tileDraws` went empty for a whole round trip. The
+        // reader zoomed out one notch and the page vanished for the better part
+        // of a second, then came back soft.
+        //
+        // Invisible to every other test in this file, and that is the point: the
+        // fixture service answers in single-digit milliseconds, so the gap is one
+        // dropped frame here and a second on a real IIIF endpoint. The latency
+        // has to be injected for the defect to be observable at all.
+        //
+        // Delayed by SIZE, and only the thumbnail rungs — 32/64/128/256/512
+        // against the pyramid's own whole-image levels of 1200/600/300/150, the
+        // disjoint sets this file's header describes. Delaying every `full/`
+        // request would hold up the base LEVEL too, and then there is genuinely
+        // nothing held to carry and the test would be asserting the impossible.
+        await page.route('**/iiif-fixture/**', async (route) => {
+            const size = Number(
+                route
+                    .request()
+                    .url()
+                    .match(/\/full\/(\d+),/)?.[1] ?? 0,
+            );
+            if (THUMBNAIL_RUNGS.includes(size)) {
+                await new Promise((resolve) => setTimeout(resolve, 1200));
+            }
+            await route.continue();
+        });
+
+        await open(page);
+        // Framed in the PYRAMID tier and settled there, so the base level is
+        // genuinely held before the zoom-out starts.
+        await setView(page, {
+            centre: {
+                x: 400 * PITCH + CONTINUOUS_PAGE.width / 2,
+                y: CONTINUOUS_PAGE.height / 2,
+            },
+            scale: 600 / CONTINUOUS_PAGE.height,
+        });
+        await nextPaint(page);
+        await settled(() => getStats(page).then((s) => s.residentTileCount));
+        expect(await countOpaqueSurfacePixels(page)).toBeGreaterThan(0);
+
+        // Out across the threshold, in one animated glide.
+        const view = await getView(page);
+        for (let notch = 0; notch < 4; notch += 1) {
+            await page.mouse.move(view.width / 2, view.height / 2);
+            await page.mouse.wheel(0, 120);
+        }
+
+        // Sampled right through the round trip the thumbnail now takes. Not once
+        // at the end: the defect was transient, so an assertion that only looks
+        // after the thumbnail lands cannot see it.
+        for (let sample = 0; sample < 16; sample += 1) {
+            await page.waitForTimeout(100);
+            expect(
+                await countOpaqueSurfacePixels(page),
+                `the canvas was blank ${sample * 100}ms into the handover`,
+            ).toBeGreaterThan(0);
+        }
+
+        // It really did cross the boundary — otherwise the above is vacuous.
+        const residency = await getResidency(page);
+        expect(residency.pyramid).toEqual([]);
+        expect(residency.thumbnail.length).toBeGreaterThan(0);
     });
 
     test('issues no thumbnail or metadata request while a gesture is in flight', async ({
