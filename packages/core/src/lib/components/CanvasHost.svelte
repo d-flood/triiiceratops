@@ -1530,7 +1530,18 @@
         loadStaticImages(imageBearingCanvases(plan));
         updateCanvasErrors(plan);
 
-        paintScene(ctx, plan, viewport, { images, tiles: tiles.get }, dpr);
+        // The view-stable gate again, this time as the painter's edge rule:
+        // whole device pixels at rest, a one-pixel overlap while moving. Read
+        // fresh rather than taken off the plan, because `stepMomentum` can end
+        // the glide in this very frame.
+        paintScene(
+            ctx,
+            plan,
+            viewport,
+            { images, tiles: tiles.get },
+            dpr,
+            viewStable(),
+        );
         // The **paint hook**, in the same frame and under the same matrix
         // `paintScene` left applied — which is the whole reason a layer drawn
         // here cannot desync from the image the way a DOM overlay repositioned
