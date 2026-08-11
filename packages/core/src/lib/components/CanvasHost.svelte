@@ -138,6 +138,7 @@
         Point,
         ResidencyTier,
         ScenePlan,
+        StaticImageDraw,
         Viewport,
     } from '../renderer/types';
     import {
@@ -240,15 +241,29 @@
     // `loadedGeneration` below is the one reactive signal that a decode landed.
     const images: Record<string, HTMLImageElement> = Object.create(null);
     /**
-     * canvasId → the URL decoded **or in flight** for it.
+     * image key → the URL decoded **or in flight** for that placement.
      *
-     * The residency key is the resolved URL, not the canvas id: switching a
-     * Choice resolves the same canvas id to a different image, and an id-keyed
-     * cache would paint the superseded one forever. It also stands in for a
+     * Keyed on the PLACEMENT, not the canvas: a canvas can be a composition of
+     * several painting annotations (IIIF Cookbook 0036), and a canvas-keyed
+     * record holds one picture where the manifest asked for two. The residency
+     * comparison is on the resolved URL rather than the key, because switching a
+     * Choice resolves the same placement to a different image and a key-only
+     * cache would paint the superseded one forever. The URL also stands in for a
      * request generation — an `onload` whose URL is no longer the one wanted is
      * simply discarded.
      */
     const imageUrls: Record<string, string> = Object.create(null);
+    /**
+     * image key → the canvas that placement belongs to.
+     *
+     * Failures are recorded against the CANVAS (`canvasErrors`, which is what
+     * positions an error placeholder and what the viewer-level error is derived
+     * from) while pixels are held against the placement, so clearing a failure
+     * when its request is dropped needs the mapping back. Kept here rather than
+     * looked up through `canvasesById` because a dropped placement is by
+     * definition one the current plan no longer contains.
+     */
+    const imageOwners: Record<string, string> = Object.create(null);
     /** Bumped when a decoded image or tile arrives, to re-run the paint effect. */
     let loadedGeneration = $state(0);
 
@@ -341,12 +356,16 @@
     });
 
     /**
-     * canvasId → the image-service facts the planner may use.
+     * serviceId → the image-service facts the planner may use.
      *
      * A per-renderer view onto the page-shared `imageServiceCache`, which is
      * what keeps metadata and pixels on **two lifetimes**: this record is
      * rebuilt on remount, the cache behind it is not, so re-entering a canvas
      * costs no `info.json` request.
+     *
+     * Keyed by SERVICE, like the cache it views — a canvas id is not a stable
+     * name for a picture, and keying it that way made a Choice switch answer
+     * with the previous alternative's facts forever (`planScene.factsFor`).
      */
     const knownMetadata: Record<string, ImageServiceFacts> =
         Object.create(null);
@@ -633,87 +652,107 @@
      * view-stable gate — the three bounds the spec asks for, not two of them.
      * The list arrives centre-out from the planner and is re-emitted every
      * frame, so the queue drains nearest-first.
+     *
+     * **Every service on the canvas**, not one: a composite canvas paints from
+     * as many image services as it has painting annotations, and the planner
+     * names a CANVAS rather than a service because a failure is recorded against
+     * a canvas. Asking for all of them is exact rather than approximate — the
+     * planner asks only when at least one is missing, and the cache answers an
+     * already-known service with no request at all.
      */
     function requestMetadata(canvasIds: string[]): void {
         for (const canvasId of canvasIds) {
             const canvas = canvasesById.get(canvasId);
-            if (canvas?.source.kind !== 'service') continue;
+            if (!canvas) continue;
 
-            const { serviceId } = canvas.source;
-            void imageServiceCache.ensure(serviceId).then((facts) => {
-                if (!facts) {
-                    // A canvas that will never have pixels. Recorded against
-                    // THIS canvas rather than swallowed or raised viewer-wide:
-                    // painting nothing and saying nothing is indistinguishable
-                    // from still loading (user stories 26 and 27), and blanking
-                    // the viewer for it would take 799 working folios down with
-                    // it.
-                    //
-                    // A repaint IS asked for, unlike before: the placeholder is
-                    // positioned by the frame loop, so without a frame the
-                    // failure would be invisible until something unrelated
-                    // repainted. It cannot loop, because only a SPENT failure
-                    // gets this far: a spent request is never reissued, so the
-                    // next frame's identical ask resolves from the recorded
-                    // failure with no network and no state change, and the write
-                    // below is a no-op once the kind is unchanged.
-                    //
-                    // Spent rather than merely failed, and that gate is what
-                    // keeps the placeholder from FLASHING. `failure()` reports a
-                    // kind after the first attempt, including for a retryable
-                    // one — a 503 under an allowance of two would record `load`,
-                    // paint a placeholder, and have it taken away again by the
-                    // retry the very next frame's `ensure` issues. Nothing is
-                    // said about this canvas until the question is closed;
-                    // until then it is still loading, which is the truth.
-                    if (!imageServiceCache.spent(serviceId)) {
-                        // A retryable failure with attempts left. The retry is
-                        // issued by the next frame's identical ask, so a frame is
-                        // what this needs — otherwise the attempt allowance is
-                        // spent only if something unrelated happens to repaint,
-                        // and a canvas that a single 503 could have recovered
-                        // sits blank until the reader moves. Bounded by the
-                        // cache's allowance, not by the frame rate: once the
-                        // attempts are gone the branch below runs instead.
-                        requestFrame();
-                        return;
-                    }
+            for (const image of canvas.images) {
+                if (image.source.kind !== 'service') continue;
+                ensureImageService(canvasId, image.source.serviceId);
+            }
+        }
+    }
 
-                    const kind = imageServiceCache.failure(serviceId);
-                    if (kind && canvasErrors[canvasId] !== kind) {
-                        canvasErrors[canvasId] = kind;
-                        requestFrame();
-                    }
+    /**
+     * Fetch one service's `info.json` and record what it says about the canvas
+     * that asked.
+     *
+     * Split out of {@link requestMetadata} only because a canvas can now ask for
+     * several; the body is unchanged and its reasoning is per-request.
+     */
+    function ensureImageService(canvasId: string, serviceId: string): void {
+        void imageServiceCache.ensure(serviceId).then((facts) => {
+            if (!facts) {
+                // A canvas that will never have pixels. Recorded against
+                // THIS canvas rather than swallowed or raised viewer-wide:
+                // painting nothing and saying nothing is indistinguishable
+                // from still loading (user stories 26 and 27), and blanking
+                // the viewer for it would take 799 working folios down with
+                // it.
+                //
+                // A repaint IS asked for, unlike before: the placeholder is
+                // positioned by the frame loop, so without a frame the
+                // failure would be invisible until something unrelated
+                // repainted. It cannot loop, because only a SPENT failure
+                // gets this far: a spent request is never reissued, so the
+                // next frame's identical ask resolves from the recorded
+                // failure with no network and no state change, and the write
+                // below is a no-op once the kind is unchanged.
+                //
+                // Spent rather than merely failed, and that gate is what
+                // keeps the placeholder from FLASHING. `failure()` reports a
+                // kind after the first attempt, including for a retryable
+                // one — a 503 under an allowance of two would record `load`,
+                // paint a placeholder, and have it taken away again by the
+                // retry the very next frame's `ensure` issues. Nothing is
+                // said about this canvas until the question is closed;
+                // until then it is still loading, which is the truth.
+                if (!imageServiceCache.spent(serviceId)) {
+                    // A retryable failure with attempts left. The retry is
+                    // issued by the next frame's identical ask, so a frame is
+                    // what this needs — otherwise the attempt allowance is
+                    // spent only if something unrelated happens to repaint,
+                    // and a canvas that a single 503 could have recovered
+                    // sits blank until the reader moves. Bounded by the
+                    // cache's allowance, not by the frame rate: once the
+                    // attempts are gone the branch below runs instead.
+                    requestFrame();
                     return;
                 }
-                // Guarded rather than deleted unconditionally: this resolves once
-                // per frame until the facts land in `knownMetadata`, and a
-                // `delete` of an absent key still touches the reactive proxy.
-                if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
-                if (knownMetadata[canvasId] === facts) return;
-                // Captured BEFORE the write below, which is what re-lays the
-                // world out. See `compensateForReflow`.
-                const beforeReflow = viewportLimits().layout;
-                // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A
-                // canvas the manifest never sized is laid out from a guess and
-                // reflowed to the facts below, so evicting an entry would put
-                // the guess back — resizing the canvas, changing its tier, and
-                // provoking the very fetch whose answer was just dropped. The
-                // planner asserts the fixed point (`planScene.test.ts` §the
-                // reflow terminates); ticket 08's byte budget must evict
-                // decoded pixels only, never these facts, which is also what
-                // "metadata is cached separately from decoded pixels, with a
-                // longer lifetime" means in the spec.
-                knownMetadata[canvasId] = facts;
-                // The one input to `viewportLimits`' memo that is mutated in
-                // place rather than replaced, so the memo cannot see it by
-                // identity and is told instead.
-                metadataRevision += 1;
-                compensateForReflow(beforeReflow);
-                // Tiles can only be planned now that the pyramid is knowable.
-                loadedGeneration += 1;
-            });
-        }
+
+                const kind = imageServiceCache.failure(serviceId);
+                if (kind && canvasErrors[canvasId] !== kind) {
+                    canvasErrors[canvasId] = kind;
+                    requestFrame();
+                }
+                return;
+            }
+            // Guarded rather than deleted unconditionally: this resolves once
+            // per frame until the facts land in `knownMetadata`, and a
+            // `delete` of an absent key still touches the reactive proxy.
+            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+            if (knownMetadata[serviceId] === facts) return;
+            // Captured BEFORE the write below, which is what re-lays the
+            // world out. See `compensateForReflow`.
+            const beforeReflow = viewportLimits().layout;
+            // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A
+            // canvas the manifest never sized is laid out from a guess and
+            // reflowed to the facts below, so evicting an entry would put
+            // the guess back — resizing the canvas, changing its tier, and
+            // provoking the very fetch whose answer was just dropped. The
+            // planner asserts the fixed point (`planScene.test.ts` §the
+            // reflow terminates); ticket 08's byte budget must evict
+            // decoded pixels only, never these facts, which is also what
+            // "metadata is cached separately from decoded pixels, with a
+            // longer lifetime" means in the spec.
+            knownMetadata[serviceId] = facts;
+            // The one input to `viewportLimits`' memo that is mutated in
+            // place rather than replaced, so the memo cannot see it by
+            // identity and is told instead.
+            metadataRevision += 1;
+            compensateForReflow(beforeReflow);
+            // Tiles can only be planned now that the pyramid is knowable.
+            loadedGeneration += 1;
+        });
     }
 
     /**
@@ -1506,23 +1545,6 @@
                 : decayed;
     }
 
-    /**
-     * The canvases allowed to hold a whole decoded image this frame.
-     *
-     * The static-image half of virtualization, and it needs saying because a
-     * static source has no tile scheduler to bound it: fed the whole manifest,
-     * the ticket-07 reconciliation would start 800 `<img>` loads on open — the
-     * same fetch storm as 800 `info.json` requests, in a different costume. The
-     * tier is the gate, and it is the planner's, so pixels are released by the
-     * same distance rule the tiles are.
-     */
-    function imageBearingCanvases(plan: ScenePlan): PlannerCanvas[] {
-        return plannerCanvases.filter(
-            (canvas) =>
-                plan.tiers[canvas.id] && plan.tiers[canvas.id] !== 'box',
-        );
-    }
-
     function paint() {
         if (!ctx) return;
 
@@ -1545,7 +1567,14 @@
         reportUnresolvedThumbnails(plan.unresolvedThumbnails);
         // Before painting, so a canvas that left the window stops painting in
         // the frame it left rather than the one after.
-        loadStaticImages(imageBearingCanvases(plan));
+        //
+        // The list is already tier-gated by the planner, which is the
+        // static-image half of virtualization and needs saying because a static
+        // source has no tile scheduler to bound it: fed the whole manifest, this
+        // would start 800 `<img>` loads on open — the same fetch storm as 800
+        // `info.json` requests, in a different costume. Pixels are therefore
+        // released by the same distance rule the tiles are.
+        loadStaticImages(plan.staticImages);
         updateCanvasErrors(plan);
 
         // The view-stable gate again, this time as the painter's edge rule:
@@ -1725,6 +1754,12 @@
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const painting = new Set<string>();
         for (const draw of plan.tileDraws) painting.add(draw.canvasId);
+        // A static image counts as painting exactly as a tile does, and it is
+        // asked per PLACEMENT: one half of a composite canvas being decoded is
+        // enough for an opaque placeholder over the whole canvas to be wrong.
+        for (const placement of plan.staticImages) {
+            if (images[placement.key]) painting.add(placement.canvasId);
+        }
 
         const perceptible = plan.layout.filter(
             (rect) =>
@@ -1732,8 +1767,7 @@
                 // rects on the manifest this path exists for.
                 canvasErrors[rect.canvasId] &&
                 plan.tiers[rect.canvasId] !== 'box' &&
-                !painting.has(rect.canvasId) &&
-                !images[rect.canvasId],
+                !painting.has(rect.canvasId),
         );
         const next = errorPlacements(perceptible, canvasErrors, viewport);
         // A pan moves every placeholder, so an update is genuinely needed most
@@ -2541,15 +2575,17 @@
      * comment carries why the negative cache is keyed on the URL rather than
      * being a per-canvas record kept across eviction.
      */
-    function loadStaticImages(canvases: PlannerCanvas[]) {
-        const { drop, load } = reconcileImages(imageUrls, canvases);
+    function loadStaticImages(wanted: StaticImageDraw[]) {
+        const { drop, load } = reconcileImages(imageUrls, wanted);
 
-        for (const canvasId of drop) {
+        for (const key of drop) {
+            const canvasId = imageOwners[key];
             // Drop the pixels too: a stale image must stop painting the moment
             // it is superseded, not when its replacement finishes decoding.
-            delete images[canvasId];
-            delete imageUrls[canvasId];
-            // And the error with them. The URL this canvas resolves to has
+            delete images[key];
+            delete imageUrls[key];
+            delete imageOwners[key];
+            // And the error with them. The URL this placement resolves to has
             // changed or been released, so the recorded failure is an answer
             // about a request that is no longer the one being made — keeping it
             // would leave a placeholder over a Choice that loads perfectly well.
@@ -2559,10 +2595,13 @@
             // re-derives its error from that below, with no second request. Drop
             // this and the per-canvas record is the only memory of the failure,
             // which is the refetch-on-re-entry the spec forbids.
-            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+            if (canvasId && canvasErrors[canvasId])
+                delete canvasErrors[canvasId];
         }
 
-        for (const { canvasId, url } of load) {
+        for (const { key, canvasId, url } of load) {
+            imageOwners[key] = canvasId;
+
             if (staticImageFailures.has(url)) {
                 // Answered already, by a request this page made earlier. Recorded
                 // BEFORE `imageUrls`, so the state the placeholder is derived
@@ -2570,7 +2609,7 @@
                 canvasErrors[canvasId] = 'load';
                 // Held as if in flight: the reconciliation compares held URLs, so
                 // this is what stops the next frame asking again.
-                imageUrls[canvasId] = url;
+                imageUrls[key] = url;
                 continue;
             }
 
@@ -2583,11 +2622,11 @@
             // which only matters to pixel readback — and the geometric e2e
             // fixtures are same-origin.
             image.onload = () => {
-                // Still the URL this canvas wants? A Choice switch, a canvas
+                // Still the URL this placement wants? A Choice switch, a canvas
                 // change, or unmount may have superseded this request while it
                 // was in flight.
-                if (imageUrls[canvasId] !== url) return;
-                images[canvasId] = image;
+                if (imageUrls[key] !== url) return;
+                images[key] = image;
                 if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
                 loadedGeneration += 1;
             };
@@ -2597,7 +2636,7 @@
                 // about the canvas that happened to ask for it. A reader who
                 // switches Choice away mid-request and back must not re-issue it.
                 staticImageFailures.record(url);
-                if (imageUrls[canvasId] !== url) return;
+                if (imageUrls[key] !== url) return;
                 // The URL is deliberately LEFT in `imageUrls`, which is what
                 // stops the next frame's reconciliation from asking again: a
                 // request that failed is answered, and a retry loop over a 404
@@ -2610,7 +2649,7 @@
             // Recorded BEFORE the request starts, so a second reconciliation
             // for the same URL joins the in-flight request rather than
             // restarting it.
-            imageUrls[canvasId] = url;
+            imageUrls[key] = url;
             image.src = url;
         }
     }

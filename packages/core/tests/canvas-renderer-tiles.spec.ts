@@ -19,12 +19,14 @@
 import { expect, test, type Page, type Request } from '@playwright/test';
 
 import {
+    CHOICE_MANIFEST,
     expectFeatureOnModel,
     findFeature,
     getStats,
     getView,
     GRID_FEATURES,
     nextPaint,
+    openRendererManifest,
     openTiledManifest,
     setByteBudget,
     setView,
@@ -240,6 +242,61 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
             url.includes('/iiif-fixture/one/'),
         );
         expect(first).toHaveLength(1);
+    });
+
+    test('asks the selected Choice’s service for tiles, not the first alternative forever', async ({
+        page,
+    }) => {
+        // A canvas id is not a stable name for a picture: selecting a different
+        // Choice resolves the same canvas to a different service, and anything
+        // keyed on the id alone therefore serves the previous alternative back
+        // forever. `imageRequests` already says so for whole decoded images;
+        // this is the same claim for tiles and for image-service facts, which is
+        // the half that was keyed on the canvas.
+        //
+        // Asserted on the network rather than on pixels, deliberately: both
+        // alternatives of the fixture are the same grid, so "which service was
+        // asked" is the only observation that distinguishes them — and it is
+        // also the exact thing that was wrong. A pixel assertion would need two
+        // distinguishable fixture images and would still be asserting this.
+        const tileRequests = recordRequests(page, TILE_PATTERN);
+        const infoRequests = recordRequests(page, INFO_PATTERN);
+
+        await openRendererManifest(page, CHOICE_MANIFEST);
+        await nextPaint(page);
+
+        const asked = (urls: string[], service: string) =>
+            urls.filter((url) => url.includes(`/iiif-fixture/${service}/`));
+
+        // The first alternative is what an unselected Choice paints.
+        expect(asked(tileRequests, 'choice-natural').length).toBeGreaterThan(0);
+        expect(asked(infoRequests, 'choice-natural')).toHaveLength(1);
+        expect(asked(tileRequests, 'choice-xray')).toHaveLength(0);
+
+        await page
+            .locator('.join-desktop button[aria-label="X-Ray"]')
+            .click({ timeout: 20_000 });
+
+        // Its facts are fetched — the metadata record cannot answer for a
+        // service it never saw, however much it knows about this canvas…
+        await expect
+            .poll(() => asked(infoRequests, 'choice-xray').length, {
+                timeout: 20_000,
+            })
+            .toBe(1);
+        // …and its tiles are actually requested, which is what the reader sees.
+        await expect
+            .poll(() => asked(tileRequests, 'choice-xray').length, {
+                timeout: 20_000,
+            })
+            .toBeGreaterThan(0);
+
+        // Deliberately NOT asserted here: that switching back costs no request.
+        // Whether the first alternative's tiles are still held depends on
+        // whether its load had finished before the switch — the scheduler aborts
+        // what leaves the required set — so it is a claim about timing dressed
+        // up as one about the cache. Retention across a required-set change is
+        // `tileScheduler.test.ts`'s, against a fake fetch.
     });
 
     test('lands a named feature on its predicted screen pixel within 1px at deep zoom', async ({

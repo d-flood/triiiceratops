@@ -397,15 +397,20 @@ describe('tileCanvasRect', () => {
 });
 
 describe('tileKey', () => {
-    it('distinguishes canvas, level, column, and row', () => {
+    it('distinguishes canvas, service, level, column, and row', () => {
         const keys = new Set([
-            tileKey('c1', 0, 0, 0),
-            tileKey('c2', 0, 0, 0),
-            tileKey('c1', 1, 0, 0),
-            tileKey('c1', 0, 1, 0),
-            tileKey('c1', 0, 0, 1),
+            tileKey('c1', 's1', 0, 0, 0),
+            tileKey('c2', 's1', 0, 0, 0),
+            // The Choice case: one canvas, two services. Without the service in
+            // the key these two collide, every tile of the second alternative
+            // is already "resident and required", and the reader keeps looking
+            // at the first one forever.
+            tileKey('c1', 's2', 0, 0, 0),
+            tileKey('c1', 's1', 1, 0, 0),
+            tileKey('c1', 's1', 0, 1, 0),
+            tileKey('c1', 's1', 0, 0, 1),
         ]);
 
-        expect(keys.size).toBe(5);
+        expect(keys.size).toBe(6);
     });
 });

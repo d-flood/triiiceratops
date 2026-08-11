@@ -1,0 +1,70 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/demo-manifests/composite-overlap/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Overlapping composite canvas renderer fixture"]
+    },
+    "summary": {
+        "en": [
+            "One canvas painted by a full-canvas image with a SMALLER image inset over the middle of it — IIIF Cookbook recipe 0036's real shape, where a miniature sits on top of the folio it belongs to. The sibling `composite` fixture places its two images side by side, which is what makes their placement checkable; this one places them ON each other, which is what makes their PAINT ORDER checkable. Both are the same numbered grid, so the inset maps the whole grid into a third of the canvas and its markers land where the full-canvas image has only background — a point that shows the inset's red marker if and only if the inset painted last. The inset is small enough to settle on a coarser pyramid level than the image beneath it, which is the condition under which a draw list sorted globally by level paints the big image over the small one."
+        ]
+    },
+    "items": [
+        {
+            "id": "/demo-manifests/composite-overlap/canvas/p1",
+            "type": "Canvas",
+            "label": { "en": ["A grid inset over a grid"] },
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/demo-manifests/composite-overlap/page/p1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/composite-overlap/annotation/base",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/iiif-fixture/overlap-base/full/max/0/default.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900,
+                                "service": [
+                                    {
+                                        "id": "/iiif-fixture/overlap-base",
+                                        "type": "ImageService3",
+                                        "profile": "level2"
+                                    }
+                                ]
+                            },
+                            "target": "/demo-manifests/composite-overlap/canvas/p1"
+                        },
+                        {
+                            "id": "/demo-manifests/composite-overlap/annotation/inset",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/iiif-fixture/overlap-inset/full/max/0/default.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900,
+                                "service": [
+                                    {
+                                        "id": "/iiif-fixture/overlap-inset",
+                                        "type": "ImageService3",
+                                        "profile": "level2"
+                                    }
+                                ]
+                            },
+                            "target": "/demo-manifests/composite-overlap/canvas/p1#xywh=400,300,400,300"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

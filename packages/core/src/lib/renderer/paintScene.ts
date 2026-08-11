@@ -25,12 +25,16 @@
  * config for free.
  */
 
-import type { LayoutRect, ScenePlan, TileKey, Viewport } from './types';
+import type { ScenePlan, StaticImageDraw, TileKey, Viewport } from './types';
 
 /** What the host has decoded and can hand the painter. */
 export interface PaintSources {
     /**
-     * canvasId → the whole-canvas image of a static source.
+     * {@link StaticImageDraw.key} → the whole image decoded for that placement.
+     *
+     * Keyed on the PLACEMENT rather than on the canvas, because a canvas can be
+     * a composition of several static images and a canvas-keyed record could
+     * only hold one of them.
      *
      * A plain record rather than a `Map`: nothing here mutates it, and a record
      * keeps the painter free of any reactivity question about the container it
@@ -75,13 +79,21 @@ export function applyViewportTransform(
 
 function drawCanvasImage(
     ctx: CanvasRenderingContext2D,
-    rect: LayoutRect,
+    placement: StaticImageDraw,
     image: CanvasImageSource,
 ): void {
-    // The image is fitted into its manifest-declared box: the source's own
-    // pixel dimensions govern only sampling, never geometry, so layout cannot
-    // shift when a differently-sized image arrives.
-    ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
+    // The image is fitted into the box the PLANNER placed it in: the source's
+    // own pixel dimensions govern only sampling, never geometry, so layout
+    // cannot shift when a differently-sized image arrives. That box is the
+    // canvas's for an ordinary canvas-filling image and the painting
+    // annotation's `#xywh=` target for one that paints a sub-region.
+    ctx.drawImage(
+        image,
+        placement.x,
+        placement.y,
+        placement.width,
+        placement.height,
+    );
 }
 
 /**
@@ -187,26 +199,55 @@ export function paintScene(
 
     applyViewportTransform(ctx, viewport, dpr);
 
-    for (const rect of plan.layout) {
-        // A box-tier canvas is its layout rect only: no network, no texture.
-        if (plan.tiers[rect.canvasId] === 'box') continue;
+    // **One pass, in the plan's paint order, over both lists at once.**
+    //
+    // Both arrive already ordered — canvas, then placed image in manifest
+    // annotation order, then level — so this is a merge on `order` and not a
+    // sort. Drawing every whole image and then every tile would be simpler and
+    // is wrong for a canvas that composes the two kinds: a plain-JPEG overlay on
+    // a tiled folio would go underneath the thing it overlays.
+    //
+    // Tiles are drawn in DEVICE space so their edges can be snapped, whole
+    // images under the viewport transform — so the transform is switched
+    // whenever the merge crosses between them. In the overwhelmingly common
+    // case (a canvas of one kind or the other) that is one switch, exactly as
+    // before.
+    let inDeviceSpace = false;
+    let nextImage = 0;
+    let nextTile = 0;
 
-        const image = sources.images[rect.canvasId];
-        if (!image) continue;
+    while (
+        nextImage < plan.staticImages.length ||
+        nextTile < plan.tileDraws.length
+    ) {
+        const placement = plan.staticImages[nextImage];
+        const draw = plan.tileDraws[nextTile];
+        // The whole image goes first on a tie: a tile at the same `order` is a
+        // finer view of that same placement, and there is no case where both
+        // exist — but if one ever arises, painting the tile over the image is
+        // the reading that matches blur-up.
+        const takeImage = placement && (!draw || placement.order <= draw.order);
 
-        drawCanvasImage(ctx, rect, image);
-    }
-
-    if (plan.tileDraws.length > 0) {
-        // Tiles are drawn in device space so their edges can be snapped; the
-        // plan already has them ordered coarsest first, so blur-up is simply
-        // paint order.
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        for (const draw of plan.tileDraws) {
-            const tile = sources.tiles(draw.key);
-            if (!tile) continue;
-            drawTile(ctx, draw, viewport, dpr, tile, viewStable);
+        if (takeImage) {
+            nextImage += 1;
+            const image = sources.images[placement.key];
+            if (!image) continue;
+            if (inDeviceSpace) {
+                applyViewportTransform(ctx, viewport, dpr);
+                inDeviceSpace = false;
+            }
+            drawCanvasImage(ctx, placement, image);
+            continue;
         }
+
+        nextTile += 1;
+        const tile = sources.tiles(draw.key);
+        if (!tile) continue;
+        if (!inDeviceSpace) {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            inDeviceSpace = true;
+        }
+        drawTile(ctx, draw, viewport, dpr, tile, viewStable);
     }
 
     // Left in the viewport transform whatever was painted: the **paint hook**

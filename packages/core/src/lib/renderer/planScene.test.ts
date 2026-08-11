@@ -24,6 +24,8 @@ import type {
     ImageServiceFacts,
     PlannerBudgets,
     PlannerCanvas,
+    PlannerImage,
+    SourceDescriptor,
     ViewingDirection,
     TileKey,
     Viewport,
@@ -43,6 +45,67 @@ const BUDGETS: PlannerBudgets = {
     maxDecodedPixels: 64 * 1024 * 1024,
 };
 
+/**
+ * The service id every service canvas here is given, from the canvas's name.
+ *
+ * One expression rather than a literal per builder, because it is also what
+ * {@link byService} has to spell.
+ */
+function serviceIdOf(canvasId: string): string {
+    return `https://images.test/${canvasId}`;
+}
+
+/**
+ * `knownMetadata`, written the way these tests NAME canvases and keyed the way
+ * the planner READS it — by service (`planScene.factsFor`).
+ *
+ * The two differ, and that is the point: a canvas id is not a stable name for a
+ * picture, so a canvas-keyed record answers a Choice switch with the previous
+ * alternative's dimensions forever and never provokes the new service's
+ * `info.json`. Spelling each service id inline at three dozen call sites would
+ * make those expectations about URL shape rather than about facts, so the
+ * mapping is stated once, here.
+ */
+function byService(
+    entries: Record<string, ImageServiceFacts>,
+): Record<string, ImageServiceFacts> {
+    return Object.fromEntries(
+        Object.entries(entries).map(([canvasId, facts]) => [
+            serviceIdOf(canvasId),
+            facts,
+        ]),
+    );
+}
+
+/**
+ * One canvas-filling placement, in the normalized units {@link PlannerImage}
+ * uses: both axes divided by the Canvas's own WIDTH, so a full-canvas image is
+ * `x: 0, y: 0, width: 1` and its `height` is the aspect ratio.
+ */
+function fills(
+    id: string,
+    source: SourceDescriptor,
+    width: number,
+    height: number,
+): PlannerImage {
+    return {
+        key: `${id}#0`,
+        source,
+        x: 0,
+        y: 0,
+        width: 1,
+        height: height / width,
+    };
+}
+
+function staticSource(id: string): SourceDescriptor {
+    return { kind: 'static', url: `https://example.test/${id}.jpg` };
+}
+
+function serviceSource(id: string): SourceDescriptor {
+    return { kind: 'service', serviceId: serviceIdOf(id), profile: 'level2' };
+}
+
 function staticCanvas(
     id: string,
     width: number,
@@ -52,7 +115,7 @@ function staticCanvas(
         id,
         width,
         height,
-        source: { kind: 'static', url: `https://example.test/${id}.jpg` },
+        images: [fills(id, staticSource(id), width, height)],
     };
 }
 
@@ -65,11 +128,7 @@ function serviceCanvas(
         id,
         width,
         height,
-        source: {
-            kind: 'service',
-            serviceId: `https://images.test/${id}`,
-            profile: 'level2',
-        },
+        images: [fills(id, serviceSource(id), width, height)],
     };
 }
 
@@ -492,11 +551,14 @@ describe('planScene — multi-canvas layout', () => {
     });
 
     describe('canvases with no declared dimensions', () => {
+        // A SERVICE source, because that is the only kind whose dimensions can
+        // ever be reported: the host fetches `info.json` for a service canvas
+        // and for nothing else, so a static canvas has no facts to reflow to.
         const unsized: PlannerCanvas = {
             id: 'unsized',
             width: null,
             height: null,
-            source: { kind: 'static', url: 'https://example.test/unsized.jpg' },
+            images: [fills('unsized', serviceSource('unsized'), 1, 1)],
         };
 
         it('positions an unsized canvas from the median of its siblings', () => {
@@ -529,9 +591,9 @@ describe('planScene — multi-canvas layout', () => {
             const reflowed = plan(canvases, {
                 mode: 'paged',
                 preserveCanvasScale: true,
-                knownMetadata: {
+                knownMetadata: byService({
                     unsized: { width: 400, height: 300, version: 3 },
-                },
+                }),
             });
 
             expect(guessed.layout[1]).toMatchObject({
@@ -550,7 +612,9 @@ describe('planScene — multi-canvas layout', () => {
             // won, the thing under the user's cursor would move as tiles landed
             // and annotation geometry — persisted in canvas space — would break.
             const result = plan([staticCanvas('a', 1000, 750)], {
-                knownMetadata: { a: { width: 4000, height: 3000, version: 3 } },
+                knownMetadata: byService({
+                    a: { width: 4000, height: 3000, version: 3 },
+                }),
             });
 
             expect(result.layout).toEqual([
@@ -572,11 +636,7 @@ describe('planScene — multi-canvas layout', () => {
                     id: 'lonely',
                     width: null,
                     height: null,
-                    source: {
-                        kind: 'service',
-                        serviceId: 'https://images.test/lonely',
-                        profile: 'level2',
-                    },
+                    images: [fills('lonely', serviceSource('lonely'), 1, 1)],
                 },
             ]);
 
@@ -592,15 +652,13 @@ describe('planScene — multi-canvas layout', () => {
                 id: 'lonely',
                 width: null,
                 height: null,
-                source: {
-                    kind: 'service',
-                    serviceId: 'https://images.test/lonely',
-                    profile: 'level2',
-                },
+                images: [fills('lonely', serviceSource('lonely'), 1, 1)],
             };
 
             const reflowed = plan([lonely], {
-                knownMetadata: { lonely: { width: 1600, height: 1200 } },
+                knownMetadata: byService({
+                    lonely: { width: 1600, height: 1200 },
+                }),
             });
 
             expect(reflowed.layout[0]).toMatchObject({
@@ -631,7 +689,7 @@ describe('planScene — multi-canvas layout', () => {
                 id: 'half',
                 width: 2400,
                 height: 0,
-                source: { kind: 'static', url: 'https://example.test/h.jpg' },
+                images: [fills('half', staticSource('half'), 1, 1)],
             };
             const result = plan(
                 [
@@ -659,9 +717,9 @@ describe('planScene — multi-canvas layout', () => {
             // tier, refetch, and resize back — thrashing at the tier boundary
             // with nothing failing.
             const canvases = [staticCanvas('a', 1000, 750), unsized];
-            const knownMetadata = {
+            const knownMetadata = byService({
                 unsized: { width: 400, height: 300, version: 3 as const },
-            };
+            });
 
             const once = plan(canvases, { mode: 'paged', knownMetadata });
             const twice = plan(canvases, { mode: 'paged', knownMetadata });
@@ -747,7 +805,7 @@ describe('planScene — multi-canvas layout', () => {
                 {
                     mode: 'paged',
                     preserveCanvasScale: true,
-                    knownMetadata: { near: FACTS, far: FACTS },
+                    knownMetadata: byService({ near: FACTS, far: FACTS }),
                     // Zoomed into the near page; the far one starts beyond
                     // x = 4096 and is nowhere near the margin box.
                     viewport: viewport({
@@ -777,7 +835,7 @@ describe('planScene — multi-canvas layout', () => {
                 {
                     mode: 'paged',
                     preserveCanvasScale: true,
-                    knownMetadata: { near: FACTS, far: FACTS },
+                    knownMetadata: byService({ near: FACTS, far: FACTS }),
                     viewport: viewport({
                         centre: { x: 500, y: 500 },
                         scale: 0.5,
@@ -815,7 +873,7 @@ describe('planScene — tiled sources', () => {
     it('stops asking once the metadata is known', () => {
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: fit,
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
         });
 
         expect(result.metadataRequests).toEqual([]);
@@ -830,7 +888,7 @@ describe('planScene — tiled sources', () => {
         })!;
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: fit,
-            knownMetadata: { c1: facts },
+            knownMetadata: byService({ c1: facts }),
         });
 
         expect(result.tileRequests.length).toBeGreaterThan(0);
@@ -861,7 +919,7 @@ describe('planScene — tiled sources', () => {
         // level, one tile by construction, is held whole.
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ centre: { x: 60, y: 60 }, scale: 16 }),
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
         });
 
         const byLevel = countByLevel(result.tileRequests);
@@ -890,7 +948,7 @@ describe('planScene — tiled sources', () => {
                 centre: { x: 500, y: 500 },
                 scale: 8,
             }),
-            knownMetadata: { c1: BIG_FACTS },
+            knownMetadata: byService({ c1: BIG_FACTS }),
         });
 
         const byLevel = countByLevel(result.tileRequests);
@@ -907,12 +965,14 @@ describe('planScene — tiled sources', () => {
         for (const scale of [0.5, 1, 4, 16]) {
             const result = plan([serviceCanvas('c1', 1000, 1000)], {
                 viewport: viewport({ centre: { x: 500, y: 500 }, scale }),
-                knownMetadata: { c1: FACTS },
+                knownMetadata: byService({ c1: FACTS }),
             });
 
             expect(
                 result.tileRequests.some(
-                    (request) => request.key === tileKey('c1', 0, 0, 0),
+                    (request) =>
+                        request.key ===
+                        tileKey('c1', serviceIdOf('c1'), 0, 0, 0),
                 ),
                 `no base tile at scale ${scale}`,
             ).toBe(true);
@@ -927,7 +987,7 @@ describe('planScene — tiled sources', () => {
                         centre: { x: 500, y: 500 },
                         scale,
                     }),
-                    knownMetadata: { c1: FACTS },
+                    knownMetadata: byService({ c1: FACTS }),
                 }).tileRequests.map((request) => request.level),
             );
 
@@ -950,7 +1010,7 @@ describe('planScene — tiled sources', () => {
                         centre: { x: 500, y: 500 },
                         scale: 1,
                     }),
-                    knownMetadata: { c1: FACTS },
+                    knownMetadata: byService({ c1: FACTS }),
                     dpr,
                 }).tileRequests.map((request) => request.level),
             );
@@ -965,7 +1025,7 @@ describe('planScene — tiled sources', () => {
                         centre: { x: 500, y: 500 },
                         scale: 1,
                     }),
-                    knownMetadata: { c1: FACTS },
+                    knownMetadata: byService({ c1: FACTS }),
                 }).tileRequests.map((request) => request.level),
             ),
         );
@@ -979,7 +1039,7 @@ describe('planScene — tiled sources', () => {
                         centre: { x: 500, y: 500 },
                         scale: 4,
                     }),
-                    knownMetadata: { c1: FACTS },
+                    knownMetadata: byService({ c1: FACTS }),
                     budgets: { ...BUDGETS, minPixelRatio },
                 }).tileRequests.map((request) => request.level),
             );
@@ -993,7 +1053,7 @@ describe('planScene — tiled sources', () => {
     it('orders tiles centre-out, not in discovery order', () => {
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 4 }),
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
         });
 
         const priorities = result.tileRequests.map(
@@ -1013,7 +1073,7 @@ describe('planScene — tiled sources', () => {
         const nearest = (centre: { x: number; y: number }) => {
             const requests = plan([serviceCanvas('c1', 1000, 1000)], {
                 viewport: viewport({ centre, scale: 4 }),
-                knownMetadata: { c1: FACTS },
+                knownMetadata: byService({ c1: FACTS }),
             }).tileRequests;
             const current = Math.max(...requests.map((entry) => entry.level));
             return requests.find((entry) => entry.level === current)!.key;
@@ -1033,10 +1093,12 @@ describe('planScene — tiled sources', () => {
         // centre IS the viewport centre.
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ centre: { x: 120, y: 880 }, scale: 12 }),
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
         });
 
-        expect(result.tileRequests[0].key).toBe(tileKey('c1', 0, 0, 0));
+        expect(result.tileRequests[0].key).toBe(
+            tileKey('c1', serviceIdOf('c1'), 0, 0, 0),
+        );
         expect(result.tileRequests[0].priority).toBe(0);
     });
 
@@ -1044,7 +1106,7 @@ describe('planScene — tiled sources', () => {
         // Zoomed out far enough that only the base level is wanted.
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 0.5 }),
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
         });
 
         expect(result.tileRequests).toHaveLength(1);
@@ -1056,17 +1118,17 @@ describe('planScene — tiled sources', () => {
     it('draws only tiles the host actually holds', () => {
         const withNothing = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: fit,
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
         });
         expect(withNothing.tileDraws).toEqual([]);
 
         const withBase = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: fit,
-            knownMetadata: { c1: FACTS },
-            residentTiles: new Set([tileKey('c1', 0, 0, 0)]),
+            knownMetadata: byService({ c1: FACTS }),
+            residentTiles: new Set([tileKey('c1', serviceIdOf('c1'), 0, 0, 0)]),
         });
         expect(withBase.tileDraws.map((draw) => draw.key)).toEqual([
-            tileKey('c1', 0, 0, 0),
+            tileKey('c1', serviceIdOf('c1'), 0, 0, 0),
         ]);
         // Fitted into the manifest-declared box, not the service's dimensions.
         expect(withBase.tileDraws[0]).toMatchObject({
@@ -1079,14 +1141,14 @@ describe('planScene — tiled sources', () => {
 
     it('orders draws coarsest first, so a finer tile paints over the blur-up beneath it', () => {
         const resident = new Set([
-            tileKey('c1', 2, 1, 1),
-            tileKey('c1', 0, 0, 0),
-            tileKey('c1', 1, 0, 0),
+            tileKey('c1', serviceIdOf('c1'), 2, 1, 1),
+            tileKey('c1', serviceIdOf('c1'), 0, 0, 0),
+            tileKey('c1', serviceIdOf('c1'), 1, 0, 0),
         ]);
 
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ centre: { x: 300, y: 300 }, scale: 1.6 }),
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
             residentTiles: resident,
         });
 
@@ -1101,12 +1163,12 @@ describe('planScene — tiled sources', () => {
         // A generous margin, so there are tiles that are required and held but
         // outside the viewport — which is exactly the case a painter that drew
         // "everything resident" would get wrong.
-        const onScreen = tileKey('c1', 3, 0, 0);
-        const inMarginOnly = tileKey('c1', 3, 1, 0);
+        const onScreen = tileKey('c1', serviceIdOf('c1'), 3, 0, 0);
+        const inMarginOnly = tileKey('c1', serviceIdOf('c1'), 3, 1, 0);
 
         const result = plan([serviceCanvas('c1', 1000, 1000)], {
             viewport: viewport({ centre: { x: 60, y: 60 }, scale: 16 }),
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
             budgets: { ...BUDGETS, marginFactor: 4 },
             residentTiles: new Set([onScreen, inMarginOnly]),
         });
@@ -1156,11 +1218,16 @@ describe('planScene — size-ladder sources', () => {
      */
     const level0Canvas: PlannerCanvas = {
         ...ladderCanvas,
-        source: {
-            kind: 'service',
-            serviceId: 'https://images.test/c1',
-            profile: 'level0',
-        },
+        images: [
+            {
+                ...ladderCanvas.images[0],
+                source: {
+                    kind: 'service',
+                    serviceId: serviceIdOf('c1'),
+                    profile: 'level0',
+                },
+            },
+        ],
     };
 
     function ladderPlan(
@@ -1171,7 +1238,7 @@ describe('planScene — size-ladder sources', () => {
     ) {
         return plan([ladderCanvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale }),
-            knownMetadata: { c1: facts },
+            knownMetadata: byService({ c1: facts }),
             budgets: { ...BUDGETS, ...budgets },
             residentTiles,
         });
@@ -1249,8 +1316,8 @@ describe('planScene — size-ladder sources', () => {
     });
 
     it('paints the resident rungs coarsest first, over the whole canvas', () => {
-        const coarse = tileKey('c1', 0, 0, 0);
-        const fine = tileKey('c1', 1, 0, 0);
+        const coarse = tileKey('c1', serviceIdOf('c1'), 0, 0, 0);
+        const fine = tileKey('c1', serviceIdOf('c1'), 1, 0, 0);
 
         const result = ladderPlan(1, {}, new Set([fine, coarse]));
 
@@ -1259,6 +1326,8 @@ describe('planScene — size-ladder sources', () => {
                 key: coarse,
                 canvasId: 'c1',
                 level: 0,
+                // The sole placement of the sole canvas, so paint order 0.
+                order: 0,
                 x: 0,
                 y: 0,
                 width: 1000,
@@ -1268,6 +1337,7 @@ describe('planScene — size-ladder sources', () => {
                 key: fine,
                 canvasId: 'c1',
                 level: 1,
+                order: 0,
                 x: 0,
                 y: 0,
                 width: 1000,
@@ -1293,7 +1363,9 @@ describe('planScene — size-ladder sources', () => {
         // is worse than one heavy request.
         const result = plan([level0Canvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
-            knownMetadata: { c1: { width: 800, height: 1000, version: 2 } },
+            knownMetadata: byService({
+                c1: { width: 800, height: 1000, version: 2 },
+            }),
         });
 
         expect(result.tileRequests.map((request) => request.url)).toEqual([
@@ -1311,9 +1383,9 @@ describe('planScene — size-ladder sources', () => {
         // nothing. A 12000x9000 scan would be 108 megapixels on a phone.
         const result = plan([ladderCanvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
-            knownMetadata: {
+            knownMetadata: byService({
                 c1: { width: 12_000, height: 9_000, version: 3 },
-            },
+            }),
             budgets: { ...BUDGETS, maxDecodedPixels: 4 * 1024 * 1024 },
         });
 
@@ -1343,11 +1415,6 @@ describe('planScene — size-ladder sources', () => {
         // one cheap image it does hold is what stops it blanking on arrival.
         const nextPage: PlannerCanvas = {
             ...serviceCanvas('c2', 1000, 1000),
-            source: {
-                kind: 'service',
-                serviceId: 'https://images.test/c2',
-                profile: 'level2',
-            },
         };
 
         // Framed inside canvas 1 (x 0..1000) at scale 4: the margin reaches
@@ -1355,7 +1422,7 @@ describe('planScene — size-ladder sources', () => {
         const result = plan([ladderCanvas, nextPage], {
             mode: 'continuous',
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 4 }),
-            knownMetadata: { c1: LADDER_FACTS, c2: LADDER_FACTS },
+            knownMetadata: byService({ c1: LADDER_FACTS, c2: LADDER_FACTS }),
         });
 
         const levelsOf = (canvasId: string) =>
@@ -1383,7 +1450,7 @@ describe('planScene — size-ladder sources', () => {
         // scope, an 800-folio manifest holds 800 base images for ever.
         const far = plan([ladderCanvas], {
             viewport: viewport({ centre: { x: 50_000, y: 500 }, scale: 4 }),
-            knownMetadata: { c1: LADDER_FACTS },
+            knownMetadata: byService({ c1: LADDER_FACTS }),
         });
 
         expect(far.tiers.c1).toBe('box');
@@ -1397,9 +1464,9 @@ describe('planScene — size-ladder sources', () => {
         // says so, rather than overriding the budget in silence.
         const result = plan([level0Canvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
-            knownMetadata: {
+            knownMetadata: byService({
                 c1: { width: 8000, height: 8000, version: 3 },
-            },
+            }),
             budgets: { ...BUDGETS, maxDecodedPixels: 1024 },
         });
 
@@ -1470,11 +1537,16 @@ describe('planScene — the thumbnail tier', () => {
             id,
             width: 1000,
             height: 1000,
-            source: {
-                kind: 'service',
-                serviceId: `https://images.test/${id}`,
-                profile: 'level0',
-            },
+            images: [
+                {
+                    ...fills(id, serviceSource(id), 1, 1),
+                    source: {
+                        kind: 'service',
+                        serviceId: serviceIdOf(id),
+                        profile: 'level0',
+                    },
+                },
+            ],
         };
     }
 
@@ -1530,7 +1602,7 @@ describe('planScene — the thumbnail tier', () => {
 
     it('takes the advertised size once the info.json has landed', () => {
         const result = thumbnailPlan([level0Canvas('c1')], {
-            knownMetadata: {
+            knownMetadata: byService({
                 c1: {
                     width: 4000,
                     height: 4000,
@@ -1542,7 +1614,7 @@ describe('planScene — the thumbnail tier', () => {
                         { width: 1000, height: 1000 },
                     ],
                 },
-            },
+            }),
         });
 
         expect(result.metadataRequests).toEqual([]);
@@ -1630,13 +1702,13 @@ describe('planScene — the thumbnail tier', () => {
 
     describe('the handover from the pyramid tier', () => {
         /** The base level of any pyramid or ladder: level 0, one tile. */
-        const BASE = tileKey('c1', 0, 0, 0);
+        const BASE = tileKey('c1', serviceIdOf('c1'), 0, 0, 0);
         const CANVAS = serviceCanvas('c1', 1000, 1000);
 
         /** In the thumbnail tier, holding `resident` and nothing else. */
         function handover(resident: TileKey[]) {
             return thumbnailPlan([CANVAS], {
-                knownMetadata: { c1: FACTS },
+                knownMetadata: byService({ c1: FACTS }),
                 residentTiles: new Set(resident),
             });
         }
@@ -1811,7 +1883,7 @@ describe('planScene — the thumbnail tier', () => {
 
         it('does not gate TILES, so a canvas being dragged does not go blank', () => {
             const moving = plan([serviceCanvas('c1', 1000, 1000)], {
-                knownMetadata: { c1: FACTS },
+                knownMetadata: byService({ c1: FACTS }),
                 viewStable: false,
             });
 
@@ -1945,7 +2017,7 @@ describe('planScene — the thumbnail tier', () => {
 
         it('lands in the box tier rather than downloading a 108-megapixel master', () => {
             const result = thumbnailPlan([level0Canvas('c1')], {
-                knownMetadata: { c1: HOPELESS },
+                knownMetadata: byService({ c1: HOPELESS }),
             });
 
             expect(result.tiers.c1).toBe('box');
@@ -1960,10 +2032,10 @@ describe('planScene — the thumbnail tier', () => {
             // service's facts, so it is the same answer on every frame and no
             // request is ever issued.
             const once = thumbnailPlan([level0Canvas('c1')], {
-                knownMetadata: { c1: HOPELESS },
+                knownMetadata: byService({ c1: HOPELESS }),
             });
             const again = thumbnailPlan([level0Canvas('c1')], {
-                knownMetadata: { c1: HOPELESS },
+                knownMetadata: byService({ c1: HOPELESS }),
             });
 
             expect(again).toEqual(once);
@@ -1994,7 +2066,7 @@ describe('planScene — the thumbnail tier', () => {
             // 800-canvas manifest shows page images, not empty boxes" failing on
             // exactly the manifests it was written for.
             const result = thumbnailPlan([level0Canvas('c1')], {
-                knownMetadata: { c1: DERIVATIVES },
+                knownMetadata: byService({ c1: DERIVATIVES }),
             });
 
             expect(result.tiers.c1).toBe('thumbnail');
@@ -2014,13 +2086,13 @@ describe('planScene — the thumbnail tier', () => {
             for (const scale of [0.05, 0.1, 0.2, 0.3]) {
                 const at = plan([level0Canvas('c1')], {
                     viewport: viewport({ scale }),
-                    knownMetadata: { c1: HOPELESS },
+                    knownMetadata: byService({ c1: HOPELESS }),
                 });
                 expect(at.tiers.c1).toBe('box');
 
                 const usable = plan([level0Canvas('c1')], {
                     viewport: viewport({ scale }),
-                    knownMetadata: { c1: DERIVATIVES },
+                    knownMetadata: byService({ c1: DERIVATIVES }),
                 });
                 expect(usable.tiers.c1).toBe('thumbnail');
             }
@@ -2181,7 +2253,7 @@ describe('planViewportLimits', () => {
         ];
         const full = plan(canvases, {
             mode: 'paged',
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
         });
 
         expect(limits(canvases, { mode: 'paged' }).layout).toEqual(full.layout);
@@ -2203,7 +2275,7 @@ describe('planViewportLimits', () => {
 
         const atHome = limits(canvases);
         const zoomedIn = plan(canvases, {
-            knownMetadata: { c1: FACTS },
+            knownMetadata: byService({ c1: FACTS }),
             viewport: viewport({ scale: 8 }),
         });
 
@@ -2569,5 +2641,433 @@ describe('planScene — an 800-canvas continuous manifest', () => {
 
         expect(portrait.tiers.p0).toBe(landscape.tiers.l0);
         expect(portrait.tiers.p0).toBe('thumbnail');
+    });
+});
+
+/**
+ * **Composite canvases** — IIIF Cookbook recipe 0036, where a folio is painted
+ * by its full scan and a miniature is painted over a rectangle of it.
+ *
+ * Two things are asserted throughout, and they are one missing concept: every
+ * painting annotation is planned, and each is planned against ITS OWN box. The
+ * renderer that this one replaced composed correctly because it handed
+ * OpenSeadragon one tiled image per annotation with its own `x`/`y`/`width`;
+ * these are the same guarantees, restated against the planner.
+ *
+ * The tier stays a per-CANVAS decision — it is about how much of the screen the
+ * page occupies — and nothing here changes that. What each placement gets
+ * WITHIN the tier is its own: its own pyramid level, its own thumbnail rung,
+ * its own tiles.
+ */
+describe('planScene — composite canvases', () => {
+    /** The miniature's target on a 1000x1000 canvas: a quarter, top-right. */
+    const REGION = { x: 0.5, y: 0, width: 0.25, height: 0.25 };
+
+    /**
+     * "Everything the planner asks for is held", for the assertions that are
+     * about the ORDER of the draw list rather than about its membership.
+     *
+     * A predicate rather than an enumerated `Set`, because the point is to take
+     * residency out of the question entirely: enumerating would mean deriving
+     * the required set first, and an omission there would silently weaken the
+     * ordering assertion into a vacuous one.
+     */
+    const ALL_TILES = {
+        has: () => true,
+    } as unknown as ReadonlySet<TileKey>;
+
+    /**
+     * One canvas painted by a full-canvas image and a region-targeted one.
+     *
+     * `c1` and `c2` are separate services, which is what makes "both were
+     * requested" checkable: `serviceIdOf` derives the id from the name, so the
+     * two halves cannot be confused for each other in an expectation.
+     */
+    function composite(
+        makeSource: (id: string) => SourceDescriptor = serviceSource,
+    ): PlannerCanvas {
+        return {
+            id: 'c1',
+            width: 1000,
+            height: 1000,
+            images: [
+                fills('c1', makeSource('c1'), 1000, 1000),
+                { key: 'c1#1', source: makeSource('c2'), ...REGION },
+            ],
+        };
+    }
+
+    it('requests tiles for EVERY painting annotation, not only the first', () => {
+        const result = plan([composite()], {
+            knownMetadata: byService({ c1: FACTS, c2: FACTS }),
+        });
+
+        expect(result.tiers.c1).toBe('pyramid');
+
+        const services = new Set(
+            result.tileRequests.map(
+                (request) => new URL(request.url).pathname.split('/')[1],
+            ),
+        );
+        // The regression: before this, only `c1` was ever asked for and the
+        // miniature's service was never touched.
+        expect([...services].sort()).toEqual(['c1', 'c2']);
+    });
+
+    /**
+     * **Paint order is annotation order, and level order only WITHIN an image.**
+     *
+     * Blur-up wants coarsest-first so a finer tile paints over the coarse chain
+     * beneath it, and that is a statement about one picture's own levels. Sorted
+     * across the whole scene, it silently becomes a statement about the
+     * composition: the folio is large and picks a fine level while the miniature
+     * is small and picks a coarse one, so every folio tile above the miniature's
+     * chosen level sorts AFTER it and paints over it. The miniature vanishes —
+     * and only when zoomed IN, because at the thumbnail tier both pictures are
+     * at rungs 0 and 1 and the order happens to survive.
+     */
+    it('paints a composition in annotation order, not in level order', () => {
+        const result = plan([composite()], {
+            knownMetadata: byService({ c1: BIG_FACTS, c2: BIG_FACTS }),
+            // Framed INSIDE the miniature's box (x 500..750, y 0..250) and
+            // zoomed in far enough that the folio reaches a level well above
+            // anything the quarter-width miniature will choose. The folio
+            // covers the whole canvas, so both pictures are on screen here.
+            viewport: viewport({ centre: { x: 600, y: 120 }, scale: 6 }),
+            residentTiles: ALL_TILES,
+        });
+
+        const owner = (key: string) =>
+            key.includes(serviceIdOf('c2')) ? 'miniature' : 'folio';
+        const owners = result.tileDraws.map((draw) => owner(draw.key));
+
+        expect(owners).toContain('folio');
+        expect(owners).toContain('miniature');
+        // Every miniature draw comes after every folio draw, because the
+        // miniature is painted ON the folio.
+        expect(owners.lastIndexOf('folio')).toBeLessThan(
+            owners.indexOf('miniature'),
+        );
+
+        // …and within each picture, still coarsest first: blur-up is intact.
+        for (const which of ['folio', 'miniature'] as const) {
+            const levels = result.tileDraws
+                .filter((draw) => owner(draw.key) === which)
+                .map((draw) => draw.level);
+            expect(levels).toEqual([...levels].sort((a, b) => a - b));
+        }
+    });
+
+    it('orders whole images and tiles in ONE sequence the painter can merge', () => {
+        // A tiled folio with a plain-JPEG overlay on it — the two source kinds
+        // on one canvas. They leave the planner in separate lists (`tileDraws`
+        // is scheduler-held, `staticImages` is host-held), so without a shared
+        // ordering the painter can only draw all of one kind and then all of the
+        // other, and the overlay goes underneath the thing it overlays.
+        const mixed: PlannerCanvas = {
+            id: 'c1',
+            width: 1000,
+            height: 1000,
+            images: [
+                fills('c1', serviceSource('c1'), 1000, 1000),
+                { key: 'c1#1', source: staticSource('c2'), ...REGION },
+            ],
+        };
+
+        const result = plan([mixed], {
+            knownMetadata: byService({ c1: FACTS }),
+            residentTiles: ALL_TILES,
+        });
+
+        const lastTile = Math.max(
+            ...result.tileDraws.map((draw) => draw.order),
+        );
+        expect(result.staticImages).toHaveLength(1);
+        // The overlay is second in annotation order, so it must sort after every
+        // tile of the folio beneath it.
+        expect(result.staticImages[0].order).toBeGreaterThan(lastTile);
+    });
+
+    it('tiles the miniature into its target box, not across the canvas', () => {
+        const result = plan([composite()], {
+            knownMetadata: byService({ c1: FACTS, c2: FACTS }),
+            residentTiles: new Set(
+                // The base tile of each service — one tile covering its whole
+                // image, so the draw box IS the box the image paints into.
+                ['c1', 'c2'].map((id) =>
+                    tileKey('c1', serviceIdOf(id), 0, 0, 0),
+                ),
+            ),
+        });
+
+        const boxes = new Map(
+            result.tileDraws
+                .filter((draw) => draw.level === 0)
+                .map((draw) => [draw.key, draw]),
+        );
+
+        const folio = boxes.get(tileKey('c1', serviceIdOf('c1'), 0, 0, 0))!;
+        const miniature = boxes.get(tileKey('c1', serviceIdOf('c2'), 0, 0, 0))!;
+
+        // The folio is the canvas.
+        expect(folio).toMatchObject({ x: 0, y: 0, width: 1000, height: 1000 });
+        // The miniature is its target's rectangle — offset, and a quarter the
+        // width. Painted across the whole canvas it would cover the folio
+        // entirely, which is exactly what the discarded placement did.
+        expect(miniature).toMatchObject({
+            x: 500,
+            y: 0,
+            width: 250,
+            height: 250,
+        });
+    });
+
+    it('does not mistake a top-half target for a canvas-filling image', () => {
+        // `x: 0, y: 0, width: 1` LOOKS like it identifies a canvas-filling
+        // image and does not: an annotation targeting `#xywh=0,0,1200,900` on a
+        // 1200x1800 canvas has exactly those three values and paints the top
+        // half. Only `height` tells the two apart, so any shortcut keyed on the
+        // other three silently doubles this image's height.
+        const result = plan(
+            [
+                {
+                    id: 'c1',
+                    width: 1200,
+                    height: 1800,
+                    images: [
+                        {
+                            key: 'c1#0',
+                            source: staticSource('c1'),
+                            x: 0,
+                            y: 0,
+                            width: 1,
+                            height: 0.75,
+                        },
+                    ],
+                },
+            ],
+            { viewport: viewport({ centre: { x: 600, y: 900 }, scale: 0.3 }) },
+        );
+
+        expect(result.staticImages[0]).toMatchObject({
+            x: 0,
+            y: 0,
+            width: 1200,
+            height: 900,
+        });
+    });
+
+    it('chooses each placement its own level, from its own size on screen', () => {
+        // The miniature covers a quarter of the folio's width, so at the same
+        // viewport it needs a level two steps coarser to reach the same
+        // sharpness. Deciding both from the canvas's box would over-fetch the
+        // miniature by 16x in area.
+        const result = plan([composite()], {
+            knownMetadata: byService({ c1: BIG_FACTS, c2: BIG_FACTS }),
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale: 2 }),
+        });
+
+        const finestOf = (id: string) =>
+            Math.max(
+                ...result.tileRequests
+                    .filter((request) => request.url.includes(`/${id}/`))
+                    .map((request) => request.level),
+            );
+
+        expect(finestOf('c2')).toBeLessThan(finestOf('c1'));
+    });
+
+    it('asks for info.json ONCE for a canvas painting from two services', () => {
+        const result = plan([composite()]);
+
+        // The list is re-emitted every frame until the facts land, and the host
+        // fetches every service on the canvas it is handed — so a per-image
+        // push would be one entry per painting annotation, sixty times a
+        // second, for one answer.
+        expect(result.metadataRequests).toEqual(['c1']);
+    });
+
+    it('holds a whole image per placement for static composite canvases', () => {
+        const result = plan([composite(staticSource)]);
+
+        expect(result.staticImages).toEqual([
+            {
+                key: 'c1#0',
+                canvasId: 'c1',
+                url: 'https://example.test/c1.jpg',
+                // Paint order: the folio first, the miniature over it.
+                order: 0,
+                x: 0,
+                y: 0,
+                width: 1000,
+                height: 1000,
+            },
+            {
+                key: 'c1#1',
+                canvasId: 'c1',
+                url: 'https://example.test/c2.jpg',
+                order: 1,
+                x: 500,
+                y: 0,
+                width: 250,
+                height: 250,
+            },
+        ]);
+    });
+
+    it('emits static placements in annotation order, which is paint order', () => {
+        // Not sorted, deliberately: a composite canvas is only correct if the
+        // miniature paints over the folio it sits on.
+        const result = plan([composite(staticSource)]);
+
+        expect(result.staticImages.map((image) => image.key)).toEqual([
+            'c1#0',
+            'c1#1',
+        ]);
+    });
+
+    it('holds nothing for a box-tier composite canvas', () => {
+        // The static half of virtualization. Fed the whole manifest with no
+        // tier gate, this would start an `<img>` load per painting annotation
+        // per folio on open.
+        const result = plan(
+            Array.from({ length: 5 }, (_, index) => ({
+                ...composite(staticSource),
+                id: `c${index}`,
+                images: [
+                    fills(`c${index}`, staticSource(`c${index}`), 1000, 1000),
+                ],
+            })),
+            {
+                mode: 'continuous',
+                viewport: viewport({
+                    centre: {
+                        x: 2 * (1000 + GAP_FRACTION * 1000) + 500,
+                        y: 375,
+                    },
+                    scale: 0.02,
+                }),
+            },
+        );
+
+        const boxed = Object.entries(result.tiers)
+            .filter(([, tier]) => tier === 'box')
+            .map(([canvasId]) => canvasId);
+
+        expect(boxed.length).toBeGreaterThan(0);
+        for (const canvasId of boxed) {
+            expect(
+                result.staticImages.some(
+                    (image) => image.canvasId === canvasId,
+                ),
+            ).toBe(false);
+        }
+    });
+
+    describe('the thumbnail tier', () => {
+        function thumbnailPlan(canvas: PlannerCanvas) {
+            return plan([canvas], {
+                viewport: viewport({
+                    centre: { x: 500, y: 500 },
+                    scale: 0.2,
+                }),
+            });
+        }
+
+        it('paints a DECLARED thumbnail once, over the whole canvas', () => {
+            // A Canvas-declared thumbnail depicts the finished canvas —
+            // miniature and all — so resolving it per placement would both ask
+            // for the same picture twice and squeeze a whole-canvas image into
+            // the miniature's rectangle.
+            const result = thumbnailPlan({
+                ...composite(),
+                thumbnailUrl: 'https://example.test/thumb.jpg',
+            });
+
+            expect(result.tiers.c1).toBe('thumbnail');
+            expect(result.thumbnailRequests).toHaveLength(1);
+            expect(result.thumbnailRequests[0].url).toBe(
+                'https://example.test/thumb.jpg',
+            );
+        });
+
+        it('falls back to a thumbnail per placement, in each placement box', () => {
+            const result = thumbnailPlan(composite());
+
+            // Each placement asks at its OWN size: the folio is 1000 canvas
+            // units at scale 0.2, so 200 device px rounding up to the 256 rung,
+            // while the miniature is 250 units — 50 device px, the 64 rung. A
+            // thumbnail sized from the canvas would fetch a 256 px image to
+            // paint into a 50 px box, four times over on a busy composition.
+            expect(result.thumbnailRequests.map((r) => r.url)).toEqual([
+                'https://images.test/c1/full/32,/0/default.jpg',
+                'https://images.test/c1/full/256,/0/default.jpg',
+                'https://images.test/c2/full/32,/0/default.jpg',
+                'https://images.test/c2/full/64,/0/default.jpg',
+            ]);
+        });
+
+        it('draws each fallback thumbnail into its own placement box', () => {
+            const canvas = composite();
+            const urls = [
+                'https://images.test/c1/full/32,/0/default.jpg',
+                'https://images.test/c2/full/32,/0/default.jpg',
+            ];
+            const result = plan([canvas], {
+                viewport: viewport({ centre: { x: 500, y: 500 }, scale: 0.2 }),
+                residentTiles: new Set(
+                    urls.map((url) => `${canvas.id}#thumb/${url}`),
+                ),
+            });
+
+            const boxes = result.tileDraws.map(({ x, y, width, height }) => ({
+                x,
+                y,
+                width,
+                height,
+            }));
+
+            expect(boxes).toContainEqual({
+                x: 0,
+                y: 0,
+                width: 1000,
+                height: 1000,
+            });
+            expect(boxes).toContainEqual({
+                x: 500,
+                y: 0,
+                width: 250,
+                height: 250,
+            });
+        });
+
+        it('keeps a canvas whose miniature has no thumbnail out of the box tier', () => {
+            // Reported per CANVAS, and only when EVERY picture on it came up
+            // empty: this canvas paints its folio perfectly well, and calling
+            // it unresolved would both mislead the log and demote a canvas that
+            // is rendering.
+            const result = thumbnailPlan({
+                id: 'c1',
+                width: 1000,
+                height: 1000,
+                images: [
+                    fills('c1', staticSource('c1'), 1000, 1000),
+                    {
+                        key: 'c1#1',
+                        // A level0 service advertising nothing, with no
+                        // `info.json` fetched: the ladder has no rung to take.
+                        source: {
+                            kind: 'service',
+                            serviceId: serviceIdOf('c2'),
+                            profile: 'level0',
+                        },
+                        ...REGION,
+                    },
+                ],
+            });
+
+            expect(result.tiers.c1).toBe('thumbnail');
+            expect(result.unresolvedThumbnails).toEqual([]);
+        });
     });
 });

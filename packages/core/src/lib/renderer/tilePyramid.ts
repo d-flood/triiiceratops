@@ -28,7 +28,7 @@
  * rect, which is what `tileCanvasRect` does.
  */
 
-import type { ImageServiceFacts, LayoutRect, TileKey } from './types';
+import type { ImageServiceFacts, TileKey } from './types';
 
 /**
  * Tile width to use when a level 1/2 service advertises no `tiles` at all.
@@ -111,13 +111,30 @@ export interface Box {
     height: number;
 }
 
+/**
+ * A tile's stable identity: the canvas, the **service** its pixels come from,
+ * and its position in that service's grid.
+ *
+ * The service is in the key because a canvas id is not a stable name for a
+ * picture — `imageRequests` says the same thing for whole decoded images.
+ * Selecting a different Choice on a canvas resolves it to a different service,
+ * and a key without the service is identical for both alternatives: every tile
+ * the reader has already is "resident and required", so nothing is requested and
+ * the first alternative is painted forever.
+ *
+ * The canvas is still in it as well. Two canvases painted by one service really
+ * could share these pixels, but making that dedupe happen here would silently
+ * change what the residency counters count and what the byte budget evicts, for
+ * a case no manifest in the corpus exercises.
+ */
 export function tileKey(
     canvasId: string,
+    serviceId: string,
     level: number,
     column: number,
     row: number,
 ): TileKey {
-    return `${canvasId}#${level}/${column},${row}`;
+    return `${canvasId}@${serviceId}#${level}/${column},${row}`;
 }
 
 function usableTileSize(size: number | null | undefined): number | null {
@@ -327,13 +344,20 @@ export function tileUrl(
     return `${pyramid.serviceId}/${regionParameter}/${size}/0/default.${pyramid.format}`;
 }
 
-/** Where a tile lands in **canvas space**, given its canvas's layout rect. */
+/**
+ * Where a tile lands in **canvas space**, given the box its image paints into.
+ *
+ * That box is the canvas's layout rect for an ordinary canvas-filling image and
+ * the painting annotation's `#xywh=` target for one that paints a sub-region —
+ * which is why this takes a bare {@link Box} rather than a `LayoutRect`. A
+ * pyramid tiles the picture it belongs to, not the canvas that picture sits on.
+ */
 export function tileCanvasRect(
     pyramid: TilePyramid,
     level: PyramidLevel,
     column: number,
     row: number,
-    rect: LayoutRect,
+    rect: Box,
 ): Box {
     const region = tileRegion(pyramid, level, column, row);
     const scaleX = rect.width / pyramid.width;
@@ -391,11 +415,14 @@ export function chooseLevel(
  * included — is restricted to viewport-plus-margin, because a whole level costs
  * O(image area) while the viewport costs O(viewport area) (see
  * `planScene.planPyramid`).
+ *
+ * `rect` is the box the pyramid's image paints into, which is a bare
+ * {@link Box} for the reason {@link tileCanvasRect}'s is.
  */
 export function tilesIntersecting(
     pyramid: TilePyramid,
     level: PyramidLevel,
-    rect: LayoutRect,
+    rect: Box,
     box: Box | null,
 ): Array<{ column: number; row: number }> {
     let firstColumn = 0;
