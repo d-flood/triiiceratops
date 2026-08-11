@@ -21,6 +21,7 @@
         downloadBlob,
         getCanvasId,
         getCanvasLabel,
+        resolveLanguageValue,
         type ExportSizeOption,
     } from 'triiiceratops/image-export';
 
@@ -33,7 +34,9 @@
         exportCurrentWorld,
         exportSingleImage,
         getCanvasImageChoices,
+        getImageHost,
         getVisibleCanvasesForDownload,
+        isCrossOriginImageFailure,
         resolveCompositeCanvasSizeOptions,
         resolveSingleImageSizeOptions,
         resolveWorldSizeOptions,
@@ -55,6 +58,7 @@
             s.canvasId,
             s.currentCanvasIndex,
             s.canvases,
+            s.manifestId,
             s.viewingMode,
             s.viewingDirection,
             s.pagedOffset,
@@ -90,6 +94,21 @@
 
     const getSelectedChoice = (canvasId: string) =>
         viewerState.getSelectedChoice(canvasId);
+
+    // The manifest's own label, in the viewer's active locale, for the default
+    // download filename. Read off the raw Manifest JSON the manifest cache
+    // holds: `label` is spelled the same in v2 and v3, and the value-shape
+    // difference is what `resolveLanguageValue` absorbs.
+    const manifestLabel = $derived.by(() => {
+        void stateTick;
+        void localeTick;
+        return (
+            resolveLanguageValue(
+                viewerState.manifestEntry?.json?.label,
+                locale.current,
+            ) || null
+        );
+    });
 
     const canvas = $derived.by(() => {
         void stateTick;
@@ -234,6 +253,49 @@
         return Number.isInteger(parsed) ? parsed : 0;
     }
 
+    /**
+     * The reader-facing message for a failed download.
+     *
+     * An image server declining to let this page read its images is a policy
+     * decision, not a fault, and it is the one failure a reader can act on: the
+     * image is downloadable from the provider's own site and nowhere else. So it
+     * says that plainly and names the host, rather than sending the reader to the
+     * browser console to find out that nothing is wrong with the viewer. The
+     * mechanics — which URL, which browser error — go to the console for whoever
+     * is integrating.
+     */
+    function describeFailure(error: unknown): string {
+        if (!isCrossOriginImageFailure(error)) {
+            return t('image_download_error_failed');
+        }
+
+        const resolved =
+            mode === 'single'
+                ? singleModeCanvasImages[selectedImageIndex]
+                : canvasImages[0];
+        const host = resolved ? getImageHost(resolved) : null;
+
+        // The browser has already logged its own CORS error for this request,
+        // which reads as a viewer defect. This is the one line saying it is not
+        // one, next to the message it explains; the panel message above is the
+        // reader-facing surface and the failure also goes to `pluginerror`.
+        // triiiceratops-console-allow — recorded in lint-allowlist.md.
+        console.warn(
+            '[ImageDownload] The image server refused to let this page read ' +
+                'the image, so it cannot be downloaded or composited here. ' +
+                "That is the image server's cross-origin policy — no " +
+                "'Access-Control-Allow-Origin' header on the image response — " +
+                'not a viewer error, and not something the viewer can change. ' +
+                'The images still display because painting an image needs no ' +
+                'such permission; reading its pixels back does.',
+            { host, mode, resolution: selectedSizeOption?.label, error },
+        );
+
+        return host
+            ? t('image_download_error_not_allowed', { host })
+            : t('image_download_error_not_allowed_unknown_host');
+    }
+
     async function handleDownload() {
         if (!canvas || !selectedSizeOption || !canDownload) {
             return;
@@ -269,14 +331,22 @@
             }
 
             const filename = buildImageDownloadFilename(
-                getCanvasLabel(downloadCanvas, viewerState.currentCanvasIndex),
+                getCanvasLabel(
+                    downloadCanvas,
+                    viewerState.currentCanvasIndex,
+                    locale.current,
+                ),
                 mode,
-                'image/png',
+                // The bytes decide the extension. A composited export really is
+                // a PNG, but a single image is whatever the image service sent,
+                // and naming a JPEG `.png` misleads every tool downstream.
+                blob.type === 'image/jpeg' ? 'image/jpeg' : 'image/png',
+                manifestLabel,
             );
             downloadBlob(blob, filename);
             resultMessage = t('image_download_result_downloaded', { filename });
         } catch (error) {
-            errorMessage = t('image_download_error_failed');
+            errorMessage = describeFailure(error);
             // Surface the failure to the host on the structured channel (in
             // addition to the panel-local message) so integrations can react
             // without scraping the browser console for diagnostics.

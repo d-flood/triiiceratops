@@ -1006,7 +1006,7 @@ export type { TriiiceratopsViewerElement };
  * a wildcard would make ambiguous.
  */
 export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
-export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
+export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchExportImageBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, isLevel0ImageService, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
 export { DEFAULT_POINT_RADIUS, resolvePointRadius, type PointStyle, } from './utils/pointMarker';
 export { getCanvasDisplayLayouts } from './components/canvasLayout';
@@ -5708,14 +5708,60 @@ export declare function clampCompositeSize(width: number, height: number): {
 };
 /**
  * Builds the export request URL for a single resolved image at an optional
- * target pixel size. Level0 services can only be requested at their native
- * size (or one of the fixed sizes surfaced by `resolveExportSizeOptions`),
- * so any explicit width/height is ignored for them.
+ * target pixel size.
+ *
+ * A level0 service has no request URL derivable from the manifest at all: what
+ * it will answer is only knowable from `info.json`, and the base URI those
+ * requests go to can differ from the one that fetched the document (see
+ * {@link fetchExportImageBlob}). So this reports the published resource — the
+ * one image such a manifest guarantees without asking — and callers that can
+ * afford a fetch should go through `fetchExportImageBlob` instead of this.
  */
 export declare function getResolvedImageExportUrl(resolved: ResolvedCanvasImage, options?: {
     width?: number;
     height?: number;
 }): string | null;
+/**
+ * Whether a manifest's declared image-service profile is level0 — the one fact
+ * that decides whether an exporter may build a request URL from the manifest at
+ * all, or has to read `info.json` first (see {@link fetchExportImageBlob}).
+ *
+ * A thin alias over `renderer/sizeLadder.isLevel0Profile`, exported so both
+ * export plugins can ask it without the renderer's whole source model becoming
+ * public API. What it saves a caller is the three spellings a profile uses in the
+ * wild — the bare version 3 token, the version 2 profile URI, and the version 1
+ * `#level0` fragment — the last of which hand-rolled checks reliably miss.
+ */
+export declare function isLevel0ImageService(profile: unknown): boolean;
+/**
+ * The pixels for one resolved image at (about) a target width — however many
+ * requests that takes.
+ *
+ * The seam an exporter should reach for instead of
+ * {@link getResolvedImageExportUrl}, because for a level0 source no single URL
+ * is the answer: the base URI to request from is only in `info.json` (an auth
+ * gateway can sign it), and a static tile tree may hold the wanted resolution
+ * only as tiles. Both are handled here so that every export mode — one image, a
+ * composited canvas, the whole current view — gets them by construction rather
+ * than each reimplementing the parts it happens to need.
+ *
+ * `target.url` is the fast path: an {@link ExportSizeOption} that carries one is
+ * already a single canonical request, so passing the option straight through
+ * spends no extra fetch.
+ *
+ * `target.imageRequest` is merged into every image request this makes — a
+ * resolution assembled from tiles carries it on each tile — so a service behind
+ * authentication is reached the same way whatever its compliance level. It
+ * cannot make a service that withholds `Access-Control-Allow-Origin` readable;
+ * nothing in the browser can, and an export against one fails.
+ */
+export declare function fetchExportImageBlob(resolved: ResolvedCanvasImage, target?: {
+    url?: string;
+    width?: number;
+    height?: number;
+    format?: 'image/png' | 'image/jpeg';
+    imageRequest?: RequestInit;
+}): Promise<Blob>;
 export declare const EXPORT_RESOLUTION_PRESETS: {
     fraction: number;
     label: string;

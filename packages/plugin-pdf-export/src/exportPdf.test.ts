@@ -943,6 +943,134 @@ describe('exportCanvasRangeAsPdf', () => {
     );
 });
 
+describe('level0 image sources', () => {
+    let createObjectUrlSpy: ReturnType<typeof vi.spyOn>;
+    let revokeObjectUrlSpy: ReturnType<typeof vi.spyOn>;
+    let anchorClickSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        mockPdfDoc = createMockPdfDoc();
+        createObjectUrlSpy = vi
+            .spyOn(URL, 'createObjectURL')
+            .mockReturnValue('blob:mock');
+        revokeObjectUrlSpy = vi
+            .spyOn(URL, 'revokeObjectURL')
+            .mockImplementation(() => {});
+        anchorClickSpy = vi
+            .spyOn(HTMLAnchorElement.prototype, 'click')
+            .mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        createObjectUrlSpy.mockRestore();
+        revokeObjectUrlSpy.mockRestore();
+        anchorClickSpy.mockRestore();
+        vi.restoreAllMocks();
+    });
+
+    /**
+     * A canvas painted by a signed level0 static tile tree: `info.json` is served
+     * at the advertised service id but declares a DIFFERENT base for image
+     * requests, and the manifest's published image is a small thumbnail on
+     * another host. Exactly the shape CSNTM publishes.
+     */
+    function createSignedLevel0Canvas() {
+        return {
+            id: 'level0-canvas',
+            label: 'level0-canvas',
+            width: 4000,
+            height: 3000,
+            items: annotationPages({
+                target: 'level0-canvas',
+                body: {
+                    id: 'https://thumbs.example.net/tiny-thumbnail.jpg',
+                    type: 'Image',
+                    format: 'image/jpeg',
+                    width: 4000,
+                    height: 3000,
+                    service: [
+                        {
+                            id: 'https://images.example.org/iiif/level0-image',
+                            type: 'ImageService3',
+                            profile: 'level0',
+                        },
+                    ],
+                },
+            }),
+        };
+    }
+
+    function stubLevel0Service(): string[] {
+        const requested: string[] = [];
+        vi.spyOn(globalThis, 'fetch').mockImplementation((async (
+            url: string,
+        ) => {
+            if (String(url).endsWith('/info.json')) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        '@context': 'http://iiif.io/api/image/3/context.json',
+                        id: 'https://images.example.org/t/signed/iiif/level0-image',
+                        type: 'ImageService3',
+                        profile: 'level0',
+                        width: 4000,
+                        height: 3000,
+                        tiles: [{ width: 512, scaleFactors: [1, 8] }],
+                    }),
+                } as Response;
+            }
+            requested.push(String(url));
+            return {
+                ok: true,
+                blob: async () => createImageBlob(),
+            } as Response;
+        }) as unknown as typeof fetch);
+        return requested;
+    }
+
+    it('embeds the image service, not the thumbnail the manifest publishes', async () => {
+        const requested = stubLevel0Service();
+
+        await exportCanvasRangeAsPdf({
+            canvases: [createSignedLevel0Canvas()],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 4000,
+            manifestId: 'https://example.org/manifest',
+        });
+
+        // The base uri from `info.json`, not the advertised service id — and
+        // nowhere near the published thumbnail, which is what this path embedded
+        // before and would have put a 4000px-wide postage stamp on the page.
+        expect(requested).toEqual([
+            'https://images.example.org/t/signed/iiif/level0-image/full/max/0/default.jpg',
+        ]);
+        expect(requested[0]).not.toContain('thumbs.example.net');
+    });
+
+    it('still hands a host-supplied loader the published resource URL', async () => {
+        stubLevel0Service();
+        const loadImageBlob = vi.fn(async () => createImageBlob());
+
+        await exportCanvasRangeAsPdf({
+            canvases: [createSignedLevel0Canvas()],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 4000,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+        });
+
+        // A host that supplies a loader has taken over retrieval entirely, and
+        // the documented `imageUrl` for a level0 source does not change.
+        expect(loadImageBlob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                imageUrl: 'https://thumbs.example.net/tiny-thumbnail.jpg',
+            }),
+        );
+    });
+});
+
 describe('normalizeCanvasRange', () => {
     it('sorts reversed inputs and returns all indices in range', () => {
         expect(normalizeCanvasRange(4, 1, 6)).toEqual({

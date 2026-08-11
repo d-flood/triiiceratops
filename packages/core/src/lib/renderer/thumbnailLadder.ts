@@ -73,7 +73,7 @@ import {
     rungUrl,
     type SizeLadder,
 } from './sizeLadder';
-import { buildPyramid } from './tilePyramid';
+import { buildPyramid, tileUrl, type TilePyramid } from './tilePyramid';
 import type { ImageServiceFacts, SourceDescriptor } from './types';
 
 /**
@@ -283,6 +283,7 @@ function fromLadder(
     rung: number,
     minPixelRatio: number,
     maxDecodedPixels: number,
+    tiles: TilePyramid | null,
 ): ThumbnailSource {
     // Rung-independent, so this answer is a fact about the manifest and the
     // service rather than about the current zoom.
@@ -302,12 +303,68 @@ function fromLadder(
         maxDecodedPixels,
     );
 
+    if (tiles) {
+        // Every rung of a tile-tree ladder is a level whose single tile IS the
+        // whole image, so the request is a tile request and `tileUrl` spells it
+        // — including the explicit region and two-dimensional size a static
+        // version 3 tree requires. Asking it rather than reimplementing it is
+        // what keeps this tier on URLs the tile tier is already painting from,
+        // which is the whole point of {@link ladderFromSingleTileLevels}.
+        //
+        // No `fallback`: the second spelling `rungFallback` offers is version
+        // 2's deprecated `native` quality, and tile requests do not carry one
+        // either (see `planScene.planPyramid`), so a tile that 404s here answers
+        // the same way it would there.
+        return {
+            kind: 'url',
+            url: tileUrl(tiles, tiles.levels[chosen.index], 0, 0),
+        };
+    }
+
     const fallback = rungFallback(ladder, chosen);
     return {
         kind: 'url',
         url: rungUrl(ladder, chosen),
         ...(fallback ? { fallback } : {}),
     };
+}
+
+/**
+ * The thumbnail rungs of a level0 **tile tree**: every level coarse enough that
+ * the whole image fits in one tile, or `null` when no level does.
+ *
+ * A static tile tree holds its tiles. At a coarse enough scale factor the grid
+ * is 1x1 and that single tile is a whole-image derivative — a real file, at a
+ * size this tier wants, needing no compositing. Those levels are the ladder.
+ *
+ * Multi-tile levels are deliberately excluded rather than stitched: this tier is
+ * "a single small image, two entries never more" (see `planScene.planThumbnail`)
+ * and assembling one would break the budget model it is built on. The cost is a
+ * ceiling at the largest single-tile level, so a service with a small `tileSize`
+ * can leave the top of the tier's range mildly upscaled — `chooseRung` returns
+ * the largest affordable rung and it is drawn soft — until the canvas grows past
+ * `pyramidThreshold` and the tile tier takes over with the real grid.
+ *
+ * The single-tile levels are a **prefix** of `levels` and no filtering is needed
+ * to find them: `levels` is ordered coarsest first, and a level's column and row
+ * counts never decrease as the scale factor shrinks, so once one level needs two
+ * tiles no finer one is single-tile either. That is also what keeps each rung's
+ * `index` a valid index into `pyramid.levels`, which is how `fromLadder` gets
+ * back to the level it must build a tile URL for.
+ */
+function ladderFromSingleTileLevels(pyramid: TilePyramid): SizeLadder | null {
+    let count = 0;
+    while (
+        count < pyramid.levels.length &&
+        pyramid.levels[count].columns === 1 &&
+        pyramid.levels[count].rows === 1
+    ) {
+        count += 1;
+    }
+    if (count === 0) return null;
+
+    const ladder = ladderFromPyramid(pyramid);
+    return { ...ladder, rungs: ladder.rungs.slice(0, count) };
 }
 
 /**
@@ -377,18 +434,45 @@ export function resolveThumbnail(
         );
     }
 
-    // 4. A level0 service serves only files it generated. If it advertises
-    //    sizes those are the files; if it advertises tiles instead, its
-    //    scale-factor whole images are (`ladderFromPyramid`, the strategy
-    //    ticket 06 built for exactly this shape).
-    const pyramid =
-        (facts.sizes?.length ?? 0) > 0 ? null : buildPyramid(serviceId, facts);
-    const ladder = pyramid
-        ? ladderFromPyramid(pyramid)
-        : buildSizeLadder(serviceId, facts);
+    // 4. A level0 service serves only files it generated, and which files those
+    //    are depends on what it advertises.
+    //
+    //    Tiles first, and only for the levels that are one tile: those tiles are
+    //    files the server certainly holds, because they are the same files the
+    //    tile tier is already painting this canvas from.
+    //
+    //    Reading `sizes[]` first was the bug. The two keys are not alternatives
+    //    — a service may advertise both, and the shapes in the wild do — and a
+    //    static version 3 tree holds no `full/{w},` whole-image derivative for a
+    //    size in that list, canonical form being `full/{w},{h}` and this tree
+    //    keying its derivatives by explicit region besides. Every rung but the
+    //    largest 404'd, version 3 has no second spelling to fall back on
+    //    (`rungFallback`), and the canvas sat on its error placeholder while the
+    //    tile tier beside it drew the same picture perfectly.
+    //
+    //    Everything else is unchanged, and deliberately: a service with no
+    //    single-tile level (its coarsest grid is already 2x2 or wider) still gets
+    //    the advertised sizes if it has any, and the pyramid's scale-factor whole
+    //    images if it does not. Those requests are the ones that may or may not
+    //    be held depending on how the tree was generated — but they were what
+    //    shipped, and a soft URL is worth more than the box tier this tier
+    //    degrades to when the ladder's cheapest image is over the decode cap.
+    const pyramid = buildPyramid(serviceId, facts);
+    const tiled = pyramid ? ladderFromSingleTileLevels(pyramid) : null;
+    const ladder =
+        tiled ??
+        ((facts.sizes?.length ?? 0) === 0 && pyramid
+            ? ladderFromPyramid(pyramid)
+            : buildSizeLadder(serviceId, facts));
 
     // 5. Nothing usable. Box tier, permanently.
     if (!ladder) return { kind: 'none' };
 
-    return fromLadder(ladder, rung, minPixelRatio, maxDecodedPixels);
+    return fromLadder(
+        ladder,
+        rung,
+        minPixelRatio,
+        maxDecodedPixels,
+        tiled ? pyramid : null,
+    );
 }

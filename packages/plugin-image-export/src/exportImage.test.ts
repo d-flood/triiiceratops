@@ -2,8 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The shared canvas/export toolkit these helpers build on lives in core and is
 // consumed through its public `triiiceratops/image-export` seam. Mock only the
-// two side-effecting primitives (canvas compositing + network fetch); every
+// two side-effecting primitives (canvas compositing + image retrieval); every
 // other helper (URL resolution, size ladders, canvas resolution) runs for real.
+//
+// `fetchExportImageBlob` is where retrieval sits, and it is core's job rather
+// than a URL these helpers build: for a level0 source the request base comes
+// from `info.json` and a resolution may have to be stitched from tiles (core's
+// `imageExport.test.ts` owns that). What is asserted here is what this package
+// actually decides — WHICH image is fetched at WHICH size, and where each one
+// lands on the composited page.
 vi.mock('triiiceratops/image-export', async (importOriginal) => {
     const actual =
         await importOriginal<typeof import('triiiceratops/image-export')>();
@@ -12,23 +19,39 @@ vi.mock('triiiceratops/image-export', async (importOriginal) => {
         composeImages: vi.fn(
             async () => new Blob(['composed'], { type: 'image/png' }),
         ),
-        fetchImageBlob: vi.fn(
-            async (url: string) => new Blob([url], { type: 'image/jpeg' }),
+        fetchExportImageBlob: vi.fn(
+            async () => new Blob(['image'], { type: 'image/jpeg' }),
         ),
     };
 });
 
-import { composeImages, fetchImageBlob } from 'triiiceratops/image-export';
+import {
+    composeImages,
+    fetchExportImageBlob,
+} from 'triiiceratops/image-export';
+
 import { resolveCanvasImage } from 'triiiceratops/image-export';
 import {
     buildImageDownloadFilename,
     exportCompositeCanvas,
     exportCurrentWorld,
     exportSingleImage,
+    getImageHost,
     getVisibleCanvasesForDownload,
+    isCrossOriginImageFailure,
     resolveCompositeCanvasSizeOptions,
     resolveWorldSizeOptions,
 } from './exportImage';
+
+/** The image each `fetchExportImageBlob` call asked for, and at what width. */
+function requestedImages(): Array<{ source: string; width?: number }> {
+    return vi
+        .mocked(fetchExportImageBlob)
+        .mock.calls.map(([resolved, target]) => ({
+            source: resolved.serviceId ?? resolved.resourceId ?? '',
+            width: target?.width,
+        }));
+}
 
 /**
  * Wrap painting annotations in an `AnnotationPage`, the way a IIIF v3 canvas
@@ -147,7 +170,7 @@ function createViewerState(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
     vi.mocked(composeImages).mockClear();
-    vi.mocked(fetchImageBlob).mockClear();
+    vi.mocked(fetchExportImageBlob).mockClear();
 });
 
 afterEach(() => {
@@ -180,29 +203,31 @@ describe('resolveCompositeCanvasSizeOptions', () => {
 });
 
 describe('exportSingleImage', () => {
-    it('fetches the chosen resolution option URL', async () => {
+    it('passes the chosen resolution option through whole', async () => {
         const resolved = resolveCanvasImage(createSingleImageCanvas('a'))!;
-        await exportSingleImage(resolved, {
+        const option = {
             width: 500,
             height: 600,
             label: '50%',
             url: 'https://example.org/chosen.jpg',
-        });
-        expect(fetchImageBlob).toHaveBeenCalledWith(
-            'https://example.org/chosen.jpg',
-        );
+        };
+        await exportSingleImage(resolved, option);
+        // Whole, not just its URL: an option for a resolution that has to be
+        // stitched from a level0 tile tree carries no URL at all, and only its
+        // dimensions say which level to assemble.
+        expect(fetchExportImageBlob).toHaveBeenCalledWith(resolved, option);
     });
 
-    it('derives a URL from width/height when the option has none', async () => {
+    it('asks for the option dimensions when it carries no URL', async () => {
         const resolved = resolveCanvasImage(createSingleImageCanvas('a'))!;
         await exportSingleImage(resolved, {
             width: 500,
             height: 600,
             label: '50%',
         });
-        expect(fetchImageBlob).toHaveBeenCalledWith(
-            'https://example.org/iiif/a/full/500,/0/default.jpg',
-        );
+        expect(requestedImages()).toEqual([
+            { source: 'https://example.org/iiif/a', width: 500 },
+        ]);
     });
 });
 
@@ -214,13 +239,12 @@ describe('exportCompositeCanvas', () => {
             label: 'Original',
         });
 
-        expect(fetchImageBlob).toHaveBeenCalledTimes(2);
-        expect(fetchImageBlob).toHaveBeenCalledWith(
-            expect.stringContaining('image1a'),
-        );
-        expect(fetchImageBlob).toHaveBeenCalledWith(
-            expect.stringContaining('image1b'),
-        );
+        // Each member image is asked for at the width of the box it occupies on
+        // the composited page, not at the page width.
+        expect(requestedImages()).toEqual([
+            { source: 'https://example.org/iiif/image1a', width: 400 },
+            { source: 'https://example.org/iiif/image1b', width: 400 },
+        ]);
 
         expect(composeImages).toHaveBeenCalledTimes(1);
         const [entries, pageWidth, pageHeight] =
@@ -290,13 +314,10 @@ describe('current world (paged mode)', () => {
             label: 'Original',
         });
 
-        expect(fetchImageBlob).toHaveBeenCalledTimes(2);
-        expect(fetchImageBlob).toHaveBeenCalledWith(
-            expect.stringContaining('/iiif/left/'),
-        );
-        expect(fetchImageBlob).toHaveBeenCalledWith(
-            expect.stringContaining('/iiif/right/'),
-        );
+        expect(requestedImages().map((request) => request.source)).toEqual([
+            'https://example.org/iiif/left',
+            'https://example.org/iiif/right',
+        ]);
 
         expect(composeImages).toHaveBeenCalledTimes(1);
         const [entries] = vi.mocked(composeImages).mock.calls[0]!;
@@ -409,6 +430,71 @@ describe('getVisibleCanvasesForDownload', () => {
     });
 });
 
+describe('isCrossOriginImageFailure', () => {
+    it('recognises the fetch rejection each engine uses for a blocked read', () => {
+        // A browser deliberately tells script nothing about a cross-origin
+        // refusal, so the wording is all there is — and it differs per engine.
+        for (const message of [
+            'Failed to fetch', // Chromium
+            'NetworkError when attempting to fetch resource.', // Firefox
+            'Load failed', // WebKit
+        ]) {
+            expect(isCrossOriginImageFailure(new TypeError(message))).toBe(
+                true,
+            );
+        }
+    });
+
+    it('recognises a canvas refusing to hand back unreadable pixels', () => {
+        expect(
+            isCrossOriginImageFailure(
+                new DOMException(
+                    'Tainted canvases may not be exported.',
+                    'SecurityError',
+                ),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not blame the image server for an ordinary failure', () => {
+        // These have fixes, and reporting them as somebody else's policy would
+        // send whoever can fix them looking in the wrong place.
+        expect(
+            isCrossOriginImageFailure(
+                new Error('Image request failed with 404.'),
+            ),
+        ).toBe(false);
+        expect(
+            isCrossOriginImageFailure(
+                new Error('No exportable image found for this canvas.'),
+            ),
+        ).toBe(false);
+        expect(
+            isCrossOriginImageFailure(new TypeError('x is not a function')),
+        ).toBe(false);
+        expect(isCrossOriginImageFailure(undefined)).toBe(false);
+    });
+});
+
+describe('getImageHost', () => {
+    it('names the image service host, so an error can say who declined', () => {
+        const resolved = resolveCanvasImage(createSingleImageCanvas('a'))!;
+        expect(getImageHost(resolved)).toBe('example.org');
+    });
+
+    it('returns null when there is no absolute URL to read a host from', () => {
+        expect(
+            getImageHost({
+                serviceId: null,
+                resourceId: 'relative.jpg',
+            } as any),
+        ).toBeNull();
+        expect(
+            getImageHost({ serviceId: null, resourceId: null } as any),
+        ).toBeNull();
+    });
+});
+
 describe('buildImageDownloadFilename', () => {
     it('sanitizes the label and appends a mode suffix and extension', () => {
         expect(
@@ -430,5 +516,25 @@ describe('buildImageDownloadFilename', () => {
         expect(buildImageDownloadFilename('', 'world', 'image/png')).toBe(
             'image-world.png',
         );
+    });
+
+    it('leads with the manifest label when there is one', () => {
+        expect(
+            buildImageDownloadFilename(
+                'Folio 2r',
+                'single',
+                'image/jpeg',
+                'Évangiles de Saint-Médard',
+            ),
+        ).toBe('vangiles-de-Saint-M-dard-Folio-2r.jpg');
+    });
+
+    it('uses whichever of the two labels resolved', () => {
+        expect(
+            buildImageDownloadFilename('Folio 2r', 'single', 'image/png', null),
+        ).toBe('Folio-2r.png');
+        expect(
+            buildImageDownloadFilename('', 'single', 'image/png', 'Codex B'),
+        ).toBe('Codex-B.png');
     });
 });

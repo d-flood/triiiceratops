@@ -320,7 +320,7 @@ describe('resolveThumbnail', () => {
     });
 
     describe('rung 4 — the advertised scale factors, as whole images', () => {
-        it('uses a level0 service’s scale-factor whole images when it advertises no sizes', () => {
+        it('asks a level0 tile tree for the single tile that is the whole image', () => {
             const facts: ImageServiceFacts = {
                 width: 1200,
                 height: 900,
@@ -330,11 +330,106 @@ describe('resolveThumbnail', () => {
                 scaleFactors: [1, 2, 4, 8],
             };
 
-            // 1200/8 = 150, the coarsest whole image this pyramid describes,
-            // and the only one at or under `128 / 0.5`.
+            // 1200/8 = 150, the coarsest level this pyramid describes and the
+            // only one whose grid is 1x1 (at scale factor 4 the image is 300px
+            // over 256px tiles, so two columns). It is requested as the TILE it
+            // is — the same file the tile tier draws this canvas from — and not
+            // as `full/150,`, which a static version 3 tree need not hold and
+            // which the trees in the wild do not.
             expect(
                 resolve({ source: service('level0'), facts, rung: 128 }),
-            ).toMatchObject({ url: `${SERVICE}/full/150,/0/default.jpg` });
+            ).toMatchObject({
+                url: `${SERVICE}/0,0,1200,900/150,113/0/default.jpg`,
+            });
+        });
+
+        /**
+         * A service advertising `sizes[]` **and** `tiles[]`, which the previous
+         * either/or read as "sizes, therefore not tiles" — the shape CSNTM
+         * publishes, and the one that put a working canvas on its error
+         * placeholder for the whole zoomed-out band.
+         */
+        it('prefers the tile tree over sizes[] when a service advertises both', () => {
+            const facts: ImageServiceFacts = {
+                width: 6132,
+                height: 8176,
+                level0: true,
+                version: 3,
+                tileSize: 1024,
+                scaleFactors: [32, 16, 8, 4, 2, 1],
+                sizes: [
+                    { width: 192, height: 256 },
+                    { width: 384, height: 511 },
+                    { width: 767, height: 1022 },
+                    { width: 1533, height: 2044 },
+                    { width: 3066, height: 4088 },
+                    { width: 6132, height: 8176 },
+                ],
+            };
+
+            // The three single-tile levels — 192, 384, 767 — each addressed as
+            // its tile. The 1533 level is 2x2 and is not offered: this tier
+            // paints one image and does not composite.
+            for (const [rung, expected] of [
+                [64, '0,0,6132,8176/192,256'],
+                [256, '0,0,6132,8176/384,511'],
+                [512, '0,0,6132,8176/767,1022'],
+                // Past the largest single-tile level the ladder tops out rather
+                // than reaching for a size it cannot fetch. Softness here, and
+                // promotion to the tile tier just above it.
+                [2048, '0,0,6132,8176/767,1022'],
+            ] as const) {
+                expect(
+                    resolve({ source: service('level0'), facts, rung }),
+                ).toMatchObject({
+                    url: `${SERVICE}/${expected}/0/default.jpg`,
+                });
+            }
+        });
+
+        it('keeps version 2’s whole-image spelling, and carries no native fallback', () => {
+            // The explicit region is a version 3 static-tree requirement and
+            // `tileUrl` owns that judgement: a version 2 tree's whole-image file
+            // is `full/{w},`, which is 2.x's own canonical form. So this rung is
+            // spelled exactly as it was before — the fix is version 3 only.
+            //
+            // What it does lose is `rungFallback`'s second spelling (version 2's
+            // deprecated `native` quality). Tile requests carry no fallback
+            // either, so a tile that 404s answers the same way at both tiers.
+            const facts: ImageServiceFacts = {
+                width: 1200,
+                height: 900,
+                level0: true,
+                version: 2,
+                tileSize: 256,
+                scaleFactors: [1, 2, 4, 8],
+            };
+
+            expect(
+                resolve({ source: service('level0'), facts, rung: 128 }),
+            ).toEqual({
+                kind: 'url',
+                url: `${SERVICE}/full/150,/0/default.jpg`,
+            });
+        });
+
+        it('falls back to the advertised sizes when no level is a single tile', () => {
+            // The coarsest level of a 12000px image over 256px tiles is still
+            // three columns wide, so there is no whole-image tile to ask for and
+            // this tier keeps the behaviour it shipped with.
+            const facts: ImageServiceFacts = {
+                width: 12_000,
+                height: 9000,
+                level0: true,
+                version: 3,
+                tileSize: 256,
+                scaleFactors: [1, 2, 4, 8, 16],
+                sizes: [{ width: 750, height: 563 }],
+            };
+
+            expect(
+                resolve({ source: service('level0'), facts, rung: 64 }),
+            ).toMatchObject({ url: `${SERVICE}/full/750,/0/default.jpg` });
         });
     });
 
