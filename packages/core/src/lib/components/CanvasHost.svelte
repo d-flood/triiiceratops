@@ -103,6 +103,7 @@
     import {
         ANIMATION_TIME_CONSTANT,
         DEFAULT_BUDGETS,
+        DEFAULT_ZOOM_PER_WHEEL_NOTCH,
         DOUBLE_TAP_MS,
         DOUBLE_TAP_SLOP,
         DOUBLE_TAP_ZOOM_FACTOR,
@@ -125,9 +126,9 @@
         VELOCITY_WINDOW_MS,
         VISIBILITY_RATIO,
         WHEEL_LINE_PIXELS,
+        WHEEL_NOTCH_PIXELS,
         WHEEL_PAGE_PIXELS,
         WHEEL_TIME_CONSTANT,
-        WHEEL_ZOOM_RATE,
     } from '../renderer/rendererDefaults';
     import type { Box } from '../renderer/tilePyramid';
     import type {
@@ -149,6 +150,7 @@
         constrainCentre,
         fitBounds,
         normalizeWheelDelta,
+        wheelZoomRate,
         zoomRange,
     } from '../renderer/viewportMath';
     import { watchReducedMotion } from '../state/reducedMotion';
@@ -332,6 +334,30 @@
             configured > 0
             ? configured
             : ANIMATION_TIME_CONSTANT;
+    }
+
+    /**
+     * The log-scale zoom per pixel of wheel travel, from
+     * `ViewerConfig.renderer.zoomPerWheelNotch`.
+     *
+     * Read per event rather than cached, like `animationTime()`: config is
+     * reactive, and a wheel handler is nowhere near hot enough for one property
+     * read and a `Math.log` to matter.
+     *
+     * A factor of 1 or less is rejected rather than honoured — it would freeze
+     * the wheel or invert its direction, neither of which is a thing to
+     * configure — and takes the default, the same way `zoomPerClick` refuses
+     * one.
+     */
+    function wheelRate(): number {
+        const configured = viewerState.config?.renderer?.zoomPerWheelNotch;
+        const zoomPerNotch =
+            typeof configured === 'number' &&
+            Number.isFinite(configured) &&
+            configured > 1
+                ? configured
+                : DEFAULT_ZOOM_PER_WHEEL_NOTCH;
+        return wheelZoomRate(zoomPerNotch, WHEEL_NOTCH_PIXELS);
     }
 
     /**
@@ -2242,10 +2268,15 @@
      * pointer: the world point under the cursor stays under the cursor.
      *
      * There is deliberately **no trackpad-versus-mouse branch** here or
-     * anywhere else. All wheel input is animated by the same constant. The
-     * usual heuristics — delta magnitude, `ctrlKey`, the platform — all have
-     * counterexamples and would be wrong on someone's hardware. This is a
-     * decision, not an omission; the "fix" is tempting and must not be applied.
+     * anywhere else. All wheel input is animated by the same constant and
+     * scaled by the same rate. The usual heuristics — delta magnitude,
+     * `ctrlKey`, the platform — all have counterexamples and would be wrong on
+     * someone's hardware. This is a decision, not an omission; the "fix" is
+     * tempting and must not be applied.
+     *
+     * `zoomPerWheelNotch` tunes how far a notch travels, and moves both devices
+     * together precisely because the rate underneath it is per pixel. It is the
+     * knob to reach for when the wheel feels too fast — not a device branch.
      */
     function handleWheel(event: WheelEvent) {
         if (!surface) return;
@@ -2276,7 +2307,7 @@
         // which is exactly what tempts a device-detection branch. There is none,
         // and the cause is here.
         const nextScale = clampScale(
-            targetScale * Math.exp(-deltaY * WHEEL_ZOOM_RATE),
+            targetScale * Math.exp(-deltaY * wheelRate()),
         );
 
         // Anchored in the view the notch is heading for, for the same reason:

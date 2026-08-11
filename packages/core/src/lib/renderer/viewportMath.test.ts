@@ -10,6 +10,7 @@ import {
     fitBounds,
     normalizeWheelDelta,
     screenToCanvas,
+    wheelZoomRate,
     zoomRange,
 } from './viewportMath';
 
@@ -291,6 +292,75 @@ describe('normalizeWheelDelta', () => {
         expect(
             normalizeWheelDelta(Number.POSITIVE_INFINITY, 1, LINE, PAGE),
         ).toBe(0);
+    });
+});
+
+describe('wheelZoomRate', () => {
+    // A stand-in notch, for the same reason as above: the shipped size is
+    // provisional, so the conversion is asserted, never the constant.
+    const NOTCH = 100;
+
+    /*
+     * The whole contract in one assertion: whatever factor is configured is the
+     * factor one notch of travel actually applies, once the rate goes through
+     * the handler's `exp(-delta * rate)`. Get the conversion backwards — divide
+     * where it multiplies, or take a log where it should exponentiate — and
+     * this is what catches it.
+     */
+    it('makes one notch of travel apply exactly the configured factor', () => {
+        for (const zoomPerNotch of [1.15, 1.5, 2, 8]) {
+            const rate = wheelZoomRate(zoomPerNotch, NOTCH);
+            // Scrolling up is a negative deltaY, which is why the handler
+            // negates: a notch "in" multiplies.
+            expect(Math.exp(-(-NOTCH) * rate)).toBeCloseTo(zoomPerNotch, 12);
+        }
+    });
+
+    it('makes a notch out the exact inverse of a notch in', () => {
+        const rate = wheelZoomRate(1.15, NOTCH);
+        const inThenOut = Math.exp(-(-NOTCH) * rate) * Math.exp(-+NOTCH * rate);
+        // A notch in followed by a notch out returns to the starting scale —
+        // the same round-trip property `zoomPerClick` documents.
+        expect(inThenOut).toBeCloseTo(1, 12);
+    });
+
+    /*
+     * The property that removes the need for any trackpad-versus-mouse branch:
+     * the rate is per pixel, so a device that emits ten small deltas covering a
+     * notch's distance zooms exactly as far as one that emits the notch whole.
+     */
+    it('gives the same zoom for the same travel, however it is subdivided', () => {
+        const rate = wheelZoomRate(1.15, NOTCH);
+        const whole = Math.exp(-(-NOTCH) * rate);
+        let subdivided = 1;
+        for (let i = 0; i < 10; i += 1) {
+            subdivided *= Math.exp(-(-NOTCH / 10) * rate);
+        }
+        expect(subdivided).toBeCloseTo(whole, 12);
+    });
+
+    it('scales the rate with the notch size', () => {
+        // Half the pixels per notch means twice the zoom per pixel.
+        expect(wheelZoomRate(1.5, 50)).toBeCloseTo(
+            wheelZoomRate(1.5, 100) * 2,
+            12,
+        );
+    });
+
+    /*
+     * A factor at or below 1 has no meaning — 1 freezes the wheel, below 1
+     * inverts it — and neither is something to configure. Returning 0 makes the
+     * handler's `exp(0)` a no-op instead of a NaN or a reversed scroll. The
+     * config edge rejects these before they arrive; this is the backstop.
+     */
+    it('refuses a factor that would freeze or invert the wheel', () => {
+        for (const bad of [1, 0.9, 0, -2, Number.NaN, Number.POSITIVE_INFINITY])
+            expect(wheelZoomRate(bad, NOTCH)).toBe(0);
+    });
+
+    it('refuses a nonsensical notch size rather than dividing by it', () => {
+        for (const bad of [0, -100, Number.NaN, Number.POSITIVE_INFINITY])
+            expect(wheelZoomRate(1.5, bad)).toBe(0);
     });
 });
 

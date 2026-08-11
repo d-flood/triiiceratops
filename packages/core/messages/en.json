@@ -116,6 +116,8 @@
     "settings_view_configuration": "Viewer Configuration",
     "settings_paged_view_offset": "Paged View Offset",
     "settings_gallery_size": "Gallery Size",
+    "settings_submenu_renderer": "Renderer",
+    "settings_zoom_per_wheel_notch": "Wheel Zoom Speed",
     "reset_config": "Reset Config",
     "share_current_state": "Share Current State",
     "link_copied": "Link Copied!",

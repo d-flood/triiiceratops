@@ -123,6 +123,24 @@ export interface RendererConfig {
     zoomPerClick?: number;
 
     /**
+     * Multiplicative zoom factor for one **wheel notch** — the detent of a
+     * classic mouse wheel, which the wheel event reports as about 100 pixels of
+     * `deltaY`. `1.15` takes roughly five notches to double the zoom. Must be
+     * greater than 1; scrolling the other way applies its reciprocal, so a
+     * notch out undoes a notch in exactly.
+     *
+     * This governs the **trackpad as well**, and there is deliberately no
+     * separate knob for one. A trackpad never emits a notch: it emits a stream
+     * of much smaller deltas, covers the same 100 pixels over several events,
+     * and so gets the same zoom for the same scroll distance. Nothing in the
+     * viewer detects which device is in use, because the usual heuristics are
+     * unreliable and that branch is a permanent source of hardware-specific
+     * bugs. If the trackpad feels different from the mouse here, this one value
+     * moves both.
+     */
+    zoomPerWheelNotch?: number;
+
+    /**
      * The least **device** pixels per level pixel a pyramid level may carry
      * before the next coarser one is taken instead. At `0.5`, up to 2×
      * oversampling is tolerated; a *higher* value accepts a blurrier image for

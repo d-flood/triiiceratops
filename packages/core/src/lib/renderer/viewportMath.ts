@@ -281,6 +281,35 @@ export function normalizeWheelDelta(
 }
 
 /**
+ * The log-scale change per pixel of normalized `deltaY` that makes one wheel
+ * notch multiply the zoom by `zoomPerNotch`.
+ *
+ * The wheel's natural unit is a rate per pixel, because that is what the event
+ * supplies and what a trackpad's fractional deltas need. Nobody configures a
+ * viewer in those units, though: `0.0025` says nothing about how far a notch
+ * travels, while `1.15` says exactly. So the public knob is the per-notch
+ * factor (`ViewerConfig.renderer.zoomPerWheelNotch`) and this converts it once,
+ * at the edge, into the rate the accumulation actually uses.
+ *
+ * `notchPixels` is passed in rather than read from the shipped defaults, for
+ * the same reason `normalizeWheelDelta` takes its units: tests must never
+ * assert against a provisional number.
+ *
+ * A `zoomPerNotch` of 1 or less has no meaning — it would freeze the wheel or
+ * invert it — and yields `0`, which callers read as "no zoom from the wheel".
+ * Validation of the configured value belongs at the config edge; this stays
+ * total so a bad number cannot produce a `NaN` scale.
+ */
+export function wheelZoomRate(
+    zoomPerNotch: number,
+    notchPixels: number,
+): number {
+    if (!Number.isFinite(zoomPerNotch) || zoomPerNotch <= 1) return 0;
+    if (!Number.isFinite(notchPixels) || notchPixels <= 0) return 0;
+    return Math.log(zoomPerNotch) / notchPixels;
+}
+
+/**
  * Interpolate scale in **log space**, so zooming feels uniform rather than
  * lurching: a step from 1× to 2× and a step from 8× to 16× take the same time
  * and cover the same perceived distance (spec §Input and animation).

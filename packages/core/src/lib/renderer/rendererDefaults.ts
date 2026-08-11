@@ -153,18 +153,41 @@ export const MAX_DEVICE_PIXEL_RATIO = 2;
  */
 export const WHEEL_TIME_CONSTANT = 0.09;
 
-/** Log-scale change per unit of `WheelEvent.deltaY` (pixel delta mode). */
-export const WHEEL_ZOOM_RATE = 0.0025;
+/**
+ * Pixels of normalized `deltaY` that count as one wheel **notch** — the detent
+ * of a classic mouse wheel, which reports ~100 px in pixel delta mode.
+ *
+ * This is the unit the per-notch zoom knob is expressed in, not a claim about
+ * anyone's hardware. A trackpad emits a stream of much smaller deltas and never
+ * produces a notch at all; it simply covers the same 100 px over several events
+ * and gets the same zoom for the same scroll distance. That is the whole reason
+ * the rate is per-pixel underneath: it makes the two devices agree without
+ * anything having to know which one is in use.
+ */
+export const WHEEL_NOTCH_PIXELS = 100;
+
+/**
+ * Zoom factor for one wheel notch, and the default behind
+ * `ViewerConfig.renderer.zoomPerWheelNotch`. About five notches to double.
+ *
+ * Deliberately gentler than {@link DEFAULT_ZOOM_PER_CLICK}: a wheel is rolled
+ * continuously and a trackpad even more so, so the per-notch step is the one
+ * the reader lands on repeatedly while hunting for a scale, where a button
+ * press is a single deliberate act. Converted to the per-pixel rate the wheel
+ * handler needs by `viewportMath.wheelZoomRate`.
+ */
+export const DEFAULT_ZOOM_PER_WHEEL_NOTCH = 1.15;
 
 /**
  * Pixels one `DOM_DELTA_LINE` unit stands for.
  *
- * A mouse-wheel notch is ~100 px in pixel mode and 3 lines in line mode
- * (Firefox on a classic wheel), so a third of that keeps one notch worth the
- * same zoom everywhere. See `viewportMath.normalizeWheelDelta` — this is the
- * unit the event declares, not a guess about the hardware.
+ * A mouse-wheel notch is 3 lines in line mode (Firefox on a classic wheel)
+ * where it is {@link WHEEL_NOTCH_PIXELS} in pixel mode, so a third of a notch
+ * keeps one notch worth the same zoom everywhere. See
+ * `viewportMath.normalizeWheelDelta` — this is the unit the event declares, not
+ * a guess about the hardware.
  */
-export const WHEEL_LINE_PIXELS = 100 / 3;
+export const WHEEL_LINE_PIXELS = WHEEL_NOTCH_PIXELS / 3;
 
 /**
  * Pixels one `DOM_DELTA_PAGE` unit stands for. Rare (mostly assistive and
