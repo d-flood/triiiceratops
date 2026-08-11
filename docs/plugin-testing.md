@@ -144,11 +144,21 @@ async function readinessExample() {
     renderer.setView({ scale: 4 });
     renderer.emitFrame();
 
+    // Tap the image surface at a screen-space point — the gesture reserved for
+    // annotation selection — without synthesizing pointer events.
+    renderer.emitTap({ x: 120, y: 80 });
+
     // And read what a command sent to the renderer.
     tc.viewerState.zoomIn();
     return renderer.calls;
 }
 ```
+
+`emitTap` reaches every `viewerState.subscribeSurfaceTap` listener. The stand-in
+does not decide what was tapped: a real tap arrives already filtered by the
+renderer's single arbitration point (never a drag, a pinch, or a gesture
+suppressed by an input claim), and which annotation a point selects is answered
+from geometry the subscriber holds.
 
 Genuine pixel behaviour still belongs at the browser seam.
 

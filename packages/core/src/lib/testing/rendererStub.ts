@@ -81,6 +81,12 @@ export interface RendererStub extends RendererPort {
     emitFrame(): void;
     /** How many `frame`-cadence listeners are currently attached. */
     readonly frameListenerCount: number;
+    /**
+     * Tap the image surface at a screen-space point, waking every tap
+     * subscriber — the gesture the real renderer reserves for annotation
+     * selection, without synthesizing pointer events.
+     */
+    emitTap(point: ViewportPoint): void;
 }
 
 /**
@@ -102,6 +108,7 @@ export function createRendererStub(
     let adjustments: ImageAdjustments = NEUTRAL_IMAGE_ADJUSTMENTS;
     const calls: Array<[string, ...unknown[]]> = [];
     const listeners = new Set<() => void>();
+    const tapListeners = new Set<(point: ViewportPoint) => void>();
 
     const record = (name: string, ...args: unknown[]): void => {
         calls.push([name, ...args]);
@@ -123,6 +130,9 @@ export function createRendererStub(
         },
         emitFrame(): void {
             for (const listener of [...listeners]) listener();
+        },
+        emitTap(point: ViewportPoint): void {
+            for (const listener of [...tapListeners]) listener(point);
         },
 
         zoomBy(factor: number, anchor?: ViewportPoint): void {
@@ -154,6 +164,10 @@ export function createRendererStub(
         },
 
         getScale: () => view.scale,
+        // Every canvas it can answer for is "on screen": the stand-in lays
+        // nothing out, so there is no geometry to filter by. A test that needs
+        // a narrower answer passes `canvasIds`.
+        getVisibleCanvasIds: () => [...(canvasIds ?? [])],
         getCentre: (canvasId?: string) =>
             answersFor(canvasId) ? { ...view.centre } : null,
         getVisibleBounds: (canvasId?: string) =>
@@ -201,6 +215,11 @@ export function createRendererStub(
         onFrame(listener: () => void): () => void {
             listeners.add(listener);
             return () => listeners.delete(listener);
+        },
+
+        onTap(listener: (point: ViewportPoint) => void): () => void {
+            tapListeners.add(listener);
+            return () => tapListeners.delete(listener);
         },
     });
 

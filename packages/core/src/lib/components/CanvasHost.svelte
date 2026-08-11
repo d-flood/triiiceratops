@@ -75,6 +75,7 @@
         canvasScaleFactor,
         fitTargetBounds,
         navigationTargetBounds,
+        nearestRect,
         reflowShift,
         worldBoxToCanvas,
         worldPointToCanvas,
@@ -1059,6 +1060,81 @@
         return placement ? canvasScaleFactor(placement) : 1;
     }
 
+    /**
+     * The canvases the reader is looking at — the port's `getVisibleCanvasIds`.
+     *
+     * Two different questions behind one answer, and the mode decides which:
+     *
+     * - `individuals` / `paged`: the laid-out world, unfiltered. There the world
+     *   IS the current canvas or the current spread, and a spread stays open
+     *   however far into one of its pages the reader has zoomed — an annotation
+     *   on the facing page must not vanish from the panel because the page's rect
+     *   left the viewport.
+     * - `continuous`: the world is the whole manifest, so the question becomes
+     *   geometric and this filters by the viewport box. Deliberately not the
+     *   viewer's `canvasId`: a scroll moves the viewport and leaves that behind
+     *   (see `layoutQueries.navigationTargetBounds`).
+     *
+     * The nearest rect to the centre is always included, so the answer is never
+     * empty for a viewport sitting in the gap between two folios.
+     */
+    function visibleCanvasIds(): string[] {
+        const { layout } = viewportLimits();
+        if (layout.length === 0) return [];
+
+        if (viewerState.viewingMode !== 'continuous') {
+            return layout.map((rect) => rect.canvasId);
+        }
+
+        if (viewport.scale <= 0) return [];
+
+        const width = viewport.width / viewport.scale;
+        const height = viewport.height / viewport.scale;
+        const view = {
+            x: viewport.centre.x - width / 2,
+            y: viewport.centre.y - height / 2,
+            width,
+            height,
+        };
+        const nearest = nearestRect(layout, viewport.centre);
+
+        return layout
+            .filter(
+                (rect) =>
+                    rect.canvasId === nearest?.canvasId ||
+                    (rect.x < view.x + view.width &&
+                        rect.x + rect.width > view.x &&
+                        rect.y < view.y + view.height &&
+                        rect.y + rect.height > view.y),
+            )
+            .map((rect) => rect.canvasId);
+    }
+
+    /**
+     * Publish the visible set on `ViewerState`, but only when it CHANGES.
+     *
+     * The annotation panel is not a `frame`-cadence reader — it is ordinary
+     * chrome — so it needs a notifying value, and writing one per painted frame
+     * would wake every plugin's batched subscription sixty times a second. The
+     * set changes only when a folio enters or leaves the viewport, which is
+     * exactly the cadence a panel following the scroll should update at, so the
+     * comparison below is the debounce.
+     */
+    function publishVisibleCanvasIds() {
+        const ids = visibleCanvasIds();
+        const current = viewerState.visibleCanvasIds;
+        if (
+            ids.length === current.length &&
+            ids.every((id, index) => id === current[index])
+        ) {
+            return;
+        }
+
+        (
+            viewerState as unknown as { visibleCanvasIds: string[] }
+        ).visibleCanvasIds = ids;
+    }
+
     const canvasPort: RendererPort = markRendererPort({
         zoomBy(factor: number, anchor?: ViewportPoint): void {
             // With no anchor, zoom about the middle of the surface — which is
@@ -1117,6 +1193,10 @@
             const placement = placementOf(canvasId);
             if (!placement) return null;
             return worldPointToCanvas(viewport.centre, placement);
+        },
+
+        getVisibleCanvasIds(): string[] {
+            return visibleCanvasIds();
         },
 
         getVisibleBounds(canvasId?: string): ViewportBox | null {
@@ -1184,6 +1264,11 @@
             frameListeners.add(listener);
             return () => frameListeners.delete(listener);
         },
+
+        onTap(listener: (point: ViewportPoint) => void): () => void {
+            tapListeners.add(listener);
+            return () => tapListeners.delete(listener);
+        },
     });
 
     /**
@@ -1194,9 +1279,22 @@
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const frameListeners = new Set<() => void>();
 
+    /**
+     * Surface-tap listeners. A plain `Set` for the same reason the frame ones
+     * are, though the pressure is the opposite: a tap is a human-rate event, and
+     * this set is read once per tap.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const tapListeners = new Set<(point: ViewportPoint) => void>();
+
     /** Wake `frame`-cadence subscribers. Called once per painted frame. */
     function emitFrame() {
         for (const listener of [...frameListeners]) listener();
+    }
+
+    /** Announce a single tap, in surface-local CSS pixels. */
+    function emitTap(point: ViewportPoint) {
+        for (const listener of [...tapListeners]) listener(point);
     }
 
     let appliedAdjustments: ImageAdjustments | null = null;
@@ -1314,6 +1412,9 @@
 
         paint();
         emitFrame();
+        // After the paint, so the set published is the one just drawn, and only
+        // on a change (see `publishVisibleCanvasIds`).
+        publishVisibleCanvasIds();
 
         if (animating || momentum || keyPan) {
             scheduleFrame();
@@ -2050,8 +2151,14 @@
                 zoomAnchored(update.point, DOUBLE_TAP_ZOOM_FACTOR);
                 return;
 
-            // A single tap reports `none` and therefore changes nothing: it is
-            // reserved for annotation selection (spec §Input and animation).
+            // A single tap moves NOTHING here — `clickToZoom` stays false (spec
+            // §Input and animation). It is announced to the tap subscribers,
+            // which is how annotation selection hears the one gesture reserved
+            // for it without recognising a tap of its own.
+            case 'tap':
+                emitTap(update.point);
+                return;
+
             case 'none':
                 return;
         }

@@ -164,10 +164,11 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         classification: 'command',
         commands: [
             'showCurrentCanvasAnnotations',
+            'showVisibleCanvasAnnotations',
             'setAnnotationVisible',
             'setAllAnnotationsVisible',
         ],
-        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). Parity commands setAnnotationVisible/setAllAnnotationsVisible added this ticket.',
+        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). Parity commands setAnnotationVisible/setAllAnnotationsVisible added this ticket. showVisibleCanvasAnnotations is the multi-canvas default (every canvas on screen: the spread in paged, the folios the viewport meets in continuous); showCurrentCanvasAnnotations remains the single-canvas one.',
     },
     {
         member: 'annotationVisibilityTouched',
@@ -180,6 +181,12 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         classification: 'command',
         commands: ['setHoveredAnnotationId'],
         notes: 'Set on annotation hover by the overlay and panel. Parity command added this ticket.',
+    },
+    {
+        member: 'activeAnnotationId',
+        classification: 'command',
+        commands: ['setActiveAnnotationId'],
+        notes: 'The SELECTED annotation, as distinct from the hovered one: set by tapping a shape on the image (the gesture the renderer reserves for selection) and read by the panel, the connector lines, and the shape overlay. A command by the parity rule — the viewer chrome selects annotations, so a plugin must be able to; the command toggles when handed the id already selected.',
     },
     {
         member: 'userAnnotations',
@@ -392,6 +399,21 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'tickingPort',
         classification: 'internal',
         notes: 'Which port `unsubscribeFrame` belongs to, so a renderer swap re-attaches instead of leaving the ticker on the departed one.',
+    },
+    {
+        member: 'surfaceTapListeners',
+        classification: 'internal',
+        notes: 'Surface-tap fan-out set behind subscribeSurfaceTap. Plain Set, not reactive, like frameListeners — a tap is delivered to its listeners, not published as state.',
+    },
+    {
+        member: 'unsubscribeSurfaceTap',
+        classification: 'internal',
+        notes: 'Live detach handle for the renderer’s tap events; non-null exactly while a port is attached. Not lazy like unsubscribeFrame: a tap is human-rate, so there is no idle loop to avoid.',
+    },
+    {
+        member: 'visibleCanvasIds',
+        classification: 'observable',
+        notes: 'The canvases the reader is looking at, in layout order — one canvas in individuals, the whole spread in paged, the folios the viewport meets in continuous. Only the renderer can answer it, so core writes it; the host republishes it when the SET changes rather than per frame, which is what makes an observable safe here. The annotation panel, the shape overlay and the connector all scope themselves to it (via the annotatableCanvasIds derived read).',
     },
     {
         member: 'rendererReady',

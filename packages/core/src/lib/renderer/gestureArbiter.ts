@@ -68,6 +68,18 @@ export type GestureUpdate =
     | { kind: 'pinch'; anchor: Point; scaleBy: number; dx: number; dy: number }
     /** Release with momentum. `velocity` is screen pixels per second. */
     | { kind: 'flick'; velocity: Point }
+    /**
+     * A single tap that moved no further than `tapSlop` — **annotation
+     * selection**, and nothing to do with the viewport.
+     *
+     * Reported rather than swallowed so that the one thing single tap is
+     * reserved for is decided *here*, at the arbitration point, with everything
+     * a tap has to clear already applied: not a pinch, not a drag, and not a
+     * gesture the arbiter refused to grant (a held input claim). The host does
+     * not move the viewport for it — `clickToZoom` stays false — it forwards the
+     * point to whoever is listening.
+     */
+    | { kind: 'tap'; point: Point }
     /** A second quick tap in the same place — the animated zoom step. */
     | { kind: 'doubleTap'; point: Point };
 
@@ -302,10 +314,13 @@ export class GestureRecogniser {
         }
 
         this.pendingTap = { x: sample.x, y: sample.y, time: sample.time };
-        // A single tap is deliberately unbound: it is reserved for annotation
-        // selection, and binding zoom to it would break the phase-2 drawing
-        // layer (spec §Input and animation).
-        return NONE;
+        // A single tap moves nothing: it is reserved for annotation selection,
+        // and binding zoom to it would break the phase-2 drawing layer (spec
+        // §Input and animation). It is REPORTED so that selection reads the
+        // arbiter's decision rather than recognising a tap a second time from
+        // its own handlers — which is where a held input claim would stop
+        // suppressing input, and where the two slop thresholds would drift.
+        return { kind: 'tap', point: { x: sample.x, y: sample.y } };
     }
 
     /** Midpoint and separation of the two pinch-driving pointers. */

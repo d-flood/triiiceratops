@@ -114,6 +114,7 @@ function getQueryAccessors(instance: object): Set<string> {
  */
 const DERIVED_READS = new Set([
     // Projections of the manifest cache and the current canvas index.
+    'annotatableCanvasIds',
     'canvases',
     'currentCanvasIndex',
     'currentCanvasSearchAnnotations',
@@ -486,6 +487,10 @@ const commandScenarios: CapabilityScenario[] = [
         act: (state) => state.setHoveredAnnotationId('anno-1'),
     },
     {
+        member: 'activeAnnotationId',
+        act: (state) => state.setActiveAnnotationId('anno-1'),
+    },
+    {
         member: 'userAnnotations',
         act: (state) =>
             state.setUserAnnotations('manifest-1', 'canvas-1', [
@@ -616,6 +621,14 @@ const observableScenarios: CapabilityScenario[] = [
         member: 'rendererReady',
         act: (state) => {
             state.attachRenderer(createRendererStub());
+        },
+    },
+    {
+        // The renderer alone can answer which canvases are on screen; the host
+        // publishes the set when it changes. The stand-in does it directly.
+        member: 'visibleCanvasIds',
+        act: (state) => {
+            state.visibleCanvasIds = ['canvas-1', 'canvas-2'];
         },
     },
     {

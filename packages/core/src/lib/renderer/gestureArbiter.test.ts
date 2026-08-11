@@ -292,11 +292,16 @@ describe('flick momentum', () => {
 });
 
 describe('taps', () => {
-    it('produces nothing at all for a single tap', () => {
+    // A single tap moves nothing — `clickToZoom` stays false — but it IS
+    // reported: it is the gesture reserved for annotation selection, and
+    // reporting it here is what keeps that decision at the arbitration point
+    // instead of in a second recogniser next to the overlay.
+    it('reports a tap, and no viewport outcome, for a single tap', () => {
         const gestures = recogniser();
         gestures.down({ id: 1, x: 200, y: 200, time: 0 });
         expect(gestures.up({ id: 1, x: 201, y: 200, time: 40 })).toEqual({
-            kind: 'none',
+            kind: 'tap',
+            point: { x: 201, y: 200 },
         });
     });
 
@@ -318,8 +323,10 @@ describe('taps', () => {
         gestures.up({ id: 1, x: 200, y: 200, time: 40 });
         gestures.down({ id: 2, x: 200, y: 200, time: 400 });
 
+        // A tap either way — just not a double one, which is the claim here.
         expect(gestures.up({ id: 2, x: 200, y: 200, time: 430 })).toEqual({
-            kind: 'none',
+            kind: 'tap',
+            point: { x: 200, y: 200 },
         });
     });
 
@@ -330,7 +337,8 @@ describe('taps', () => {
         gestures.down({ id: 2, x: 260, y: 200, time: 100 });
 
         expect(gestures.up({ id: 2, x: 260, y: 200, time: 130 })).toEqual({
-            kind: 'none',
+            kind: 'tap',
+            point: { x: 260, y: 200 },
         });
     });
 
@@ -360,7 +368,7 @@ describe('taps', () => {
 
         gestures.down({ id: 3, x: 200, y: 200, time: 200 });
         expect(gestures.up({ id: 3, x: 200, y: 200, time: 220 }).kind).toBe(
-            'none',
+            'tap',
         );
     });
 
@@ -373,6 +381,7 @@ describe('taps', () => {
         gestures.down({ id: 3, x: 240, y: 200, time: 110 });
         gestures.up({ id: 3, x: 240, y: 200, time: 120 });
 
+        // Neither a double tap NOR a tap: a pinch is not a tap at all.
         expect(gestures.up({ id: 2, x: 200, y: 200, time: 130 }).kind).toBe(
             'none',
         );
@@ -428,6 +437,18 @@ describe('a gesture the arbiter never granted', () => {
         });
     });
 
+    it('reports no tap either, so a claim suppresses selection too', () => {
+        // The claim's whole definition is that input for its duration is the
+        // claimant's. A tap reaching annotation selection under a held claim
+        // would select behind the claimant's back — the exact leak that keeping
+        // tap recognition at the arbitration point prevents.
+        const gestures = claimed();
+        gestures.down({ id: 1, x: 200, y: 200, time: 0 });
+        expect(gestures.up({ id: 1, x: 200, y: 200, time: 40 })).toEqual({
+            kind: 'none',
+        });
+    });
+
     it('leaves no half-tap behind that could pair with a later one', () => {
         // Taps made under a claim are not the claimant's to donate: a tap while
         // the claim is held, then a tap after it lifts, is two single taps.
@@ -438,7 +459,8 @@ describe('a gesture the arbiter never granted', () => {
         const released = recogniser();
         released.down({ id: 2, x: 200, y: 200, time: 150 });
         expect(released.up({ id: 2, x: 200, y: 200, time: 180 })).toEqual({
-            kind: 'none',
+            kind: 'tap',
+            point: { x: 200, y: 200 },
         });
     });
 });

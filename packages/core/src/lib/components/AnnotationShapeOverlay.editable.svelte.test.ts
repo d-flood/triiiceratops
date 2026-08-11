@@ -244,3 +244,355 @@ describe('AnnotationShapeOverlay — the read-only tooltip', () => {
         expect(tooltip()).toBeNull();
     });
 });
+
+/**
+ * More than one canvas on screen: a facing-page spread, and a run of folios in
+ * continuous mode.
+ *
+ * The overlay used to read `viewerState.canvasId` — one canvas — so the facing
+ * page's annotations were drawn nowhere at all, and anything it did draw was
+ * projected through the current canvas's rect. Both halves are asserted here: that
+ * every canvas on screen contributes shapes, and that each shape went through ITS
+ * OWN canvas's placement, which is the only thing that puts a mark on the right
+ * page.
+ */
+describe('AnnotationShapeOverlay — more than one canvas on screen', () => {
+    let mounted: ReturnType<typeof mount> | null = null;
+
+    afterEach(async () => {
+        if (mounted) {
+            await unmount(mounted);
+            mounted = null;
+        }
+        document.body.innerHTML = '';
+    });
+
+    /** The same box on each of two pages. */
+    const VERSO_NOTE = {
+        id: 'anno-verso',
+        type: 'Annotation',
+        motivation: 'commenting',
+        body: { type: 'TextualBody', value: 'On the verso' },
+        target: 'canvas-2#xywh=10,20,30,40',
+    };
+
+    /**
+     * A spread's placement: page two sits a page-width plus a gap to the right,
+     * which is what the renderer's layout does and what `canvasToScreen(point,
+     * canvasId)` answers with.
+     */
+    const PAGE_OFFSET = 500;
+
+    function renderSpread() {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: {
+                annotationsByCanvas: {
+                    'canvas-1': [RECTANGLE],
+                    'canvas-2': [VERSO_NOTE],
+                },
+                canvasToScreen: (
+                    point: { x: number; y: number },
+                    canvasId?: string,
+                ) => ({
+                    x: point.x + (canvasId === 'canvas-2' ? PAGE_OFFSET : 0),
+                    y: point.y,
+                }),
+            },
+        });
+        flushSync();
+    }
+
+    function shapeFor(annotationId: string): HTMLElement {
+        const element = document.querySelector<HTMLElement>(
+            `[data-annotation-id="${annotationId}"]`,
+        );
+        expect(element, `no shape for ${annotationId}`).not.toBeNull();
+        return element!;
+    }
+
+    it('draws a shape for every canvas on screen, not just the current one', () => {
+        renderSpread();
+
+        expect(
+            document
+                .querySelector('[data-testid="annotation-shapes"]')!
+                .querySelectorAll('[data-annotation-id]'),
+        ).toHaveLength(2);
+    });
+
+    it('projects each shape through its own canvas’s placement', () => {
+        renderSpread();
+
+        // Identical geometry on both pages, so the ONLY difference in the result
+        // is which canvas answered — a shape projected through the current canvas
+        // would land on top of the recto's.
+        expect(shapeFor('anno-rectangle').style.left).toBe('10px');
+        expect(shapeFor('anno-verso').style.left).toBe(`${10 + PAGE_OFFSET}px`);
+        expect(shapeFor('anno-rectangle').style.top).toBe('20px');
+        expect(shapeFor('anno-verso').style.top).toBe('20px');
+    });
+
+    it('drops a shape whose canvas the renderer cannot place', () => {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: {
+                annotationsByCanvas: {
+                    'canvas-1': [RECTANGLE],
+                    'canvas-2': [VERSO_NOTE],
+                },
+                // The honest-absence answer: a canvas this renderer has not laid
+                // out. Drawing it at the other page's offset would be worse than
+                // not drawing it.
+                canvasToScreen: (
+                    point: { x: number; y: number },
+                    canvasId?: string,
+                ) => (canvasId === 'canvas-2' ? null : point),
+            },
+        });
+        flushSync();
+
+        expect(
+            document.querySelector('[data-annotation-id="anno-rectangle"]'),
+        ).not.toBeNull();
+        expect(
+            document.querySelector('[data-annotation-id="anno-verso"]'),
+        ).toBeNull();
+    });
+});
+
+/**
+ * A content-search hit is CANVAS coordinates.
+ *
+ * The Content Search API returns annotations targeting the Canvas, and a hit is
+ * built as `on: "<canvasId>#xywh=…"` with no embedded canvas context — so while
+ * the canvas could only come from that context, the target comparison could never
+ * be made and every hit fell through to image space. On a manifest whose declared
+ * image is not its Canvas's size, that rescaled every highlight by the ratio
+ * between them: the same mis-scaling manifest annotations had, reached by a
+ * different door, and left behind when that one was fixed.
+ *
+ * The whole path is exercised — collected for the canvas, parsed against it,
+ * classified, and projected — because each step in isolation looks right.
+ */
+describe('AnnotationShapeOverlay — a search hit', () => {
+    let mounted: ReturnType<typeof mount> | null = null;
+
+    afterEach(async () => {
+        if (mounted) {
+            await unmount(mounted);
+            mounted = null;
+        }
+        document.body.innerHTML = '';
+    });
+
+    /**
+     * A Canvas whose declared image is HALF its own size — the case the two
+     * spaces stop coinciding in, and the reason the misreading was invisible in
+     * every fixture where they match.
+     */
+    const CANVAS = {
+        id: 'canvas-1',
+        type: 'Canvas',
+        width: 1000,
+        height: 1000,
+        items: [
+            {
+                id: 'page-1',
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        id: 'painting-1',
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        body: {
+                            id: 'https://example.org/image.jpg',
+                            type: 'Image',
+                            width: 500,
+                            height: 500,
+                        },
+                        target: 'canvas-1',
+                    },
+                ],
+            },
+        ],
+    };
+
+    const HIT = {
+        '@id': 'urn:search-hit:0',
+        '@type': 'oa:Annotation',
+        on: 'canvas-1#xywh=100,100,200,200',
+        canvasId: 'canvas-1',
+        isSearchHit: true,
+    };
+
+    it('is drawn at its canvas-space size, not rescaled by the image’s', () => {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: {
+                annotations: [],
+                searchAnnotations: [HIT],
+                canvases: [CANVAS],
+            },
+        });
+        flushSync();
+
+        const shape = document.querySelector<HTMLElement>(
+            '[data-annotation-id="urn:search-hit:0"]',
+        );
+        expect(shape, 'the search hit has no shape').not.toBeNull();
+        // `canvasToScreen` is the identity here, so these ARE the canvas-space
+        // numbers. Read as image space they would be doubled to 400×400 at
+        // (200,200) — the Canvas being twice the declared image.
+        expect(shape!.style.width).toBe('200px');
+        expect(shape!.style.height).toBe('200px');
+        expect(shape!.style.left).toBe('100px');
+        expect(shape!.style.top).toBe('100px');
+    });
+
+    it('still converts an annotation that really does target the image', () => {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: {
+                annotations: [
+                    {
+                        id: 'anno-on-image',
+                        type: 'Annotation',
+                        motivation: 'commenting',
+                        body: { type: 'TextualBody', value: 'On the image' },
+                        // Targets the IMAGE resource, not the canvas: image
+                        // pixels, and the conversion still applies.
+                        target: 'https://example.org/image.jpg#xywh=100,100,200,200',
+                    },
+                ],
+                canvases: [CANVAS],
+            },
+        });
+        flushSync();
+
+        const shape = document.querySelector<HTMLElement>(
+            '[data-annotation-id="anno-on-image"]',
+        );
+        // Image space → canvas space doubles it: the Canvas is 1000 wide and the
+        // image declares 500.
+        expect(shape!.style.width).toBe('400px');
+        expect(shape!.style.left).toBe('200px');
+    });
+});
+
+/**
+ * Selection from the image, on the one gesture the renderer reserves for it.
+ *
+ * Driven through `subscribeSurfaceTap` — the seam the real host publishes taps
+ * on — rather than by synthesizing pointer events, because what a tap IS was
+ * decided by the arbiter (`gestureArbiter.test.ts` asserts that half, including
+ * that a held input claim reports none). What is asserted here is the other
+ * half: which annotation a tap at a point selects.
+ */
+describe('AnnotationShapeOverlay — selection', () => {
+    let host: { tapAt(point: { x: number; y: number }): void } | null = null;
+    let mounted: ReturnType<typeof mount> | null = null;
+
+    afterEach(async () => {
+        if (mounted) {
+            await unmount(mounted);
+            mounted = null;
+            host = null;
+        }
+        document.body.innerHTML = '';
+    });
+
+    /** The stub viewer state's selection, read back through the host. */
+    function selected(): string | null {
+        return (
+            host as unknown as { selectedAnnotationId(): string | null }
+        ).selectedAnnotationId();
+    }
+
+    function tap(x: number, y: number): void {
+        host!.tapAt({ x, y });
+        flushSync();
+    }
+
+    function render(annotations: unknown[]): void {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: { annotations },
+        });
+        host = mounted as never;
+        flushSync();
+    }
+
+    it('selects the annotation under the tap', () => {
+        render([RECTANGLE]);
+
+        // Inside `xywh=10,20,30,40`, which the stub projects unchanged.
+        tap(20, 30);
+        expect(selected()).toBe('anno-rectangle');
+    });
+
+    it('marks the selected shape, so the image shows what the panel says', () => {
+        render([RECTANGLE]);
+        tap(20, 30);
+
+        expect(
+            document.querySelector(
+                '[data-annotation-id="anno-rectangle"] .active',
+            ),
+        ).not.toBeNull();
+    });
+
+    it('clears the selection on a tap that hits no shape', () => {
+        render([RECTANGLE]);
+        tap(20, 30);
+
+        tap(500, 500);
+        expect(selected()).toBeNull();
+    });
+
+    it('puts a selected annotation down again when it is tapped twice', () => {
+        render([RECTANGLE]);
+
+        tap(20, 30);
+        tap(20, 30);
+        expect(selected()).toBeNull();
+    });
+
+    it('selects the topmost shape where two overlap, as a click would', () => {
+        // `OVERLAPPING` covers the same box as RECTANGLE and is drawn after it.
+        const OVERLAPPING = {
+            ...RECTANGLE,
+            id: 'anno-on-top',
+            body: { type: 'TextualBody', value: 'The one in front' },
+        };
+        render([RECTANGLE, OVERLAPPING]);
+
+        tap(20, 30);
+        expect(selected()).toBe('anno-on-top');
+    });
+
+    /**
+     * A whole-page annotation is deliberately unselectable from the image: its
+     * box answers every tap on the canvas, including the taps that mean "clear
+     * the selection". The panel row is how it is reached.
+     */
+    it('is not selected by a tap when the target is the whole canvas', () => {
+        render([
+            {
+                id: 'anno-whole-canvas',
+                type: 'Annotation',
+                motivation: 'commenting',
+                body: { type: 'TextualBody', value: 'About the whole page' },
+                target: 'canvas-1',
+                __triiiceratopsCanvas: {
+                    id: 'canvas-1',
+                    width: 400,
+                    height: 400,
+                },
+            },
+        ]);
+
+        tap(20, 30);
+        expect(selected()).toBeNull();
+    });
+});

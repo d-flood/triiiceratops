@@ -2,7 +2,7 @@
  * The `ViewerState` members whose changes wake subscribers.
  *
  * This is the runtime half of the state inventory. `state-inventory.ts` is the
- * reviewed source of truth — 72 entries carrying classifications, mutator lists,
+ * reviewed source of truth — 76 entries carrying classifications, mutator lists,
  * and the review prose that justifies each one — but the runtime needs exactly
  * one fact from it: which members notify. Importing the inventory to derive that
  * fact dragged its entire English commentary into every shipped bundle, so the
@@ -37,6 +37,7 @@ export const NOTIFYING_MEMBERS: readonly string[] = [
     'visibleAnnotationIds',
     'annotationVisibilityTouched',
     'hoveredAnnotationId',
+    'activeAnnotationId',
     'userAnnotations',
     'loadedManifestIds',
     'activeLocale',
@@ -61,6 +62,7 @@ export const NOTIFYING_MEMBERS: readonly string[] = [
     'isGalleryDockedBottom',
     'isGalleryDockedRight',
     'tileSourceError',
+    'visibleCanvasIds',
     'rendererReady',
     'imageAdjustments',
     'pluginMenuButtons',

@@ -1799,6 +1799,19 @@ export interface RendererPort {
     getScale(): number;
     /** The canvas-space point at the middle of the viewport. */
     getCentre(canvasId?: string): ViewportPoint | null;
+    /**
+     * The canvases the reader is **looking at**, in layout order — what an
+     * overlay has to draw for, and empty before the surface is sized.
+     *
+     * Only the renderer can answer this. In `individuals` and `paged` it is the
+     * laid-out world, which there IS the current canvas or the current spread:
+     * zooming into one page of a spread does not stop the facing page from being
+     * open. In `continuous` the world is the whole manifest, so it is the
+     * canvases whose laid-out rect meets the viewport — never the viewer's
+     * "current" canvas, which after a scroll from folio 1 to folio 400 is 399
+     * folios behind what is on screen.
+     */
+    getVisibleCanvasIds(): string[];
     /** The canvas-space box the viewport currently shows. */
     getVisibleBounds(canvasId?: string): ViewportBox | null;
     /** The surface's size in CSS pixels; zeroes before it is measured. */
@@ -1819,6 +1832,17 @@ export interface RendererPort {
      * need". Returns an idempotent unsubscribe.
      */
     onFrame(listener: () => void): () => void;
+    /**
+     * Subscribe to a **single tap** on the image surface, in screen space.
+     *
+     * The one gesture the viewport deliberately does not consume (`clickToZoom`
+     * is false): it is reserved for annotation selection, and it arrives here
+     * already filtered by the renderer's single arbitration point — never for a
+     * drag, a pinch, or a gesture refused because something held an input claim.
+     * A host reports it; deciding what was tapped belongs to whoever holds the
+     * geometry. Returns an idempotent unsubscribe.
+     */
+    onTap(listener: (point: ViewportPoint) => void): () => void;
 }
 
 // ======================================================================
@@ -2278,6 +2302,20 @@ export declare class ManifestsState {
     fetchManifest(manifestId: string, requestConfig?: RequestConfig): Promise<void>;
     clearManifest(manifestId: string): void;
     getManifestEntry(manifestId: string): ManifestEntry | undefined;
+    /**
+     * External annotation lists already requested, whether or not they have
+     * arrived — the in-flight guard for {@link fetchAnnotationList}.
+     *
+     * The comment on that method's first line always claimed "already fetched or
+     * fetching", but `this.manifests[url]` is only written once the response has
+     * been parsed, so every call made before then started its own request. That
+     * was survivable while annotations were read for one canvas on one navigation;
+     * it is not now that the annotation surfaces follow the viewport and a scroll
+     * through a manifest asks about each folio as it arrives.
+     *
+     * A plain `Set`, deliberately not reactive: nothing renders from it.
+     */
+    private inFlightAnnotationLists;
     fetchAnnotationList(url: string): Promise<void>;
     private getStructureSequences;
     private findCanvasInJson;
@@ -2517,6 +2555,21 @@ export declare class ViewerState {
     annotationVisibilityTouched: boolean;
     hoveredAnnotationId: string | null;
     /**
+     * The **selected** annotation, or `null` for none — what a reader picked
+     * rather than what a pointer is passing over.
+     *
+     * Distinct from {@link hoveredAnnotationId}, and deliberately not folded
+     * into it: hover is transient and follows the pointer, while a selection
+     * persists after the pointer has gone somewhere else. That difference is the
+     * whole point of it — the panel keeps the row marked and the connector line
+     * keeps its shape tied to that row, neither of which a hover can do.
+     *
+     * Set by tapping a shape on the image (the gesture the renderer reserves for
+     * exactly this) and cleared by tapping the same shape again or the image
+     * beside it. Command state: {@link setActiveAnnotationId}.
+     */
+    activeAnnotationId: string | null;
+    /**
      * Per-viewer plugin-written annotation display state, keyed by
      * `manifestId::canvasId` (ADR 0007). Moved off the page-shared manifest cache
      * so annotations displayed in one viewer never leak into another on the same
@@ -2571,6 +2624,21 @@ export declare class ViewerState {
     isManifestReady(manifestId: string): boolean;
     /** Record that a manifest is ready, notifying manifest-readiness subscribers. */
     private markManifestReady;
+    /**
+     * Show every annotation on every canvas the reader is looking at — the
+     * default the panel opens with, and the one that has to be re-applied when a
+     * canvas scrolls into view.
+     *
+     * Clears the visibility set first, `annotationVisibilityTouched` included, so
+     * this is the *default* state and not a user choice: core calls it only while
+     * the reader has not touched visibility themselves.
+     *
+     * Distinct from {@link showCurrentCanvasAnnotations}, which is about ONE
+     * canvas and stays as it was. In `paged` the facing page's annotations would
+     * otherwise arrive hidden — drawn nowhere, and a panel row whose eye says
+     * "hidden" for something the reader never hid.
+     */
+    showVisibleCanvasAnnotations(): void;
     showCurrentCanvasAnnotations(): void;
     private clearAnnotationVisibility;
     private setAnnotationsPanelOpen;
@@ -2721,6 +2789,43 @@ export declare class ViewerState {
     private unsubscribeFrame;
     /** The port {@link unsubscribeFrame} belongs to, so a swap is noticed. */
     private tickingPort;
+    /** Surface-tap fan-out; see {@link subscribeSurfaceTap}. */
+    private surfaceTapListeners;
+    /**
+     * Detach from the port's tap events; set while a renderer is attached.
+     *
+     * Subscribed for the whole life of the attachment rather than lazily, the
+     * way {@link subscribeFrame} is: laziness there keeps a per-frame loop off an
+     * idle viewer, and a tap is a human-rate event with no loop behind it.
+     */
+    private unsubscribeSurfaceTap;
+    /**
+     * The canvases the reader is looking at, in layout order — the scope every
+     * annotation surface works over.
+     *
+     * In `individuals` that is one canvas; in `paged` it is the whole spread,
+     * facing page included; in `continuous` it is the folios the viewport
+     * actually meets, which is **not** {@link canvasId} — a scroll moves the
+     * viewport and leaves the navigated canvas behind. Empty before a renderer
+     * has a sized surface, and it falls back to {@link canvasId} for a caller
+     * that reads it then (see {@link annotatableCanvasIds}).
+     *
+     * Observable: only the renderer can answer it, so core writes it. It is
+     * republished when the set CHANGES rather than per frame, which is both what
+     * makes it safe to notify on and the cadence a panel following a scroll
+     * should update at.
+     */
+    visibleCanvasIds: string[];
+    /**
+     * {@link visibleCanvasIds}, or the current canvas while no renderer has
+     * answered yet.
+     *
+     * The annotation panel and the shape overlay both read this, so they cannot
+     * disagree about which canvases they are describing — and a viewer whose
+     * surface is not sized yet still lists the annotations of the canvas it
+     * opened on rather than nothing at all.
+     */
+    get annotatableCanvasIds(): string[];
     /**
      * Whether a renderer has a sized surface and accepts viewport commands.
      *
@@ -2766,6 +2871,20 @@ export declare class ViewerState {
      * @internal
      */
     attachRenderer(port: RendererPort): () => void;
+    /**
+     * Hear a **single tap** on the image surface, at a screen-space point.
+     *
+     * The one gesture the viewport does not consume: it is reserved for
+     * annotation selection, and it arrives already filtered by the renderer's
+     * single arbitration point — never for a drag, a pinch, or a gesture
+     * suppressed by an input claim. What was tapped is the subscriber's
+     * question to answer, from geometry it already holds; core's own annotation
+     * overlay answers it with the shapes it projected for the current frame.
+     *
+     * Unsubscribing is idempotent, and a listener survives a renderer remount:
+     * the subscription is to the viewer, not to a renderer instance.
+     */
+    subscribeSurfaceTap(listener: (point: ViewportPoint) => void): () => void;
     /**
      * Wake up on the renderer's own animation events — the `frame` selector
      * cadence's source (CONTEXT.md **Selector cadence**). The listener receives
@@ -2991,6 +3110,21 @@ export declare class ViewerState {
     /**
      * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
      */
+    /**
+     * Search hits on the current canvas, in canvas space.
+     *
+     * Kept for callers that ask specifically about the current canvas. Core's own
+     * annotation surfaces do NOT use it: they read {@link searchAnnotations} for
+     * every canvas on screen through `collectCanvasAnnotations`, which is what
+     * puts a hit on the facing page of a spread on that page.
+     *
+     * It used to shift a facing page's hits sideways by `canvasWidth * 1.025` and
+     * hand them back as if they belonged to the current canvas — a hand-rolled
+     * offset standing in for multi-canvas layout, and wrong by construction: the
+     * renderer's inter-canvas gap is 1.25% of a page, not 2.5%, and the guess only
+     * ever covered two pages. Coordinates here are now each hit's own, unshifted,
+     * to be projected through its own canvas.
+     */
     get currentCanvasSearchAnnotations(): any[];
     search(query: string): Promise<void>;
     private _performSearch;
@@ -3033,6 +3167,13 @@ export declare class ViewerState {
     private buildSearchAnnotations;
     /** Set (or clear, with null) the currently hovered annotation id. */
     setHoveredAnnotationId(annotationId: string | null): void;
+    /**
+     * Select an annotation, or clear the selection with `null`.
+     *
+     * Selecting one that is already selected clears it, so the same tap that
+     * picks a shape also puts it down again.
+     */
+    setActiveAnnotationId(annotationId: string | null): void;
     /**
      * Show or hide a single annotation in the read-only overlay, marking
      * visibility as user-touched so the panel keeps the manual selection.
@@ -3608,6 +3749,12 @@ export interface RendererStub extends RendererPort {
     emitFrame(): void;
     /** How many `frame`-cadence listeners are currently attached. */
     readonly frameListenerCount: number;
+    /**
+     * Tap the image surface at a screen-space point, waking every tap
+     * subscriber — the gesture the real renderer reserves for annotation
+     * selection, without synthesizing pointer events.
+     */
+    emitTap(point: ViewportPoint): void;
 }
 /**
  * Build a {@link RendererStub}. Attach it with
@@ -5154,6 +5301,17 @@ export interface ParsedAnnotation {
     id: string;
     renderId: string;
     sourceAnnotationId: string;
+    /**
+     * The canvas this annotation was read from, or `null` when the caller did
+     * not say.
+     *
+     * Geometry is meaningless without it: `canvasToScreen(point, canvasId)` maps
+     * through that canvas's own laid-out rect, and on a facing-page spread the
+     * two pages have different rects. Supplied by the caller — the canvas it
+     * ASKED about — rather than inferred from the target, so a user annotation
+     * with no canvas context is placed like any other.
+     */
+    canvasId: string | null;
     geometryIndex: number;
     geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
     coordinateSpace: 'canvas' | 'image';
@@ -5198,11 +5356,11 @@ export declare function extractBody(annotation: any): {
 /**
  * Parse a raw JSON IIIF annotation to internal format
  */
-export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean): ParsedAnnotation | null;
+export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean, canvasId?: string | null): ParsedAnnotation | null;
 /**
  * Batch parse annotations
  */
-export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>): ParsedAnnotation[];
+export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>, canvasId?: string | null): ParsedAnnotation[];
 
 // ======================================================================
 // FILE: dist/utils/canvasImageSpace.d.ts

@@ -202,10 +202,94 @@ describe('annotationAdapter', () => {
             );
         });
 
-        it('should treat manifest annotations as image space by default', () => {
+        // A manifest annotation on its Canvas is Canvas coordinates, per IIIF —
+        // the origin marker does not override what the target says. Read the
+        // other way round, every manifest annotation was image space, which
+        // scaled shapes by the Canvas/image ratio on any manifest whose body
+        // declares dimensions other than its Canvas's.
+        it('should treat a canvas-target manifest annotation as canvas space', () => {
             const annotation = {
                 id: 'manifest-fragment',
                 target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+                __triiiceratopsAnnotationOrigin: 'manifest',
+            };
+
+            expect(parseAnnotation(annotation, 8)?.coordinateSpace).toBe(
+                'canvas',
+            );
+        });
+
+        /**
+         * A content-search hit, exactly as `buildSearchAnnotations` makes one:
+         * the v2 `on` spelling, no embedded canvas context, and the canvas
+         * supplied by the caller that asked for that canvas's annotations.
+         *
+         * The Content Search API returns annotations targeting the Canvas, so a
+         * hit is canvas coordinates. Read as image space — which is what it fell
+         * through to while the canvas could only come from an embedded context —
+         * every hit was rescaled by the Canvas/image ratio, the same
+         * mis-scaling that afflicted manifest annotations.
+         */
+        it('should treat a search hit as canvas space, from the canvas asked about', () => {
+            const hit = {
+                '@id': 'urn:search-hit:0',
+                '@type': 'oa:Annotation',
+                on: 'http://example.org/canvas1#xywh=10,20,100,200',
+                isSearchHit: true,
+            };
+
+            expect(
+                parseAnnotation(hit, 10, true, 'http://example.org/canvas1')
+                    ?.coordinateSpace,
+            ).toBe('canvas');
+        });
+
+        it('should keep a hit whose target is not that canvas in image space', () => {
+            const hit = {
+                '@id': 'urn:search-hit:1',
+                '@type': 'oa:Annotation',
+                on: 'http://example.org/image1#xywh=10,20,100,200',
+                isSearchHit: true,
+            };
+
+            expect(
+                parseAnnotation(hit, 11, true, 'http://example.org/canvas1')
+                    ?.coordinateSpace,
+            ).toBe('image');
+        });
+
+        it('should let an annotation’s own canvas context win over the caller’s', () => {
+            // The two agree in practice; when they do not, what the annotation
+            // itself states about its canvas is the more specific fact.
+            const annotation = {
+                id: 'contextual',
+                target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            expect(
+                parseAnnotation(
+                    annotation,
+                    12,
+                    false,
+                    'http://example.org/other',
+                )?.coordinateSpace,
+            ).toBe('canvas');
+        });
+
+        it('should keep an image-target manifest annotation in image space', () => {
+            const annotation = {
+                id: 'manifest-image-fragment',
+                target: 'http://example.org/image1#xywh=10,20,100,200',
                 __triiiceratopsCanvas: {
                     id: 'http://example.org/canvas1',
                     width: 800,
