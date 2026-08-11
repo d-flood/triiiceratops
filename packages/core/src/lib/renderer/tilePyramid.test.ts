@@ -159,6 +159,31 @@ describe('tileRegion', () => {
 });
 
 describe('tileUrl', () => {
+    it('uses canonical version 3 tile regions and dimensions', () => {
+        // CSNTM is a static level0 tile tree: it serves exactly the region and
+        // two-dimensional size implied by `tiles[]`, and correctly need not
+        // support the non-canonical `full/192,` spelling.
+        const signed = 'https://images.test/signed/abc';
+        const pyramid = buildPyramid(
+            SERVICE,
+            facts({
+                requestBaseUri: signed,
+                width: 6132,
+                height: 8176,
+                tileSize: 1024,
+                scaleFactors: [32, 16, 8, 4, 2, 1],
+                level0: true,
+            }),
+        )!;
+
+        expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toBe(
+            `${signed}/0,0,6132,8176/192,256/0/default.jpg`,
+        );
+        expect(tileUrl(pyramid, pyramid.levels.at(-1)!, 5, 7)).toBe(
+            `${signed}/5120,7168,1012,1008/1012,1008/0/default.jpg`,
+        );
+    });
+
     it('asks for the whole image by the canonical `full` region at the base level', () => {
         const pyramid = buildPyramid(SERVICE, facts())!;
 
@@ -207,6 +232,7 @@ describe('tileUrl', () => {
                 height: 901,
                 tileSize: 256,
                 level0: true,
+                version: 2,
                 sizes: [
                     { width: 150, height: 112 },
                     { width: 300, height: 225 },
@@ -371,15 +397,20 @@ describe('tileCanvasRect', () => {
 });
 
 describe('tileKey', () => {
-    it('distinguishes canvas, level, column, and row', () => {
+    it('distinguishes canvas, service, level, column, and row', () => {
         const keys = new Set([
-            tileKey('c1', 0, 0, 0),
-            tileKey('c2', 0, 0, 0),
-            tileKey('c1', 1, 0, 0),
-            tileKey('c1', 0, 1, 0),
-            tileKey('c1', 0, 0, 1),
+            tileKey('c1', 's1', 0, 0, 0),
+            tileKey('c2', 's1', 0, 0, 0),
+            // The Choice case: one canvas, two services. Without the service in
+            // the key these two collide, every tile of the second alternative
+            // is already "resident and required", and the reader keeps looking
+            // at the first one forever.
+            tileKey('c1', 's2', 0, 0, 0),
+            tileKey('c1', 's1', 1, 0, 0),
+            tileKey('c1', 's1', 0, 1, 0),
+            tileKey('c1', 's1', 0, 0, 1),
         ]);
 
-        expect(keys.size).toBe(5);
+        expect(keys.size).toBe(6);
     });
 });

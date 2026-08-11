@@ -10,6 +10,7 @@ import {
     fitBounds,
     normalizeWheelDelta,
     screenToCanvas,
+    wheelZoomRate,
     zoomRange,
 } from './viewportMath';
 
@@ -74,30 +75,91 @@ describe('fitBounds', () => {
 
 describe('zoomRange', () => {
     it('puts the ceiling a fixed factor above the fit', () => {
-        expect(zoomRange(0.5, 0.01, 128)).toEqual({ min: 0.01, max: 64 });
+        // A derived floor far below the readable one, so this is the ceiling's
+        // test and nothing else.
+        expect(zoomRange(0.5, 1e-9, 128, 1 / 2)).toEqual({
+            min: 0.25,
+            max: 64,
+        });
     });
 
-    it('RAISES the ceiling when the derived floor lands above it', () => {
-        // The two are derived from different things — the floor from the median
-        // canvas reaching the box threshold, the ceiling from the fit of one
-        // canvas — so the floor really can come out higher. Taking the lower of
-        // the two collapses the range to a single legal scale, and the viewer
-        // can then neither zoom in nor out, silently. The reader keeps the same
-        // factor of zoom from wherever the floor is instead.
-        const { min, max } = zoomRange(0.001, 0.02, 128);
+    it('stops zooming out at a fraction of the fit, not at the derived floor', () => {
+        // The bug this exists for. The derived floor is where the renderer runs
+        // out of things to draw — a page a couple of dozen pixels across — and a
+        // reader clamped there is looking at a speck and calling it blank.
+        // Zooming out stops while there is still a picture.
+        const fit = 0.8;
+        const { min } = zoomRange(fit, 0.001, 128, 1 / 2);
 
-        expect(min).toBe(0.02);
-        expect(max).toBe(0.02 * 128);
+        expect(min).toBe(0.4);
+        // …which really is a bound on the reader: the canvas can shrink to half
+        // its fitted size and no further.
+        expect(fit / min).toBe(2);
+    });
+
+    it('is one number for "half the width or half the height, whichever is less"', () => {
+        // The two spellings of the rule collapse, because `fitBounds` has already
+        // taken the constraining axis: a fraction of the fit IS a fraction of
+        // whichever axis binds. Asserted on both orientations, so a change that
+        // started measuring one axis would fail here.
+        const viewport = { width: 1000, height: 1000 };
+        for (const canvas of [
+            { x: 0, y: 0, width: 2000, height: 1000 },
+            { x: 0, y: 0, width: 1000, height: 2000 },
+        ]) {
+            const fit = fitBounds(canvas, viewport).scale;
+            const perAxis = Math.min(
+                (0.5 * viewport.width) / canvas.width,
+                (0.5 * viewport.height) / canvas.height,
+            );
+
+            expect(zoomRange(fit, 1e-9, 128, 1 / 2).min).toBeCloseTo(
+                perAxis,
+                12,
+            );
+        }
+    });
+
+    it('keeps the DERIVED floor when it is the higher of the two', () => {
+        // A world of tiny canvases: half the fit is still below the point where
+        // there is anything to draw, so the renderer's own floor is what stops
+        // it. The backstop, not the usual case.
+        expect(zoomRange(0.1, 0.06, 128, 1 / 2).min).toBe(0.06);
+    });
+
+    it('never puts the floor above the fit, whatever the derived floor says', () => {
+        // Seeing an entire canvas is a GUARANTEE, and no threshold may take it
+        // away: a floor above the fit makes the home view itself illegal, so the
+        // clamp would drag a reader who pressed `0` back in and strand them.
+        // This is the small-viewport case — shrink the window far enough and the
+        // derived floor, which knows nothing about the viewport, overtakes it.
+        const fit = 0.001;
+        const { min, max } = zoomRange(fit, 0.02, 128, 1 / 2);
+
+        expect(min).toBe(fit);
+        // …and the range cannot collapse: capped at the fit, with a ceiling a
+        // factor above it, there is always room to zoom in.
+        expect(max).toBe(fit * 128);
         expect(max).toBeGreaterThan(min);
     });
 
-    it('treats a floor of zero as no floor at all', () => {
-        // An empty world derives none. A nominal floor far below the ceiling,
-        // rather than a real bound of zero that a scale could be clamped to.
-        const { min, max } = zoomRange(2, 0, 128);
+    it('treats a DERIVED floor of zero as no derived floor at all', () => {
+        // An empty world derives none, and the readable floor answers instead:
+        // a real bound rather than the nominal one, which is harmless here
+        // because an empty world has nothing to zoom.
+        const { min, max } = zoomRange(2, 0, 128, 1 / 2);
 
         expect(max).toBe(256);
-        expect(min).toBeCloseTo(256e-6, 12);
+        expect(min).toBe(1);
+    });
+
+    it('invents no floor from an unmeasured surface', () => {
+        // A fit scale of zero is a surface with no extent yet. A floor derived
+        // from it would be zero, and clamping the first real frame to zero is
+        // the one outcome worse than no floor.
+        const { min } = zoomRange(0, 0.01, 128, 1 / 2);
+
+        expect(min).toBe(0.01);
     });
 });
 
@@ -230,6 +292,75 @@ describe('normalizeWheelDelta', () => {
         expect(
             normalizeWheelDelta(Number.POSITIVE_INFINITY, 1, LINE, PAGE),
         ).toBe(0);
+    });
+});
+
+describe('wheelZoomRate', () => {
+    // A stand-in notch, for the same reason as above: the shipped size is
+    // provisional, so the conversion is asserted, never the constant.
+    const NOTCH = 100;
+
+    /*
+     * The whole contract in one assertion: whatever factor is configured is the
+     * factor one notch of travel actually applies, once the rate goes through
+     * the handler's `exp(-delta * rate)`. Get the conversion backwards — divide
+     * where it multiplies, or take a log where it should exponentiate — and
+     * this is what catches it.
+     */
+    it('makes one notch of travel apply exactly the configured factor', () => {
+        for (const zoomPerNotch of [1.15, 1.5, 2, 8]) {
+            const rate = wheelZoomRate(zoomPerNotch, NOTCH);
+            // Scrolling up is a negative deltaY, which is why the handler
+            // negates: a notch "in" multiplies.
+            expect(Math.exp(-(-NOTCH) * rate)).toBeCloseTo(zoomPerNotch, 12);
+        }
+    });
+
+    it('makes a notch out the exact inverse of a notch in', () => {
+        const rate = wheelZoomRate(1.15, NOTCH);
+        const inThenOut = Math.exp(-(-NOTCH) * rate) * Math.exp(-+NOTCH * rate);
+        // A notch in followed by a notch out returns to the starting scale —
+        // the same round-trip property `zoomPerClick` documents.
+        expect(inThenOut).toBeCloseTo(1, 12);
+    });
+
+    /*
+     * The property that removes the need for any trackpad-versus-mouse branch:
+     * the rate is per pixel, so a device that emits ten small deltas covering a
+     * notch's distance zooms exactly as far as one that emits the notch whole.
+     */
+    it('gives the same zoom for the same travel, however it is subdivided', () => {
+        const rate = wheelZoomRate(1.15, NOTCH);
+        const whole = Math.exp(-(-NOTCH) * rate);
+        let subdivided = 1;
+        for (let i = 0; i < 10; i += 1) {
+            subdivided *= Math.exp(-(-NOTCH / 10) * rate);
+        }
+        expect(subdivided).toBeCloseTo(whole, 12);
+    });
+
+    it('scales the rate with the notch size', () => {
+        // Half the pixels per notch means twice the zoom per pixel.
+        expect(wheelZoomRate(1.5, 50)).toBeCloseTo(
+            wheelZoomRate(1.5, 100) * 2,
+            12,
+        );
+    });
+
+    /*
+     * A factor at or below 1 has no meaning — 1 freezes the wheel, below 1
+     * inverts it — and neither is something to configure. Returning 0 makes the
+     * handler's `exp(0)` a no-op instead of a NaN or a reversed scroll. The
+     * config edge rejects these before they arrive; this is the backstop.
+     */
+    it('refuses a factor that would freeze or invert the wheel', () => {
+        for (const bad of [1, 0.9, 0, -2, Number.NaN, Number.POSITIVE_INFINITY])
+            expect(wheelZoomRate(bad, NOTCH)).toBe(0);
+    });
+
+    it('refuses a nonsensical notch size rather than dividing by it', () => {
+        for (const bad of [0, -100, Number.NaN, Number.POSITIVE_INFINITY])
+            expect(wheelZoomRate(1.5, bad)).toBe(0);
     });
 });
 

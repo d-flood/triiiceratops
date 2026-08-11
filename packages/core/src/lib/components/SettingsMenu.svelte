@@ -2,6 +2,7 @@
     import Icon from './Icon.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import { Button, Toggle, Checkbox, Select, Range } from './ui';
+    import { DEFAULT_ZOOM_PER_WHEEL_NOTCH } from '../renderer/rendererDefaults';
     import { BUILTIN_THEMES, type BuiltInTheme } from '../theme/types';
 
     let {
@@ -1258,6 +1259,58 @@
                                                 e.currentTarget.checked;
                                         }}
                                     />
+                                </label>
+                            </li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li>
+                    <details>
+                        <summary>{m.settings_submenu_renderer()}</summary>
+                        <ul>
+                            <li>
+                                <label
+                                    class="settings-label settings-label--gap2"
+                                >
+                                    <span
+                                        >{m.settings_zoom_per_wheel_notch()}</span
+                                    >
+                                    <!-- Zoom applied by one wheel notch (~100px
+                                         of deltaY), and by the same distance of
+                                         trackpad scroll — one knob moves both,
+                                         because the viewer deliberately does not
+                                         detect which device is in use. The range
+                                         spans ~14 notches to double at the low
+                                         end and under 2 at the high end, which
+                                         brackets the useful ground either side
+                                         of the default. -->
+                                    <Range
+                                        size="xs"
+                                        color="primary"
+                                        style="width:6rem"
+                                        min="1.05"
+                                        max="1.5"
+                                        step="0.01"
+                                        value={config.renderer
+                                            ?.zoomPerWheelNotch ??
+                                            DEFAULT_ZOOM_PER_WHEEL_NOTCH}
+                                        oninput={(e) => {
+                                            if (!config.renderer)
+                                                config.renderer = {};
+                                            config.renderer.zoomPerWheelNotch =
+                                                parseFloat(
+                                                    e.currentTarget.value,
+                                                );
+                                        }}
+                                    />
+                                    <span class="value-readout"
+                                        >{(
+                                            config.renderer
+                                                ?.zoomPerWheelNotch ??
+                                            DEFAULT_ZOOM_PER_WHEEL_NOTCH
+                                        ).toFixed(2)}&times;</span
+                                    >
                                 </label>
                             </li>
                         </ul>

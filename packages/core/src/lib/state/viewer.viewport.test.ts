@@ -193,6 +193,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             fitBounds: () => {},
             fitCanvas: () => {},
             getScale: () => 999,
+            getVisibleCanvasIds: () => ['impostor'],
             getCentre: () => ({ x: 999, y: 999 }),
             getVisibleBounds: () => null,
             getContainerSize: () => ({ width: 999, height: 999 }),
@@ -200,6 +201,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             screenToCanvas: () => null,
             applyImageAdjustments: () => {},
             onFrame: () => () => {},
+            onTap: () => () => {},
         };
 
         const detach = state.attachRenderer(impostor);
@@ -222,6 +224,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             fitBounds: () => {},
             fitCanvas: () => {},
             getScale: () => 42,
+            getVisibleCanvasIds: () => [],
             getCentre: () => null,
             getVisibleBounds: () => null,
             getContainerSize: () => ({ width: 1, height: 1 }),
@@ -229,6 +232,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             screenToCanvas: () => null,
             applyImageAdjustments: () => {},
             onFrame: () => () => {},
+            onTap: () => () => {},
         });
 
         expect(state.rendererReady).toBe(false);

@@ -15,11 +15,13 @@ import {
     buildIiifImageRequestUrl,
     composeImages,
     downloadBlob,
+    fetchExportImageBlob,
     getCanvasId,
     getCanvasLabel,
     getCompositeImagePlacement,
     getResolvedImageExportUrl,
     getThumbnailSrc,
+    isLevel0ImageService,
     parseAnnotation,
     resolveAllCanvasImages,
     resolveCanvasImage,
@@ -424,11 +426,16 @@ function getCanvasExportResource(
 ): { imageUrl: string | null; resolvedImage: ResolvedCanvasImage | null } {
     const resolved = resolveCanvasImage(canvas, { getSelectedChoice });
     const canvasDimensions = getCanvasDimensions(canvas);
-    if (
-        resolved?.resourceId &&
-        (resolved.serviceProfile === 'level0' ||
-            resolved.serviceProfile?.endsWith('/level0.json'))
-    ) {
+    // A level0 service answers no constructed request, so there is no sized URL
+    // to build here — `loadCanvasImageBlob` retrieves these through core's export
+    // seam, which reads `info.json` first. `imageUrl` remains the published
+    // resource: the one URL such a manifest guarantees without a fetch, and what
+    // a host-supplied `loadImageBlob` has always been handed for this case.
+    //
+    // `isLevel0ImageService` rather than a local string comparison, which missed the
+    // version 1 `…#level0` fragment spelling and sent those canvases down the
+    // constructed-request path to 404.
+    if (resolved?.resourceId && isLevel0ImageService(resolved.serviceProfile)) {
         return { imageUrl: resolved.resourceId, resolvedImage: resolved };
     }
 
@@ -827,7 +834,17 @@ async function loadCanvasImageBlob({
     imageRequest,
     resolvedImage,
     loadImageBlob,
-}: PdfImageLoaderParams & { loadImageBlob?: PdfImageLoader }): Promise<Blob> {
+    imageWidth,
+}: PdfImageLoaderParams & {
+    loadImageBlob?: PdfImageLoader;
+    /**
+     * The width this particular image occupies, where that differs from the
+     * page's `targetWidth` — a member image of a composite canvas. Internal:
+     * `PdfImageLoaderParams.targetWidth` is what a host-supplied loader is
+     * documented to receive and keeps meaning the page target.
+     */
+    imageWidth?: number;
+}): Promise<Blob> {
     if (loadImageBlob) {
         return loadImageBlob({
             canvas,
@@ -837,6 +854,22 @@ async function loadCanvasImageBlob({
             targetWidth,
             imageRequest,
             resolvedImage,
+        });
+    }
+
+    // A level0 service cannot be asked for anything through a URL derived from
+    // the manifest. Which resolutions exist, and the base URI to request them
+    // at, live only in `info.json` — an auth gateway signs that base, so it need
+    // not match the advertised service id — and a static tile tree may hold the
+    // wanted resolution only as tiles. Core's export seam owns all of it, and is
+    // the same code the image-download plugin retrieves through, so the two
+    // cannot drift. Sending `imageUrl` here instead would fetch whatever single
+    // image the manifest happened to publish: for a signed tile tree, a
+    // thumbnail on a different host, silently embedded at page size.
+    if (resolvedImage && isLevel0ImageService(resolvedImage.serviceProfile)) {
+        return fetchExportImageBlob(resolvedImage, {
+            width: imageWidth ?? targetWidth,
+            imageRequest: buildImageRequestInit(imageRequest),
         });
     }
 
@@ -1263,6 +1296,10 @@ export async function exportCanvasRangeAsPdf({
                             imageRequest: requestInit,
                             resolvedImage: image.resolvedImage,
                             loadImageBlob,
+                            // The box this member image occupies on the page,
+                            // not the page width: a level0 source is served
+                            // from the nearest resolution it actually holds.
+                            imageWidth: image.width,
                         }),
                         x: image.x,
                         y: image.y,

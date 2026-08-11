@@ -153,18 +153,41 @@ export const MAX_DEVICE_PIXEL_RATIO = 2;
  */
 export const WHEEL_TIME_CONSTANT = 0.09;
 
-/** Log-scale change per unit of `WheelEvent.deltaY` (pixel delta mode). */
-export const WHEEL_ZOOM_RATE = 0.0025;
+/**
+ * Pixels of normalized `deltaY` that count as one wheel **notch** — the detent
+ * of a classic mouse wheel, which reports ~100 px in pixel delta mode.
+ *
+ * This is the unit the per-notch zoom knob is expressed in, not a claim about
+ * anyone's hardware. A trackpad emits a stream of much smaller deltas and never
+ * produces a notch at all; it simply covers the same 100 px over several events
+ * and gets the same zoom for the same scroll distance. That is the whole reason
+ * the rate is per-pixel underneath: it makes the two devices agree without
+ * anything having to know which one is in use.
+ */
+export const WHEEL_NOTCH_PIXELS = 100;
+
+/**
+ * Zoom factor for one wheel notch, and the default behind
+ * `ViewerConfig.renderer.zoomPerWheelNotch`. About five notches to double.
+ *
+ * Deliberately gentler than {@link DEFAULT_ZOOM_PER_CLICK}: a wheel is rolled
+ * continuously and a trackpad even more so, so the per-notch step is the one
+ * the reader lands on repeatedly while hunting for a scale, where a button
+ * press is a single deliberate act. Converted to the per-pixel rate the wheel
+ * handler needs by `viewportMath.wheelZoomRate`.
+ */
+export const DEFAULT_ZOOM_PER_WHEEL_NOTCH = 1.15;
 
 /**
  * Pixels one `DOM_DELTA_LINE` unit stands for.
  *
- * A mouse-wheel notch is ~100 px in pixel mode and 3 lines in line mode
- * (Firefox on a classic wheel), so a third of that keeps one notch worth the
- * same zoom everywhere. See `viewportMath.normalizeWheelDelta` — this is the
- * unit the event declares, not a guess about the hardware.
+ * A mouse-wheel notch is 3 lines in line mode (Firefox on a classic wheel)
+ * where it is {@link WHEEL_NOTCH_PIXELS} in pixel mode, so a third of a notch
+ * keeps one notch worth the same zoom everywhere. See
+ * `viewportMath.normalizeWheelDelta` — this is the unit the event declares, not
+ * a guess about the hardware.
  */
-export const WHEEL_LINE_PIXELS = 100 / 3;
+export const WHEEL_LINE_PIXELS = WHEEL_NOTCH_PIXELS / 3;
 
 /**
  * Pixels one `DOM_DELTA_PAGE` unit stands for. Rare (mostly assistive and
@@ -178,6 +201,42 @@ export const WHEEL_PAGE_PIXELS = WHEEL_LINE_PIXELS * 24;
  * high-resolution scan.
  */
 export const MAX_ZOOM_FACTOR = 128;
+
+/**
+ * How small a canvas may get, as a fraction of the scale at which it exactly
+ * **fits** the viewport: **half**, so the reader can zoom out until the canvas
+ * covers half the viewport and no further.
+ *
+ * Two properties, and the pairing is the point.
+ *
+ * **Seeing a whole canvas is always reachable.** The floor is a fraction of the
+ * fit, so it is below the fit by construction, and `viewportMath.zoomRange` caps
+ * the renderer's own threshold at the fit as well. Resize the window, rotate a
+ * phone, open the viewer in a sidebar — the fit scale is recomputed from the live
+ * viewport, so the floor moves with it and the home view never falls outside the
+ * legal range. A floor expressed in absolute scale, or against the manifest's
+ * dimensions alone, would fail exactly here.
+ *
+ * **Zooming out stops while there is still a picture.** The alternative is
+ * `planScene`'s derived `minZoom` — the scale at which the median canvas reaches
+ * `boxThreshold` — which is the point past which there is nothing left to draw:
+ * on an ordinary manuscript a page about two dozen pixels across, still painted,
+ * still correct, and indistinguishable from an empty viewer.
+ *
+ * Half is stated per axis — half the viewport's width, or half its height,
+ * whichever is the *less* restrictive — and that is one number rather than two
+ * because the fit has already taken the constraining axis. `zoomRange` carries
+ * the arithmetic.
+ *
+ * The cost is the zoomed-out overview of a long manifest: at half the fit, a
+ * continuous world shows about two folios across rather than the ten an eighth
+ * would. Chosen deliberately — an overview of placeholder rectangles is not worth
+ * a floor that reads as a broken viewer.
+ *
+ * A fixed number in this phase. Author-facing `minZoom`/`maxZoom` settings are
+ * the intended home for it, and this is the default they will supply.
+ */
+export const MIN_ZOOM_FRACTION = 1 / 2;
 
 /**
  * Time constant, in seconds, for **discrete and programmatic** motion:

@@ -141,6 +141,14 @@ const V2_PREFIX = 'v2-';
 const LEVEL0_TILED_PREFIX = 'l0-tiled-';
 
 /**
+ * A level 2 service whose metadata grants CORS but whose image responses do
+ * not. Traditional `<img>`-based IIIF viewers can display it; a fetch-only
+ * renderer cannot. Used through the `localhost` alias from a `127.0.0.1` page
+ * so the browser sees a genuinely cross-origin request.
+ */
+const NO_CORS_PREFIX = 'no-cors';
+
+/**
  * A service whose id begins with this advertises **only fixed sizes**: no
  * `tiles` at all, and every request that is not one of the advertised whole
  * images is a 404. This is the **size-ladder source**.
@@ -505,7 +513,12 @@ export function fixtureMiddleware() {
         const pixels = renderRegion(source(), region, size.width, size.height);
 
         response.setHeader('Content-Type', 'image/png');
-        response.setHeader('Access-Control-Allow-Origin', '*');
+        if (id.startsWith(NO_CORS_PREFIX)) {
+            // Vite's earlier CORS middleware may already have supplied this.
+            response.removeHeader('Access-Control-Allow-Origin');
+        } else {
+            response.setHeader('Access-Control-Allow-Origin', '*');
+        }
         response.setHeader('Cache-Control', 'no-store');
         response.end(encodePng(pixels, size.width, size.height));
         return undefined;

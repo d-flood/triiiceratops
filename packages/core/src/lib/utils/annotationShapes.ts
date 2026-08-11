@@ -52,6 +52,8 @@ interface ShapeCommon {
     id: string;
     /** The annotation the shape belongs to; several shapes may share one. */
     annotationId: string;
+    /** The canvas the shape was projected through; `null` if unstated. */
+    canvasId: string | null;
     isSearchHit: boolean;
     isFullCanvasTarget: boolean;
     /** The accessible name, and the tooltip text where one is shown. */
@@ -81,17 +83,31 @@ export type AnnotationShape = RectangleShape | PolygonShape | PointShape;
 export interface ProjectShapesOptions {
     /**
      * Canvas space → screen space, in CSS pixels from the surface's top-left
-     * corner. `null` when the renderer cannot place the canvas asked about, in
-     * which case the shape is dropped rather than drawn somewhere wrong.
+     * corner, for the named canvas. `null` when the renderer cannot place that
+     * canvas, in which case the shape is dropped rather than drawn somewhere
+     * wrong.
+     *
+     * Takes the canvas id because a screen position is only meaningful with one:
+     * a facing-page spread lays its two pages out at different offsets, and in
+     * continuous mode every folio has its own. An annotation carrying no canvas
+     * id (`ParsedAnnotation.canvasId === null`) is asked about the viewer's
+     * current canvas, which is what `canvasToScreen` does with an omitted id.
      */
-    toScreen: (point: ScreenPoint) => ScreenPoint | null;
+    toScreen: (
+        point: ScreenPoint,
+        canvasId: string | null,
+    ) => ScreenPoint | null;
     /**
-     * The current canvas's canvas/image dimensions, for the annotations whose
-     * targets are in image space. `null` means "unknown", and the conversion
-     * helpers treat that as the identity — the same thing they do when the two
-     * spaces coincide.
+     * A canvas's canvas/image dimensions, for the annotations whose targets are
+     * in image space. `null` means "unknown", and the conversion helpers treat
+     * that as the identity — the same thing they do when the two spaces coincide.
+     *
+     * A lookup rather than one value: the canvases on screen are not all the same
+     * size, and a spread's two pages may declare different image dimensions.
      */
-    imageDimensions: CanvasImageSpaceDimensions | null;
+    imageDimensions: (
+        canvasId: string | null,
+    ) => CanvasImageSpaceDimensions | null;
 }
 
 /**
@@ -118,11 +134,15 @@ export function projectAnnotationShapes(
 
 function projectAnnotationShape(
     annotation: ParsedAnnotation,
-    { toScreen, imageDimensions }: ProjectShapesOptions,
+    options: ProjectShapesOptions,
 ): AnnotationShape | null {
+    const canvasId = annotation.canvasId;
+    const toScreen = (point: ScreenPoint) => options.toScreen(point, canvasId);
+    const imageDimensions = options.imageDimensions(canvasId);
     const inImageSpace = annotation.coordinateSpace === 'image';
     const common: ShapeCommon = {
         id: annotation.renderId,
+        canvasId,
         annotationId: annotation.sourceAnnotationId,
         isSearchHit: annotation.isSearchHit,
         isFullCanvasTarget: annotation.isFullCanvasTarget,

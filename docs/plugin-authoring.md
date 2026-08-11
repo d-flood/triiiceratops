@@ -571,6 +571,51 @@ async function markCentre(context: PluginContext) {
 readiness helper renamed — that one promised a third-party viewer instance,
 which no longer exists.
 
+### A tap on the image
+
+A **single tap** is the one gesture the viewport does not consume — it never
+zooms — and `viewerState.subscribeSurfaceTap(listener)` is how a plugin hears it,
+with the point in screen space. It arrives already filtered by the renderer's
+single arbitration point: never for a drag, never for a pinch, and never for a
+gesture some other consumer had claimed. Deciding *what* was tapped is yours,
+from geometry you already hold, projected with `canvasToScreen` — which is
+exactly what core's own annotation overlay does to select an annotation.
+
+```ts
+import type { PluginContext } from 'triiiceratops';
+
+function watchTaps(context: PluginContext, onCanvasPoint: (point: { x: number; y: number }) => void) {
+    // Returns an idempotent unsubscribe; a listener survives a renderer remount.
+    return context.viewerState.subscribeSurfaceTap((point) => {
+        const canvasPoint = context.viewerState.screenToCanvas(point);
+        if (canvasPoint) onCanvasPoint(canvasPoint);
+    });
+}
+```
+
+### Which canvases are on screen
+
+`viewerState.visibleCanvasIds` is the canvases the reader is actually looking at,
+in layout order — one canvas in `individuals`, the **whole spread** in `paged`,
+and the folios the viewport meets in `continuous`. It is observable state that
+core writes and republishes when the set *changes*, not per frame, so it is safe
+to subscribe to. Read `annotatableCanvasIds` for the same list with a fallback to
+the current canvas before a renderer has answered.
+
+Prefer it to `canvasId` for anything drawn over the image. `canvasId` is the
+canvas last **navigated** to, which in continuous mode is not what is on screen
+after a scroll — core's own annotation surfaces read the visible set for exactly
+that reason, and geometry then goes through `canvasToScreen(point, canvasId)` per
+canvas, because two pages of a spread sit at different offsets.
+
+The annotation core selects this way is `viewerState.activeAnnotationId`
+(`setActiveAnnotationId(id | null)`, which clears when handed the id already
+selected). It is the **selection**, notifying like any command state, and it is
+distinct from `hoveredAnnotationId`: a selection persists after the pointer has
+moved on, which is why the panel keeps its row marked and the connector line
+stays drawn. Neither of them changes what is visible — that is
+`visibleAnnotationIds`.
+
 ### Drawing into the image: the paint hook
 
 `viewerState.registerPaintLayer({ id, order, draw })` registers a layer the

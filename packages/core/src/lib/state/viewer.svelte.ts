@@ -57,6 +57,7 @@ import {
     type CollectionItem,
 } from '../utils/collections';
 import { getCanvasLabel } from '../utils/canvasLabels';
+import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
 import { segmentHighlights } from '../utils/highlightSegments';
 import type { CanvasRegion } from '../utils/contentState';
 import {
@@ -66,10 +67,7 @@ import {
     getReferenceId,
 } from '../utils/iiifIds';
 import { normalizeIiifTargets } from '../utils/iiifTargets';
-import {
-    getPagedCanvasGroups,
-    getVisibleCanvasEntries,
-} from '../components/viewerControls';
+import { getPagedCanvasGroups } from '../components/viewerControls';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 
 /** IIIF Content Search API profiles, as declared on a search service. */
@@ -138,6 +136,22 @@ export class ViewerState {
     visibleAnnotationIds: Set<string> = new SvelteSet<string>();
     annotationVisibilityTouched = $state(false);
     hoveredAnnotationId = $state<string | null>(null);
+
+    /**
+     * The **selected** annotation, or `null` for none — what a reader picked
+     * rather than what a pointer is passing over.
+     *
+     * Distinct from {@link hoveredAnnotationId}, and deliberately not folded
+     * into it: hover is transient and follows the pointer, while a selection
+     * persists after the pointer has gone somewhere else. That difference is the
+     * whole point of it — the panel keeps the row marked and the connector line
+     * keeps its shape tied to that row, neither of which a hover can do.
+     *
+     * Set by tapping a shape on the image (the gesture the renderer reserves for
+     * exactly this) and cleared by tapping the same shape again or the image
+     * beside it. Command state: {@link setActiveAnnotationId}.
+     */
+    activeAnnotationId = $state<string | null>(null);
 
     /**
      * Per-viewer plugin-written annotation display state, keyed by
@@ -270,6 +284,43 @@ export class ViewerState {
     /** Record that a manifest is ready, notifying manifest-readiness subscribers. */
     private markManifestReady(manifestId: string): void {
         this.loadedManifestIds.add(manifestId);
+    }
+
+    /**
+     * Show every annotation on every canvas the reader is looking at — the
+     * default the panel opens with, and the one that has to be re-applied when a
+     * canvas scrolls into view.
+     *
+     * Clears the visibility set first, `annotationVisibilityTouched` included, so
+     * this is the *default* state and not a user choice: core calls it only while
+     * the reader has not touched visibility themselves.
+     *
+     * Distinct from {@link showCurrentCanvasAnnotations}, which is about ONE
+     * canvas and stays as it was. In `paged` the facing page's annotations would
+     * otherwise arrive hidden — drawn nowhere, and a panel row whose eye says
+     * "hidden" for something the reader never hid.
+     */
+    showVisibleCanvasAnnotations() {
+        this.clearAnnotationVisibility();
+
+        if (!this.manifestId) return;
+
+        for (const entry of collectCanvasAnnotations({
+            manifestId: this.manifestId,
+            canvasIds: this.annotatableCanvasIds,
+            getAnnotations: (manifestId, canvasId) =>
+                this.getAnnotations(manifestId, canvasId),
+            searchAnnotations: this.searchAnnotations,
+        })) {
+            for (const annotation of entry.annotations) {
+                const id = getAnnotationId(annotation);
+                // A search hit is always drawn and never toggled, so it is not
+                // part of the visibility set.
+                if (id && !entry.searchHitIds.has(id)) {
+                    this.visibleAnnotationIds.add(id);
+                }
+            }
+        }
     }
 
     showCurrentCanvasAnnotations() {
@@ -696,6 +747,51 @@ export class ViewerState {
     /** The port {@link unsubscribeFrame} belongs to, so a swap is noticed. */
     private tickingPort: RendererPort | null = null;
 
+    /** Surface-tap fan-out; see {@link subscribeSurfaceTap}. */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    private surfaceTapListeners = new Set<(point: ViewportPoint) => void>();
+
+    /**
+     * Detach from the port's tap events; set while a renderer is attached.
+     *
+     * Subscribed for the whole life of the attachment rather than lazily, the
+     * way {@link subscribeFrame} is: laziness there keeps a per-frame loop off an
+     * idle viewer, and a tap is a human-rate event with no loop behind it.
+     */
+    private unsubscribeSurfaceTap: (() => void) | null = null;
+
+    /**
+     * The canvases the reader is looking at, in layout order — the scope every
+     * annotation surface works over.
+     *
+     * In `individuals` that is one canvas; in `paged` it is the whole spread,
+     * facing page included; in `continuous` it is the folios the viewport
+     * actually meets, which is **not** {@link canvasId} — a scroll moves the
+     * viewport and leaves the navigated canvas behind. Empty before a renderer
+     * has a sized surface, and it falls back to {@link canvasId} for a caller
+     * that reads it then (see {@link annotatableCanvasIds}).
+     *
+     * Observable: only the renderer can answer it, so core writes it. It is
+     * republished when the set CHANGES rather than per frame, which is both what
+     * makes it safe to notify on and the cadence a panel following a scroll
+     * should update at.
+     */
+    visibleCanvasIds: string[] = $state.raw([]);
+
+    /**
+     * {@link visibleCanvasIds}, or the current canvas while no renderer has
+     * answered yet.
+     *
+     * The annotation panel and the shape overlay both read this, so they cannot
+     * disagree about which canvases they are describing — and a viewer whose
+     * surface is not sized yet still lists the annotations of the canvas it
+     * opened on rather than nothing at all.
+     */
+    get annotatableCanvasIds(): string[] {
+        if (this.visibleCanvasIds.length > 0) return this.visibleCanvasIds;
+        return this.canvasId ? [this.canvasId] : [];
+    }
+
     /**
      * Whether a renderer has a sized surface and accepts viewport commands.
      *
@@ -753,6 +849,12 @@ export class ViewerState {
         this.rendererPort = port;
         port.applyImageAdjustments(this.imageAdjustments);
         this.syncFrameSource();
+        this.unsubscribeSurfaceTap?.();
+        this.unsubscribeSurfaceTap = port.onTap((point) => {
+            for (const listener of [...this.surfaceTapListeners]) {
+                listener(point);
+            }
+        });
         this.rendererReady = true;
 
         let detached = false;
@@ -761,7 +863,32 @@ export class ViewerState {
             detached = true;
             this.rendererPort = null;
             this.syncFrameSource();
+            this.unsubscribeSurfaceTap?.();
+            this.unsubscribeSurfaceTap = null;
             this.rendererReady = false;
+        };
+    }
+
+    /**
+     * Hear a **single tap** on the image surface, at a screen-space point.
+     *
+     * The one gesture the viewport does not consume: it is reserved for
+     * annotation selection, and it arrives already filtered by the renderer's
+     * single arbitration point — never for a drag, a pinch, or a gesture
+     * suppressed by an input claim. What was tapped is the subscriber's
+     * question to answer, from geometry it already holds; core's own annotation
+     * overlay answers it with the shapes it projected for the current frame.
+     *
+     * Unsubscribing is idempotent, and a listener survives a renderer remount:
+     * the subscription is to the viewer, not to a renderer instance.
+     */
+    subscribeSurfaceTap(listener: (point: ViewportPoint) => void): () => void {
+        this.surfaceTapListeners.add(listener);
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            this.surfaceTapListeners.delete(listener);
         };
     }
 
@@ -1697,54 +1824,26 @@ export class ViewerState {
     /**
      * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
      */
+    /**
+     * Search hits on the current canvas, in canvas space.
+     *
+     * Kept for callers that ask specifically about the current canvas. Core's own
+     * annotation surfaces do NOT use it: they read {@link searchAnnotations} for
+     * every canvas on screen through `collectCanvasAnnotations`, which is what
+     * puts a hit on the facing page of a spread on that page.
+     *
+     * It used to shift a facing page's hits sideways by `canvasWidth * 1.025` and
+     * hand them back as if they belonged to the current canvas — a hand-rolled
+     * offset standing in for multi-canvas layout, and wrong by construction: the
+     * renderer's inter-canvas gap is 1.25% of a page, not 2.5%, and the guess only
+     * ever covered two pages. Coordinates here are now each hit's own, unshifted,
+     * to be projected through its own canvas.
+     */
     get currentCanvasSearchAnnotations() {
         if (!this.canvasId) return [];
-        if (this.viewingMode === 'paged') {
-            const visibleEntries = getVisibleCanvasEntries({
-                canvases: this.canvases,
-                currentCanvasId: this.canvasId,
-                currentCanvasIndex: this.currentCanvasIndex,
-                viewingMode: this.viewingMode,
-                pagedOffset: this.pagedOffset,
-            });
-
-            if (!visibleEntries.length) {
-                return [];
-            }
-
-            const [firstEntry, secondEntry] = visibleEntries;
-            let annotations = this.searchAnnotations.filter(
-                (a) => a.canvasId === firstEntry.canvasId,
-            );
-
-            if (secondEntry) {
-                const xOffset = 1.025; // account for small gap between pages
-                // Raw IIIF Canvas JSON spells this `width` in both v2 and v3.
-                // This read used to be `canvas.getWidth()` with no fallback,
-                // which is a TypeError now that canvases are raw JSON.
-                const canvasWidth = firstEntry.canvas?.width ?? 0;
-                const annoOffset = canvasWidth * xOffset;
-                const nextAnnotations = this.searchAnnotations.filter(
-                    (a) => a.canvasId === secondEntry.canvasId,
-                );
-
-                const nextAnnotationsUpdated = nextAnnotations.map((a) => {
-                    const parts = a.on.split('#xywh=');
-                    const coords = parts[1].split(',').map(Number);
-                    const shiftedX = coords[0] + annoOffset;
-                    return {
-                        ...a,
-                        on: `${parts[0]}#xywh=${shiftedX},${coords[1]},${coords[2]},${coords[3]}`,
-                    };
-                });
-                annotations = annotations.concat(nextAnnotationsUpdated);
-            }
-            return annotations;
-        } else {
-            return this.searchAnnotations.filter(
-                (a) => a.canvasId === this.canvasId,
-            );
-        }
+        return this.searchAnnotations.filter(
+            (a) => a.canvasId === this.canvasId,
+        );
     }
 
     async search(query: string) {
@@ -2231,6 +2330,19 @@ export class ViewerState {
     /** Set (or clear, with null) the currently hovered annotation id. */
     setHoveredAnnotationId(annotationId: string | null): void {
         this.hoveredAnnotationId = annotationId;
+    }
+
+    /**
+     * Select an annotation, or clear the selection with `null`.
+     *
+     * Selecting one that is already selected clears it, so the same tap that
+     * picks a shape also puts it down again.
+     */
+    setActiveAnnotationId(annotationId: string | null): void {
+        this.activeAnnotationId =
+            annotationId !== null && annotationId === this.activeAnnotationId
+                ? null
+                : annotationId;
     }
 
     /**

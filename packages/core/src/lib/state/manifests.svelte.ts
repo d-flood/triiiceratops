@@ -96,9 +96,28 @@ export class ManifestsState {
         return this.manifests[manifestId];
     }
 
-    async fetchAnnotationList(url: string) {
-        if (this.manifests[url]) return; // Already fetched or fetching
+    /**
+     * External annotation lists already requested, whether or not they have
+     * arrived — the in-flight guard for {@link fetchAnnotationList}.
+     *
+     * The comment on that method's first line always claimed "already fetched or
+     * fetching", but `this.manifests[url]` is only written once the response has
+     * been parsed, so every call made before then started its own request. That
+     * was survivable while annotations were read for one canvas on one navigation;
+     * it is not now that the annotation surfaces follow the viewport and a scroll
+     * through a manifest asks about each folio as it arrives.
+     *
+     * A plain `Set`, deliberately not reactive: nothing renders from it.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    private inFlightAnnotationLists = new Set<string>();
 
+    async fetchAnnotationList(url: string) {
+        // Already fetched, or fetching.
+        if (this.manifests[url] || this.inFlightAnnotationLists.has(url))
+            return;
+
+        this.inFlightAnnotationLists.add(url);
         try {
             const response = await fetch(url);
             if (response.ok) {
@@ -109,6 +128,10 @@ export class ManifestsState {
             }
         } catch (e) {
             logger.error(`Error fetching annotation list: ${url}`, e);
+        } finally {
+            // Released either way: a failed list must be retryable, and leaving
+            // the url marked would make one network blip permanent.
+            this.inFlightAnnotationLists.delete(url);
         }
     }
 

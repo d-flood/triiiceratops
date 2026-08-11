@@ -5,6 +5,7 @@
     import { getMessages } from '../state/i18n.svelte';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
+    import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
     import { isSafeUrl } from '../utils/sanitizeHtml';
     import { Button, Badge } from './ui';
 
@@ -16,19 +17,25 @@
     let position = $derived(
         viewerState.config.annotations?.position ?? 'right',
     );
-    let annotations = $derived.by(() => {
-        if (!viewerState.manifestId || !viewerState.canvasId) {
-            return [];
-        }
-        const manifestAnnotations = viewerState.getAnnotations(
-            viewerState.manifestId,
-            viewerState.canvasId,
-        );
-        // Add search hits for current canvas
-        const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
-
-        return [...manifestAnnotations, ...searchAnnotations];
-    });
+    /**
+     * Every annotation on every canvas the reader is looking at, in layout order:
+     * one canvas in `individuals`, the whole spread in `paged`, the folios the
+     * viewport meets in `continuous`.
+     *
+     * The same collection the shape overlay draws from, through the same helper —
+     * so a row exists for every shape on screen and vice versa. Without that a
+     * facing page's annotations were shapeless AND rowless, and a connector, which
+     * is a line from a row to a shape, had nothing to join.
+     */
+    let annotations = $derived(
+        collectCanvasAnnotations({
+            manifestId: viewerState.manifestId,
+            canvasIds: viewerState.annotatableCanvasIds,
+            getAnnotations: (manifestId, canvasId) =>
+                viewerState.getAnnotations(manifestId, canvasId),
+            searchAnnotations: viewerState.searchAnnotations,
+        }).flatMap((entry) => entry.annotations),
+    );
 
     // Helper to get ID from a raw JSON annotation — `id` in v3, `@id` in v2.
     function getAnnotationId(anno: any): string {
@@ -75,17 +82,71 @@
         }
     }
 
-    function shouldIgnoreRowToggle(target: EventTarget | null): boolean {
+    /**
+     * Whether the row itself was activated, or something inside it that has its
+     * own job — the visibility eye, a link in a body, a plugin's control. Those
+     * keep their own behaviour and must not also select the row.
+     */
+    function shouldIgnoreRowActivation(target: EventTarget | null): boolean {
         if (!(target instanceof Element)) {
             return false;
         }
 
         return Boolean(
             target.closest(
-                'a, button, input, select, textarea, summary, [role="button"], [data-annotation-interactive="true"]',
+                'a, button, input, select, textarea, summary, [role="button"]:not([data-annotation-row]), [data-annotation-interactive="true"]',
             ),
         );
     }
+
+    /**
+     * Selecting from the panel — the counterpart to tapping the shape on the
+     * image, and the same state, so a connector drawn from either stays until the
+     * reader picks something else or clears it.
+     *
+     * The row's click means SELECT, not show/hide. Visibility has its own
+     * control in every row (the eye button) and its own bulk control in the
+     * toolbar; before this the row was a second, unlabelled visibility toggle,
+     * so clicking the thing you wanted to look at was as likely to make it
+     * disappear.
+     */
+    function activateAnnotation(anno: { id: string }) {
+        if (!anno.id) return;
+        viewerState.setActiveAnnotationId(anno.id);
+    }
+
+    /**
+     * Bring the selected annotation's row into view.
+     *
+     * Selection happens on the IMAGE — a tap on a shape — and on a manifest with
+     * more annotations than fit the panel the marked row is then usually
+     * somewhere off-screen, which is a selection the reader cannot read. Scrolled
+     * within the list only (`block: 'nearest'`), so it never scrolls the host
+     * page around the viewer.
+     *
+     * Honours reduced motion: an unrequested smooth scroll is exactly the
+     * motion that setting asks to be spared.
+     */
+    $effect(() => {
+        const activeId = viewerState.activeAnnotationId;
+        if (!activeId || !listEl) return;
+
+        const row = listEl.querySelector(
+            `[data-annotation-row="${CSS.escape(activeId)}"]`,
+        );
+        if (!(row instanceof HTMLElement)) return;
+
+        const reducedMotion =
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        row.scrollIntoView({
+            block: 'nearest',
+            behavior: reducedMotion ? 'auto' : 'smooth',
+        });
+    });
+
+    let listEl: HTMLElement | undefined = $state();
 
     function toggleAllAnnotations() {
         viewerState.annotationVisibilityTouched = true;
@@ -153,38 +214,38 @@
         </div>
 
         <!-- List -->
-        <div class="list" class:scrollable={!embedded}>
+        <div bind:this={listEl} class="list" class:scrollable={!embedded}>
             {#each renderedAnnotations as anno, i (anno.id)}
                 {@const isVisible =
                     anno.isSearchHit ||
                     viewerState.visibleAnnotationIds.has(anno.id)}
+                {@const isActive = viewerState.activeAnnotationId === anno.id}
                 <!-- List Item Row -->
                 <div
                     class="row"
                     class:search-hit={anno.isSearchHit}
                     class:dimmed={!isVisible}
+                    class:active={isActive}
                     role="button"
                     tabindex="0"
-                    aria-disabled={anno.isSearchHit}
+                    aria-current={isActive ? 'true' : undefined}
+                    data-annotation-row={anno.id}
                     id="annotation-list-item-{anno.id}"
                     onmouseenter={() =>
                         (viewerState.hoveredAnnotationId = anno.id)}
                     onmouseleave={() =>
                         (viewerState.hoveredAnnotationId = null)}
                     onclick={(e) => {
-                        if (shouldIgnoreRowToggle(e.target)) {
+                        if (shouldIgnoreRowActivation(e.target)) {
                             return;
                         }
                         e.preventDefault();
-                        toggleAnnotation(anno);
+                        activateAnnotation(anno);
                     }}
                     onkeypress={(e) => {
-                        if (anno.isSearchHit) {
-                            return;
-                        }
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            toggleAnnotation(anno);
+                            activateAnnotation(anno);
                         }
                     }}
                 >
@@ -421,8 +482,35 @@
         );
     }
 
-    .row.search-hit {
-        cursor: default;
+    /*
+     * The SELECTED annotation's row.
+     *
+     * An accent bar on the panel's inner edge plus a tinted background, and
+     * `aria-current` on the row itself so the selection is not colour-only. It
+     * has to read as marked even while another row is hovered, which is why the
+     * bar carries it rather than the background alone — a 10% tint and a 5% tint
+     * are not reliably tellable apart, and the hover rule may win the cascade.
+     *
+     * `--tri-color-primary-text`, not the raw primary: on a panel surface only
+     * the `-text` variant of the palette has a contrast guarantee, and this bar
+     * is a non-text UI component (WCAG 1.4.11). Its pairing against the panel
+     * background is one `pnpm test:contrast` already carries.
+     */
+    .row.active {
+        background-color: color-mix(
+            in oklab,
+            var(--tri-color-primary) 12%,
+            transparent
+        );
+    }
+
+    .row.active::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        width: 3px;
+        background-color: var(--tri-color-primary-text);
     }
 
     .row.dimmed {

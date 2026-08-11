@@ -357,3 +357,32 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   the legitimate content still rendered.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-08 · **Review by:** 2027-02-08
+
+### 10. bare `console.warn` — `packages/plugin-image-export/src/Panel.svelte` (cross-origin refusal)
+
+- **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+- **Mechanism:** a `// triiiceratops-console-allow` marker comment on the
+  preceding lines — anchored to this one site inside `describeFailure`, reached
+  only when a download failed _and_ the failure was classified as an image
+  server refusing cross-origin reads.
+- **Rationale:** this is the one failure the viewer is blamed for and did not
+  cause, and the console is where the blame is already being assigned: the
+  browser logs its own `Access-Control-Allow-Origin` error for the request before
+  any of our code runs, and that message reads exactly like a viewer bug. The
+  structured `pluginerror` channel still carries the failure (a host that handles
+  it needs nothing from here), and the reader sees the localized
+  `image_download_error_not_allowed` message in the panel — but neither appears
+  next to the browser's own error in the console, which is where an integrator
+  looks first. One line there, at most once per download attempt, is what stops
+  the wrong conclusion. It also records what cannot be inferred from the browser
+  error alone: that the images render fine because _painting_ an image needs no
+  cross-origin permission while reading its pixels back does, so "it displays but
+  will not download" is expected rather than contradictory.
+- **Behavior test:** `packages/plugin-image-export/src/exportImage.test.ts` —
+  `isCrossOriginImageFailure` pins which failures reach this branch (each
+  engine's fetch wording and a tainted-canvas `SecurityError`) and which
+  deliberately do not (404s, missing images, ordinary `TypeError`s), so the warn
+  cannot fire for a failure somebody can actually fix.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-11 · **Review by:** 2027-02-11

@@ -47,10 +47,10 @@
      * the picture before the things marked on it.
      */
     import { getContext, onMount } from 'svelte';
-    import { SvelteSet } from 'svelte/reactivity';
 
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { parseAnnotations } from '../utils/annotationAdapter';
+    import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
     import {
         projectAnnotationShapes,
         shapeContainsPoint,
@@ -97,6 +97,41 @@
     );
 
     /**
+     * Selection, from the one gesture the renderer reserves for it.
+     *
+     * A read-only shape takes no pointer events — a drag that starts over one
+     * must still pan the image — so this cannot be a `click` handler on the
+     * shape, and it deliberately is not a second tap recogniser on the stage
+     * either: `subscribeSurfaceTap` delivers the arbiter's own decision, so a
+     * drag, a pinch, and a gesture suppressed by an input claim are already
+     * excluded, with one slop threshold rather than two.
+     *
+     * The hit test runs against the geometry the shapes were POSITIONED from,
+     * exactly as the tooltip's does, so the answer is the shape the reader saw
+     * under their finger and it costs no layout read. Topmost first, which is
+     * what a click would have reached; a tap on no shape clears the selection,
+     * which is how a reader puts one down without hunting for the shape again.
+     */
+    $effect(() =>
+        viewerState.subscribeSurfaceTap((point) => {
+            const hit = [...shapes]
+                .reverse()
+                .find(
+                    (shape) =>
+                        isTappableShape(shape) &&
+                        shapeContainsPoint(
+                            shape,
+                            point.x,
+                            point.y,
+                            pointMarkerSize,
+                        ),
+                );
+
+            viewerState.setActiveAnnotationId(hit ? hit.annotationId : null);
+        }),
+    );
+
+    /**
      * Whether the annotation editor is open, which is what makes a shape
      * editable — and therefore focusable and operable.
      *
@@ -122,32 +157,37 @@
         return editorButton?.isActive?.() ?? false;
     });
 
-    // Annotations and search-hit ids together, so paged search geometry is
-    // filtered and transformed once per state change rather than once per list.
-    const annotationData = $derived.by(() => {
-        const searchHitIds = new SvelteSet<string>();
-        if (!viewerState.manifestId || !viewerState.canvasId) {
-            return { annotations: [], searchHitIds };
-        }
-        const manifestAnnotations = viewerState.getAnnotations(
-            viewerState.manifestId,
-            viewerState.canvasId,
-        );
-        const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
-        searchAnnotations.forEach((anno: any) => {
-            const id = anno.id || anno['@id'];
-            if (id) searchHitIds.add(id);
-        });
-        return {
-            annotations: [...manifestAnnotations, ...searchAnnotations],
-            searchHitIds,
-        };
-    });
+    /**
+     * Every annotation on every canvas the reader is looking at.
+     *
+     * `annotatableCanvasIds` is one canvas in `individuals`, the whole SPREAD in
+     * `paged`, and the folios the viewport meets in `continuous` — so the facing
+     * page of a spread and the folio scrolled to are both included, where this
+     * used to read `viewerState.canvasId` alone and draw neither. Collected by the
+     * shared helper the panel also uses, so the two cannot disagree about what is
+     * on screen; a connector is a line between them, and a disagreement is a line
+     * to nowhere.
+     */
+    const canvasAnnotations = $derived(
+        collectCanvasAnnotations({
+            manifestId: viewerState.manifestId,
+            canvasIds: viewerState.annotatableCanvasIds,
+            getAnnotations: (manifestId, canvasId) =>
+                viewerState.getAnnotations(manifestId, canvasId),
+            searchAnnotations: viewerState.searchAnnotations,
+        }),
+    );
 
+    // Parsed per canvas, so every annotation carries the canvas its geometry is
+    // in — which is what lets a spread's two pages project through their own
+    // laid-out rects.
     const parsedAnnotations = $derived(
-        parseAnnotations(
-            annotationData.annotations,
-            annotationData.searchHitIds,
+        canvasAnnotations.flatMap((entry) =>
+            parseAnnotations(
+                entry.annotations,
+                entry.searchHitIds,
+                entry.canvasId,
+            ),
         ),
     );
 
@@ -172,37 +212,51 @@
     );
 
     /**
-     * The current canvas's canvas-space and image-space dimensions, for the
-     * annotations whose targets are in image space.
+     * Canvas/image dimensions per canvas on screen, for the annotations whose
+     * targets are in image space.
+     *
+     * A map rather than one canvas's numbers: the canvases on screen are not all
+     * the same size, and a spread's two pages may declare different image
+     * dimensions. Built once per change of the visible set rather than per frame —
+     * it walks the manifest's canvas list, which an 800-folio manifest makes
+     * expensive enough to matter.
      */
-    const currentCanvasImageDimensions: CanvasImageSpaceDimensions | null =
-        $derived.by(() => {
-            if (!viewerState.manifestId || !viewerState.canvasId) return null;
+    const imageDimensionsByCanvas = $derived.by(() => {
+        // A plain Map, deliberately: it is built fresh inside a `$derived` and
+        // never mutated afterwards, so there is nothing for a reactive Map to
+        // notice — the derivation itself is the notification.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const byCanvas = new Map<string, CanvasImageSpaceDimensions>();
+        const manifestId = viewerState.manifestId;
+        if (!manifestId || canvasAnnotations.length === 0) return byCanvas;
 
-            const canvas = viewerState
-                .getCanvases(viewerState.manifestId)
-                .find((entry: any) => {
-                    // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
-                    const id = entry?.id || entry?.['@id'];
-                    return id === viewerState.canvasId;
-                });
+        const wanted = new Set(
+            canvasAnnotations.map((entry) => entry.canvasId),
+        );
+        for (const canvas of viewerState.getCanvases(manifestId)) {
+            // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
+            const id = (canvas as any)?.id || (canvas as any)?.['@id'];
+            if (!id || !wanted.has(id)) continue;
 
-            const resolved = canvas ? resolveCanvasImage(canvas) : null;
+            const resolved = resolveCanvasImage(canvas);
             if (
                 !resolved ||
                 typeof resolved.resourceWidth !== 'number' ||
                 typeof resolved.resourceHeight !== 'number'
             ) {
-                return null;
+                continue;
             }
 
-            return {
+            byCanvas.set(id, {
                 canvasWidth: resolved.canvasWidth,
                 canvasHeight: resolved.canvasHeight,
                 imageWidth: resolved.resourceWidth,
                 imageHeight: resolved.resourceHeight,
-            };
-        });
+            });
+        }
+
+        return byCanvas;
+    });
 
     /**
      * Where every shown shape is, in surface-local CSS pixels.
@@ -215,17 +269,54 @@
         void frameTick;
         void viewerState.rendererReady;
 
-        const canvasId = viewerState.canvasId;
-        if (!canvasId || shownAnnotations.length === 0) return [];
+        if (shownAnnotations.length === 0) return [];
 
         return projectAnnotationShapes(shownAnnotations, {
-            toScreen: (point) => viewerState.canvasToScreen(point, canvasId),
-            imageDimensions: currentCanvasImageDimensions,
+            // Each shape through ITS canvas. A canvas the renderer has not laid
+            // out answers `null` and the shape is dropped rather than drawn at
+            // another page's offset.
+            toScreen: (point, canvasId) =>
+                viewerState.canvasToScreen(point, canvasId ?? undefined),
+            imageDimensions: (canvasId) =>
+                (canvasId && imageDimensionsByCanvas.get(canvasId)) || null,
         });
     });
 
     function isEditableShape(shape: AnnotationShape): boolean {
         return annotationEditorOpen && !shape.isSearchHit;
+    }
+
+    /**
+     * Whether a shape is drawn at all this frame.
+     *
+     * A full-canvas annotation's target IS the page, so it has no box worth
+     * outlining: it is drawn only while something is pointing at it — its panel
+     * row hovered, or the annotation selected — and otherwise a page-sized
+     * rectangle would sit over the whole image permanently.
+     */
+    function isShapeDrawn(shape: AnnotationShape): boolean {
+        return (
+            !shape.isFullCanvasTarget ||
+            viewerState.hoveredAnnotationId === shape.annotationId ||
+            viewerState.activeAnnotationId === shape.annotationId
+        );
+    }
+
+    /**
+     * Whether a tap on a shape may select it.
+     *
+     * Everything but a full-canvas target, which is deliberately unselectable
+     * from the image: its box answers every tap anywhere on the canvas,
+     * including the ones that mean "clear the selection". It stays reachable
+     * from the annotation panel, which is where a whole-page note belongs.
+     */
+    function isTappableShape(shape: AnnotationShape): boolean {
+        return !shape.isFullCanvasTarget;
+    }
+
+    /** Whether a shape is the selected annotation's. */
+    function isActiveShape(shape: AnnotationShape): boolean {
+        return viewerState.activeAnnotationId === shape.annotationId;
     }
 
     function shouldShowShapeTooltip(shape: AnnotationShape): boolean {
@@ -399,7 +490,7 @@
 -->
 <div bind:this={root} class="anno-shape-layer" data-testid="annotation-shapes">
     {#each shapes as shape (shape.id)}
-        {#if !shape.isFullCanvasTarget || viewerState.hoveredAnnotationId === shape.annotationId}
+        {#if isShapeDrawn(shape)}
             {#if shape.type === 'RECTANGLE'}
                 {#if isEditableShape(shape)}
                     <button
@@ -410,6 +501,7 @@
                         class:tooltip={shouldShowShapeTooltip(shape)}
                         class:tooltip-primary={shouldShowShapeTooltip(shape)}
                         class:search-hit={shape.isSearchHit}
+                        class:active={isActiveShape(shape)}
                         data-tip={shouldShowShapeTooltip(shape)
                             ? shape.tooltip
                             : undefined}
@@ -437,6 +529,7 @@
                             class="anno-rect-fill"
                             class:search-hit={shape.isSearchHit}
                             class:hovered={readonlyTooltip?.id === shape.id}
+                            class:active={isActiveShape(shape)}
                         ></div>
                     </div>
                 {/if}
@@ -469,6 +562,7 @@
                                     .join(' ')}
                                 class="anno-polygon-shape interactive"
                                 class:search-hit={shape.isSearchHit}
+                                class:active={isActiveShape(shape)}
                                 stroke-width="2"
                             />
                         </svg>
@@ -491,6 +585,7 @@
                                 class="anno-polygon-shape"
                                 class:search-hit={shape.isSearchHit}
                                 class:hovered={readonlyTooltip?.id === shape.id}
+                                class:active={isActiveShape(shape)}
                                 stroke-width="2"
                             />
                         </svg>
@@ -506,6 +601,7 @@
                         class:tooltip={shouldShowShapeTooltip(shape)}
                         class:tooltip-primary={shouldShowShapeTooltip(shape)}
                         class:search-hit={shape.isSearchHit}
+                        class:active={isActiveShape(shape)}
                         data-tip={shouldShowShapeTooltip(shape)
                             ? shape.tooltip
                             : undefined}
@@ -533,6 +629,7 @@
                             class="anno-point-fill"
                             class:search-hit={shape.isSearchHit}
                             class:hovered={readonlyTooltip?.id === shape.id}
+                            class:active={isActiveShape(shape)}
                         ></div>
                     </div>
                 {/if}
@@ -589,6 +686,46 @@
             stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.15s;
+    }
+
+    /*
+     * The SELECTED shape, in the visual vocabulary the overlay already has:
+     * the same deepened fill that says "the pointer is on this one", made
+     * permanent, plus a heavier border.
+     *
+     * Deliberately no new indicator here. What says WHICH annotation is selected
+     * is the connector line to its panel row and the marked row itself, and both
+     * of those carry their own contrast; a third affordance over the image would
+     * be a third thing to keep legible against arbitrary pixels.
+     */
+    .anno-rect.active,
+    .anno-rect-fill.active,
+    .anno-point.active,
+    .anno-point-fill.active {
+        border-width: 3px;
+    }
+
+    .anno-rect.active,
+    .anno-rect-fill.active {
+        background-color: color-mix(in oklab, var(--anno-red) 40%, transparent);
+    }
+
+    .anno-rect.active.search-hit,
+    .anno-rect-fill.active.search-hit {
+        background-color: color-mix(
+            in oklab,
+            var(--anno-yellow) 60%,
+            transparent
+        );
+    }
+
+    .anno-polygon-shape.active {
+        fill: color-mix(in oklab, var(--anno-red) 40%, transparent);
+        stroke-width: 3;
+    }
+
+    .anno-polygon-shape.active.search-hit {
+        fill: color-mix(in oklab, var(--anno-yellow) 60%, transparent);
     }
 
     /* Editable rectangle overlay (a real <button>) */

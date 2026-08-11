@@ -12,11 +12,15 @@
  * coarse tile's colour rather than a hole. Nothing that reads the finished
  * canvas back can distinguish that from the picture.
  *
- * What the mechanism guarantees is checkable exactly, though, and this is where:
- * every tile's destination rectangle lands on whole device pixels, and two tiles
- * sharing an edge compute the same coordinate for it. Node environment, against
- * a recording context — the painter takes a `CanvasRenderingContext2D` and
- * touches no other DOM.
+ * What the mechanism guarantees is checkable exactly, though, and this is where.
+ * There are two rules and both are asserted here: **at rest**, every tile's
+ * destination rectangle lands on whole device pixels and two tiles sharing an
+ * edge compute the same coordinate for it; **while the view moves**, every edge
+ * stays exactly where the transform put it, at exactly the size the transform
+ * gives it — because rounding a sub-pixel-per-frame animation is what makes its
+ * tail ripple, and because stretching a tile to close the resulting seam tears
+ * it instead. Node environment, against a recording context — the painter takes
+ * a `CanvasRenderingContext2D` and touches no other DOM.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -61,6 +65,7 @@ function tileDraws(columns: number, level = 1): TileDraw[] {
         key: `c1#${level}/${column},0`,
         canvasId: 'c1',
         level,
+        order: 0,
         x: column * span,
         y: 0,
         width: span,
@@ -74,6 +79,7 @@ function plan(draws: TileDraw[]): ScenePlan {
         tiers: { c1: 'pyramid' },
         tileRequests: [],
         tileDraws: draws,
+        staticImages: [],
         thumbnailRequests: [],
         unresolvedThumbnails: [],
         metadataRequests: [],
@@ -93,7 +99,7 @@ const VIEWPORT: Viewport = {
     scale: 1.7321,
 };
 
-function paint(draws: TileDraw[], dpr: number) {
+function paint(draws: TileDraw[], dpr: number, viewStable = true) {
     const { ctx, calls } = recordingContext();
     const tile = { width: 256, height: 256 } as unknown as CanvasImageSource;
 
@@ -103,6 +109,7 @@ function paint(draws: TileDraw[], dpr: number) {
         VIEWPORT,
         { images: {}, tiles: () => tile },
         dpr,
+        viewStable,
     );
 
     return calls;
@@ -143,6 +150,57 @@ describe('paintScene — tile snapping', () => {
                 const right = calls[index];
                 expect(left.x + left.width, `at dpr ${dpr}`).toBe(right.x);
             }
+        }
+    });
+
+    it('leaves edges exactly where the transform puts them while the view moves', () => {
+        // The tail of a zoom or a flick moves the image by under a device pixel
+        // per frame. Rounded, each edge crosses its own boundary on its own
+        // frame and the picture ripples; unrounded, sub-pixel motion stays
+        // sub-pixel.
+        const calls = paint(tileDraws(8), 2, false);
+
+        expect(calls.length).toBe(8);
+        expect(calls.some((call) => !Number.isInteger(call.x))).toBe(true);
+
+        const scale = VIEWPORT.scale * 2;
+        const origin = (VIEWPORT.width / 2) * 2 - VIEWPORT.centre.x * scale;
+        for (const [index, call] of calls.entries()) {
+            expect(call.x).toBeCloseTo(
+                ((index * 1000) / 8) * scale + origin,
+                9,
+            );
+        }
+    });
+
+    it('never stretches a moving tile to close a seam: the size stays exact', () => {
+        // The regression this guards is worse than the seam it would fix.
+        // Growing the destination by even one device pixel rescales the tile's
+        // content by (w + 1) / w, which shears every pixel inside it toward the
+        // right edge and snaps back at the neighbour — a one-pixel tear down
+        // every boundary, visible for the whole of a zoom or a glide. The
+        // source bitmap is exactly one tile, so there is no covering more
+        // destination without stretching it. Seams are closed by the coarse
+        // level blur-up already paints underneath.
+        const calls = paint(tileDraws(8), 2, false);
+        const trueWidth = (1000 / 8) * VIEWPORT.scale * 2;
+
+        for (const call of calls) {
+            expect(call.width).toBeCloseTo(trueWidth, 9);
+            expect(call.height).toBeCloseTo(trueWidth, 9);
+        }
+    });
+
+    it('gives two adjacent moving tiles exactly the same edge', () => {
+        // The resting rule reaches this by rounding both to the same device
+        // pixel; the moving rule reaches it by not rounding at all. Either way
+        // there is no gap for a hairline to open in and no column drawn twice.
+        const calls = paint(tileDraws(8), 2, false);
+
+        for (let index = 1; index < calls.length; index += 1) {
+            const left = calls[index - 1];
+            const right = calls[index];
+            expect(left.x + left.width).toBeCloseTo(right.x, 9);
         }
     });
 

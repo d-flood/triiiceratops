@@ -16,10 +16,10 @@ import {
     buildIiifImageRequestUrl,
     getDeclaredCanvasDimensions,
     getRegionString,
-    resolveCanvasImage,
+    resolveAllCanvasImages,
 } from '../utils/resolveCanvasImage';
 
-import type { PlannerCanvas, SourceDescriptor } from './types';
+import type { PlannerCanvas, PlannerImage, SourceDescriptor } from './types';
 
 type SelectedChoiceLookup = (canvasId: string) => string | undefined;
 
@@ -79,7 +79,7 @@ export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
  *    (user story 29) — the only kind this ticket paints.
  */
 function toSourceDescriptor(
-    resolved: NonNullable<ReturnType<typeof resolveCanvasImage>>,
+    resolved: ReturnType<typeof resolveAllCanvasImages>[number],
 ): SourceDescriptor | null {
     if (resolved.serviceId && resolved.imageApiRegion) {
         return {
@@ -109,6 +109,21 @@ function toSourceDescriptor(
 /**
  * One raw Canvas → a planner canvas, or `null` if it paints nothing usable.
  *
+ * **Every painting annotation, not the first one.** `resolveAllCanvasImages`
+ * already returns them all, each with its `#xywh=` target normalized into a
+ * placement box, and reading only `[0]` was two silent drops at once: the
+ * second and later pictures of a composite canvas were never requested (IIIF
+ * Cookbook recipe 0036 paints a miniature over a folio, and only the folio
+ * appeared), and the placement was discarded, so even a single region-targeted
+ * image was stretched across the whole canvas instead of into its rectangle
+ * (user story 30). The previous renderer composed correctly because it fed
+ * OpenSeadragon one tiled image per annotation, with its own `x`/`y`/`width`;
+ * this is that same fact, expressed as data.
+ *
+ * The Image API region selector on a body is a different mechanism and is
+ * unaffected: that one is a crop of the SOURCE and is already handled by
+ * {@link toSourceDescriptor} as a prebuilt static request.
+ *
  * A Canvas that declares no `width`/`height` is a spec violation the viewer
  * still has to render (user story 32), so it is **not** dropped here: it comes
  * back with `width`/`height` of `null`, which is the planner's signal to
@@ -122,20 +137,42 @@ export function toPlannerCanvas(
     getSelectedChoice?: SelectedChoiceLookup,
 ): PlannerCanvas | null {
     const declared = getDeclaredCanvasDimensions(canvas);
-    const resolved = resolveCanvasImage(canvas, {
+    const resolved = resolveAllCanvasImages(canvas, {
         getSelectedChoice,
         fallbackCanvasDimensions: UNSIZED_CANVAS_PLACEHOLDER,
     });
-    if (!resolved) return null;
+    if (!resolved.length) return null;
 
-    const source = toSourceDescriptor(resolved);
-    if (!source) return null;
+    const images: PlannerImage[] = [];
+    resolved.forEach((image, index) => {
+        const source = toSourceDescriptor(image);
+        if (!source) return;
+
+        images.push({
+            // The annotation's POSITION, not its id: an annotation id is
+            // optional in IIIF and duplicated in the wild, while a placement's
+            // position on its canvas is total and stable. Composed with the
+            // canvas id so the key is unique across the manifest rather than
+            // only within one canvas.
+            key: `${image.canvasId}#${index}`,
+            source,
+            x: image.x,
+            y: image.y,
+            width: image.width,
+            height: image.height,
+        });
+    });
+
+    // Every annotation resolved to something unusable — no service, no resource
+    // id, nothing to request. That is the same "paints nothing usable" this
+    // function has always answered `null` to.
+    if (!images.length) return null;
 
     return {
-        id: resolved.canvasId,
+        id: resolved[0].canvasId,
         width: declared?.width ?? null,
         height: declared?.height ?? null,
-        source,
+        images,
         thumbnailUrl: getDeclaredThumbnailUrl(canvas),
     };
 }

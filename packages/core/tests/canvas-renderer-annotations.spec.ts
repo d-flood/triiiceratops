@@ -94,9 +94,30 @@ const MANIFEST = {
     ],
 };
 
-async function openAnnotatedManifest(page: Page): Promise<void> {
+/**
+ * The same manifest with the painting body declaring dimensions of its own,
+ * different from the Canvas's.
+ *
+ * A manifest may say anything here — a derivative's size, the full scan's, or
+ * nothing at all — and it says nothing about where an annotation on the CANVAS
+ * is: `#xywh=` on a Canvas is Canvas coordinates. Every other fixture in this
+ * repository declares an image the same size as its Canvas, which is what let
+ * the two be conflated silently.
+ */
+function manifestWithBodyDimensions(width: number, height: number): unknown {
+    const clone = structuredClone(MANIFEST) as any;
+    const body = clone.items[0].items[0].items[0].body;
+    body.width = width;
+    body.height = height;
+    return clone;
+}
+
+async function openAnnotatedManifest(
+    page: Page,
+    json: unknown = MANIFEST,
+): Promise<void> {
     await page.route('**/annotation-geometry-manifest.json', (route) =>
-        route.fulfill({ json: MANIFEST }),
+        route.fulfill({ json }),
     );
 
     const config = encodeURIComponent(
@@ -178,6 +199,178 @@ test('an annotation shape lands where the coordinate model says', async ({
 }) => {
     await openAnnotatedManifest(page);
     await expectShapeOnModel(page);
+});
+
+/**
+ * The shape is placed from the CANVAS's dimensions, whatever the image resource
+ * declares — asserted in both directions so a conversion in either one fails.
+ *
+ * The two are equal in every other fixture here, which made a Canvas/image
+ * rescale invisible to this suite: read as image space, a body declaring half
+ * its Canvas's width drew the region at twice its size, and one declaring double
+ * drew it at half.
+ */
+for (const [label, width, height] of [
+    ['half the canvas', 50, 50],
+    ['double the canvas', 200, 200],
+] as const) {
+    test(`the shape ignores an image resource declaring ${label}`, async ({
+        page,
+    }) => {
+        await openAnnotatedManifest(
+            page,
+            manifestWithBodyDimensions(width, height),
+        );
+        await expectShapeOnModel(page);
+    });
+}
+
+/**
+ * Selection: a tap on a shape, the panel row it marks, and the connector that
+ * then STAYS.
+ *
+ * The whole path, through real pointer events on the real surface — the arbiter
+ * deciding the press was a tap, the overlay hit-testing it against the geometry
+ * it projected, the panel marking a row, and the connector being drawn between
+ * the two. Unit tests cover each half; only this can show they meet.
+ */
+const PANEL_ROW = '[data-annotation-row="annotation-geometry-region"]';
+const CONNECTOR = '.connecting-lines';
+
+/** Click the middle of the annotation shape, which is a tap: no travel. */
+async function clickShape(page: Page): Promise<void> {
+    const box = await page.locator(SHAPE).boundingBox();
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+}
+
+test('a tap on a shape selects it, and the connector outlives the pointer', async ({
+    page,
+}) => {
+    await openAnnotatedManifest(page);
+
+    // Nothing is selected on load, and no connector is drawn.
+    await expect(page.locator(PANEL_ROW)).not.toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+    await expect(page.locator(CONNECTOR)).toHaveCount(0);
+
+    await clickShape(page);
+
+    await expect(page.locator(PANEL_ROW)).toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+    await expect(page.locator(CONNECTOR)).toHaveCount(1);
+
+    // The pointer leaves the image entirely. A hover-only connector disappears
+    // here; a selection's does not — which is the difference being asserted.
+    await page.mouse.move(2, 2);
+    await expect(page.locator(CONNECTOR)).toHaveCount(1);
+    await expect(page.locator(PANEL_ROW)).toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+
+    // The connector is drawn twice — a casing pass under the ink pass — because
+    // it crosses the image, where a single colour has no contrast guarantee. Both
+    // passes carry the same geometry, and the casing is the wider stroke.
+    const casing = page.locator(`${CONNECTOR} > path.casing-line`);
+    const ink = page.locator(`${CONNECTOR} > path.ink-line`);
+    await expect(casing).toHaveCount(1);
+    await expect(ink).toHaveCount(1);
+    expect(await casing.getAttribute('d')).toBe(await ink.getAttribute('d'));
+    expect(
+        Number(
+            await casing.evaluate((node) =>
+                getComputedStyle(node).strokeWidth.replace('px', ''),
+            ),
+        ),
+    ).toBeGreaterThan(
+        Number(
+            await ink.evaluate((node) =>
+                getComputedStyle(node).strokeWidth.replace('px', ''),
+            ),
+        ),
+    );
+});
+
+test('tapping the image beside a shape clears the selection', async ({
+    page,
+}) => {
+    await openAnnotatedManifest(page);
+    await clickShape(page);
+    await expect(page.locator(PANEL_ROW)).toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+
+    // A corner of the surface the 30×30 region at (20,20) never covers.
+    const surface = await page.locator(SURFACE).boundingBox();
+    await page.mouse.click(
+        surface!.x + surface!.width - 4,
+        surface!.y + surface!.height - 4,
+    );
+
+    await expect(page.locator(PANEL_ROW)).not.toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+    await expect(page.locator(CONNECTOR)).toHaveCount(0);
+});
+
+test('clicking the panel row selects it too, and the connector stays', async ({
+    page,
+}) => {
+    await openAnnotatedManifest(page);
+
+    // Clicked, not hovered: the pointer then leaves the panel entirely, which is
+    // what a hover-driven connector would not survive.
+    await page.locator(PANEL_ROW).click();
+    await page.mouse.move(2, 2);
+
+    await expect(page.locator(PANEL_ROW)).toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+    await expect(page.locator(CONNECTOR)).toHaveCount(1);
+
+    // The same row again puts it down; so would a tap on the image beside the
+    // shape, which the previous spec covers.
+    await page.locator(PANEL_ROW).click();
+    await page.mouse.move(2, 2);
+    await expect(page.locator(PANEL_ROW)).not.toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+    await expect(page.locator(CONNECTOR)).toHaveCount(0);
+});
+
+test('a drag over a shape pans instead of selecting it', async ({ page }) => {
+    await openAnnotatedManifest(page);
+
+    const box = await page.locator(SHAPE).boundingBox();
+    const startX = box!.x + box!.width / 2;
+    const startY = box!.y + box!.height / 2;
+    const before = await getView(page);
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    // Well past the tap slop, in steps so the recogniser sees the travel.
+    for (let step = 1; step <= 5; step += 1) {
+        await page.mouse.move(startX + step * 12, startY);
+    }
+    await page.mouse.up();
+    await settled(page);
+
+    // The image moved, and nothing was selected: a press that starts on an
+    // annotation still pans, which is why the shapes take no pointer events.
+    const after = await getView(page);
+    expect(Math.abs(after.centre.x - before.centre.x)).toBeGreaterThan(1);
+    await expect(page.locator(PANEL_ROW)).not.toHaveAttribute(
+        'aria-current',
+        'true',
+    );
 });
 
 /**

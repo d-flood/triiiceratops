@@ -34,4 +34,12 @@ when the input is a single discrete event with no ongoing signal to track (a cli
 position every few milliseconds. If pan smoothing is proposed again, the thing to
 demonstrate first is a dragged image that stays under the pointer; nothing else settles
 it. What may legitimately be tuned is the animated side: `config.renderer` exposes
-`animationTimeConstant` and `zoomPerClick` for exactly that.
+`animationTimeConstant`, `zoomPerClick`, and `zoomPerWheelNotch` for exactly that.
+
+`zoomPerWheelNotch` is worth a note, because it is where the no-device-detection
+sub-decision gets tested in practice. The complaint that leads to a trackpad branch is
+almost always "the wheel zooms too fast" — and a knob expressed *per notch*, converted
+once into a rate *per pixel*, answers it without one: the two devices agree by
+construction, since a trackpad covering a notch's worth of distance in ten small deltas
+lands on the same scale as a wheel that emits the notch whole. Tuning the number is the
+supported response to the speed feeling wrong. Splitting it in two is not.

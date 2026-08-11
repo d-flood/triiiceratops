@@ -128,7 +128,10 @@ export const PAIRINGS: Pairing[] = [
     { fg: '--tri-color-primary-text', bg: '--tri-panel-bg', min: AA_NORMAL },
 
     /*
-     * The image surface's focus ring — its OUTER band against its INNER one.
+     * The two indicators drawn OVER the image, each against the other's tone:
+     * the surface's focus ring (outer band against inner) and the annotation
+     * connector (ink against casing). One pairing, because both are the same
+     * technique for the same reason, and both live or die by the same numbers.
      *
      * Not "the ring against the viewer background": the ring is drawn inside
      * the surface, where its neighbour is the canvas, i.e. arbitrary image
@@ -140,6 +143,12 @@ export const PAIRINGS: Pairing[] = [
      * non-text UI component, 1.4.11 / 2.4.11). It is checked rather than
      * assumed because the ring is a new affordance: the previous renderer
      * suppressed focus on this surface entirely.
+     *
+     * The connector line from an annotation's panel row to its shape crosses the
+     * same unknown pixels and answers it the same way: the ink in
+     * `--tri-color-primary-text` over a wider casing in `--tri-viewer-bg`
+     * (`AnnotationOverlay.svelte`). It is a non-text indicator too, so 3:1 is its
+     * threshold as well.
      */
     { fg: '--tri-color-primary-text', bg: '--tri-viewer-bg', min: AA_NON_TEXT },
 ];

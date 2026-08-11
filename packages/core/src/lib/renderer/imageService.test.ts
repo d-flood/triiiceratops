@@ -29,6 +29,7 @@ const LEVEL2_V3 = {
 describe('parseImageService', () => {
     it('reads the facts a version 3 level 2 service advertises', () => {
         expect(parseImageService(LEVEL2_V3)).toEqual({
+            requestBaseUri: SERVICE,
             width: 4096,
             height: 3072,
             version: 3,

@@ -146,6 +146,7 @@ interface ViewerConfig {
     renderer?: {
         animationTimeConstant?: number;
         zoomPerClick?: number;
+        zoomPerWheelNotch?: number;
         minPixelRatio?: number;
         byteBudget?: number;
         residencyMargin?: number;
@@ -1263,6 +1264,7 @@ config = {
     renderer: {
         animationTimeConstant: 0.15, // seconds; smaller settles faster
         zoomPerClick: 1.5, // one press of the zoom buttons
+        zoomPerWheelNotch: 1.15, // one notch of the wheel (and trackpad)
         minPixelRatio: 0.5, // sharpness vs. bytes
         byteBudget: 64 * 1024 * 1024, // decoded-tile cache ceiling
         residencyMargin: 1.5, // how far past the viewport stays resident
@@ -1285,9 +1287,27 @@ look before asking for a different default:
 `byteBudget`, `residencyMargin`, `pyramidThreshold`, and `boxThreshold` are the
 tuning surface of the residency model
 ([ADR 0014](adr/0014-residency-is-tiered-by-projected-size-and-budgeted-in-bytes.md)),
-while `animationTimeConstant` and `zoomPerClick` govern only the *discrete and
-programmatic* input that is animated — direct manipulation is deliberately never
-smoothed ([ADR 0015](adr/0015-direct-manipulation-is-never-animated.md)).
+while `animationTimeConstant`, `zoomPerClick`, and `zoomPerWheelNotch` govern
+only the *discrete and programmatic* input that is animated — direct
+manipulation is deliberately never smoothed
+([ADR 0015](adr/0015-direct-manipulation-is-never-animated.md)).
+
+### Wheel and trackpad zoom speed
+
+`zoomPerWheelNotch` is the multiplicative zoom applied by one **wheel notch** —
+the detent of a classic mouse wheel, which the browser reports as about 100
+pixels of `deltaY`. The default of `1.15` takes roughly five notches to double
+the zoom; raise it for a faster wheel, lower it for a slower one. Scrolling the
+other way applies the reciprocal, so a notch out undoes a notch in exactly.
+
+This one value governs the **trackpad as well**, and there is deliberately no
+separate knob for one. A trackpad never emits a notch — it emits a stream of
+much smaller deltas — but because the rate underneath is per pixel, it covers
+the same 100 pixels over several events and gets the same zoom for the same
+scroll distance. Nothing in the viewer detects which device is in use; the usual
+heuristics are unreliable and that branch is a permanent source of
+hardware-specific bugs. If the trackpad feels different from the mouse, this
+single value moves both.
 
 ## IIIF Collections
 

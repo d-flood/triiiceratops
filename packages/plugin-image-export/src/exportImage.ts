@@ -3,11 +3,10 @@ import {
     buildRelativeSizeOptions,
     clampCompositeSize,
     composeImages,
-    fetchImageBlob,
+    fetchExportImageBlob,
     getCanvasDisplayLayouts,
     getCanvasId,
     getCompositeImagePlacement,
-    getResolvedImageExportUrl,
     getVisibleCanvasEntries,
     resolveAllCanvasImages,
     resolveExportSizeOptions,
@@ -26,13 +25,28 @@ function sanitizeFilenamePart(value: string): string {
         .replace(/^-|-$/g, '');
 }
 
+/**
+ * The default name for a downloaded image: the manifest's label and the canvas's
+ * label, in that order, sanitized for a filesystem.
+ *
+ * Both labels are localized IIIF language maps, so the caller resolves them in
+ * the viewer's **active locale** rather than passing raw JSON here — a reader
+ * browsing in French should get `Evangiles-Folio-2r.jpg`, not the English label.
+ * Either may resolve to nothing (a manifest with no label, an unlabeled canvas),
+ * and whichever survives is used alone.
+ */
 export function buildImageDownloadFilename(
     canvasLabel: string,
     mode: ImageDownloadMode,
     format: ImageDownloadFormat,
+    manifestLabel?: string | null,
 ): string {
     const extension = format === 'image/jpeg' ? 'jpg' : 'png';
-    const base = sanitizeFilenamePart(canvasLabel) || 'image';
+    const base =
+        [manifestLabel, canvasLabel]
+            .map((part) => sanitizeFilenamePart(part ?? ''))
+            .filter(Boolean)
+            .join('-') || 'image';
     const suffix = mode === 'single' ? '' : `-${mode}`;
     return `${base}${suffix}.${extension}`;
 }
@@ -41,6 +55,62 @@ type ExportOptions = {
     format?: ImageDownloadFormat;
     getSelectedChoice?: (canvasId: string) => string | undefined;
 };
+
+/**
+ * How a browser reports that an image server declined to let this page read its
+ * images. Matched on the message as well as the type, because a bare
+ * `instanceof TypeError` would also swallow ordinary programming mistakes and
+ * report them to the reader as somebody else's policy.
+ */
+const CROSS_ORIGIN_FETCH_MESSAGE =
+    /failed to fetch|networkerror|load failed|cross-origin|cors/i;
+
+/**
+ * Whether a failed export was the image server refusing this page permission to
+ * read its images, rather than anything the viewer did wrong.
+ *
+ * Worth telling apart because the two need opposite responses. A 404 or a
+ * malformed manifest is a defect somebody can fix; this is a deliberate policy
+ * decision by whoever runs the image server, and the only honest thing a viewer
+ * can do is say so and stop. There is no retry, and no workaround that would not
+ * be a circumvention.
+ *
+ * The distinction is invisible to script by design: a browser reports a blocked
+ * cross-origin read as an opaque network failure precisely so a page cannot
+ * learn anything from it. So this recognises the *shapes* browsers use — a
+ * `TypeError` from `fetch` in each engine's wording, and the `SecurityError` a
+ * canvas raises when asked to hand back pixels drawn from an image it was not
+ * allowed to read.
+ */
+export function isCrossOriginImageFailure(error: unknown): boolean {
+    if (
+        typeof DOMException !== 'undefined' &&
+        error instanceof DOMException &&
+        error.name === 'SecurityError'
+    ) {
+        return true;
+    }
+
+    return (
+        error instanceof Error &&
+        error.name === 'TypeError' &&
+        CROSS_ORIGIN_FETCH_MESSAGE.test(error.message)
+    );
+}
+
+/**
+ * The image server a resolved image comes from, for an error message that names
+ * who declined. `null` when there is no absolute URL to read a host from.
+ */
+export function getImageHost(resolved: ResolvedCanvasImage): string | null {
+    const source = resolved.serviceId ?? resolved.resourceId;
+    if (!source) return null;
+    try {
+        return new URL(source).host || null;
+    } catch {
+        return null;
+    }
+}
 
 /**
  * Every painting image on `canvas` resolved for the "single image" picker
@@ -86,18 +156,10 @@ export async function exportSingleImage(
     resolvedImage: ResolvedCanvasImage,
     sizeOption: ExportSizeOption,
 ): Promise<Blob> {
-    const url =
-        sizeOption.url ??
-        getResolvedImageExportUrl(resolvedImage, {
-            width: sizeOption.width,
-            height: sizeOption.height,
-        });
-
-    if (!url) {
-        throw new Error('No exportable image found for this canvas.');
-    }
-
-    return fetchImageBlob(url);
+    // The option is passed whole: it carries `url` when the resolution is a
+    // single canonical request, and only its dimensions when it is not (a
+    // level0 tile tree's intermediate levels, which arrive as tiles).
+    return fetchExportImageBlob(resolvedImage, sizeOption);
 }
 
 export async function exportCompositeCanvas(
@@ -155,12 +217,9 @@ async function buildComposeEntry(
     // (see resolveExportSizeOptions), so a composited member image from one
     // may be fetched at a different resolution than the rest of the page and
     // scaled to fit here via drawImage rather than via a resized request.
-    const url = getResolvedImageExportUrl(resolved, { width: placement.width });
-    if (!url) {
-        throw new Error('No exportable image found for this canvas.');
-    }
-
-    const blob = await fetchImageBlob(url);
+    const blob = await fetchExportImageBlob(resolved, {
+        width: placement.width,
+    });
 
     return {
         blob,
@@ -313,15 +372,9 @@ export async function exportCurrentWorld(
                     ? resolved.height / resolved.width
                     : 1;
             const pixelHeight = Math.max(1, Math.round(pixelWidth * aspect));
-            const url = getResolvedImageExportUrl(resolved, {
+            const blob = await fetchExportImageBlob(resolved, {
                 width: pixelWidth,
             });
-            if (!url) {
-                throw new Error(
-                    'No exportable image found for the current view.',
-                );
-            }
-            const blob = await fetchImageBlob(url);
 
             return {
                 blob,

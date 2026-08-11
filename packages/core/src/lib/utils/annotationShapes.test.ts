@@ -13,6 +13,9 @@ const toScreen = (point: { x: number; y: number }) => ({
     y: point.y * 2 + 100,
 });
 
+/** No canvas declares image dimensions of its own unless a test says so. */
+const noImageDimensions = () => null;
+
 function annotation(
     geometry: ParsedAnnotation['geometry'],
     overrides: Partial<ParsedAnnotation> = {},
@@ -24,6 +27,7 @@ function annotation(
         geometryIndex: 0,
         geometry,
         coordinateSpace: 'canvas',
+        canvasId: 'canvas-1',
         isFullCanvasTarget: false,
         body: [{ value: 'A note', isHtml: false }],
         isSearchHit: false,
@@ -35,7 +39,7 @@ describe('projectAnnotationShapes', () => {
     it('projects a rectangle from both corners, so its size is the transform’s', () => {
         const [shape] = projectAnnotationShapes(
             [annotation({ type: 'RECTANGLE', x: 10, y: 20, w: 30, h: 40 })],
-            { toScreen, imageDimensions: null },
+            { toScreen, imageDimensions: noImageDimensions },
         );
 
         expect(shape).toMatchObject({
@@ -59,12 +63,12 @@ describe('projectAnnotationShapes', () => {
             ],
             {
                 toScreen,
-                imageDimensions: {
+                imageDimensions: () => ({
                     canvasWidth: 500,
                     canvasHeight: 400,
                     imageWidth: 1000,
                     imageHeight: 800,
-                },
+                }),
             },
         );
 
@@ -85,7 +89,7 @@ describe('projectAnnotationShapes', () => {
                     ],
                 }),
             ],
-            { toScreen, imageDimensions: null },
+            { toScreen, imageDimensions: noImageDimensions },
         );
 
         expect(shape).toMatchObject({
@@ -102,7 +106,7 @@ describe('projectAnnotationShapes', () => {
     it('projects a point', () => {
         const [shape] = projectAnnotationShapes(
             [annotation({ type: 'POINT', x: 5, y: 15 })],
-            { toScreen, imageDimensions: null },
+            { toScreen, imageDimensions: noImageDimensions },
         );
 
         expect(shape).toMatchObject({
@@ -119,7 +123,7 @@ describe('projectAnnotationShapes', () => {
                     { isSearchHit: true, isFullCanvasTarget: true },
                 ),
             ],
-            { toScreen, imageDimensions: null },
+            { toScreen, imageDimensions: noImageDimensions },
         );
 
         expect(shape.isSearchHit).toBe(true);
@@ -146,7 +150,7 @@ describe('projectAnnotationShapes', () => {
                     }),
                     annotation({ type: 'RECTANGLE', x: 10, y: 10, w: 5, h: 5 }),
                 ],
-                { toScreen: placeable, imageDimensions: null },
+                { toScreen: placeable, imageDimensions: noImageDimensions },
             ).map((shape) => shape.type),
         ).toEqual(['RECTANGLE']);
     });
@@ -155,6 +159,7 @@ describe('projectAnnotationShapes', () => {
 describe('shapeContainsPoint', () => {
     const rect: AnnotationShape = {
         type: 'RECTANGLE',
+        canvasId: 'canvas-1',
         id: 'r',
         annotationId: 'r',
         isSearchHit: false,
@@ -165,6 +170,7 @@ describe('shapeContainsPoint', () => {
 
     const point: AnnotationShape = {
         type: 'POINT',
+        canvasId: 'canvas-1',
         id: 'p',
         annotationId: 'p',
         isSearchHit: false,
@@ -175,6 +181,7 @@ describe('shapeContainsPoint', () => {
 
     const triangle: AnnotationShape = {
         type: 'POLYGON',
+        canvasId: 'canvas-1',
         id: 'g',
         annotationId: 'g',
         isSearchHit: false,

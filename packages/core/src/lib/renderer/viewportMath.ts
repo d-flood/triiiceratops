@@ -63,27 +63,63 @@ export function fitBounds(
 }
 
 /**
- * The legal scale range: the derived zoom floor, and a ceiling a fixed factor
- * above the scale a fit lands at.
+ * The legal scale range: the zoom floor, and a ceiling a fixed factor above the
+ * scale a fit lands at.
  *
- * The one rule worth stating is what happens when the floor comes out **above**
- * the ceiling — which is reachable, because the two are derived from different
- * things: the floor is the zoom at which the median canvas reaches the box
- * threshold, and the ceiling is measured from the fit of one canvas. Taking the
- * lower of the two collapses the range to a single legal scale, and the viewer
- * can then neither zoom in nor out with nothing reported. The ceiling is RAISED
- * instead, so a reader can always zoom in by the same factor from wherever the
- * floor happens to be.
+ * ## The floor is the canvas against the viewport
  *
- * `minZoom` of `0` means "no floor derived" — an empty world — and is given a
- * nominal one far below the ceiling rather than being treated as a real bound.
+ * `minZoomFraction` is how small the canvas may get, as a fraction of the scale
+ * at which it exactly **fits** — so at the shipped half, the canvas covers half
+ * the viewport, with a quarter of it empty either side.
+ *
+ * "Half the viewport" needs an axis, and the fit has already chosen one:
+ * `fitBounds` takes `min(width ratio, height ratio)`, so a fraction of it is a
+ * fraction of whichever axis constrains the canvas. That is also why the two
+ * spellings of the rule — half the viewport's width, or half its height — are one
+ * number rather than two: `min(f·w/W, f·h/H)` is `f · min(w/W, h/H)`. The canvas
+ * may well be under half the OTHER axis; a portrait page in a wide window is half
+ * the height and a fraction of the width, and that is the intended reading.
+ *
+ * Measured against the live viewport every time it is asked, never stored, which
+ * is what makes it hold on a phone and across a window resize: shrink the window
+ * and the fit scale rises with it, so the floor follows.
+ *
+ * The fit reference is the current canvas (continuous mode) or the spread on
+ * screen (every other mode) — see `layoutQueries.fitTargetBounds`. Deliberately
+ * not the whole WORLD: fitting 800 folios is the one-pixel-per-page case, so a
+ * floor derived from it would be no floor at all.
+ *
+ * ## Seeing the whole canvas is a guarantee, so the floor is capped at the fit
+ *
+ * `minZoom` is the renderer's **derived** floor — the scale at which the median
+ * canvas reaches the box threshold, the point past which there is nothing left to
+ * draw. It is kept as a backstop for a world whose canvases are so small that
+ * half the fit is still below it, and it is capped at `fitScale`, because a
+ * reader must always be able to zoom out far enough to see an entire canvas
+ * whatever the viewport. A floor above the fit would make the home view itself
+ * unreachable, which no threshold is allowed to do.
+ *
+ * The cap is also what keeps the range from collapsing. The floor and the ceiling
+ * are derived from different things and the floor really could come out higher,
+ * which would leave a viewer that can neither zoom in nor out with nothing
+ * reported; bounded by the fit, and with `maxFactor` above 1, `min < max` always.
+ *
+ * `minZoom` of `0` means "no floor derived" — an empty world — and contributes a
+ * nominal floor far below the ceiling rather than a real bound.
  */
 export function zoomRange(
     fitScale: number,
     minZoom: number,
     maxFactor: number,
+    minZoomFraction: number,
 ): { min: number; max: number } {
-    const min = minZoom > 0 ? minZoom : (fitScale * maxFactor) / 1e6;
+    const derived = minZoom > 0 ? minZoom : (fitScale * maxFactor) / 1e6;
+    // Both guarded on a usable fit, because an unmeasured surface has no fit to
+    // take a fraction of and none to be capped by: a floor invented from it
+    // would clamp the first real frame.
+    const readable = fitScale > 0 ? fitScale * minZoomFraction : 0;
+    const wholeCanvas = fitScale > 0 ? fitScale : Infinity;
+    const min = Math.min(Math.max(derived, readable), wholeCanvas);
 
     return { min, max: Math.max(fitScale, min) * maxFactor };
 }
@@ -242,6 +278,35 @@ export function normalizeWheelDelta(
     if (deltaMode === 1) return delta * linePixels;
     if (deltaMode === 2) return delta * pagePixels;
     return delta;
+}
+
+/**
+ * The log-scale change per pixel of normalized `deltaY` that makes one wheel
+ * notch multiply the zoom by `zoomPerNotch`.
+ *
+ * The wheel's natural unit is a rate per pixel, because that is what the event
+ * supplies and what a trackpad's fractional deltas need. Nobody configures a
+ * viewer in those units, though: `0.0025` says nothing about how far a notch
+ * travels, while `1.15` says exactly. So the public knob is the per-notch
+ * factor (`ViewerConfig.renderer.zoomPerWheelNotch`) and this converts it once,
+ * at the edge, into the rate the accumulation actually uses.
+ *
+ * `notchPixels` is passed in rather than read from the shipped defaults, for
+ * the same reason `normalizeWheelDelta` takes its units: tests must never
+ * assert against a provisional number.
+ *
+ * A `zoomPerNotch` of 1 or less has no meaning — it would freeze the wheel or
+ * invert it — and yields `0`, which callers read as "no zoom from the wheel".
+ * Validation of the configured value belongs at the config edge; this stays
+ * total so a bad number cannot produce a `NaN` scale.
+ */
+export function wheelZoomRate(
+    zoomPerNotch: number,
+    notchPixels: number,
+): number {
+    if (!Number.isFinite(zoomPerNotch) || zoomPerNotch <= 1) return 0;
+    if (!Number.isFinite(notchPixels) || notchPixels <= 0) return 0;
+    return Math.log(zoomPerNotch) / notchPixels;
 }
 
 /**

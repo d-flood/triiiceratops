@@ -75,6 +75,7 @@
         canvasScaleFactor,
         fitTargetBounds,
         navigationTargetBounds,
+        nearestRect,
         reflowShift,
         worldBoxToCanvas,
         worldPointToCanvas,
@@ -102,6 +103,7 @@
     import {
         ANIMATION_TIME_CONSTANT,
         DEFAULT_BUDGETS,
+        DEFAULT_ZOOM_PER_WHEEL_NOTCH,
         DOUBLE_TAP_MS,
         DOUBLE_TAP_SLOP,
         DOUBLE_TAP_ZOOM_FACTOR,
@@ -113,6 +115,7 @@
         MAX_ZOOM_FACTOR,
         MIN_FLICK_SPEED,
         MIN_VELOCITY_SPAN_MS,
+        MIN_ZOOM_FRACTION,
         MOMENTUM_MIN_SPEED,
         MOMENTUM_TIME_CONSTANT,
         MULTI_CANVAS_GAP_FRACTION,
@@ -123,9 +126,9 @@
         VELOCITY_WINDOW_MS,
         VISIBILITY_RATIO,
         WHEEL_LINE_PIXELS,
+        WHEEL_NOTCH_PIXELS,
         WHEEL_PAGE_PIXELS,
         WHEEL_TIME_CONSTANT,
-        WHEEL_ZOOM_RATE,
     } from '../renderer/rendererDefaults';
     import type { Box } from '../renderer/tilePyramid';
     import type {
@@ -136,6 +139,7 @@
         Point,
         ResidencyTier,
         ScenePlan,
+        StaticImageDraw,
         Viewport,
     } from '../renderer/types';
     import {
@@ -146,6 +150,7 @@
         constrainCentre,
         fitBounds,
         normalizeWheelDelta,
+        wheelZoomRate,
         zoomRange,
     } from '../renderer/viewportMath';
     import { watchReducedMotion } from '../state/reducedMotion';
@@ -238,15 +243,29 @@
     // `loadedGeneration` below is the one reactive signal that a decode landed.
     const images: Record<string, HTMLImageElement> = Object.create(null);
     /**
-     * canvasId → the URL decoded **or in flight** for it.
+     * image key → the URL decoded **or in flight** for that placement.
      *
-     * The residency key is the resolved URL, not the canvas id: switching a
-     * Choice resolves the same canvas id to a different image, and an id-keyed
-     * cache would paint the superseded one forever. It also stands in for a
+     * Keyed on the PLACEMENT, not the canvas: a canvas can be a composition of
+     * several painting annotations (IIIF Cookbook 0036), and a canvas-keyed
+     * record holds one picture where the manifest asked for two. The residency
+     * comparison is on the resolved URL rather than the key, because switching a
+     * Choice resolves the same placement to a different image and a key-only
+     * cache would paint the superseded one forever. The URL also stands in for a
      * request generation — an `onload` whose URL is no longer the one wanted is
      * simply discarded.
      */
     const imageUrls: Record<string, string> = Object.create(null);
+    /**
+     * image key → the canvas that placement belongs to.
+     *
+     * Failures are recorded against the CANVAS (`canvasErrors`, which is what
+     * positions an error placeholder and what the viewer-level error is derived
+     * from) while pixels are held against the placement, so clearing a failure
+     * when its request is dropped needs the mapping back. Kept here rather than
+     * looked up through `canvasesById` because a dropped placement is by
+     * definition one the current plan no longer contains.
+     */
+    const imageOwners: Record<string, string> = Object.create(null);
     /** Bumped when a decoded image or tile arrives, to re-run the paint effect. */
     let loadedGeneration = $state(0);
 
@@ -318,6 +337,30 @@
     }
 
     /**
+     * The log-scale zoom per pixel of wheel travel, from
+     * `ViewerConfig.renderer.zoomPerWheelNotch`.
+     *
+     * Read per event rather than cached, like `animationTime()`: config is
+     * reactive, and a wheel handler is nowhere near hot enough for one property
+     * read and a `Math.log` to matter.
+     *
+     * A factor of 1 or less is rejected rather than honoured — it would freeze
+     * the wheel or invert its direction, neither of which is a thing to
+     * configure — and takes the default, the same way `zoomPerClick` refuses
+     * one.
+     */
+    function wheelRate(): number {
+        const configured = viewerState.config?.renderer?.zoomPerWheelNotch;
+        const zoomPerNotch =
+            typeof configured === 'number' &&
+            Number.isFinite(configured) &&
+            configured > 1
+                ? configured
+                : DEFAULT_ZOOM_PER_WHEEL_NOTCH;
+        return wheelZoomRate(zoomPerNotch, WHEEL_NOTCH_PIXELS);
+    }
+
+    /**
      * The tile scheduler: everything about asking for, decoding, holding, and
      * releasing tiles. It is handed the **required set** once per frame, from
      * `paint()`, and makes no scene decisions of its own.
@@ -339,12 +382,16 @@
     });
 
     /**
-     * canvasId → the image-service facts the planner may use.
+     * serviceId → the image-service facts the planner may use.
      *
      * A per-renderer view onto the page-shared `imageServiceCache`, which is
      * what keeps metadata and pixels on **two lifetimes**: this record is
      * rebuilt on remount, the cache behind it is not, so re-entering a canvas
      * costs no `info.json` request.
+     *
+     * Keyed by SERVICE, like the cache it views — a canvas id is not a stable
+     * name for a picture, and keying it that way made a Choice switch answer
+     * with the previous alternative's facts forever (`planScene.factsFor`).
      */
     const knownMetadata: Record<string, ImageServiceFacts> =
         Object.create(null);
@@ -631,87 +678,107 @@
      * view-stable gate — the three bounds the spec asks for, not two of them.
      * The list arrives centre-out from the planner and is re-emitted every
      * frame, so the queue drains nearest-first.
+     *
+     * **Every service on the canvas**, not one: a composite canvas paints from
+     * as many image services as it has painting annotations, and the planner
+     * names a CANVAS rather than a service because a failure is recorded against
+     * a canvas. Asking for all of them is exact rather than approximate — the
+     * planner asks only when at least one is missing, and the cache answers an
+     * already-known service with no request at all.
      */
     function requestMetadata(canvasIds: string[]): void {
         for (const canvasId of canvasIds) {
             const canvas = canvasesById.get(canvasId);
-            if (canvas?.source.kind !== 'service') continue;
+            if (!canvas) continue;
 
-            const { serviceId } = canvas.source;
-            void imageServiceCache.ensure(serviceId).then((facts) => {
-                if (!facts) {
-                    // A canvas that will never have pixels. Recorded against
-                    // THIS canvas rather than swallowed or raised viewer-wide:
-                    // painting nothing and saying nothing is indistinguishable
-                    // from still loading (user stories 26 and 27), and blanking
-                    // the viewer for it would take 799 working folios down with
-                    // it.
-                    //
-                    // A repaint IS asked for, unlike before: the placeholder is
-                    // positioned by the frame loop, so without a frame the
-                    // failure would be invisible until something unrelated
-                    // repainted. It cannot loop, because only a SPENT failure
-                    // gets this far: a spent request is never reissued, so the
-                    // next frame's identical ask resolves from the recorded
-                    // failure with no network and no state change, and the write
-                    // below is a no-op once the kind is unchanged.
-                    //
-                    // Spent rather than merely failed, and that gate is what
-                    // keeps the placeholder from FLASHING. `failure()` reports a
-                    // kind after the first attempt, including for a retryable
-                    // one — a 503 under an allowance of two would record `load`,
-                    // paint a placeholder, and have it taken away again by the
-                    // retry the very next frame's `ensure` issues. Nothing is
-                    // said about this canvas until the question is closed;
-                    // until then it is still loading, which is the truth.
-                    if (!imageServiceCache.spent(serviceId)) {
-                        // A retryable failure with attempts left. The retry is
-                        // issued by the next frame's identical ask, so a frame is
-                        // what this needs — otherwise the attempt allowance is
-                        // spent only if something unrelated happens to repaint,
-                        // and a canvas that a single 503 could have recovered
-                        // sits blank until the reader moves. Bounded by the
-                        // cache's allowance, not by the frame rate: once the
-                        // attempts are gone the branch below runs instead.
-                        requestFrame();
-                        return;
-                    }
+            for (const image of canvas.images) {
+                if (image.source.kind !== 'service') continue;
+                ensureImageService(canvasId, image.source.serviceId);
+            }
+        }
+    }
 
-                    const kind = imageServiceCache.failure(serviceId);
-                    if (kind && canvasErrors[canvasId] !== kind) {
-                        canvasErrors[canvasId] = kind;
-                        requestFrame();
-                    }
+    /**
+     * Fetch one service's `info.json` and record what it says about the canvas
+     * that asked.
+     *
+     * Split out of {@link requestMetadata} only because a canvas can now ask for
+     * several; the body is unchanged and its reasoning is per-request.
+     */
+    function ensureImageService(canvasId: string, serviceId: string): void {
+        void imageServiceCache.ensure(serviceId).then((facts) => {
+            if (!facts) {
+                // A canvas that will never have pixels. Recorded against
+                // THIS canvas rather than swallowed or raised viewer-wide:
+                // painting nothing and saying nothing is indistinguishable
+                // from still loading (user stories 26 and 27), and blanking
+                // the viewer for it would take 799 working folios down with
+                // it.
+                //
+                // A repaint IS asked for, unlike before: the placeholder is
+                // positioned by the frame loop, so without a frame the
+                // failure would be invisible until something unrelated
+                // repainted. It cannot loop, because only a SPENT failure
+                // gets this far: a spent request is never reissued, so the
+                // next frame's identical ask resolves from the recorded
+                // failure with no network and no state change, and the write
+                // below is a no-op once the kind is unchanged.
+                //
+                // Spent rather than merely failed, and that gate is what
+                // keeps the placeholder from FLASHING. `failure()` reports a
+                // kind after the first attempt, including for a retryable
+                // one — a 503 under an allowance of two would record `load`,
+                // paint a placeholder, and have it taken away again by the
+                // retry the very next frame's `ensure` issues. Nothing is
+                // said about this canvas until the question is closed;
+                // until then it is still loading, which is the truth.
+                if (!imageServiceCache.spent(serviceId)) {
+                    // A retryable failure with attempts left. The retry is
+                    // issued by the next frame's identical ask, so a frame is
+                    // what this needs — otherwise the attempt allowance is
+                    // spent only if something unrelated happens to repaint,
+                    // and a canvas that a single 503 could have recovered
+                    // sits blank until the reader moves. Bounded by the
+                    // cache's allowance, not by the frame rate: once the
+                    // attempts are gone the branch below runs instead.
+                    requestFrame();
                     return;
                 }
-                // Guarded rather than deleted unconditionally: this resolves once
-                // per frame until the facts land in `knownMetadata`, and a
-                // `delete` of an absent key still touches the reactive proxy.
-                if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
-                if (knownMetadata[canvasId] === facts) return;
-                // Captured BEFORE the write below, which is what re-lays the
-                // world out. See `compensateForReflow`.
-                const beforeReflow = viewportLimits().layout;
-                // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A
-                // canvas the manifest never sized is laid out from a guess and
-                // reflowed to the facts below, so evicting an entry would put
-                // the guess back — resizing the canvas, changing its tier, and
-                // provoking the very fetch whose answer was just dropped. The
-                // planner asserts the fixed point (`planScene.test.ts` §the
-                // reflow terminates); ticket 08's byte budget must evict
-                // decoded pixels only, never these facts, which is also what
-                // "metadata is cached separately from decoded pixels, with a
-                // longer lifetime" means in the spec.
-                knownMetadata[canvasId] = facts;
-                // The one input to `viewportLimits`' memo that is mutated in
-                // place rather than replaced, so the memo cannot see it by
-                // identity and is told instead.
-                metadataRevision += 1;
-                compensateForReflow(beforeReflow);
-                // Tiles can only be planned now that the pyramid is knowable.
-                loadedGeneration += 1;
-            });
-        }
+
+                const kind = imageServiceCache.failure(serviceId);
+                if (kind && canvasErrors[canvasId] !== kind) {
+                    canvasErrors[canvasId] = kind;
+                    requestFrame();
+                }
+                return;
+            }
+            // Guarded rather than deleted unconditionally: this resolves once
+            // per frame until the facts land in `knownMetadata`, and a
+            // `delete` of an absent key still touches the reactive proxy.
+            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+            if (knownMetadata[serviceId] === facts) return;
+            // Captured BEFORE the write below, which is what re-lays the
+            // world out. See `compensateForReflow`.
+            const beforeReflow = viewportLimits().layout;
+            // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A
+            // canvas the manifest never sized is laid out from a guess and
+            // reflowed to the facts below, so evicting an entry would put
+            // the guess back — resizing the canvas, changing its tier, and
+            // provoking the very fetch whose answer was just dropped. The
+            // planner asserts the fixed point (`planScene.test.ts` §the
+            // reflow terminates); ticket 08's byte budget must evict
+            // decoded pixels only, never these facts, which is also what
+            // "metadata is cached separately from decoded pixels, with a
+            // longer lifetime" means in the spec.
+            knownMetadata[serviceId] = facts;
+            // The one input to `viewportLimits`' memo that is mutated in
+            // place rather than replaced, so the memo cannot see it by
+            // identity and is told instead.
+            metadataRevision += 1;
+            compensateForReflow(beforeReflow);
+            // Tiles can only be planned now that the pyramid is knowable.
+            loadedGeneration += 1;
+        });
     }
 
     /**
@@ -801,6 +868,19 @@
     let fitTargetMemo: { layout: LayoutRect[]; rect: Box } | null = null;
 
     /**
+     * The world the scene effect last refitted in — manifest, mode, reading
+     * direction, and scale policy. What tells canvas navigation (a move within
+     * one laid-out world, which eases) apart from a change of world (which does
+     * not); see the scene effect. `null` until the first refit, so a fresh mount
+     * is a change of world too.
+     *
+     * Deliberately not the layout's identity, which would look like the obvious
+     * key and is useless here: `plannerCanvases` re-derives on every canvas
+     * change, so a new layout object is exactly what navigation produces.
+     */
+    let fittedWorld: string | null = null;
+
+    /**
      * The bounds a fit is measured against, and the zoom ceiling's reference:
      * in continuous mode the canvas **under the viewport centre**, and the
      * whole world in every other mode (where the world IS the spread on
@@ -856,13 +936,17 @@
 
     function clampScale(scale: number): number {
         const limits = viewportLimits();
-        // The floor is DERIVED (the zoom at which the median canvas reaches the
-        // box threshold), not a tuned percentage of home zoom, so it can land
-        // above the ceiling; `zoomRange` owns what happens then.
+        // TWO floors, and `zoomRange` owns both: the reader's — half the scale at
+        // which the canvas fits, so zooming out stops with the canvas covering
+        // half the viewport — and the renderer's derived one beneath it, capped at
+        // the fit so that seeing a whole canvas is reachable at any window size.
+        // `homeScale` is measured from the LIVE viewport on every call, which is
+        // what makes that hold across a resize and on a phone.
         const { min, max } = zoomRange(
             homeScale(limits),
             limits.minZoom,
             MAX_ZOOM_FACTOR,
+            MIN_ZOOM_FRACTION,
         );
         return clamp(scale, min, max);
     }
@@ -948,6 +1032,11 @@
      * their spread changed. Scrolling by hand never touches it, because a drag
      * does not change the current canvas — and, since ticket 08's review, does
      * not change what {@link fitWorld} fits either.
+     *
+     * Whether it eases is the CALLER's to say, and the scene effect is what
+     * decides: navigation inside a world already on screen is travel and eases
+     * (ADR 0015 lists canvas navigation among the animated cases); the first
+     * measured frame, and a change of world, have no view to travel from.
      */
     function fitCurrentCanvas(animated = false) {
         applyFit(navigationBoundsTarget(viewportLimits()), animated);
@@ -1054,6 +1143,81 @@
         return placement ? canvasScaleFactor(placement) : 1;
     }
 
+    /**
+     * The canvases the reader is looking at — the port's `getVisibleCanvasIds`.
+     *
+     * Two different questions behind one answer, and the mode decides which:
+     *
+     * - `individuals` / `paged`: the laid-out world, unfiltered. There the world
+     *   IS the current canvas or the current spread, and a spread stays open
+     *   however far into one of its pages the reader has zoomed — an annotation
+     *   on the facing page must not vanish from the panel because the page's rect
+     *   left the viewport.
+     * - `continuous`: the world is the whole manifest, so the question becomes
+     *   geometric and this filters by the viewport box. Deliberately not the
+     *   viewer's `canvasId`: a scroll moves the viewport and leaves that behind
+     *   (see `layoutQueries.navigationTargetBounds`).
+     *
+     * The nearest rect to the centre is always included, so the answer is never
+     * empty for a viewport sitting in the gap between two folios.
+     */
+    function visibleCanvasIds(): string[] {
+        const { layout } = viewportLimits();
+        if (layout.length === 0) return [];
+
+        if (viewerState.viewingMode !== 'continuous') {
+            return layout.map((rect) => rect.canvasId);
+        }
+
+        if (viewport.scale <= 0) return [];
+
+        const width = viewport.width / viewport.scale;
+        const height = viewport.height / viewport.scale;
+        const view = {
+            x: viewport.centre.x - width / 2,
+            y: viewport.centre.y - height / 2,
+            width,
+            height,
+        };
+        const nearest = nearestRect(layout, viewport.centre);
+
+        return layout
+            .filter(
+                (rect) =>
+                    rect.canvasId === nearest?.canvasId ||
+                    (rect.x < view.x + view.width &&
+                        rect.x + rect.width > view.x &&
+                        rect.y < view.y + view.height &&
+                        rect.y + rect.height > view.y),
+            )
+            .map((rect) => rect.canvasId);
+    }
+
+    /**
+     * Publish the visible set on `ViewerState`, but only when it CHANGES.
+     *
+     * The annotation panel is not a `frame`-cadence reader — it is ordinary
+     * chrome — so it needs a notifying value, and writing one per painted frame
+     * would wake every plugin's batched subscription sixty times a second. The
+     * set changes only when a folio enters or leaves the viewport, which is
+     * exactly the cadence a panel following the scroll should update at, so the
+     * comparison below is the debounce.
+     */
+    function publishVisibleCanvasIds() {
+        const ids = visibleCanvasIds();
+        const current = viewerState.visibleCanvasIds;
+        if (
+            ids.length === current.length &&
+            ids.every((id, index) => id === current[index])
+        ) {
+            return;
+        }
+
+        (
+            viewerState as unknown as { visibleCanvasIds: string[] }
+        ).visibleCanvasIds = ids;
+    }
+
     const canvasPort: RendererPort = markRendererPort({
         zoomBy(factor: number, anchor?: ViewportPoint): void {
             // With no anchor, zoom about the middle of the surface — which is
@@ -1112,6 +1276,10 @@
             const placement = placementOf(canvasId);
             if (!placement) return null;
             return worldPointToCanvas(viewport.centre, placement);
+        },
+
+        getVisibleCanvasIds(): string[] {
+            return visibleCanvasIds();
         },
 
         getVisibleBounds(canvasId?: string): ViewportBox | null {
@@ -1179,6 +1347,11 @@
             frameListeners.add(listener);
             return () => frameListeners.delete(listener);
         },
+
+        onTap(listener: (point: ViewportPoint) => void): () => void {
+            tapListeners.add(listener);
+            return () => tapListeners.delete(listener);
+        },
     });
 
     /**
@@ -1189,9 +1362,22 @@
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const frameListeners = new Set<() => void>();
 
+    /**
+     * Surface-tap listeners. A plain `Set` for the same reason the frame ones
+     * are, though the pressure is the opposite: a tap is a human-rate event, and
+     * this set is read once per tap.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const tapListeners = new Set<(point: ViewportPoint) => void>();
+
     /** Wake `frame`-cadence subscribers. Called once per painted frame. */
     function emitFrame() {
         for (const listener of [...frameListeners]) listener();
+    }
+
+    /** Announce a single tap, in surface-local CSS pixels. */
+    function emitTap(point: ViewportPoint) {
+        for (const listener of [...tapListeners]) listener(point);
     }
 
     let appliedAdjustments: ImageAdjustments | null = null;
@@ -1309,6 +1495,9 @@
 
         paint();
         emitFrame();
+        // After the paint, so the set published is the one just drawn, and only
+        // on a change (see `publishVisibleCanvasIds`).
+        publishVisibleCanvasIds();
 
         if (animating || momentum || keyPan) {
             scheduleFrame();
@@ -1382,23 +1571,6 @@
                 : decayed;
     }
 
-    /**
-     * The canvases allowed to hold a whole decoded image this frame.
-     *
-     * The static-image half of virtualization, and it needs saying because a
-     * static source has no tile scheduler to bound it: fed the whole manifest,
-     * the ticket-07 reconciliation would start 800 `<img>` loads on open — the
-     * same fetch storm as 800 `info.json` requests, in a different costume. The
-     * tier is the gate, and it is the planner's, so pixels are released by the
-     * same distance rule the tiles are.
-     */
-    function imageBearingCanvases(plan: ScenePlan): PlannerCanvas[] {
-        return plannerCanvases.filter(
-            (canvas) =>
-                plan.tiers[canvas.id] && plan.tiers[canvas.id] !== 'box',
-        );
-    }
-
     function paint() {
         if (!ctx) return;
 
@@ -1421,10 +1593,28 @@
         reportUnresolvedThumbnails(plan.unresolvedThumbnails);
         // Before painting, so a canvas that left the window stops painting in
         // the frame it left rather than the one after.
-        loadStaticImages(imageBearingCanvases(plan));
+        //
+        // The list is already tier-gated by the planner, which is the
+        // static-image half of virtualization and needs saying because a static
+        // source has no tile scheduler to bound it: fed the whole manifest, this
+        // would start 800 `<img>` loads on open — the same fetch storm as 800
+        // `info.json` requests, in a different costume. Pixels are therefore
+        // released by the same distance rule the tiles are.
+        loadStaticImages(plan.staticImages);
         updateCanvasErrors(plan);
 
-        paintScene(ctx, plan, viewport, { images, tiles: tiles.get }, dpr);
+        // The view-stable gate again, this time as the painter's edge rule:
+        // whole device pixels at rest, a one-pixel overlap while moving. Read
+        // fresh rather than taken off the plan, because `stepMomentum` can end
+        // the glide in this very frame.
+        paintScene(
+            ctx,
+            plan,
+            viewport,
+            { images, tiles: tiles.get },
+            dpr,
+            viewStable(),
+        );
         // The **paint hook**, in the same frame and under the same matrix
         // `paintScene` left applied — which is the whole reason a layer drawn
         // here cannot desync from the image the way a DOM overlay repositioned
@@ -1590,6 +1780,12 @@
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const painting = new Set<string>();
         for (const draw of plan.tileDraws) painting.add(draw.canvasId);
+        // A static image counts as painting exactly as a tile does, and it is
+        // asked per PLACEMENT: one half of a composite canvas being decoded is
+        // enough for an opaque placeholder over the whole canvas to be wrong.
+        for (const placement of plan.staticImages) {
+            if (images[placement.key]) painting.add(placement.canvasId);
+        }
 
         const perceptible = plan.layout.filter(
             (rect) =>
@@ -1597,8 +1793,7 @@
                 // rects on the manifest this path exists for.
                 canvasErrors[rect.canvasId] &&
                 plan.tiers[rect.canvasId] !== 'box' &&
-                !painting.has(rect.canvasId) &&
-                !images[rect.canvasId],
+                !painting.has(rect.canvasId),
         );
         const next = errorPlacements(perceptible, canvasErrors, viewport);
         // A pan moves every placeholder, so an update is genuinely needed most
@@ -2045,8 +2240,14 @@
                 zoomAnchored(update.point, DOUBLE_TAP_ZOOM_FACTOR);
                 return;
 
-            // A single tap reports `none` and therefore changes nothing: it is
-            // reserved for annotation selection (spec §Input and animation).
+            // A single tap moves NOTHING here — `clickToZoom` stays false (spec
+            // §Input and animation). It is announced to the tap subscribers,
+            // which is how annotation selection hears the one gesture reserved
+            // for it without recognising a tap of its own.
+            case 'tap':
+                emitTap(update.point);
+                return;
+
             case 'none':
                 return;
         }
@@ -2067,10 +2268,15 @@
      * pointer: the world point under the cursor stays under the cursor.
      *
      * There is deliberately **no trackpad-versus-mouse branch** here or
-     * anywhere else. All wheel input is animated by the same constant. The
-     * usual heuristics — delta magnitude, `ctrlKey`, the platform — all have
-     * counterexamples and would be wrong on someone's hardware. This is a
-     * decision, not an omission; the "fix" is tempting and must not be applied.
+     * anywhere else. All wheel input is animated by the same constant and
+     * scaled by the same rate. The usual heuristics — delta magnitude,
+     * `ctrlKey`, the platform — all have counterexamples and would be wrong on
+     * someone's hardware. This is a decision, not an omission; the "fix" is
+     * tempting and must not be applied.
+     *
+     * `zoomPerWheelNotch` tunes how far a notch travels, and moves both devices
+     * together precisely because the rate underneath it is per pixel. It is the
+     * knob to reach for when the wheel feels too fast — not a device branch.
      */
     function handleWheel(event: WheelEvent) {
         if (!surface) return;
@@ -2101,7 +2307,7 @@
         // which is exactly what tempts a device-detection branch. There is none,
         // and the cause is here.
         const nextScale = clampScale(
-            targetScale * Math.exp(-deltaY * WHEEL_ZOOM_RATE),
+            targetScale * Math.exp(-deltaY * wheelRate()),
         );
 
         // Anchored in the view the notch is heading for, for the same reason:
@@ -2400,15 +2606,17 @@
      * comment carries why the negative cache is keyed on the URL rather than
      * being a per-canvas record kept across eviction.
      */
-    function loadStaticImages(canvases: PlannerCanvas[]) {
-        const { drop, load } = reconcileImages(imageUrls, canvases);
+    function loadStaticImages(wanted: StaticImageDraw[]) {
+        const { drop, load } = reconcileImages(imageUrls, wanted);
 
-        for (const canvasId of drop) {
+        for (const key of drop) {
+            const canvasId = imageOwners[key];
             // Drop the pixels too: a stale image must stop painting the moment
             // it is superseded, not when its replacement finishes decoding.
-            delete images[canvasId];
-            delete imageUrls[canvasId];
-            // And the error with them. The URL this canvas resolves to has
+            delete images[key];
+            delete imageUrls[key];
+            delete imageOwners[key];
+            // And the error with them. The URL this placement resolves to has
             // changed or been released, so the recorded failure is an answer
             // about a request that is no longer the one being made — keeping it
             // would leave a placeholder over a Choice that loads perfectly well.
@@ -2418,10 +2626,13 @@
             // re-derives its error from that below, with no second request. Drop
             // this and the per-canvas record is the only memory of the failure,
             // which is the refetch-on-re-entry the spec forbids.
-            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+            if (canvasId && canvasErrors[canvasId])
+                delete canvasErrors[canvasId];
         }
 
-        for (const { canvasId, url } of load) {
+        for (const { key, canvasId, url } of load) {
+            imageOwners[key] = canvasId;
+
             if (staticImageFailures.has(url)) {
                 // Answered already, by a request this page made earlier. Recorded
                 // BEFORE `imageUrls`, so the state the placeholder is derived
@@ -2429,7 +2640,7 @@
                 canvasErrors[canvasId] = 'load';
                 // Held as if in flight: the reconciliation compares held URLs, so
                 // this is what stops the next frame asking again.
-                imageUrls[canvasId] = url;
+                imageUrls[key] = url;
                 continue;
             }
 
@@ -2442,11 +2653,11 @@
             // which only matters to pixel readback — and the geometric e2e
             // fixtures are same-origin.
             image.onload = () => {
-                // Still the URL this canvas wants? A Choice switch, a canvas
+                // Still the URL this placement wants? A Choice switch, a canvas
                 // change, or unmount may have superseded this request while it
                 // was in flight.
-                if (imageUrls[canvasId] !== url) return;
-                images[canvasId] = image;
+                if (imageUrls[key] !== url) return;
+                images[key] = image;
                 if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
                 loadedGeneration += 1;
             };
@@ -2456,7 +2667,7 @@
                 // about the canvas that happened to ask for it. A reader who
                 // switches Choice away mid-request and back must not re-issue it.
                 staticImageFailures.record(url);
-                if (imageUrls[canvasId] !== url) return;
+                if (imageUrls[key] !== url) return;
                 // The URL is deliberately LEFT in `imageUrls`, which is what
                 // stops the next frame's reconciliation from asking again: a
                 // request that failed is answered, and a retry loop over a 404
@@ -2469,7 +2680,7 @@
             // Recorded BEFORE the request starts, so a second reconciliation
             // for the same URL joins the in-flight request rather than
             // restarting it.
-            imageUrls[canvasId] = url;
+            imageUrls[key] = url;
             image.src = url;
         }
     }
@@ -2756,7 +2967,31 @@
         // the frame loop, where the tier that gates them is known.
         void plannerCanvases;
 
-        fitCurrentCanvas();
+        // In continuous mode the folio being navigated to is already laid out
+        // beside the one on screen, so choosing it from the canvas navigator is
+        // a request to TRAVEL there — the animated case ADR 0015 names, filling
+        // a jump between two states of one world the reader can see. Easing it
+        // is also what keeps the trip cheap: `animating` clears the view-stable
+        // gate, so the folios passed over ask for no thumbnails or `info.json`s
+        // on the way, the same way a flick over them does.
+        //
+        // Every other refit is a world the viewport has never been in — a new
+        // manifest, a mode or direction change, or the first measured frame,
+        // where the old view is not somewhere to travel FROM and easing out of
+        // it would read as a lurch. `individuals` and `paged` are always that
+        // case: navigating there replaces the laid-out world rather than moving
+        // within it.
+        const world = [
+            viewerState.manifestId,
+            viewerState.viewingMode,
+            viewerState.viewingDirection,
+            viewerState.preserveCanvasScale,
+        ].join('|');
+        const travelling =
+            viewerState.viewingMode === 'continuous' && fittedWorld === world;
+        fittedWorld = world;
+
+        fitCurrentCanvas(travelling);
         requestFrame();
     });
 

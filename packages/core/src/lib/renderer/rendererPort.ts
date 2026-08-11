@@ -58,6 +58,20 @@ export interface RendererPort {
     getScale(): number;
     /** The canvas-space point at the middle of the viewport. */
     getCentre(canvasId?: string): ViewportPoint | null;
+
+    /**
+     * The canvases the reader is **looking at**, in layout order — what an
+     * overlay has to draw for, and empty before the surface is sized.
+     *
+     * Only the renderer can answer this. In `individuals` and `paged` it is the
+     * laid-out world, which there IS the current canvas or the current spread:
+     * zooming into one page of a spread does not stop the facing page from being
+     * open. In `continuous` the world is the whole manifest, so it is the
+     * canvases whose laid-out rect meets the viewport — never the viewer's
+     * "current" canvas, which after a scroll from folio 1 to folio 400 is 399
+     * folios behind what is on screen.
+     */
+    getVisibleCanvasIds(): string[];
     /** The canvas-space box the viewport currently shows. */
     getVisibleBounds(canvasId?: string): ViewportBox | null;
     /** The surface's size in CSS pixels; zeroes before it is measured. */
@@ -93,4 +107,18 @@ export interface RendererPort {
      * need". Returns an idempotent unsubscribe.
      */
     onFrame(listener: () => void): () => void;
+
+    // ---- Discrete input reserved for selection -----------------------------
+
+    /**
+     * Subscribe to a **single tap** on the image surface, in screen space.
+     *
+     * The one gesture the viewport deliberately does not consume (`clickToZoom`
+     * is false): it is reserved for annotation selection, and it arrives here
+     * already filtered by the renderer's single arbitration point — never for a
+     * drag, a pinch, or a gesture refused because something held an input claim.
+     * A host reports it; deciding what was tapped belongs to whoever holds the
+     * geometry. Returns an idempotent unsubscribe.
+     */
+    onTap(listener: (point: ViewportPoint) => void): () => void;
 }

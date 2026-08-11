@@ -26,6 +26,20 @@
  *    for that URL. Without it a 404 tile is re-requested every frame it is
  *    visible.
  *
+ * ## Servers without CORS
+ *
+ * IIIF recommends CORS on image responses but does not require it, and the
+ * renderer this replaces displayed such tiles through `<img>`. The default
+ * loader therefore tries the abortable `fetch`/`createImageBitmap` path first,
+ * then falls back to an abortable image element only when `fetch` itself rejects
+ * without an HTTP response. A successful fallback is remembered by image
+ * service so later tiles do not pay for a fetch the browser is guaranteed to
+ * block, without tainting CORS-enabled services on the same origin.
+ *
+ * Drawing that image taints the canvas, which is the browser's security model:
+ * display and paint hooks still work, but pixel readback from that surface does
+ * not. CORS-enabled services stay on the normal path and remain readable.
+ *
  * ## The one alternate spelling
  *
  * A request may carry a `fallback`: a second URL for the same pixels, and the
@@ -76,20 +90,21 @@
 import type { TileKey, TileRequest } from './types';
 
 /**
- * A decoded tile. Structurally `ImageBitmap`, which is what `createImageBitmap`
- * produces and what `drawImage` takes — stated structurally so a test can
- * supply one without a browser.
+ * A decoded tile. Structurally `ImageBitmap`, the normal result, and also the
+ * augmented `HTMLImageElement` used by the no-CORS fallback. Both are accepted
+ * by `drawImage`; the structural type lets tests supply one without a browser.
  */
 export interface DecodedTile {
     readonly width: number;
     readonly height: number;
     /**
-     * Required, not optional: releasing a tile must always be possible. An
-     * `ImageBitmap`'s pixels live outside the JS heap, so dropping the last
-     * reference does not free them promptly — this is the only way to.
+     * Required, not optional: releasing a tile must always be possible. It
+     * closes an `ImageBitmap` or clears a fallback image element's source.
      */
     close(): void;
 }
+
+class TileResponseError extends Error {}
 
 export interface TileSchedulerOptions {
     /**
@@ -179,7 +194,7 @@ async function defaultFetchTile(
 ): Promise<Blob> {
     const response = await fetch(url, { signal });
     if (!response.ok) {
-        throw new Error(`tile request failed: ${response.status}`);
+        throw new TileResponseError(`tile request failed: ${response.status}`);
     }
     return response.blob();
 }
@@ -188,6 +203,79 @@ function defaultDecodeTile(blob: Blob): Promise<DecodedTile> {
     // Off the main thread: `createImageBitmap` decodes on a browser-owned
     // thread, unlike an `<img>` whose decode competes with the frame loop.
     return createImageBitmap(blob);
+}
+
+/**
+ * Decode through the browser's image loader, which may display a cross-origin
+ * image without CORS. The element is never attached to the DOM.
+ */
+function defaultLoadImageTile(
+    url: string,
+    signal: AbortSignal,
+): Promise<DecodedTile> {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        let settled = false;
+
+        function cleanup(): void {
+            image.onload = null;
+            image.onerror = null;
+            signal.removeEventListener('abort', abort);
+        }
+
+        function fail(error: Error): void {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            image.src = 'data:,';
+            reject(error);
+        }
+
+        function abort(): void {
+            fail(new Error('tile request aborted'));
+        }
+
+        image.onload = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+
+            // Detached images report their intrinsic dimensions through these
+            // mutable properties. `drawImage` still reads the decoded resource.
+            image.width = image.naturalWidth;
+            image.height = image.naturalHeight;
+            const tile = image as HTMLImageElement & DecodedTile;
+            tile.close = () => {
+                image.src = 'data:,';
+            };
+            resolve(tile);
+        };
+        image.onerror = () => fail(new Error('tile image failed to load'));
+
+        signal.addEventListener('abort', abort, { once: true });
+        if (signal.aborted) {
+            abort();
+            return;
+        }
+
+        image.decoding = 'async';
+        image.src = url;
+    });
+}
+
+/** The Image API service portion before region/size/rotation/quality. */
+function requestService(url: string): string {
+    try {
+        const parsed = new URL(url, document.baseURI);
+        const segments = parsed.pathname.split('/');
+        if (segments.length < 5) return parsed.origin;
+        parsed.pathname = segments.slice(0, -4).join('/');
+        parsed.search = '';
+        parsed.hash = '';
+        return parsed.href;
+    } catch {
+        return url;
+    }
 }
 
 /** 4 bytes per pixel: decoded RGBA, which is what a tile actually costs. */
@@ -200,6 +288,8 @@ export function createTileScheduler(
 ): TileScheduler {
     const fetchTile = options.fetchTile ?? defaultFetchTile;
     const decodeTile = options.decodeTile ?? defaultDecodeTile;
+    const usesDefaultLoader = !options.fetchTile && !options.decodeTile;
+    const imageElementServices = new Set<string>();
     const maxInFlight = Math.max(1, Math.floor(options.maxInFlight));
     const maxAttempts = Math.max(1, Math.floor(options.maxAttempts));
 
@@ -269,6 +359,38 @@ export function createTileScheduler(
     let decodedBytes = 0;
     let requestCount = 0;
     let disposed = false;
+
+    async function loadTile(
+        url: string,
+        signal: AbortSignal,
+    ): Promise<DecodedTile> {
+        if (!usesDefaultLoader) {
+            return decodeTile(await fetchTile(url, signal));
+        }
+
+        const service = requestService(url);
+        if (imageElementServices.has(service)) {
+            return defaultLoadImageTile(url, signal);
+        }
+
+        let blob: Blob;
+        try {
+            blob = await defaultFetchTile(url, signal);
+        } catch (error) {
+            // An HTTP answer is a real tile failure. Only a rejected fetch with
+            // no response can be CORS, so only that path gets the display-only
+            // image-element fallback.
+            if (signal.aborted || error instanceof TileResponseError)
+                throw error;
+
+            requestCount += 1;
+            const tile = await defaultLoadImageTile(url, signal);
+            imageElementServices.add(service);
+            return tile;
+        }
+
+        return defaultDecodeTile(blob);
+    }
 
     /**
      * Move a tile out of the required set and into the opportunistic cache.
@@ -380,8 +502,7 @@ export function createTileScheduler(
 
         void (async () => {
             try {
-                const blob = await fetchTile(url, controller.signal);
-                const tile = await decodeTile(blob);
+                const tile = await loadTile(url, controller.signal);
 
                 retire();
 

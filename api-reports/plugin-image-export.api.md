@@ -13,11 +13,44 @@ import type { ViewerState } from 'triiiceratops';
 import { type ExportSizeOption, type ResolvedCanvasImage } from 'triiiceratops/image-export';
 export type ImageDownloadFormat = 'image/png' | 'image/jpeg';
 export type ImageDownloadMode = 'composite' | 'single' | 'world';
-export declare function buildImageDownloadFilename(canvasLabel: string, mode: ImageDownloadMode, format: ImageDownloadFormat): string;
+/**
+ * The default name for a downloaded image: the manifest's label and the canvas's
+ * label, in that order, sanitized for a filesystem.
+ *
+ * Both labels are localized IIIF language maps, so the caller resolves them in
+ * the viewer's **active locale** rather than passing raw JSON here — a reader
+ * browsing in French should get `Evangiles-Folio-2r.jpg`, not the English label.
+ * Either may resolve to nothing (a manifest with no label, an unlabeled canvas),
+ * and whichever survives is used alone.
+ */
+export declare function buildImageDownloadFilename(canvasLabel: string, mode: ImageDownloadMode, format: ImageDownloadFormat, manifestLabel?: string | null): string;
 type ExportOptions = {
     format?: ImageDownloadFormat;
     getSelectedChoice?: (canvasId: string) => string | undefined;
 };
+/**
+ * Whether a failed export was the image server refusing this page permission to
+ * read its images, rather than anything the viewer did wrong.
+ *
+ * Worth telling apart because the two need opposite responses. A 404 or a
+ * malformed manifest is a defect somebody can fix; this is a deliberate policy
+ * decision by whoever runs the image server, and the only honest thing a viewer
+ * can do is say so and stop. There is no retry, and no workaround that would not
+ * be a circumvention.
+ *
+ * The distinction is invisible to script by design: a browser reports a blocked
+ * cross-origin read as an opaque network failure precisely so a page cannot
+ * learn anything from it. So this recognises the *shapes* browsers use — a
+ * `TypeError` from `fetch` in each engine's wording, and the `SecurityError` a
+ * canvas raises when asked to hand back pixels drawn from an image it was not
+ * allowed to read.
+ */
+export declare function isCrossOriginImageFailure(error: unknown): boolean;
+/**
+ * The image server a resolved image comes from, for an error message that names
+ * who declined. `null` when there is no absolute URL to read a host from.
+ */
+export declare function getImageHost(resolved: ResolvedCanvasImage): string | null;
 /**
  * Every painting image on `canvas` resolved for the "single image" picker
  * and to detect whether "composite canvas" mode has more than one image to
@@ -74,7 +107,7 @@ export {};
  * hosts that want to drive image export programmatically.
  */
 export { ImageDownloadPlugin } from './plugin';
-export { buildImageDownloadFilename, exportCompositeCanvas, exportCurrentWorld, exportSingleImage, getCanvasImageChoices, getVisibleCanvasesForDownload, resolveCompositeCanvasSizeOptions, resolveSingleImageSizeOptions, resolveWorldSizeOptions, } from './exportImage';
+export { buildImageDownloadFilename, exportCompositeCanvas, exportCurrentWorld, exportSingleImage, getCanvasImageChoices, getImageHost, getVisibleCanvasesForDownload, isCrossOriginImageFailure, resolveCompositeCanvasSizeOptions, resolveSingleImageSizeOptions, resolveWorldSizeOptions, } from './exportImage';
 export type { ImageDownloadFormat, ImageDownloadMode } from './exportImage';
 
 // ======================================================================

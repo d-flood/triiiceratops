@@ -27,8 +27,54 @@ export type SourceDescriptor =
     | { kind: 'service'; serviceId: string; profile: string | null };
 
 /**
+ * One picture placed on a canvas by one painting annotation: where its pixels
+ * come from, and the box it paints into.
+ *
+ * **A canvas is a composition of these, not a single image.** IIIF Cookbook
+ * recipe 0036 is the canonical case — a folio painted by its full scan, with a
+ * miniature painted over a rectangle of it — and both halves of that are
+ * modelled here rather than in the canvas: an annotation that targets
+ * `#xywh=` paints into a sub-rectangle, and a canvas may carry as many
+ * annotations as the publisher wrote. Collapsing either one to "the first
+ * source" drops pictures the manifest asked for, silently.
+ *
+ * Placement is **normalized by the Canvas's own width on BOTH axes**, exactly
+ * as `utils/resolveCanvasImage` computes it: one vertical unit equals one
+ * horizontal unit, so a canvas-filling image is `x: 0, y: 0, width: 1` with
+ * `height` the canvas's aspect ratio, and a region-targeted image gets its
+ * target's box in the same units. Fractions rather than canvas pixels because
+ * layout scales a canvas to the median height — a normalized placement rides
+ * that scaling for free, while a pixel offset would have to be rescaled at
+ * every use and would be wrong the moment it was not.
+ *
+ * This is deliberately the same normalization the export path already lays out
+ * in (`utils/resolveCanvasImage.PositionedTileSource`), so a composite canvas
+ * cannot compose one way on screen and another way in an export.
+ */
+export interface PlannerImage {
+    /**
+     * This placed image's stable identity, unique across the manifest.
+     *
+     * Needed because a canvas id no longer names a picture once a canvas can
+     * carry several: the host holds at most one decoded whole image per
+     * *placement*, not per canvas, and keying that record on the canvas would
+     * let a composite canvas's second image evict its first every frame. Spelled
+     * by `canvasDescriptors.toPlannerCanvas` from the canvas id and the
+     * annotation's position, so it is stable across frames and across a Choice
+     * switch — which is what lets `imageRequests.reconcileImages` notice that
+     * the same placement now wants a different URL.
+     */
+    key: string;
+    source: SourceDescriptor;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+/**
  * One canvas as the planner sees it: an identity, its geometry in **canvas
- * space** (manifest Canvas `width`/`height`), and where its pixels come from.
+ * space** (manifest Canvas `width`/`height`), and the pictures painted on it.
  *
  * Geometry is manifest geometry, never image-service geometry: layout must not
  * depend on any fetch (spec §Coordinate model and layout). Where the two
@@ -46,7 +92,16 @@ export interface PlannerCanvas {
     id: string;
     width: number | null;
     height: number | null;
-    source: SourceDescriptor;
+    /**
+     * Every picture painted on this canvas, in the manifest's own annotation
+     * order — which is paint order, so a later entry paints over an earlier one.
+     *
+     * Never empty: `canvasDescriptors.toPlannerCanvas` returns `null` for a
+     * canvas that paints nothing usable, so such a canvas never becomes a
+     * `PlannerCanvas` at all. The overwhelmingly common case is exactly one
+     * entry covering the whole canvas.
+     */
+    images: PlannerImage[];
     /**
      * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of
      * the **thumbnail tier**'s resolution ladder, used as-is with the size
@@ -61,6 +116,13 @@ export interface PlannerCanvas {
      *
      * `null` where the Canvas declares none, which is the usual case and simply
      * means the ladder starts at its second rung.
+     *
+     * A **canvas-level** fact, and on a composite canvas that is the whole
+     * point: a declared thumbnail depicts the finished canvas, miniature and
+     * all, so it is painted once over the whole canvas box rather than resolved
+     * per placed image. Only where a canvas declares none does the thumbnail
+     * tier fall back to each image's own service ladder, painted into each
+     * image's own box (see `planScene.planThumbnail`).
      */
     thumbnailUrl?: string | null;
 }
@@ -97,6 +159,14 @@ export interface Viewport {
  * layout).
  */
 export interface ImageServiceFacts {
+    /**
+     * The image-service base URI declared by `info.json`.
+     *
+     * This may differ from the URI that fetched the document. Authentication
+     * gateways commonly return a signed base URI, and every image request must
+     * use that returned identity while metadata remains cached.
+     */
+    requestBaseUri?: string;
     width: number;
     height: number;
     /** Advertised whole-image sizes, if the service declares any. */
@@ -176,7 +246,8 @@ export interface LayoutRect {
 }
 
 /**
- * A tile's stable identity: canvas, level, and position in that level's grid.
+ * A tile's stable identity: canvas, the service its pixels come from, level, and
+ * position in that level's grid.
  *
  * Built by `tilePyramid.tileKey`; opaque everywhere else. It is what the
  * scheduler keys residency on and what a **tile draw** names, so the planner
@@ -245,6 +316,16 @@ export interface TileDraw {
      */
     canvasId: string;
     level: number;
+    /**
+     * Which **placed image** this draw belongs to, as a plan-wide index in paint
+     * order (see {@link ScenePlan.tileDraws}).
+     *
+     * Carried so the painter can interleave these with {@link StaticImageDraw}s:
+     * a canvas may compose a tiled folio with a plain-JPEG overlay, and drawing
+     * every whole image before every tile would put the overlay underneath the
+     * thing it overlays.
+     */
+    order: number;
     x: number;
     y: number;
     width: number;
@@ -271,6 +352,46 @@ export interface TileDraw {
 export interface ThumbnailRequest extends TileRequest {
     /** The quantized ladder rung, in device pixels of requested width. */
     rung: number;
+}
+
+/**
+ * One **static-image** placement the host should hold decoded, and the
+ * canvas-space box it paints into.
+ *
+ * A static source has one known URL, no service, and therefore nothing to
+ * discover and nothing to tile (user story 29). It is fetched by the host as a
+ * plain `<img>` rather than through the tile scheduler, so it needs its own
+ * channel out of the plan — but the DECISION of whether it is wanted at all is
+ * the planner's, exactly like every other: a canvas outside the residency
+ * window contributes none of these, which is what keeps an 800-folio manifest
+ * of plain JPEGs from starting 800 image loads on open.
+ *
+ * Emitted per **placed image**, not per canvas. That is the whole of composite
+ * support on this path: two static images on one canvas are two entries with
+ * two boxes, and the painter draws both.
+ */
+export interface StaticImageDraw {
+    /** {@link PlannerImage.key} — what the host's decoded image is held under. */
+    key: string;
+    /**
+     * The canvas this placement belongs to.
+     *
+     * Carried because failures are recorded against the CANVAS
+     * (`CanvasHost.canvasErrors`) while pixels are held against the placement,
+     * and the host needs both names for the same request.
+     */
+    canvasId: string;
+    url: string;
+    /**
+     * Which **placed image** this is, as a plan-wide index in paint order — the
+     * same sequence {@link TileDraw.order} indexes into, so the painter can
+     * merge the two lists and honour annotation order across both.
+     */
+    order: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
 }
 
 /**
@@ -312,7 +433,15 @@ export interface PlanWorldInput {
      * (spec §Out of Scope).
      */
     gapFraction: number;
-    /** canvasId → image-service facts already fetched. */
+    /**
+     * serviceId → image-service facts already fetched.
+     *
+     * Keyed on the **service**, not on the canvas that happens to be painting
+     * from it: a canvas id is not a stable name for a picture, so a Choice
+     * switch would otherwise be answered with the previous alternative's
+     * dimensions and would never provoke the new service's `info.json`. See
+     * `planScene.factsFor`.
+     */
     knownMetadata: Record<string, ImageServiceFacts>;
     budgets: PlannerBudgets;
 }
@@ -370,6 +499,16 @@ export interface ScenePlan {
     tileRequests: TileRequest[];
     /** What to paint, coarsest level first. Only tiles the host already holds. */
     tileDraws: TileDraw[];
+    /**
+     * Every **static-image** placement the host should be holding this frame,
+     * with the box to paint it into.
+     *
+     * Already gated by the tier, so the painter and the host both take it as
+     * given: a box-tier canvas contributes nothing here, and neither does a
+     * canvas that paints only from image services. In manifest annotation order
+     * within a canvas, so painting the list in order composes correctly.
+     */
+    staticImages: StaticImageDraw[];
     /**
      * The **thumbnail tier**'s share of the required set, ordered by priority
      * beside `tileRequests` and fed to the same scheduler.

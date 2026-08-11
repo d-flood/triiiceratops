@@ -116,6 +116,8 @@
     "settings_view_configuration": "Viewer-Konfiguration",
     "settings_paged_view_offset": "Seitenansatz verschieben",
     "settings_gallery_size": "Galeriegröße",
+    "settings_submenu_renderer": "Renderer",
+    "settings_zoom_per_wheel_notch": "Zoomgeschwindigkeit (Rad)",
     "reset_config": "Konfiguration zurücksetzen",
     "share_current_state": "Aktuellen Zustand teilen",
     "link_copied": "Link kopiert!",

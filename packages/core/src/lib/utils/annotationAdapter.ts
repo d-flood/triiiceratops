@@ -12,6 +12,17 @@ export interface ParsedAnnotation {
     id: string;
     renderId: string;
     sourceAnnotationId: string;
+    /**
+     * The canvas this annotation was read from, or `null` when the caller did
+     * not say.
+     *
+     * Geometry is meaningless without it: `canvasToScreen(point, canvasId)` maps
+     * through that canvas's own laid-out rect, and on a facing-page spread the
+     * two pages have different rects. Supplied by the caller — the canvas it
+     * ASKED about — rather than inferred from the target, so a user annotation
+     * with no canvas context is placed like any other.
+     */
+    canvasId: string | null;
     geometryIndex: number;
     geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
     coordinateSpace: 'canvas' | 'image';
@@ -198,9 +209,38 @@ export function isFullCanvasAnnotation(annotation: any): boolean {
     return extractWholeCanvasGeometry(annotation) !== null;
 }
 
+/**
+ * Which space an annotation's geometry is written in — decided by **what it
+ * targets**, not by who wrote it.
+ *
+ * An annotation targeting the Canvas is in canvas space: that is what IIIF says
+ * (`#xywh=` on a Canvas is Canvas coordinates), and canvas space is this
+ * viewer's persistence format for annotation geometry (`types/viewport.ts`). One
+ * targeting the image resource itself is in image space, and there the image's
+ * pixel dimensions are the only reading that makes sense.
+ *
+ * The origin marker is a **fallback**, not the rule. It used to be consulted
+ * first, which made every manifest annotation image space and left the target
+ * test below unreachable for exactly the annotations it decides. That is
+ * invisible while a Canvas declares the same dimensions as its image — the
+ * common case, and every fixture in this repository — and on a manifest that
+ * declares a smaller image than its Canvas it scaled every shape up by the
+ * ratio between them: a 1200-wide Canvas painted by a body declaring 600 drew
+ * its annotations at twice their size.
+ *
+ * Which canvas the target is compared against comes from the annotation's own
+ * embedded context where it has one, and otherwise from the canvas the CALLER
+ * asked about. A **content-search hit** is the case that needs the second: it is
+ * built from the search response as `on: "<canvasId>#xywh=…"` and carries no
+ * embedded context, so with only the first reading the comparison could never be
+ * made and every hit fell through to image space — the same mis-scaling, reached
+ * by a different door. Search hits are canvas coordinates: the Content Search API
+ * returns annotations targeting the Canvas.
+ */
 function resolveCoordinateSpace(
     annotation: any,
     isFullCanvasTarget: boolean,
+    canvasId: string | null,
 ): 'canvas' | 'image' {
     if (isFullCanvasTarget) {
         return 'canvas';
@@ -214,14 +254,10 @@ function resolveCoordinateSpace(
         return 'canvas';
     }
 
-    if (origin === 'manifest') {
-        return 'image';
-    }
-
-    const canvas = getCanvasContext(annotation);
+    const contextCanvasId = getCanvasContext(annotation)?.id ?? canvasId;
     const targetId = getTargetId(getAnnotationTarget(annotation));
 
-    if (canvas?.id && targetId === canvas.id) {
+    if (contextCanvasId && targetId === contextCanvasId) {
         return 'canvas';
     }
 
@@ -473,6 +509,7 @@ function buildParsedAnnotations(
     annotation: any,
     index: number,
     isSearchHit: boolean,
+    canvasId: string | null = null,
 ): ParsedAnnotation[] {
     const id = getAnnotationId(annotation) || `anno-${index}`;
     const geometries = extractGeometries(annotation);
@@ -480,6 +517,7 @@ function buildParsedAnnotations(
     const coordinateSpace = resolveCoordinateSpace(
         annotation,
         isFullCanvasTarget,
+        canvasId,
     );
 
     if (!geometries.length) {
@@ -492,6 +530,7 @@ function buildParsedAnnotations(
         id,
         renderId: createRenderId(id, geometryIndex),
         sourceAnnotationId: id,
+        canvasId: canvasId ?? getCanvasContext(annotation)?.id ?? null,
         geometryIndex,
         geometry,
         coordinateSpace,
@@ -508,8 +547,12 @@ export function parseAnnotation(
     annotation: any,
     index: number,
     isSearchHit: boolean = false,
+    canvasId: string | null = null,
 ): ParsedAnnotation | null {
-    return buildParsedAnnotations(annotation, index, isSearchHit)[0] ?? null;
+    return (
+        buildParsedAnnotations(annotation, index, isSearchHit, canvasId)[0] ??
+        null
+    );
 }
 
 /**
@@ -518,11 +561,12 @@ export function parseAnnotation(
 export function parseAnnotations(
     annotations: any[],
     searchHitIds: Set<string> = new Set(),
+    canvasId: string | null = null,
 ): ParsedAnnotation[] {
     return annotations
         .flatMap((anno, idx) => {
             const isSearchHit = searchHitIds.has(getAnnotationId(anno));
-            return buildParsedAnnotations(anno, idx, isSearchHit);
+            return buildParsedAnnotations(anno, idx, isSearchHit, canvasId);
         })
         .filter((anno) => anno !== null) as ParsedAnnotation[];
 }

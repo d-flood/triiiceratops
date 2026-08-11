@@ -1,9 +1,9 @@
 {
-    "count": 72,
+    "count": 76,
     "byClassification": {
-        "command": 35,
-        "observable": 12,
-        "internal": 21,
+        "command": 36,
+        "observable": 13,
+        "internal": 23,
         "query-only": 4
     },
     "entries": [
@@ -21,6 +21,13 @@
             "member": "_viewingModeUserConfigured",
             "classification": "internal",
             "commands": null
+        },
+        {
+            "member": "activeAnnotationId",
+            "classification": "command",
+            "commands": [
+                "setActiveAnnotationId"
+            ]
         },
         {
             "member": "activeLocale",
@@ -390,6 +397,11 @@
             "commands": null
         },
         {
+            "member": "surfaceTapListeners",
+            "classification": "internal",
+            "commands": null
+        },
+        {
             "member": "tickingPort",
             "classification": "internal",
             "commands": null
@@ -408,6 +420,11 @@
         },
         {
             "member": "unsubscribeFrame",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "unsubscribeSurfaceTap",
             "classification": "internal",
             "commands": null
         },
@@ -474,9 +491,15 @@
             "classification": "command",
             "commands": [
                 "showCurrentCanvasAnnotations",
+                "showVisibleCanvasAnnotations",
                 "setAnnotationVisible",
                 "setAllAnnotationsVisible"
             ]
+        },
+        {
+            "member": "visibleCanvasIds",
+            "classification": "observable",
+            "commands": null
         }
     ]
 }

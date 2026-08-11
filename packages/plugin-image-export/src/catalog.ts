@@ -36,6 +36,10 @@ export const catalog: LocaleCatalog = {
         image_download_result_downloaded: 'Downloaded {filename}.',
         image_download_error_failed:
             'Unable to download image. Check the browser console for details.',
+        image_download_error_not_allowed:
+            'This image cannot be downloaded here: {host} does not permit downloads from other websites. Try viewing the image on its own site.',
+        image_download_error_not_allowed_unknown_host:
+            'This image cannot be downloaded here: the image server does not permit downloads from other websites. Try viewing the image on its own site.',
     },
     de: {
         image_download_title: 'Bild herunterladen',
@@ -64,5 +68,9 @@ export const catalog: LocaleCatalog = {
         image_download_result_downloaded: '{filename} heruntergeladen.',
         image_download_error_failed:
             'Bild kann nicht heruntergeladen werden. Details in der Browserkonsole.',
+        image_download_error_not_allowed:
+            'Dieses Bild kann hier nicht heruntergeladen werden: {host} erlaubt keine Downloads von anderen Websites. Rufen Sie das Bild auf der Website des Anbieters auf.',
+        image_download_error_not_allowed_unknown_host:
+            'Dieses Bild kann hier nicht heruntergeladen werden: Der Bildserver erlaubt keine Downloads von anderen Websites. Rufen Sie das Bild auf der Website des Anbieters auf.',
     },
 };

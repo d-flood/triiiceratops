@@ -1,23 +1,43 @@
 import { describe, expect, it } from 'vitest';
 
 import { reconcileImages } from './imageRequests';
-import type { PlannerCanvas } from './types';
+import type { StaticImageDraw } from './types';
 
-function staticCanvas(id: string, url: string): PlannerCanvas {
-    return { id, width: 1200, height: 900, source: { kind: 'static', url } };
+/**
+ * One canvas-filling static placement, as the planner emits it.
+ *
+ * The key is `canvasDescriptors`' spelling — the canvas id and the painting
+ * annotation's position — so a single-image canvas is `c1#0`.
+ */
+function placement(
+    key: string,
+    url: string,
+    overrides: Partial<StaticImageDraw> = {},
+): StaticImageDraw {
+    return {
+        key,
+        canvasId: key.split('#')[0],
+        url,
+        x: 0,
+        y: 0,
+        width: 1200,
+        height: 900,
+        ...overrides,
+    };
 }
 
 describe('reconcileImages', () => {
     it('requests an image the host does not hold', () => {
-        const result = reconcileImages({}, [staticCanvas('c1', '/a.png')]);
+        const wanted = placement('c1#0', '/a.png');
+        const result = reconcileImages({}, [wanted]);
 
-        expect(result.load).toEqual([{ canvasId: 'c1', url: '/a.png' }]);
+        expect(result.load).toEqual([wanted]);
         expect(result.drop).toEqual([]);
     });
 
-    it('leaves an unchanged canvas alone, in flight or decoded', () => {
-        const result = reconcileImages({ c1: '/a.png' }, [
-            staticCanvas('c1', '/a.png'),
+    it('leaves an unchanged placement alone, in flight or decoded', () => {
+        const result = reconcileImages({ 'c1#0': '/a.png' }, [
+            placement('c1#0', '/a.png'),
         ]);
 
         expect(result.load).toEqual([]);
@@ -26,52 +46,73 @@ describe('reconcileImages', () => {
 
     /*
      * The finding this module exists for: selecting a different Choice on a
-     * canvas resolves the SAME canvas id to a different URL. A cache keyed on
-     * the id alone reports a hit and paints the superseded image forever.
+     * canvas resolves the SAME placement to a different URL. A cache keyed on
+     * the placement alone reports a hit and paints the superseded image forever.
      */
-    it('reloads when the URL changes under a stable canvas id', () => {
-        const result = reconcileImages({ c1: '/recto.png' }, [
-            staticCanvas('c1', '/verso.png'),
+    it('reloads when the URL changes under a stable key', () => {
+        const result = reconcileImages({ 'c1#0': '/recto.png' }, [
+            placement('c1#0', '/verso.png'),
         ]);
 
-        expect(result.load).toEqual([{ canvasId: 'c1', url: '/verso.png' }]);
+        expect(result.load).toEqual([placement('c1#0', '/verso.png')]);
         // And the stale pixels go immediately, rather than painting on until
         // the replacement decodes.
-        expect(result.drop).toEqual(['c1']);
+        expect(result.drop).toEqual(['c1#0']);
     });
 
-    it('drops a canvas that is no longer shown', () => {
-        const result = reconcileImages({ c1: '/a.png', c2: '/b.png' }, [
-            staticCanvas('c2', '/b.png'),
+    it('drops a placement that is no longer shown', () => {
+        const result = reconcileImages({ 'c1#0': '/a.png', 'c2#0': '/b.png' }, [
+            placement('c2#0', '/b.png'),
         ]);
 
-        expect(result.drop).toEqual(['c1']);
+        expect(result.drop).toEqual(['c1#0']);
         expect(result.load).toEqual([]);
     });
 
-    it('holds nothing for a service source: tiles are ticket 05', () => {
-        const service: PlannerCanvas = {
-            id: 'c1',
-            width: 1200,
-            height: 900,
-            source: { kind: 'service', serviceId: '/iiif/c1', profile: null },
-        };
-
-        expect(reconcileImages({}, [service])).toEqual({
-            drop: [],
-            load: [],
+    /*
+     * The composite case (IIIF Cookbook 0036). Two painting annotations on ONE
+     * canvas are two placements with two URLs and two boxes, and both are held
+     * at once. Keyed on the canvas instead, the second would evict the first on
+     * every reconciliation and the pair would flicker against each other
+     * forever.
+     */
+    it('holds every placement of a composite canvas at once', () => {
+        const folio = placement('c1#0', '/folio.png');
+        const miniature = placement('c1#1', '/miniature.png', {
+            x: 3949,
+            y: 994,
+            width: 1091,
+            height: 1232,
         });
+
+        expect(reconcileImages({}, [folio, miniature])).toEqual({
+            drop: [],
+            load: [folio, miniature],
+        });
+
+        // And holding one is not holding the other.
+        expect(
+            reconcileImages({ 'c1#0': '/folio.png' }, [folio, miniature]),
+        ).toEqual({ drop: [], load: [miniature] });
+    });
+
+    it('holds nothing for a service source: those are tiles', () => {
+        // The planner emits static placements only, so a service-painted canvas
+        // simply contributes none.
+        expect(reconcileImages({}, [])).toEqual({ drop: [], load: [] });
         // Including when the canvas USED to be a static image and became a
         // service source — whatever was held for it must go.
-        expect(reconcileImages({ c1: '/a.png' }, [service])).toEqual({
-            drop: ['c1'],
+        expect(reconcileImages({ 'c1#0': '/a.png' }, [])).toEqual({
+            drop: ['c1#0'],
             load: [],
         });
     });
 
     it('drops everything when the world empties', () => {
-        expect(reconcileImages({ c1: '/a.png', c2: '/b.png' }, [])).toEqual({
-            drop: ['c1', 'c2'],
+        expect(
+            reconcileImages({ 'c1#0': '/a.png', 'c2#0': '/b.png' }, []),
+        ).toEqual({
+            drop: ['c1#0', 'c2#0'],
             load: [],
         });
     });

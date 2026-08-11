@@ -26,10 +26,12 @@ import {
     CONTINUOUS_MANIFEST,
     CONTINUOUS_PAGE,
     continuousCanvasId,
+    countOpaqueSurfacePixels,
     findFeature,
     getResidency,
     getStats,
     getView,
+    type RendererStats,
     GRID_FEATURES,
     nextPaint,
     openRendererManifest,
@@ -41,6 +43,7 @@ import {
 import {
     DEFAULT_BUDGETS,
     METADATA_IN_FLIGHT_LIMIT,
+    MIN_ZOOM_FRACTION,
     MULTI_CANVAS_GAP_FRACTION,
 } from '../src/lib/renderer/rendererDefaults';
 
@@ -91,6 +94,38 @@ async function frameFolio(page: Page, index: number) {
  * a value that has stopped changing is what makes "the same resident set" a
  * comparison between two finished states rather than between two moments.
  */
+/**
+ * The renderer's counters once the request queue has stopped moving.
+ *
+ * Distinct from {@link settledResidentTileCount}, which waits on what is HELD: a
+ * request that 404s or is aborted changes `tileRequestCount` without ever
+ * becoming a resident tile, so a spec counting requests has to watch the count it
+ * is actually asserting on.
+ *
+ * Three consecutive unchanged samples rather than one, because a single
+ * unchanged sample is routinely a gap between two requests draining out of the
+ * bounded in-flight window — especially with other workers competing for the
+ * machine.
+ */
+async function settledStats(page: Page): Promise<RendererStats> {
+    let previous = -1;
+    let unchanged = 0;
+
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+        await page.waitForTimeout(100);
+        const stats = await getStats(page);
+        if (stats.tileRequestCount === previous) {
+            unchanged += 1;
+            if (unchanged >= 3) return stats;
+        } else {
+            unchanged = 0;
+            previous = stats.tileRequestCount;
+        }
+    }
+
+    throw new Error(`tile request count never settled (last ${previous})`);
+}
+
 async function settledResidentTileCount(page: Page): Promise<number> {
     let previous = -1;
     for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -129,6 +164,55 @@ function folio(page: Page, index: number) {
     return continuousCanvasId(index, new URL(page.url()).origin);
 }
 
+const SURFACE = '[data-testid="canvas-renderer-surface"]';
+
+/**
+ * Sample the viewport centre's x once per animation frame, from INSIDE the page.
+ *
+ * A round trip per sample takes long enough for the animation to finish in
+ * between, so a polled test sees the destination and nothing else — the same
+ * reason the wheel-easing assertion in `canvas-renderer.spec.ts` records this
+ * way.
+ */
+async function recordCentreX(page: Page): Promise<void> {
+    await page.locator(SURFACE).evaluate((element) => {
+        const handle = (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer?: {
+                    getView(): { centre: { x: number } };
+                };
+            }
+        ).__triiiceratopsRenderer!;
+        const recorder = window as unknown as { __centreSamples: number[] };
+        recorder.__centreSamples = [];
+
+        const tick = () => {
+            recorder.__centreSamples.push(handle.getView().centre.x);
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    });
+}
+
+async function centreSamples(page: Page): Promise<number[]> {
+    return page.evaluate(
+        () =>
+            (window as unknown as { __centreSamples: number[] })
+                .__centreSamples,
+    );
+}
+
+/** Whether the renderer reports itself in motion right now. */
+function moving(page: Page): Promise<boolean> {
+    return page.locator(SURFACE).evaluate((element) =>
+        (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer: { isMoving(): boolean };
+            }
+        ).__triiiceratopsRenderer.isMoving(),
+    );
+}
+
 test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
     test('opens an 800-canvas manifest with O(1) network requests', async ({
         page,
@@ -159,6 +243,46 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
                 residency.thumbnail.length +
                 residency.boxCount,
         ).toBe(CONTINUOUS_CANVAS_COUNT);
+    });
+
+    test('travels to the next folio when the canvas navigator is used, rather than snapping', async ({
+        page,
+    }) => {
+        // Canvas navigation is one of the animated cases (ADR 0015), and in
+        // continuous mode it is the case that shows: the folio being navigated
+        // to is already laid out beside the one on screen, so the trip has a
+        // path to travel along and cutting it reads as the world teleporting.
+        //
+        // Asserted on the real chrome control rather than on the port, because
+        // the animation is not the navigator's decision to make: it presses the
+        // same `nextCanvas()` a host would, and the renderer's scene effect is
+        // what has to know that a new current canvas inside one laid-out world
+        // is travel.
+        await open(page);
+        await nextPaint(page);
+        expect((await getView(page)).centre.x).toBeCloseTo(folioCentre(0).x, 0);
+
+        await recordCentreX(page);
+        await page.getByLabel('Next Canvas').first().click();
+
+        await expect.poll(() => moving(page), { timeout: 10_000 }).toBe(false);
+        const samples = await centreSamples(page);
+
+        // It arrived…
+        expect(samples[samples.length - 1]).toBeCloseTo(folioCentre(1).x, 0);
+        // …and it did NOT arrive in one frame. A snap puts the destination in
+        // the first post-click sample and every sample after it, so the whole
+        // run holds exactly two distinct values; travel produces a run of them.
+        expect(
+            new Set(samples).size,
+            `canvas navigation reached folio 1 in one frame: ${samples.slice(0, 6).join(', ')}`,
+        ).toBeGreaterThan(2);
+        // Towards the target throughout, with no overshoot — the exponential
+        // approach every other animated case takes.
+        for (let i = 1; i < samples.length; i += 1) {
+            expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1]);
+            expect(samples[i]).toBeLessThanOrEqual(folioCentre(1).x + 1);
+        }
     });
 
     test('lays folio 400 out where the coordinate model says, and paints it there', async ({
@@ -328,7 +452,7 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
             .not.toBeNull();
     });
 
-    test('clamps zooming out at the derived floor, and issues no request storm', async ({
+    test('clamps zooming out at a fraction of home zoom, and issues no request storm', async ({
         page,
     }) => {
         // Peak CONCURRENT `info.json`, not the total. The tier and the
@@ -353,11 +477,13 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
         page.on('requestfinished', settle);
         page.on('requestfailed', settle);
 
-        // The floor is DERIVED — the zoom at which the median canvas reaches
-        // the box threshold — not a percentage of home zoom. Below it every
-        // canvas is confetti and there is nothing to lose; the old path's floor
-        // was `homeZoom * 0.8` over the whole world, so a reader could zoom out
-        // past "all 800 pages fit" and the viewer would try to render it.
+        // The floor a reader meets is a fraction of HOME ZOOM — the fit of the
+        // folio on screen — and the renderer's derived floor (the zoom at which
+        // the median canvas reaches the box threshold) is only a backstop
+        // beneath it. Home zoom is one folio here, not the whole world: the old
+        // path's `homeZoom * 0.8` was measured over the world, so on an
+        // 800-folio manifest a reader could zoom out past "all 800 pages fit"
+        // and the viewer would try to render it.
         await open(page);
         await frameFolio(page, 400);
         await settledResidentTileCount(page);
@@ -372,15 +498,23 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
         }
 
         const view = await getView(page);
+        // Home zoom for one folio, and the floor, both written out from the
+        // fixture's own dimensions rather than read back from the renderer.
+        const homeScale = Math.min(
+            view.width / CONTINUOUS_PAGE.width,
+            view.height / CONTINUOUS_PAGE.height,
+        );
+        expect(view.scale).toBeCloseTo(homeScale * MIN_ZOOM_FRACTION, 6);
+
+        // …and the point of stopping there: a folio at the floor is still a page
+        // on screen, comfortably clear of the box threshold at which the renderer
+        // would have nothing left to draw. The derived floor stops at that
+        // threshold exactly, which is a two-dozen-pixel speck.
         const medianCanvasExtent = Math.sqrt(
             CONTINUOUS_PAGE.width * CONTINUOUS_PAGE.height,
         );
-
-        // The floor, written out from the fixture's own dimensions and the
-        // renderer's box threshold rather than read back from the renderer.
-        expect(view.scale * medianCanvasExtent).toBeCloseTo(
-            DEFAULT_BUDGETS.boxThreshold,
-            5,
+        expect(view.scale * medianCanvasExtent).toBeGreaterThan(
+            DEFAULT_BUDGETS.boxThreshold * 2,
         );
 
         // Nothing is above the pyramid threshold down here, so nothing is being
@@ -393,13 +527,19 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
         // residency window, but it shrinks the projected size just as fast, so
         // only ever a handful of canvases are above the pyramid threshold at
         // once — nothing like the one-request-per-canvas the old path issued.
-        const atFloor = await getStats(page);
+        // Settled first, not sampled two frames after arriving. The floor holds
+        // about ten thumbnail-tier folios, each worth up to two rungs, and they
+        // drain through a six-wide window — so a count read two frames in is a
+        // queue still emptying, not a total. Reading it before it stops moving
+        // makes both assertions below about scheduling latency instead of about
+        // how much was asked for.
+        const atFloor = await settledStats(page);
         expect(
             atFloor.tileRequestCount - before.tileRequestCount,
             `zooming out cost ${atFloor.tileRequestCount - before.tileRequestCount} requests on an ${CONTINUOUS_CANVAS_COUNT}-canvas manifest`,
         ).toBeLessThan(CONTINUOUS_CANVAS_COUNT / 8);
 
-        // And the FLOOR itself is quiet: sitting there asks for nothing at all.
+        // And the FLOOR itself is quiet: sitting there asks for nothing more.
         await nextPaint(page);
         await nextPaint(page);
         expect((await getStats(page)).tileRequestCount).toBe(
@@ -417,5 +557,83 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
             peakConcurrentInfo,
             `peak ${peakConcurrentInfo} concurrent info.json requests over the zoom-out to the floor`,
         ).toBeLessThanOrEqual(METADATA_IN_FLIGHT_LIMIT);
+    });
+
+    test('leaves a page-sized picture on screen at the floor a gesture can reach', async ({
+        page,
+    }) => {
+        // The reader-facing half of the claim, and the one the pixel counts make
+        // rather than the tier map. Zooming all the way out through the real
+        // clamp has to leave something a reader would call a picture — the
+        // renderer's derived floor left a folio 24 CSS pixels across, which is
+        // painted, correct, and indistinguishable from an empty viewer.
+        await open(page);
+        await frameFolio(page, 400);
+        await settledResidentTileCount(page);
+
+        const framed = await countOpaqueSurfacePixels(page);
+        expect(framed).toBeGreaterThan(0);
+
+        for (let step = 0; step < 4; step += 1) {
+            const view = await getView(page);
+            await zoomAt(page, { x: view.width / 2, y: view.height / 2 }, 0.02);
+        }
+
+        // A thirtieth of the framed folio's pixels is the floor this asserts
+        // against: the fixture paints ten-odd folios down here at an eighth of
+        // fitted linear size, so the real figure is nearer a tenth. What it rules
+        // out is the two-dozen-pixel speck, which was a five-hundredth.
+        await expect
+            .poll(() => countOpaqueSurfacePixels(page), { timeout: 20_000 })
+            .toBeGreaterThan(framed / 30);
+    });
+
+    test('keeps painting real pixels far BELOW the derived floor', async ({
+        page,
+    }) => {
+        // The floor is where the CLAMP stops a gesture; it is not where the
+        // renderer stops working. Zooming out past it must soften the picture,
+        // never extinguish it — zoom bounds are a setting still to come, and
+        // until they exist nothing about a scale is a reason to render nothing.
+        //
+        // Reached with `setView` deliberately, which is the programmatic path
+        // and does not go through the clamp: this is a claim about the PLANNER's
+        // floor, and it has to hold at a scale a gesture cannot even reach.
+        await open(page);
+        await frameFolio(page, 400);
+        await settledResidentTileCount(page);
+
+        // An eighth of the derived floor: every one of the 800 folios is on
+        // screen and every one is well below the box threshold, so the size test
+        // alone leaves nothing at any tier at all. An eighth rather than a
+        // thousandth because the PAINTER has a floor of its own that is not a
+        // policy — it snaps to whole device pixels, so content a hundredth of a
+        // pixel across has nowhere to land. Three pixels a folio is the smallest
+        // thing there is any point asserting is on screen.
+        const floor =
+            DEFAULT_BUDGETS.boxThreshold /
+            Math.sqrt(CONTINUOUS_PAGE.width * CONTINUOUS_PAGE.height);
+        await setView(page, {
+            centre: folioCentre(400),
+            scale: floor / 8,
+        });
+        await nextPaint(page);
+
+        // The tier floor: the folio the reader is centred on and its two
+        // neighbours, and nothing else. Bounded, because at this scale "paint
+        // whatever is visible" would be all 800 of them — the fetch storm this
+        // epic removed, in a different costume.
+        const residency = await getResidency(page);
+        expect(residency.pyramid).toEqual([]);
+        expect(residency.thumbnail.length).toBeGreaterThan(0);
+        expect(residency.thumbnail.length).toBeLessThanOrEqual(3);
+        expect(residency.thumbnail).toContain(folio(page, 400));
+
+        // …and it is a DECODED IMAGE on screen, not the placeholder rect. The
+        // placeholder ink is translucent, so a fully opaque pixel can only have
+        // come from a thumbnail the scheduler fetched, decoded, and painted.
+        await expect
+            .poll(() => countOpaqueSurfacePixels(page), { timeout: 20_000 })
+            .toBeGreaterThan(0);
     });
 });
