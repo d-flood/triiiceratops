@@ -803,6 +803,19 @@
     let fitTargetMemo: { layout: LayoutRect[]; rect: Box } | null = null;
 
     /**
+     * The world the scene effect last refitted in — manifest, mode, reading
+     * direction, and scale policy. What tells canvas navigation (a move within
+     * one laid-out world, which eases) apart from a change of world (which does
+     * not); see the scene effect. `null` until the first refit, so a fresh mount
+     * is a change of world too.
+     *
+     * Deliberately not the layout's identity, which would look like the obvious
+     * key and is useless here: `plannerCanvases` re-derives on every canvas
+     * change, so a new layout object is exactly what navigation produces.
+     */
+    let fittedWorld: string | null = null;
+
+    /**
      * The bounds a fit is measured against, and the zoom ceiling's reference:
      * in continuous mode the canvas **under the viewport centre**, and the
      * whole world in every other mode (where the world IS the spread on
@@ -954,6 +967,11 @@
      * their spread changed. Scrolling by hand never touches it, because a drag
      * does not change the current canvas — and, since ticket 08's review, does
      * not change what {@link fitWorld} fits either.
+     *
+     * Whether it eases is the CALLER's to say, and the scene effect is what
+     * decides: navigation inside a world already on screen is travel and eases
+     * (ADR 0015 lists canvas navigation among the animated cases); the first
+     * measured frame, and a change of world, have no view to travel from.
      */
     function fitCurrentCanvas(animated = false) {
         applyFit(navigationBoundsTarget(viewportLimits()), animated);
@@ -2879,7 +2897,31 @@
         // the frame loop, where the tier that gates them is known.
         void plannerCanvases;
 
-        fitCurrentCanvas();
+        // In continuous mode the folio being navigated to is already laid out
+        // beside the one on screen, so choosing it from the canvas navigator is
+        // a request to TRAVEL there — the animated case ADR 0015 names, filling
+        // a jump between two states of one world the reader can see. Easing it
+        // is also what keeps the trip cheap: `animating` clears the view-stable
+        // gate, so the folios passed over ask for no thumbnails or `info.json`s
+        // on the way, the same way a flick over them does.
+        //
+        // Every other refit is a world the viewport has never been in — a new
+        // manifest, a mode or direction change, or the first measured frame,
+        // where the old view is not somewhere to travel FROM and easing out of
+        // it would read as a lurch. `individuals` and `paged` are always that
+        // case: navigating there replaces the laid-out world rather than moving
+        // within it.
+        const world = [
+            viewerState.manifestId,
+            viewerState.viewingMode,
+            viewerState.viewingDirection,
+            viewerState.preserveCanvasScale,
+        ].join('|');
+        const travelling =
+            viewerState.viewingMode === 'continuous' && fittedWorld === world;
+        fittedWorld = world;
+
+        fitCurrentCanvas(travelling);
         requestFrame();
     });
 

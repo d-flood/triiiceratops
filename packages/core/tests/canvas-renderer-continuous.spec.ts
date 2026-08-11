@@ -164,6 +164,55 @@ function folio(page: Page, index: number) {
     return continuousCanvasId(index, new URL(page.url()).origin);
 }
 
+const SURFACE = '[data-testid="canvas-renderer-surface"]';
+
+/**
+ * Sample the viewport centre's x once per animation frame, from INSIDE the page.
+ *
+ * A round trip per sample takes long enough for the animation to finish in
+ * between, so a polled test sees the destination and nothing else — the same
+ * reason the wheel-easing assertion in `canvas-renderer.spec.ts` records this
+ * way.
+ */
+async function recordCentreX(page: Page): Promise<void> {
+    await page.locator(SURFACE).evaluate((element) => {
+        const handle = (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer?: {
+                    getView(): { centre: { x: number } };
+                };
+            }
+        ).__triiiceratopsRenderer!;
+        const recorder = window as unknown as { __centreSamples: number[] };
+        recorder.__centreSamples = [];
+
+        const tick = () => {
+            recorder.__centreSamples.push(handle.getView().centre.x);
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    });
+}
+
+async function centreSamples(page: Page): Promise<number[]> {
+    return page.evaluate(
+        () =>
+            (window as unknown as { __centreSamples: number[] })
+                .__centreSamples,
+    );
+}
+
+/** Whether the renderer reports itself in motion right now. */
+function moving(page: Page): Promise<boolean> {
+    return page.locator(SURFACE).evaluate((element) =>
+        (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer: { isMoving(): boolean };
+            }
+        ).__triiiceratopsRenderer.isMoving(),
+    );
+}
+
 test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
     test('opens an 800-canvas manifest with O(1) network requests', async ({
         page,
@@ -194,6 +243,46 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
                 residency.thumbnail.length +
                 residency.boxCount,
         ).toBe(CONTINUOUS_CANVAS_COUNT);
+    });
+
+    test('travels to the next folio when the canvas navigator is used, rather than snapping', async ({
+        page,
+    }) => {
+        // Canvas navigation is one of the animated cases (ADR 0015), and in
+        // continuous mode it is the case that shows: the folio being navigated
+        // to is already laid out beside the one on screen, so the trip has a
+        // path to travel along and cutting it reads as the world teleporting.
+        //
+        // Asserted on the real chrome control rather than on the port, because
+        // the animation is not the navigator's decision to make: it presses the
+        // same `nextCanvas()` a host would, and the renderer's scene effect is
+        // what has to know that a new current canvas inside one laid-out world
+        // is travel.
+        await open(page);
+        await nextPaint(page);
+        expect((await getView(page)).centre.x).toBeCloseTo(folioCentre(0).x, 0);
+
+        await recordCentreX(page);
+        await page.getByLabel('Next Canvas').first().click();
+
+        await expect.poll(() => moving(page), { timeout: 10_000 }).toBe(false);
+        const samples = await centreSamples(page);
+
+        // It arrived…
+        expect(samples[samples.length - 1]).toBeCloseTo(folioCentre(1).x, 0);
+        // …and it did NOT arrive in one frame. A snap puts the destination in
+        // the first post-click sample and every sample after it, so the whole
+        // run holds exactly two distinct values; travel produces a run of them.
+        expect(
+            new Set(samples).size,
+            `canvas navigation reached folio 1 in one frame: ${samples.slice(0, 6).join(', ')}`,
+        ).toBeGreaterThan(2);
+        // Towards the target throughout, with no overshoot — the exponential
+        // approach every other animated case takes.
+        for (let i = 1; i < samples.length; i += 1) {
+            expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1]);
+            expect(samples[i]).toBeLessThanOrEqual(folioCentre(1).x + 1);
+        }
     });
 
     test('lays folio 400 out where the coordinate model says, and paints it there', async ({
