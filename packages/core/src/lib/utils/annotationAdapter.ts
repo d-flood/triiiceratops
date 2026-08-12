@@ -428,8 +428,17 @@ function generateCirclePoints(
  * form some v2 publishers emit. Every reader of body text goes through here so
  * a manifest cannot render in one panel and come back empty in another.
  */
-export function bodyText(resource: any): string {
-    return resource?.chars || resource?.value || resource?.['cnt:chars'] || '';
+export function bodyText(resource: unknown): string {
+    if (!resource || typeof resource !== 'object') return '';
+    const body = resource as {
+        chars?: unknown;
+        value?: unknown;
+        'cnt:chars'?: unknown;
+    };
+    // `||`, not `??`: an empty string in one spelling falls through to the
+    // next, which is what the reader that this replaced did.
+    const text = body.chars || body.value || body['cnt:chars'];
+    return typeof text === 'string' ? text : '';
 }
 
 /**

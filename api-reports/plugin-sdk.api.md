@@ -206,7 +206,7 @@ export { svgIcon, SvgIconError } from './svgIcon.js';
 export { definePluginStyles } from './pluginStyles.js';
 export { whenRendererReady } from './renderer.js';
 export type { WhenRendererReadyOptions } from './renderer.js';
-export { dispatchPluginCommandError } from './reportError.js';
+export { createCommandErrorReporter, dispatchPluginCommandError, } from './reportError.js';
 export { activatePlugin, runActivation } from './activate.js';
 export { createSelectorRuntime } from './selectors.js';
 export type { SelectorRuntime } from './selectors.js';
@@ -433,6 +433,19 @@ export declare function whenRendererReady(state: ViewerState, options?: WhenRend
 // ======================================================================
 // FILE: dist/reportError.d.ts
 // ======================================================================
+/**
+ * Bind {@link dispatchPluginCommandError} to one plugin's identity.
+ *
+ * Every plugin that reports command failures had its own copy of the same
+ * thirteen lines, differing only in the name and version literals it passed —
+ * and because the version was written out a second time there, it drifted from
+ * the one the plugin declares to `definePlugin`. Pass the same meta object to
+ * both and there is one place the identity can be wrong.
+ */
+export declare function createCommandErrorReporter(meta: {
+    name: string;
+    version: string;
+}): (node: EventTarget, error: unknown, retry: () => void) => void;
 /** Dispatch an actionable plugin command failure on the host error channel. */
 export declare function dispatchPluginCommandError(node: EventTarget, pluginName: string, pluginVersion: string, error: unknown, retry: () => void): void;
 
