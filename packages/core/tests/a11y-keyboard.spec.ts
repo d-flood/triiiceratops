@@ -125,6 +125,82 @@ test('panel close button returns focus to its toolbar toggle', async ({
     expect((await activeElementInfo(page)).label).toBe('Toggle Information');
 });
 
+/*
+ * Parity rule (epic plugin-overlay-layers, ticket 05): a PLUGIN's docked panel
+ * gets the same close affordance the two core-panel journeys above assert.
+ * Exercised through the demo's real SDK plugin
+ * (`@triiiceratops/plugin-pdf-export`, a `target: 'panel'` plugin), so this is
+ * the shipped chrome and not a double.
+ *
+ * Docked RIGHT for the same reason the core journeys use the right-docked
+ * Information panel: the demo's toolbar rail sits on the LEFT, and opening a
+ * left-docked panel re-lays-out that rail — the toggle element is recreated, so
+ * no panel (core or plugin) can return focus to a node that no longer exists.
+ * That is a pre-existing property of the left rail, not of this close button.
+ *
+ * Note what that means for the DEFAULT plugin configuration: plugin panels dock
+ * LEFT by default (core's panels default right), so out of the box focus return
+ * does NOT work for a plugin panel. Ticket 06
+ * (`.tracker/plugin-overlay-layers/tickets/06-plugin-panel-focus-return.md`)
+ * owns that fix; it lives in shared chrome, which ticket 05 may not touch.
+ * `TriiiceratopsViewer.pluginPanelClose.svelte.test.ts` covers the left-docked
+ * button rendering, its click, and Escape-to-close, and pins the degraded focus
+ * behaviour explicitly — it does not prove focus return works on the left.
+ */
+const PLUGIN_TOGGLE = '[aria-label="PDF Export"]';
+const PLUGIN_PANEL = '[data-panel-id="pdf-export:panel"]';
+
+/** Load the demo, dock the PDF-export plugin right, and open it from its toggle. */
+async function openPluginPanel(page: Page) {
+    await loadViewer(page);
+    await page.evaluate(() => {
+        const host = document.querySelector(
+            'triiiceratops-viewer',
+        ) as unknown as {
+            viewerState: { setPluginPosition(id: string, p: string): void };
+        };
+        host.viewerState.setPluginPosition('pdf-export', 'right');
+    });
+
+    const toggle = page.locator(PLUGIN_TOGGLE).first();
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+
+    const panel = page.locator(PLUGIN_PANEL);
+    await expect(panel).toBeVisible();
+    // `setPluginPosition` silently no-ops for an unregistered id, which would
+    // leave the panel on its default LEFT side and quietly turn these journeys
+    // into the untested left-docked case. Assert the dock actually took.
+    await expect(page.locator(`.side-col-right ${PLUGIN_PANEL}`)).toBeVisible();
+    return panel;
+}
+
+test('plugin panel close button closes it and returns focus to its toolbar toggle', async ({
+    page,
+}) => {
+    const panel = await openPluginPanel(page);
+
+    // The affordance a reader was missing: a close button in the panel header.
+    await panel.getByRole('button', { name: 'Close' }).click();
+
+    await expect(panel).toHaveCount(0);
+    expect((await activeElementInfo(page)).label).toBe('PDF Export');
+});
+
+test('plugin panel closes on Escape and returns focus to its toolbar toggle', async ({
+    page,
+}) => {
+    const panel = await openPluginPanel(page);
+
+    // Escape-to-close comes free from PanelStackSection once `close` is passed;
+    // pressed with focus inside the panel, as a reader would.
+    await panel.getByRole('button', { name: 'Close' }).focus();
+    await page.keyboard.press('Escape');
+
+    await expect(panel).toHaveCount(0);
+    expect((await activeElementInfo(page)).label).toBe('PDF Export');
+});
+
 test('flyout menu opens, moves focus, arrow-navigates, and Escape returns focus', async ({
     page,
 }) => {

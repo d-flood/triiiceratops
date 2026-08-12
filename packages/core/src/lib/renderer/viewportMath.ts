@@ -18,6 +18,7 @@
  * what catches coordinate-transform regressions without a screenshot diff.
  */
 
+import type { ViewportInset } from '../types/viewport';
 import type { Point, Viewport } from './types';
 
 /** Canvas space → screen space. */
@@ -60,6 +61,111 @@ export function fitBounds(
         },
         scale,
     };
+}
+
+/**
+ * {@link fitBounds}, framing into the part of the surface a plugin has left
+ * visible.
+ *
+ * A **viewport inset** reserves edges of the surface — the space under a
+ * plugin's own floating UI — so a fit lands the box in the rectangle the reader
+ * can actually see rather than behind that UI. The scale comes from the inset
+ * extents, and the centre is shifted by half the asymmetry: reserving 200px at
+ * the bottom moves the framed box up by 100 screen pixels, and reserving the
+ * same at top and bottom moves it not at all.
+ *
+ * **Only fits consult the inset.** `canvasToScreen`/`screenToCanvas`,
+ * `constrainCentre`, `zoomRange`, and every pan and zoom are about the whole
+ * surface, and stay so: overlay-layer DOM spans the full surface, so an inset
+ * that changed the coordinate mapping would misplace every plugin's markers —
+ * including those of the plugin that set it.
+ *
+ * A zero inset is `fitBounds` exactly, which is why the fit path has one
+ * branch rather than two.
+ */
+export function fitBoundsInset(
+    bounds: { x: number; y: number; width: number; height: number },
+    size: { width: number; height: number },
+    inset: ViewportInset,
+): { centre: Point; scale: number } {
+    const fit = fitBounds(bounds, {
+        width: insetAxis(size.width, inset.left, inset.right).extent,
+        height: insetAxis(size.height, inset.top, inset.bottom).extent,
+    });
+    return {
+        centre: insetFitCentre(bounds, size, inset, fit.scale),
+        scale: fit.scale,
+    };
+}
+
+/**
+ * The centre that frames `bounds` into `inset` **at a scale the caller has
+ * already settled on**.
+ *
+ * The other half of {@link fitBoundsInset}, split out because a fit does not
+ * always get the scale it asked for. The inset's centre shift is a distance in
+ * SCREEN pixels and a viewport stores its centre in canvas units, so converting
+ * one to the other needs the scale the viewport will actually adopt — and
+ * `CanvasHost.applyFit` puts every fitted scale through `clampScale` first,
+ * because the public `fitBounds` command takes a box a caller chose and a
+ * two-unit box on a 4000-unit canvas fits hundreds of times past the zoom
+ * ceiling. Divide the shift by the scale the fit *wanted* and the realised shift
+ * comes out multiplied by `adopted / wanted`: a clamped fit lands off-centre, in
+ * the worst case behind the very panel the inset exists for.
+ *
+ * A non-positive or non-finite `scale` has no shift to express, so the box
+ * centre is returned unmoved — the honest answer for an unmeasured surface or a
+ * degenerate box.
+ */
+export function insetFitCentre(
+    bounds: { x: number; y: number; width: number; height: number },
+    size: { width: number; height: number },
+    inset: ViewportInset,
+    scale: number,
+): Point {
+    const centre = {
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+    };
+    if (!(scale > 0) || !Number.isFinite(scale)) return centre;
+
+    // Screen offset → canvas space: the centre is what the transform subtracts,
+    // so moving the box DOWN the surface moves the centre UP the world.
+    return {
+        x:
+            centre.x -
+            insetAxis(size.width, inset.left, inset.right).offset / scale,
+        y:
+            centre.y -
+            insetAxis(size.height, inset.top, inset.bottom).offset / scale,
+    };
+}
+
+/**
+ * One axis of {@link fitBoundsInset}: the extent a fit frames into, and how far
+ * the middle of that extent sits from the middle of the surface, both in screen
+ * pixels.
+ *
+ * **An inset leaving no usable extent falls back to the whole axis, silently.**
+ * Per-axis, with no invented threshold and no clamping fraction: an inset that
+ * is reasonable on a tall window exceeds a short one, so this is a consequence
+ * of the reader's window rather than an author error, and it is the set-time
+ * validation on `ViewerState.setViewportInset` that tells an author about a bad
+ * number. Warning here would fire on every frame of a resize.
+ *
+ * Falling back keeps the standing guarantee that a reader can always zoom out
+ * far enough to see a whole canvas: no inset can put the home view out of
+ * reach.
+ */
+function insetAxis(
+    size: number,
+    before: number,
+    after: number,
+): { extent: number; offset: number } {
+    const extent = size - before - after;
+    // Written as `> 0` rather than `<= 0` so a NaN edge takes the fallback too.
+    if (!(extent > 0)) return { extent: size, offset: 0 };
+    return { extent, offset: (before - after) / 2 };
 }
 
 /**

@@ -18,6 +18,8 @@ function placement(
         key,
         canvasId: key.split('#')[0],
         url,
+        // Paint order is plan-wide and required; a single-image canvas is first.
+        order: 0,
         x: 0,
         y: 0,
         width: 1200,

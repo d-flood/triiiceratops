@@ -12,6 +12,24 @@
  * tiles were drawn in, with the same matrix, so desync is not merely unlikely —
  * there is no second coordinate source for it to drift against.
  *
+ * **That argument is about event-driven repositioning, and only that.** It is
+ * false of a layer repositioned on the `frame` cadence: the frame listener runs
+ * inside the renderer's own animation-frame callback and Svelte flushes on the
+ * microtask that follows it, before the browser composites — which is why core's
+ * own annotation shape overlay is not a frame behind (see
+ * `components/AnnotationShapeOverlay.svelte`). So a frame-cadence DOM layer is
+ * not structurally late, and DOM is a legitimate substrate for things over the
+ * image; `ViewerState.registerOverlayLayer` and `renderer/overlayLayers.ts` are
+ * that API.
+ *
+ * The choice between the two is therefore NOT about timing. It is the
+ * accessibility rule stated below: anything a reader must perceive or operate is
+ * DOM in an overlay layer, and a paint layer is decoration or a second rendering
+ * of geometry the DOM already carries. What this hook still buys over DOM is
+ * cost, not correctness — one draw call per frame rather than a style write per
+ * element, which is what makes it the right substrate for ink at a scale where
+ * DOM would not keep up.
+ *
  * ## What this module owns, and what it does not
  *
  * Everything here is DOM-free arithmetic and bookkeeping: which layers exist, in

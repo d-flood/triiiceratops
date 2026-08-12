@@ -35,6 +35,36 @@ export interface ContainerSize {
 }
 
 /**
+ * Edges of the viewer surface reserved by plugin UI, in screen pixels.
+ *
+ * A **fit target**, not a box model: a fit frames its box into what is left of
+ * the surface, so a plugin's floating panel no longer covers the thing the
+ * reader was sent to look at. Nothing else changes — the surface is still the
+ * full rectangle, and every coordinate on this boundary still means what it did.
+ *
+ * {@link ZERO_VIEWPORT_INSET} is the identity, and one inset is held per viewer:
+ * a second setter wins.
+ */
+export interface ViewportInset {
+    /** Screen pixels reserved at the top of the surface. */
+    top: number;
+    /** Screen pixels reserved at the right of the surface. */
+    right: number;
+    /** Screen pixels reserved at the bottom of the surface. */
+    bottom: number;
+    /** Screen pixels reserved at the left of the surface. */
+    left: number;
+}
+
+/** The identity inset — a fit frames into the whole surface. */
+export const ZERO_VIEWPORT_INSET: ViewportInset = Object.freeze({
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+});
+
+/**
  * Image adjustments applied to the rendered image, as a whole set.
  *
  * The percentage members are percentages with `100` as neutral, matching the

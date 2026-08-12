@@ -93,6 +93,9 @@ describe('example plugin', () => {
             styles: tc.styles,
             locale: tc.locale,
             ui: tc.ui,
+            // Pass the real surface. Omit it and the plugin gets an always-open
+            // stub whose `id` names no plugin of this viewer — see the trap below.
+            surface: tc.surface,
         });
 
         const label = container.querySelector('span');
@@ -107,6 +110,30 @@ describe('example plugin', () => {
     });
 });
 ```
+
+### The id the viewer knows your plugin by
+
+`createTestViewerContext` binds the surface to one chrome id — `uiId`, defaulting
+to `'test-plugin'` — and seeds the viewer's plugin UI state for it. That id is the
+only thing the viewer knows your plugin as, so it is the only prefix
+`registerOverlayLayer` accepts. Two ways to trip over it, both of which show up as
+a layer that never mounts:
+
+- **Your plugin hardcodes its own name in the layer id.** Derive it from
+  `context.surface.id` instead — in a test that is `uiId`, in production it is your
+  declared `uiId` or your sanitised package name, and in neither case is it
+  guaranteed to be the string you typed.
+- **You do not pass `surface` to `activatePlugin`.** The SDK then hands your plugin
+  an always-open stub surface whose id is your `uiId ?? name`, which the viewer has
+  never heard of, so every layer is refused. Pass `surface: tc.surface`;
+  `runActivation` and `runPluginConformance` already do.
+
+A refusal is reported on the host's `viewererror` channel
+(`code: 'overlay-layer-refused'`), not thrown, and `mount` is never called. If you
+want the refusal to be loud in a test, wire a reporter:
+`tc.viewerState.setErrorReporter((error) => { throw new Error(error.message); })`.
+Pass `uiId: '<your plugin's uiId>'` when your plugin declares one, so the test id
+and the production id are the same string.
 
 ## The conformance suite
 

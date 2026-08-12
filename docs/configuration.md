@@ -78,6 +78,7 @@ interface ViewerConfig {
         [pluginId: string]: {
             visible?: boolean; // Default: true (Toolbar button visible)
             open?: boolean; // Default: false (Plugin panel open)
+            showCloseButton?: boolean; // Default: true
             target?: 'panel' | 'flyout'; // Override where the plugin renders
             position?: 'left' | 'right'; // Override docked panel side; ignored when target is 'flyout'
         };
