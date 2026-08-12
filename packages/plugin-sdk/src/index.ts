@@ -24,7 +24,10 @@ export { whenRendererReady } from './renderer.js';
 export type { WhenRendererReadyOptions } from './renderer.js';
 
 // Report user-driven command failures through the structured host channel.
-export { dispatchPluginCommandError } from './reportError.js';
+export {
+    createCommandErrorReporter,
+    dispatchPluginCommandError,
+} from './reportError.js';
 
 // Activation (per viewer, isolated context).
 export { activatePlugin, runActivation } from './activate.js';
