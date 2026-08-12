@@ -25,6 +25,13 @@ export type ViewerErrorSeverity = 'warning' | 'error';
  * - `config`: an invalid or conflicting `ViewerConfig` value.
  * - `content-state`: content-state ingestion degraded or failed (ADR 0006).
  * - `manifest`: a manifest or linked resource failed to load or parse.
+ * - `plugin`: a call a plugin made into `ViewerState` was refused — a plugin
+ *   *author* error, reported to the host because the (silent-by-default) logger
+ *   would otherwise swallow it in every viewer that has not enabled `debug`.
+ *   Distinct from the `pluginerror` channel, which carries a failure *thrown by*
+ *   an identified plugin along with its `retry()`; a refused call throws nothing
+ *   and core cannot always attribute it to a plugin at all (a layer id naming no
+ *   known plugin is exactly that case).
  * - `search`: a search operation failed or no search service was available.
  * - `viewport`: a viewport operation (e.g. fullscreen) failed.
  */
@@ -32,6 +39,7 @@ export type ViewerErrorScope =
     | 'config'
     | 'content-state'
     | 'manifest'
+    | 'plugin'
     | 'search'
     | 'viewport';
 

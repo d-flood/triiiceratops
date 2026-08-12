@@ -470,17 +470,23 @@
     // icon-rendering UI service.
 
     // One activation record per mounted SDK plugin. `deactivate` runs the
-    // instance's teardown (view cleanup + drop subscriptions + release styles) and
-    // — for core-owned-chrome plugins — unregisters its toolbar chrome.
+    // instance's teardown (view cleanup + drop subscriptions + release styles);
+    // tearing the record down also unregisters the plugin from viewer state (its
+    // chrome, its overlay layers, its UI state) — see `deactivateSdkRecord`.
     // `primaryReported` de-dupes repeated command/subscription failures from the
     // same still-live instance so the channel fires once per failure, not once per
-    // flush. `chromeId` is the id of the plugin's core-owned toolbar chrome;
+    // flush. `chromeId` is the id core knows this plugin by: the key under
+    // `config.plugins`, the prefix of its chrome record ids, and the prefix of
+    // its overlay layer ids. It is set when the record is CREATED, before the
+    // plugin's view mounts — not after a successful activation — because it is
+    // also the handle everything registered DURING that mount is released by,
+    // and a mount that throws registers things too (see `activateSdkPlugin`).
     // `failed` records that setup/mount failed so core renders NO button (fail
     // closed, ADR 0010).
     interface SdkActivationRecord {
         plugin: SdkPlugin;
         el: HTMLElement;
-        chromeId?: string;
+        chromeId: string;
         deactivate: () => void;
         primaryReported: boolean;
         failed: boolean;
@@ -632,6 +638,14 @@
         const record: SdkActivationRecord = {
             plugin,
             el,
+            // Recorded HERE, not after a successful activation. The plugin's
+            // `view.mount` runs below and may register things core knows by this
+            // id — its overlay layers, and the UI state its surface seeded — so a
+            // record whose `chromeId` were only filled in on success would leave
+            // a failed mount's registrations with no owner: `unregisterPlugin`
+            // would never be called for them, and a retry's identical layer id
+            // would then hit the duplicate-id refusal forever.
+            chromeId,
             deactivate: () => {},
             primaryReported: false,
             failed: false,
@@ -666,6 +680,14 @@
                     error,
                 );
             }
+            // Leave nothing of this plugin behind in viewer state either. A
+            // mount that threw half-way may already have registered overlay
+            // layers — DOM on the image with nothing left to remove it — and its
+            // surface seeded plugin UI state, which is what `registerOverlayLayer`
+            // validates ids against, so a plugin that does not exist would keep
+            // looking like a known one. No chrome was registered, so the chrome
+            // filters in `unregisterPlugin` simply match nothing.
+            internalViewerState.unregisterPlugin(chromeId);
             el.remove();
             return;
         }
@@ -677,7 +699,6 @@
         // down; a layout change that recreates the node simply re-parents `el`.
         // The plugin observes open/close through `PluginContext.surface` instead
         // of through a mount lifecycle event (see `plugin/surface.ts`).
-        record.chromeId = chromeId;
         const mountThunk: PluginMountThunk = (node) => {
             node.appendChild(el);
             return () => {
@@ -701,15 +722,19 @@
     }
 
     /**
-     * Tear one activation down: unregister its core-owned chrome (if any), run
-     * its deactivation (view cleanup + drop subscriptions + release styles), and
-     * remove its content element. Isolated so a throwing teardown never blocks
-     * the rest.
+     * Tear one activation down: unregister everything core knows by this
+     * plugin's id — its chrome records, its overlay layers, and its UI state —
+     * run its deactivation (view cleanup + drop subscriptions + release styles),
+     * and remove its content element. Isolated so a throwing teardown never
+     * blocks the rest.
+     *
+     * Unconditional: `unregisterPlugin` on a plugin that never got as far as
+     * registering chrome matches no chrome record and simply drops whatever the
+     * failed activation did leave behind, so a record for a failed mount is torn
+     * down by exactly this path too.
      */
     function deactivateSdkRecord(record: SdkActivationRecord) {
-        if (record.chromeId) {
-            internalViewerState.unregisterPlugin(record.chromeId);
-        }
+        internalViewerState.unregisterPlugin(record.chromeId);
         try {
             record.deactivate();
         } catch (error) {
@@ -920,6 +945,12 @@
             iconDescriptor: panel.iconDescriptor,
             component: PluginMountHost,
             props: { mount: panel.mount },
+            close: showPanelCloseButton(
+                internalViewerState.config.plugins?.[panel.pluginId]
+                    ?.showCloseButton,
+            )
+                ? () => internalViewerState.setPluginOpen(panel.pluginId, false)
+                : undefined,
         };
     }
 
@@ -1315,6 +1346,20 @@
             ? tileSourceError.details
             : null,
     );
+
+    /**
+     * The plugin **overlay layers** to place over the image.
+     *
+     * Reading the revision counter is what establishes the dependency: the
+     * registry's list is a plain frozen array rebuilt on change, not reactive
+     * state, exactly as the paint hook's is — the two registries are
+     * deliberately structurally identical, so this is one idiom rather than two.
+     * The `void` read is therefore load-bearing and not a leftover to tidy away.
+     */
+    let overlayLayers = $derived.by(() => {
+        void internalViewerState.overlayLayerRevision;
+        return internalViewerState.overlayLayers;
+    });
 </script>
 
 <div
@@ -1514,6 +1559,35 @@
             -->
             <AnnotationShapeOverlay />
             <AnnotationOverlay />
+
+            <!--
+                Plugin **overlay layers**: one container per registered layer,
+                which the plugin renders into and owns.
+
+                TWO INDEPENDENT REQUIREMENTS, both load-bearing, both easy to
+                break by a refactor that looks tidier:
+
+                1. This is OUTSIDE the `{#if}` that mounts `CanvasHost`, a
+                   sibling of the annotation overlays above. Grouping it with the
+                   renderer would put every plugin's DOM inside the gate a
+                   manifest change closes, destroying and rebuilding it — which
+                   fails invisibly in any test that only ever loads one manifest.
+                2. It is KEYED on layer id. Unkeyed, node reuse is positional, so
+                   registering or disposing one layer can hand a SURVIVING layer
+                   a different container node — and `PluginMountHost` remounts
+                   when its node is recreated. Same broken guarantee, different
+                   mechanism.
+
+                The wrapper is what provides the box: `PluginMountHost`'s own
+                element is `display: contents` and provides none, so positioning
+                it instead would leave plugin children measured against the wrong
+                ancestor — which looks almost right until a panel is docked.
+            -->
+            {#each overlayLayers as layer (layer.id)}
+                <div class="plugin-overlay-layer">
+                    <PluginMountHost mount={layer.mount} />
+                </div>
+            {/each}
 
             <!-- Floating Toolbar (suppressed while the docked rail occupies its
                  side — including the tail of the un-dock animation, since
@@ -1843,6 +1917,24 @@
     }
 
     .plugin-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        pointer-events: none;
+    }
+    /*
+     * A plugin overlay layer's box. Its origin is `.viewer-area`'s, which is
+     * what makes it `ViewerState.canvasToScreen`'s origin too — a published
+     * contract, so a plugin positions an element straight from a projected
+     * point.
+     *
+     * `z-index: 40` matches `.plugin-overlay` and sits BELOW core's annotation
+     * shapes at 50: those are focusable targets carrying the viewer's own
+     * accessible names, and a plugin layer painted over them would break that
+     * silently. Transparent to pointer events, so adding a layer cannot cost the
+     * reader panning; plugin children opt in with `pointer-events: auto`.
+     */
+    .plugin-overlay-layer {
         position: absolute;
         inset: 0;
         z-index: 40;

@@ -210,6 +210,7 @@ type ViewerConfig = {
         {
             visible?: boolean; // show/hide the plugin toolbar button
             open?: boolean; // open/close the plugin panel
+            showCloseButton?: boolean; // Default: true
             target?: 'panel' | 'flyout'; // override where the plugin renders
             position?: 'left' | 'right'; // override the panel's dock side
         }
@@ -228,6 +229,9 @@ defaults; omitting a field leaves the current live value untouched:
 
 - `visible: false` hides only the plugin's toolbar button.
 - `open: true` opens the plugin's surface if it is registered.
+- `showCloseButton: false` removes the close button from the plugin's docked
+  panel header, and with it the Escape-to-close path — one flag, not two. The
+  default is `true`, matching every core panel.
 - `target: 'flyout' | 'panel'` moves the plugin between its docked panel and its
   anchored flyout; the switch remounts the plugin UI.
 - `position: 'left' | 'right'` docks the panel on a different side — a

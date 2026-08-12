@@ -1,9 +1,9 @@
 {
-    "count": 76,
+    "count": 80,
     "byClassification": {
-        "command": 36,
+        "command": 37,
         "observable": 13,
-        "internal": 23,
+        "internal": 26,
         "query-only": 4
     },
     "entries": [
@@ -223,6 +223,21 @@
             "commands": [
                 "setManifestRequestConfig"
             ]
+        },
+        {
+            "member": "overlayLayerRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "overlayLayerRevision",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "overlayLayers",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "pagedOffset",
@@ -473,6 +488,14 @@
                 "panTo",
                 "fitBounds",
                 "fitCanvas"
+            ]
+        },
+        {
+            "member": "viewportInset",
+            "classification": "command",
+            "commands": [
+                "setViewportInset",
+                "resetViewportInset"
             ]
         },
         {

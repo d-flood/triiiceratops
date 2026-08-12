@@ -414,6 +414,10 @@ const commandScenarios: CapabilityScenario[] = [
         act: (state) => state.setImageAdjustments({ brightness: 120 }),
     },
     {
+        member: 'viewportInset',
+        act: (state) => state.setViewportInset({ bottom: 200 }),
+    },
+    {
         member: 'manifestId',
         setup: () => {
             vi.mocked(manifestsState.getManifestEntry).mockReturnValue({

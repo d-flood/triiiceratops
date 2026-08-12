@@ -1026,9 +1026,10 @@ export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService
 export { SDK_PLUGIN_KIND, isSdkPlugin, PLUGIN_ERROR_EVENT, } from './types/plugin';
 export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorReporter, } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
-export type { ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint, } from './types/viewport';
-export { NEUTRAL_IMAGE_ADJUSTMENTS, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
+export type { ContainerSize, ImageAdjustments, ViewportBox, ViewportInset, ViewportPoint, } from './types/viewport';
+export { NEUTRAL_IMAGE_ADJUSTMENTS, ZERO_VIEWPORT_INSET, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
 export type { PaintCanvasPlacement, PaintFrame, PaintLayer, PaintLayerDraw, PaintTransform, } from './renderer/paintLayers';
+export type { OverlayLayer } from './renderer/overlayLayers';
 export type { TriiiceratopsViewerElement } from './types/viewerElement';
 export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
 export type { Logger, LogLevel, LogSink } from './logging/logger';
@@ -1520,6 +1521,157 @@ export type TriiiceratopsViewerRef = ViewerHandle;
 export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): ReactElement;
 
 // ======================================================================
+// FILE: dist/renderer/overlayLayers.d.ts
+// ======================================================================
+/**
+ * The **overlay layer** registry: a DOM container a plugin registers, which core
+ * places in the viewer's stage beside the renderer and the plugin renders into
+ * (CONTEXT.md **Overlay layer**).
+ *
+ * ## Why DOM rather than the paint hook
+ *
+ * > The canvas paints pixels; a parallel DOM layer carries the focusable,
+ * > labelled targets.
+ *
+ * That rule is what this module exists for. Anything a reader must perceive or
+ * operate — a marker they click, a label a screen reader announces, a card they
+ * tab to — has to be a real element, because canvas-drawn shapes have no focus,
+ * no accessible name, no keyboard reach, and an automated accessibility scan
+ * cannot report an element that does not exist. The paint hook
+ * (`ViewerState.registerPaintLayer`, and the sibling registry module behind it)
+ * is the other half of the pair: decoration, or a second rendering of geometry
+ * the DOM already carries.
+ *
+ * ## What this module owns, and what it does not
+ *
+ * Only bookkeeping: which layers exist, in what order they were registered, and
+ * what happens when one is refused. It is DOM-free and therefore unit-testable.
+ * The container, its box, and the mount lifecycle belong to the render site
+ * (`components/TriiiceratopsViewer.svelte`, via `components/PluginMountHost.svelte`);
+ * the public registration surface belongs to `ViewerState.registerOverlayLayer`.
+ *
+ * ## Deliberately not the paint registry
+ *
+ * This is structurally the paint-layer registry minus its canvas-space maths and
+ * minus ordering, and that similarity is intentional — one idiom to learn for
+ * both. It is nonetheless a **separate module that does not import that one**,
+ * so a change to canvas-space maths or to `PaintFrame` cannot ripple into a DOM
+ * registry, and vice versa. The small overlap is duplicated on purpose; do not
+ * "de-duplicate" it by importing across.
+ *
+ * **There is no `order` field, and adding one would be a mistake.** Cross-plugin
+ * ordering cannot be coordinated — a plugin cannot know what value another chose
+ * — so publishing an ordering space would imply a guarantee core cannot offer,
+ * and within one plugin a single container with `z-index` on its own children is
+ * strictly less work than two registered layers. The paint hook keeps explicit
+ * ordering because core interleaves its own layer with consumers' inside one
+ * canvas context, where there is no DOM and no `z-index` to fall back on. The
+ * substrates differ; the APIs may.
+ *
+ * ## Ownership
+ *
+ * A layer id must be `<pluginId>:<name>` naming a plugin the viewer knows, which
+ * buys two things a convention could not: cross-plugin id collisions are
+ * impossible, and cleanup can **fail closed** — unregistering a plugin releases
+ * the layers it forgot ({@link OverlayLayerRegistry.disposeOwnedBy}) instead of
+ * leaving orphaned DOM on the image. The registry does not know what a plugin is,
+ * so it asks: `isKnownPlugin` is injected by viewer state, which answers from
+ * plugin UI state. The paint registry has no such rule on purpose — core
+ * registers a paint layer of its own, so a mandatory plugin prefix there would
+ * need a reserved core namespace
+ * (`docs/adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md`).
+ */
+import type { PluginMountThunk } from '../types/plugin.js';
+/** A layer, as a plugin registers it. */
+export interface OverlayLayer {
+    /**
+     * A stable identifier, unique within one viewer, of the form
+     * `<pluginId>:<name>` — the convention chrome ids already use, here
+     * **required and validated**: the prefix must name a plugin this viewer
+     * knows, or the registration is refused (see
+     * {@link createOverlayLayerRegistry}'s `isKnownPlugin`). It is how a refused
+     * registration is reported, it is the key the render site places the
+     * container under — which is what makes a surviving layer keep its own node
+     * when a sibling comes or goes — and it is what makes unregistering a plugin
+     * able to release the layers it forgot.
+     */
+    id: string;
+    /**
+     * The existing plugin DOM-mount thunk: core creates and places the
+     * container, the plugin renders into it and returns its cleanup.
+     *
+     * The plugin's context is not passed in — a plugin calls
+     * `registerOverlayLayer` from inside its own `view.mount`, so it already
+     * holds it.
+     */
+    mount: PluginMountThunk;
+}
+/**
+ * A layer the registry accepted.
+ *
+ * A separate type from {@link OverlayLayer} rather than an alias: what a caller
+ * hands in and what the render site reads back are two contracts, and the second
+ * may grow a field without that being a change to the first.
+ */
+export interface RegisteredOverlayLayer {
+    id: string;
+    mount: PluginMountThunk;
+}
+export interface OverlayLayerRegistry {
+    /**
+     * Register a layer. Returns an idempotent dispose; a refused registration
+     * returns a no-op one, so a caller never has to branch.
+     */
+    register(layer: OverlayLayer): () => void;
+    /**
+     * Dispose every layer whose id carries the `` `${pluginId}:` `` prefix, by
+     * the same path {@link register}'s returned dispose takes — the record
+     * leaves the list, so the render site removes the container and the layer's
+     * own mount cleanup runs.
+     *
+     * The **backstop** for a plugin whose own teardown misses its dispose, not
+     * the normal way to release a layer: `unregisterPlugin` calls this so a buggy
+     * plugin cannot leave orphaned DOM sitting on the image. Safe to call for a
+     * plugin that registered nothing.
+     */
+    disposeOwnedBy(pluginId: string): void;
+    /** Dispose every layer, whoever owns it. `destroyAllPlugins`'s half. */
+    disposeAll(): void;
+    /**
+     * The layers to render, in registration order. A frozen snapshot rebuilt on
+     * change, so the render site iterates a stable array rather than a live
+     * collection it could mutate mid-render.
+     */
+    readonly layers: readonly RegisteredOverlayLayer[];
+}
+/**
+ * The registry behind `ViewerState.registerOverlayLayer`.
+ *
+ * It lives in viewer state rather than in the render site for two reasons: a
+ * plugin may register before any renderer has mounted, and a renderer remount
+ * must not silently drop every layer.
+ *
+ * `onChange` is how the render site learns a layer arrived or left — viewer
+ * state turns it into exactly one reactive write.
+ */
+export declare function createOverlayLayerRegistry(options?: {
+    onChange?: () => void;
+    /** Told why a registration was refused, for the developer's console. */
+    onRefused?: (message: string) => void;
+    /**
+     * Whether `pluginId` names a plugin of this viewer — how an id's prefix is
+     * validated. Viewer state answers from plugin UI state, which is seeded
+     * before a plugin's `view.mount` runs and therefore already populated when
+     * the plugin registers a layer from inside it; the plugin's *chrome* is not,
+     * so answering from the chrome records would refuse every legitimate layer.
+     *
+     * Omitted, ids are not checked against any owner — the registry's own unit
+     * tests have no viewer to ask.
+     */
+    isKnownPlugin?: (pluginId: string) => boolean;
+}): OverlayLayerRegistry;
+
+// ======================================================================
 // FILE: dist/renderer/paintLayers.d.ts
 // ======================================================================
 /**
@@ -1535,6 +1687,24 @@ export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): Re
  * visibly trail the image. A paint layer is called **inside** the frame the
  * tiles were drawn in, with the same matrix, so desync is not merely unlikely —
  * there is no second coordinate source for it to drift against.
+ *
+ * **That argument is about event-driven repositioning, and only that.** It is
+ * false of a layer repositioned on the `frame` cadence: the frame listener runs
+ * inside the renderer's own animation-frame callback and Svelte flushes on the
+ * microtask that follows it, before the browser composites — which is why core's
+ * own annotation shape overlay is not a frame behind (see
+ * `components/AnnotationShapeOverlay.svelte`). So a frame-cadence DOM layer is
+ * not structurally late, and DOM is a legitimate substrate for things over the
+ * image; `ViewerState.registerOverlayLayer` and `renderer/overlayLayers.ts` are
+ * that API.
+ *
+ * The choice between the two is therefore NOT about timing. It is the
+ * accessibility rule stated below: anything a reader must perceive or operate is
+ * DOM in an overlay layer, and a paint layer is decoration or a second rendering
+ * of geometry the DOM already carries. What this hook still buys over DOM is
+ * cost, not correctness — one draw call per frame rather than a style write per
+ * element, which is what makes it the right substrate for ink at a scale where
+ * DOM would not keep up.
  *
  * ## What this module owns, and what it does not
  *
@@ -2628,7 +2798,8 @@ export declare function createSelectorRuntime(viewerState: ViewerState, options?
 import type { ViewerErrorReporter } from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
 import { type PaintLayer, type RegisteredPaintLayer } from '../renderer/paintLayers.js';
-import { type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportPoint } from '../types/viewport.js';
+import { type OverlayLayer, type RegisteredOverlayLayer } from '../renderer/overlayLayers.js';
+import { type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
 import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
 import { type StructureNode } from '../utils/structures';
@@ -2978,6 +3149,19 @@ export declare class ViewerState {
      */
     imageAdjustments: ImageAdjustments;
     /**
+     * Edges of the surface a plugin has reserved, which **fits** frame into.
+     *
+     * Command state: changed through {@link setViewportInset} and
+     * {@link resetViewportInset}, exactly as {@link imageAdjustments} is. The
+     * renderer reads it when it fits, so an inset set before a renderer mounted
+     * is honoured by that renderer's first fit with no replay machinery, and
+     * `RendererPort` needs nothing added to it.
+     *
+     * Setting it does **not** move the current view: the next fit uses it. One
+     * inset per viewer — a second setter wins.
+     */
+    viewportInset: ViewportInset;
+    /**
      * Attach the mounted renderer. **Core-internal** — the host↔state seam, not
      * part of the supported plugin API, and it takes a fixed first-party
      * interface rather than a renderer object.
@@ -3090,6 +3274,87 @@ export declare class ViewerState {
      * @internal
      */
     get paintLayers(): readonly RegisteredPaintLayer[];
+    /**
+     * How many times the overlay layer list has changed — the one notifying
+     * signal that registry needs.
+     *
+     * Deliberately the same shape as {@link paintLayerRevision}, down to the
+     * counter rather than a reactive list: the two registries are meant to be
+     * structurally identical so there is one idiom to learn. The render site
+     * touches this to establish a dependency and then returns
+     * {@link overlayLayers}, which reads as a mistake to be tidied away unless
+     * you know that is what the counter is for. It is.
+     *
+     * @internal
+     */
+    overlayLayerRevision: number;
+    /**
+     * The registered overlay layers, in registration order.
+     *
+     * Held in viewer state rather than at the render site for two reasons: a
+     * plugin may register a layer before any renderer has mounted, and a
+     * renderer remount must not silently drop every layer.
+     */
+    private overlayLayerRegistry;
+    /**
+     * Register a DOM container over the image, for a plugin to render into and
+     * own.
+     *
+     * Core creates the container, places it in the viewer's stage beside the
+     * renderer, and calls `mount` with it; the cleanup `mount` returns runs when
+     * the layer is disposed. Returns an idempotent dispose, so releasing from
+     * both a mount cleanup and a teardown path is safe.
+     *
+     * **`id` must be `` `${pluginId}:${name}` ``** — the plugin id this viewer
+     * knows the caller by, the same convention its chrome ids follow. That is
+     * what makes ids collision-free across plugins and lets
+     * {@link unregisterPlugin} release a layer whose plugin forgot to. Releasing
+     * it from the plugin's own `view.mount` cleanup remains the primary path;
+     * unregistration is the backstop.
+     *
+     * A layer whose `id` names no known plugin, whose `mount` is not a function,
+     * or whose `id` is already taken is refused and registers nothing; the
+     * returned dispose is a no-op, so a caller never has to branch on whether
+     * registration worked. A refusal is reported to the host on the structured
+     * `viewererror` channel with code `overlay-layer-refused` and scope `plugin`
+     * (and logged when `ViewerConfig.debug` is on) — it is an author error, and
+     * the symptom without the report is a layer that renders nothing.
+     *
+     * **The container's origin is `canvasToScreen`'s origin**, so a plugin
+     * positions an element straight from a projected point with no offset
+     * correction. Re-placing on the `frame` cadence
+     * ({@link subscribeFrame}) puts the write in the same frame the image is
+     * painted in; re-placing after the plugin's own state changed is the
+     * plugin's own `requestAnimationFrame`'s job.
+     *
+     * **The container is transparent to pointer events**; a plugin's children opt
+     * in with `pointer-events: auto`, so the space between markers still pans the
+     * image. A full-surface SVG (connector lines, for instance) must stay
+     * transparent or it swallows every gesture.
+     *
+     * The container is created once on registration and removed once on dispose
+     * — never remounted in between, including across a renderer remount, which
+     * is what a manifest change causes. Registering before any renderer has
+     * mounted is valid; the container exists regardless. Clearing content that
+     * was scoped to the old manifest is the plugin's own concern, since core
+     * cannot know which of a plugin's DOM that is.
+     *
+     * Layers render in registration order and stack below the viewer's own
+     * annotation shapes. There is no ordering field: cross-plugin ordering
+     * cannot be coordinated, and a plugin needing internal stacking uses one
+     * container with `z-index` on its own children.
+     */
+    registerOverlayLayer(layer: OverlayLayer): () => void;
+    /**
+     * The registered layers, in registration order. Read by the render site.
+     *
+     * `@internal`, so it carries no contract — a test (core's own, or a plugin's)
+     * that reads it back to prove register/release symmetry is reading an
+     * internal, exactly as with {@link paintLayers}.
+     *
+     * @internal
+     */
+    get overlayLayers(): readonly RegisteredOverlayLayer[];
     /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
     zoomIn(): void;
     /** Zoom out one step, about the viewport centre. The toolbar's `−`. */
@@ -3124,6 +3389,40 @@ export declare class ViewerState {
      * neutral.
      */
     setImageAdjustments(adjustments: Partial<ImageAdjustments>): void;
+    /**
+     * Reserve edges of the surface for a plugin's own UI, merging over the
+     * current inset. Edges left out keep their current value;
+     * {@link resetViewportInset} returns them all to zero.
+     *
+     * **Fit targets only.** `fitCanvas`, `fitBounds`, and canvas navigation
+     * frame their box into what is left of the surface; nothing else moves. Pan,
+     * zoom, the coordinate helpers, and the viewport queries are about the whole
+     * surface and stay that way — an overlay layer spans the full surface, so an
+     * inset that changed the coordinate mapping would misplace every plugin's
+     * markers.
+     *
+     * **This does not re-frame the current view**, deliberately: the next fit
+     * uses the inset, and a plugin that wants to be re-framed now issues a fit
+     * itself. Core animating the viewport because a panel opened would be
+     * surprising, and wrong whenever the reader has deliberately zoomed in.
+     *
+     * A negative or non-finite edge is refused whole and logged — an author
+     * error at any surface size, refused the way {@link zoomTo} refuses an
+     * unusable scale. An inset that leaves no room on an axis is a different
+     * matter: the window shrank, and that axis silently falls back to the full
+     * surface at fit time, so a reader can always zoom out to a whole canvas.
+     *
+     * An edge given explicitly as `undefined` means the same as an omitted one.
+     * `exactOptionalPropertyTypes` is off across this package, so
+     * `setViewportInset({ bottom: open ? 200 : undefined })` type-checks and is
+     * the first thing an author writes for a panel that toggles; spreading that
+     * `undefined` over the stored edge would fail the finiteness check and
+     * refuse the whole set, with a warning naming a problem the author does not
+     * have.
+     */
+    setViewportInset(inset: Partial<ViewportInset>): void;
+    /** Return every edge to zero — fits frame into the whole surface again. */
+    resetViewportInset(): void;
     /** Return the image to exactly how it was decoded. */
     resetImageAdjustments(): void;
     /**
@@ -3480,10 +3779,21 @@ export declare class ViewerState {
      * Note: This cleans up the menu button, panel, and flyout records, but does
      * not run the plugin's own teardown — the plugin's `PluginActivation`
      * (`deactivate()`) owns that.
+     *
+     * Its **overlay layers** are the exception, and are disposed here: they are
+     * DOM on the image, so a plugin whose cleanup misses its dispose would leave
+     * orphaned markers sitting over the picture with nothing left to remove them.
+     * A layer id names its plugin ({@link registerOverlayLayer}), which is what
+     * makes that possible. This is a backstop, not the documented path — a plugin
+     * releases its layer from its own `view.mount` cleanup, and doing both is
+     * safe because the dispose is idempotent.
      */
     unregisterPlugin(pluginId: string): void;
     /**
      * Cleanup everything.
+     *
+     * Including every overlay layer, for the reason {@link unregisterPlugin}
+     * gives: an undisposed layer is DOM left on the image.
      */
     destroyAllPlugins(): void;
     /**
@@ -4243,7 +4553,7 @@ export interface CollectionConfig extends ClosablePanelConfig {
      */
     open?: boolean;
 }
-export interface PluginUiConfig {
+export interface PluginUiConfig extends ClosablePanelConfig {
     /**
      * Whether the plugin's toolbar button is visible.
      * @default true
@@ -5332,10 +5642,17 @@ export type ViewerErrorSeverity = 'warning' | 'error';
  * - `config`: an invalid or conflicting `ViewerConfig` value.
  * - `content-state`: content-state ingestion degraded or failed (ADR 0006).
  * - `manifest`: a manifest or linked resource failed to load or parse.
+ * - `plugin`: a call a plugin made into `ViewerState` was refused — a plugin
+ *   *author* error, reported to the host because the (silent-by-default) logger
+ *   would otherwise swallow it in every viewer that has not enabled `debug`.
+ *   Distinct from the `pluginerror` channel, which carries a failure *thrown by*
+ *   an identified plugin along with its `retry()`; a refused call throws nothing
+ *   and core cannot always attribute it to a plugin at all (a layer id naming no
+ *   known plugin is exactly that case).
  * - `search`: a search operation failed or no search service was available.
  * - `viewport`: a viewport operation (e.g. fullscreen) failed.
  */
-export type ViewerErrorScope = 'config' | 'content-state' | 'manifest' | 'search' | 'viewport';
+export type ViewerErrorScope = 'config' | 'content-state' | 'manifest' | 'plugin' | 'search' | 'viewport';
 /**
  * The normative `viewererror` payload. Delivered as the `detail` of the
  * bubbling, composed `viewererror` CustomEvent from the viewer root AND to the
@@ -5395,6 +5712,29 @@ export interface ContainerSize {
     width: number;
     height: number;
 }
+/**
+ * Edges of the viewer surface reserved by plugin UI, in screen pixels.
+ *
+ * A **fit target**, not a box model: a fit frames its box into what is left of
+ * the surface, so a plugin's floating panel no longer covers the thing the
+ * reader was sent to look at. Nothing else changes — the surface is still the
+ * full rectangle, and every coordinate on this boundary still means what it did.
+ *
+ * {@link ZERO_VIEWPORT_INSET} is the identity, and one inset is held per viewer:
+ * a second setter wins.
+ */
+export interface ViewportInset {
+    /** Screen pixels reserved at the top of the surface. */
+    top: number;
+    /** Screen pixels reserved at the right of the surface. */
+    right: number;
+    /** Screen pixels reserved at the bottom of the surface. */
+    bottom: number;
+    /** Screen pixels reserved at the left of the surface. */
+    left: number;
+}
+/** The identity inset — a fit frames into the whole surface. */
+export declare const ZERO_VIEWPORT_INSET: ViewportInset;
 /**
  * Image adjustments applied to the rendered image, as a whole set.
  *

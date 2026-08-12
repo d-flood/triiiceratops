@@ -11,12 +11,14 @@ import { expect, test, type Page } from '@playwright/test';
 import {
     expectFeatureOnModel,
     findFeature,
+    fitCanvasBounds,
     getView,
     GRID_FEATURES,
     nextPaint,
     openGridManifest,
     predictScreenPoint,
     setView,
+    zoomAt,
 } from './helpers/numberedGrid';
 import { VELOCITY_WINDOW_MS } from '../src/lib/renderer/rendererDefaults';
 
@@ -61,6 +63,67 @@ async function settle(page: Page): Promise<void> {
         )
         .toBe(true);
     await nextPaint(page);
+}
+
+/** Edges of a {@link ViewportInset}, as a plugin passes them. */
+type InsetEdges = {
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+};
+
+/**
+ * Open the shadow-DOM fixture on the numbered grid and wait until it is painted.
+ *
+ * The inset specs use this page rather than `openGridManifest`'s demo app
+ * because the commands under test are on `ViewerState`, which the custom element
+ * exposes as a property — and because the fixture's surface is a fixed CSS box,
+ * so the reserved strip is a knowable fraction of it.
+ */
+async function openShadowGrid(page: Page): Promise<void> {
+    await page.goto('/e2e/canvas-renderer-wc.html', {
+        waitUntil: 'domcontentloaded',
+    });
+    await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 30_000 });
+    await expect
+        .poll(() => findFeature(page, 'bravo'), { timeout: 20_000 })
+        .not.toBeNull();
+}
+
+/**
+ * Set (or release) the viewport inset through the public command.
+ *
+ * Driven through `el.viewerState` on the custom element rather than the
+ * renderer's test handle: `setViewportInset` is the command a plugin calls, and
+ * there is deliberately nothing on `RendererPort` to reach for.
+ */
+async function setInset(page: Page, inset: InsetEdges | null): Promise<void> {
+    await page.evaluate((next) => {
+        const host = document.getElementById('v') as unknown as {
+            viewerState: {
+                setViewportInset(inset: Record<string, number>): void;
+                resetViewportInset(): void;
+            };
+        };
+        if (next) host.viewerState.setViewportInset(next);
+        else host.viewerState.resetViewportInset();
+    }, inset);
+}
+
+/** {@link setInset}, then the public `fitCanvas`. */
+async function insetThenFit(
+    page: Page,
+    inset: InsetEdges | null = null,
+): Promise<void> {
+    await setInset(page, inset);
+    await page.evaluate(() => {
+        (
+            document.getElementById('v') as unknown as {
+                viewerState: { fitCanvas(): void };
+            }
+        ).viewerState.fitCanvas();
+    });
 }
 
 test.describe('Canvas2D renderer — static image', () => {
@@ -420,6 +483,209 @@ test.describe('Canvas2D renderer — static image', () => {
 
         await expect(root).not.toHaveClass(/has-bg/);
         await expect(root).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    });
+
+    /**
+     * The **viewport inset** — the one claim about it that needs a browser.
+     *
+     * The arithmetic is asserted in `renderer/viewportMath.test.ts`
+     * (`fitBoundsInset`); what only a real viewer can show is that a fit issued
+     * through the public command actually consults it, on painted pixels. The
+     * grid's centre marker (`bravo`, at 600,450 of a 1200x900 canvas) is the
+     * canvas centroid, so with the bottom of the surface reserved it has to land
+     * HIGHER than with nothing reserved.
+     *
+     * Driven through `el.viewerState` on the custom element rather than the
+     * renderer's test handle: `setViewportInset` is the public command a plugin
+     * calls, and there is deliberately nothing on `RendererPort` to reach for.
+     */
+    test('a fit frames into the viewport inset, not under a plugin panel', async ({
+        page,
+    }) => {
+        await openShadowGrid(page);
+        const fitCanvas = (inset?: InsetEdges) => insetThenFit(page, inset);
+
+        await fitCanvas();
+        await settle(page);
+        const centred = (await findFeature(page, 'bravo'))!;
+
+        // Reserving a quarter of the 600px-tall surface at the bottom moves the
+        // centre of the visible rectangle up by an eighth of it.
+        const RESERVED = 150;
+        await fitCanvas({ bottom: RESERVED });
+        await settle(page);
+        const lifted = (await findFeature(page, 'bravo'))!;
+
+        expect(lifted.y).toBeLessThan(centred.y - 1);
+        // And not merely somewhere higher: the centroid sits in the middle of
+        // what is left, which is exactly half the reserved strip above the
+        // middle of the surface. A pixel of slack for the resampled centroid.
+        expect(Math.abs(lifted.y - (centred.y - RESERVED / 2))).toBeLessThan(2);
+        // The horizontal axis was not touched.
+        expect(Math.abs(lifted.x - centred.x)).toBeLessThan(2);
+
+        // The inset does not change what the surface IS: releasing it and
+        // fitting again lands back where it started.
+        await fitCanvas();
+        await settle(page);
+        const restored = (await findFeature(page, 'bravo'))!;
+        expect(Math.abs(restored.y - centred.y)).toBeLessThan(2);
+    });
+
+    /**
+     * **An inset moves fits and nothing else — starting with the zoom range.**
+     *
+     * The range is derived from the fit scale, so it is the one place where "the
+     * inset is part of the fit" leaks into everything: `zoomRange`'s output gates
+     * pinch, the wheel, double-tap, keyboard zoom, `zoomTo`, `zoomBy`, and the
+     * re-clamp after a resize. An inset threaded into it lowers the ceiling under
+     * the reader's fingers when a panel opens and snaps a reader who was already
+     * at the ceiling back out on the very next nudge — which would make "setting
+     * an inset never changes the current scale" false.
+     *
+     * Both ends are measured by driving the viewport into them through the real
+     * clamp, rather than by asserting the shipped factors, so this pins the range
+     * a reader can actually reach.
+     */
+    test('an inset leaves the zoom range exactly where it was', async ({
+        page,
+    }) => {
+        await openShadowGrid(page);
+        const { width, height } = await getView(page);
+        const anchor = { x: width / 2, y: height / 2 };
+        // A third of the binding axis: enough to move the fit scale a long way,
+        // and short of the half past which the reader's own zoom floor takes over
+        // (see `CanvasHost.homeScale`).
+        const RESERVED = Math.round(height / 3);
+
+        await insetThenFit(page);
+        await settle(page);
+        const home = (await getView(page)).scale;
+
+        await zoomAt(page, anchor, 1e6);
+        await settle(page);
+        const ceiling = (await getView(page)).scale;
+        expect(ceiling).toBeGreaterThan(home);
+
+        // A reader sitting at the ceiling when the panel opens stays there: the
+        // next nudge re-clamps against the same range it did before.
+        await setInset(page, { bottom: RESERVED });
+        await zoomAt(page, anchor, 1);
+        await settle(page);
+        expect((await getView(page)).scale).toBeCloseTo(ceiling, 4);
+
+        // And the ceiling itself is unmoved, not merely un-crossed.
+        await zoomAt(page, anchor, 1e6);
+        await settle(page);
+        expect((await getView(page)).scale).toBeCloseTo(ceiling, 4);
+
+        // The floor is the other half of the same range, and is the end the
+        // "a reader can always zoom out to a whole canvas" guarantee lives at.
+        await setInset(page, null);
+        await zoomAt(page, anchor, 1e-6);
+        await settle(page);
+        const floor = (await getView(page)).scale;
+        expect(floor).toBeLessThan(home);
+
+        await setInset(page, { bottom: RESERVED });
+        await zoomAt(page, anchor, 1e-6);
+        await settle(page);
+        expect((await getView(page)).scale).toBeCloseTo(floor, 4);
+    });
+
+    /**
+     * **A fit the zoom ceiling clamps still lands in the inset rectangle.**
+     *
+     * The inset's centre shift is a distance in SCREEN pixels, and the viewport
+     * stores a centre in canvas units — so the conversion needs the scale the
+     * viewport actually adopts, not the scale the fit asked for. `fitBounds` is
+     * the one command whose box comes from the caller, so it is the one path
+     * where those two differ: a two-unit box fits hundreds of times past the
+     * ceiling, `clampScale` cuts the scale down, and a shift divided by the
+     * un-clamped scale lands the box a long way off the middle of the visible
+     * rectangle — in the worst case behind the very panel the inset exists for.
+     *
+     * Asserted on the viewport rather than on painted pixels because at the
+     * ceiling the grid's markers are far larger than the surface, so their
+     * centroids are clipped rather than located.
+     */
+    test('a fit clamped by the zoom ceiling still lands in the inset rectangle', async ({
+        page,
+    }) => {
+        await openShadowGrid(page);
+        const surface = await getView(page);
+        const RESERVED = Math.round(surface.height / 3);
+        const anchor = { x: surface.width / 2, y: surface.height / 2 };
+
+        // The ceiling, measured the same way the spec above measures it.
+        await insetThenFit(page);
+        await settle(page);
+        await zoomAt(page, anchor, 1e6);
+        await settle(page);
+        const ceiling = (await getView(page)).scale;
+
+        await setInset(page, { bottom: RESERVED });
+        // Two canvas units of a 1200x900 canvas: a fit far past the ceiling.
+        const box = { x: 599, y: 449, width: 2, height: 2 };
+        await fitCanvasBounds(page, box);
+        await settle(page);
+
+        const view = await getView(page);
+        // The clamp really did bite — otherwise this asserts nothing.
+        expect(view.scale).toBeCloseTo(ceiling, 4);
+
+        const landed = predictScreenPoint({ x: 600, y: 450 }, view);
+        // The visible rectangle is the surface less the reserved strip, so its
+        // middle sits half the strip above the middle of the surface.
+        expect(landed.y).toBeCloseTo((view.height - RESERVED) / 2, 0);
+        expect(landed.x).toBeCloseTo(view.width / 2, 0);
+    });
+
+    /**
+     * **Setting an inset does not move the current view.**
+     *
+     * The load-bearing detail is the `untrack` read in
+     * `CanvasHost.currentInset`: the scene effect calls `fitCurrentCanvas`, so a
+     * tracked read of `viewerState.viewportInset` would re-run that effect and
+     * animate a re-fit every time a plugin panel opened — core moving the image
+     * under a reader who had deliberately zoomed in (ADR 0015's spirit).
+     *
+     * This has to be a browser assertion. The `viewer.viewport.test.ts` sibling
+     * can only show that the COMMAND issues nothing at the renderer; the renderer
+     * stand-in has no fit arithmetic and no scene effect, so it could not re-fit
+     * even if the real one did. Remove the `untrack` and this spec is the only
+     * one that goes red.
+     */
+    test('setting an inset does not move the current view', async ({
+        page,
+    }) => {
+        await openShadowGrid(page);
+
+        // Deliberately not a fit: a reader who has zoomed in is exactly whose
+        // view must not be taken away.
+        await setView(page, { centre: { x: 400, y: 300 }, scale: 1.5 });
+        await settle(page);
+        const before = await getView(page);
+
+        await setInset(page, { bottom: 200 });
+        // `settle` waits out any animation that started, so if the inset did
+        // provoke a re-fit this reads its destination rather than racing it.
+        await nextPaint(page);
+        await settle(page);
+
+        const after = await getView(page);
+        expect(after.scale).toBeCloseTo(before.scale, 9);
+        expect(after.centre.x).toBeCloseTo(before.centre.x, 9);
+        expect(after.centre.y).toBeCloseTo(before.centre.y, 9);
+
+        // …and the inset is still there to be honoured by the next fit.
+        await insetThenFit(page, { bottom: 200 });
+        await settle(page);
+        const fitted = await getView(page);
+        expect(predictScreenPoint({ x: 600, y: 450 }, fitted).y).toBeCloseTo(
+            (fitted.height - 200) / 2,
+            0,
+        );
     });
 
     test('works inside the custom element shadow root', async ({ page }) => {

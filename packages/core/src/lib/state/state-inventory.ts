@@ -427,6 +427,12 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Brightness/contrast/saturation/invert/grayscale applied to the rendered image. Command state rather than a reach into the renderer’s DOM node: it survives a remount and is testable with no renderer.',
     },
     {
+        member: 'viewportInset',
+        classification: 'command',
+        commands: ['setViewportInset', 'resetViewportInset'],
+        notes: 'Edges of the surface a plugin has reserved, which fits frame into. Same shape as imageAdjustments: one unkeyed value, merge-over-current, negative or non-finite edges refused at set time. Not reactive beyond notifying — the renderer READS it when it fits, so nothing replays and setting it never moves the current view.',
+    },
+    {
         member: 'viewportScale',
         classification: 'query-only',
         commands: ['zoomIn', 'zoomOut', 'zoomTo', 'fitBounds', 'fitCanvas'],
@@ -465,6 +471,23 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'paintLayers',
         classification: 'internal',
         notes: 'The registry’s ordered snapshot, read by the renderer host once per painted frame. Internal rather than query-only: a plugin registers a layer and is called back, it does not read the list — and a per-frame read that is not viewer state would only invite polling.',
+    },
+
+    // ---- Overlay layers -------------------------------------------------------
+    {
+        member: 'overlayLayerRevision',
+        classification: 'internal',
+        notes: 'Bumped when an overlay layer is registered or disposed, so the render site places or removes its container. Deliberately the same shape as paintLayerRevision — the two registries are structurally identical so there is one idiom to learn.',
+    },
+    {
+        member: 'overlayLayerRegistry',
+        classification: 'internal',
+        notes: 'The overlay layer registry behind registerOverlayLayer (`renderer/overlayLayers.ts`). Held here rather than at the render site so a layer may be registered before a renderer mounts and survives a remount. Not reactive: the revision counter above is the signal.',
+    },
+    {
+        member: 'overlayLayers',
+        classification: 'internal',
+        notes: 'The registry’s registration-ordered snapshot, read by the render site. Internal rather than command state: a plugin registers a layer and receives a dispose, it does not mutate this list. Carries no contract, exactly as paintLayers does not; a test that reads it back to prove register/release symmetry is reading an internal.',
     },
 
     // ---- Plugin registration -------------------------------------------------

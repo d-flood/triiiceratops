@@ -156,6 +156,15 @@ export interface TestViewerContextOptions {
      * Chrome id the plugin's surface is bound to — the `config.plugins` key. Use
      * the plugin's own `uiId` when a fixture configures it through
      * `fixtures.config.plugins`; defaults to `'test-plugin'`.
+     *
+     * It is also the **only** id the viewer knows a plugin by, so it is the only
+     * prefix `ViewerState.registerOverlayLayer` accepts: a plugin that ids its
+     * layer from `context.surface.id` works here unchanged, and one that hardcodes
+     * its package name has its layer refused (`viewererror`,
+     * `overlay-layer-refused`) with `mount` never called. Hand `surface` to
+     * `activatePlugin` — pass `tc.surface`, as `runActivation` does — or the
+     * plugin gets the always-open stub surface, whose id names no plugin of this
+     * viewer and whose layers are therefore all refused.
      */
     uiId?: string;
     /**

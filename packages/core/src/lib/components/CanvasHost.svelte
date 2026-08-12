@@ -88,6 +88,7 @@
         type ContainerSize,
         type ImageAdjustments,
         type ViewportBox,
+        type ViewportInset,
         type ViewportPoint,
     } from '../types/viewport';
     import { paintScene } from '../renderer/paintScene';
@@ -149,6 +150,8 @@
         clamp,
         constrainCentre,
         fitBounds,
+        fitBoundsInset,
+        insetFitCentre,
         normalizeWheelDelta,
         wheelZoomRate,
         zoomRange,
@@ -927,7 +930,51 @@
         );
     }
 
-    /** The scale at which a fit lands — the zoom ceiling's reference. */
+    /**
+     * The inset the next fit frames into — the edges a plugin has reserved for
+     * its own floating UI (`ViewerState.setViewportInset`).
+     *
+     * Read **untracked**, and that is the whole no-reactivity rule in one line:
+     * the scene effect below calls `fitCurrentCanvas`, so a tracked read would
+     * make setting an inset re-run that effect and re-fit the viewport — core
+     * animating the image because a plugin panel opened, which is exactly what
+     * the inset is specified not to do. The renderer consults the inset when it
+     * fits, and only then.
+     */
+    function currentInset(): ViewportInset {
+        return untrack(() => viewerState.viewportInset);
+    }
+
+    /**
+     * The scale at which a fit lands on the WHOLE surface — the zoom range's
+     * reference.
+     *
+     * **Deliberately un-inset**, and this is the one place where that costs
+     * something. `homeScale` exists only as `clampScale`'s `fitScale`, so an
+     * inset threaded in here is an inset threaded into `zoomRange`, and from
+     * there into pinch, the wheel, double-tap, keyboard zoom, `zoomTo`,
+     * `zoomBy`, and the re-clamp after every resize — every one of which the
+     * inset is specified not to touch. A plugin panel opening would lower the
+     * zoom ceiling under the reader's fingers and snap a reader already at it
+     * back out on the next nudge, making "setting an inset never changes the
+     * current scale" false. Pinned by `tests/canvas-renderer.spec.ts`, "an inset
+     * leaves the zoom range exactly where it was".
+     *
+     * **The residual tension, stated rather than resolved.** An inset reserving
+     * more than half of the binding axis wants a fit scale below the reader's
+     * own zoom floor (`MIN_ZOOM_FRACTION` of this un-inset fit), so `clampScale`
+     * raises it and the box is framed larger than the rectangle left visible —
+     * the inset is honoured in direction but not in full. At exactly the same
+     * threshold {@link constrained} starts clamping the centre shift back
+     * towards the world, for the same arithmetic reason; in continuous mode,
+     * where the world is the whole strip, that bites on the first and last
+     * canvas. Both are the standing guarantees — a reader can always zoom out
+     * far enough to see a whole canvas, and the world never leaves the viewport
+     * — winning over a plugin's request, which is the right way round: the
+     * alternative is a viewer whose zoom range a plugin can collapse. Reserving
+     * more than half an axis is documented as unsupported rather than fixed
+     * (`docs/plugin-authoring.md`).
+     */
     function homeScale(limits: ReturnType<typeof viewportLimits>): number {
         const bounds = fitBoundsTarget(limits);
         if (!bounds || viewport.width === 0 || viewport.height === 0) return 1;
@@ -1053,19 +1100,29 @@
      * ceiling. `zoomTo` documents its limits as inescapable; a sibling command
      * that skips them would make that false, and would bypass the tier and
      * zoom-floor invariants derived from the same range.
+     *
+     * **The single choke point every fit goes through**, which is why the
+     * viewport inset is consulted here and nowhere else: pan, zoom, the
+     * coordinate helpers and the viewport queries all stay about the whole
+     * surface.
      */
     function applyFit(bounds: Box | null, animated: boolean) {
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
-        const fit = fitBounds(bounds, viewport);
-        const scale = clampScale(fit.scale);
+        const inset = currentInset();
+        const scale = clampScale(fitBoundsInset(bounds, viewport, inset).scale);
+        // The centre is composed at the scale actually ADOPTED, not the one the
+        // fit asked for: the inset shift is a screen distance, so a clamped fit
+        // whose shift was divided by the un-clamped scale lands off-centre by
+        // `adopted / wanted` — see `insetFitCentre`.
+        const centre = insetFitCentre(bounds, viewport, inset, scale);
         if (animated) {
-            setViewAnimated(fit.centre, scale, animationTime());
+            setViewAnimated(centre, scale, animationTime());
             return;
         }
 
-        viewport = { ...viewport, centre: fit.centre, scale };
-        targetCentre = fit.centre;
+        viewport = { ...viewport, centre, scale };
+        targetCentre = centre;
         targetScale = scale;
         animating = false;
         momentum = null;

@@ -74,10 +74,12 @@ export type {
     ContainerSize,
     ImageAdjustments,
     ViewportBox,
+    ViewportInset,
     ViewportPoint,
 } from './types/viewport';
 export {
     NEUTRAL_IMAGE_ADJUSTMENTS,
+    ZERO_VIEWPORT_INSET,
     imageAdjustmentsToCssFilter,
     isNeutralImageAdjustments,
 } from './types/viewport';
@@ -92,6 +94,13 @@ export type {
     PaintLayerDraw,
     PaintTransform,
 } from './renderer/paintLayers';
+
+// The **overlay layer**'s vocabulary: what `registerOverlayLayer` takes. Types
+// only — the registry is core's, reached through
+// `ViewerState.registerOverlayLayer`. `mount` is the same `PluginMountThunk` a
+// plugin's chrome already uses; a layer is a DOM container over the image, which
+// is where anything a reader must perceive or operate belongs.
+export type { OverlayLayer } from './renderer/overlayLayers';
 
 // The custom element's state bridge (framework-wrappers ticket 02): the
 // getter-only `viewerState` property paired with the `viewerstateavailable`

@@ -6,8 +6,11 @@ import {
     approach,
     approachScale,
     canvasToScreen,
+    clamp,
     constrainCentre,
     fitBounds,
+    fitBoundsInset,
+    insetFitCentre,
     normalizeWheelDelta,
     screenToCanvas,
     wheelZoomRate,
@@ -70,6 +73,340 @@ describe('fitBounds', () => {
         expect(
             fitBounds({ x: 0, y: 0, width: 0, height: 0 }, VIEWPORT).scale,
         ).toBe(1);
+    });
+});
+
+describe('fitBoundsInset', () => {
+    const BOX = { x: 0, y: 0, width: 1000, height: 1000 };
+    const NONE = { top: 0, right: 0, bottom: 0, left: 0 };
+
+    /**
+     * Where a fit puts the box on the surface, in screen pixels.
+     *
+     * The claim being made about an inset is a claim about the PICTURE — the box
+     * lands centred in the rectangle the reader can still see — so the
+     * assertions below go through the same `canvasToScreen` the painter uses
+     * rather than restating the arithmetic that produced them.
+     */
+    function screenBox(
+        bounds: typeof BOX,
+        size: { width: number; height: number },
+        inset: typeof NONE,
+    ) {
+        const fit = fitBoundsInset(bounds, size, inset);
+        const viewport: Viewport = { ...size, ...fit };
+        const topLeft = canvasToScreen({ x: bounds.x, y: bounds.y }, viewport);
+        const bottomRight = canvasToScreen(
+            { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+            viewport,
+        );
+        return {
+            ...topLeft,
+            width: bottomRight.x - topLeft.x,
+            height: bottomRight.y - topLeft.y,
+        };
+    }
+
+    it('is `fitBounds` exactly for a zero inset', () => {
+        for (const bounds of [
+            BOX,
+            { x: 0, y: 0, width: 1000, height: 750 },
+            { x: -200, y: 40, width: 300, height: 3000 },
+        ]) {
+            expect(fitBoundsInset(bounds, VIEWPORT, NONE)).toEqual(
+                fitBounds(bounds, VIEWPORT),
+            );
+        }
+    });
+
+    it('takes the scale from the inset extent and leaves a symmetric inset centred', () => {
+        // 1000x1000 into the 800x400 left by 100 top and bottom → 0.4, and the
+        // reserved edges are equal, so the centre does not move.
+        const fit = fitBoundsInset(BOX, VIEWPORT, {
+            ...NONE,
+            top: 100,
+            bottom: 100,
+        });
+
+        expect(fit.scale).toBeCloseTo(0.4, 10);
+        expect(fit.centre).toEqual({ x: 500, y: 500 });
+    });
+
+    it('centres the box in the visible rectangle for an asymmetric inset', () => {
+        const inset = { ...NONE, bottom: 200 };
+        const box = screenBox(BOX, VIEWPORT, inset);
+
+        // 1000x1000 into 800x400: height-limited at 0.4, so 400x400 of picture.
+        expect(box.width).toBeCloseTo(400, 6);
+        expect(box.height).toBeCloseTo(400, 6);
+        // Centred in the 800x400 rectangle above the reserved strip — which is
+        // 100px higher on the surface than the middle of the surface itself.
+        expect(box.x + box.width / 2).toBeCloseTo(400, 6);
+        expect(box.y + box.height / 2).toBeCloseTo(200, 6);
+        // Nothing of it is under the reserved strip.
+        expect(box.y + box.height).toBeLessThanOrEqual(400 + 1e-6);
+    });
+
+    it('reserves both edges of an axis independently', () => {
+        const box = screenBox(BOX, VIEWPORT, {
+            ...NONE,
+            left: 300,
+            right: 100,
+            top: 60,
+        });
+
+        // 400 wide x 540 tall visible: width-limited at 0.4.
+        expect(box.width).toBeCloseTo(400, 6);
+        // Centred in [300, 700] horizontally and [60, 600] vertically.
+        expect(box.x + box.width / 2).toBeCloseTo(500, 6);
+        expect(box.y + box.height / 2).toBeCloseTo(330, 6);
+    });
+
+    // The surface resizes under an inset an author chose for a taller window,
+    // and a reader must still be able to see a whole canvas: the axis with no
+    // room left falls back to the whole surface, silently, on its own.
+    it('falls back to the full extent per axis when an inset leaves no room', () => {
+        const box = screenBox(BOX, VIEWPORT, {
+            ...NONE,
+            top: 400,
+            bottom: 400,
+            left: 200,
+        });
+
+        // Vertically unusable (600 - 800 < 0) → the full 600 height. Horizontally
+        // 600 remains, so that axis keeps its inset. 1000x1000 into 600x600 is
+        // 0.6 either way.
+        expect(box.height).toBeCloseTo(600, 6);
+        expect(box.width).toBeCloseTo(600, 6);
+        // The vertical axis is centred on the SURFACE, the horizontal one in
+        // [200, 800].
+        expect(box.y + box.height / 2).toBeCloseTo(300, 6);
+        expect(box.x + box.width / 2).toBeCloseTo(500, 6);
+    });
+
+    it('is `fitBounds` again when every axis falls back', () => {
+        expect(
+            fitBoundsInset(BOX, VIEWPORT, {
+                top: 500,
+                bottom: 500,
+                left: 500,
+                right: 500,
+            }),
+        ).toEqual(fitBounds(BOX, VIEWPORT));
+    });
+
+    // Set-time validation refuses these, but the arithmetic stays total: a bad
+    // number must not produce a NaN scale or centre for the painter.
+    it('stays total for a non-finite edge and a degenerate box', () => {
+        expect(
+            fitBoundsInset(BOX, VIEWPORT, { ...NONE, bottom: Number.NaN }),
+        ).toEqual(fitBounds(BOX, VIEWPORT));
+        expect(
+            fitBoundsInset(BOX, VIEWPORT, { ...NONE, top: Infinity }),
+        ).toEqual(fitBounds(BOX, VIEWPORT));
+
+        const degenerate = fitBoundsInset(
+            { x: 10, y: 20, width: 0, height: 0 },
+            VIEWPORT,
+            { ...NONE, bottom: 200 },
+        );
+        expect(degenerate.scale).toBe(1);
+        expect(Number.isFinite(degenerate.centre.x)).toBe(true);
+        expect(Number.isFinite(degenerate.centre.y)).toBe(true);
+    });
+
+    // An unmeasured surface has no extent to reserve part of, and the fit
+    // arithmetic must not invent one.
+    it('does not shift the centre when there is no fit to shift', () => {
+        expect(
+            fitBoundsInset(BOX, { width: 0, height: 0 }, { ...NONE, left: 40 }),
+        ).toEqual({ centre: { x: 500, y: 500 }, scale: 0 });
+    });
+});
+
+/**
+ * The centre half of an inset fit, at a scale the caller chose.
+ *
+ * Why it is a separate function at all: `CanvasHost.applyFit` puts every fitted
+ * scale through `clampScale`, so the scale the viewport adopts is often not the
+ * one the fit computed — and the inset's shift is a SCREEN distance, so the
+ * conversion into canvas units must use the adopted scale or the realised shift
+ * comes out multiplied by `adopted / wanted`.
+ */
+describe('insetFitCentre', () => {
+    const BOX = { x: 0, y: 0, width: 1000, height: 1000 };
+    const NONE = { top: 0, right: 0, bottom: 0, left: 0 };
+
+    it('agrees with `fitBoundsInset` at the fit’s own scale', () => {
+        for (const inset of [
+            NONE,
+            { ...NONE, bottom: 200 },
+            { ...NONE, left: 300, right: 100, top: 60 },
+            { ...NONE, top: 400, bottom: 400, left: 200 },
+        ]) {
+            const fit = fitBoundsInset(BOX, VIEWPORT, inset);
+            expect(insetFitCentre(BOX, VIEWPORT, inset, fit.scale)).toEqual(
+                fit.centre,
+            );
+        }
+    });
+
+    // The claim in screen terms: whatever scale is adopted, the box centre lands
+    // in the middle of the rectangle the inset leaves visible.
+    it('keeps the shift a fixed SCREEN distance across scales', () => {
+        const inset = { ...NONE, bottom: 200 };
+
+        for (const scale of [0.4, 1, 12.5, 85 + 1 / 3]) {
+            const centre = insetFitCentre(BOX, VIEWPORT, inset, scale);
+            const screenY = (500 - centre.y) * scale + VIEWPORT.height / 2;
+            // The visible strip is [0, 400] of a 600-tall surface: its middle is
+            // 100px above the middle of the surface, at every scale.
+            expect(screenY, `scale ${scale}`).toBeCloseTo(200, 6);
+        }
+    });
+
+    it('leaves the centre alone when there is no scale to express a shift at', () => {
+        for (const scale of [0, -1, Number.NaN, Infinity]) {
+            expect(
+                insetFitCentre(BOX, VIEWPORT, { ...NONE, bottom: 200 }, scale),
+                `scale ${scale}`,
+            ).toEqual({ x: 500, y: 500 });
+        }
+    });
+});
+
+/**
+ * Where an inset stops being fully honoured, pinned as behaviour rather than
+ * fixed.
+ *
+ * `CanvasHost.applyFit` composes three of these functions — `fitBoundsInset` for
+ * the scale, `clampScale` (`zoomRange`) for the scale it may actually adopt, and
+ * `constrainCentre` for the centre an animated fit is allowed — and both clamps
+ * start cutting into the inset's shift at exactly the same threshold: an inset
+ * reserving **more than half** of the binding axis.
+ *
+ * That is not a bug in either clamp. `zoomRange`'s floor is the guarantee that a
+ * reader can always zoom out far enough to see a whole canvas, and
+ * `constrainCentre` is the guarantee that the world never leaves the viewport;
+ * both outrank a plugin's request for space, because the alternative is a viewer
+ * whose zoom range and pan bounds a plugin can collapse. Reserving more than half
+ * an axis is documented as unsupported (`docs/plugin-authoring.md`).
+ *
+ * These numbers mirror the shipped constants and a 1200x900 canvas on an 800x600
+ * surface, which is the browser fixture.
+ */
+describe('the limit of what an inset can ask for', () => {
+    const CANVAS = { x: 0, y: 0, width: 1200, height: 900 };
+    const SURFACE = { width: 800, height: 600 };
+    const NONE = { top: 0, right: 0, bottom: 0, left: 0 };
+    // The shipped MIN_ZOOM_FRACTION and VISIBILITY_RATIO, restated rather than
+    // imported so a tuned default cannot silently redefine what this pins.
+    const MIN_ZOOM_FRACTION = 1 / 2;
+    const VISIBILITY_RATIO = 0.5;
+
+    /** `CanvasHost.applyFit`'s composition, in the order it performs it. */
+    function fit(inset: typeof NONE, world = CANVAS) {
+        const home = fitBounds(CANVAS, SURFACE).scale;
+        const { min, max } = zoomRange(home, 0, 128, MIN_ZOOM_FRACTION);
+        const wanted = fitBoundsInset(CANVAS, SURFACE, inset).scale;
+        const scale = clamp(wanted, min, max);
+        const centre = insetFitCentre(CANVAS, SURFACE, inset, scale);
+        return {
+            wanted,
+            scale,
+            centre,
+            constrained: constrainCentre(
+                centre,
+                scale,
+                world,
+                SURFACE,
+                VISIBILITY_RATIO,
+            ),
+        };
+    }
+
+    // 300 of 600 is the boundary; a third of the axis is comfortably inside it.
+    it('honours an inset within half the axis exactly', () => {
+        const result = fit({ ...NONE, bottom: 200 });
+
+        expect(result.scale).toBeCloseTo(result.wanted, 12);
+        expect(result.constrained).toEqual(result.centre);
+        // The canvas centre lands in the middle of the visible [0, 400] strip.
+        const screenY =
+            (450 - result.constrained.y) * result.scale + SURFACE.height / 2;
+        expect(screenY).toBeCloseTo(200, 6);
+    });
+
+    it('clamps the SCALE up once the inset passes half the axis', () => {
+        const result = fit({ ...NONE, bottom: 400 });
+
+        // 900 canvas units into the 200px left wants 0.222; the reader's floor is
+        // half the un-inset fit, 0.333, and wins.
+        expect(result.wanted).toBeCloseTo(2 / 9, 6);
+        expect(result.scale).toBeCloseTo(1 / 3, 6);
+        // So the canvas is framed LARGER than the strip: 300px of picture in a
+        // 200px strip, still lifted, but overflowing it.
+        expect(CANVAS.height * result.scale).toBeCloseTo(300, 6);
+    });
+
+    /**
+     * …and in continuous mode the CENTRE is clamped as well, on the strip's last
+     * canvas.
+     *
+     * There the world is every folio, so it is always taller than the viewport
+     * window and `constrainCentre`'s upper bound collapses onto the world's own
+     * far edge — which the inset's shift, past the same half-axis threshold, asks
+     * to cross. The first canvas has the mirror problem with a `top` inset.
+     *
+     * Only the ANIMATED fit path is affected: `applyFit` adopts an instant fit
+     * without constraining it, so an unanimated fit keeps the full shift. That
+     * asymmetry is pre-existing and is why this is pinned rather than asserted as
+     * a guarantee.
+     */
+    it('clamps the CENTRE too on the last canvas of a continuous strip', () => {
+        // Ten folios stacked; the fit target is the last one.
+        const strip = { x: 0, y: 0, width: 1200, height: 9000 };
+        const last = { x: 0, y: 8100, width: 1200, height: 900 };
+        const inset = { ...NONE, bottom: 400 };
+
+        const home = fitBounds(last, SURFACE).scale;
+        const { min, max } = zoomRange(home, 0, 128, MIN_ZOOM_FRACTION);
+        const scale = clamp(
+            fitBoundsInset(last, SURFACE, inset).scale,
+            min,
+            max,
+        );
+        const wanted = insetFitCentre(last, SURFACE, inset, scale);
+        const allowed = constrainCentre(
+            wanted,
+            scale,
+            strip,
+            SURFACE,
+            VISIBILITY_RATIO,
+        );
+
+        // The shift asks to sit 150 canvas units past the end of the world…
+        expect(wanted.y).toBeCloseTo(9150, 6);
+        // …and is pulled back to it, so 150 units of the lift are lost.
+        expect(allowed.y).toBeCloseTo(9000, 6);
+
+        // Within half the axis there is nothing to clamp, on the same folio.
+        const modest = { ...NONE, bottom: 200 };
+        const modestScale = clamp(
+            fitBoundsInset(last, SURFACE, modest).scale,
+            min,
+            max,
+        );
+        const modestCentre = insetFitCentre(last, SURFACE, modest, modestScale);
+        expect(
+            constrainCentre(
+                modestCentre,
+                modestScale,
+                strip,
+                SURFACE,
+                VISIBILITY_RATIO,
+            ),
+        ).toEqual(modestCentre);
     });
 });
 

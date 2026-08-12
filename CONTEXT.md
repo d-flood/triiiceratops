@@ -233,7 +233,34 @@ level0. Level 1/2 services omit `tiles` too, and serve arbitrary regions.
 An ordered layer a plugin registers, called each frame after tiles are painted, with the
 2D context and the current transform. Ordering is explicit; core uses the hook itself, so
 it is exercised rather than speculative.
-_Avoid_: overlay (an overlay is DOM alongside the canvas; a paint hook draws into it)
+_See also_: **overlay layer** — the DOM counterpart. The choice between them is the
+accessibility rule, not timing: anything a reader must perceive or operate is DOM in an
+overlay layer, and a paint layer is decoration or a second rendering of geometry the DOM
+already carries.
+
+**Overlay layer**:
+A DOM container a plugin registers, placed beside the renderer in the viewer's stage,
+positioned by the plugin from the coordinate helpers and re-placed on the `frame` cadence.
+Its origin is `canvasToScreen`'s origin. Created once on registration and removed once on
+dispose — never remounted in between, so it survives a manifest change. Transparent to
+pointer events; children opt in. Registration order only, with no ordering field. Its id is
+`<pluginId>:<name>`, validated, so unregistering the plugin releases layers its own cleanup
+missed — a backstop, not the documented path.
+_Avoid_: overlay panel (that is a plugin **panel** rendered at the overlay position, which
+is chrome)
+
+**Viewport inset**:
+Edges of the surface a plugin has reserved, in screen pixels, which **fits** frame into:
+the scale comes from the inset extent and the centre is offset by half the asymmetry, so a
+folio lands where the reader can see it rather than behind the plugin's own floating UI.
+Fit targets only — pan, zoom, the zoom range, the coordinate helpers and the viewport
+queries stay about the whole surface, because overlay-layer DOM does. Setting one does not
+move the current view; the next fit uses it. One per viewer, so a second setter wins.
+Negative or non-finite edges are refused at set time; an axis the window has left no room
+on falls back to the full surface silently. Reserving more than **half** an axis is
+unsupported: past that the reader's zoom floor and the pan constraint cut into the fit, so
+the inset is honoured in direction but not in full.
+_Avoid_: margin, padding (both suggest a box model rather than a fit target)
 
 **Input claim**:
 A consumer temporarily owning pointer input, suppressing pan and zoom gestures for its
