@@ -14,6 +14,16 @@
         component: Component<any>;
         props?: Record<string, unknown>;
         close?: () => void;
+        /**
+         * Give the whole section — header, close button and content — a `dialog`
+         * role named by {@link title}. Core panel components render their own
+         * inside their content; a plugin panel's content is a bare mount host,
+         * so the section supplies one. Without it the panel has no accessible
+         * name and two stacked panels are two identical "Close" buttons. Naming
+         * the section rather than the content is what puts the close button
+         * inside the named dialog.
+         */
+        dialog?: boolean;
     }
 </script>
 

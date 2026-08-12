@@ -8,19 +8,15 @@
 // `close`, so these tests assert the WIRING (and its config gate), not a
 // reimplementation.
 //
-// FOCUS RETURN IS NOT UNIVERSAL, and these tests say so rather than dodging it.
-// `PanelStackSection` returns focus to the element that was focused when the
-// section mounted. For a LEFT-docked panel with the toolbar docked as a left
-// rail (`toolbarOpen: true` + `controls: 'split'` + `toolbar.side: 'left'` —
-// the demo's and most consumers' setting) opening the panel flips
-// `dockRailLeft`, which unmounts the floating `<Toolbar/>` and mounts a new
-// `<Toolbar docked/>` in the same flush. The invoker the section captured is
-// already destroyed, so focus lands on `<body>`. That is pre-existing shared
-// chrome behaviour, equally true of a core panel forced `position: 'left'`, and
-// fixing it is out of scope here, since the fix must not touch
-// `PanelStack`/`PanelStackSection`. The RIGHT-docked case below pins the
-// working focus return; the LEFT-docked case pins the actual, degraded
-// behaviour so there is a test ready to flip once it is fixed.
+// FOCUS RETURN IS ASSERTED ON BOTH SIDES, because the two sides reach it
+// differently. A RIGHT-docked panel leaves the left toolbar alone, so the toggle
+// the reader activated is still there at close. A LEFT-docked panel with the
+// toolbar docked as a left rail (`toolbarOpen: true` + `controls: 'split'` +
+// `toolbar.side: 'left'` — the demo's and most consumers' setting) flips
+// `dockRailLeft` on open, which unmounts the floating `<Toolbar/>` and mounts a
+// new `<Toolbar docked/>` in the same flush: the node is destroyed, and the
+// section has to find the toggle again by identity. Nothing here is
+// plugin-specific — a core panel forced `position: 'left'` takes the same path.
 //
 // Also the first test anywhere for `showCloseButton` — the flag is shared with
 // every core panel through `ClosablePanelConfig`, so the default-`true` branch
@@ -238,13 +234,13 @@ describe('plugin panel close affordance (config.plugins[uiId].showCloseButton)',
         await unmount(app);
     });
 
-    it('does NOT return focus when the panel is docked LEFT under a docked left rail (pre-existing; ticket 06)', async () => {
-        // Pinning the ACTUAL behaviour, not the desired one. Opening a
-        // left-docked panel flips `dockRailLeft`, so the floating toolbar
-        // holding the invoker is destroyed and re-created as a rail in the same
-        // flush; the invoker `PanelStackSection` captured on mount is detached
-        // and focus falls to `<body>`. The fix lives in shared chrome, out of
-        // scope here; once it lands, this expectation flips to `toBe(toggle)`.
+    it('returns focus to the rebuilt toolbar toggle when the panel is docked LEFT under a docked left rail', async () => {
+        // Opening a left-docked panel flips `dockRailLeft`, so the floating
+        // toolbar holding the invoker is destroyed and re-created as a rail in
+        // the same flush. The section therefore resolves its invoker by IDENTITY
+        // (`[data-panel-toggle="<panel id>"]`) at dismiss time rather than by the
+        // node it saw at mount, and — because that teardown orphaned focus — it
+        // takes focus itself on mount so Escape is reachable without tabbing in.
         const props = $state({
             plugins: [makeDouble()],
             config: {
@@ -262,13 +258,16 @@ describe('plugin panel close affordance (config.plugins[uiId].showCloseButton)',
         toggle!.click();
         await settle();
 
-        // The invoker really is gone: the toolbar was torn down and rebuilt.
+        // The node the reader activated really is gone: the toolbar was torn
+        // down and rebuilt as the rail.
         expect(toggle!.isConnected).toBe(false);
 
-        const inside =
-            panelSection(target)!.querySelector<HTMLElement>('[data-inside]');
-        inside!.focus();
-        inside!.dispatchEvent(
+        // Focus was not dropped on the floor — it is inside the panel, so
+        // Escape reaches the section's handler without tabbing in first.
+        const section = panelSection(target)!;
+        expect(section.contains(document.activeElement)).toBe(true);
+
+        section.dispatchEvent(
             new KeyboardEvent('keydown', {
                 key: 'Escape',
                 bubbles: true,
@@ -279,7 +278,12 @@ describe('plugin panel close affordance (config.plugins[uiId].showCloseButton)',
 
         expect(panelSection(target)).toBeNull();
         expect(props.viewerState!.isPluginOpen(UIID)).toBe(false);
-        expect(document.activeElement).toBe(document.body);
+
+        // The rebuilt toggle, found by identity rather than by the dead node.
+        const rebuilt = toolbarButton(target);
+        expect(rebuilt).not.toBeNull();
+        expect(rebuilt).not.toBe(toggle);
+        expect(document.activeElement).toBe(rebuilt);
 
         await unmount(app);
     });

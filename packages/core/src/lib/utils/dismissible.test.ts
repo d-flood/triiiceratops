@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { dismissible } from './dismissible';
+import { createFocusMemory, type ViewerFocusMemory } from './focusMemory';
 
 function mount(): { overlay: HTMLElement; trigger: HTMLButtonElement } {
     const trigger = document.createElement('button');
@@ -10,7 +11,19 @@ function mount(): { overlay: HTMLElement; trigger: HTMLButtonElement } {
     return { overlay, trigger };
 }
 
+/** Stands in for the viewer's own memory, scoped to the test's DOM. */
+function focusMemoryOn(scope: HTMLElement): ViewerFocusMemory {
+    const memory = createFocusMemory();
+    memory.attach(scope);
+    memories.push(memory);
+    return memory;
+}
+
+let memories: ViewerFocusMemory[] = [];
+
 afterEach(() => {
+    for (const memory of memories) memory.destroy();
+    memories = [];
     document.body.innerHTML = '';
 });
 
@@ -155,6 +168,146 @@ describe('dismissible', () => {
         controls.dismiss?.();
 
         expect(onDismiss).toHaveBeenCalledOnce();
+        expect(document.activeElement).toBe(trigger);
+        action.destroy();
+    });
+
+    it('re-resolves the invoker by identity, so a rebuilt control still gets focus', () => {
+        const { overlay, trigger } = mount();
+        trigger.dataset.panelToggle = 'metadata';
+        trigger.focus();
+        const action = dismissible(overlay, {
+            onDismiss: () => {},
+            invokerSelector: '[data-panel-toggle="metadata"]',
+            focusMemory: focusMemoryOn(document.body),
+        });
+
+        // The toolbar is torn down and rebuilt while the overlay is open — the
+        // node captured at mount is gone, its twin is not.
+        trigger.remove();
+        const rebuilt = document.createElement('button');
+        rebuilt.dataset.panelToggle = 'metadata';
+        document.body.append(rebuilt);
+
+        overlay.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        );
+
+        expect(document.activeElement).toBe(rebuilt);
+        action.destroy();
+    });
+
+    it("takes focus with focusOnMount 'orphaned' only when the invoker was destroyed", () => {
+        const { overlay, trigger } = mount();
+        const focusMemory = focusMemoryOn(document.body);
+        trigger.dataset.panelToggle = 'metadata';
+        trigger.focus();
+        const options = {
+            onDismiss: () => {},
+            invokerSelector: '[data-panel-toggle="metadata"]',
+            focusOnMount: 'orphaned' as const,
+            focusMemory,
+        };
+
+        // Invoker still standing: focus stays on it.
+        const surviving = dismissible(overlay, options);
+        expect(document.activeElement).toBe(trigger);
+        surviving.destroy();
+
+        // Invoker destroyed by the state change that opened the overlay: focus
+        // is on <body> with nowhere to go, so the overlay takes it and Escape
+        // becomes reachable without tabbing in.
+        trigger.remove();
+        const orphaned = dismissible(overlay, options);
+        expect(document.activeElement).toBe(overlay);
+        orphaned.destroy();
+    });
+
+    it("leaves focus alone with 'orphaned' when nothing was focused at all", () => {
+        // A panel opened programmatically must not steal focus on load.
+        const { overlay } = mount();
+        const focusMemory = focusMemoryOn(document.body);
+        const elsewhere = document.createElement('button');
+        document.body.append(elsewhere);
+        elsewhere.focus();
+
+        const action = dismissible(overlay, {
+            onDismiss: () => {},
+            invokerSelector: '[data-panel-toggle="metadata"]',
+            focusOnMount: 'orphaned',
+            focusMemory,
+        });
+
+        expect(document.activeElement).toBe(elsewhere);
+        action.destroy();
+    });
+
+    it("does not treat 'orphaned' as any removed control, only the invoker", () => {
+        // Something unrelated was removed while it had focus (a toolbar overflow
+        // collapsing, say). That is not this panel's invoker, so there is no
+        // reason to believe the reader was sent here — leave focus be.
+        const { overlay, trigger } = mount();
+        const focusMemory = focusMemoryOn(document.body);
+        trigger.dataset.panelToggle = 'search';
+        trigger.focus();
+        trigger.remove();
+
+        const action = dismissible(overlay, {
+            onDismiss: () => {},
+            invokerSelector: '[data-panel-toggle="metadata"]',
+            focusOnMount: 'orphaned',
+            focusMemory,
+        });
+
+        expect(document.activeElement).not.toBe(overlay);
+        action.destroy();
+    });
+
+    it('resolves the invoker only within its own viewer', () => {
+        // Two viewers on one page: identity is unique per viewer, not per
+        // document, so a document-wide lookup lands in the wrong one.
+        const other = document.createElement('div');
+        const otherToggle = document.createElement('button');
+        otherToggle.dataset.panelToggle = 'metadata';
+        other.append(otherToggle);
+        const mine = document.createElement('div');
+        const overlay = document.createElement('div');
+        mine.append(overlay);
+        document.body.append(other, mine);
+
+        const action = dismissible(overlay, {
+            onDismiss: () => {},
+            invokerSelector: '[data-panel-toggle="metadata"]',
+            focusMemory: focusMemoryOn(mine),
+        });
+
+        overlay.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        );
+
+        expect(document.activeElement).not.toBe(otherToggle);
+        action.destroy();
+    });
+
+    it('prefers the live opener over the toggle its identity names', () => {
+        // Opened from somewhere other than the toolbar toggle: focus belongs
+        // back on the control the reader actually left.
+        const { overlay, trigger } = mount();
+        const toolbarToggle = document.createElement('button');
+        toolbarToggle.dataset.panelToggle = 'metadata';
+        document.body.append(toolbarToggle);
+        trigger.focus();
+
+        const action = dismissible(overlay, {
+            onDismiss: () => {},
+            invokerSelector: '[data-panel-toggle="metadata"]',
+            focusMemory: focusMemoryOn(document.body),
+        });
+
+        overlay.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        );
+
         expect(document.activeElement).toBe(trigger);
         action.destroy();
     });

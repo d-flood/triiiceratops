@@ -2,9 +2,15 @@
     import Icon from './Icon.svelte';
     import PluginIcon from './PluginIcon.svelte';
     import PluginMountHost from './PluginMountHost.svelte';
-    import { getContext } from 'svelte';
+    import { getContext, onMount } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
+    import {
+        FOCUS_MEMORY_KEY,
+        focusIsOrphaned,
+        type FocusMemory,
+    } from '../utils/focusMemory';
+    import { panelToggleSelector } from '../utils/dismissible';
 
     interface Props {
         /**
@@ -27,6 +33,7 @@
     const m = getMessages();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
+    const focusMemory = getContext<FocusMemory | undefined>(FOCUS_MEMORY_KEY);
 
     // --- Inline (Unified Bar) row balancing ---
     // In `inline` mode the action <ul> is allowed to wrap. Flexbox fills rows
@@ -286,6 +293,18 @@
             .sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
     });
 
+    // The panel a plugin button toggles, or undefined when it toggles nothing.
+    // `registerSdkChrome` pairs a `<pluginId>:toggle` button with a
+    // `<pluginId>:panel` panel; a button registered on its own is a one-shot
+    // action, with no pressed state to announce and nothing to return focus to.
+    function toggledPanelId(pluginId: string | undefined): string | undefined {
+        if (!pluginId) return undefined;
+        const panelId = `${pluginId}:panel`;
+        return viewerState.pluginPanels.some((panel) => panel.id === panelId)
+            ? panelId
+            : undefined;
+    }
+
     // Direction a plugin flyout grows out of its button — always toward the
     // canvas: up from the inline (bottom) bar, down from a top toolbar, and
     // sideways from a left/right rail.
@@ -402,6 +421,33 @@
         viewerState.toggleToolbar();
     }
 
+    // Carry focus across the floating↔rail hand-off. That swap tears this
+    // toolbar down and builds an identical one (see the `dockRailLeft` comment
+    // in TriiiceratopsViewer), which drops focus to <body> if the reader was
+    // standing on a panel toggle — including the toggle a panel just returned
+    // focus to on close, since the rail only unmounts once the column has
+    // finished sliding shut. Re-focus the twin of that toggle here.
+    //
+    // Deferred to a microtask so the whole flush has finished first: if the
+    // panel that opened took focus instead (`dismissible`'s `'orphaned'` mode),
+    // focus is no longer orphaned and this stands down.
+    onMount(() => {
+        if (!toolbarRootEl || !focusMemory) return;
+        // Scoped to this viewer's own memory, so a viewer mounting beside
+        // another one never acts on a toggle that was never in it.
+        const previous = focusMemory.lastFocused();
+        const panelId = previous?.dataset.panelToggle;
+        if (!panelId) return;
+        queueMicrotask(() => {
+            if (previous.isConnected) return;
+            if (!toolbarRootEl?.isConnected || !focusIsOrphaned(toolbarRootEl))
+                return;
+            toolbarRootEl
+                .querySelector<HTMLElement>(panelToggleSelector(panelId))
+                ?.focus();
+        });
+    });
+
     function resolvePluginTooltip(tooltip: string) {
         void language.current;
 
@@ -489,6 +535,7 @@
                         data-tip={m.collection_title()}
                         aria-label={m.toggle_collection()}
                         aria-pressed={viewerState.showCollectionPanel}
+                        data-panel-toggle="collection"
                         onclick={() => viewerState.toggleCollectionPanel()}
                     >
                         <Icon name="Folder" size={24} />
@@ -504,6 +551,7 @@
                         data-tip={m.search()}
                         aria-label={m.toggle_search()}
                         aria-pressed={viewerState.showSearchPanel}
+                        data-panel-toggle="search"
                         onclick={() => viewerState.toggleSearchPanel()}
                     >
                         <Icon name="MagnifyingGlass" size={24} />
@@ -538,6 +586,7 @@
                         data-tip={m.structures_title()}
                         aria-label={m.toggle_structures()}
                         aria-pressed={viewerState.showStructuresPanel}
+                        data-panel-toggle="structures"
                         onclick={() => viewerState.toggleStructuresPanel()}
                     >
                         <Icon name="ListBullets" size={24} />
@@ -745,6 +794,7 @@
                         data-tip={annotationsTooltip}
                         aria-label={annotationsTooltip}
                         aria-pressed={viewerState.showAnnotations}
+                        data-panel-toggle="annotations"
                         onclick={() => viewerState.toggleAnnotations()}
                     >
                         <Icon name="ChatCenteredText" size={24} />
@@ -760,6 +810,7 @@
                         data-tip={m.metadata()}
                         aria-label={m.toggle_metadata()}
                         aria-pressed={viewerState.showMetadataPanel}
+                        data-panel-toggle="metadata"
                         onclick={() => viewerState.toggleMetadataPanel()}
                     >
                         <Icon name="Info" size={24} />
@@ -840,12 +891,24 @@
                                 {/if}
                             </div>
                         {:else}
+                            <!-- `data-panel-toggle` carries the id of the panel
+                                 this toggle opens, so the panel can find its way
+                                 back to it after a toolbar rebuild. Only a
+                                 button that actually toggles a panel gets it, or
+                                 a pressed state: a plain action button is not a
+                                 toggle and announcing one as unpressed is a lie.
+                                 -->
+                            {@const panelId = toggledPanelId(button.pluginId)}
                             <button
                                 class="menu-item tooltip {tooltipPlacement}"
                                 class:menu-active={button.isActive?.()}
                                 data-tip={tooltipText}
                                 aria-label={tooltipText}
+                                aria-pressed={panelId
+                                    ? (button.isActive?.() ?? false)
+                                    : undefined}
                                 data-plugin-toggle={button.pluginId}
+                                data-panel-toggle={panelId}
                                 onclick={() => button.onClick()}
                             >
                                 {#if button.iconDescriptor}

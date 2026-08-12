@@ -24,6 +24,7 @@
         provideActiveLocale,
     } from '../state/i18n.svelte';
     import { watchReducedMotion } from '../state/reducedMotion';
+    import { FOCUS_MEMORY_KEY, createFocusMemory } from '../utils/focusMemory';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
@@ -244,6 +245,17 @@
             internalViewerState.setViewerElement(rootElement);
         }
     });
+
+    // One memory per viewer, torn down with it: a control this viewer's chrome
+    // destroyed must never be something ANOTHER viewer on the page acts on, and
+    // the remembered node is usually detached, so holding it past unmount would
+    // pin the whole torn-down subtree.
+    const focusMemory = createFocusMemory();
+    setContext(FOCUS_MEMORY_KEY, focusMemory);
+    $effect(() => {
+        if (rootElement) focusMemory.attach(rootElement);
+    });
+    onDestroy(() => focusMemory.destroy());
 
     // Note: We pass empty initial values and use $effect blocks below to set
     // manifestId, canvasId, and plugins reactively, avoiding Svelte's
@@ -940,6 +952,10 @@
             iconDescriptor: panel.iconDescriptor,
             component: PluginMountHost,
             props: { mount: panel.mount },
+            // A plugin author cannot reach the section element, so core names
+            // the panel here — the same `dialog` role a core panel component
+            // renders for itself.
+            dialog: true,
             close: showPanelCloseButton(
                 internalViewerState.config.plugins?.[panel.pluginId]
                     ?.showCloseButton,

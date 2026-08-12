@@ -1,11 +1,12 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
     import PluginIcon from './PluginIcon.svelte';
-    import { onMount } from 'svelte';
+    import { getContext, onMount } from 'svelte';
     import type { PanelStackItem } from './PanelStack.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import { Button } from './ui';
-    import { dismissible } from '../utils/dismissible';
+    import { dismissible, panelToggleSelector } from '../utils/dismissible';
+    import { FOCUS_MEMORY_KEY, type FocusMemory } from '../utils/focusMemory';
 
     interface Props {
         panel: PanelStackItem;
@@ -21,6 +22,13 @@
     // Filled by the `dismissible` action. The close button dismisses through it
     // so it returns focus by the same rule Escape does.
     const dismissal: { dismiss?: () => void } = {};
+
+    // The toolbar toggle that opens this panel, by identity rather than by node:
+    // opening a panel on the toolbar's own side docks the toolbar as a rail,
+    // which destroys the toggle the reader activated and builds an identical one
+    // in the rail. The panel id is the identity both sides agree on.
+    const invokerSelector = $derived(panelToggleSelector(panel.id));
+    const focusMemory = getContext<FocusMemory | undefined>(FOCUS_MEMORY_KEY);
 
     function handleClose() {
         panel.close?.();
@@ -46,12 +54,19 @@
     use:dismissible={{
         onDismiss: handleClose,
         controls: dismissal,
+        invokerSelector,
+        focusMemory,
         escape: !!panel.close,
         outsidePointer: false,
-        focusOnMount: false,
+        // Only when the rail hand-off destroyed the toggle the reader was
+        // standing on, and only for a panel that can actually be dismissed —
+        // otherwise focus stays where it was and nothing is stolen.
+        focusOnMount: panel.close ? 'orphaned' : false,
     }}
     data-panel-id={panel.id}
     class="section"
+    role={panel.dialog ? 'dialog' : undefined}
+    aria-label={panel.dialog ? panel.title : undefined}
 >
     <div class="header" class:close-start={closeAlign === 'start'}>
         {#if panel.iconDescriptor}
