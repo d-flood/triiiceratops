@@ -57,6 +57,7 @@
         type AnnotationShape,
     } from '../utils/annotationShapes';
     import type { CanvasImageSpaceDimensions } from '../utils/canvasImageSpace';
+    import { getCanvasId } from '../utils/iiifIds';
     import { resolvePointRadius } from '../utils/pointMarker';
     import { resolveCanvasImage } from '../utils/resolveCanvasImage';
 
@@ -234,8 +235,7 @@
             canvasAnnotations.map((entry) => entry.canvasId),
         );
         for (const canvas of viewerState.getCanvases(manifestId)) {
-            // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
-            const id = (canvas as any)?.id || (canvas as any)?.['@id'];
+            const id = getCanvasId(canvas);
             if (!id || !wanted.has(id)) continue;
 
             const resolved = resolveCanvasImage(canvas);

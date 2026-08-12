@@ -5,6 +5,7 @@
     import type { PanelStackItem } from './PanelStack.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import { Button } from './ui';
+    import { dismissible } from '../utils/dismissible';
 
     interface Props {
         panel: PanelStackItem;
@@ -17,43 +18,12 @@
     const m = getMessages();
     let sectionElement: HTMLElement | undefined = $state();
 
-    // The control that opened this panel (typically the toolbar toggle that had
-    // focus at open time). Captured so keyboard focus returns to it when the
-    // panel is closed by Escape or the close button (WCAG 2.4.3 Focus Order).
-    let invoker: HTMLElement | null = null;
-
-    function returnFocus() {
-        invoker?.focus?.();
-    }
-
     function handleClose() {
         panel.close?.();
-        returnFocus();
-    }
-
-    function onSectionKeydown(e: KeyboardEvent) {
-        // Escape closes the panel when focus is within it and returns focus to
-        // the invoking control. Non-modal panel, so Escape is only handled while
-        // focused-within — it never hijacks the page's global Escape.
-        if (e.key === 'Escape' && panel.close) {
-            e.stopPropagation();
-            handleClose();
-        }
     }
 
     onMount(() => {
         const el = sectionElement;
-        const root = el?.getRootNode() as Document | ShadowRoot | undefined;
-        const active = root?.activeElement as HTMLElement | null;
-        if (active && el && !el.contains(active)) {
-            invoker = active;
-        }
-
-        // Focus-scoped Escape handler. Attached imperatively (not a declarative
-        // handler on the non-interactive <section>) so it carries no static/
-        // noninteractive-element a11y diagnostic while still only firing when
-        // focus is within the panel.
-        el?.addEventListener('keydown', onSectionKeydown);
 
         if (scrollOnMount && el) {
             const reduce =
@@ -64,12 +34,20 @@
                 block: 'nearest',
             });
         }
-
-        return () => el?.removeEventListener('keydown', onSectionKeydown);
     });
 </script>
 
-<section bind:this={sectionElement} data-panel-id={panel.id} class="section">
+<section
+    bind:this={sectionElement}
+    use:dismissible={{
+        onDismiss: handleClose,
+        escape: !!panel.close,
+        outsidePointer: false,
+        focusOnMount: false,
+    }}
+    data-panel-id={panel.id}
+    class="section"
+>
     <div class="header" class:close-start={closeAlign === 'start'}>
         {#if panel.iconDescriptor}
             <span class="icon">

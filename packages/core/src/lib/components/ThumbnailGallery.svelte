@@ -57,19 +57,19 @@
             viewerState.config.gallery?.width &&
             viewerState.config.gallery?.height
         ) {
-            viewerState.gallerySize = {
+            viewerState.setGallerySize({
                 width: viewerState.config.gallery.width,
                 height: viewerState.config.gallery.height,
-            };
+            });
         }
         if (
             viewerState.config.gallery?.x !== undefined &&
             viewerState.config.gallery?.y !== undefined
         ) {
-            viewerState.galleryPosition = {
+            viewerState.setGalleryPosition({
                 x: viewerState.config.gallery.x,
                 y: viewerState.config.gallery.y,
-            };
+            });
         }
     });
 
@@ -140,7 +140,7 @@
         newX = Math.max(0, Math.min(newX, maxX));
         newY = Math.max(0, Math.min(newY, maxY));
 
-        viewerState.galleryPosition = { x: newX, y: newY };
+        viewerState.setGalleryPosition({ x: newX, y: newY });
 
         // Use the stored center panel rect (captured at drag start, works with shadow DOM)
         const rect = viewerState.galleryCenterPanelRect;
@@ -180,7 +180,7 @@
 
         // Commit drop
         if (dropTarget) {
-            viewerState.dockSide = dropTarget;
+            viewerState.setDockSide(dropTarget);
         }
     }
 
@@ -201,10 +201,10 @@
         if (!isResizing) return;
         const dx = e.clientX - resizeStart.x;
         const dy = e.clientY - resizeStart.y;
-        viewerState.gallerySize = {
+        viewerState.setGallerySize({
             width: Math.max(200, resizeStart.w + dx),
             height: Math.max(200, resizeStart.h + dy),
-        };
+        });
     }
 
     function stopResize() {
@@ -265,9 +265,7 @@
     // Sync internal changes
     $effect(() => {
         if (viewerState.dockSide !== dockSide) {
-            viewerState.dockSide = dockSide;
-            viewerState.isGalleryDockedBottom = dockSide === 'bottom';
-            viewerState.isGalleryDockedRight = dockSide === 'right';
+            viewerState.setDockSide(dockSide);
         }
     });
 
@@ -477,7 +475,7 @@
             centeredX = Math.min(centeredX, maxInitialX);
             centeredY = Math.min(centeredY, maxInitialY);
 
-            viewerState.galleryPosition = { x: centeredX, y: centeredY };
+            viewerState.setGalleryPosition({ x: centeredX, y: centeredY });
             viewerState.galleryDragOffset = {
                 x: e.clientX - centeredX,
                 y: e.clientY - centeredY,

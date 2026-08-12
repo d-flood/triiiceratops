@@ -1270,9 +1270,7 @@
             return;
         }
 
-        (
-            viewerState as unknown as { visibleCanvasIds: string[] }
-        ).visibleCanvasIds = ids;
+        viewerState.visibleCanvasIds = ids;
     }
 
     const canvasPort: RendererPort = markRendererPort({
@@ -1887,16 +1885,13 @@
      * notification per failure and one per frame to every plugin subscriber, and
      * getting it wrong is silent.
      *
-     * The escape-hatch assignment is the one the previous renderer used for the
-     * same member: `tileSourceError` is an `observable` in the state inventory, so
-     * it has no mutator by definition — core writes it, nothing else may.
+     * `tileSourceError` is an `observable` in the state inventory: it has no
+     * mutator by definition — core writes it, nothing else may.
      */
     const setDerivedTileSourceError = createTileSourceErrorMirror({
         loadMessage: () => m.canvas_error_load(),
         write: (value) => {
-            (
-                viewerState as unknown as { tileSourceError: unknown }
-            ).tileSourceError = value;
+            viewerState.tileSourceError = value;
         },
     });
 

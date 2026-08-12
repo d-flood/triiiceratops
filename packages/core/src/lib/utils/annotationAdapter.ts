@@ -3,6 +3,7 @@ import {
     getIiifCanvasId,
     normalizeIiifTargets,
 } from './iiifTargets';
+import { getAnnotationId } from './iiifIds';
 import { logger } from '../logging/logger';
 
 /**
@@ -62,14 +63,6 @@ interface CanvasContext {
 }
 
 type AnnotationOrigin = 'manifest' | 'user';
-
-/**
- * Helper to extract ID from a raw JSON annotation — `id` in IIIF v3, `@id` in
- * v2.
- */
-function getAnnotationId(anno: any): string {
-    return anno.id || anno['@id'] || '';
-}
 
 /**
  * Extract target geometry from various annotation formats
@@ -429,6 +422,17 @@ function generateCirclePoints(
  * Extract xywh from annotation target (multiple formats)
  */
 /**
+ * The text of one annotation body or resource.
+ *
+ * IIIF spells it three ways — v2 `chars`, v3 `value`, and the `cnt:` prefixed
+ * form some v2 publishers emit. Every reader of body text goes through here so
+ * a manifest cannot render in one panel and come back empty in another.
+ */
+export function bodyText(resource: any): string {
+    return resource?.chars || resource?.value || resource?.['cnt:chars'] || '';
+}
+
+/**
  * Extract annotation body content (text, label, etc)
  */
 export function extractBody(annotation: any): {
@@ -447,7 +451,7 @@ export function extractBody(annotation: any): {
     // Raw JSON body/resource — `resource` is the IIIF v2 spelling, `body` the
     // v3 one, and both are read.
     const processResource = (r: any) => {
-        const val = r.chars || r.value || r['cnt:chars'] || '';
+        const val = bodyText(r);
         if (val) {
             // Only a declared format may route a body through the rich-text
             // path. IIIF defaults `TextualBody` to `text/plain`, so the type

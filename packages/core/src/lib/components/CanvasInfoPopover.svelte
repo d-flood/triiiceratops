@@ -3,13 +3,10 @@
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
-    import {
-        normalizeIiifLinks,
-        normalizeMetadataEntries,
-    } from '../utils/metadataNormalization';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import { normalizeDescriptiveMetadata } from '../utils/metadataNormalization';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { Button } from './ui';
+    import { dismissible } from '../utils/dismissible';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
@@ -20,30 +17,16 @@
         return viewerState.canvases[idx] ?? null;
     });
 
-    // Raw IIIF Canvas JSON, v2 or v3 as authored. Every read below goes through
-    // `resolveLanguageValue` / `normalizeMetadataEntries`, which handle both
-    // versions' spellings.
-    let json = $derived(canvas);
+    // Raw IIIF Canvas JSON, v2 or v3 as authored. The version mapping is the
+    // same one the metadata panel reads a manifest through.
+    let described = $derived(
+        normalizeDescriptiveMetadata(canvas, viewerLocale),
+    );
 
-    let label = $derived.by(() => {
-        if (!json) return '';
-        return resolveLanguageValue(json.label, viewerLocale);
-    });
-
-    let summary = $derived.by(() => {
-        if (!json?.summary) return '';
-        return resolveLanguageValue(json.summary, viewerLocale);
-    });
-
-    let metadata = $derived.by(() => {
-        if (!json?.metadata) return [];
-        return normalizeMetadataEntries(
-            Array.isArray(json.metadata) ? json.metadata : [],
-            viewerLocale,
-        );
-    });
-
-    let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
+    let label = $derived(described.title);
+    let summary = $derived(described.summary);
+    let metadata = $derived(described.metadata);
+    let rendering = $derived(described.rendering);
 
     let hasAdditionalContent = $derived(
         !!(summary || metadata.length > 0 || rendering.length > 0),
@@ -53,11 +36,12 @@
         viewerState.config.information?.showButton !== false,
     );
 
-    // Focus management for the popover dialog (WCAG 2.1.2 / 2.4.3): remember the
-    // trigger that opened it, move focus into the dialog on open, close on
-    // Escape, and return focus to the trigger on close.
-    let popoverEl = $state<HTMLElement | undefined>();
-    let invoker: HTMLElement | null = null;
+    // Focus and dismissal (WCAG 2.1.2 / 2.4.3) come from the shared `dismissible`
+    // action: remember the trigger, move focus in, Escape and outside-pointer
+    // close, focus returns. It replaces the backdrop `<button>` this used to
+    // need, which was a focusable element in the tab order that announced
+    // nothing useful.
+    let invoker = $state<HTMLElement | null>(null);
 
     function openInfo(e: MouseEvent) {
         invoker = e.currentTarget as HTMLElement;
@@ -66,23 +50,7 @@
 
     function closeInfo() {
         if (viewerState.showCanvasInfo) viewerState.toggleCanvasInfo();
-        invoker?.focus();
     }
-
-    function onPopoverKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') {
-            e.stopPropagation();
-            closeInfo();
-        }
-    }
-
-    $effect(() => {
-        const el = popoverEl;
-        if (!el) return;
-        el.focus();
-        el.addEventListener('keydown', onPopoverKeydown);
-        return () => el.removeEventListener('keydown', onPopoverKeydown);
-    });
 </script>
 
 {#if hasAdditionalContent && showButton}
@@ -100,17 +68,13 @@
         </Button>
 
         {#if viewerState.showCanvasInfo}
-            <!-- Backdrop to close popover -->
-            <button
-                class="backdrop"
-                onclick={closeInfo}
-                aria-label={m.close()}
-                tabindex="-1"
-            ></button>
-
             <!-- Popover -->
             <div
-                bind:this={popoverEl}
+                use:dismissible={{
+                    onDismiss: closeInfo,
+                    invoker,
+                    within: [invoker],
+                }}
                 class="popover"
                 style="left: 50%; transform: translateX(-50%); z-index: 1001;"
                 role="dialog"
@@ -187,13 +151,6 @@
     /* Trigger button: ghost circle with primary-colored icon (text-primary). */
     .wrapper :global(.trigger) {
         color: var(--tri-color-primary-text);
-    }
-
-    .backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 40;
-        cursor: default;
     }
 
     .popover {

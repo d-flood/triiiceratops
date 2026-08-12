@@ -6,6 +6,7 @@
     import type { IconName } from '../generated/icons';
     import { getMessages, language } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
+    import { getResourceId } from '../utils/iiifIds';
     import {
         getCanvasNavLayout,
         getVisibleChoiceGroups,
@@ -69,8 +70,8 @@
 
     function selectChoice(canvasId: string, item: any) {
         if (canvasId) {
-            const id = item.id || item['@id'];
-            viewerState.selectChoice(canvasId, id);
+            const id = getResourceId(item);
+            if (id) viewerState.selectChoice(canvasId, id);
         }
     }
 
@@ -147,8 +148,8 @@
 
         {#if group.choices.length <= 4}
             <div class="join join-desktop">
-                {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
-                    {@const id = choice.id || choice['@id']}
+                {#each group.choices as choice, i (getResourceId(choice) || i)}
+                    {@const id = getResourceId(choice)}
                     {@const label = getChoiceLabel(choice, i)}
                     {@const displayLabel = getChoiceDisplayLabel(
                         choice,
@@ -174,9 +175,7 @@
             </div>
         {:else}
             {@const selectedValue =
-                group.selectedChoiceId ??
-                group.choices[0]?.id ??
-                group.choices[0]?.['@id']}
+                group.selectedChoiceId ?? getResourceId(group.choices[0])}
             <div class="choice-select-wrap">
                 <Select
                     size="xs"
@@ -189,8 +188,8 @@
                             selectChoice(group.canvasId, group.choices[idx]);
                     }}
                 >
-                    {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
-                        {@const id = choice.id || choice['@id']}
+                    {#each group.choices as choice, i (getResourceId(choice) || i)}
+                        {@const id = getResourceId(choice)}
                         {@const displayLabel = getChoiceDisplayLabel(
                             choice,
                             i,
@@ -205,8 +204,8 @@
         {/if}
 
         <div class="join join-mobile">
-            {#each group.choices as choice, i (choice.id || choice['@id'] || i)}
-                {@const id = choice.id || choice['@id']}
+            {#each group.choices as choice, i (getResourceId(choice) || i)}
+                {@const id = getResourceId(choice)}
                 {@const label = getChoiceLabel(choice, i)}
                 {@const displayLabel = getChoiceDisplayLabel(
                     choice,

@@ -3,6 +3,7 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
     import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
+    import { getAnnotationId } from '../utils/iiifIds';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
@@ -27,11 +28,6 @@
             .map((anno: any) => getAnnotationId(anno))
             .filter(Boolean);
     });
-
-    // Helper to get ID from a raw JSON annotation — `id` in v3, `@id` in v2.
-    function getAnnotationId(anno: any): string {
-        return anno.id || anno['@id'] || '';
-    }
 
     function escapeAttributeValue(value: string): string {
         if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
