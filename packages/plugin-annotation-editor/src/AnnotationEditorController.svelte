@@ -71,7 +71,6 @@
             : null;
     });
 
-    // Create the annotation manager
     let manager = $state.raw<AnnotationManager | null>(null);
 
     /*

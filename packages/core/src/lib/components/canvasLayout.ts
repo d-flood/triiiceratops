@@ -337,8 +337,6 @@ export function getCanvasDisplayLayouts(
             options.direction === 'right-to-left' ||
             options.direction === 'bottom-to-top';
 
-        // Advance by each canvas's OWN extent, always — never by a fixed one
-        // world unit when normalization is off. See the note on this function.
         for (const layout of scaled) {
             if (flowsVertically) {
                 layout.y = isReverse ? -offset : offset;

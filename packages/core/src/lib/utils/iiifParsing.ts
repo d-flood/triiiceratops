@@ -1,19 +1,12 @@
 /**
- * First-party IIIF Presentation parsing.
+ * First-party IIIF Presentation parsing over raw manifest JSON: how many
+ * sequences a manifest has ({@link getSequenceCount}), which canvases are in
+ * a given sequence ({@link getCanvasesForSequence}), and which painting
+ * annotations are on a given canvas ({@link getPaintingAnnotations}). Both
+ * the IIIF v2 and v3 shapes are handled directly.
  *
- * This module is the parsing surface the `remove-manifesto` epic replaces
- * `manifesto.js` with: how many sequences a manifest has
- * ({@link getSequenceCount}), which canvases are in a given sequence
- * ({@link getCanvasesForSequence}), and which painting annotations are on a
- * given canvas ({@link getPaintingAnnotations}). Three total functions over raw
- * JSON; both the IIIF v2 and the IIIF v3 branch of each are first-party and
- * nothing here calls `manifesto.js`.
- *
- * There is deliberately **no `Sequence` type** and no intermediate object model
- * of any kind. A canvas is the Canvas JSON as the manifest authored it. The
- * Manifest → Sequence → Canvas hierarchy exists in the library only to hide the
- * version difference, and recreating it is the shortest path back to the object
- * model this epic removes (SPEC → "The parsing surface").
+ * There is deliberately **no `Sequence` type** and no intermediate object
+ * model. A canvas is the Canvas JSON as the manifest authored it.
  */
 
 import { logger } from '../logging/logger';
@@ -22,9 +15,9 @@ import { logger } from '../logging/logger';
  * Coerce a field that should be an array into one.
  *
  * IIIF fields that the spec declares as arrays turn up in real manifests as
- * bare objects, and `manifesto.js` tolerated that. Every array access in this
- * module goes through here so that a bare object degrades to a one-element list
- * rather than throwing or silently enumerating nothing.
+ * bare objects. Every array access in this module goes through here so that
+ * a bare object degrades to a one-element list rather than throwing or
+ * silently enumerating nothing.
  */
 function asArray(value: unknown): any[] {
     if (Array.isArray(value)) return value;
@@ -48,16 +41,15 @@ const warnedCanvases = new WeakSet<object>();
  * Warn once when a canvas is recognized as a canvas but yields no painting
  * annotations.
  *
- * This is the epic's signature failure mode made audible. When enumeration
- * returns nothing the viewer renders a blank canvas and logs at debug level, so
- * the loss looks like the manifest rather than like a bug — which is exactly
- * how a v2-blind read survived in this codebase for as long as it did.
+ * Without this, a canvas that enumerates no painting annotations renders
+ * blank and only logs at debug level, so the loss looks like the manifest
+ * rather than a bug.
  *
  * Deliberately a developer warning and **not** an observable viewer error: a
- * degraded render should stay degraded rather than become a surfaced failure
- * (SPEC → "Failure contract"). A canvas that legitimately paints nothing —
- * IIIF Cookbook recipe 0283, or an IxIF element whose media hangs off
- * `rendering` — will trip this, which is why it is a warning and not an error.
+ * degraded render should stay degraded rather than become a surfaced
+ * failure. A canvas that legitimately paints nothing — IIIF Cookbook recipe
+ * 0283, or an IxIF element whose media hangs off `rendering` — will trip
+ * this, which is why it is a warning and not an error.
  */
 function warnUnreadableCanvas(canvas: any): void {
     if (!canvas || typeof canvas !== 'object') return;
@@ -79,11 +71,9 @@ function warnUnreadableCanvas(canvas: any): void {
 }
 
 /**
- * A IIIF Collection has members, not canvases. Handed to the manifest path it
- * used to throw a `TypeError` (`m.getSequences is not a function`), which
- * violates the failure contract — and, worse, a v3 Collection's `items` are its
- * member Manifests, so the v3 branch below would otherwise enumerate them as
- * canvases. Both are wrong; a Collection simply has no sequences.
+ * A IIIF Collection has members, not canvases. A v3 Collection's `items` are
+ * its member Manifests, so the v3 branch below would otherwise enumerate
+ * them as canvases; a Collection simply has no sequences.
  *
  * Deliberately inlined rather than imported from `utils/collections`, which
  * reaches `getThumbnailSrc` and back into this module.
@@ -104,14 +94,9 @@ function isCollectionResource(resource: any): boolean {
  * v3   items                              always exactly ONE sequence
  * ```
  *
- * `mediaSequences` is the IxIF spelling and `manifesto.js` checked it *before*
- * `sequences`. `vendored/audio.json` carries both, so the order is load-bearing
- * rather than theoretical: reversing it would enumerate that manifest's
- * `sequences` instead of its `elements`.
- *
- * The `??` pair is the ticket's spelling; the truthiness check that follows
- * reproduces `manifesto.js`'s `||`, so a present-but-falsy `sequences` still
- * falls through to the v3 read exactly as it did before.
+ * `mediaSequences` is the IxIF spelling, checked *before* `sequences`.
+ * `vendored/audio.json` carries both, so the order is load-bearing: reversing
+ * it would enumerate that manifest's `sequences` instead of its `elements`.
  */
 function rawSequences(manifest: any): any[] {
     if (!manifest || typeof manifest !== 'object') return [];
@@ -121,9 +106,8 @@ function rawSequences(manifest: any): any[] {
     const sequences = manifest.mediaSequences ?? manifest.sequences;
     if (sequences) {
         // A `sequences` that is a bare object rather than an array occurs in
-        // real manifests. `manifesto.js` walked it with an indexed loop, so it
-        // enumerated nothing at all, silently — the epic's signature failure
-        // mode. Degrading it to a one-element list is the fix ticket 07 owns.
+        // real manifests; degrade it to a one-element list rather than
+        // enumerating nothing.
         return asArray(sequences).filter((sequence) => !!sequence);
     }
 
@@ -180,8 +164,7 @@ export function getSequenceCount(manifest: any): number {
  * existing behavior of the manifest cache: a viewer holding a stale
  * `selectedSequenceIndex` shows the last sequence, not a blank page.
  *
- * A `null` entry in the canvas list is dropped. `manifesto.js` threw on one in
- * its `Canvas` constructor; a total function cannot.
+ * A `null` entry in the canvas list is dropped.
  *
  * **Total.** Never throws, always returns an array.
  *
@@ -205,12 +188,10 @@ export function getCanvasesForSequence(manifest: any, index: number): any[] {
  * These are *not* the commentary annotations returned by
  * `ensureCanvasAnnotations`; see CONTEXT.md → **Painting annotation**.
  *
- * Both branches are first-party and return **raw JSON** annotations. IIIF v2
- * reads `canvas.images[]` directly rather than through `manifesto.js`'s
- * `getImages()`. IIIF v3 flattens *every* AnnotationPage in the canvas, in
- * document order; `manifesto.js`'s `getContent()` read only the first page and
- * silently discarded the rest, which is a data-loss bug on canvases that split
- * their painting annotations across pages.
+ * Both branches return **raw JSON** annotations. IIIF v2 reads
+ * `canvas.images[]` directly. IIIF v3 flattens *every* AnnotationPage in the
+ * canvas, in document order — reading only the first page silently drops
+ * the rest on canvases that split their painting annotations across pages.
  *
  * A v2 annotation carries its image under `resource`, a v3 one under `body`.
  * Consumers must read **both** spellings — see `getPaintingBody`.
@@ -224,20 +205,14 @@ export function getCanvasesForSequence(manifest: any, index: number): any[] {
  * manifests as a bare object — `images`, `items` and `content` all degrade to a
  * one-element list rather than throwing or enumerating nothing.
  *
- * A `null` entry inside `images` or an AnnotationPage is skipped, so such a
- * canvas enumerates fewer annotations than the library reported. The library
- * produced an `Annotation` wrapping nothing, which resolved to no resource
- * downstream; the rendered result is the same, the count is not.
+ * A `null` entry inside `images` or an AnnotationPage is skipped.
  *
- * Expects a Canvas. Handed a Manifest or Collection it will happily return that
- * resource's `items` — no caller can currently do so, but it is not defended
- * against.
+ * Expects a Canvas. Handed a Manifest or Collection it will happily return
+ * that resource's `items` — no caller can currently do so, but it is not
+ * defended against.
  *
- * **Public API**, from `triiiceratops` and `triiiceratops/image-export`. It is
- * the supported way to enumerate a canvas's images: without it an integrator
- * has no route to them and reimplements the removed `canvas.getContent()` /
- * `canvas.getImages()` idiom, which now returns nothing at all, silently
- * (SPEC → "The parsing surface").
+ * **Public API**, from `triiiceratops` and `triiiceratops/image-export`. It
+ * is the supported way to enumerate a canvas's images.
  *
  * The annotations it returns are raw JSON. **A v2 annotation carries its image
  * under `resource` and a v3 one under `body`** — read both spellings, or use
@@ -271,9 +246,8 @@ export function getPaintingAnnotations(canvas: any): any[] {
  * canvas.
  *
  * **IIIF v2 spells this `resource`; IIIF v3 spells it `body`.** Reading only
- * `body` is the epic's named silent-failure mode: a v2 annotation then yields
- * nothing, and the viewer renders a blank canvas with a `logger.debug` line and
- * no other signal (SPEC → "The governing rule for the whole epic").
+ * `body` leaves a v2 annotation yielding nothing, so the viewer renders a
+ * blank canvas with only a `logger.debug` line and no other signal.
  *
  * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *
@@ -292,7 +266,7 @@ export function getPaintingBody(annotation: any): any {
  * the user rather than a single image?
  *
  * Both spellings are recognized: IIIF v3's `"type": "Choice"` and IIIF v2's
- * `"@type": "oa:Choice"`. The v2 one had no reader at all before this.
+ * `"@type": "oa:Choice"`.
  *
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
@@ -308,9 +282,9 @@ export function isChoiceBody(body: any): boolean {
  * The alternatives a Choice body offers, in the order the viewer should offer
  * them — the default first.
  *
- * IIIF v3 puts them all in `items` (`item` is accepted as an alias, as it was
- * before). IIIF v2 splits them: `default` holds the one to render initially and
- * `item` holds the rest, so the two are concatenated.
+ * IIIF v3 puts them all in `items` (`item` is accepted as an alias). IIIF v2
+ * splits them: `default` holds the one to render initially and `item` holds
+ * the rest, so the two are concatenated.
  *
  * Guarded against a bare object in place of the array, per the spec's failure
  * contract — an unguarded `items.find(...)` on one throws all the way out
@@ -380,25 +354,16 @@ function toBehaviorList(value: unknown): unknown[] {
  */
 export function getCanvasBehaviors(canvas: any): string[] {
     // BOTH IIIF versions. `behavior` is the v3 spelling of a Canvas's own
-    // display hints; `viewingHint` is the v2 spelling of the same idea, and it
-    // went unread until the renderer epic's multi-canvas layout needed it
-    // (the renderer-replacement epic, ticket 07).
-    //
-    // The gap was user-visible, which is why it is closed here rather than
-    // recorded. `viewerControls.isSinglePageCanvas` looks for
-    // `non-paged`/`facing-pages`, which is exactly what a v2 manifest writes as
-    // `"viewingHint": "non-paged"` on a canvas — so a v2 book declaring a
-    // single-page plate was silently paired into a spread with its neighbour,
-    // and paged mode showed the wrong two pages from there on.
+    // display hints; `viewingHint` is the v2 spelling of the same idea.
+    // `viewerControls.isSinglePageCanvas` looks for `non-paged`/`facing-pages`,
+    // which is exactly what a v2 manifest writes as `"viewingHint": "non-paged"`
+    // on a canvas — miss that spelling and a v2 book declaring a single-page
+    // plate gets silently paired into a spread with its neighbour, showing the
+    // wrong two pages from there on.
     //
     // v3 wins where a document somehow carries both: a manifest that has been
     // upgraded states its current intent in `behavior`, and a leftover
     // `viewingHint` is the stale copy.
-    //
-    // Read directly off raw JSON, deliberately: the rung this replaced was
-    // `canvas.getBehavior()`, which `manifesto.js` defined on Range, Collection
-    // and Manifest but NEVER on Canvas, so it was dead from the day it was
-    // written — its removal was never evidence that either spelling was covered.
     //
     // The first NON-EMPTY of the two, not the first truthy: `"behavior": []`
     // is an empty array, which is truthy, and it is exactly what a v2→v3

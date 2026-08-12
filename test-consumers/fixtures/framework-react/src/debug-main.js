@@ -1,4 +1,4 @@
-// The development-warning route — the artifact-level proof for EPIC-1.
+// The development-warning route — artifact-level proof of the wrapper warnings.
 //
 // The four wrapper-side development warnings (an unbound handle, a
 // property-tier prop rebuilt every render, a second `ViewerState`, and a

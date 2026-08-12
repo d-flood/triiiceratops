@@ -10,8 +10,8 @@
 
 <!--
     `toolbarOpen: true` expands the toolbar on mount so the plugin's
-    core-rendered toolbar button (core-owned chrome, ticket 04) is visible for
-    the journey — the plugin no longer draws its own always-visible toggle.
+    core-rendered toolbar button (core-owned chrome) is visible for the
+    journey — the plugin itself draws no always-visible toggle.
 -->
 <div style="width: 100vw; height: 100vh">
     <TriiiceratopsViewer

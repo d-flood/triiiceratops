@@ -1,4 +1,4 @@
-// Performance measurement for one built repo root (ticket 25).
+// Performance measurement for one built repo root.
 //
 // Produces a measurement object: per-artifact byte sizes + per-scenario browser
 // runtime medians. The RUNTIME half drives the PACKED artifacts a user actually
@@ -13,7 +13,7 @@
 // Interaction + plugin scenarios run with ALL first-party plugins activated and
 // subscribed, so subscription overhead is part of the baseline (ADR 0008).
 //
-// MEMORY (ticket 16) is measured separately, against the generated 800-canvas
+// MEMORY is measured separately, against the generated 800-canvas
 // continuous fixture rather than the two-canvas timing manifest — virtualization
 // says nothing on a short manifest — and it reads the RENDERER'S OWN residency
 // counters, not a browser heap metric: decoded tiles are `ImageBitmap`s living
@@ -83,8 +83,7 @@ const { HEIGHT: FIXTURE_PAGE_HEIGHT, WIDTH: FIXTURE_PAGE_WIDTH } = await import(
 
 // Playwright is a devDependency of the `test-consumers` workspace package;
 // resolve it from there (anchoring the require at the driver) so this script
-// needs no root dependency (keeps the ticket-21 merge surface on root
-// package.json minimal).
+// needs no root dependency.
 const driverRequire = createRequire(
     pathToFileURL(join(REPO_ROOT, 'test-consumers', 'driver', 'lib.mjs')).href,
 );

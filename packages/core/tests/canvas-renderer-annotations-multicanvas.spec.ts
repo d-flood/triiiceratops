@@ -2,12 +2,11 @@
  * Annotations when more than one canvas is on screen — a facing-page spread, and
  * a run of folios in continuous mode.
  *
- * Every annotation surface used to ask about the viewer's ONE current canvas, so:
- * a spread's facing page had no shape and no panel row, and in continuous mode
- * "current" is the canvas last NAVIGATED to, which after a scroll is not the one
- * on screen. Both are asserted here against a real renderer, because the thing
- * that was wrong is which canvas the geometry went through, and only a browser
- * lays canvases out.
+ * Every annotation surface must resolve geometry per canvas, not against the
+ * viewer's single "current" canvas: a spread's facing page needs its own shape
+ * and panel row, and in continuous mode "current" is the canvas last NAVIGATED
+ * to, which after a scroll is not the one on screen. Both are asserted here
+ * against a real renderer, because only a browser lays canvases out.
  *
  * The single-canvas geometry specs live in `canvas-renderer-annotations.spec.ts`;
  * this file is about the plural.

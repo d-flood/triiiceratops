@@ -216,7 +216,7 @@ export interface PlannerBudgets {
      * next coarser one is taken instead. At 0.5, up to 2× oversampling is
      * tolerated; a *higher* value accepts a blurrier level. Carried forward from
      * the previous renderer at its value, with its semantics, so
-     * sharpness-versus-speed does not visibly shift (ticket 05 §Contract). See
+     * sharpness-versus-speed does not visibly shift. See
      * `tilePyramid.chooseLevel`.
      */
     minPixelRatio: number;
@@ -540,8 +540,8 @@ export interface ScenePlan {
      * coarser one is taken. When even the cheapest rung is over the ceiling
      * there is no coarser one, and the choice is between a blank canvas and a
      * decode the budget said no to. The renderer draws it — never blank wins —
-     * and reports it here rather than overriding the budget in silence. Ticket
-     * 12 owns what a host does with this.
+     * and reports it here rather than overriding the budget in silence, so a
+     * host can decide what to do with it.
      */
     overCapCanvases: string[];
     /** The derived zoom floor, in the same units as `Viewport.scale`. */

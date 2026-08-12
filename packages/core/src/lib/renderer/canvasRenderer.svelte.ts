@@ -1,24 +1,12 @@
 /**
- * The Canvas2D renderer: frame loop, input model, residency, measurement and
- * error policy, behind one interface.
- *
- * This was the body of `CanvasHost.svelte` — 2900 lines with no test file,
- * whose only observation point was a 177-line instrumentation handle the
- * component had to grow for itself and 6400 lines of Playwright reaching in
- * through it. Nothing here needed to be a component: the reactive surface was
- * two `$derived` planner inputs and three `$state` outputs, and everything
- * else was ordinary imperative code that happened to be trapped in a `.svelte`
- * file.
+ * The first-party Canvas2D renderer's host: the DOM half of the
+ * planner/painter split.
  *
  * A `.svelte.ts` module rather than a plain one so the two planner inputs stay
  * `$derived` over `ViewerState` — the alternative was recomputing the canvas
  * descriptor list by hand on every change, which is the thing the reactive
  * graph is for. The component keeps its element refs, its markup, and three
  * effects that call in here.
- */
-/**
- * The first-party Canvas2D renderer's host: the DOM half of the
- * planner/painter split.
  *
  * It owns the canvas element, the viewport, and pointer input; it owns no
  * scene decisions. Every frame it asks `planScene` what the scene is and
@@ -46,14 +34,14 @@
  * momentum, pinch, wheel, double-tap), keyboard operation, and reduced
  * motion.
  *
- * The **paint hook** is here too (ticket 14): registered layers are drawn
+ * The **paint hook** is here too: registered layers are drawn
  * each frame after the tiles, under the transform `paintScene` left applied,
  * and core registers one of its own. The annotation overlays are NOT — they
  * are DOM layers mounted beside this component by `TriiiceratopsViewer`, on
  * the frame cadence and the public coordinate helpers, so they know nothing
  * about which renderer is mounted.
  *
- * ## Virtualization (ticket 08)
+ * ## Virtualization
  *
  * A continuous manifest of any length is laid out in full, because layout
  * is pure arithmetic over manifest dimensions and costs no network. What is
@@ -453,7 +441,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * `$state`, unlike the other frame-loop records in this component, because it
      * is read by the MARKUP as well as by the frame loop: the placeholder is a DOM
-     * element with an accessible name, per ticket 14's rule that anything a user
+     * element with an accessible name: anything a user
      * must perceive lives in the DOM layer rather than in painted pixels. It
      * changes at the rate canvases fail — a handful of times per session, never
      * per frame — so reactivity costs nothing here.
@@ -484,9 +472,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * The canvases this renderer is showing, in **canvas space**.
      *
      * **Continuous mode is the whole manifest**, all 800 folios of it. That is
-     * not the fetch storm this epic exists to remove, and the distinction is
-     * the ticket: laying a canvas out is arithmetic over manifest dimensions
-     * and costs nothing, while FETCHING for it is gated by the planner's
+     * not a fetch storm: laying a canvas out is arithmetic over manifest
+     * dimensions and costs nothing, while FETCHING for it is gated by the planner's
      * residency window, which keeps every canvas the viewport is nowhere near
      * in the box tier. The world has to be positioned in full either way —
      * scrolling to folio 400 is a coordinate, and its coordinate is the sum of
@@ -590,7 +577,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * one record the residency counters report from, at no cost, because it is
      * the very object the plan already allocated. "Only the canvases near the
      * viewport hold anything" is a claim about NAMES on a long manifest, and a
-     * count cannot carry it. Ticket 13 promotes it to real query-only state.
+     * count cannot carry it.
      */
     let lastTiers: Record<string, ResidencyTier> = {};
 
@@ -669,8 +656,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * therefore a plain box for good.
      *
      * The alternative is a canvas that is blank with no explanation anywhere,
-     * which is indistinguishable from one that is still loading. Ticket 12 owns
-     * what a *user* sees; this is the developer's version, and it goes through
+     * which is indistinguishable from one that is still loading. What a *user*
+     * sees is handled elsewhere; this is the developer's version, and it goes through
      * the debug-gated `logger` rather than `console` — a published
      * distribution is quiet by default, and bad thumbnail metadata is common
      * enough that a bare warning would be noise in every consumer's console.
@@ -790,7 +777,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // the guess back — resizing the canvas, changing its tier, and
             // provoking the very fetch whose answer was just dropped. The
             // planner asserts the fixed point (`planScene.test.ts` §the
-            // reflow terminates); ticket 08's byte budget must evict
+            // reflow terminates); the byte budget must evict
             // decoded pixels only, never these facts, which is also what
             // "metadata is cached separately from decoded pixels, with a
             // longer lifetime" means in the spec.
@@ -809,7 +796,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * Hold the page the reader is looking at still across a reflow.
      *
      * A canvas the manifest never sized is laid out from a guess and re-laid
-     * out when its `info.json` lands (ticket 07). In continuous mode every
+     * out when its `info.json` lands. In continuous mode every
      * canvas is positioned by a cumulative offset, so re-sizing canvas N moves
      * canvases N+1..799 — and on a manifest with no declared dimensions that
      * happens on *every* folio, because every folio entering the residency
@@ -1098,8 +1085,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * The scene effect re-runs when the current canvas changes and refits onto
      * it, which is the same path paged and individuals mode already took when
      * their spread changed. Scrolling by hand never touches it, because a drag
-     * does not change the current canvas — and, since ticket 08's review, does
-     * not change what {@link fitWorld} fits either.
+     * does not change the current canvas, and does not change what
+     * {@link fitWorld} fits either.
      *
      * Whether it eases is the CALLER's to say, and the scene effect is what
      * decides: navigation inside a world already on screen is travel and eases
@@ -1576,8 +1563,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * Deliberately **undecayed**, unlike `stepMomentum`: the key is still down,
      * so the user is still asking to move, and applying friction to a held key
      * would make it crawl to a halt while held. The rate is a constant, which
-     * is exactly the "steady rate, no acceleration, no judder" the ticket asks
-     * for — and it holds however often the OS repeats the key-down, because
+     * gives "steady rate, no acceleration, no judder" — and it holds however
+     * often the OS repeats the key-down, because
      * repeats never touch the velocity (`keyboardPan.keyPanVelocity` is a
      * function of which keys are down).
      */
@@ -1764,17 +1751,17 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * The hook is public in this phase *and used by core itself*, so it is
      * exercised on every frame of the mode it matters in rather than shipped
      * speculative — and this is the layer core needs anyway. A box-tier canvas
-     * holds nothing: no network, no texture, no pixels. Until now it painted
-     * nothing either, so scrolling an 800-folio manuscript at the zoom floor
-     * showed blank space where 795 folios are — indistinguishable from the end
-     * of the manifest, and exactly the "loading river" this epic exists to
-     * remove. Its rect is the one thing that IS known for free (layout is pure
-     * arithmetic over manifest dimensions), so the rect is what is drawn.
+     * holds nothing: no network, no texture, no pixels. Painting nothing for it
+     * would show blank space where 795 folios of an 800-folio manuscript are at
+     * the zoom floor — indistinguishable from the end of the manifest, a
+     * "loading river" the placeholder rect exists to prevent. Its rect is the
+     * one thing that IS known for free (layout is pure arithmetic over
+     * manifest dimensions), so the rect is what is drawn.
      *
      * **Decoration, and nothing but.** It carries no text and no information a
      * reader must perceive, which is what makes painted pixels the right home
      * for it: a message would need an accessible name and would belong in the
-     * DOM layer beside the surface, where ticket 12's error placeholders are.
+     * DOM layer beside the surface, where the error placeholders are.
      *
      * The ink is a translucent mid-grey rather than a theme token, deliberately:
      * resolving a `--tri-*` token means `getComputedStyle` on the surface, which
@@ -1880,7 +1867,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * Deliberately the SAME observable the previous renderer wrote, in the same
      * shape, so the existing error chrome and its journey keep working with no new
-     * chrome invented (ticket 12's scope). Its meaning is now derived rather than
+     * chrome invented. Its meaning is now derived rather than
      * primary: `canvasErrors` is the source of truth and this is a view of it for
      * the canvas being read.
      *

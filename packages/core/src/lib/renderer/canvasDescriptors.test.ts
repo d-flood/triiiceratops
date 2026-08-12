@@ -1,7 +1,6 @@
 /**
- * Fixtures here are raw manifest/Canvas JSON, per the epic's baseline: the
- * accessor-bearing canvas doubles the `remove-manifesto` epic removed are not
- * revived.
+ * Fixtures here are raw manifest/Canvas JSON, not accessor-bearing wrapper
+ * objects — this module's only contract is raw JSON in, plain data out.
  */
 
 import { describe, expect, it } from 'vitest';

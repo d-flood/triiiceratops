@@ -25,7 +25,7 @@ export type {
     PluginUiTarget,
 } from './types/plugin';
 
-// SDK plugin seam (ticket 07) — the framework-neutral authoring contract that
+// SDK plugin seam — the framework-neutral authoring contract that
 // `@triiiceratops/plugin-sdk` implements against, and the ONE plugin path in
 // 1.0. Core owns the types and mounts SDK plugins through this structural seam.
 export type {
@@ -54,9 +54,9 @@ export {
     PLUGIN_ERROR_EVENT,
 } from './types/plugin';
 
-// Structured viewer-failure channel (ticket 18) — mirrors the `pluginerror`
-// shape (ticket 09) for viewer-level configuration, content, and operation
-// failures. Delivered as a bubbling, composed `viewererror` CustomEvent from the
+// Structured viewer-failure channel — mirrors the `pluginerror` shape for
+// viewer-level configuration, content, and operation failures. Delivered as a
+// bubbling, composed `viewererror` CustomEvent from the
 // viewer root and the `onviewererror` host callback.
 export type {
     ViewerError,
@@ -84,7 +84,7 @@ export {
     isNeutralImageAdjustments,
 } from './types/viewport';
 
-// The **paint hook**'s vocabulary (ticket 14): what `registerPaintLayer` takes,
+// The **paint hook**'s vocabulary: what `registerPaintLayer` takes,
 // and what a layer is handed each frame. Types only — the registry itself is
 // core's, reached through `ViewerState.registerPaintLayer`.
 export type {
@@ -102,20 +102,20 @@ export type {
 // is where anything a reader must perceive or operate belongs.
 export type { OverlayLayer } from './renderer/overlayLayers';
 
-// The custom element's state bridge (framework-wrappers ticket 02): the
+// The custom element's state bridge: the
 // getter-only `viewerState` property paired with the `viewerstateavailable`
 // lifecycle event. This is how a Web Component host binds to the live
 // `ViewerState` a given element owns.
 export type { TriiiceratopsViewerElement } from './types/viewerElement';
 export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
 
-// Opt-in developer diagnostics (ticket 18). Production is quiet by default;
+// Opt-in developer diagnostics. Production is quiet by default;
 // consumers enable logging through `ViewerConfig.debug`. `configureLogging`
 // additionally allows a host to inject a custom log sink.
 export type { Logger, LogLevel, LogSink } from './logging/logger';
 export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 
-// Core's declared plugin-compatibility surface (ticket 07).
+// Core's declared plugin-compatibility surface.
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 
 // The plugin's own panel/flyout chrome, handed to it as `PluginContext.surface`.

@@ -7,10 +7,10 @@ export default {
     // Consult https://svelte.dev/docs#compile-time-svelte-preprocess
     // for more information about preprocessors
     preprocess: vitePreprocess(),
-    // Ordinary components are NOT analyzed as custom elements (ticket 22). A
-    // global `customElement: true` made every component a custom-element
-    // candidate, so svelte-check emitted `custom_element_props_identifier`
-    // warnings for each component whose `$props()` it could not statically map
+    // Ordinary components are NOT analyzed as custom elements. A
+    // global `customElement: true` would make every component a custom-element
+    // candidate, so svelte-check would emit `custom_element_props_identifier`
+    // warnings for each component whose `$props()` it cannot statically map
     // to custom-element attributes. Compiling ONLY the Web Component wrapper as a
     // custom element — via `dynamicCompileOptions` — keeps ordinary components
     // out of custom-element analysis while the wrapper (which declares

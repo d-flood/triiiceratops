@@ -371,7 +371,7 @@
 </script>
 
 <!--
-    Panel CONTENT ONLY (core-owned-chrome path, ticket 04). Core renders the
+    Panel CONTENT ONLY (core-owned-chrome path). Core renders the
     toolbar button (from `meta.icon`) and the docked panel header/title, and owns
     open/close + docking; this component mounts only the panel body + footer into
     the core-provided container. No self-rendered toggle, no `position: absolute`.

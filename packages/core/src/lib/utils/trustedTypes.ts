@@ -1,5 +1,5 @@
 /**
- * Trusted Types integration (ticket 24).
+ * Trusted Types integration.
  *
  * Under a `require-trusted-types-for 'script'` policy the browser rejects a plain
  * string assigned to a DOM HTML sink (`innerHTML`, `<template>.innerHTML`,

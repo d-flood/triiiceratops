@@ -1,8 +1,8 @@
 // @vitest-environment node
 //
 // No DOM: the browser enters through `loadImage`, which is the point of the
-// module. Every ordering invariant below used to live in `CanvasHost.svelte`
-// and was reachable only through Playwright.
+// module — every ordering invariant below is asserted here rather than only
+// reachable through Playwright.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 

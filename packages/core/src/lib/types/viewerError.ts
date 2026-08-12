@@ -1,8 +1,8 @@
 /**
- * The structured `viewererror` channel (ticket 18 — core distribution cleanup).
+ * The structured `viewererror` channel.
  *
- * Mirrors the `pluginerror` channel (ticket 09, {@link PluginError} in
- * `./plugin`) so hosts handle viewer-level failures exactly as they handle
+ * Mirrors the `pluginerror` channel ({@link PluginError} in `./plugin`) so
+ * hosts handle viewer-level failures exactly as they handle
  * plugin failures: actionable configuration, content, and operation problems are
  * delivered as a typed payload on BOTH a bubbling, composed `viewererror`
  * CustomEvent from the viewer root AND an `onviewererror` host callback — the
@@ -10,7 +10,8 @@
  * "Core Distribution" — "Actionable configuration, version, plugin, and
  * operation failures use structured events or callbacks"; user stories 12–13).
  *
- * The payload type is defined ONCE here so ticket 21 can snapshot it.
+ * The payload type is defined ONCE here so it can be snapshotted for the
+ * public API surface.
  *
  * Bundler-neutral and SSR-safe: pure types plus a string constant; no runtime,
  * no browser globals, no bundler-specific env replacement.

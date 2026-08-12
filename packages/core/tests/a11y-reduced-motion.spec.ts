@@ -5,15 +5,15 @@ import { KEY_PAN_STEP } from '../src/lib/renderer/rendererDefaults';
 import { getView, openGridManifest, setView } from './helpers/numberedGrid';
 
 /*
- * Reduced-motion support (ticket 23 / WCAG 2.3.3). With
- * `prefers-reduced-motion: reduce` emulated, the global guard in base.css must
- * neutralize CSS transition/animation durations for viewer chrome. We assert
- * computed styles rather than observing motion.
+ * Reduced-motion support (WCAG 2.3.3). With `prefers-reduced-motion: reduce`
+ * emulated, the global guard in base.css must neutralize CSS
+ * transition/animation durations for viewer chrome. We assert computed
+ * styles rather than observing motion.
  */
 
 test.use({ colorScheme: 'light' });
 
-// Desktop viewer only; ticket 24 owns the mobile browser matrix.
+// Desktop viewer only.
 test.beforeEach(({ isMobile }) => {
     test.skip(!!isMobile, 'a11y suite targets the desktop viewer (chromium)');
 });
@@ -112,7 +112,7 @@ test('transitions are present WITHOUT the reduced-motion preference', async ({
 });
 
 /*
- * Reduced motion, observed at the VIEWPORT (ticket 11).
+ * Reduced motion, observed at the VIEWPORT.
  *
  * The two tests above read computed CSS, and they cannot detect the gap they
  * exist to prevent: the viewport's easing is JS-driven, so a wheel zoom, a

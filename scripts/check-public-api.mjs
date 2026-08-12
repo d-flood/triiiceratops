@@ -1,13 +1,13 @@
 /**
- * Public-API guards (ticket 21), run by CI after a build:
+ * Public-API guards, run by CI after a build:
  *
  *   1. No `any` in PUBLIC `.d.ts` output. Scans every package's reachable public
  *      declaration graph (see `api-report/dts.mjs`) for the `any` type token.
  *      Pre-existing, structural exceptions live in
  *      `api-reports/dts-any-allowlist.txt` (each with the untyped-IIIF /
  *      manifesto.js boundary rationale in the file header). A NEW, non-allowlisted
- *      `any` on any public declaration fails the build. Per ticket 21 these
- *      entries should migrate into ticket 22's `lint-allowlist.md` when it lands.
+ *      `any` on any public declaration fails the build. These entries should
+ *      migrate into `lint-allowlist.md` when it lands.
  *
  * Usage:
  *   node scripts/check-public-api.mjs                 # enforce (CI)
@@ -58,15 +58,15 @@ function collectHits() {
     return [...new Set(hits)].sort();
 }
 
-const HEADER = `# Public-declaration \`any\` allowlist (ticket 21)
+const HEADER = `# Public-declaration \`any\` allowlist
 #
 # Each line is a normalized \`any\`-bearing declaration line reachable from a
 # package's public export entry points. These are PRE-EXISTING, STRUCTURAL
 # exceptions: the viewer models fetched IIIF resources (manifest / canvas /
 # annotation) as \`any\` because its \`manifesto.js\` boundary is untyped. They are
 # a single documented boundary, not accidental leakage, so they are accounted for
-# here rather than refactored (out of scope for ticket 21 — "snapshots record
-# what exists"). The SDK ABI itself is \`any\`-clean.
+# here rather than refactored — "snapshots record what exists". The SDK ABI
+# itself is \`any\`-clean.
 #
 # The gate (\`scripts/check-public-api.mjs\`) FAILS on any NEW public \`any\` not
 # listed here, so a planted \`any\` on a public type is caught. This boundary is

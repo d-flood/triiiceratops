@@ -57,7 +57,6 @@
         renderedAnnotations.filter((anno) => !anno.isSearchHit),
     );
 
-    // Derived state for "All Visible" status
     let isAllVisible = $derived.by(() => {
         if (toggleableAnnotations.length === 0) return false;
         return toggleableAnnotations.every((anno) => {

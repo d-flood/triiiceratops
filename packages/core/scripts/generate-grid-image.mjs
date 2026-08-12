@@ -1,7 +1,6 @@
 /*
  * Generates the numbered-grid fixture image used by the renderer's geometric
- * e2e assertions — the epic's hard correctness gate (spec §Testing Decisions,
- * "Geometric assertions").
+ * e2e assertions (spec §Testing Decisions, "Geometric assertions").
  *
  * The image is committed, so e2e never depends on running this. Regenerate with:
  *

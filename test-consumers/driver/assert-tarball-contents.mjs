@@ -25,8 +25,8 @@ const TOP_LEVEL_ALLOWED = new Set([
     'CHANGELOG.md',
 ]);
 
-// Files the CORE tarball must CONTAIN, not merely be permitted to contain
-// (framework-wrappers ticket 10). The allowlist above is a ceiling; these are
+// Files the CORE tarball must CONTAIN, not merely be permitted to contain.
+// The allowlist above is a ceiling; these are
 // the floor. `dist/react.*` and `dist/vue.*` are the precompiled framework
 // wrappers `triiiceratops/react` and `triiiceratops/vue` resolve to — the
 // subpaths are part of core's published contract, so a build that silently
@@ -208,7 +208,7 @@ export function readTarballPackageJson(tarballPath) {
 }
 
 /**
- * Classify one `peerDependencies` value from a PACKED tarball (ticket 35).
+ * Classify one `peerDependencies` value from a PACKED tarball.
  *
  * A published peer must be a semver RANGE — never a bare exact pin and never a
  * residual `workspace:` protocol. Workspace-internal peers are declared
@@ -273,7 +273,7 @@ export function collectExportTargets(pkg) {
 
 /**
  * Assert the CORE tarball actually ships what its export map promises, and that
- * the framework wrapper subpaths are among them (framework-wrappers ticket 10).
+ * the framework wrapper subpaths are among them.
  *
  * Two failure modes this catches that the allowlist cannot, because the
  * allowlist only says what MAY appear:
@@ -342,7 +342,7 @@ export function assertCoreExportTargets(tarballPath, pkgName) {
 }
 
 /**
- * Assert core's framework peer metadata (framework-wrappers ticket 10).
+ * Assert core's framework peer metadata.
  *
  * `react`, `vue`, and `svelte` must be declared peers, marked OPTIONAL, and must
  * not appear in `dependencies`. Getting this wrong is what turns "install

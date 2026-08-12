@@ -25,7 +25,6 @@
     const isUnified = $derived(viewerState.config.controls === 'unified');
     let viewerLocale = $derived(viewerState.config.locale ?? language.current);
 
-    // Canvas navigation state
     let showNav = $derived(
         viewerState.showCanvasNav && viewerState.canvases.length > 1,
     );
@@ -54,7 +53,6 @@
         visibleChoiceGroups.find((group) => group.side === 'right'),
     );
 
-    // Zoom controls
     let showZoom = $derived(viewerState.showZoomControls);
     let hasChoices = $derived(visibleChoiceGroups.length > 0);
     let hasCenterControls = $derived(showZoom || showNav);

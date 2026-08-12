@@ -71,7 +71,7 @@ export default defineConfig({
         // In tests, force the browser condition so Svelte resolves correctly.
         ...(process.env.VITEST ? { conditions: ['browser'] } : {}),
         alias: {
-            // The internal, unpublished shared UI primitives (ticket 01) and the
+            // The internal, unpublished shared UI primitives and the
             // SDK resolve to SOURCE so the dev server and core's tests compile
             // them from `.svelte`/`.ts` with HMR. In the published `build:lib`
             // path the UI is inlined into dist by src/packaging/inlineUi.ts.

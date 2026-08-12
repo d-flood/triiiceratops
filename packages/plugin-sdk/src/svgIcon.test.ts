@@ -1,4 +1,4 @@
-// svgIcon validation tests (ticket 08).
+// svgIcon validation tests.
 //
 // Valid SVG is accepted and reduced to { kind, inner, viewBox }; each rejection
 // class throws SYNCHRONOUSLY with a message naming the offense.

@@ -383,9 +383,9 @@ const throwingEquals = (): boolean => {
 };
 
 describe('selector cadence', () => {
-    // The acceptance this ticket is measured against: a React wrapper reads
-    // zoom REACTIVELY through a `frame`-cadence selector, with no state
-    // notification and no requestAnimationFrame loop anywhere.
+    // A React wrapper reads zoom REACTIVELY through a `frame`-cadence
+    // selector, with no state notification and no requestAnimationFrame loop
+    // anywhere.
     it("wakes a frame-cadence projection from the renderer's animation events", async () => {
         const renderer = createRendererStub({ scale: 1 });
 

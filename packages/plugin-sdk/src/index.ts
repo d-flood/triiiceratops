@@ -45,7 +45,7 @@ export {
 } from './compatibility.js';
 export type { PluginCompatibilityReason } from './compatibility.js';
 
-// Stub services (ticket 08 supplies real, host-owned implementations).
+// Stub services; core supplies the real, host-owned implementations.
 export {
     createStubStyleService,
     createStubLocaleService,

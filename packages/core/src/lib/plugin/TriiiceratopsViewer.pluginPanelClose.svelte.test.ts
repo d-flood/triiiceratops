@@ -1,5 +1,5 @@
 // Core viewer × plugin panel CLOSE AFFORDANCE — the parity rule for a plugin's
-// docked panel (epic plugin-overlay-layers, ticket 05).
+// docked panel.
 //
 // The claim: a plugin's docked panel gets exactly the close affordance every
 // core panel already has — a header close button, Escape-to-close, and
@@ -17,10 +17,10 @@
 // `<Toolbar docked/>` in the same flush. The invoker the section captured is
 // already destroyed, so focus lands on `<body>`. That is pre-existing shared
 // chrome behaviour, equally true of a core panel forced `position: 'left'`, and
-// it is tracked in ticket 06 (`plugin-panel-focus-return`) — out of scope here,
-// which must not touch `PanelStack`/`PanelStackSection`. The RIGHT-docked case
-// below pins the working focus return; the LEFT-docked case pins the actual,
-// degraded behaviour so ticket 06 has a test to flip.
+// fixing it is out of scope here, since the fix must not touch
+// `PanelStack`/`PanelStackSection`. The RIGHT-docked case below pins the
+// working focus return; the LEFT-docked case pins the actual, degraded
+// behaviour so there is a test ready to flip once it is fixed.
 //
 // Also the first test anywhere for `showCloseButton` — the flag is shared with
 // every core panel through `ClosablePanelConfig`, so the default-`true` branch
@@ -243,10 +243,8 @@ describe('plugin panel close affordance (config.plugins[uiId].showCloseButton)',
         // left-docked panel flips `dockRailLeft`, so the floating toolbar
         // holding the invoker is destroyed and re-created as a rail in the same
         // flush; the invoker `PanelStackSection` captured on mount is detached
-        // and focus falls to `<body>`. Ticket 06
-        // (`.tracker/plugin-overlay-layers/tickets/06-plugin-panel-focus-return.md`)
-        // owns the fix — it lives in shared chrome, which ticket 05 may not
-        // touch. When 06 lands, this expectation flips to `toBe(toggle)`.
+        // and focus falls to `<body>`. The fix lives in shared chrome, out of
+        // scope here; once it lands, this expectation flips to `toBe(toggle)`.
         const props = $state({
             plugins: [makeDouble()],
             config: {

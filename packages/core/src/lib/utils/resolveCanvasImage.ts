@@ -46,7 +46,7 @@ type ResolveCanvasImageOptions = {
      * canvas dropped, because it has no geometry to place an image or an
      * annotation in. The Canvas2D renderer is the exception — it must still lay
      * such a canvas out, from a median of its siblings, and reflow it if an
-     * image service later reports real dimensions (user story 32). It reads the
+     * image service later reports real dimensions. It reads the
      * declared dimensions separately, through
      * {@link getDeclaredCanvasDimensions}, so what it gets back here is only
      * ever the source descriptor; the placeholder never reaches layout.
@@ -145,12 +145,10 @@ function getCanvasDimensions(canvas: any): CanvasDimensions | null {
 /**
  * The `#xywh=` fragment a painting annotation targets, if it targets one.
  *
- * `target` is the v3 spelling and `on` the v2 one, and both are read here. Only
- * `target` was, which silently dropped the region of every raw v2 composite
- * canvas — an image painting a sub-rectangle of its canvas landed at the origin
- * at full size, on top of its siblings. The renderer spec promises
- * region-targeted canvases (user story 30), so this is fixed rather than
- * recorded as a deviation.
+ * `target` is the v3 spelling and `on` the v2 one, and both are read here.
+ * Reading only `target` would silently drop the region of every raw v2
+ * composite canvas — an image painting a sub-rectangle of its canvas would
+ * land at the origin at full size, on top of its siblings.
  */
 function parseTargetRegion(annotation: any): {
     x: number;
@@ -241,8 +239,8 @@ function getAnnotationResource(
 ): any | null {
     let resource: any = null;
 
-    // The raw-JSON path, and now the only one. `getPaintingBody` reads the v2
-    // `resource` spelling as well as the v3 `body` one, and
+    // `getPaintingBody` reads the v2 `resource` spelling as well as the v3
+    // `body` one, and
     // `getChoiceAlternatives` recognizes the v2 `oa:Choice`/`default`+`item`
     // spelling as well as v3's `Choice`/`items`, with its array access guarded.
     let body = getPaintingBody(annotation);

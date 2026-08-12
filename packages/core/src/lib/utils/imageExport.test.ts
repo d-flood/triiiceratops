@@ -14,12 +14,6 @@ import {
 } from './imageExport';
 import { installCanvasCompositingMocks } from '../test/utils/mockCanvasCompositing';
 
-/**
- * These were `manifesto.js`-shaped doubles — a `getContent()` accessor over
- * annotations with a `getBody()` accessor. IIIF v3 painting-annotation
- * enumeration is first-party as of the `remove-manifesto` epic (ticket 03) and
- * reads `canvas.items[].items[]`, so they now carry the JSON directly.
- */
 function createLevel1Canvas() {
     return {
         id: 'canvas-1',

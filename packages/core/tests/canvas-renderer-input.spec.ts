@@ -1,5 +1,5 @@
 /**
- * The Canvas2D renderer's input model (ticket 10).
+ * The Canvas2D renderer's input model.
  *
  * Separate from `canvas-renderer.spec.ts` — which is pinned to Chromium until
  * the renderer has tiles — because **pointer semantics differ across engines**

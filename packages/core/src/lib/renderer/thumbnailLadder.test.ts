@@ -18,9 +18,8 @@ function resolve(overrides: Partial<ResolveThumbnailInput> = {}) {
     return resolveThumbnail({
         source: service('level2'),
         rung: 256,
-        // The pyramid's shipped value, and the one the deviation recorded for
-        // ticket 06 is about. Stated here rather than imported so tuning the
-        // default cannot silently rewrite what these assertions prove.
+        // The pyramid's shipped value. Stated here rather than imported so
+        // tuning the default cannot silently rewrite what these assertions prove.
         minPixelRatio: 0.5,
         // 16 megapixels, the shipped ceiling — stated here for the same reason.
         // This is the ONLY thing that refuses a ladder at this tier, so every
@@ -49,10 +48,9 @@ describe('quantizeRung', () => {
     });
 
     it('produces a SMALL set of distinct sizes across a continuous zoom', () => {
-        // The decision the ticket exists to protect. Computing the exact
-        // projected size is the naive implementation: every zoom step would
-        // mint a fresh URL, every one would miss the HTTP cache, and a pinch
-        // would generate a request per frame per canvas.
+        // Computing the exact projected size is the naive implementation:
+        // every zoom step would mint a fresh URL, every one would miss the
+        // HTTP cache, and a pinch would generate a request per frame per canvas.
         const sizes = new Set<number>();
         for (let projected = 1; projected <= 1200; projected += 1) {
             sizes.add(quantizeRung(projected));
@@ -127,7 +125,7 @@ describe('resolveThumbnail', () => {
         });
 
         it('carries the `native` fallback for a version 2 service', () => {
-            // The knowing deviation recorded for ticket 06: every version 2
+            // A deliberate deviation: every version 2
             // service is asked for `default`, which is wrong only for a frozen
             // pre-2016 tree — and one request per broken service buys the
             // answer back for the whole service.
@@ -242,8 +240,8 @@ describe('resolveThumbnail', () => {
             // At rung 256 the walk accepts anything no wider than
             // `256 / 0.5 = 512`, and takes the LARGEST of those — 500, not the
             // 250 that "the nearest advertised image at or above what is
-            // needed" would give. Deliberately the pyramid's rule (TRACKER,
-            // ticket 06 deviation): one sharpness budget for both source kinds.
+            // needed" would give. Deliberately the pyramid's rule: one sharpness
+            // budget for both source kinds.
             expect(
                 resolve({ source: service('level0'), facts, rung: 256 }),
             ).toEqual({

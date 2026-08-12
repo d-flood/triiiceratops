@@ -66,11 +66,10 @@ describe('resolveThumbnailResourceSrc', () => {
  * Thumbnail resolution from a canvas's painting annotations — the second rung
  * of the fallback ladder, reached when the canvas declares no `thumbnail`.
  *
- * The v2 cases are the point. This path read only the v3 `body` spelling of an
- * annotation's painting resource and never the v2 `resource` one, so once
- * `remove-manifesto` ticket 06 made v2 enumeration first-party it would have
- * produced a blank thumbnail for every v2 canvas — silently, with nothing but a
- * `logger.debug` line. The v3 case is here as the control.
+ * The v2 cases are the point: reading only the v3 `body` spelling of an
+ * annotation's painting resource and never the v2 `resource` one would
+ * produce a blank thumbnail for every v2 canvas — silently, with nothing but
+ * a `logger.debug` line. The v3 case is here as the control.
  */
 describe('getThumbnailSrc', () => {
     const V2_CANVAS = 'https://example.org/v2/canvas/1';
@@ -120,17 +119,8 @@ describe('getThumbnailSrc', () => {
     });
 
     it('keeps a IIIF v2 resource that carries only `@id` and no service', () => {
-        // Pins the reduction of `getThumbnailSrc`'s discard guard, which read
-        // `resource && !resource.id && !resource.__jsonld && (!resource.
-        // getServices || resource.getServices().length === 0)`. Two of its
-        // four conjuncts went permanently true on raw JSON, and reducing it
-        // rather than deleting it whole would have left
-        // `if (resource && !resource.id) resource = null` — a check on the v3
-        // id spelling ONLY, which nulls out every valid v2 resource, since a
-        // v2 resource carries `@id` and never `id`. The guard was in fact
-        // unreachable (`resource` was always null when it was reached), so it
-        // is gone entirely and this v2 resource survives (SPEC → "The
-        // governing rule for the whole epic").
+        // A v2 resource carries `@id` and never `id`; a guard checking only
+        // the v3 spelling would null it out.
         const canvas = v2Canvas({
             '@id': 'https://example.org/v2-only-at-id.jpg',
             '@type': 'dctypes:Image',

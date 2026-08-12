@@ -55,8 +55,7 @@ export function dim(): number {
     return state.imageAdjustments.brightness;
 }
 
-// The closed renderer config. An open partial-options escape hatch is exactly
-// what this fixture used to have to resolve types for; there is none now.
+// The renderer config type is closed — no open partial-options escape hatch.
 export function configure(): void {
     state.config = { renderer: { zoomPerClick: 1.5, minPixelRatio: 0.5 } };
 }

@@ -1,12 +1,10 @@
 /**
- * The annotation shape overlay on the first-party renderer (ticket 14).
+ * The annotation shape overlay on the first-party renderer.
  *
- * The overlay used to live inside the previous renderer's component and convert
- * coordinates through that library's own viewport, so the Canvas2D renderer
- * showed no annotation shapes at all. It is now a renderer-independent layer bound to the
- * `frame` cadence and to `ViewerState.canvasToScreen`, which is what these specs
- * assert: the shape agrees with the SAME coordinate model the painted pixels are
- * gated against, at rest and after a pan and a zoom.
+ * The overlay is a renderer-independent layer bound to the `frame` cadence
+ * and to `ViewerState.canvasToScreen`, which is what these specs assert: the
+ * shape agrees with the SAME coordinate model the painted pixels are gated
+ * against, at rest and after a pan and a zoom.
  *
  * "No visible lag" is exactly that agreement. A shape positioned one frame late
  * is a shape that disagrees with the transform the picture was drawn with, and

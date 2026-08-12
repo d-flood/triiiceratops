@@ -51,8 +51,7 @@ describe('normalizeDescriptiveMetadata — IIIF v3', () => {
 });
 
 describe('normalizeDescriptiveMetadata — IIIF v2', () => {
-    // The v2 spellings that had no reader once the manifest library was
-    // removed: `description`, bare `attribution`, `license`, `@id` logos.
+    // The v2 spellings: `description`, bare `attribution`, `license`, `@id` logos.
     const v2 = {
         '@id': 'https://ex/manifest',
         '@type': 'sc:Manifest',

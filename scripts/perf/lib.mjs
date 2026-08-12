@@ -1,4 +1,4 @@
-// Shared helpers for the performance comparison harness (ticket 25).
+// Shared helpers for the performance comparison harness.
 //
 // Pure, dependency-free utilities: artifact discovery + byte sizing (ESM entry
 // graph walking), statistics (median), the SPEC-fixed regression thresholds and
@@ -59,7 +59,7 @@ export const MEMORY_BYTE_CEILING_FACTOR = 1.75;
 // Warm-up + measured run counts per scenario. Picked for a stable median in
 // headless CI: the warm-ups prime V8/JIT and the HTTP cache (the browser
 // context is reused across runs), and an ODD number of measured runs yields a
-// single-sample median with no interpolation. See docs/perf note in the ticket.
+// single-sample median with no interpolation.
 export const DEFAULT_WARMUPS = 3;
 export const DEFAULT_RUNS = 9;
 

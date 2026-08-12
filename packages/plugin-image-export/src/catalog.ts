@@ -2,12 +2,11 @@ import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
 
 /**
  * The plugin's package-owned localization catalog (CONTEXT.md **Active
- * locale**). These strings previously lived in core's `messages/en.json` /
- * `messages/de.json`; migrating the plugin out of core moves them here so the
- * catalog ships with (and evolves with) the plugin, and core's catalogs carry
- * no plugin keys. `en` is the required fallback; a missing key resolves to `en`
- * and then to the key itself. `image_download_result_downloaded` interpolates a
- * `{filename}` param through the locale service.
+ * locale**): ships with the plugin rather than living in core's catalogs, so
+ * core carries no plugin keys. `en` is the required fallback; a missing key
+ * resolves to `en` and then to the key itself.
+ * `image_download_result_downloaded` interpolates a `{filename}` param
+ * through the locale service.
  */
 export const catalog: LocaleCatalog = {
     en: {

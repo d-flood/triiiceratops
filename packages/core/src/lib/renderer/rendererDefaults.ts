@@ -94,7 +94,7 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
  * hairline. Two spellings of one figure, and the only two callers there are.
  *
  * Deliberately NOT a member of {@link DEFAULT_BUDGETS}: it decides where
- * canvases are, and a ticket tuning the byte and threshold budgets must not
+ * canvases are, and tuning the byte and threshold budgets must not
  * move the layout as a side effect.
  */
 export const MULTI_CANVAS_GAP_FRACTION = 0.0125;
@@ -117,8 +117,8 @@ export const TILE_IN_FLIGHT_LIMIT = 6;
  * At the derived zoom floor roughly fifty canvases sit in the residency window,
  * every one of them is thumbnail tier, and a level0 manifest resolves every one
  * of them to "fetch `info.json`" — so the first frame after a flick settles
- * would start fifty simultaneous metadata requests, which is the fetch storm
- * this epic exists to remove arriving one frame later rather than not at all
+ * would start fifty simultaneous metadata requests. This window turns that
+ * fetch storm into arrivals one frame later rather than not at all
  * (spec §Thumbnail resolution: "under the same gate and concurrency cap as
  * thumbnail fetches").
  *

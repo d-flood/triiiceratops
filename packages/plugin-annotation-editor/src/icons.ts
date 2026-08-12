@@ -3,9 +3,8 @@
  *
  * `ICON` is the toolbar glyph descriptor produced by the SDK's `svgIcon` — core
  * owns the rendered `<svg>` wrapper (sizing, `currentColor`, a11y). `GLYPHS` are
- * the raw inner-SVG strings the Svelte panel renders inline via `{@html}` (the
- * panel used core's internal `Icon` component before the migration; the glyphs
- * are the same @phosphor-icons/core paths, on the 256×256 viewBox).
+ * the raw inner-SVG strings the Svelte panel renders inline via `{@html}`
+ * (@phosphor-icons/core paths, on the 256×256 viewBox).
  */
 import { svgIcon, type IconDescriptor } from '@triiiceratops/plugin-sdk';
 

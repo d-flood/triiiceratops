@@ -11,13 +11,13 @@ import {
 /*
  * Custom-element codegen belongs to the wrapper alone.
  *
- * Both element configs used to set a global `compilerOptions.customElement:
- * true`, which does NOT restrict itself to components declaring
- * `<svelte:options customElement>` — every component in the graph got a
- * `create_custom_element(...)` registration nobody instantiates, plus the
- * compiler's `custom_element_props_identifier` warning.
+ * A global `compilerOptions.customElement: true` does NOT restrict itself to
+ * components declaring `<svelte:options customElement>` — every component in
+ * the graph would get a `create_custom_element(...)` registration nobody
+ * instantiates, plus the compiler's `custom_element_props_identifier`
+ * warning.
  *
- * The counting half of that rule now lives in the guard's `transform` hook,
+ * The counting half of that rule lives in the guard's `transform` hook,
  * reading the Svelte compiler's own output, so these tests feed it the two
  * shapes the compiler emits rather than running a build. The artifacts are
  * still checked on their own terms elsewhere:

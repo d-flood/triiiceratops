@@ -1,50 +1,8 @@
 <script lang="ts">
     /**
      * The annotation **shape** overlay: the boxes, polygons, and points drawn on
-     * the image itself.
-     *
-     * Distinct from `AnnotationOverlay.svelte`, which draws the SVG connector
-     * lines between a panel row and the shapes here. They are two concerns, not
-     * two copies of one, and both are carried forward.
-     *
-     * ## Renderer-independent, and on the frame cadence
-     *
-     * This used to live inside the third-party renderer's own component, keyed
-     * on a counter that one of its events bumped, and it converted coordinates
-     * through that library's viewport. Nothing here reaches into the renderer:
-     * geometry comes from `ViewerState.canvasToScreen` and the redraw signal
-     * from `ViewerState.subscribeFrame` — the `frame` cadence, which is the
-     * renderer's own animation events. That is what let the previous renderer be
-     * deleted without taking the annotation overlay with it.
-     *
-     * The write lands in the same frame as the paint: the frame listener runs
-     * inside the renderer's `requestAnimationFrame` callback, and Svelte flushes
-     * on the microtask that follows it — before the browser composites. The
-     * shapes and the pixels therefore move together, where the old binding
-     * repositioned them one frame after the image had already moved.
-     *
-     * ## Why DOM and not the paint hook
-     *
-     * > The canvas paints pixels; a parallel DOM layer carries the focusable,
-     * > labelled targets.
-     *
-     * Every editable shape below is a real `<button>` with an accessible name and
-     * Enter/Space activation. Canvas-drawn shapes have no focus, no name, and no
-     * keyboard reach, and an automated accessibility scan cannot notice their
-     * absence because the elements would simply not exist. Migrating the drawing
-     * to core's paint hook is later work and is bounded by that rule: pixels may
-     * move onto the canvas only while these targets stay in the DOM, projected
-     * from the same geometry.
-     *
-     * ## Mounted beside the renderer, not inside it
-     *
-     * A sibling of the renderer host inside the viewer's stage element, which is
-     * the shared positioning context — so `canvasToScreen`'s surface-local CSS
-     * pixels are this overlay's own coordinates with no offset arithmetic. Being
-     * a sibling also keeps it out of the renderer root's `role="application"`
-     * subtree, where browse mode is suppressed and these labels would be skipped
-     * by NVDA and JAWS. It comes AFTER the renderer in DOM order, so Tab reaches
-     * the picture before the things marked on it.
+     * the image itself. Distinct from `AnnotationOverlay.svelte`, which draws the
+     * SVG connector lines between a panel row and the shapes here.
      */
     import { getContext, onMount } from 'svelte';
 
@@ -78,6 +36,22 @@
      * plugin subscribes through.
      */
     let frameTick = $state(0);
+
+    /**
+     * Geometry comes from `ViewerState.canvasToScreen` and the redraw signal from
+     * `ViewerState.subscribeFrame` — nothing here reaches into the renderer
+     * directly. The frame listener runs inside the renderer's
+     * `requestAnimationFrame` callback, and Svelte flushes on the microtask that
+     * follows it, before the browser composites, so the shapes and the pixels
+     * move together.
+     *
+     * Every editable shape is a real `<button>` with an accessible name and
+     * Enter/Space activation, because canvas-drawn shapes have no focus, no
+     * name, and no keyboard reach, and an automated accessibility scan cannot
+     * notice their absence — the elements would simply not exist. Pixels may
+     * move onto core's paint hook only while these targets stay in the DOM,
+     * projected from the same geometry.
+     */
 
     let readonlyTooltip = $state<{
         id: string;
@@ -481,7 +455,13 @@
 </script>
 
 <!--
-    One element per shape, positioned in surface-local CSS pixels.
+    One element per shape, positioned in surface-local CSS pixels. A sibling of
+    the renderer host in the viewer's stage element, so `canvasToScreen`'s
+    surface-local CSS pixels are this overlay's own coordinates with no offset
+    arithmetic; being a sibling also keeps it out of the renderer root's
+    `role="application"` subtree, where these labels would be skipped by NVDA
+    and JAWS. It comes AFTER the renderer in DOM order, so Tab reaches the
+    picture before the things marked on it.
 
     Editable shapes are real `<button>`s with an accessible name and Enter/Space
     activation; read-only ones are inert, unfocusable, and take no pointer events

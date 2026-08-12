@@ -353,7 +353,7 @@ export function exceedsDecodedPixelCap(
  *    requested at which zoom does not shift, and it means one budget governs
  *    sharpness for both source kinds instead of two that can drift apart. The
  *    consequence — a gapped ladder can leave a rung visibly upscaled — is a
- *    recorded deviation from the spec's earlier wording (TRACKER Notes).
+ *    deliberate deviation from the spec's earlier wording.
  */
 export function chooseRung(
     ladder: SizeLadder,

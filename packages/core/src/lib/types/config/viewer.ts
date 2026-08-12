@@ -354,8 +354,8 @@ export interface ViewerConfig {
     enableDragDrop?: boolean;
 
     /**
-     * Enable opt-in developer diagnostics (ticket 18). Production distributions
-     * are quiet by default: when `false`, the viewer emits no unsolicited
+     * Enable opt-in developer diagnostics. Production distributions are quiet
+     * by default: when `false`, the viewer emits no unsolicited
      * console output. When `true`, viewer diagnostics are logged through the
      * core logger (prefixed `[triiiceratops]`). Actionable failures always
      * surface through the structured `viewererror`/`pluginerror` channels

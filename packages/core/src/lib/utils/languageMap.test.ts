@@ -64,8 +64,6 @@ describe('resolveLanguageValue', () => {
     });
 
     describe('v2 JSON-LD array', () => {
-        // The spelling that fell back to "Canvas N" once canvases became raw
-        // JSON rather than library objects.
         const items = [
             { '@value': 'Bild 6', '@language': 'sv' },
             { '@value': 'Image 6', '@language': 'en' },

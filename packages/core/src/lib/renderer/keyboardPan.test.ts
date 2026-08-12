@@ -4,7 +4,7 @@ import { PAN_KEYS, keyPanVelocity } from './keyboardPan';
 
 /**
  * The config is supplied here rather than imported from `rendererDefaults`:
- * every shipped threshold in this epic is provisional, and a test that asserted
+ * every shipped threshold in the renderer is provisional, and a test that asserted
  * the defaults would turn tuning one into a test failure (spec §Further Notes).
  */
 const CONFIG = { panSpeed: 600, shiftFactor: 4 };

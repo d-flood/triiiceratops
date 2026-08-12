@@ -1,5 +1,5 @@
 /**
- * `@triiiceratops/plugin-sdk/testing` — the plugin-author test kit (ticket 14).
+ * `@triiiceratops/plugin-sdk/testing` — the plugin-author test kit.
  *
  * A plugin author validates a plugin without a full application by mounting it
  * against a **test viewer context**: a REAL, compiled `ViewerState` (real

@@ -1,4 +1,4 @@
-// Performance comparison orchestrator (ticket 25) — `pnpm perf:compare`.
+// Performance comparison orchestrator — `pnpm perf:compare`.
 //
 // Builds the base SHA and the head SHA on the SAME runner (same Node, same
 // browser build), measures each with the identical head-owned measurement code
@@ -68,11 +68,11 @@ const BUILD_STEPS = [
     ['@triiiceratops/plugin-annotation-editor', 'build'],
 ];
 
-// The 1.0 workspace restructure (ticket 21) moved the measured packages under
-// packages/. A `--base` SHA from before that restructure has no packages/core
-// to build or size — the BUILD_STEPS paths don't exist there at all, so a
-// base-vs-head diff against it is meaningless, not just unbuildable. Detect
-// that up front and skip the base measurement rather than failing the build.
+// The measured packages live under packages/. A `--base` SHA from before that
+// layout existed has no packages/core to build or size — the BUILD_STEPS paths
+// don't exist there at all, so a base-vs-head diff against it is meaningless,
+// not just unbuildable. Detect that up front and skip the base measurement
+// rather than failing the build.
 function hasMonorepoLayout(dir) {
     return existsSync(join(dir, 'packages', 'core', 'package.json'));
 }

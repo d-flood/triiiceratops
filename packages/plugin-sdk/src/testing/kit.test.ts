@@ -1,4 +1,4 @@
-// SDK test-kit unit tests (ticket 14).
+// SDK test-kit unit tests.
 //
 // Proves the kit against the REAL compiled headless `ViewerState`:
 //  - a command notifies a plugin selector only AFTER `flush()` (real batching,

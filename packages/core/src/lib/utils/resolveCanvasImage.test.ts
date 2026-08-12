@@ -13,15 +13,9 @@ import {
 
 /**
  * Wrap painting annotations in an `AnnotationPage`, the way a IIIF v3 canvas
- * carries them.
- *
- * The v3 canvases below used to be `manifesto.js`-shaped doubles — a
- * `getContent()` accessor returning annotations with a `getBody()` accessor.
- * Painting-annotation enumeration is first-party for v3 as of the
- * `remove-manifesto` epic (ticket 03) and reads `canvas.items[].items[]`
- * directly, so these fixtures carry the JSON the accessors used to wrap. The v2
- * canvases below are raw JSON too, as of ticket 06: `canvas.images[]`, with the
- * painting resource under `resource` rather than `body`.
+ * carries them: `canvas.items[].items[]`. The v2 canvases below use
+ * `canvas.images[]` instead, with the painting resource under `resource`
+ * rather than `body`.
  */
 function annotationPages(...annotations: any[]) {
     return [
@@ -39,13 +33,6 @@ const XRAY = 'https://example.org/image/xray.jpg';
 /**
  * A raw IIIF v3 Choice canvas, shaped like IIIF Cookbook recipe 0033 — see
  * `../test/fixtures/manifests/cookbook/0033-choice.json`.
- *
- * The v2-shaped Choice double above (`getImages()` + `getBody()` +
- * `__jsonld.body`) reaches `getAnnotationResource` through its `annotation.
- * getBody` branch. A raw v3 annotation has no accessors at all, so it falls
- * through to the raw-JSON branch instead — which, since `remove-manifesto`
- * ticket 03 made v3 painting-annotation enumeration first-party, is the primary
- * v3 Choice-resolution path.
  *
  * The two alternatives differ in every observable (id, service, dimensions,
  * label) so that "the selection was honored" cannot pass by accident.
@@ -138,10 +125,8 @@ describe('resolveCanvasImage', () => {
     });
 
     it('uses the selected Choice item when provided, on a raw IIIF v2 canvas', () => {
-        // The v2 Choice spelling: `oa:Choice` with `default` plus `item`, under
-        // the annotation's `resource`. Nothing read it before
-        // `remove-manifesto` ticket 06 — such a canvas offered no alternatives
-        // and rendered nothing at all.
+        // The v2 Choice spelling: `oa:Choice` with `default` plus `item`,
+        // under the annotation's `resource`.
         const canvas = {
             '@id': 'canvas-2',
             '@type': 'sc:Canvas',
@@ -268,12 +253,12 @@ describe('resolveCanvasImage', () => {
     });
 
     it('resolves both alternatives of the IIIF Cookbook 0033 Choice manifest', () => {
-        // Entered through real manifest JSON rather than a hand-built canvas,
-        // per the epic's testing decisions: this is the exact bytes a publisher
-        // serves, and it stays valid when the canvas representation changes.
-        // Read with `fs` for the same reason the corpus smoke test does — a
-        // Vite-transformed JSON module is shared across the module graph, and
-        // manifest registration mutates whatever JSON it is handed.
+        // Entered through real manifest JSON rather than a hand-built canvas:
+        // this is the exact bytes a publisher serves, and it stays valid when
+        // the canvas representation changes. Read with `fs` rather than
+        // imported — a Vite-transformed JSON module is shared across the
+        // module graph, and manifest registration mutates whatever JSON it
+        // is handed.
         const manifest = JSON.parse(
             readFileSync(
                 join(
@@ -593,8 +578,8 @@ describe('resolveAllCanvasImages', () => {
 
     it('returns every image of a IIIF v2 composite canvas', () => {
         // Several images assembled into one page. All of them must resolve —
-        // truncating to the first is the silent data loss the epic exists to
-        // stop — and each must land where its `on` fragment puts it.
+        // truncating to the first would be silent data loss — and each must
+        // land where its `on` fragment puts it.
         const canvas = {
             '@id': 'canvas-composite',
             '@type': 'sc:Canvas',
@@ -665,13 +650,10 @@ describe('resolveAllCanvasImages', () => {
     });
 
     it('still treats a zero canvas dimension as no dimensions at all', () => {
-        // `getCanvasDimensions` was a three-rung `||` ladder whose last rung
-        // evaluated to `null`, so a `width` of `0` fell through it and the
-        // canvas resolved nothing. Deleting the two dead rungs without keeping
-        // the terminal `|| null` would leave `0` in place, which is a number,
-        // and the canvas would resolve with a zero width instead — a division
-        // by zero in the positioning arithmetic below. `0` is a real IIIF value
-        // and the reason the ticket forbids `||` → `??` here.
+        // `0` is a valid IIIF canvas width, but `||` treats it as falsy, so
+        // `getCanvasDimensions` must fall through to "no dimensions" here
+        // rather than resolve a zero width, which would divide by zero in
+        // the positioning arithmetic downstream.
         const canvas = {
             id: 'canvas-zero-width',
             type: 'Canvas',

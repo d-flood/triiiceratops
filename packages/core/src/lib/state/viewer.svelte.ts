@@ -403,16 +403,16 @@ export class ViewerState {
 
     /**
      * This viewer's active locale (BCP-47) — its `config.locale` if set,
-     * otherwise the page default (CONTEXT.md **Active locale**, ticket 06).
+     * otherwise the page default (CONTEXT.md **Active locale**).
      * Observable state: readable and notifying, with no plugin-facing mutator.
      * Locale is *set* through `config.locale`; core (the viewer root) mirrors the
      * resolved value onto this field whenever the config or the page locale
      * changes, exactly as it mirrors other external facts (e.g. `isFullScreen`),
      * so the reactivity-driven watcher (ADR 0008) notifies subscribers. All of
-     * the viewer's chrome renders in this locale (via the i18n context) and
-     * ticket 08's `PluginLocaleService` will consume it. Defaults to the page
-     * locale at construction so a server render and a subscriber-less viewer
-     * both read a correct value before the first mirror runs.
+     * the viewer's chrome renders in this locale (via the i18n context).
+     * Defaults to the page locale at construction so a server render and a
+     * subscriber-less viewer both read a correct value before the first mirror
+     * runs.
      */
     activeLocale = $state<string>(getLocale());
 
@@ -456,7 +456,6 @@ export class ViewerState {
     }
     set viewingMode(value: 'individuals' | 'paged' | 'continuous') {
         this._viewingMode = value;
-        // Also sync to config for consistency
         this.config.viewingMode = value;
     }
 
@@ -497,7 +496,7 @@ export class ViewerState {
     }
 
     /**
-     * Host reporter for the structured `viewererror` channel (ticket 18). Set by
+     * Host reporter for the structured `viewererror` channel. Set by
      * `TriiiceratopsViewer.svelte` so state-level actionable failures (search,
      * viewport, content) surface as a typed {@link ViewerError} on the viewer
      * root's `viewererror` event and the `onviewererror` callback instead of
@@ -523,7 +522,6 @@ export class ViewerState {
      * which can cause infinite loops when it auto-sets canvasId.
      */
     getSnapshot(): ViewerStateSnapshot {
-        // Calculate canvas index without triggering reactive side effects
         let canvasIndex = -1;
         if (this.manifestId && this.canvasId) {
             const canvases = manifestsState.getCanvases(this.manifestId);
@@ -570,7 +568,6 @@ export class ViewerState {
         }
         if (!this.eventTarget) return;
 
-        // Dispatch asynchronously to break reactive loops
         queueMicrotask(() => {
             this.eventTarget?.dispatchEvent(
                 new CustomEvent(eventName, {
@@ -588,7 +585,6 @@ export class ViewerState {
     ) {
         this.manifestId = initialManifestId || null;
         this.canvasId = initialCanvasId || null;
-        // Fetch manifest immediately
         if (this.manifestId) {
             manifestsState.fetchManifest(
                 this.manifestId,
@@ -631,7 +627,6 @@ export class ViewerState {
             return -1;
         }
 
-        // Manifesto canvases have an id property, but let's be robust and check multiple possibilities
         return findCanvasIndexById(this.canvases, this.canvasId);
     }
 
@@ -737,8 +732,8 @@ export class ViewerState {
      *
      * Deliberately NOT reactive: it is set once per mount, plugins never see
      * it, and making it `$state` would put a renderer handle on the batched
-     * notification path — which is the pass-through this epic removes wearing a
-     * different hat. {@link rendererReady} is the notifying signal.
+     * notification path — a pass-through this state is meant to avoid.
+     * {@link rendererReady} is the notifying signal.
      */
     private rendererPort: RendererPort | null = null;
 
@@ -1406,7 +1401,6 @@ export class ViewerState {
     ) {
         this.manifestRequestConfig = options?.requestConfig;
 
-        // Fetch the raw JSON first to detect if it's a Collection
         let json: any;
         try {
             json = await manifestsState.fetchResource(
@@ -1414,7 +1408,6 @@ export class ViewerState {
                 this.manifestRequestConfig,
             );
         } catch (_error: any) {
-            // If fetch fails, fall back to normal flow which will handle the error
             this.startCanvasId = null;
             this.selectedSequenceIndex = 0;
             await manifestsState.fetchManifest(
@@ -1432,14 +1425,12 @@ export class ViewerState {
             return;
         }
 
-        // Check if the resource is a Collection
         if (isCollection(json)) {
             this.collectionId = manifestId;
             this.collectionLabel = getCollectionLabel(json);
             this.collectionThumbnail = getCollectionThumbnail(json) || '';
             this.collectionItems = sortCollectionItems(parseCollection(json));
 
-            // Auto-load the first manifest in the collection
             const firstManifest = this.collectionItems.find(
                 (item) => item.type === 'Manifest',
             );
@@ -1451,7 +1442,6 @@ export class ViewerState {
             return;
         }
 
-        // Normal manifest flow: register the already-fetched JSON
         this.collectionId = null;
         this.collectionLabel = '';
         this.collectionThumbnail = '';
@@ -1641,11 +1631,10 @@ export class ViewerState {
         ) {
             this.viewingDirection = direction as any;
         } else {
-            this.viewingDirection = 'left-to-right'; // Default
+            this.viewingDirection = 'left-to-right';
         }
 
         // 2. Viewing Mode (Behavior)
-        // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
         if (!this._viewingModeUserConfigured) {
             let behaviors: string[] = [];
             try {
@@ -1687,7 +1676,6 @@ export class ViewerState {
             ) {
                 this.viewingMode = 'paged';
             } else {
-                // Default to 'individuals' when no behavior is specified in manifest
                 this.viewingMode = 'individuals';
             }
         }
@@ -1706,12 +1694,6 @@ export class ViewerState {
 
     selectChoice(canvasId: string, choiceId: string) {
         this.selectedChoices.set(canvasId, choiceId);
-        // Force reactivity for $derived blocks that depend on the map
-        // Reassigning the map is one way, or using fine-grained signals.
-        // Svelte 5 map is reactive, but let's ensure dependent derivations see it.
-        // We might need to "bump" a version signal if derivations don't pick it up automatically
-        // but they should if they use get().
-
         this.dispatchStateChange('choicechange');
     }
 
@@ -1723,15 +1705,12 @@ export class ViewerState {
         const oldConfig = this.config;
         this.config = newConfig;
 
-        // Sync state from config
         if (newConfig.toolbarOpen !== undefined) {
             this.toolbarOpen = newConfig.toolbarOpen;
         }
 
         if (newConfig.viewingMode) {
-            // direct assignment works because of the setter
             this.viewingMode = newConfig.viewingMode;
-            // Mark as user-configured so manifest behavior detection is skipped
             this._viewingModeUserConfigured = true;
         }
 
@@ -1858,7 +1837,7 @@ export class ViewerState {
 
     /**
      * Resolve the viewer's style root — where a plugin's global CSS must be
-     * installed (ticket 08's `PluginStyleService`). For a light-DOM (Svelte)
+     * installed. For a light-DOM (Svelte)
      * viewer this is the owning `Document`; for the Web Component it is the
      * shadow root, so plugin styles reach the shadow-scoped tree. Derived from
      * the mount element captured by {@link setViewerElement} via `getRootNode()`;
@@ -1957,9 +1936,7 @@ export class ViewerState {
     get structures(): StructureNode[] {
         // Raw manifest JSON. `parseStructures` reads `structures` off the
         // document itself and handles both the v2 (`sc:Range`) and the v3
-        // (`Range`) spelling, so this is a plain-JSON read for both versions —
-        // not a branch deletion (SPEC → "The governing rule for the whole
-        // epic").
+        // (`Range`) spelling, so this is a plain-JSON read for both versions.
         const manifestJson = this.manifestEntry?.json;
         if (!manifestJson) return [];
         return parseStructures(manifestJson);
@@ -2127,17 +2104,14 @@ export class ViewerState {
         }
     }
 
-    // ==================== PARITY COMMANDS (ticket 03) ====================
-    // Supported mutation methods for viewer behaviors the chrome previously
-    // performed only through direct field assignment. Added for the parity rule
-    // (see state-inventory.ts).
-    //
-    // The chrome now calls these rather than writing the fields, so each member
-    // has ONE write path and an invariant here cannot be skipped by a component
-    // that assigns around it — which is what `setDockSide` was for and what
-    // `ThumbnailGallery` used to bypass on drop. Direct assignment remains
-    // physically possible for trusted code (ADR 0007) and still notifies, since
-    // notification is reactivity-driven rather than command-driven (ADR 0008).
+    // ==================== PARITY COMMANDS ====================
+    // Supported mutation methods for viewer behaviors the parity rule requires
+    // (see state-inventory.ts). The chrome calls these rather than writing the
+    // fields directly, so each member has ONE write path and an invariant here
+    // cannot be skipped by a component that assigns around it. Direct
+    // assignment remains physically possible for trusted code (ADR 0007) and
+    // still notifies, since notification is reactivity-driven rather than
+    // command-driven (ADR 0008).
     //
     // They deliberately do NOT dispatch the legacy web-component `statechange`
     // event: these are hover- and drag-rate interactions, and the chrome never
@@ -2471,8 +2445,8 @@ export class ViewerState {
     // ==================== PLUGIN METHODS ====================
 
     /**
-     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path
-     * (epic restore-plugin-toolbar-chrome, ticket 02). Core renders the button
+     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path.
+     * Core renders the button
      * from the plugin's {@link IconDescriptor} and {@link PluginUiTarget}, and the
      * anchored flyout / docked panel container hosts the plugin content via the
      * DOM-mount `mount` thunk. `pluginMenuButtons` +
@@ -2605,8 +2579,8 @@ export class ViewerState {
     // and wakes subscribers. Completeness is structural (nobody has to remember
     // to call `notify()`); the price is timing: notifications are batched and
     // delivered on the microtask flush, never synchronously inside a mutator.
-    // Selectors (ticket 07) and `pluginerror` attribution (ticket 09) build on
-    // top of this; `invokeSubscriptionListener` is the seam ticket 09 replaces.
+    // Selectors and `pluginerror` attribution build on top of this;
+    // `invokeSubscriptionListener` is the guarded call site for delivery.
 
     /**
      * Inventoried members whose changes wake subscribers: `command` and
@@ -2628,8 +2602,8 @@ export class ViewerState {
 
     /**
      * Registered subscription listeners, kept in registration order. Each entry
-     * pairs the listener with an optional per-subscription error handler
-     * (ticket 09): when the listener throws, the guard routes to `onError` if
+     * pairs the listener with an optional per-subscription error handler:
+     * when the listener throws, the guard routes to `onError` if
      * present so the SDK can attribute the failure to the owning plugin
      * (`pluginerror` phase `subscription`); otherwise it falls back to a console
      * error. Core's own subscriptions register no `onError` and keep the
@@ -2658,7 +2632,7 @@ export class ViewerState {
      * effect and delivers no notifications (state reads stay synchronously
      * current everywhere).
      *
-     * `onError` (ticket 09) is called with the thrown value if this listener
+     * `onError` is called with the thrown value if this listener
      * throws during delivery; the throw never stops other listeners or core's
      * own reactions. The SDK passes one per activation so a throwing listener is
      * attributed to its owning plugin (`pluginerror` phase `subscription`).
@@ -2745,7 +2719,7 @@ export class ViewerState {
     }
 
     /**
-     * Single guarded call site for a subscription listener (ticket 09): a
+     * Single guarded call site for a subscription listener: a
      * throwing listener is isolated so the remaining listeners and core's own
      * reactions still run. The failure is routed to the listener's own
      * `onError` when one was registered — the SDK uses this to attribute the
@@ -2764,7 +2738,7 @@ export class ViewerState {
                 try {
                     entry.onError(error);
                 } catch (reportError) {
-                    // triiiceratops-console-allow: ticket 09 subscription
+                    // triiiceratops-console-allow: subscription
                     // isolation last-resort fallback (tested in
                     // viewer.subscribe.onError.test.ts). A throwing error
                     // reporter has no other channel; delivery must continue.
@@ -2774,7 +2748,7 @@ export class ViewerState {
                     );
                 }
             } else {
-                // triiiceratops-console-allow: ticket 09 subscription isolation
+                // triiiceratops-console-allow: subscription isolation
                 // last-resort fallback (tested in
                 // viewer.subscribe.onError.test.ts). An unguarded listener throw
                 // with no `onError` reporter has no structured channel.

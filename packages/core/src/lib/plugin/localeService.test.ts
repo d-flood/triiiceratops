@@ -1,4 +1,4 @@
-// Per-viewer plugin locale service tests (ticket 08).
+// Per-viewer plugin locale service tests.
 //
 // Covers catalog resolution in the active locale, English fallback for a missing
 // key, `{param}` interpolation, and `subscribe` firing when the active locale

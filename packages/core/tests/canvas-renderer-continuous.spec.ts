@@ -1,8 +1,8 @@
 /**
- * Seam 2 — continuous mode on an 800-canvas manifest, in a real browser (spec
+ * Continuous mode on an 800-canvas manifest, in a real browser (spec
  * §Testing Decisions, "Residency and memory counters").
  *
- * This is the ticket the epic exists for, and it is the one claim the planner's
+ * This is the one claim the planner's
  * unit tests cannot finish making. `planScene.test.ts` proves what the planner
  * DECIDES on an 800-canvas world; only a browser can show what the host and the
  * tile scheduler then DO with it — how many requests actually leave, how many
@@ -217,10 +217,9 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
     test('opens an 800-canvas manifest with O(1) network requests', async ({
         page,
     }) => {
-        // The behaviour this epic exists to remove: the previous renderer
-        // fetched every canvas's `info.json` in one parallel burst before
-        // anything rendered, because layout was computed from resolved tile
-        // sources rather than from the manifest. 800 folios, 800 requests.
+        // Layout must be computed from the manifest, not from resolved tile
+        // sources — fetching every canvas's `info.json` up front would mean
+        // 800 folios, 800 requests before anything renders.
         const infoRequests: string[] = [];
         page.on('request', (request) => {
             if (request.url().includes('/info.json')) {
@@ -459,8 +458,8 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
         // view-stable gate decide which canvases may ask and when; without a
         // concurrency cap on top of them the first frame after a flick settles
         // starts one request per thumbnail-tier canvas in the residency window
-        // — roughly fifty here — which is the fetch storm this epic exists to
-        // remove, arriving one frame later rather than not at all. Counted from
+        // — roughly fifty here — a fetch storm arriving one frame later rather
+        // than not at all. Counted from
         // request events rather than through `page.route`, which would add
         // latency of its own and change the thing being measured.
         let concurrentInfo = 0;
@@ -621,8 +620,8 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
 
         // The tier floor: the folio the reader is centred on and its two
         // neighbours, and nothing else. Bounded, because at this scale "paint
-        // whatever is visible" would be all 800 of them — the fetch storm this
-        // epic removed, in a different costume.
+        // whatever is visible" would be all 800 of them — the same fetch
+        // storm in a different costume.
         const residency = await getResidency(page);
         expect(residency.pyramid).toEqual([]);
         expect(residency.thumbnail.length).toBeGreaterThan(0);

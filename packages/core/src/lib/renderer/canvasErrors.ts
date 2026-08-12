@@ -18,9 +18,9 @@
  * Neither function here touches the DOM, and neither knows what a placeholder
  * looks like. `errorPlacements` answers "where, in surface-local CSS pixels" and
  * `viewerLevelErrorKind` answers "is there nothing left to look at" — the two
- * questions that carry the reasoning. `CanvasHost` owns the markup, because per
- * ticket 14's rule anything a user must perceive lives in the DOM layer rather
- * than in painted pixels, and painted text has no accessible name.
+ * questions that carry the reasoning. `CanvasHost` owns the markup, because
+ * anything a user must perceive lives in the DOM layer rather than in painted
+ * pixels, and painted text has no accessible name.
  *
  * The auth/load distinction is carried through both, unreduced: a reader needs
  * to know whether logging in would help (user story 27).
@@ -250,8 +250,8 @@ export function viewerLevelErrorKind(
     const current = errors[currentCanvasId];
     if (!current) return null;
 
-    // ONE pass for both questions. The membership test used to be a second
-    // `layout.some(...)` after this loop — an extra walk over every rect in the
+    // ONE pass for both questions. A separate `layout.some(...)` membership
+    // test after this loop would be an extra walk over every rect in the
     // manifest, every frame, on a code path the frame loop takes whenever
     // anything has failed at all.
     let currentIsLaidOut = false;
@@ -270,8 +270,7 @@ export function viewerLevelErrorKind(
 /**
  * What a {@link CanvasErrorKind} looks like as the viewer-level
  * `ViewerState.tileSourceError` — the shape the previous renderer wrote, kept
- * so the existing error chrome and its journey need no new chrome (ticket 12's
- * scope).
+ * so the existing error chrome and its journey need no new chrome.
  */
 export type TileSourceErrorValue =
     | { type: 'auth' }

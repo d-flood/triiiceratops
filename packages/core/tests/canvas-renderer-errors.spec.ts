@@ -1,10 +1,10 @@
 /**
- * Seam 2 — per-canvas tile-source errors, in a real browser (ticket 12).
+ * Per-canvas tile-source errors, in a real browser.
  *
  * `renderer/canvasErrors.test.ts` proves the two decisions: where a placeholder
  * goes, and when a set of per-canvas failures adds up to a viewer-level
- * condition. What only a browser can show is the thing the ticket is actually
- * about — that **one folio failing leaves the other 799 working**, which is a
+ * condition. What only a browser can show is the claim that actually
+ * matters — that **one folio failing leaves the other 799 working**, which is a
  * claim about a live renderer, a live metadata cache, and the chrome that sits
  * over them, not about a pure function.
  *
@@ -372,8 +372,8 @@ test.describe('Canvas2D renderer — per-canvas tile-source errors', () => {
         await expect(page.locator(PLACEHOLDER)).toHaveCount(1);
 
         // By ROLE and NAME, which is what an assistive technology has to go on.
-        // Painted text would satisfy neither (ticket 14's rule: anything a user
-        // must perceive lives in the DOM layer).
+        // Painted text would satisfy neither: anything a user must perceive
+        // lives in the DOM layer.
         await expect(
             page.getByRole('img', { name: /authentication/i }),
         ).toBeVisible();
@@ -416,9 +416,8 @@ test.describe('Canvas2D renderer — per-canvas tile-source errors', () => {
 
     /*
      * The other half of the model: when there is nothing left to look at, the
-     * viewer-level condition IS the honest one, and the existing chrome is what
-     * says so. This is the common single-canvas case and the journey the
-     * previous renderer already had — kept working rather than replaced.
+     * viewer-level condition IS the honest one, and the existing chrome is
+     * what says so.
      */
     test('viewing a failed canvas on its own surfaces the viewer-level error UI', async ({
         page,

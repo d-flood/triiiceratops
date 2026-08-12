@@ -6,9 +6,8 @@ describe('getCanvasLabel', () => {
     it('reads a v2 JSON-LD `@value` label array', () => {
         // The IIIF Presentation 2 spelling, and the shape real manifests use —
         // `vendored/riksarkivetscblarge.json` labels every canvas this way.
-        // `manifesto.js` used to parse it into `_value`/`_locale` before this
-        // was reached; on raw JSON it arrives verbatim, and reading only
-        // `value`/`_value` silently produced "Canvas N" everywhere.
+        // Reading only `value`/`_value` would silently produce "Canvas N"
+        // everywhere.
         const canvas = {
             label: [{ '@value': 'Bild 6', '@language': 'sv' }],
         };

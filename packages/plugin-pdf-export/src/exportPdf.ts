@@ -8,7 +8,7 @@ import {
 } from 'pdf-lib';
 
 // Shared canvas/image-export utilities consumed from core's public,
-// framework-neutral seam (ticket 15's `triiiceratops/image-export` barrel) — not
+// framework-neutral seam (the `triiiceratops/image-export` barrel) — not
 // duplicated into this package. Externalized in the ESM build; bundled (Svelte-
 // free) into the self-contained IIFE.
 import {

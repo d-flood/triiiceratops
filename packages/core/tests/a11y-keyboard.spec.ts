@@ -8,7 +8,7 @@ import {
 } from './helpers/numberedGrid';
 
 /*
- * Explicit keyboard-operability journeys (ticket 23). These assert behaviors
+ * Explicit keyboard-operability journeys. These assert behaviors
  * axe cannot: tab reachability, panel/flyout/dialog open-operate-close by
  * keyboard, Escape closing with focus return to the invoker, listbox arrow
  * operation, and aria-activedescendant. Serial (single worker) so the shared
@@ -17,8 +17,7 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
-// Desktop viewer only (the Select journey uses the desktop settings sidebar);
-// ticket 24 owns the mobile browser matrix.
+// Desktop viewer only (the Select journey uses the desktop settings sidebar).
 test.beforeEach(({ isMobile }) => {
     test.skip(!!isMobile, 'a11y suite targets the desktop viewer (chromium)');
 });
@@ -126,11 +125,10 @@ test('panel close button returns focus to its toolbar toggle', async ({
 });
 
 /*
- * Parity rule (epic plugin-overlay-layers, ticket 05): a PLUGIN's docked panel
- * gets the same close affordance the two core-panel journeys above assert.
- * Exercised through the demo's real SDK plugin
- * (`@triiiceratops/plugin-pdf-export`, a `target: 'panel'` plugin), so this is
- * the shipped chrome and not a double.
+ * Parity rule: a PLUGIN's docked panel gets the same close affordance the two
+ * core-panel journeys above assert. Exercised through the demo's real SDK
+ * plugin (`@triiiceratops/plugin-pdf-export`, a `target: 'panel'` plugin), so
+ * this is the shipped chrome and not a double.
  *
  * Docked RIGHT for the same reason the core journeys use the right-docked
  * Information panel: the demo's toolbar rail sits on the LEFT, and opening a
@@ -140,9 +138,7 @@ test('panel close button returns focus to its toolbar toggle', async ({
  *
  * Note what that means for the DEFAULT plugin configuration: plugin panels dock
  * LEFT by default (core's panels default right), so out of the box focus return
- * does NOT work for a plugin panel. Ticket 06
- * (`.tracker/plugin-overlay-layers/tickets/06-plugin-panel-focus-return.md`)
- * owns that fix; it lives in shared chrome, which ticket 05 may not touch.
+ * does NOT work for a plugin panel; that fix lives in shared chrome.
  * `TriiiceratopsViewer.pluginPanelClose.svelte.test.ts` covers the left-docked
  * button rendering, its click, and Escape-to-close, and pins the degraded focus
  * behaviour explicitly — it does not prove focus return works on the left.
@@ -288,7 +284,7 @@ test('core Select (listbox) operates with keyboard and exposes aria-activedescen
 });
 
 /*
- * The Canvas2D renderer's keyboard model (ticket 11).
+ * The Canvas2D renderer's keyboard model.
  *
  * The image surface is a new tab stop, and it is the ONLY place in the viewer
  * where an arrow key moves the picture rather than roving focus. Both halves of
@@ -478,8 +474,8 @@ test.describe('Canvas2D renderer — keyboard', () => {
 
         // Reached by TAB rather than by `.focus()`: an element can be
         // programmatically focusable and still sit outside the sequential tab
-        // order, which is exactly the state the previous renderer was in.
-        // Stepping back and forward proves it participates in that order.
+        // order. Stepping back and forward proves it participates in that
+        // order.
         await page.locator(SURFACE).focus();
         await page.keyboard.press('Shift+Tab');
         expect((await activeElementInfo(page)).label).not.toBe(

@@ -6,7 +6,7 @@
      * runtime or `svelte/internal`, and reaches viewer state only through the
      * SDK-owned `PluginContext` (selectors, locale), never Svelte context.
      *
-     * Chrome ownership (epic restore-plugin-toolbar-chrome, ticket 05): core owns
+     * Chrome ownership: core owns
      * the toolbar button (rendered from the plugin's `icon`) and the docked panel
      * chrome (surface, sticky header with the plugin icon + title, and open/close).
      * This component renders ONLY the panel's content body into the content-only
@@ -199,8 +199,6 @@
         // query-only state, so it is deliberately NOT mirrored through a
         // selector like the members above: it is read once per export, at the
         // moment the export is asked for, which is exactly when it is true.
-        // (This used to reach through the renderer pass-through for the raw
-        // viewer's `container.clientWidth`.)
         const containerWidth = viewerState.containerSize.width || 1200;
         const pixelRatio = window.devicePixelRatio || 1;
         return Math.min(
@@ -236,10 +234,8 @@
         const messages = buildMessages();
 
         try {
-            // Raw IIIF Manifest JSON. This used to read `manifesto.js`'s
-            // `getLabel()`; the manifest cache holds only the document now, and
-            // `label` is spelled the same in v2 and v3 (the value shapes
-            // differ, which `resolveLanguageValue` absorbs).
+            // Raw IIIF Manifest JSON. `label` is spelled the same in v2 and v3
+            // (the value shapes differ, which `resolveLanguageValue` absorbs).
             const manifestJson = viewerState.manifestEntry?.json;
             const manifestLabel =
                 resolveLanguageValue(manifestJson?.label) || null;

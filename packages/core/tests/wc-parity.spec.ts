@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * Web Component ESM/IIFE parity (ticket 10).
+ * Web Component ESM/IIFE parity.
  *
  * Two fixture pages (public/e2e/wc-iife.html and public/e2e/wc-esm.html) load
  * the two built Web Component entries — the self-contained IIFE and the
@@ -28,7 +28,7 @@ interface ElementProps {
 /**
  * The custom element's state bridge and its property-only `searchProvider`
  * input, observed through the BUILT element rather than a native Svelte
- * component (framework-wrappers ticket 02).
+ * component.
  */
 interface StateBridge {
     availabilityEvents: Array<{

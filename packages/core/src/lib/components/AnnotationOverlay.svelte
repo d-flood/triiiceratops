@@ -191,7 +191,7 @@
             const observed: Element[] = [];
 
             for (const annotationId of connectedIds) {
-                // Note: The list item ID is now in AnnotationPanel, which must be rendered for this to work
+                // The list item ID lives in AnnotationPanel, which must be rendered for this to work.
                 const listItem = root.getElementById(
                     `annotation-list-item-${annotationId}`,
                 );
@@ -213,7 +213,6 @@
                     isRightPanel =
                         listRect.left + listRect.width / 2 > viewerCenter;
                 } else {
-                    // Fallback to window-based heuristic if viewer element is not found
                     isRightPanel = listRect.left > window.innerWidth / 2;
                 }
 

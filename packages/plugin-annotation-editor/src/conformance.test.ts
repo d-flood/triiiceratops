@@ -2,12 +2,12 @@
  * The retired plugin's one remaining behavioural claim: **it fails activation,
  * loudly, and says why.**
  *
- * `runPluginConformance` used to run here. It cannot any more, and that is the
- * point rather than an obstacle: the suite mounts a plugin against a real
- * viewer, and this plugin declares `osd@5` — a capability core retired with no
- * successor when the renderer became first-party (SPEC.md §Public API). Every
- * lifecycle contract conformance asserts is downstream of an activation that
- * now correctly never happens.
+ * `runPluginConformance` cannot run here, and that is the point rather than an
+ * obstacle: the suite mounts a plugin against a real viewer, and this plugin
+ * declares `osd@5` — a capability core retired with no successor when the
+ * renderer became first-party (SPEC.md §Public API). Every lifecycle contract
+ * conformance asserts is downstream of an activation that correctly never
+ * happens.
  *
  * The alternative — dropping the declaration so the suite goes green — would
  * make a consumer's viewer install a toolbar button and a panel whose "Edit"

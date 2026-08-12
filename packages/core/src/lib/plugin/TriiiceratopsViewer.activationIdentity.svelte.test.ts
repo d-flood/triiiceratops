@@ -1,4 +1,4 @@
-// Identity-keyed plugin activation (framework-wrappers ticket 04).
+// Identity-keyed plugin activation.
 //
 // An activation's lifetime is keyed to the plugin's identity WITHIN the viewer's
 // plugin list, not to the identity of the list itself (CONTEXT.md

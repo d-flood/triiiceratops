@@ -37,9 +37,9 @@ export const store = reactive({
  */
 export const configRef = shallowRef(F.CONFIG);
 
-/** The ticket-08 consumer testing helper, from the same packed tarball. */
+/** The consumer testing helper, from the same packed tarball. */
 export const testHandle = createTestViewerHandle();
-// `shallowRef` for the same reason (ticket 08's documented Vue usage).
+// `shallowRef` for the same reason as `configRef` above (documented Vue usage).
 export const testHandleRef = shallowRef(testHandle);
 
 export const live = {

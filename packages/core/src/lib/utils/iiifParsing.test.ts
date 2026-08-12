@@ -16,12 +16,10 @@ import {
  * — raw manifest JSON in, canvases and painting annotations out — so that both
  * the IIIF v2 and the IIIF v3 spelling of every branch is exercised.
  *
- * Nothing here parses with `manifesto.js` any more. Canvases used to arrive as
- * library objects because ticket 07 had not yet written the enumerator; they
- * are now the raw Canvas JSON the manifest authored, obtained from
+ * Canvases here are the raw Canvas JSON the manifest authored, obtained from
  * `getCanvasesForSequence` exactly as the manifest cache obtains them. Every
  * assertion therefore reads the manifest's own property spelling — `id` in v3,
- * `@id` in v2 — rather than a library accessor.
+ * `@id` in v2.
  */
 
 const V2_CANVAS = 'http://example.org/v2/canvas/1';
@@ -118,10 +116,9 @@ describe('getSequenceCount / getCanvasesForSequence', () => {
     });
 
     it('prefers IxIF mediaSequences OVER sequences, not as a fallback', () => {
-        // `manifesto.js` checked `mediaSequences` first and
         // `vendored/audio.json` carries both, so the order is load-bearing:
         // reversing it enumerates that manifest's `sequences` instead of its
-        // `elements`. Preserved deliberately (SPEC → "Enumeration contracts").
+        // `elements`.
         const manifest = manifestV2Sequences({
             mediaSequences: [
                 { '@type': 'ixif:MediaSequence', elements: [v2CanvasRef(1)] },
@@ -146,9 +143,6 @@ describe('getSequenceCount / getCanvasesForSequence', () => {
     });
 
     it('enumerates a sequences that is a bare object rather than an array', () => {
-        // The epic's signature failure mode. `manifesto.js` walked `sequences`
-        // with an indexed loop, so a bare object yielded length `undefined` and
-        // enumerated NOTHING — no throw, no warning, a blank viewer.
         const manifest = manifestV2Sequences({
             sequences: {
                 '@id': `${V2_SEQ}/1`,
@@ -213,7 +207,6 @@ describe('getSequenceCount / getCanvasesForSequence', () => {
     });
 
     it('drops a null canvas rather than throwing on it', () => {
-        // `manifesto.js` threw inside its `Canvas` constructor here.
         const manifest = manifestV2Sequences({
             sequences: [
                 {
@@ -230,10 +223,9 @@ describe('getSequenceCount / getCanvasesForSequence', () => {
     });
 
     it('gives a Collection no sequences at all', () => {
-        // A Collection has members, not canvases. This used to throw
-        // `m.getSequences is not a function` out of the manifest path — and a
-        // v3 Collection's `items` are its member Manifests, so enumerating them
-        // as canvases would be the same defect with a green test.
+        // A Collection has members, not canvases. A v3 Collection's `items`
+        // are its member Manifests, so enumerating them as canvases would be
+        // wrong too.
         for (const collection of [
             { type: 'Collection', items: [{ id: 'a', type: 'Manifest' }] },
             { '@type': 'sc:Collection', manifests: [{ '@id': 'a' }] },
@@ -291,9 +283,9 @@ describe('getPaintingAnnotations', () => {
             `${V2_CANVAS}/annotation/1`,
             `${V2_CANVAS}/annotation/2`,
         ]);
-        // Raw JSON, not library `Annotation` objects: the v2 branch reads
-        // `canvas.images[]` first-party as of ticket 06. The image lives under
-        // `resource`, which is the spelling every consumer must read.
+        // Raw JSON: the v2 branch reads `canvas.images[]`, and the image
+        // lives under `resource`, which is the spelling every consumer must
+        // read.
         expect(annotations[0].getResource).toBeUndefined();
         expect(annotations.map((a) => a.resource['@id'])).toEqual([
             `${V2_CANVAS}/image/1`,
@@ -303,9 +295,7 @@ describe('getPaintingAnnotations', () => {
 
     it('reads a v2 canvas whose images is a bare object rather than an array', () => {
         // Invalid per the spec and present in the wild — the same shape the
-        // corpus already carries for `sequences`. `manifesto.js`'s `getImages()`
-        // walked `images` with an indexed loop, so a bare object had length
-        // `undefined` and enumerated nothing, silently.
+        // corpus already carries for `sequences`.
         const annotations = getPaintingAnnotations({
             '@id': V2_CANVAS,
             '@type': 'sc:Canvas',
@@ -323,9 +313,6 @@ describe('getPaintingAnnotations', () => {
     });
 
     it('skips null entries in a v2 images array rather than throwing', () => {
-        // `manifesto.js` wrapped a `null` entry in an `Annotation` that threw
-        // the moment anything read its resource. The enumerator is total: it
-        // never throws and always returns an array.
         const annotations = getPaintingAnnotations({
             '@id': V2_CANVAS,
             images: [
@@ -344,8 +331,7 @@ describe('getPaintingAnnotations', () => {
 
     it('returns every image of a v2 composite canvas', () => {
         // A page assembled from several images. All of them must come back —
-        // truncating to the first is the silent data loss this epic exists to
-        // stop.
+        // truncating to the first would be silent data loss.
         const canvas = firstCanvasOf(
             manifestV2({
                 '@id': V2_CANVAS,
@@ -422,8 +408,6 @@ describe('getPaintingAnnotations', () => {
             `${V3_CANVAS}/annotation/1`,
             `${V3_CANVAS}/annotation/2`,
         ]);
-        // The single-page shape is what it always was, annotation for
-        // annotation — only the representation is now raw JSON.
         expect(annotations.map((annotation) => annotation.body.id)).toEqual([
             `${V3_CANVAS}/image/1`,
             `${V3_CANVAS}/image/2`,
@@ -431,9 +415,6 @@ describe('getPaintingAnnotations', () => {
     });
 
     it('returns the annotations of EVERY annotation page, in document order', () => {
-        // `manifesto.js`'s `getContent()` read `items[0]` and stopped, so the
-        // second page's image was silently dropped. This is the data-loss bug
-        // ticket 03 exists to fix.
         const [split, control, contentAlias] = canvasesOf(
             syntheticV3SplitAnnotationPages,
         );
@@ -443,7 +424,6 @@ describe('getPaintingAnnotations', () => {
             'http://example.org/synthetic/v3-split-annotation-pages/canvas/1/annotation/right',
         ]);
 
-        // The ordinary single-page canvas is unchanged by the fix.
         expect(getPaintingAnnotations(control).map((a) => a.id)).toEqual([
             'http://example.org/synthetic/v3-split-annotation-pages/canvas/2/annotation',
         ]);
@@ -457,9 +437,8 @@ describe('getPaintingAnnotations', () => {
     });
 
     it('reads a v3 canvas whose items is a bare object rather than an array', () => {
-        // Invalid per the spec and present in the wild. The library tolerated
-        // it by enumerating nothing; the enumerator guards its array accesses
-        // instead, so the annotation is found rather than silently lost.
+        // Invalid per the spec and present in the wild; array accesses are
+        // guarded so the annotation is found rather than silently lost.
         const canvas = firstCanvasOf(
             manifestV3({
                 id: V3_CANVAS,
@@ -490,10 +469,9 @@ describe('getPaintingAnnotations', () => {
     });
 
     it('does not filter by motivation', () => {
-        // Out of scope for the whole epic: in v3 non-painting content belongs
-        // in `canvas.annotations`, so a filter would only defend against
-        // already-malformed manifests while newly dropping annotations that
-        // simply omit `motivation`.
+        // In v3 non-painting content belongs in `canvas.annotations`, so a
+        // filter would only defend against already-malformed manifests while
+        // newly dropping annotations that simply omit `motivation`.
         const canvas = firstCanvasOf(
             manifestV3({
                 id: V3_CANVAS,
@@ -565,7 +543,6 @@ describe('isChoiceBody', () => {
     it('recognizes both the v3 and the v2 spelling', () => {
         expect(isChoiceBody({ type: 'Choice' })).toBe(true);
         expect(isChoiceBody({ type: 'oa:Choice' })).toBe(true);
-        // The v2 spelling: `@type`, which nothing read before ticket 06.
         expect(isChoiceBody({ '@type': 'oa:Choice' })).toBe(true);
     });
 
@@ -620,11 +597,9 @@ describe('getChoiceAlternatives', () => {
 });
 
 describe('the unreadable-canvas warning', () => {
-    // SPEC -> "Failure contract": a canvas that is recognized but cannot be
-    // read emits a developer warning rather than failing silently. Without
-    // this, enumeration returning nothing renders a blank canvas and logs at
-    // debug level -- which is how a v2-blind read survived in this codebase
-    // long enough to become a ten-ticket epic.
+    // A canvas that is recognized but cannot be read emits a developer
+    // warning rather than failing silently; without it, enumeration
+    // returning nothing renders a blank canvas and logs at debug level only.
 
     let warn: ReturnType<typeof vi.spyOn>;
 

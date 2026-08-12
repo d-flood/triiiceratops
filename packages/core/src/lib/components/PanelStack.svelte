@@ -7,9 +7,8 @@
         title: string;
         icon?: Component<any>;
         /**
-         * Framework-neutral header icon descriptor (SDK core-owned chrome path,
-         * ticket 02). Rendered by `PluginIcon` when set; takes precedence over
-         * {@link icon}.
+         * Framework-neutral header icon descriptor. Rendered by `PluginIcon`
+         * when set; takes precedence over {@link icon}.
          */
         iconDescriptor?: IconDescriptor;
         component: Component<any>;

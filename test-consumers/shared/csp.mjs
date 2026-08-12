@@ -1,4 +1,4 @@
-// Shared CSP-fixture helpers (ticket 24).
+// Shared CSP-fixture helpers.
 //
 // The CSP fixtures deliver a strict Content-Security-Policy via a
 // `<meta http-equiv>` in their HTML and assert that the packed viewer + plugins

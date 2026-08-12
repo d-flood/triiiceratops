@@ -18,10 +18,9 @@
  * Two properties make a projection directly usable as a React `getSnapshot`:
  *
  * - **Equality gates the cached value, not only the notification.** A recompute
- *   whose result satisfies `equals` returns the PREVIOUSLY returned reference.
- *   (This is an intentional, documented change to what `Selector.get()` returns
- *   for plugins, which previously returned a fresh-but-equal value after any
- *   version bump.)
+ *   whose result satisfies `equals` returns the PREVIOUSLY returned reference,
+ *   rather than a fresh-but-equal value, so `Selector.get()` is stable across a
+ *   version bump that doesn't change the selected value.
  * - **Two read entry points share that one gated cache.** {@link
  *   SelectorProjection.read} is memoized by the runtime's notification version
  *   (React's external-store contract); {@link SelectorProjection.recompute}

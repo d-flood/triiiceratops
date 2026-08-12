@@ -217,7 +217,7 @@ export function reflowShift(
  * layout happens to have left the sizes alone.
  *
  * A canvas whose manifest declares no dimensions is laid out from its siblings'
- * median (ticket 07), and its rect is then the only statement of its extent
+ * median, and its rect is then the only statement of its extent
  * anyone has — so its rect stands in for its declared size and the mapping
  * becomes the identity. That is a better answer than refusing to convert: the
  * viewer is already drawing the canvas at that size.

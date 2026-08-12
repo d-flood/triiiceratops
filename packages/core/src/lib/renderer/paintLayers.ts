@@ -117,7 +117,7 @@ export interface PaintCanvasPlacement {
  * hook can express a canvas-anchored layer without a plugin re-deriving the
  * mapping — or, worse, going back to raw Canvas JSON for the declared
  * dimensions, which would put image-space/canvas-space arithmetic back on the
- * plugin boundary this epic's coordinate contract removes it from. They are
+ * plugin boundary this renderer's coordinate contract removes it from. They are
  * methods rather than four more numbers per placement for that reason: the rule
  * (a fraction of the rect, with a canvas whose manifest declared no dimensions
  * falling back to its laid-out extent) is one decision with one wrong answer,

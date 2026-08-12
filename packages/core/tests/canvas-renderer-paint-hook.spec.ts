@@ -1,12 +1,12 @@
 /**
- * The **paint hook** (ticket 14): an ordered layer, called each frame after the
+ * The **paint hook**: an ordered layer, called each frame after the
  * tiles are painted, with the 2D context and the transform the tiles were drawn
  * with.
  *
  * These claims can only be made in a browser:
  *
  * - **The same transform, in the same frame.** Asserted the way every other
- *   geometric claim in this epic is: the layer draws a solid marker at a
+ *   geometric claim here is: the layer draws a solid marker at a
  *   canvas-space point, and its centroid on the finished canvas is compared with
  *   the coordinate model's prediction — within a pixel. A layer handed a stale or
  *   different matrix lands somewhere else.

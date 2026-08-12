@@ -2,11 +2,11 @@
 /**
  * The questions the host asks about a laid-out world.
  *
- * These used to be private to `CanvasHost.svelte`, where the only way to
- * exercise them was a browser and a real manifest — which is how a fit target
- * keyed on the wrong thing, and a fallback to the whole world, both went
- * unnoticed. Node environment for the same reason the planner's tests are:
- * nothing in this graph may reach for a DOM global.
+ * Exercised here as pure functions rather than only through a browser and a
+ * real manifest, which is how a fit target keyed on the wrong thing, and a
+ * fallback to the whole world, could both go unnoticed. Node environment for
+ * the same reason the planner's tests are: nothing in this graph may reach
+ * for a DOM global.
  */
 
 import { describe, expect, it } from 'vitest';

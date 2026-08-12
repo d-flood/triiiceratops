@@ -127,12 +127,9 @@ function createCanvasWithImage(
  * Wrap painting annotations in an `AnnotationPage`, the way a IIIF v3 canvas
  * carries them.
  *
- * These canvases used to be `manifesto.js`-shaped doubles — a `getContent()` or
- * `getImages()` accessor over annotations with a `getBody()` accessor. Core's
- * painting-annotation enumeration is first-party as of the `remove-manifesto`
- * epic (ticket 03 for v3, ticket 06 for v2) and reads `canvas.items[].items[]`
- * or `canvas.images[]` directly, so they now carry the JSON the accessors used
- * to wrap.
+ * Core's painting-annotation enumeration reads `canvas.items[].items[]` (v3)
+ * or `canvas.images[]` (v2) directly, so these canvases carry that raw JSON
+ * shape rather than any accessor wrapper.
  */
 function annotationPages(...annotations: unknown[]) {
     return [
@@ -315,8 +312,8 @@ describe('exportCanvasRangeAsPdf', () => {
     });
 
     it('falls back to manifest annotations when the provider throws (silently)', async () => {
-        // The fallback is best-effort and quiet (ticket 28): no console output,
-        // only the observable behavior — manifest annotations are used instead.
+        // The fallback is best-effort and quiet: no console output, only the
+        // observable behavior — manifest annotations are used instead.
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const getCanvasAnnotations = vi.fn(() => [
             createOcrAnnotation('fallback text'),
@@ -515,8 +512,8 @@ describe('exportCanvasRangeAsPdf', () => {
     });
 
     it('falls back to canvas-space placement when image-space overlays lack source dimensions', async () => {
-        // The fallback is best-effort and quiet (ticket 28): no console output,
-        // only the observable legacy canvas-space placement.
+        // The fallback is best-effort and quiet: no console output, only the
+        // observable legacy canvas-space placement.
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         await exportCanvasRangeAsPdf({

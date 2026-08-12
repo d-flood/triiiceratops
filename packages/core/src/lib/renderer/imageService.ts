@@ -166,7 +166,7 @@ export interface ImageServiceCache {
      * The seam the host announces a canvas's error state through (user stories
      * 26 and 27): a canvas whose `info.json` never arrived paints nothing, and
      * a viewer that says nothing about it is indistinguishable from one that is
-     * still loading. Ticket 12 owns what that looks like.
+     * still loading.
      */
     failure(serviceId: string): ImageServiceFailure | undefined;
     /**

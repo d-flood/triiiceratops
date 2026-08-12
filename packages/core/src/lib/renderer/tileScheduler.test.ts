@@ -4,7 +4,7 @@
  *
  * Ordering, the in-flight window, the cancellation policy, and the negative
  * cache are decisions over planner output, so they are asserted here rather
- * than in a browser (ticket 05 §Acceptance criteria). Node environment: nothing
+ * than in a browser. Node environment: nothing
  * in this graph may reach for a DOM global, and both the fetch and the decode
  * are seams precisely so this file needs neither.
  */
@@ -574,7 +574,7 @@ describe('createTileScheduler', () => {
 });
 
 /**
- * The **opportunistic cache** (ticket 08): what was recently dropped from the
+ * The **opportunistic cache**: what was recently dropped from the
  * required set, held under an LRU capped by a byte budget.
  *
  * A tile here is 10x20 at 4 bytes per pixel — 800 bytes — so a budget stated in

@@ -157,10 +157,8 @@
         initialCanvasRegion?: string | CanvasRegion;
     } = $props();
 
-    // Reference to host element for event dispatch
     let hostElement: HTMLElement;
 
-    // ViewerState from the inner component (via bindable prop)
     let internalViewerState: ViewerState | undefined = $state();
 
     /**
@@ -175,12 +173,8 @@
      */
     export { internalViewerState as viewerState };
 
-    // Track if we've already wired up the event target and announced state
-    // availability (only do once per mounted inner component).
     let eventTargetSet = false;
 
-    // Wire up eventTarget when viewerState is available - only once - and
-    // announce the state instance on the `viewerstateavailable` channel.
     $effect(() => {
         if (!internalViewerState || !hostElement || eventTargetSet) return;
         eventTargetSet = true;
@@ -203,7 +197,6 @@
         });
     });
 
-    // Validate and convert theme string to BuiltInTheme type
     let validatedTheme = $derived.by((): BuiltInTheme | undefined => {
         if (!theme) return undefined;
         if (isBuiltInTheme(theme)) return theme;
@@ -211,7 +204,6 @@
         return undefined;
     });
 
-    // Parse themeConfig if it's a JSON string, pass through if it's already an object
     let parsedThemeConfig = $derived.by((): ThemeConfig | undefined => {
         if (!themeConfig) return undefined;
         if (typeof themeConfig === 'string') {
@@ -225,7 +217,6 @@
         }
         return themeConfig;
     });
-    // Parse config if it's a JSON string, pass through if it's already an object
     let parsedConfig = $derived.by((): ViewerConfig | undefined => {
         if (!config) return undefined;
         if (typeof config === 'string') {

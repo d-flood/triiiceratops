@@ -4,12 +4,10 @@
  * The geometric e2e assertions need a deterministic viewport and the renderer's
  * own counters — residency by canvas, decoded bytes, plan counts, metadata
  * failures — which no public command offers and which ADR 0012 keeps off the
- * plugin surface deliberately. That instrumentation used to be built inside the
- * renderer, so ~154 lines of test-only shaping shipped in every bundle.
- *
- * It now lives in `src/devtools/`, which the element build never reaches: the
- * dev entry (`src/main.ts`) registers an installer here, and the renderer calls
- * it if one is present. With no installer registered — every production build —
+ * plugin surface deliberately. The instrumentation itself lives in
+ * `src/devtools/`, which the element build never reaches: the dev entry
+ * (`src/main.ts`) registers an installer here, and the renderer calls it if
+ * one is present. With no installer registered — every production build —
  * this is a null check and the instrumentation is not in the graph at all.
  *
  * A bundler-provided DEV flag would have been the obvious gate and is not

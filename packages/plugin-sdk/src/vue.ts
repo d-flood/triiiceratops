@@ -1,7 +1,7 @@
 /**
- * Vue adapter (`@triiiceratops/plugin-sdk/vue`) — ticket 13.
+ * Vue adapter (`@triiiceratops/plugin-sdk/vue`).
  *
- * Turns the SDK's memoized, equality-gated selector contract (ticket 07) into a
+ * Turns the SDK's memoized, equality-gated selector contract into a
  * readonly Vue `Ref` that a composable can consume directly.
  *
  * This module imports ONLY `vue` at runtime and the core seam TYPES (erased at

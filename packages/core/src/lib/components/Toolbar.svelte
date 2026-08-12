@@ -106,7 +106,6 @@
         };
     });
 
-    // Use centralized toolbar state
     const isOpen = $derived(viewerState.toolbarOpen);
 
     // --- Unified Bar open/close animation ---
@@ -207,7 +206,6 @@
                 : 'left',
     );
 
-    // Tooltip placement specifically for the open button when toolbar is closed
     const openButtonTooltipPlacement = $derived(
         position === 'top-left'
             ? 'right'
@@ -281,7 +279,6 @@
         return annotationCount > 0 ? `${base} (${annotationCount})` : base;
     });
 
-    // Derived list of sorted plugin buttons
     let sortedPluginButtons = $derived.by(() => {
         void language.current;
         return viewerState.pluginMenuButtons
@@ -1191,7 +1188,6 @@
     .actions :where(li) > .menu-flyout {
         padding: 0;
     }
-    /* hover (non-active items) */
     .menu-item:not(.menu-active):not(:active):hover {
         cursor: pointer;
         background-color: color-mix(
@@ -1203,13 +1199,11 @@
             inset 0 1px oklch(0% 0 0 / 0.01),
             inset 0 -1px oklch(100% 0 0 / 0.01);
     }
-    /* active / pressed state */
     .menu-item:active,
     .menu-item.menu-active {
         color: var(--menu-active-fg);
         background-color: var(--menu-active-bg);
     }
-    /* The original markup overrides menu-active with primary colors */
     .menu-item.menu-active {
         background-color: var(--tri-color-primary);
         color: var(--tri-color-primary-content);
@@ -1249,7 +1243,6 @@
         );
         backdrop-filter: blur(8px);
     }
-    /* menu-horizontal */
     .actions.horizontal {
         flex-direction: row;
         display: inline-flex;
@@ -1307,7 +1300,6 @@
         z-index: 1;
         white-space: nowrap;
     }
-    /* count badge inside indicators (badge badge-primary badge-sm min-w-5 px-1) */
     .count-badge {
         --size: calc(var(--tri-size-selector, 0.25rem) * 5);
         border-radius: var(--tri-radius-selector);
@@ -1461,7 +1453,6 @@
         pointer-events: auto;
         z-index: 40;
         position: absolute;
-        /* btn base */
         display: inline-flex;
         flex-wrap: nowrap;
         flex-shrink: 0;
@@ -1483,7 +1474,6 @@
         border-end-end-radius: var(--tri-radius-buttons);
         border-end-start-radius: var(--tri-radius-buttons);
         outline-offset: 2px;
-        /* custom overrides */
         width: var(--ui-hit, 2rem);
         height: var(--ui-hit, 2rem);
         padding: 0;
@@ -1614,7 +1604,6 @@
                 transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
     }
-    /* Placements */
     .tooltip.top::before {
         transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
         inset: auto auto var(--tt-off) 50%;

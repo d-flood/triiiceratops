@@ -2,13 +2,13 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 /*
- * Automated WCAG 2.2 AA scan suite (ticket 23).
+ * Automated WCAG 2.2 AA scan suite.
  *
  * Scans each meaningful viewer UI state against each of the four built-in
  * themes with @axe-core/playwright and requires ZERO violations. The scan is
  * scoped to the <triiiceratops-viewer> element (axe descends into its shadow
  * root automatically) so it audits the viewer chrome, not the surrounding demo
- * page. Any rule exception would require the ticket-22 allowlist process with a
+ * page. Any rule exception would require a documented allowlist entry with a
  * written rationale — there are none here.
  *
  * Each test loads the page once and re-scans across all four themes in place
@@ -21,8 +21,8 @@ import AxeBuilder from '@axe-core/playwright';
 // state × theme matrix reliable without touching playwright.config.ts.
 test.describe.configure({ mode: 'serial' });
 
-// The a11y suite audits the desktop viewer; ticket 24 owns the mobile browser
-// matrix. Skip on mobile projects so this file stays deterministic there.
+// The a11y suite audits the desktop viewer. Skip on mobile projects so this
+// file stays deterministic there.
 test.beforeEach(({ isMobile }) => {
     test.skip(!!isMobile, 'a11y suite targets the desktop viewer (chromium)');
 });
@@ -111,12 +111,11 @@ test('axe: viewing-mode flyout open × all themes', async ({ page }) => {
 });
 
 /*
- * The renderer adds a tab stop the previous one never had: a focusable,
- * labelled image surface (ticket 11). The scans above wait for the chrome, so
- * they can race the surface's own mount; this one waits for the image surface
- * itself and re-runs the whole matrix with that tab stop guaranteed present —
- * a focusable element with a role and no accessible name, or an unreachable
- * one, is exactly what axe catches.
+ * The renderer's image surface is a focusable, labelled tab stop. The scans
+ * above wait for the chrome, so they can race the surface's own mount; this
+ * one waits for the image surface itself and re-runs the whole matrix with
+ * that tab stop guaranteed present — a focusable element with a role and no
+ * accessible name, or an unreachable one, is exactly what axe catches.
  */
 test('axe: Canvas2D renderer (focusable image surface) × all themes', async ({
     page,
