@@ -56,7 +56,6 @@
     import { getVisibleCanvasEntries } from './viewerControls';
     import { toPlannerCanvases } from '../renderer/canvasDescriptors';
     import { GestureRecogniser } from '../renderer/gestureArbiter';
-    import { reconcileImages } from '../renderer/imageRequests';
     import { PAN_KEYS, keyPanVelocity } from '../renderer/keyboardPan';
     import {
         createTileSourceErrorMirror,
@@ -67,6 +66,7 @@
         type CanvasErrorPlacement,
     } from '../renderer/canvasErrors';
     import { imageServiceCache } from '../renderer/imageService';
+    import { createStaticImages } from '../renderer/staticImages';
     import { staticImageFailures } from '../renderer/staticImageFailures';
     import {
         boxContains,
@@ -147,12 +147,14 @@
         anchoredZoomCentre,
         approach,
         approachScale,
+        canvasToScreen as canvasToScreenPoint,
         clamp,
         constrainCentre,
         fitBounds,
         fitBoundsInset,
         insetFitCentre,
         normalizeWheelDelta,
+        screenToCanvas as screenToCanvasPoint,
         wheelZoomRate,
         zoomRange,
     } from '../renderer/viewportMath';
@@ -241,34 +243,25 @@
     /** Resolved once the next painted frame has landed (e2e determinism). */
     let paintWaiters: Array<() => void> = [];
 
-    // A plain record, deliberately not `$state` and deliberately not a
-    // `SvelteMap`: it is read by the frame loop, never by the reactive graph.
-    // `loadedGeneration` below is the one reactive signal that a decode landed.
-    const images: Record<string, HTMLImageElement> = Object.create(null);
     /**
-     * image key → the URL decoded **or in flight** for that placement.
-     *
-     * Keyed on the PLACEMENT, not the canvas: a canvas can be a composition of
-     * several painting annotations (IIIF Cookbook 0036), and a canvas-keyed
-     * record holds one picture where the manifest asked for two. The residency
-     * comparison is on the resolved URL rather than the key, because switching a
-     * Choice resolves the same placement to a different image and a key-only
-     * cache would paint the superseded one forever. The URL also stands in for a
-     * request generation — an `onload` whose URL is no longer the one wanted is
-     * simply discarded.
+     * The decoded whole images this renderer holds, and their request
+     * lifecycle. See `renderer/staticImages.ts` — the placement keying, the
+     * failure memory and the four ordering invariants live there, with the
+     * browser injected, so they are unit-tested rather than reachable only
+     * through an end-to-end run.
      */
-    const imageUrls: Record<string, string> = Object.create(null);
-    /**
-     * image key → the canvas that placement belongs to.
-     *
-     * Failures are recorded against the CANVAS (`canvasErrors`, which is what
-     * positions an error placeholder and what the viewer-level error is derived
-     * from) while pixels are held against the placement, so clearing a failure
-     * when its request is dropped needs the mapping back. Kept here rather than
-     * looked up through `canvasesById` because a dropped placement is by
-     * definition one the current plan no longer contains.
-     */
-    const imageOwners: Record<string, string> = Object.create(null);
+    const staticImages = createStaticImages({
+        onCanvasError: (canvasId) => {
+            canvasErrors[canvasId] = 'load';
+        },
+        onCanvasErrorCleared: (canvasId) => {
+            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+        },
+        onChanged: () => {
+            loadedGeneration += 1;
+        },
+    });
+
     /** Bumped when a decoded image or tile arrives, to re-run the paint effect. */
     let loadedGeneration = $state(0);
 
@@ -1363,15 +1356,10 @@
         ): ViewportPoint | null {
             const placement = placementOf(canvasId);
             if (!placement) return null;
-            const world = canvasPointToWorld(point, placement);
-            return {
-                x:
-                    (world.x - viewport.centre.x) * viewport.scale +
-                    viewport.width / 2,
-                y:
-                    (world.y - viewport.centre.y) * viewport.scale +
-                    viewport.height / 2,
-            };
+            return canvasToScreenPoint(
+                canvasPointToWorld(point, placement),
+                viewport,
+            );
         },
 
         screenToCanvas(
@@ -1381,14 +1369,7 @@
             const placement = placementOf(canvasId);
             if (!placement || viewport.scale <= 0) return null;
             return worldPointToCanvas(
-                {
-                    x:
-                        (point.x - viewport.width / 2) / viewport.scale +
-                        viewport.centre.x,
-                    y:
-                        (point.y - viewport.height / 2) / viewport.scale +
-                        viewport.centre.y,
-                },
+                screenToCanvasPoint(point, viewport),
                 placement,
             );
         },
@@ -1666,7 +1647,7 @@
             ctx,
             plan,
             viewport,
-            { images, tiles: tiles.get },
+            { images: staticImages.images, tiles: tiles.get },
             dpr,
             viewStable(),
         );
@@ -1839,7 +1820,8 @@
         // asked per PLACEMENT: one half of a composite canvas being decoded is
         // enough for an opaque placeholder over the whole canvas to be wrong.
         for (const placement of plan.staticImages) {
-            if (images[placement.key]) painting.add(placement.canvasId);
+            if (staticImages.has(placement.key))
+                painting.add(placement.canvasId);
         }
 
         const perceptible = plan.layout.filter(
@@ -2659,82 +2641,7 @@
      * being a per-canvas record kept across eviction.
      */
     function loadStaticImages(wanted: StaticImageDraw[]) {
-        const { drop, load } = reconcileImages(imageUrls, wanted);
-
-        for (const key of drop) {
-            const canvasId = imageOwners[key];
-            // Drop the pixels too: a stale image must stop painting the moment
-            // it is superseded, not when its replacement finishes decoding.
-            delete images[key];
-            delete imageUrls[key];
-            delete imageOwners[key];
-            // And the error with them. The URL this placement resolves to has
-            // changed or been released, so the recorded failure is an answer
-            // about a request that is no longer the one being made — keeping it
-            // would leave a placeholder over a Choice that loads perfectly well.
-            //
-            // Safe for eviction as well as for a Choice switch only because
-            // `staticImageFailures` remembers the URL: the canvas coming back
-            // re-derives its error from that below, with no second request. Drop
-            // this and the per-canvas record is the only memory of the failure,
-            // which is the refetch-on-re-entry the spec forbids.
-            if (canvasId && canvasErrors[canvasId])
-                delete canvasErrors[canvasId];
-        }
-
-        for (const { key, canvasId, url } of load) {
-            imageOwners[key] = canvasId;
-
-            if (staticImageFailures.has(url)) {
-                // Answered already, by a request this page made earlier. Recorded
-                // BEFORE `imageUrls`, so the state the placeholder is derived
-                // from is in place for `updateCanvasErrors` in this same frame.
-                canvasErrors[canvasId] = 'load';
-                // Held as if in flight: the reconciliation compares held URLs, so
-                // this is what stops the next frame asking again.
-                imageUrls[key] = url;
-                continue;
-            }
-
-            const image = new Image();
-            // Decode off the main thread where the browser can.
-            image.decoding = 'async';
-            // `crossOrigin` is deliberately NOT set: most IIIF image servers
-            // send no CORS headers, and requesting anonymous CORS would turn a
-            // working image into a load failure. The cost is a tainted canvas,
-            // which only matters to pixel readback — and the geometric e2e
-            // fixtures are same-origin.
-            image.onload = () => {
-                // Still the URL this placement wants? A Choice switch, a canvas
-                // change, or unmount may have superseded this request while it
-                // was in flight.
-                if (imageUrls[key] !== url) return;
-                images[key] = image;
-                if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
-                loadedGeneration += 1;
-            };
-            image.onerror = () => {
-                // Recorded whatever this canvas now wants, and before the guard:
-                // the URL failed, and that is a fact about the URL rather than
-                // about the canvas that happened to ask for it. A reader who
-                // switches Choice away mid-request and back must not re-issue it.
-                staticImageFailures.record(url);
-                if (imageUrls[key] !== url) return;
-                // The URL is deliberately LEFT in `imageUrls`, which is what
-                // stops the next frame's reconciliation from asking again: a
-                // request that failed is answered, and a retry loop over a 404
-                // is the behaviour the thumbnail ladder also refuses. Once this
-                // canvas is evicted the URL goes with it, and `staticImageFailures`
-                // is what refuses the request on the way back in.
-                canvasErrors[canvasId] = 'load';
-                loadedGeneration += 1;
-            };
-            // Recorded BEFORE the request starts, so a second reconciliation
-            // for the same URL joins the in-flight request rather than
-            // restarting it.
-            imageUrls[key] = url;
-            image.src = url;
-        }
+        staticImages.reconcile(wanted);
     }
 
     onMount(() => {
@@ -2819,7 +2726,9 @@
          * development-only renderer and is never part of the published surface.
          */
         (
-            surface as HTMLCanvasElement & { __triiiceratopsRenderer?: unknown }
+            surface as HTMLCanvasElement & {
+                __triiiceratopsRenderer?: unknown;
+            }
         ).__triiiceratopsRenderer = {
             getView: () => ({
                 centre: { ...viewport.centre },
@@ -2869,7 +2778,12 @@
              * clamp observable.
              */
             fitCanvasBounds: (
-                bounds: { x: number; y: number; width: number; height: number },
+                bounds: {
+                    x: number;
+                    y: number;
+                    width: number;
+                    height: number;
+                },
                 canvasId?: string,
             ) => {
                 canvasPort.fitBounds(bounds, canvasId);
@@ -2969,7 +2883,6 @@
                 viewerState.registerPaintLayer.bind(viewerState),
             nextPaint,
         };
-
         return () => {
             detachRenderer();
             releasePageLayer();
@@ -2990,10 +2903,7 @@
             clearHeldKeys();
             keyPan = null;
             settlePaintWaiters();
-            for (const id of Object.keys(images)) delete images[id];
-            // Also clears the in-flight requests: an `onload` that lands after
-            // unmount finds no wanted URL and discards itself.
-            for (const id of Object.keys(imageUrls)) delete imageUrls[id];
+            staticImages.clear();
             // Aborts every outstanding tile request and closes every decoded
             // tile. The METADATA cache is deliberately left alone: it is
             // page-shared and outlives the renderer, which is what makes
