@@ -85,7 +85,65 @@ export async function fetchImageBlob(
     return response.blob();
 }
 
-async function loadImageElement(blob: Blob): Promise<HTMLImageElement> {
+/**
+ * How a browser reports that an image server declined to let this page read its
+ * images. Matched on the message as well as the type, because a bare
+ * `instanceof TypeError` would also swallow ordinary programming mistakes and
+ * report them to the reader as somebody else's policy.
+ */
+const CROSS_ORIGIN_FETCH_MESSAGE =
+    /failed to fetch|networkerror|load failed|cross-origin|cors/i;
+
+/**
+ * Whether a failed export was the image server refusing this page permission to
+ * read its images, rather than anything the viewer did wrong.
+ *
+ * Worth telling apart because the two need opposite responses. A 404 or a
+ * malformed manifest is a defect somebody can fix; this is a deliberate policy
+ * decision by whoever runs the image server, and the only honest thing a viewer
+ * can do is say so and stop. There is no retry, and no workaround that would not
+ * be a circumvention.
+ *
+ * The distinction is invisible to script by design: a browser reports a blocked
+ * cross-origin read as an opaque network failure precisely so a page cannot
+ * learn anything from it. So this recognises the *shapes* browsers use — a
+ * `TypeError` from `fetch` in each engine's wording, and the `SecurityError` a
+ * canvas raises when asked to hand back pixels drawn from an image it was not
+ * allowed to read.
+ *
+ * One reader for every export path: a plugin that matched only the `fetch`
+ * shapes reported a canvas taint as a generic failure and offered no proxy hint.
+ */
+export function isCrossOriginImageFailure(error: unknown): boolean {
+    if (
+        typeof DOMException !== 'undefined' &&
+        error instanceof DOMException &&
+        error.name === 'SecurityError'
+    ) {
+        return true;
+    }
+
+    return (
+        error instanceof Error &&
+        error.name === 'TypeError' &&
+        CROSS_ORIGIN_FETCH_MESSAGE.test(error.message)
+    );
+}
+
+/**
+ * One segment of a download filename, reduced to what every filesystem accepts.
+ */
+export function sanitizeFilenamePart(value: string): string {
+    return value
+        .replace(/[^a-z0-9-_]+/gi, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
+/**
+ * Decode a blob into an `<img>`, revoking the object URL either way.
+ */
+export async function loadImageElement(blob: Blob): Promise<HTMLImageElement> {
     const objectUrl = URL.createObjectURL(blob);
     try {
         return await new Promise<HTMLImageElement>((resolve, reject) => {

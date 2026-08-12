@@ -16,15 +16,20 @@ import {
     composeImages,
     downloadBlob,
     fetchExportImageBlob,
+    fetchImageBlob,
     getCanvasId,
     getCanvasLabel,
     getCompositeImagePlacement,
+    getDeclaredCanvasDimensions,
     getResolvedImageExportUrl,
     getThumbnailSrc,
+    isCrossOriginImageFailure,
     isLevel0ImageService,
+    loadImageElement,
     parseAnnotation,
     resolveAllCanvasImages,
     resolveCanvasImage,
+    sanitizeFilenamePart,
     type ResolvedCanvasImage,
 } from 'triiiceratops/image-export';
 
@@ -217,13 +222,6 @@ const DEFAULT_OCR_RENDER_OPTIONS: PdfOcrRenderOptions = {
     visibilityMode: 'transparent',
 };
 
-function sanitizeFilenamePart(value: string): string {
-    return value
-        .replace(/[^a-z0-9-_]+/gi, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-}
-
 function getManifestFilenameBase(
     manifestId: string | null,
     manifestLabel?: string | null,
@@ -371,23 +369,6 @@ function isOcrAnnotation(annotation: any, bodies: TextBody[]): boolean {
     );
 }
 
-function getCanvasDimensions(
-    canvas: any,
-): { width: number; height: number } | null {
-    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
-    // The trailing `|| null` is what the dead accessor rung evaluated to, and
-    // is load-bearing: a canvas declaring `width: 0` must still fall through to
-    // "no dimensions" rather than become a valid `0`.
-    const width = canvas?.width || null;
-    const height = canvas?.height || null;
-
-    if (typeof width !== 'number' || typeof height !== 'number') {
-        return null;
-    }
-
-    return { width, height };
-}
-
 function getFontSizeToFit(
     font: any,
     text: string,
@@ -425,7 +406,7 @@ function getCanvasExportResource(
     getSelectedChoice?: (canvasId: string) => string | undefined,
 ): { imageUrl: string | null; resolvedImage: ResolvedCanvasImage | null } {
     const resolved = resolveCanvasImage(canvas, { getSelectedChoice });
-    const canvasDimensions = getCanvasDimensions(canvas);
+    const canvasDimensions = getDeclaredCanvasDimensions(canvas);
     // A level0 service answers no constructed request, so there is no sized URL
     // to build here — `loadCanvasImageBlob` retrieves these through core's export
     // seam, which reads `info.json` first. `imageUrl` remains the published
@@ -747,26 +728,8 @@ function normalizeOverlayToCanvasSpace({
     };
 }
 
-async function loadImage(blob: Blob): Promise<HTMLImageElement> {
-    const objectUrl = URL.createObjectURL(blob);
-
-    try {
-        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-            const element = new Image();
-            element.onload = () => resolve(element);
-            element.onerror = () =>
-                reject(new Error('Unable to decode image for PDF export.'));
-            element.src = objectUrl;
-        });
-
-        return image;
-    } finally {
-        URL.revokeObjectURL(objectUrl);
-    }
-}
-
 async function convertBlobToPng(blob: Blob): Promise<Uint8Array> {
-    const image = await loadImage(blob);
+    const image = await loadImageElement(blob);
     const canvas = document.createElement('canvas');
     canvas.width = image.naturalWidth || image.width;
     canvas.height = image.naturalHeight || image.height;
@@ -799,30 +762,6 @@ export function buildImageRequestInit(
         credentials: 'same-origin',
         ...imageRequest,
     };
-}
-
-function isLikelyCorsOrAuthFailure(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-        return false;
-    }
-
-    return (
-        error.name === 'TypeError' ||
-        /failed to fetch/i.test(error.message) ||
-        /networkerror/i.test(error.message)
-    );
-}
-
-async function fetchImageBlobWithConfig(
-    url: string,
-    imageRequest?: PdfImageRequestConfig,
-): Promise<Blob> {
-    const response = await fetch(url, buildImageRequestInit(imageRequest));
-    if (!response.ok) {
-        throw new Error(`Image request failed with ${response.status}.`);
-    }
-
-    return response.blob();
 }
 
 async function loadCanvasImageBlob({
@@ -873,7 +812,7 @@ async function loadCanvasImageBlob({
         });
     }
 
-    return fetchImageBlobWithConfig(imageUrl, imageRequest);
+    return fetchImageBlob(imageUrl, buildImageRequestInit(imageRequest));
 }
 
 async function embedImage(pdfDoc: any, blob: Blob) {
@@ -1354,7 +1293,7 @@ export async function exportCanvasRangeAsPdf({
                 height: embeddedImage.height,
             });
 
-            const canvasDimensions = getCanvasDimensions(canvas);
+            const canvasDimensions = getDeclaredCanvasDimensions(canvas);
             const overlays =
                 canvasId && (getCanvasOcrOverlays || getCanvasAnnotations)
                     ? await resolveCanvasOcrOverlays({
@@ -1392,7 +1331,7 @@ export async function exportCanvasRangeAsPdf({
             // A CORS/auth failure is fatal for the whole export (every
             // canvas would fail the same way): surface it to the caller,
             // which reports it on the structured error channel.
-            if (isLikelyCorsOrAuthFailure(error)) {
+            if (isCrossOriginImageFailure(error)) {
                 throw new Error(messages.errorNotAvailable());
             }
             // A single-canvas failure is non-fatal: record it so the
