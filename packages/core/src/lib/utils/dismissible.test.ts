@@ -140,6 +140,25 @@ describe('dismissible', () => {
         action.destroy();
     });
 
+    it('exposes a dismiss() so a close button returns focus by the same rule', () => {
+        const { overlay, trigger } = mount();
+        const onDismiss = vi.fn();
+        const controls: { dismiss?: () => void } = {};
+        const action = dismissible(overlay, {
+            onDismiss,
+            invoker: trigger,
+            controls,
+        });
+
+        // A close button calling `onDismiss` directly skips the focus return —
+        // which is how the panel close button dropped focus to <body>.
+        controls.dismiss?.();
+
+        expect(onDismiss).toHaveBeenCalledOnce();
+        expect(document.activeElement).toBe(trigger);
+        action.destroy();
+    });
+
     it('stops listening once destroyed', () => {
         const { overlay } = mount();
         const onDismiss = vi.fn();

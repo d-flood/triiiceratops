@@ -34,6 +34,14 @@ export type DismissibleOptions = {
      * overlay must not dismiss it on the same press that opened it.
      */
     within?: (HTMLElement | null | undefined)[];
+    /**
+     * Filled in with a `dismiss()` the component can call.
+     *
+     * A close button is a dismissal too, and it must return focus by the same
+     * rule as Escape — calling `onDismiss` directly from the button skips that,
+     * which is how the panel close button dropped focus to `<body>`.
+     */
+    controls?: { dismiss?: () => void };
 };
 
 export function dismissible(node: HTMLElement, options: DismissibleOptions) {
@@ -71,6 +79,8 @@ export function dismissible(node: HTMLElement, options: DismissibleOptions) {
         dismiss();
     }
 
+    if (current.controls) current.controls.dismiss = dismiss;
+
     node.addEventListener('keydown', onKeydown);
     document.addEventListener('pointerdown', onPointerDown, true);
 
@@ -82,6 +92,7 @@ export function dismissible(node: HTMLElement, options: DismissibleOptions) {
     return {
         update(next: DismissibleOptions) {
             current = next;
+            if (current.controls) current.controls.dismiss = dismiss;
         },
         destroy() {
             node.removeEventListener('keydown', onKeydown);

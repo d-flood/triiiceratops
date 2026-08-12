@@ -18,6 +18,10 @@
     const m = getMessages();
     let sectionElement: HTMLElement | undefined = $state();
 
+    // Filled by the `dismissible` action. The close button dismisses through it
+    // so it returns focus by the same rule Escape does.
+    const dismissal: { dismiss?: () => void } = {};
+
     function handleClose() {
         panel.close?.();
     }
@@ -41,6 +45,7 @@
     bind:this={sectionElement}
     use:dismissible={{
         onDismiss: handleClose,
+        controls: dismissal,
         escape: !!panel.close,
         outsidePointer: false,
         focusOnMount: false,
@@ -65,7 +70,7 @@
                 size="xs"
                 circle
                 ghost
-                onclick={handleClose}
+                onclick={() => dismissal.dismiss?.()}
                 aria-label={m.close()}
             >
                 <Icon name="X" size={16} />

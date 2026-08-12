@@ -48,6 +48,10 @@
         viewerState.toggleCanvasInfo();
     }
 
+    // Filled by the `dismissible` action; the close button goes through it so it
+    // returns focus by the same rule Escape does.
+    const dismissal: { dismiss?: () => void } = {};
+
     function closeInfo() {
         if (viewerState.showCanvasInfo) viewerState.toggleCanvasInfo();
     }
@@ -72,6 +76,7 @@
             <div
                 use:dismissible={{
                     onDismiss: closeInfo,
+                    controls: dismissal,
                     invoker,
                     within: [invoker],
                 }}
@@ -89,7 +94,7 @@
                             circle
                             ghost
                             class="close"
-                            onclick={closeInfo}
+                            onclick={() => dismissal.dismiss?.()}
                             aria-label={m.close()}
                         >
                             <Icon name="X" size={14} />
