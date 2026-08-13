@@ -296,6 +296,21 @@ describe('compatibility negotiation at activation', () => {
         );
     });
 
+    it('activates a plugin that requires the canvas-claim capability', () => {
+        // The seam is optional runtime FEATURE, not a version: a claimant
+        // declares it and so fails closed on a core that predates
+        // `ViewerState.claimCanvas` rather than silently rendering over an
+        // unsupported-content placard it cannot suppress (ADR 0017).
+        const plugin = makeTestPlugin(captures, {
+            requiredCapabilities: ['canvas-claim'],
+        });
+
+        const activation = plugin.activate(makeHost(container, state));
+
+        expect(container.textContent).toBe('sdk-plugin-mounted');
+        activation.deactivate();
+    });
+
     it('activates a compatible plugin', () => {
         const plugin = makeTestPlugin(captures);
         const activation = plugin.activate(makeHost(container, state));

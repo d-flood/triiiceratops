@@ -9,6 +9,10 @@ import { coverage } from '../../vitest.coverage.js';
 // the plugin declares `apply: 'serve'`, so it is in no build.
 // @ts-expect-error - plain ESM fixture helper, deliberately untyped
 import { iiifFixture } from './scripts/iiifFixturePlugin.mjs';
+// The generated AV media and the manifests pointing at it, mounted at /media/.
+// Dev-server only, for the same reason.
+// @ts-expect-error - plain ESM fixture helper, deliberately untyped
+import { mediaFixture } from './scripts/mediaFixturePlugin.mjs';
 
 /**
  * The framework substrate (`src/lib/framework/registration.ts`) dynamic-imports
@@ -52,6 +56,7 @@ export default defineConfig({
     plugins: [
         elementArtifactStub(),
         iiifFixture(),
+        mediaFixture(),
         paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',

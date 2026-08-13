@@ -1,9 +1,5 @@
-import {
-    getChoiceAlternatives,
-    getPaintingAnnotations,
-    getPaintingBody,
-    isChoiceBody,
-} from './iiifParsing';
+import { getPaintingAnnotations } from './iiifParsing';
+import { findImageBody, unwrapSpecificResource } from './paintingBodies';
 
 function normalizeServiceId(serviceId: string): string {
     return serviceId.endsWith('/info.json')
@@ -68,6 +64,13 @@ export function resolveThumbnailResourceSrc(
  *   1. The canvas's own `thumbnail` property
  *   2. First image annotation → IIIF service → {serviceId}/full/{size},/0/default.jpg
  *   3. Raw resource / body ID
+ *
+ * Rungs 2 and 3 are gated by the painting-body classifier
+ * (`utils/paintingBodies`), because both of them end in an `<img src>`. Without
+ * it, an audio canvas with no declared `thumbnail` put its MP3's URL into the
+ * strip — a broken image where the reader needed to be told this is a sound
+ * recording. Returning `''` is what routes the canvas to the strip's
+ * no-thumbnail treatment instead.
  */
 export function getThumbnailSrc(canvas: any, size = 200): string {
     let src = '';
@@ -95,17 +98,10 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
         if (images && images.length > 0) {
             const annotation = images[0];
 
-            // `getPaintingBody` reads the v2 `resource` spelling as well as
-            // the v3 `body` one; a guard checking only `resource.id` would
-            // discard valid v2 resources, which carry `@id` instead.
-            let resource: any = null;
-            let body = getPaintingBody(annotation);
-            if (body) {
-                if (isChoiceBody(body)) {
-                    body = getChoiceAlternatives(body)[0] || null;
-                }
-                resource = Array.isArray(body) ? body[0] : body;
-            }
+            // `findImageBody` reads the v2 `resource` spelling as well as the
+            // v3 `body` one, unwraps a body array before testing for a Choice,
+            // and hands back only a body that classifies as an image.
+            const resource = unwrapSpecificResource(findImageBody(annotation));
 
             if (resource) {
                 // Try IIIF image service
@@ -129,20 +125,6 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
 
                 // Fallback: raw resource ID — `id` in v3, `@id` in v2.
                 src = resource.id || resource['@id'] || '';
-
-                if (!src) {
-                    const rawBody = getPaintingBody(annotation);
-                    if (rawBody) {
-                        let bodyObj = Array.isArray(rawBody)
-                            ? rawBody[0]
-                            : rawBody;
-                        if (isChoiceBody(bodyObj)) {
-                            bodyObj =
-                                getChoiceAlternatives(bodyObj)[0] || bodyObj;
-                        }
-                        src = bodyObj.id || bodyObj['@id'] || '';
-                    }
-                }
             }
         }
     } catch {

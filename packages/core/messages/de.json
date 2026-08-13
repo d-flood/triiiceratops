@@ -152,5 +152,6 @@
     "plugin_error_close": "Fehlerdetails schließen",
     "canvas_surface_label": "Bildfläche – mit den Pfeiltasten verschieben, mit Plus und Minus zoomen, mit Null einpassen",
     "canvas_error_auth": "Diese Seite erfordert eine Authentifizierung",
-    "canvas_error_load": "Diese Seite konnte nicht geladen werden"
+    "canvas_error_load": "Diese Seite konnte nicht geladen werden",
+    "canvas_unsupported": "Dieses Canvas enthält Inhalte, die der Viewer nicht darstellen kann"
 }

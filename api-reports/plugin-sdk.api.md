@@ -16,7 +16,7 @@
 // FILE: dist/activate.d.ts
 // ======================================================================
 /**
- * Per-viewer plugin activation (ticket 07).
+ * Per-viewer plugin activation.
  *
  * Activation is explicit and per viewer (CONTEXT.md **Activation**): each call
  * negotiates compatibility, then constructs an isolated context with its own
@@ -26,8 +26,24 @@
  */
 import type { PluginActivation, PluginHost, SdkPluginMeta } from 'triiiceratops';
 /**
+ * The one id this viewer knows a plugin by, when the host supplied no surface to
+ * ask (direct `runActivation` / test-kit use). Mirrors core's
+ * `sdkPluginChromeId`: prefer the declared `uiId`, else collapse the
+ * package-qualified name to the DOM-safe form (`@scope/plugin-foo` →
+ * `scope-plugin-foo`).
+ *
+ * Duplicated rather than value-imported for the reason `definePlugin`'s
+ * `SDK_PLUGIN_KIND` is: a value import from `triiiceratops` would pull core —
+ * and its Svelte runtime — into every plugin bundle. Publishing under the raw
+ * name instead would tell authors the wrong `getPluginState` key.
+ */
+export declare function sdkChromeId(meta: {
+    uiId?: string;
+    name: string;
+}): string;
+/**
  * Run one activation of a plugin against a host, isolating every lifecycle
- * phase (ticket 09). Each phase failure is routed to `host.reportError` with its
+ * phase. Each phase failure is routed to `host.reportError` with its
  * phase so the host can present a plugin-local error state and offer retry:
  *
  * - `setup`: compatibility negotiation and context/runtime/service construction.
@@ -54,7 +70,7 @@ export declare function activatePlugin(plugin: SdkPluginMeta & {
 // FILE: dist/compatibility.d.ts
 // ======================================================================
 /**
- * Semver compatibility negotiation (ticket 07).
+ * Semver compatibility negotiation.
  *
  * A plugin declares `coreRange`, `pluginApiRange`, and `requiredCapabilities`.
  * At activation the SDK checks them against the host's declared `coreVersion`,
@@ -87,8 +103,8 @@ export interface PluginCompatibilityReason {
 }
 /**
  * Structured, actionable error thrown when a plugin cannot activate against the
- * host. Carries every failed check so a host/UI can render precise guidance
- * (ticket 09 routes it through the `pluginerror` channel).
+ * host. Carries every failed check so a host/UI can render precise guidance,
+ * routed through the `pluginerror` channel.
  */
 export declare class PluginCompatibilityError extends Error {
     readonly code: "PLUGIN_INCOMPATIBLE";
@@ -112,7 +128,7 @@ export declare function negotiateCompatibility(plugin: SdkPluginMeta, host: Plug
 // FILE: dist/definePlugin.d.ts
 // ======================================================================
 /**
- * `definePlugin` — the framework-neutral plugin authoring entry (ticket 07).
+ * `definePlugin` — the framework-neutral plugin authoring entry.
  *
  * Accepts declarative metadata (package-qualified name, version, `coreRange`,
  * `pluginApiRange`, `requiredCapabilities`, icon, target) and a `PluginView`,
@@ -213,15 +229,15 @@ export type { SelectorRuntime } from './selectors.js';
 export { satisfies, collectIncompatibilities, negotiateCompatibility, PluginCompatibilityError, } from './compatibility.js';
 export type { PluginCompatibilityReason } from './compatibility.js';
 export { createStubStyleService, createStubLocaleService, createStubUiService, createStubSurfaceService, } from './services.js';
-export type { PluginView, PluginContext, ViewerSelectors, Selector, PluginStyleService, PluginLocaleService, LocaleCatalog, PluginUiService, PluginSurface, IconDescriptor, PluginIcon, PluginUiTarget, PluginHost, PluginActivation, SdkPlugin, SdkPluginMeta, PluginErrorPhase, PluginError, PluginErrorReport, ViewerState, } from 'triiiceratops';
+export type { PluginView, PluginContext, PublishedState, PublishedStateClassification, SelectorSource, SourceSelectors, ViewerSelectors, Selector, PluginStyleService, PluginLocaleService, LocaleCatalog, PluginUiService, PluginSurface, IconDescriptor, PluginIcon, PluginUiTarget, PluginHost, PluginActivation, SdkPlugin, SdkPluginMeta, PluginErrorPhase, PluginError, PluginErrorReport, ViewerState, } from 'triiiceratops';
 
 // ======================================================================
 // FILE: dist/lit.d.ts
 // ======================================================================
 /**
- * Lit adapter (`@triiiceratops/plugin-sdk/lit`) — ticket 13.
+ * Lit adapter (`@triiiceratops/plugin-sdk/lit`).
  *
- * Exposes the SDK's memoized, equality-gated selector contract (ticket 07) as a
+ * Exposes the SDK's memoized, equality-gated selector contract as a
  * Lit `ReactiveController` that requests a host update whenever the selected
  * value changes and unsubscribes when the host disconnects.
  *
@@ -294,9 +310,9 @@ export declare function definePluginStyles(css: string, id: string): {
 // FILE: dist/react.d.ts
 // ======================================================================
 /**
- * React adapter (`@triiiceratops/plugin-sdk/react`) — ticket 13.
+ * React adapter (`@triiiceratops/plugin-sdk/react`).
  *
- * Turns the SDK's memoized, equality-gated selector contract (ticket 07) into
+ * Turns the SDK's memoized, equality-gated selector contract into
  * idiomatic React reactivity, built on `useSyncExternalStore` so reads stay
  * tear-free under concurrent rendering and `StrictMode` double-invocation.
  *
@@ -453,35 +469,33 @@ export declare function dispatchPluginCommandError(node: EventTarget, pluginName
 // FILE: dist/selectors.d.ts
 // ======================================================================
 /**
- * Memoized viewer-state selectors (ticket 07), now a re-export of the ONE
- * framework-neutral selector runtime core owns (`triiiceratops/selectors`).
+ * Memoized viewer-state selectors: a re-export of the ONE framework-neutral
+ * selector runtime core owns (`triiiceratops/selectors`).
  *
- * The implementation moved into core so plugin activations and the React/Vue
+ * The implementation lives in core so plugin activations and the React/Vue
  * framework wrappers cannot drift on equality, memoization, cadence, disposal,
- * or error semantics. Nothing about this module's public shape changed: the SDK
- * still exports `createSelectorRuntime` and `SelectorRuntime` from its base
- * entry with the same signatures, plugin activations still get their OWN runtime
- * (one `ViewerState.subscribe` registration each), and this activation's
- * projection/listener failures still carry plugin attribution through the
- * `SelectorRuntimeOptions` hooks `runActivation` passes.
+ * or error semantics. Each plugin activation gets its OWN runtime (one
+ * `ViewerState.subscribe` registration each), and projection/listener failures
+ * carry plugin attribution through the `SelectorRuntimeOptions` hooks
+ * `runActivation` passes.
  *
  * `triiiceratops/selectors` is a Svelte-free entry point, so re-exporting it
  * keeps the SDK's base entry free of the viewer's Svelte graph.
  */
 export { createSelectorRuntime } from 'triiiceratops/selectors';
-export type { SelectorRuntime, SelectorRuntimeOptions, } from 'triiiceratops/selectors';
+export type { SelectorRuntime, SelectorRuntimeOptions, SelectorSource, SourceSelectors, } from 'triiiceratops/selectors';
 
 // ======================================================================
 // FILE: dist/services.d.ts
 // ======================================================================
 /**
- * Minimal stub service implementations (ticket 07).
+ * Minimal stub service implementations.
  *
  * The plugin context always exposes `styles`, `locale`, and `ui`. When the host
  * omits them, the SDK fills these harmless stubs so a plugin can be authored and
  * activated end-to-end (e.g. bare `runActivation` with no host services). In
- * production core supplies the real, per-viewer, root-aware services (ticket 08)
- * on the {@link PluginHost}; the SDK only reaches for a stub as a fallback.
+ * production core supplies the real, per-viewer, root-aware services on the
+ * {@link PluginHost}; the SDK only reaches for a stub as a fallback.
  */
 import type { PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService } from 'triiiceratops';
 /** No-op style service: records nothing, returns a no-op uninstaller. */
@@ -508,9 +522,9 @@ export declare function createStubSurfaceService(uiId?: string): PluginSurface;
 // FILE: dist/svelte.d.ts
 // ======================================================================
 /**
- * Svelte adapter (`@triiiceratops/plugin-sdk/svelte`) — ticket 13.
+ * Svelte adapter (`@triiiceratops/plugin-sdk/svelte`).
  *
- * Bridges the SDK's memoized, equality-gated selector contract (ticket 07) to a
+ * Bridges the SDK's memoized, equality-gated selector contract to a
  * Svelte readable store, so viewer state is consumable with `$`-auto-subscription
  * in Svelte 5 components.
  *
@@ -550,7 +564,7 @@ export declare function viewerSelector<T>(context: PluginContext, selector: (sta
 // FILE: dist/svgIcon.d.ts
 // ======================================================================
 /**
- * `svgIcon` — the SDK's validated toolbar-icon helper (ticket 08).
+ * `svgIcon` — the SDK's validated toolbar-icon helper.
  *
  * A plugin author authors a full SVG string and passes it to `svgIcon`, which
  * validates it and returns a core-owned {@link IconDescriptor}. Per SPEC.md
@@ -587,7 +601,7 @@ export declare function svgIcon(svg: string): IconDescriptor;
 // FILE: dist/testing/conformance.d.ts
 // ======================================================================
 /**
- * Plugin conformance suite (ticket 14).
+ * Plugin conformance suite.
  *
  * `runPluginConformance(factory)` registers a battery of vitest cases that
  * activate the plugin against a real test viewer context and assert the
@@ -600,7 +614,12 @@ export declare function svgIcon(svg: string): IconDescriptor;
  * - locale-change handling — an active-locale switch does not fail the plugin;
  * - style cleanup — every installed stylesheet is released on deactivation;
  * - error isolation — a sibling throwing view yields a PHASE-CORRECT failure
- *   through `host.reportError`, and the real viewer state stays live.
+ *   through `host.reportError`, and the real viewer state stays live;
+ * - published state (ADR 0018), for a plugin that publishes any — every member
+ *   carrying a real classification (and every classification naming a real
+ *   member), an observable member seen to change waking subscribers by the next
+ *   flush, and the publication retired with the activation. A plugin that
+ *   publishes nothing passes these vacuously.
  *
  * The cases are exported as {@link conformanceCases} so a harness (or the kit's
  * own tests) can drive an individual check directly — e.g. to assert that a
@@ -629,7 +648,7 @@ export declare function runPluginConformance(factory: PluginFactory): void;
 // FILE: dist/testing/context.d.ts
 // ======================================================================
 /**
- * The test viewer context (ticket 14).
+ * The test viewer context.
  *
  * `createTestViewerContext` assembles a REAL, compiled `ViewerState` (from
  * `triiiceratops/testing`) with RECORDING DOUBLES for the style, UI, and locale
@@ -640,7 +659,7 @@ export declare function runPluginConformance(factory: PluginFactory): void;
  * host-owned services and the renderer are stand-ins.
  *
  * The doubles only RECORD calls; they need not implement teardown. `runActivation`
- * (ticket 08) auto-tracks every `styles.install` and `locale.subscribe` an
+ * auto-tracks every `styles.install` and `locale.subscribe` an
  * activation performs and releases them on deactivation, so a recording double is
  * free to be a pure log.
  */
@@ -794,7 +813,7 @@ export declare function createTestViewerContext(options?: TestViewerContextOptio
 // FILE: dist/testing/index.d.ts
 // ======================================================================
 /**
- * `@triiiceratops/plugin-sdk/testing` — the plugin-author test kit (ticket 14).
+ * `@triiiceratops/plugin-sdk/testing` — the plugin-author test kit.
  *
  * A plugin author validates a plugin without a full application by mounting it
  * against a **test viewer context**: a REAL, compiled `ViewerState` (real
@@ -828,9 +847,9 @@ export { runPluginConformance, conformanceCases, type PluginFactory, type Confor
 // FILE: dist/vue.d.ts
 // ======================================================================
 /**
- * Vue adapter (`@triiiceratops/plugin-sdk/vue`) — ticket 13.
+ * Vue adapter (`@triiiceratops/plugin-sdk/vue`).
  *
- * Turns the SDK's memoized, equality-gated selector contract (ticket 07) into a
+ * Turns the SDK's memoized, equality-gated selector contract into a
  * readonly Vue `Ref` that a composable can consume directly.
  *
  * This module imports ONLY `vue` at runtime and the core seam TYPES (erased at

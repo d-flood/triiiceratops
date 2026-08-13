@@ -11,6 +11,7 @@
         getPaintingBody,
         isChoiceBody,
     } from '../utils/iiifParsing';
+    import { isUnsupportedCanvas } from '../utils/paintingBodies';
     import { getCanvasLabel } from '../utils/canvasLabels';
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
     import {
@@ -79,8 +80,10 @@
                 src: string;
                 index: number;
                 hasChoice: boolean;
+                unsupported: boolean;
             }>;
         return canvases.map((canvas: ManifestCanvas, index: number) => {
+            const canvasId = getCanvasId(canvas) || `canvas-${index}`;
             let src = getThumbnailSrc(canvas);
             let hasChoice = false;
 
@@ -104,13 +107,26 @@
             }
 
             return {
-                id: getCanvasId(canvas) || `canvas-${index}`,
+                id: canvasId,
                 // Reads the raw JSON directly — canvases have no getLabel()
                 // accessor to fall back on.
                 label: getCanvasLabel(canvas, index, viewerLocale),
                 src,
                 index,
                 hasChoice,
+                // The AV variant of the no-thumbnail treatment. A canvas core
+                // cannot render has no image to fall back to and would
+                // otherwise be indistinguishable from a folio whose thumbnail
+                // is missing — the strip is where a reader tells a sound
+                // recording from a broken page (user story 29).
+                //
+                // A CLAIMED canvas is a plugin's, and the glyph is part of the
+                // unsupported presentation the claim suppresses: the strip has
+                // no business announcing unshowable content for a canvas
+                // something is showing (CONTEXT.md **Canvas claim**).
+                unsupported:
+                    isUnsupportedCanvas(canvas) &&
+                    !viewerState.isCanvasClaimed(canvasId),
             };
         });
     });
@@ -496,6 +512,7 @@
             id: string;
             labels: string[];
             srcs: string[];
+            unsupported: boolean[];
             index: number;
             hasChoice: boolean;
         }> = [];
@@ -520,9 +537,11 @@
             const groupId = first.id;
             const groupLabels = [first.label];
             const groupSrcs = [first.src];
+            const groupUnsupported = [first.unsupported];
             if (second) {
                 groupLabels.push(second.label);
                 groupSrcs.push(second.src);
+                groupUnsupported.push(second.unsupported);
             }
             const groupHasChoice =
                 first.hasChoice || (second ? second.hasChoice : false);
@@ -531,6 +550,7 @@
                 id: groupId,
                 labels: groupLabels,
                 srcs: groupSrcs,
+                unsupported: groupUnsupported,
                 index: i,
                 hasChoice: groupHasChoice,
             });
@@ -538,6 +558,41 @@
         return groups;
     });
 </script>
+
+<!--
+    The no-thumbnail treatment, in its two variants.
+
+    A canvas core cannot render never gets a fallback `<img src>` — the strip
+    used to put the painting body's own id there, which for an audio canvas is
+    an MP3 and renders as a broken image. The glyph says "sound or moving
+    image", which is the one thing the reader needs the strip to tell them
+    (user story 29).
+
+    Inline SVG rather than an `Icon`: the icon set is generated from a
+    dependency at build time, and this is one path that must carry no
+    dependency at all. Decorative — the button around it already carries the
+    canvas's accessible name.
+-->
+{#snippet noThumbnail(unsupported: boolean)}
+    <span class="thumb-placeholder">
+        {#if unsupported}
+            <svg
+                class="thumb-av-glyph"
+                data-testid="thumb-av-glyph"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+                focusable="false"
+            >
+                <path
+                    d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 5.5 6.5 4.5-6.5 4.5v-9Z"
+                />
+            </svg>
+        {:else}
+            ?
+        {/if}
+    </span>
+{/snippet}
 
 {#if viewerState.showThumbnailGallery}
     <div
@@ -710,7 +765,9 @@
                                             draggable="false"
                                         />
                                     {:else}
-                                        <span class="thumb-placeholder">?</span>
+                                        {@render noThumbnail(
+                                            thumbGroup.unsupported[0],
+                                        )}
                                     {/if}
                                 </div>
                                 {#if thumbGroup.srcs.length > 1}
@@ -724,9 +781,9 @@
                                                 draggable="false"
                                             />
                                         {:else}
-                                            <span class="thumb-placeholder"
-                                                >?</span
-                                            >
+                                            {@render noThumbnail(
+                                                thumbGroup.unsupported[1],
+                                            )}
                                         {/if}
                                     </div>
                                 {/if}
@@ -806,7 +863,7 @@
                                             draggable="false"
                                         />
                                     {:else}
-                                        <span class="thumb-placeholder">?</span>
+                                        {@render noThumbnail(thumb.unsupported)}
                                     {/if}
                                 </div>
                             </div>
@@ -1388,6 +1445,17 @@
     .constrain-width .thumb-placeholder {
         width: 100%;
         height: auto;
+    }
+
+    /* Sized as a glyph rather than as a picture: the placeholder's box is the
+       thumbnail's, and a `width: 100%` SVG in it would be a poster-sized play
+       button. Roughly the cap height of the `?` it replaces, centred in the
+       same box by the placeholder's own text centring. */
+    .thumb-av-glyph {
+        display: inline-block;
+        vertical-align: middle;
+        width: 1em;
+        height: 1em;
     }
 
     /* ===== Thumbnail label =====

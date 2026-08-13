@@ -1,0 +1,117 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-waveform.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Waveform linkage — the three real shapes"]
+    },
+    "summary": {
+        "en": [
+            "Three canvases painting the same tone, differing only in how the waveform data is linked. Canvas 1 is the Avalon shape (canvas seeAlso, a Dataset of application/json). Canvas 2 is the British Library shape (canvas seeAlso, application/octet-stream carrying the BBC waveform profile) pointing at the binary .dat. Canvas 3 links the same .dat through rendering instead of seeAlso. Both files were generated from tone.mp3 by one audiowaveform run each, so the two parsers must produce the same peaks model from them — and note that the tool writes the .dat as format version 1 and the .json as version 2, which is why detection sniffs content rather than trusting a declared format (spec, Peaks model; user story 44)."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-waveform.json/canvas/json-seealso",
+            "type": "Canvas",
+            "label": { "en": ["Waveform via seeAlso — JSON (Avalon)"] },
+            "duration": 2.0,
+            "seeAlso": [
+                {
+                    "id": "/media/tone.json",
+                    "type": "Dataset",
+                    "format": "application/json",
+                    "label": { "en": ["waveform.json"] }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/media/manifests/av-waveform.json/page/json-seealso",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-waveform.json/annotation/json-seealso",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-waveform.json/canvas/json-seealso"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/media/manifests/av-waveform.json/canvas/dat-seealso",
+            "type": "Canvas",
+            "label": { "en": ["Waveform via seeAlso — binary .dat (BL)"] },
+            "duration": 2.0,
+            "seeAlso": [
+                {
+                    "id": "/media/tone.dat",
+                    "type": "Dataset",
+                    "format": "application/octet-stream",
+                    "profile": "http://waveform.prototyping.bbc.co.uk"
+                }
+            ],
+            "items": [
+                {
+                    "id": "/media/manifests/av-waveform.json/page/dat-seealso",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-waveform.json/annotation/dat-seealso",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-waveform.json/canvas/dat-seealso"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/media/manifests/av-waveform.json/canvas/dat-rendering",
+            "type": "Canvas",
+            "label": { "en": ["Waveform via rendering — binary .dat"] },
+            "duration": 2.0,
+            "rendering": [
+                {
+                    "id": "/media/tone.dat",
+                    "type": "Dataset",
+                    "format": "application/octet-stream",
+                    "label": { "en": ["Waveform data"] }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/media/manifests/av-waveform.json/page/dat-rendering",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-waveform.json/annotation/dat-rendering",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-waveform.json/canvas/dat-rendering"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

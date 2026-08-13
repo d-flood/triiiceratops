@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { runActivation } from './activate.js';
+import { runActivation, sdkChromeId } from './activate.js';
 import type {
     PluginContext,
     PluginHost,
@@ -230,7 +230,11 @@ describe('activation surface wiring', () => {
 
         expect(surface).toBeDefined();
         expect(surface!.isOpen).toBe(true);
-        expect(surface!.id).toBe('@triiiceratops/plugin-services-test');
+        // The DOM-safe id core would have registered, not the raw package name:
+        // the surface id is what a plugin keys its overlay layers and its
+        // publication to, so a stub that answered differently from a real
+        // viewer would teach authors the wrong key.
+        expect(surface!.id).toBe('triiiceratops-plugin-services-test');
         expect(surface!.target).toBe('panel');
 
         // The no-op movers never change `isOpen`, so a subscriber correctly never
@@ -265,5 +269,202 @@ describe('activation surface wiring', () => {
 
         expect(surface!.id).toBe('services-test');
         activation.deactivate();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Published state (ADR 0018) — the third thing the activation tracks, beside
+// style installs and locale subscriptions. Core's own registry is exercised in
+// `viewer.publishedState.test.ts`; what matters here is that the activation
+// keys the publication to the plugin id and releases it on every exit path.
+// ---------------------------------------------------------------------------
+
+/** A `ViewerState` stand-in carrying only the published-state registry. */
+function recordingPublications() {
+    const published = new Map<string, unknown>();
+    const state = {
+        subscribe: () => () => {},
+        publishPluginState(pluginId: string, value: unknown) {
+            published.set(pluginId, value);
+            return () => {
+                if (published.get(pluginId) === value)
+                    published.delete(pluginId);
+            };
+        },
+    } as unknown as ViewerState;
+    return { state, published };
+}
+
+describe('activation published state', () => {
+    const inventory = { paused: 'observable' } as const;
+
+    function hostWith(state: ViewerState): PluginHost {
+        return {
+            ...makeHost(recordingStyles().service, recordingLocale().service),
+            viewerState: state,
+        };
+    }
+
+    it('publishes under the plugin id and retires on deactivation', () => {
+        const { state, published } = recordingPublications();
+        const activation = runActivation(
+            {
+                ...makeMeta({
+                    mount(_container, context: PluginContext) {
+                        context.publishState({
+                            stateInventory: inventory,
+                            paused: true,
+                            subscribe: () => () => {},
+                        });
+                        return () => {};
+                    },
+                }),
+                uiId: 'services-test',
+            },
+            hostWith(state),
+        );
+
+        expect([...published.keys()]).toEqual(['services-test']);
+
+        activation.deactivate();
+        expect(published.size).toBe(0);
+    });
+
+    it('supersedes the previous object when a plugin publishes again', () => {
+        const { state, published } = recordingPublications();
+        const second = {
+            stateInventory: inventory,
+            paused: false,
+            subscribe: () => () => {},
+        };
+
+        const activation = runActivation(
+            {
+                ...makeMeta({
+                    mount(_container, context: PluginContext) {
+                        context.publishState({
+                            stateInventory: inventory,
+                            paused: true,
+                            subscribe: () => () => {},
+                        });
+                        context.publishState(second);
+                        return () => {};
+                    },
+                }),
+                uiId: 'services-test',
+            },
+            hostWith(state),
+        );
+
+        expect(published.get('services-test')).toBe(second);
+
+        activation.deactivate();
+        expect(published.size).toBe(0);
+    });
+
+    // ADR 0018: published state is absent whenever its activation is absent,
+    // FAILED, or retrying — so a plugin that published and then threw must not
+    // leave a host holding a handle to a plugin that never finished mounting.
+    it('retires the publication immediately when the mount fails', () => {
+        const { state, published } = recordingPublications();
+        const reports: Array<{ phase: string }> = [];
+
+        runActivation(
+            {
+                ...makeMeta({
+                    mount(_container, context: PluginContext) {
+                        context.publishState({
+                            stateInventory: inventory,
+                            paused: true,
+                            subscribe: () => () => {},
+                        });
+                        throw new Error('mount boom');
+                    },
+                }),
+                uiId: 'services-test',
+            },
+            {
+                ...hostWith(state),
+                reportError: (report) => reports.push(report),
+            },
+        );
+
+        expect(reports.map((r) => r.phase)).toEqual(['mount']);
+        expect(published.size).toBe(0);
+    });
+
+    // The central contract line of ADR 0018: `getPluginState` is null whenever
+    // the activation is absent. The plugin holds `context.publishState` for as
+    // long as it likes, and a media element's `loadedmetadata` or a cue fetch
+    // routinely resolves after the user closed the viewer — so the closure has
+    // to expire with the activation, not merely stop being called politely.
+    it('ignores a publish that arrives after deactivation', () => {
+        const { state, published } = recordingPublications();
+        let publishLate: (() => void) | null = null;
+
+        const activation = runActivation(
+            {
+                ...makeMeta({
+                    mount(_container, context: PluginContext) {
+                        publishLate = () =>
+                            context.publishState({
+                                stateInventory: inventory,
+                                paused: true,
+                                subscribe: () => () => {},
+                            });
+                        return () => {};
+                    },
+                }),
+                uiId: 'services-test',
+            },
+            hostWith(state),
+        );
+
+        activation.deactivate();
+        expect(published.size).toBe(0);
+
+        publishLate!();
+
+        expect(
+            published.size,
+            'a dead activation cannot republish live state',
+        ).toBe(0);
+    });
+
+    // Core keys a publication to the plugin's DOM-safe chrome id, so an SDK that
+    // published under the raw package name would tell a host to look under a key
+    // no viewer ever uses.
+    it('publishes under the sanitized chrome id when the host supplies no surface', () => {
+        const { state, published } = recordingPublications();
+
+        runActivation(
+            makeMeta({
+                mount(_container, context: PluginContext) {
+                    context.publishState({
+                        stateInventory: inventory,
+                        paused: true,
+                        subscribe: () => () => {},
+                    });
+                    return () => {};
+                },
+            }),
+            hostWith(state),
+        );
+
+        expect([...published.keys()]).toEqual([
+            'triiiceratops-plugin-services-test',
+        ]);
+    });
+});
+
+describe('sdkChromeId', () => {
+    it('matches core: prefers uiId, else collapses the package name', () => {
+        expect(sdkChromeId({ uiId: 'av', name: '@scope/plugin-foo' })).toBe(
+            'av',
+        );
+        expect(sdkChromeId({ name: '@scope/plugin-foo' })).toBe(
+            'scope-plugin-foo',
+        );
+        expect(sdkChromeId({ name: 'plain' })).toBe('plain');
     });
 });

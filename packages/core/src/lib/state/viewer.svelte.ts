@@ -70,6 +70,8 @@ import {
     parseSearchResponse,
 } from '../utils/iiifSearch';
 import type { CanvasRegion } from '../utils/contentState';
+import { parseIiifSelectorTime, parseIiifTime } from '../utils/iiifTargets';
+import type { IiifTemporalFragment } from '../utils/iiifTime';
 import {
     findCanvasIndexById,
     getAnnotationId,
@@ -93,6 +95,15 @@ function normalizeIiifBehavior(value: unknown): string {
     const segments = normalized.split(/[#/:]/);
     return segments[segments.length - 1] || normalized;
 }
+
+/**
+ * The media time a navigation carried, and the canvas it belongs to.
+ *
+ * Core parses and carries it; only a claimant of that canvas interprets it, as
+ * a seek and never as autoplay. `endSeconds` — a chapter range's end — is
+ * carried but never enforced: nothing in core stops playback at it.
+ */
+export type TemporalOffset = IiifTemporalFragment & { canvasId: string };
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -136,6 +147,15 @@ export class ViewerState {
     showCanvasInfo = $state(false);
     showStructuresPanel = $state(false);
     initialCanvasRegion = $state<CanvasRegion | null>(null);
+
+    /**
+     * The media time the last navigation carried (a structure item's `#t=`, a
+     * manifest `start`, a content-state target), or `null` when it carried
+     * none. Replaced whole by every navigation, so a subscriber reads the
+     * current value rather than consuming a queue: there is no auto-clear and
+     * no consume-once semantics.
+     */
+    temporalOffset = $state<TemporalOffset | null>(null);
     dockSide = $state('bottom');
     /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
     visibleAnnotationIds: Set<string> = new SvelteSet<string>();
@@ -1150,6 +1170,130 @@ export class ViewerState {
         return this.overlayLayerRegistry.layers;
     }
 
+    // ---- Canvas claims -------------------------------------------------------
+
+    /**
+     * The **canvas claim** set: canvas id → the plugin id owning that canvas's
+     * non-image content (CONTEXT.md; ADR 0017).
+     *
+     * Reactive collection declared as a plain `Map` — see the note on the
+     * `svelte/reactivity` import.
+     */
+    #claimedCanvases: Map<string, string> = new SvelteMap<string, string>();
+
+    /**
+     * Who holds which canvas, to read — never to write.
+     *
+     * Private behind a getter for the reason the overlay-layer registry is:
+     * one claimant per canvas is an invariant {@link claimCanvas} maintains, and
+     * a writable collection on the plugin-facing state object would let any
+     * plugin holding `context.state` `set` itself over a canvas another plugin
+     * is rendering into, or `clear` the lot. `ReadonlyViewerState` freezes the
+     * property, not the collection behind it. Claim and release are the only
+     * ways in.
+     */
+    get claimedCanvases(): ReadonlyMap<string, string> {
+        return this.#claimedCanvases;
+    }
+
+    /**
+     * Take ownership of one canvas's non-image content, for the plugin named by
+     * `pluginId`. Returns an idempotent release.
+     *
+     * The claim suppresses exactly the **unsupported presentation** for that
+     * canvas and its AV glyph in the thumbnail strip, leaving a clean box the
+     * claimant renders over through the overlay-layer and paint-hook
+     * substrates. It carries no payload and changes nothing else: core keeps
+     * painting the canvas's IMAGE bodies through the whole tile pipeline —
+     * which is what makes a composite image+video canvas compose — and layout,
+     * navigation, residency, and coordinate projection are untouched.
+     *
+     * **One claimant per canvas.** A second claim is refused and reported on
+     * the structured `viewererror` channel with code `canvas-claim-refused`,
+     * exactly as a refused overlay layer is; the first claimant keeps the
+     * canvas. Last-writer-wins would let a plugin silently take a canvas
+     * another one is already rendering into.
+     *
+     * A claim against a canvas id the current manifest does not carry is
+     * **inert and kept**, and applies if that id later appears: a plugin claims
+     * from inside its own `view.mount`, which may well run before the manifest
+     * it cares about is loaded.
+     *
+     * **`pluginId` must be the id this viewer knows the caller by** — the
+     * activation's `surface.id`, the same id its chrome and its overlay-layer
+     * ids are prefixed with — and a claim naming any other is refused, exactly
+     * as an overlay layer whose id names no known plugin is. It is what lets
+     * {@link unregisterPlugin} release a claim whose plugin forgot to, so a
+     * departed plugin cannot suppress a treatment for the rest of the session;
+     * a claim under a name nothing will ever unregister would outlive its
+     * activation silently, leaving a canvas with no placard and nothing
+     * rendering over it. Releasing from the plugin's own cleanup remains the
+     * primary path.
+     */
+    claimCanvas(canvasId: string, pluginId: string): () => void {
+        const canvas = typeof canvasId === 'string' ? canvasId.trim() : '';
+        const owner = typeof pluginId === 'string' ? pluginId.trim() : '';
+        if (!canvas || !owner) {
+            this.refuseCanvasClaim(
+                "claimCanvas needs a non-empty canvas id and the claiming plugin's id.",
+            );
+            return () => {};
+        }
+
+        // Answered from plugin UI state for the reason the overlay-layer
+        // registry's `isKnownPlugin` is: it is seeded before a plugin's
+        // `view.mount` runs — which is where a plugin claims from — while the
+        // chrome records are not populated until after it.
+        if (!this.pluginUiState.has(owner)) {
+            this.refuseCanvasClaim(
+                `claimCanvas ignored a claim on canvas "${canvas}" from "${owner}": the claimant must be a plugin of this viewer, so the claim is released when that plugin is.`,
+            );
+            return () => {};
+        }
+
+        const held = this.#claimedCanvases.get(canvas);
+        if (held !== undefined) {
+            this.refuseCanvasClaim(
+                `claimCanvas ignored a second claim on canvas "${canvas}" from "${owner}"; it is already claimed by "${held}".`,
+            );
+            return () => {};
+        }
+
+        this.#claimedCanvases.set(canvas, owner);
+
+        // Idempotent, and keyed on the claim still being THIS one: a release
+        // that arrives after the claim was dropped by `unregisterPlugin` and
+        // the canvas claimed afresh must not evict the new claimant.
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            if (this.#claimedCanvases.get(canvas) === owner) {
+                this.#claimedCanvases.delete(canvas);
+            }
+        };
+    }
+
+    /** Whether a plugin owns this canvas's non-image content. */
+    isCanvasClaimed(canvasId: string): boolean {
+        return this.#claimedCanvases.has(canvasId);
+    }
+
+    /**
+     * A refused claim is an author error the developer must be told about, so
+     * it goes out on the structured channel as well as the debug log — the same
+     * shape, and for the same reason, as a refused overlay layer.
+     */
+    private refuseCanvasClaim(message: string): void {
+        logger.warn(message);
+        this.reportError({
+            severity: 'warning',
+            scope: 'plugin',
+            code: 'canvas-claim-refused',
+            message,
+        });
+    }
+
     /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
     zoomIn(): void {
         this.rendererPort?.zoomBy(this.zoomPerClick);
@@ -1395,6 +1539,13 @@ export class ViewerState {
      */
     startCanvasId: string | null = $state(null);
 
+    /**
+     * The media time the manifest's `start` named, held between parsing it and
+     * the auto-selection that navigates to {@link startCanvasId}. Rewritten by
+     * every manifest load, so it never outlives the start canvas it belongs to.
+     */
+    private startTemporalOffset: IiifTemporalFragment | null = null;
+
     async setManifest(
         manifestId: string,
         options?: { requestConfig?: RequestConfig; canvasId?: string },
@@ -1504,7 +1655,7 @@ export class ViewerState {
         }
 
         if (this.startCanvasId) {
-            this.setCanvas(this.startCanvasId);
+            this.setCanvas(this.startCanvasId, this.startTemporalOffset);
             return;
         }
 
@@ -1568,12 +1719,17 @@ export class ViewerState {
         // 0. Start Canvas: the manifest-level `start` property (IIIF
         // Presentation 3.0) or the sequence-level `startCanvas` (IIIF
         // Presentation 2.x).
+        this.startTemporalOffset = null;
         try {
             let startId: string | null = null;
+            let startSelectorTime: IiifTemporalFragment | null = null;
 
             // IIIF v3 — `start` on the manifest itself.
             if (rawManifest?.start) {
                 startId = getReferenceId(rawManifest.start);
+                startSelectorTime = parseIiifSelectorTime(
+                    rawManifest.start?.selector,
+                );
             }
 
             // IIIF v2 — the start canvas hangs off the sequence.
@@ -1583,7 +1739,8 @@ export class ViewerState {
 
             if (startId) {
                 // The start property may reference a canvas directly or include
-                // a fragment selector (e.g. canvas#t=...). Extract the canvas ID.
+                // a media fragment (e.g. canvas#t=...): the canvas resolves by
+                // the stripped id, the time rides along to auto-selection.
                 const canvasIdFromStart = startId.split('#')[0];
                 // Verify this canvas exists in the manifest
                 const canvases = manifestsState.getCanvases(manifestId);
@@ -1592,6 +1749,11 @@ export class ViewerState {
                 );
                 if (exists) {
                     this.startCanvasId = canvasIdFromStart;
+                    // A SpecificResource selector and a `#t=` on the id are
+                    // alternative spellings; the selector is the explicit one
+                    // and wins in the (unattested) case of both.
+                    this.startTemporalOffset =
+                        startSelectorTime ?? parseIiifTime(startId);
                 }
             }
         } catch (e) {
@@ -1681,8 +1843,11 @@ export class ViewerState {
         }
     }
 
-    setCanvas(canvasId: string) {
+    setCanvas(canvasId: string, temporalOffset?: IiifTemporalFragment | null) {
         this.canvasId = canvasId;
+        this.temporalOffset = temporalOffset
+            ? { canvasId, ...temporalOffset }
+            : null;
         this.tileSourceError = null;
 
         if (this.showAnnotations) {
@@ -1907,6 +2072,10 @@ export class ViewerState {
             ? firstCanvas.id || firstCanvas['@id'] || null
             : null;
         this.startCanvasId = null;
+        // A sequence switch is a navigation carrying no time. v2 sequences are
+        // alternative orderings of the same canvases, so a stale offset would
+        // often still name the canvas landed on and read as a live seek.
+        this.temporalOffset = null;
         this.dispatchStateChange();
     }
 
@@ -2533,13 +2702,24 @@ export class ViewerState {
      * not run the plugin's own teardown — the plugin's `PluginActivation`
      * (`deactivate()`) owns that.
      *
-     * Its **overlay layers** are the exception, and are disposed here: they are
-     * DOM on the image, so a plugin whose cleanup misses its dispose would leave
-     * orphaned markers sitting over the picture with nothing left to remove them.
-     * A layer id names its plugin ({@link registerOverlayLayer}), which is what
-     * makes that possible. This is a backstop, not the documented path — a plugin
-     * releases its layer from its own `view.mount` cleanup, and doing both is
-     * safe because the dispose is idempotent.
+     * Its **overlay layers**, its **canvas claims** and its **published state**
+     * are the exception, and are released here: a layer is DOM on the image, so
+     * a plugin whose cleanup misses its dispose would leave orphaned markers
+     * sitting over the picture with nothing left to remove them; a claim left
+     * behind would suppress a canvas's unsupported presentation for the rest of
+     * the session with nothing rendering in its place; and a published state
+     * left behind would hand hosts a live command surface addressing a
+     * torn-down plugin. All three name their plugin
+     * ({@link registerOverlayLayer}, {@link claimCanvas},
+     * {@link publishPluginState}), which is what makes that possible.
+     *
+     * This is the backstop, not the documented path — a plugin releases its own
+     * layers, claims and publication from its `view.mount` cleanup — and it is
+     * where the claim's and the publication's "released when the activation
+     * ends" contract is honoured,
+     * because the viewer takes this path on deactivation, on retry, and on a
+     * failed setup or mount alike. Doing both is safe: every dispose is
+     * idempotent.
      */
     unregisterPlugin(pluginId: string): void {
         this.pluginMenuButtons = this.pluginMenuButtons.filter(
@@ -2552,21 +2732,109 @@ export class ViewerState {
             (f) => !f.id.startsWith(`${pluginId}:`),
         );
         this.overlayLayerRegistry.disposeOwnedBy(pluginId);
+        for (const [canvasId, owner] of [...this.#claimedCanvases]) {
+            if (owner === pluginId) this.#claimedCanvases.delete(canvasId);
+        }
+        this.publishedPluginStates.delete(pluginId);
         this.pluginUiState.delete(pluginId);
     }
 
     /**
      * Cleanup everything.
      *
-     * Including every overlay layer, for the reason {@link unregisterPlugin}
-     * gives: an undisposed layer is DOM left on the image.
+     * Including every overlay layer, every canvas claim and every published
+     * state, for the reason {@link unregisterPlugin} gives.
      */
     destroyAllPlugins(): void {
         this.pluginMenuButtons = [];
         this.pluginPanels = [];
         this.pluginFlyouts = [];
         this.overlayLayerRegistry.disposeAll();
+        this.#claimedCanvases.clear();
+        this.publishedPluginStates.clear();
         this.pluginUiState.clear();
+    }
+
+    // ---- Published plugin state (ADR 0018) -----------------------------------
+    //
+    // A plugin whose UI performs actions must make them externally commandable —
+    // the parity rule does not stop at core's own chrome. An activation
+    // therefore publishes ONE state object here, and hosts reach it only through
+    // {@link getPluginState}: ViewerState stays the sole state surface, and core
+    // ships no commands it cannot implement. Core never reads INTO a published
+    // object — its members, their classification, and their notification are the
+    // publishing plugin's contract, checked by the SDK's conformance kit.
+
+    /**
+     * Published state by plugin id. A reactive map so publish and retire wake
+     * the batched watcher: the set of published ids is what a wrapper observes
+     * to decide whether to render a plugin's controls at all.
+     */
+    private publishedPluginStates = new SvelteMap<string, unknown>();
+
+    /**
+     * Publish this activation's state object under the plugin id this viewer
+     * knows it by (the same `<pluginId>` its chrome and overlay-layer ids carry).
+     *
+     * At most one per plugin, and the id is FIRST COME: publishing over an id
+     * that already holds someone else's object is refused, registers nothing,
+     * and returns a no-op handle, so a caller never has to branch on whether it
+     * worked. Retiring is what frees the id — which is why the SDK's own
+     * `context.publishState` retires before it publishes, and so gets the
+     * documented "publishing again replaces the previous object" for free.
+     * Without the refusal a second publication would silently orphan the first:
+     * its retire handle, being identity-based, would no-op forever and its
+     * object would stay reachable under an id it no longer owns. A refusal is
+     * reported to the host on the structured `viewererror` channel with code
+     * `plugin-state-refused` and scope `plugin`, the same way a refused overlay
+     * layer is (see {@link registerOverlayLayer}) — it is an author error whose
+     * only other symptom is a host commanding the wrong object.
+     *
+     * The returned retire handle is idempotent and identity-checked, so a plugin
+     * that re-published and later runs its original cleanup does not retire its
+     * own successor. {@link unregisterPlugin} and {@link destroyAllPlugins}
+     * retire whatever is still published, the same backstop overlay layers get —
+     * but the activation's own cleanup is the documented path, because that is
+     * what makes the state absent the moment the activation is.
+     */
+    publishPluginState(pluginId: string, published: unknown): () => void {
+        if (
+            this.publishedPluginStates.has(pluginId) &&
+            this.publishedPluginStates.get(pluginId) !== published
+        ) {
+            const message = `Plugin "${pluginId}" already has published state; this publication was refused. Retire the first before publishing again.`;
+            logger.warn(message);
+            this.reportError({
+                severity: 'warning',
+                scope: 'plugin',
+                code: 'plugin-state-refused',
+                message,
+            });
+            return () => {};
+        }
+
+        this.publishedPluginStates.set(pluginId, published);
+        let retired = false;
+        return () => {
+            if (retired) return;
+            retired = true;
+            if (this.publishedPluginStates.get(pluginId) === published) {
+                this.publishedPluginStates.delete(pluginId);
+            }
+        };
+    }
+
+    /**
+     * The state a plugin has published, or `null` when it has published none —
+     * which is the answer whenever its activation is absent, failed, or
+     * retrying, since a publication lives exactly as long as its activation.
+     *
+     * Deliberately `unknown`: the concrete interface (`AVState`, say) and a
+     * typed accessor ship in the plugin package a host commanding that plugin
+     * already depends on. Core never grows a union of every plugin's state type.
+     */
+    getPluginState(pluginId: string): unknown {
+        return this.publishedPluginStates.get(pluginId) ?? null;
     }
 
     // ==================== FRAMEWORK-NEUTRAL SUBSCRIPTIONS (ADR 0008) ==========

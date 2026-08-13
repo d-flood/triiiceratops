@@ -61,17 +61,27 @@ import { untrack } from 'svelte';
 import { installRendererDevtools } from './rendererDevtools';
 
 import { getVisibleCanvasEntries } from '../components/viewerControls';
-import { toPlannerCanvases } from './canvasDescriptors';
+import {
+    toPlannerCanvases,
+    unsupportedPresentationIds,
+} from './canvasDescriptors';
 import { GestureRecogniser } from './gestureArbiter';
 import { PAN_KEYS, keyPanVelocity } from './keyboardPan';
 import {
     createTileSourceErrorMirror,
     errorPlacements,
-    samePlacements,
     viewerLevelErrorKind,
     type CanvasErrorKind,
     type CanvasErrorPlacement,
 } from './canvasErrors';
+import {
+    canvasPlacements,
+    samePlacements,
+    // Aliased: `layoutQueries` exports an unrelated `CanvasPlacement` (a canvas
+    // rect plus its declared size, for coordinate conversion) that this module
+    // also imports. This one is a treatment's on-screen box.
+    type CanvasPlacement as TreatmentPlacement,
+} from './canvasPlacements';
 import { imageServiceCache } from './imageService';
 import { createStaticImages } from './staticImages';
 import { staticImageFailures } from './staticImageFailures';
@@ -469,6 +479,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
+     * The **unsupported presentation**'s placements, in surface-local CSS
+     * pixels — the canvases whose painting bodies core cannot render at all
+     * (CONTEXT.md; ADR 0017).
+     *
+     * Beside {@link errorLayer} rather than folded into it, because the two say
+     * opposite things about the manifest. An error means a source the viewer
+     * asked for came back with nothing, and carries a retry, a negative-cache
+     * entry and an error-channel event with it. This means the viewer never
+     * asked: the canvas holds a sound recording or a film, which is not a
+     * failure and has nothing to retry.
+     */
+    let unsupportedLayer: TreatmentPlacement<'unsupported'>[] = $state([]);
+
+    /**
      * The canvases this renderer is showing, in **canvas space**.
      *
      * **Continuous mode is the whole manifest**, all 800 folios of it. That is
@@ -558,6 +582,21 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     const canvasesById: Map<string, PlannerCanvas> = $derived(
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
         new Map(plannerCanvases.map((canvas) => [canvas.id, canvas])),
+    );
+
+    /**
+     * The canvases getting the **unsupported presentation**, by id — the ones
+     * with no image on them and no plugin claiming them.
+     *
+     * A manifest fact plus a claim, not a frame one: it is settled when the
+     * descriptors are built or a claim comes and goes, so the frame loop only
+     * has to ask where those canvases are this frame. Empty for every image
+     * manifest, which is what keeps the check on the frame path free.
+     */
+    const unsupportedCanvasIds: Set<string> = $derived(
+        unsupportedPresentationIds(plannerCanvases, (canvasId) =>
+            viewerState.isCanvasClaimed(canvasId),
+        ),
     );
 
     /**
@@ -1653,6 +1692,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // released by the same distance rule the tiles are.
         loadStaticImages(plan.staticImages);
         updateCanvasErrors(plan);
+        updateUnsupportedCanvases(plan);
 
         // The view-stable gate again, this time as the painter's edge rule:
         // whole device pixels at rest, a one-pixel overlap while moving. Read
@@ -1859,6 +1899,37 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 viewerState.canvasId,
             ),
         );
+    }
+
+    /**
+     * Position this frame's unsupported presentations.
+     *
+     * Which canvases those are is a property of the manifest and of the claim
+     * set, decided once per descriptor build or claim change
+     * (`canvasDescriptors.unsupportedPresentationIds`) and not per frame; what
+     * this recomputes is only where they are on screen.
+     *
+     * Gated on the tier alone, and deliberately not on what is painting: an
+     * unsupported canvas has nothing that could paint — the planner issues no
+     * tile, thumbnail, or metadata request for it — so the "would this cover
+     * working pixels?" test the error layer needs has no work to do here. Box
+     * tier is excluded for the reason it is there: below that projection a
+     * labelled box is unreadable noise rather than information.
+     */
+    function updateUnsupportedCanvases(plan: ScenePlan) {
+        const next = unsupportedCanvasIds.size
+            ? canvasPlacements(
+                  plan.layout,
+                  (canvasId) =>
+                      unsupportedCanvasIds.has(canvasId) &&
+                      plan.tiers[canvasId] !== 'box'
+                          ? ('unsupported' as const)
+                          : null,
+                  viewport,
+              )
+            : [];
+
+        if (!samePlacements(unsupportedLayer, next)) unsupportedLayer = next;
     }
 
     /**
@@ -2849,6 +2920,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             return errorLayer;
         },
         errorLabel,
+        /**
+         * Per-canvas unsupported presentations for the DOM layer beside the
+         * error one — a canvas core cannot render, not a canvas that failed.
+         */
+        get unsupportedLayer() {
+            return unsupportedLayer;
+        },
+        unsupportedLabel: () => m.canvas_unsupported(),
         /** Read by the component's refit effect purely as a change signal. */
         get plannerCanvases() {
             return plannerCanvases;

@@ -35,7 +35,7 @@
 
     function navigateToRange(node: StructureNode) {
         if (node.canvasIds.length > 0) {
-            viewerState.setCanvas(node.canvasIds[0]);
+            viewerState.setCanvas(node.canvasIds[0], node.canvasTimes[0]);
         }
     }
 

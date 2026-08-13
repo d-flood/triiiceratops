@@ -1,9 +1,9 @@
 {
-    "count": 80,
+    "count": 84,
     "byClassification": {
-        "command": 37,
-        "observable": 13,
-        "internal": 26,
+        "command": 39,
+        "observable": 14,
+        "internal": 27,
         "query-only": 4
     },
     "entries": [
@@ -54,6 +54,15 @@
                 "setCanvas",
                 "nextCanvas",
                 "previousCanvas"
+            ]
+        },
+        {
+            "member": "claimedCanvases",
+            "classification": "command",
+            "commands": [
+                "claimCanvas",
+                "unregisterPlugin",
+                "destroyAllPlugins"
             ]
         },
         {
@@ -310,6 +319,15 @@
             ]
         },
         {
+            "member": "publishedPluginStates",
+            "classification": "command",
+            "commands": [
+                "publishPluginState",
+                "unregisterPlugin",
+                "destroyAllPlugins"
+            ]
+        },
+        {
             "member": "rendererPort",
             "classification": "internal",
             "commands": null
@@ -412,8 +430,18 @@
             "commands": null
         },
         {
+            "member": "startTemporalOffset",
+            "classification": "internal",
+            "commands": null
+        },
+        {
             "member": "surfaceTapListeners",
             "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "temporalOffset",
+            "classification": "observable",
             "commands": null
         },
         {

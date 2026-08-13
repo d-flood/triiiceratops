@@ -160,10 +160,11 @@ isolated selector runtime for their viewer state.
 
 **Selector cadence**:
 Which notification wakes a selector: `state` (the default — the batched, inventoried
-member watcher) or `frame` (the renderer's own animation events). Projection,
-memoization, equality gating, and disposal are identical in both; only the wake-up
-differs. Frame cadence is how continuous viewport values are read reactively without
-mirroring them into viewer state.
+member watcher) or `frame` (the source's own finer-grained notification — the
+renderer's animation events for viewer state, the plugin's own tick for published
+state). Projection, memoization, equality gating, and disposal are identical in both;
+only the wake-up differs. Frame cadence is how continuous values are read reactively
+without mirroring them into the notifying state they would otherwise flood.
 _Avoid_: unbatched notification, polling (frame cadence is event-driven, not a loop)
 
 **Query-only state**:
@@ -262,6 +263,24 @@ unsupported: past that the reader's zoom floor and the pan constraint cut into t
 the inset is honoured in direction but not in full.
 _Avoid_: margin, padding (both suggest a box model rather than a fit target)
 
+**Unsupported presentation**:
+The first-class rendering of a canvas that has painting bodies core cannot display
+(non-image bodies) and nothing renderable: the canvas keeps its layout rect and its
+place in navigation and the thumbnail strip, and paints an honest "unsupported
+content" treatment. Not an error — no retry, no negative-cache entry, no error
+channel. A canvas with both image and non-image bodies paints its images and ignores
+the rest silently; the unsupported presentation appears only when nothing is renderable.
+_Avoid_: error placeholder (that is `CanvasErrorKind`, a load failure), broken canvas
+
+**Canvas claim**:
+A plugin taking ownership of the non-image content of one canvas in one viewer
+instance. Claiming suppresses the unsupported presentation (and its thumbnail noise)
+for that canvas; it changes nothing else core does — image painting bodies still render
+through the normal pipeline, and layout, navigation, and coordinate projection are
+untouched. One claimant per canvas; a second claim is refused. Claims are keyed to the
+activation and released when it ends.
+_Avoid_: canvas takeover, render veto (a claim does not stop core's image painting)
+
 **Input claim**:
 A consumer temporarily owning pointer input, suppressing pan and zoom gestures for its
 duration. The gesture recogniser is built with a single arbitration point that decides
@@ -315,6 +334,82 @@ A plugin render target: a full side/bottom panel in the viewer chrome.
 A plugin render target: a popover anchored to its toolbar button, auto-placed toward
 the canvas. The compact alternative to a panel.
 _Avoid_: popup, popover (as the term of art)
+
+## AV domain
+
+**Published state**:
+A state object one plugin activation exposes to hosts and wrappers, reached only
+through viewer state (never imported from the plugin), living exactly as long as its
+activation. It follows the viewer-state taxonomy — commands, observable members,
+query-only members with a cadence — and the parity rule one level down: anything the
+plugin's own UI can do, a host can do through the published commands. The set of
+published states is itself an inventoried, notifying member of viewer state, classified
+`command` because publishing and retiring go through a supported mutator — the same
+classification the other plugin-registration members carry.
+_Avoid_: plugin store, second state surface (it hangs off viewer state, not beside it)
+
+**AVState**:
+The AV plugin's published state: playback commands (play, pause, seek, volume),
+notifying playback facts (paused, duration, buffering), and query-only continuous
+time with its own cadence. All times are canvas time on the canvas timeline, never a
+media element's own clock. Commands address the current canvas's media; a command
+against a non-AV canvas is refused, and a browser-refused `play()` surfaces as state,
+never as a thrown error.
+
+**Canvas timeline**:
+The single clock of a claimed canvas: the mapping between canvas time (0 to the
+canvas's duration) and the media segment plus element-time offset that plays it. For a
+canvas painted by one AV body it is the identity mapping; for a temporally composed
+canvas (multiple AV bodies tiling the duration via `#t=` targets) it is the segment
+map. Everything time-facing — AVState, the transport, the timeline projection,
+temporal offsets, `ended` — speaks canvas time; only the sequencer knows segments.
+_Avoid_: media time, element time (those are the segment's own clock, an
+implementation input)
+
+**Segment seam**:
+The moment playback crosses from one segment of a composed canvas to the next: the
+next element is preloaded as the boundary nears and swapped in at it, with a brief
+audible/visible gap accepted and documented. Gapless (MSE-stitched) playback is
+deliberately not the contract.
+_Avoid_: gapless transition (it is not), track change (segments are one composition,
+not alternatives)
+
+**Temporal offset**:
+The media time carried by navigation — a `#t=` fragment on a structure item, a `start`
+property, or a content-state target. Core parses and carries it exactly as it carries a
+spatial region; only the claimant interprets it, as a seek, never as autoplay. A range's
+end time is carried but not enforced.
+_Avoid_: start time (that is one source of it), timestamp
+
+**Transport**:
+The plugin-built playback control UI for a claimed AV canvas — play/pause, scrubber,
+time display, volume. Anchored to the canvas it controls. The accessible path to every
+playback action; canvas-surface gestures and waveform taps are enhancements over it,
+never the only way.
+_Avoid_: player chrome, native controls (the transport deliberately replaces them)
+
+**Stage layout**:
+The claimant's allocation of its claimed canvas rect into vertical lanes, all in canvas
+space so the stack pans and zooms coherently: a visual lane (video frame or
+accompanying image) and a timeline lane (waveform). Audio without an accompanying
+image gives the timeline lane the whole rect; video takes the whole rect as visual
+lane.
+_Avoid_: media layout (ambiguous with the viewer's canvas layout)
+
+**Timeline projection**:
+The linear mapping between a claimed canvas's x-axis in canvas space and media time
+(canvas width ↔ duration). What makes the viewer's own pan/zoom double as temporal
+zoom, and a surface tap resolvable to a seek.
+_Avoid_: time scale, temporal zoom (that is the interaction, not the mapping)
+
+**Peaks model**:
+The single normalized in-memory representation of waveform data (min/max sample
+pairs, sample rate, samples-per-pixel, channels) that rendering consumes. Parsers for
+the on-disk formats (audiowaveform binary `.dat`, `waveform.json`) are detected by
+content, not by declared format, and normalize into it; nothing downstream knows which
+format arrived. Temporal zoom sharpens only to the data's resolution — the waveform
+never fabricates detail the file doesn't contain.
+_Avoid_: waveform file (that is the input, not the model)
 
 ## Content state domain
 

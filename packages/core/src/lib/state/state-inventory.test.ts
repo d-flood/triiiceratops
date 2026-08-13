@@ -254,7 +254,7 @@ describe('ViewerState state inventory', () => {
         }
     });
 
-    // These four members are declared as plain `Set`/`Map` so that
+    // These members are declared as plain `Set`/`Map` so that
     // `svelte/reactivity` stays out of core's published declarations. The type
     // system therefore no longer guards them, and a plain collection would stop
     // notifying subscribers; the inventory owns the invariant instead.
@@ -559,6 +559,21 @@ const commandScenarios: CapabilityScenario[] = [
         // (the channel a plugin's `PluginSurface.isOpen` depends on).
         act: (state) => registerChrome(state),
     },
+    {
+        member: 'claimedCanvases',
+        // A claim names a plugin this viewer knows, so the claimant has to
+        // exist before it can take a canvas.
+        setup: (state) => state.ensurePluginUiState('P'),
+        act: (state) => state.claimCanvas('canvas-1', 'P'),
+    },
+    {
+        member: 'publishedPluginStates',
+        // Publishing adds the plugin's entry — a size change, which is what
+        // `readValue` compares. Retiring is asserted alongside the rest of the
+        // lifecycle in `viewer.publishedState.test.ts`.
+        act: (state) =>
+            state.publishPluginState('P', { subscribe: () => () => {} }),
+    },
 ];
 
 const observableScenarios: CapabilityScenario[] = [
@@ -649,6 +664,14 @@ const observableScenarios: CapabilityScenario[] = [
         // observable notification. Default is the page locale ('en' in tests).
         act: (state) => {
             state.activeLocale = 'de';
+        },
+    },
+    {
+        // No mutator writes it: navigation carrying a media fragment is the
+        // only thing that publishes a temporal offset.
+        member: 'temporalOffset',
+        act: (state) => {
+            state.setCanvas('canvas-1', { seconds: 157, endSeconds: 203 });
         },
     },
 ];

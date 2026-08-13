@@ -154,11 +154,31 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   `getCanvases` now return `any[]` rather than `any`; `getCanvasLabel` gained
   `preferredLocale`) and one renamed (`search.d.ts :: manifest` →
   `manifestJson`).
+  **2026-08-13 (`plugin-av` wave 1, tickets 03 and 05):** THREE lines were
+  ADDED, no removals, and none is a new boundary. Two are
+  `dist/utils/paintingBodies.d.ts`'s `getImageService(resource: any)` and
+  `unwrapSpecificResource(resource: any)`: exporting the body classifier
+  (`isImageBody`, `paintingBodyAlternatives`, `isUnsupportedCanvas`) from a
+  public entry point, so the AV plugin classifies canvases with core's own rule
+  rather than a second copy, makes that module's whole declaration file
+  reachable — the report is a file-level rollup. Both take a raw painting body,
+  which is this boundary exactly. The third,
+  `dist/utils/resolveCanvasImage.d.ts :: getVisibleViewerCanvases(...): any[]`,
+  is an omission from ticket 02, which added the function and its raw-canvas
+  array return without recording the line; it is listed here rather than left to
+  fail the gate on the next unrelated change. Ticket 05 added none: its
+  temporal-offset type is declared alone in `utils/iiifTime.ts` precisely so the
+  `iiifTargets` parsers — and `NormalizedIiifTarget`'s raw `selectors: any[]` —
+  stay unreachable from any `exports` path. The same commit corrects the
+  generator's `HEADER` constant in `scripts/check-public-api.mjs`, which still
+  justified the boundary by `manifesto.js` (retired 2026-08-07) and cross-
+  referenced a section title that no longer exists; regenerating had been
+  reverting the checked-in file to that stale prose.
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
   `pnpm api:check` in required CI) — fails the build on any non-allowlisted
   public `any`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
-- **Recorded:** 2026-07-19 · **Updated:** 2026-08-07 · **Review by:** 2027-01-19
+- **Recorded:** 2026-07-19 · **Updated:** 2026-08-13 · **Review by:** 2027-01-19
 
 ### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
 

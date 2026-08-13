@@ -152,5 +152,6 @@
     "plugin_error_close": "Close error details",
     "canvas_surface_label": "Image surface — pan with the arrow keys, zoom with plus and minus, fit with zero",
     "canvas_error_auth": "This page requires authentication",
-    "canvas_error_load": "This page could not be loaded"
+    "canvas_error_load": "This page could not be loaded",
+    "canvas_unsupported": "This canvas holds content the viewer cannot display"
 }

@@ -58,6 +58,10 @@ export {
 export type {
     PluginView,
     PluginContext,
+    PublishedState,
+    PublishedStateClassification,
+    SelectorSource,
+    SourceSelectors,
     ViewerSelectors,
     Selector,
     PluginStyleService,

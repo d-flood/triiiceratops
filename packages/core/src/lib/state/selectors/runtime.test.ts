@@ -13,7 +13,7 @@ import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ViewerState } from '../viewer.svelte';
-import { createSelectorRuntime } from './runtime';
+import { createSelectorRuntime, type SelectorRuntime } from './runtime';
 
 vi.mock('../manifests.svelte', () => ({
     manifestsState: {
@@ -30,7 +30,7 @@ vi.mock('../manifests.svelte', () => ({
 
 describe('selector runtime', () => {
     let state: ViewerState;
-    let runtime: ReturnType<typeof createSelectorRuntime>;
+    let runtime: SelectorRuntime;
 
     beforeEach(() => {
         state = new ViewerState();
@@ -293,7 +293,7 @@ describe('selector runtime', () => {
 // with `get()` now reference-stable across equal recomputes.
 describe('ViewerSelectors.select (the plugin-facing façade)', () => {
     let state: ViewerState;
-    let runtime: ReturnType<typeof createSelectorRuntime>;
+    let runtime: SelectorRuntime;
 
     beforeEach(() => {
         state = new ViewerState();

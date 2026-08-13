@@ -73,7 +73,11 @@
     import type { CanvasRegion } from '../utils/contentState';
     import { sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-    import { getViewerTileSources } from '../utils/resolveCanvasImage';
+    import { isUnsupportedCanvas } from '../utils/paintingBodies';
+    import {
+        getViewerTileSources,
+        getVisibleViewerCanvases,
+    } from '../utils/resolveCanvasImage';
     import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
@@ -365,13 +369,13 @@
         if (parsed?.manifestId) {
             internalViewerState.setInitialCanvasRegion(parsed.region ?? null);
             if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId);
+                internalViewerState.setCanvas(parsed.canvasId, parsed.time);
             }
             await internalViewerState.setManifest(parsed.manifestId, {
                 requestConfig: config?.requests,
             });
             if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId);
+                internalViewerState.setCanvas(parsed.canvasId, parsed.time);
             }
             return;
         }
@@ -1341,6 +1345,32 @@
         return tileSourcesArray;
     });
 
+    /**
+     * Whether any canvas on screen paints something core cannot render — a
+     * film, a sound recording.
+     *
+     * Such a canvas resolves NO tile source, which used to mean the viewer
+     * covered the whole surface with "no image found" and never mounted the
+     * renderer at all. It has to: the canvas keeps its layout rect and gets the
+     * **unsupported presentation** painted over it by the renderer, which is a
+     * per-canvas treatment and not a viewer-wide cover (CONTEXT.md; ADR 0017).
+     *
+     * Asked of the whole visible set rather than of the current canvas, because
+     * that is the set `tileSources` was flattened over: in a spread or in
+     * continuous mode the current canvas may paint nothing at all while a
+     * sibling on screen is the audio one, and asking only about the current
+     * canvas would take the viewer-wide cover and lose the sibling's treatment.
+     */
+    let visibleCanvasUnsupported = $derived.by(() =>
+        getVisibleViewerCanvases({
+            canvases: canvases ?? [],
+            currentCanvasIndex,
+            currentCanvasId: internalViewerState.canvasId,
+            viewingMode: internalViewerState.viewingMode,
+            pagedOffset: internalViewerState.pagedOffset,
+        }).some((canvas) => isUnsupportedCanvas(canvas)),
+    );
+
     let tileSourceError = $derived(
         internalViewerState.tileSourceError as ViewerTileSourceError,
     );
@@ -1458,7 +1488,7 @@
                     {m.error_prefix()}
                     {manifestData.error}
                 </div>
-            {:else if tileSources}
+            {:else if tileSources || visibleCanvasUnsupported}
                 {#if tileSourceError}
                     <div class="overlay-cover" role="alert">
                         {#if currentCanvasThumbnail}
@@ -1523,7 +1553,14 @@
                         viewerState={internalViewerState}
                     />
                 {/if}
-            {:else if manifestData && !manifestData.isFetching && !tileSources}
+            {:else if manifestData && !manifestData.isFetching}
+                <!--
+                    Nothing resolved AND nothing to be honest about: a canvas
+                    with no painting annotation at all (Cookbook recipe 0283, an
+                    IxIF element). A canvas whose content is merely
+                    undisplayable took the renderer branch above and gets the
+                    unsupported presentation over its own rect instead.
+                -->
                 <div class="overlay-cover" role="status">
                     {#if currentCanvasThumbnail}
                         <img

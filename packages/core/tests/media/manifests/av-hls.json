@@ -1,0 +1,60 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-hls.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["HLS canvas — local stream"]
+    },
+    "summary": {
+        "en": [
+            "One canvas painted by a Choice between the HLS rendition of the colour-bars clip and the progressive MP4 of the same pictures. Both alternatives are byte-for-byte the same media remuxed, so a spec comparing HLS playback against progressive playback is comparing identical content — what differs is the delivery, and therefore whether the hls.js chunk had to load at all (spec, user stories 21, 22, 37). Safari plays the first alternative natively; every other engine must reach it through the lazy loader or fall through to the MP4."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-hls.json/canvas/bars",
+            "type": "Canvas",
+            "label": { "en": ["SMPTE colour bars, streamed"] },
+            "width": 320,
+            "height": 180,
+            "duration": 2.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-hls.json/page/bars",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-hls.json/annotation/bars",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "type": "Choice",
+                                "items": [
+                                    {
+                                        "id": "/media/hls/bars.m3u8",
+                                        "type": "Video",
+                                        "format": "application/vnd.apple.mpegurl",
+                                        "width": 320,
+                                        "height": 180,
+                                        "duration": 2.0,
+                                        "label": { "en": ["HLS"] }
+                                    },
+                                    {
+                                        "id": "/media/bars.mp4",
+                                        "type": "Video",
+                                        "format": "video/mp4",
+                                        "width": 320,
+                                        "height": 180,
+                                        "duration": 2.0,
+                                        "label": { "en": ["MP4"] }
+                                    }
+                                ]
+                            },
+                            "target": "/media/manifests/av-hls.json/canvas/bars"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

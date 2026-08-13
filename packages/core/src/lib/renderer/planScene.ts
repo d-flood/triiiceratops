@@ -142,22 +142,20 @@ function isUsableDimension(value: unknown): value is number {
 }
 
 /**
- * Whether a canvas can be planned at all: it can be named, and it paints
- * something.
+ * Whether a canvas can be planned at all: it can be named.
  *
- * Both halves are invariants `canvasDescriptors.toPlannerCanvas` already
- * guarantees — it returns `null` rather than a nameless or pictureless canvas —
- * and they are re-checked here because the planner is a pure function with a
- * public input type, so nothing stops a caller (or a test) handing it either.
- * Re-checking is what lets the rest of this module read `canvas.images[0]`
- * without a null guard on every line.
+ * An invariant `canvasDescriptors.toPlannerCanvas` already guarantees, and
+ * re-checked here because the planner is a pure function with a public input
+ * type, so nothing stops a caller (or a test) handing it a nameless one.
+ *
+ * It used to demand a picture as well. A canvas whose painting bodies are all
+ * non-image has none and must still be laid out — it keeps its rect, its tier,
+ * and its place in navigation, and the host paints the **unsupported
+ * presentation** over it (CONTEXT.md). So every `canvas.images[0]` read below
+ * is guarded instead.
  */
 function hasUsableId(canvas: PlannerCanvas): boolean {
-    return (
-        typeof canvas.id === 'string' &&
-        canvas.id.length > 0 &&
-        canvas.images.length > 0
-    );
+    return typeof canvas.id === 'string' && canvas.id.length > 0;
 }
 
 /** A canvas with the geometry layout will actually use, in canvas space. */
@@ -333,7 +331,13 @@ function resolveGeometry(
         // never said, and the first painting annotation is the one that covers
         // it; a miniature painted into a corner describes its own rectangle and
         // reshaping the folio to match it would be nonsense.
-        const facts = factsFor(canvas.images[0].source, knownMetadata);
+        //
+        // A canvas with no image has nothing that could report a size, so it
+        // takes the sibling median — which is the whole of the duration-only
+        // audio canvas's geometry.
+        const facts = canvas.images.length
+            ? factsFor(canvas.images[0].source, knownMetadata)
+            : null;
         const reported =
             facts &&
             isUsableDimension(facts.width) &&
@@ -1277,6 +1281,14 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // A box-tier canvas holds nothing at all, so there is nothing per-image
         // to decide for it.
         if (tier === 'box') continue;
+
+        // Neither does a canvas with no image on it — the **unsupported
+        // presentation**'s canvas. There is no source to ask for tiles, a
+        // thumbnail, or `info.json`, and reporting it in `unresolvedThumbnails`
+        // would log a resolution failure for something nobody tried to resolve.
+        // It keeps its rect and its tier; the host draws the placeholder over
+        // them.
+        if (canvas.images.length === 0) continue;
 
         // **Where composition happens.** Each painting annotation paints into
         // its own box, and everything below is planned against that box rather

@@ -14,11 +14,13 @@ import type {
     PluginHost,
     PluginLocaleService,
     PluginStyleService,
+    PublishedState,
     SdkPluginMeta,
+    ViewerState,
 } from 'triiiceratops';
 
 import { negotiateCompatibility } from './compatibility.js';
-import { createSelectorRuntime } from './selectors.js';
+import { createSelectorRuntime, type SelectorRuntime } from './selectors.js';
 import {
     createStubLocaleService,
     createStubStyleService,
@@ -98,6 +100,57 @@ function trackLocale(base: PluginLocaleService): {
     };
 }
 
+/**
+ * Track this activation's published state (ADR 0018) so it is retired the moment
+ * the activation ends — the mechanism behind "`getPluginState` is null whenever
+ * the activation is absent, failed, or retrying". Publishing again supersedes
+ * the previous object, since an activation publishes at most one.
+ *
+ * The publish closure EXPIRES with the activation. `context.publishState` is
+ * handed to the plugin, which may still be holding it in an awaited
+ * continuation — a media element's `loadedmetadata`, a fetch for cues — that
+ * resolves after teardown. Publishing from there would put live state back
+ * under the id of an activation that no longer exists, and `getPluginState`
+ * would answer non-null for a plugin that is gone.
+ */
+function trackPublishedState(
+    viewerState: ViewerState,
+    pluginId: string,
+): { publish: (state: PublishedState) => void; releaseAll: () => void } {
+    let retire: (() => void) | null = null;
+    let ended = false;
+    return {
+        publish(state: PublishedState): void {
+            if (ended) return;
+            retire?.();
+            retire = viewerState.publishPluginState(pluginId, state);
+        },
+        releaseAll(): void {
+            ended = true;
+            retire?.();
+            retire = null;
+        },
+    };
+}
+
+/**
+ * The one id this viewer knows a plugin by, when the host supplied no surface to
+ * ask (direct `runActivation` / test-kit use). Mirrors core's
+ * `sdkPluginChromeId`: prefer the declared `uiId`, else collapse the
+ * package-qualified name to the DOM-safe form (`@scope/plugin-foo` →
+ * `scope-plugin-foo`).
+ *
+ * Duplicated rather than value-imported for the reason `definePlugin`'s
+ * `SDK_PLUGIN_KIND` is: a value import from `triiiceratops` would pull core —
+ * and its Svelte runtime — into every plugin bundle. Publishing under the raw
+ * name instead would tell authors the wrong `getPluginState` key.
+ */
+export function sdkChromeId(meta: { uiId?: string; name: string }): string {
+    if (meta.uiId) return meta.uiId;
+
+    return meta.name.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 /** An activation handle that does nothing — returned when setup fails. */
 const INERT_ACTIVATION: PluginActivation = { deactivate(): void {} };
 
@@ -127,9 +180,10 @@ export function runActivation(
     // Negotiate first — no context, subscription, or DOM work happens for an
     // incompatible plugin. Then build the isolated context. Any throw here is
     // the `setup` failure; partial state is released before reporting.
-    let selectorRuntime: ReturnType<typeof createSelectorRuntime> | undefined;
+    let selectorRuntime: SelectorRuntime | undefined;
     let styles: ReturnType<typeof trackStyles> | undefined;
     let locale: ReturnType<typeof trackLocale> | undefined;
+    let published: ReturnType<typeof trackPublishedState> | undefined;
     let context: PluginContext;
     try {
         negotiateCompatibility(meta, host);
@@ -152,23 +206,30 @@ export function runActivation(
         styles = trackStyles(host.styles ?? createStubStyleService());
         locale = trackLocale(host.locale ?? createStubLocaleService());
 
+        // The plugin's own panel/flyout: how it observes whether the user can
+        // currently see it. Core supplies the real surface (it owns the chrome
+        // id); a chrome-less host gets the always-open stub. Its `id` is also the
+        // one id this viewer knows the plugin by, so it is what a publication is
+        // keyed to, exactly as an overlay layer's id is.
+        const surface =
+            host.surface ?? createStubSurfaceService(sdkChromeId(meta));
+        published = trackPublishedState(host.viewerState, surface.id);
+        const publishState = published.publish;
+
         context = {
             viewerState: host.viewerState,
             selectors: selectorRuntime.selectors,
-            // The plugin's own panel/flyout: how it observes whether the user can
-            // currently see it. Core supplies the real surface (it owns the chrome
-            // id); a chrome-less host gets the always-open stub.
-            surface:
-                host.surface ??
-                createStubSurfaceService(meta.uiId ?? meta.name),
+            surface,
             styles: styles.service,
             locale: locale.service,
             ui: host.ui ?? createStubUiService(),
+            publishState,
         };
     } catch (error) {
         selectorRuntime?.dispose();
         styles?.releaseAll();
         locale?.releaseAll();
+        published?.releaseAll();
         if (report) {
             report({ phase: 'setup', error });
             return INERT_ACTIVATION;
@@ -183,6 +244,7 @@ export function runActivation(
     const cleanups: Array<() => void> = [];
     const styleService = styles;
     const localeService = locale;
+    const publishedState = published;
     const runtime = selectorRuntime;
 
     // ---- mount phase --------------------------------------------------------
@@ -196,15 +258,23 @@ export function runActivation(
             // No host channel: release the partial activation and rethrow.
             styleService.releaseAll();
             localeService.releaseAll();
+            publishedState.releaseAll();
             runtime.dispose();
             throw error;
         }
         report({ phase: 'mount', error });
+        // Retire the publication NOW rather than at teardown: a plugin that
+        // published and then threw is a FAILED activation, and published state
+        // is absent for a failed activation (ADR 0018). Everything else can
+        // wait for the handle's cleanups, because nothing else is reachable
+        // from a host.
+        publishedState.releaseAll();
         // Fall through: return a handle whose cleanups tear down the partial
         // activation on retry (drop subscriptions, release styles).
     }
     cleanups.push(() => styleService.releaseAll());
     cleanups.push(() => localeService.releaseAll());
+    cleanups.push(() => publishedState.releaseAll());
     cleanups.push(() => runtime.dispose());
 
     let deactivated = false;

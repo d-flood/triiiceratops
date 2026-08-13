@@ -1,3 +1,7 @@
+import type {
+    SelectorSource,
+    SourceSelectors,
+} from '../state/selectors/runtime';
 import type { ViewerState } from '../state/viewer.svelte';
 
 /**
@@ -190,17 +194,14 @@ export interface Selector<T> {
     subscribe(callback: (value: T) => void): () => void;
 }
 
-/** Factory for memoized selectors over the live `ViewerState`. */
-export interface ViewerSelectors {
-    /**
-     * Create a memoized selector. `equals` defaults to `Object.is`. Built only
-     * on `ViewerState.subscribe` — never on Svelte reactivity.
-     */
-    select<T>(
-        fn: (state: ViewerState) => T,
-        equals?: (a: T, b: T) => boolean,
-    ): Selector<T>;
-}
+/**
+ * Factory for memoized selectors over the live `ViewerState` — the shape a
+ * `PluginContext` carries. Exactly `SourceSelectors<ViewerState>`: the selector
+ * runtime generalized to any {@link SelectorSource} (ADR 0018), and the viewer
+ * is one, so this is a name for that case rather than a second contract that
+ * could drift from it.
+ */
+export type ViewerSelectors = SourceSelectors<ViewerState>;
 
 /**
  * Root-aware global stylesheet installer for plugin CSS (SPEC.md "Plugin SDK And
@@ -360,6 +361,41 @@ export interface PluginSurface {
 }
 
 /**
+ * How one member of a published state behaves, transplanting the viewer-state
+ * taxonomy one level down (CONTEXT.md **Published state**, **Query-only state**):
+ * `command` maintains the plugin's invariants, `observable` notifies through
+ * {@link PublishedState.subscribe}, `queryOnly` is a high-frequency value read
+ * on demand and deliberately non-notifying.
+ */
+export type PublishedStateClassification =
+    | 'command'
+    | 'observable'
+    | 'queryOnly';
+
+/**
+ * The state object one plugin activation publishes for hosts and framework
+ * wrappers to command it through (ADR 0018). It is reached only via
+ * {@link ViewerState.getPluginState} — never imported from the plugin package —
+ * and lives exactly as long as its activation.
+ *
+ * It is a `SelectorSource`, so the ONE selector runtime that serves viewer state
+ * serves this too; and it declares its own {@link stateInventory} so the SDK
+ * conformance kit can check the classification the way core's capability-matrix
+ * test checks the viewer's.
+ */
+export interface PublishedState extends SelectorSource {
+    /**
+     * Classification for every member this state exposes, keyed by member name.
+     * The seam's own members (`subscribe`, `subscribeFrame`, `stateInventory`)
+     * are not classified — they are the contract, not the state. A published
+     * member missing from this table fails conformance.
+     */
+    readonly stateInventory: Readonly<
+        Record<string, PublishedStateClassification>
+    >;
+}
+
+/**
  * The isolated, per-activation context handed to a plugin's `mount`
  * (SPEC.md "Plugin SDK And Browser API" — normative shape).
  */
@@ -370,6 +406,14 @@ export interface PluginContext {
     readonly styles: PluginStyleService;
     readonly locale: PluginLocaleService;
     readonly ui: PluginUiService;
+    /**
+     * Publish this activation's {@link PublishedState}, so hosts and framework
+     * wrappers can command the plugin through `viewerState.getPluginState(id)`
+     * (ADR 0018). At most one per activation — publishing again replaces the
+     * previous object — and the publication is retired automatically when the
+     * activation ends, so a host never reaches a dead plugin's state.
+     */
+    publishState(state: PublishedState): void;
 }
 
 /**

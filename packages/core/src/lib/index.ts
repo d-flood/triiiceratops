@@ -39,6 +39,8 @@ export type {
     PluginUiService,
     PluginSurface,
     PluginContext,
+    PublishedState,
+    PublishedStateClassification,
     PluginView,
     PluginHost,
     PluginActivation,
@@ -53,6 +55,16 @@ export {
     isSdkPlugin,
     PLUGIN_ERROR_EVENT,
 } from './types/plugin';
+
+// What the selector runtime needs of the state it projects. `PublishedState`
+// above is one of these, and `ViewerSelectors` is `SourceSelectors<ViewerState>`
+// — so both live here beside them, rather than only on the `triiiceratops/
+// selectors` subpath, where a consumer typing a published state would have to
+// import a supertype from a different entry than its subtype.
+export type {
+    SelectorSource,
+    SourceSelectors,
+} from './state/selectors/runtime';
 
 // Structured viewer-failure channel — mirrors the `pluginerror` shape for
 // viewer-level configuration, content, and operation failures. Delivered as a
@@ -139,6 +151,29 @@ export { createPluginSurface } from './plugin/surface';
 // `triiiceratops/image-export`. The manifest itself is available as raw JSON
 // through `viewerState.manifestEntry?.json`.
 export { getPaintingAnnotations } from './utils/iiifParsing';
+
+// The painting-body classifier, in the minimum that answers "is this canvas
+// mine to claim" (ADR 0017).
+//
+// `isUnsupportedCanvas` IS that question: a canvas core cannot paint any of, and
+// which therefore gets the unsupported presentation a claim suppresses. It is
+// the whole of the classification rule, including the collapse a claimant would
+// otherwise have to restate — a canvas that paints nothing at all is not
+// claimable, because core drops it from layout entirely, and a canvas with even
+// one image body is core's to paint. `isImageBody` and
+// `paintingBodyAlternatives` are the rungs beneath it, for a claimant that has
+// to look at the individual bodies (which medium, which alternative) rather than
+// merely decide the canvas.
+//
+// Exported because the claimant asks core's own painting question, and two
+// implementations of one classification rule would drift apart silently — the
+// exact failure this seam exists to prevent. These are the very functions core
+// paints with, not a public restatement of them.
+export {
+    isImageBody,
+    isUnsupportedCanvas,
+    paintingBodyAlternatives,
+} from './utils/paintingBodies';
 
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';

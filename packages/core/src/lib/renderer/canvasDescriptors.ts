@@ -12,6 +12,8 @@
  * (spec §Coordinate model and layout).
  */
 
+import { getCanvasId } from '../utils/iiifIds';
+import { isUnsupportedCanvas } from '../utils/paintingBodies';
 import {
     buildIiifImageRequestUrl,
     getDeclaredCanvasDimensions,
@@ -131,6 +133,15 @@ function toSourceDescriptor(
  * service later reports real dimensions. Guessing here instead would put the
  * guess out of reach of the reflow, since this function sees one canvas and
  * knows nothing about what a later fetch turns up.
+ *
+ * **A canvas core cannot paint is still a canvas.** Where the painting bodies
+ * are all non-image — a video, a sound recording — the descriptor comes back
+ * with no images at all, so the canvas keeps its layout rect and its place in
+ * navigation and the thumbnail strip and gets the **unsupported presentation**
+ * rather than vanishing (CONTEXT.md; ADR 0017). That is the one case an
+ * imageless descriptor is returned for: a canvas that paints nothing at all, or
+ * whose image bodies resolved to nothing requestable, is `null` here as it has
+ * always been.
  */
 export function toPlannerCanvas(
     canvas: unknown,
@@ -141,7 +152,6 @@ export function toPlannerCanvas(
         getSelectedChoice,
         fallbackCanvasDimensions: UNSIZED_CANVAS_PLACEHOLDER,
     });
-    if (!resolved.length) return null;
 
     const images: PlannerImage[] = [];
     resolved.forEach((image, index) => {
@@ -163,18 +173,73 @@ export function toPlannerCanvas(
         });
     });
 
-    // Every annotation resolved to something unusable — no service, no resource
-    // id, nothing to request. That is the same "paints nothing usable" this
-    // function has always answered `null` to.
-    if (!images.length) return null;
+    if (images.length) {
+        return {
+            id: resolved[0].canvasId,
+            width: declared?.width ?? null,
+            height: declared?.height ?? null,
+            images,
+            thumbnailUrl: getDeclaredThumbnailUrl(canvas),
+        };
+    }
 
+    // Nothing to paint, and which of the two reasons that is decides whether
+    // the canvas survives — decided on what its painting bodies ARE rather than
+    // on what resolution managed to do with them.
+    //
+    // A canvas whose bodies are all non-image has content the manifest
+    // describes and core cannot show, which the reader is owed an honest
+    // statement about. A canvas with an image body that resolved to nothing
+    // requestable — no service, no id — is a broken image annotation, and the
+    // viewer has always dropped it; announcing that as unsupported content
+    // would be a lie about the manifest. A canvas with no painting bodies at
+    // all (Cookbook recipe 0283, an IxIF element) is dropped for the same
+    // reason.
+    const canvasId = getCanvasId(canvas);
+    if (!canvasId || !isUnsupportedCanvas(canvas)) return null;
+
+    // No `thumbnailUrl`, and its absence is deliberate rather than an omission.
+    // A declared thumbnail on this canvas is a poster frame, and painting it in
+    // the canvas rect would read as the film itself having loaded — the exact
+    // dishonesty the unsupported presentation exists to avoid. Poster and
+    // placeholder handling belongs to the AV plugin.
     return {
-        id: resolved[0].canvasId,
+        id: canvasId,
         width: declared?.width ?? null,
         height: declared?.height ?? null,
         images,
-        thumbnailUrl: getDeclaredThumbnailUrl(canvas),
     };
+}
+
+/**
+ * The canvases getting the **unsupported presentation**, by id.
+ *
+ * A canvas with no images on it is one core cannot paint — that is
+ * {@link toPlannerCanvas}' whole statement of the condition — unless a plugin
+ * has **claimed** it, in which case the claimant renders its content and an
+ * honest "core cannot show this" placard over the top of it would be a lie
+ * (CONTEXT.md **Canvas claim**; ADR 0017).
+ *
+ * That is the claim's ENTIRE effect on rendering. The descriptors are untouched
+ * by it, so a claimed composite canvas keeps painting its image bodies through
+ * the whole tile pipeline, and layout, residency, and projection never learn
+ * that a claim exists.
+ *
+ * `isClaimed` is consulted only for a canvas that would otherwise get the
+ * treatment, which is what keeps this free on the image manifests that have no
+ * such canvas at all.
+ */
+export function unsupportedPresentationIds(
+    canvases: readonly PlannerCanvas[],
+    isClaimed?: (canvasId: string) => boolean,
+): Set<string> {
+    const ids = new Set<string>();
+    for (const canvas of canvases) {
+        if (canvas.images.length === 0 && !isClaimed?.(canvas.id)) {
+            ids.add(canvas.id);
+        }
+    }
+    return ids;
 }
 
 /** Raw Canvases → planner canvases, dropping any that paint nothing usable. */

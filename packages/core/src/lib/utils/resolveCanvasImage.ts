@@ -1,12 +1,12 @@
 import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId, getResourceId } from './iiifIds';
+import { getPaintingAnnotations } from './iiifParsing';
 import {
-    getChoiceAlternatives,
-    getPaintingAnnotations,
-    getPaintingBody,
-    isChoiceBody,
-} from './iiifParsing';
+    findImageBody,
+    getImageService,
+    unwrapSpecificResource,
+} from './paintingBodies';
 import { normalizeIiifTargets } from './iiifTargets';
 import { resolveLanguageValue } from './languageMap';
 
@@ -121,12 +121,6 @@ function getResourceDimensions(resource: any): {
     };
 }
 
-function getSpecificResourceSource(resource: any): any | null {
-    return resource?.type === 'SpecificResource' && resource?.source
-        ? resource.source
-        : null;
-}
-
 function getCanvasDimensions(canvas: any): CanvasDimensions | null {
     // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
     // The trailing `|| null` is what the dead accessor rung evaluated to, and
@@ -232,48 +226,24 @@ export function getRegionString(region: RegionRect): string {
         .join(',');
 }
 
+/**
+ * The image resource this painting annotation places, or `null` where it places
+ * none.
+ *
+ * The classifier is the gate (`utils/paintingBodies`): a `Video`, `Sound`, or
+ * `TextualBody` body answers `null` here and therefore never reaches
+ * {@link getHeuristicServiceId}, the source descriptors, the static-image
+ * loader, or the negative cache. Body-array unwrapping and Choice selection are
+ * the classifier's too, in that order — the array first, so a
+ * `body: [Choice(videos), Text(vtt)]` resolves its Choice instead of handing
+ * back the Choice object itself.
+ */
 function getAnnotationResource(
     annotation: any,
     canvasId: string,
     getSelectedChoice?: (canvasId: string) => string | undefined,
 ): any | null {
-    let resource: any = null;
-
-    // `getPaintingBody` reads the v2 `resource` spelling as well as the v3
-    // `body` one, and
-    // `getChoiceAlternatives` recognizes the v2 `oa:Choice`/`default`+`item`
-    // spelling as well as v3's `Choice`/`items`, with its array access guarded.
-    let body = getPaintingBody(annotation);
-    if (body) {
-        if (isChoiceBody(body)) {
-            const items = getChoiceAlternatives(body);
-            const selectedId = getSelectedChoice?.(canvasId);
-            const selectedItem = selectedId
-                ? items.find((item: any) => getResourceId(item) === selectedId)
-                : null;
-            body = selectedItem || items[0] || null;
-        }
-        resource = Array.isArray(body) ? body[0] : body;
-    }
-
-    return resource;
-}
-
-function isIiifImageProfile(profile: unknown): boolean {
-    if (typeof profile === 'string') {
-        return (
-            /^https?:\/\/iiif\.io\/api\/image\//.test(profile) ||
-            profile === 'level0' ||
-            profile === 'level1' ||
-            profile === 'level2'
-        );
-    }
-
-    if (Array.isArray(profile)) {
-        return profile.some((item) => isIiifImageProfile(item));
-    }
-
-    return false;
+    return findImageBody(annotation, getSelectedChoice?.(canvasId));
 }
 
 function normalizeProfile(profile: unknown): string | null {
@@ -289,36 +259,6 @@ function normalizeProfile(profile: unknown): string | null {
     }
 
     return null;
-}
-
-function getImageService(resource: any): any | null {
-    let services: any[] = [];
-
-    if (resource?.service) {
-        services = Array.isArray(resource.service)
-            ? resource.service
-            : [resource.service];
-    }
-
-    if (!services.length) {
-        return null;
-    }
-
-    return (
-        services.find((item: any) => {
-            // v3 spells the service type `type`, v2 `@type`; `profile` is
-            // spelled the same in both.
-            const type = item.type || item['@type'] || '';
-            const profile = item.profile || '';
-
-            return (
-                type === 'ImageService1' ||
-                type === 'ImageService2' ||
-                type === 'ImageService3' ||
-                isIiifImageProfile(profile)
-            );
-        }) || null
-    );
 }
 
 function getImageLabel(resource: any, annotation: any): string | null {
@@ -352,6 +292,16 @@ function getImageServiceDetails(resource: any): {
     };
 }
 
+/**
+ * An Image API base URI guessed from the shape of a resource id that declares
+ * no service — `.../iiif/<identifier>/full/...` reduced to `.../iiif/<identifier>`.
+ *
+ * A guess, and it must only ever be made about an **image**: the test is that
+ * the URL contains `/iiif/`, which a IIIF-hosted media file also does, and a
+ * fabricated service id sends the tile pipeline off building `info.json` and
+ * region requests against a video. Reached only from a body the classifier
+ * passed (see {@link getAnnotationResource}), which is what makes that safe.
+ */
 function getHeuristicServiceId(resourceId: string | null): string | null {
     if (!resourceId || !resourceId.includes('/iiif/')) {
         return null;
@@ -419,8 +369,7 @@ export function resolveAllCanvasImages(
                 canvasId,
                 options.getSelectedChoice,
             );
-            const resource =
-                getSpecificResourceSource(rawResource) || rawResource;
+            const resource = unwrapSpecificResource(rawResource);
 
             if (!resource) {
                 return null;
@@ -579,6 +528,46 @@ export function buildIiifImageRequestUrl(
     return `${base}/${region}/${size}/0/${quality}.${format}`;
 }
 
+/**
+ * The canvases a frame of the viewer shows: the current one, its spread mate in
+ * paged mode, or all of them in continuous mode.
+ *
+ * Exists so that "which canvases resolved an image" and "which canvases core
+ * cannot render" are answered over the same set. `getViewerTileSources`
+ * flattens across all of them, so a null answer means *nothing visible*
+ * resolved — and anything gating on that null has to ask about the same
+ * canvases or it will disagree with it on a spread.
+ */
+export function getVisibleViewerCanvases({
+    canvases,
+    currentCanvasIndex,
+    currentCanvasId,
+    viewingMode,
+    pagedOffset,
+}: Omit<GetViewerTileSourcesParams, 'getSelectedChoice'>): any[] {
+    if (
+        !canvases.length ||
+        currentCanvasIndex < 0 ||
+        !canvases[currentCanvasIndex]
+    ) {
+        return [];
+    }
+
+    if (viewingMode === 'continuous') return canvases;
+
+    if (viewingMode === 'paged') {
+        return getVisibleCanvasEntries({
+            canvases,
+            currentCanvasId,
+            currentCanvasIndex,
+            viewingMode,
+            pagedOffset,
+        }).map(({ canvas }) => canvas);
+    }
+
+    return [canvases[currentCanvasIndex]];
+}
+
 export function getViewerTileSources({
     canvases,
     currentCanvasIndex,
@@ -587,27 +576,15 @@ export function getViewerTileSources({
     pagedOffset,
     getSelectedChoice,
 }: GetViewerTileSourcesParams): PositionedTileSource[] | null {
-    if (
-        !canvases.length ||
-        currentCanvasIndex < 0 ||
-        !canvases[currentCanvasIndex]
-    ) {
-        return null;
-    }
+    const visibleCanvases = getVisibleViewerCanvases({
+        canvases,
+        currentCanvasIndex,
+        currentCanvasId,
+        viewingMode,
+        pagedOffset,
+    });
 
-    let visibleCanvases = [canvases[currentCanvasIndex]];
-
-    if (viewingMode === 'continuous') {
-        visibleCanvases = canvases;
-    } else if (viewingMode === 'paged') {
-        visibleCanvases = getVisibleCanvasEntries({
-            canvases,
-            currentCanvasId,
-            currentCanvasIndex,
-            viewingMode,
-            pagedOffset,
-        }).map(({ canvas }) => canvas);
-    }
+    if (!visibleCanvases.length) return null;
 
     const tileSources = visibleCanvases.flatMap((canvas) =>
         getCanvasTileSources(canvas, { getSelectedChoice }),

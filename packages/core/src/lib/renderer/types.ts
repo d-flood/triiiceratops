@@ -96,10 +96,18 @@ export interface PlannerCanvas {
      * Every picture painted on this canvas, in the manifest's own annotation
      * order — which is paint order, so a later entry paints over an earlier one.
      *
-     * Never empty: `canvasDescriptors.toPlannerCanvas` returns `null` for a
-     * canvas that paints nothing usable, so such a canvas never becomes a
-     * `PlannerCanvas` at all. The overwhelmingly common case is exactly one
-     * entry covering the whole canvas.
+     * **Empty means the unsupported presentation**, and it is the only thing it
+     * can mean. `canvasDescriptors.toPlannerCanvas` returns `null` for a canvas
+     * that paints nothing at all and for one whose image bodies resolved to
+     * nothing requestable, so the single surviving imageless case is a canvas
+     * whose painting bodies are all non-image — a film, a sound recording. Core
+     * keeps it in layout, navigation and the thumbnail strip and paints an
+     * honest placeholder over its rect (CONTEXT.md → **Unsupported
+     * presentation**; ADR 0017). Deliberately not a `CanvasErrorKind`: nothing
+     * failed, nothing was requested, and there is nothing to retry.
+     *
+     * The overwhelmingly common case is exactly one entry covering the whole
+     * canvas.
      */
     images: PlannerImage[];
     /**

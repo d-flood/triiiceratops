@@ -1,0 +1,54 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-video.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Video canvas — local colour bars with captions"]
+    },
+    "summary": {
+        "en": [
+            "One canvas painted by a Video body, with the caption track as a text/vtt item in the SAME painting annotation's body array. That array shape is the one that routes a video URL into the image pipeline when a Choice is unwrapped before the array is (spec, Implementation Decisions — the Choice/array-body ordering bug). NO cookbook recipe uses it: all 15 vendored audiovisual recipes carry a single-object painting body, and both caption recipes (0219, 0074) attach their VTT through a canvas-level supplementing annotation instead. The spec asserts the shape all the same, so this fixture is its only coverage anywhere in the corpus — the supplementing shape those recipes do use is covered separately by av-structures.json."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-video.json/canvas/bars",
+            "type": "Canvas",
+            "label": { "en": ["SMPTE colour bars"] },
+            "width": 320,
+            "height": 180,
+            "duration": 2.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-video.json/page/bars",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-video.json/annotation/bars",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": [
+                                {
+                                    "id": "/media/bars.mp4",
+                                    "type": "Video",
+                                    "format": "video/mp4",
+                                    "width": 320,
+                                    "height": 180,
+                                    "duration": 2.0
+                                },
+                                {
+                                    "id": "/media/captions.vtt",
+                                    "type": "Text",
+                                    "format": "text/vtt",
+                                    "language": "en",
+                                    "label": { "en": ["Captions in English"] }
+                                }
+                            ],
+                            "target": "/media/manifests/av-video.json/canvas/bars"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

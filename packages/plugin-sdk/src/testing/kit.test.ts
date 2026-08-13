@@ -94,6 +94,213 @@ function makeLeakyPlugin(): SdkPlugin {
     });
 }
 
+/**
+ * A plugin that publishes state (ADR 0018), fully classified. `paused` is the
+ * observable member; `play` is the command; `currentTime` is the query-only
+ * one, on its own finer cadence. Nothing here moves on its own, so it also
+ * demonstrates the vacuous pass of the notification check.
+ */
+function makePublishingPlugin(): SdkPlugin {
+    return definePlugin({
+        name: '@triiiceratops/kit-publishing-fixture',
+        uiId: 'kit-publishing',
+        version: '1.0.0',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
+        icon: ICON,
+        target: 'panel',
+        view: {
+            mount(_container: HTMLElement, context: PluginContext) {
+                context.publishState({
+                    stateInventory: {
+                        play: 'command',
+                        paused: 'observable',
+                        currentTime: 'queryOnly',
+                    },
+                    play: () => {},
+                    paused: true,
+                    currentTime: 0,
+                    subscribe: () => () => {},
+                    subscribeFrame: () => () => {},
+                });
+                return () => {};
+            },
+        },
+    });
+}
+
+/**
+ * The shape ticket 07's `AVState` will have: a CLASS with a `#private` listener
+ * set and a derived getter.
+ *
+ * Both are conformance traps the kit must not spring. `#listeners` is invisible
+ * to reflection, so it needs no classification — where a TypeScript `private`
+ * would be an ordinary own property and would have to be classified or hidden.
+ * And `cues` is derived: it hands back a fresh array on every read, which an
+ * identity comparison would read as "this member changes every flush".
+ */
+class FixtureAvState {
+    #listeners = new Set<() => void>();
+    #cues: readonly string[] = ['one', 'two'];
+
+    readonly stateInventory = {
+        play: 'command',
+        paused: 'observable',
+        cues: 'observable',
+        currentTime: 'queryOnly',
+    } as const;
+
+    paused = true;
+    currentTime = 0;
+
+    get cues(): string[] {
+        return [...this.#cues];
+    }
+
+    play(): void {
+        this.paused = false;
+        for (const listener of this.#listeners) listener();
+    }
+
+    subscribe(listener: () => void): () => void {
+        this.#listeners.add(listener);
+        return () => this.#listeners.delete(listener);
+    }
+}
+
+function makeClassPublishingPlugin(): SdkPlugin {
+    return definePlugin({
+        name: '@triiiceratops/kit-class-fixture',
+        uiId: 'kit-class',
+        version: '1.0.0',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
+        icon: ICON,
+        target: 'panel',
+        view: {
+            mount(_container: HTMLElement, context: PluginContext) {
+                context.publishState(new FixtureAvState());
+                return () => {};
+            },
+        },
+    });
+}
+
+/** Publishes a `duration` member it forgot to classify. */
+function makeUnclassifiedPlugin(): SdkPlugin {
+    return definePlugin({
+        name: '@triiiceratops/kit-unclassified-fixture',
+        uiId: 'kit-unclassified',
+        version: '1.0.0',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
+        icon: ICON,
+        target: 'panel',
+        view: {
+            mount(_container: HTMLElement, context: PluginContext) {
+                context.publishState({
+                    stateInventory: { paused: 'observable' },
+                    paused: true,
+                    // BUG: published, never classified.
+                    duration: 12,
+                    subscribe: () => () => {},
+                });
+                return () => {};
+            },
+        },
+    });
+}
+
+/**
+ * Publishes a `paused` member classified with a word that is not one of the
+ * three — the failure a presence-only check (`member in stateInventory`) would
+ * wave through, along with `undefined` and every other stray value.
+ */
+function makeMisclassifiedPlugin(): SdkPlugin {
+    return definePlugin({
+        name: '@triiiceratops/kit-misclassified-fixture',
+        uiId: 'kit-misclassified',
+        version: '1.0.0',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
+        icon: ICON,
+        target: 'panel',
+        view: {
+            mount(_container: HTMLElement, context: PluginContext) {
+                context.publishState({
+                    // BUG: `readonly` is not a classification.
+                    stateInventory: { paused: 'readonly' } as unknown as Record<
+                        string,
+                        'observable'
+                    >,
+                    paused: true,
+                    subscribe: () => () => {},
+                });
+                return () => {};
+            },
+        },
+    });
+}
+
+/** Classifies a member that does not exist — a typo for `paused`. */
+function makePhantomClassificationPlugin(): SdkPlugin {
+    return definePlugin({
+        name: '@triiiceratops/kit-phantom-fixture',
+        uiId: 'kit-phantom',
+        version: '1.0.0',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
+        icon: ICON,
+        target: 'panel',
+        view: {
+            mount(_container: HTMLElement, context: PluginContext) {
+                context.publishState({
+                    stateInventory: {
+                        paused: 'observable',
+                        // BUG: nothing is named this.
+                        pasued: 'observable',
+                    },
+                    paused: true,
+                    subscribe: () => () => {},
+                });
+                return () => {};
+            },
+        },
+    });
+}
+
+/**
+ * Publishes an observable member that flips on its own schedule without ever
+ * waking a subscriber — the silent-staleness failure the notification check
+ * exists to catch.
+ */
+function makeSilentPlugin(): SdkPlugin {
+    return definePlugin({
+        name: '@triiiceratops/kit-silent-fixture',
+        uiId: 'kit-silent',
+        version: '1.0.0',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
+        icon: ICON,
+        target: 'panel',
+        view: {
+            mount(_container: HTMLElement, context: PluginContext) {
+                const published = {
+                    stateInventory: { paused: 'observable' } as const,
+                    paused: true,
+                    subscribe: () => () => {},
+                };
+                context.publishState(published);
+                // BUG: changes the fact, notifies nobody.
+                queueMicrotask(() => {
+                    published.paused = false;
+                });
+                return () => {};
+            },
+        },
+    });
+}
+
 function hostFor(tc: ReturnType<typeof createTestViewerContext>): PluginHost {
     return {
         container: document.createElement('div'),
@@ -448,6 +655,104 @@ describe('conformance: a deliberately-leaky plugin is caught', () => {
         await expect(
             symmetryCase!.run(makeLeakyPlugin),
         ).resolves.toBeUndefined();
+    });
+});
+
+describe('conformance: published state (ADR 0018)', () => {
+    function caseNamed(prefix: string) {
+        const found = conformanceCases.find((c) => c.name.startsWith(prefix));
+        expect(found, `conformance case "${prefix}" exists`).toBeDefined();
+        return found!;
+    }
+
+    for (const conformanceCase of conformanceCases) {
+        it(`a publishing plugin passes: ${conformanceCase.name}`, async () => {
+            await conformanceCase.run(makePublishingPlugin);
+        });
+    }
+
+    // A published state is as often a class as an object literal, and ticket
+    // 07's `AVState` is one. Its `#private` bookkeeping is invisible to
+    // reflection, so it needs no classification; its derived `cues` getter hands
+    // back a fresh array on every read and must not read as a change.
+    for (const conformanceCase of conformanceCases) {
+        it(`a class-based publishing plugin passes: ${conformanceCase.name}`, async () => {
+            await conformanceCase.run(makeClassPublishingPlugin);
+        });
+    }
+
+    it('rejects a published member with no classification, and says how to hide it', async () => {
+        const failure = caseNamed('classifies every member').run(
+            makeUnclassifiedPlugin,
+        );
+        await expect(failure).rejects.toThrow(
+            /every published member is classified/,
+        );
+        // The actionable half: a TypeScript `private` field is an ordinary own
+        // property at runtime and lands here, so the message has to name the
+        // fix rather than only the symptom.
+        await expect(failure).rejects.toThrow(/#private/);
+    });
+
+    it('rejects a classification that is not one of the three', async () => {
+        await expect(
+            caseNamed('classifies every member').run(makeMisclassifiedPlugin),
+        ).rejects.toThrow(/paused: readonly/);
+    });
+
+    it('rejects a classification naming a member that does not exist', async () => {
+        await expect(
+            caseNamed('classifies every member').run(
+                makePhantomClassificationPlugin,
+            ),
+        ).rejects.toThrow(/every classified name is a member/);
+    });
+
+    it('rejects an observable member that changes without notifying', async () => {
+        await expect(
+            caseNamed('wakes published-state subscribers').run(
+                makeSilentPlugin,
+            ),
+        ).rejects.toThrow(/paused.*NO published-state subscriber was woken/s);
+    });
+
+    it('reads the published state back through viewer state, and only while active', async () => {
+        const tc = createTestViewerContext({ uiId: 'kit-publishing' });
+        const activation = activatePlugin(makePublishingPlugin(), {
+            ...hostFor(tc),
+            surface: tc.surface,
+        });
+
+        const published = tc.viewerState.getPluginState('kit-publishing');
+        expect(
+            published,
+            'a host reaches it through viewerState',
+        ).not.toBeNull();
+        expect(tc.viewerState.getPluginState('other')).toBeNull();
+
+        activation.deactivate();
+        expect(tc.viewerState.getPluginState('kit-publishing')).toBeNull();
+    });
+
+    it('notifies viewer-state subscribers when a plugin publishes and retires', async () => {
+        const tc = createTestViewerContext({ uiId: 'kit-publishing' });
+        let notifications = 0;
+        const unsubscribe = tc.viewerState.subscribe(() => {
+            notifications += 1;
+        });
+
+        const activation = activatePlugin(makePublishingPlugin(), {
+            ...hostFor(tc),
+            surface: tc.surface,
+        });
+        await flush();
+        expect(notifications, 'publishing wakes the state watcher').toBe(1);
+
+        activation.deactivate();
+        await flush();
+        expect(notifications, 'retiring wakes it again').toBe(2);
+
+        unsubscribe();
     });
 });
 

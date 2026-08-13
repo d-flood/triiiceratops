@@ -63,15 +63,16 @@ const HEADER = `# Public-declaration \`any\` allowlist
 # Each line is a normalized \`any\`-bearing declaration line reachable from a
 # package's public export entry points. These are PRE-EXISTING, STRUCTURAL
 # exceptions: the viewer models fetched IIIF resources (manifest / canvas /
-# annotation) as \`any\` because its \`manifesto.js\` boundary is untyped. They are
-# a single documented boundary, not accidental leakage, so they are accounted for
-# here rather than refactored — "snapshots record what exists". The SDK ABI
-# itself is \`any\`-clean.
+# annotation) as \`any\` because they arrive as raw JSON, and one declared type
+# cannot describe both Presentation versions. They are a single documented
+# boundary, not accidental leakage, so they are accounted for here rather than
+# refactored — "snapshots record what exists". The SDK ABI itself is
+# \`any\`-clean.
 #
 # The gate (\`scripts/check-public-api.mjs\`) FAILS on any NEW public \`any\` not
 # listed here, so a planted \`any\` on a public type is caught. This boundary is
 # registered as a single sanctioned exception in \`lint-allowlist.md\` (section
-# "IIIF resources crossing the manifesto.js boundary are \`any\`"): that entry
+# "IIIF resources crossing the raw-JSON boundary"): that entry
 # carries the human-facing rationale / owner / review-date, and THIS file is the
 # machine-readable line list the gate actually reads.
 #

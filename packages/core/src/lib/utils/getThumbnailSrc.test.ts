@@ -1,9 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
     getThumbnailSrc,
     resolveThumbnailResourceSrc,
 } from './getThumbnailSrc';
+import { isUnsupportedCanvas } from './paintingBodies';
 
 describe('resolveThumbnailResourceSrc', () => {
     it('prefers a IIIF Image Service URL for manifest thumbnails', () => {
@@ -178,6 +182,32 @@ describe('getThumbnailSrc', () => {
 
         expect(getThumbnailSrc(canvas, 120)).toBe(
             'https://iiif.example.org/v3-image/full/120,/0/default.jpg',
+        );
+    });
+});
+
+describe('a declared thumbnail on a canvas core cannot render', () => {
+    /**
+     * Rung 1 is deliberately NOT gated by the painting-body classifier, and
+     * only rungs 2 and 3 are. A `thumbnail` is an image by declaration — the
+     * publisher chose a still to stand for the film — so an unsupported canvas
+     * that carries one shows it in the strip and never falls through to the AV
+     * glyph, which `ThumbnailGallery` reaches only when `src` is empty.
+     */
+    const canvas = JSON.parse(
+        readFileSync(
+            join(
+                import.meta.dirname,
+                '../test/fixtures/manifests/av/0064-opera-one-canvas.json',
+            ),
+            'utf8',
+        ),
+    ).items[0];
+
+    it('is shown rather than replaced by the AV glyph', () => {
+        expect(isUnsupportedCanvas(canvas)).toBe(true);
+        expect(getThumbnailSrc(canvas)).toBe(
+            'https://fixtures.iiif.io/video/indiana/donizetti-elixir/act1-thumbnail.png',
         );
     });
 });

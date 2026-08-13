@@ -876,13 +876,86 @@ thousand tick marks no one clicks. Both hooks exist because the substrates diffe
 not because one is on its way out ([ADR
 0016](adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md)).
 
+### Taking over a canvas: the canvas claim
+
+Some canvases describe content core cannot display — a film, a sound recording, a
+3D model. Core is honest about them: it paints no pixels, asks for nothing over
+the network, and shows a labelled "this viewer cannot display this" box over the
+canvas's rect, with a glyph rather than a broken picture in the thumbnail strip.
+That is the **unsupported presentation**.
+
+`viewerState.claimCanvas(canvasId, pluginId)` takes that canvas's non-image
+content over. It returns an idempotent release, and its whole effect is to
+suppress the unsupported presentation and its strip glyph for that canvas,
+leaving a clean box for you to render into through an overlay layer, the paint
+hook, or both. It carries no payload: no render callback, no options. Everything
+else is untouched — core goes on painting the canvas's *image* bodies through the
+tile pipeline (which is what makes a composite image+video canvas compose), and
+layout, navigation, residency, and `canvasToScreen` never learn a claim exists.
+
+**Pass `context.surface.id` as `pluginId` — never a literal, and never your
+package name.** It is the id the viewer knows you by, the same value your overlay
+layer ids are prefixed with, and it is checked: a claim naming an id no plugin of
+this viewer answers to is **refused**, on the `viewererror` channel with
+`scope: 'plugin'` and `code: 'canvas-claim-refused'`. The check is there because
+that id is what releases your claim if your plugin goes away without releasing it
+itself; a claim under a name nothing will ever unregister would outlive your
+activation silently, leaving a canvas with no placard and nothing rendering over
+it for the rest of the session.
+
+**One claimant per canvas.** A second claim on a canvas somebody already holds is
+refused through the same channel and the first claimant keeps it — claiming is
+not last-writer-wins, so a plugin cannot take a canvas another one is already
+rendering into. A refused call still hands back a dispose, so you never have to
+branch on whether your claim was accepted; it is simply a no-op.
+
+**Release from your own `view.mount` cleanup.** Core releases whatever you left
+behind when your plugin is deactivated, retried, or fails to mount — the same
+backstop your overlay layers get — and doing both is safe.
+
+A claim against a canvas id the current manifest does not carry is **inert and
+kept**, and applies if that id appears later: you claim from inside your mount,
+which may well run before the manifest you care about is loaded.
+
+To decide *which* canvases are yours, ask core's own classifier rather than
+typing bodies yourself — `isUnsupportedCanvas(canvas)` is exactly the question
+core answers when it decides to show the placard, so the two cannot drift apart.
+`isImageBody` and `paintingBodyAlternatives` are exported beside it for when you
+need the individual bodies (which medium, which Choice alternative).
+
+```ts
+import { isUnsupportedCanvas, type PluginContext } from 'triiiceratops';
+
+function claimMine(context: PluginContext) {
+    const releases = context.viewerState.canvases
+        .filter((canvas) => isUnsupportedCanvas(canvas))
+        .map((canvas) =>
+            context.viewerState.claimCanvas(
+                canvas.id ?? canvas['@id'],
+                // The id the viewer knows this plugin by — never a literal.
+                context.surface.id,
+            ),
+        );
+
+    return () => releases.forEach((release) => release());
+}
+```
+
+Declare `canvas-claim` in `requiredCapabilities` if you call this, so your plugin
+fails closed on a core that predates the seam instead of activating and rendering
+over a placard it cannot suppress.
+
 ### Capabilities
 
 `requiredCapabilities` is normally `[]`. Capability negotiation exists for
-genuinely optional runtime features, and core's 1.0 line declares none: a plugin
-states which *core* it works with through `coreRange`. A plugin requiring a
-capability the host does not declare fails activation — which is what happens to
-anything still asking for the retired `osd@5`.
+genuinely optional runtime features, not for versions: a plugin states which
+*core* it works with through `coreRange`. Core declares one capability today,
+`canvas-claim` — `ViewerState.claimCanvas`, the seam a plugin owning a canvas's
+non-image content builds on. Declare it only if your plugin calls that method,
+so it fails closed on a viewer that predates the seam instead of silently doing
+nothing. A plugin requiring a capability the host does not declare fails
+activation — which is what happens to anything still asking for the retired
+`osd@5`.
 
 ## Services
 

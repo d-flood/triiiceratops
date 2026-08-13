@@ -96,10 +96,20 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Manifest-load bookkeeping: mirrors the manifest `start` property (v3) or sequence `startCanvas` (v2) during auto-selection and is cleared as a control-flow flag. No plugin contract.',
     },
     {
+        member: 'startTemporalOffset',
+        classification: 'internal',
+        notes: 'Manifest-load bookkeeping beside startCanvasId: the media time the manifest `start` named, held until auto-selection navigates to that canvas. No plugin contract — the navigation publishes it as temporalOffset.',
+    },
+    {
         member: 'initialCanvasRegion',
         classification: 'command',
         commands: ['setInitialCanvasRegion'],
         notes: 'Content-state initial viewport region input.',
+    },
+    {
+        member: 'temporalOffset',
+        classification: 'observable',
+        notes: "The media time the last navigation carried — a structure item's `#t=`, a manifest `start`, a content-state target — or null when it carried none. Observable rather than command state: no command targets it, and it cannot be set on its own. It is an output of navigation, replaced whole (or nulled) by every navigation as a fact about the one that just happened; `setCanvas`'s optional offset argument supplies that fact rather than writing the member independently. Core carries the value and never acts on it; a canvas claimant interprets it as a seek, and its `endSeconds` is carried but never enforced.",
     },
     {
         member: 'selectedChoices',
@@ -490,6 +500,14 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'The registry’s registration-ordered snapshot, read by the render site. Internal rather than command state: a plugin registers a layer and receives a dispose, it does not mutate this list. Carries no contract, exactly as paintLayers does not; a test that reads it back to prove register/release symmetry is reading an internal.',
     },
 
+    // ---- Canvas claims --------------------------------------------------------
+    {
+        member: 'claimedCanvases',
+        classification: 'command',
+        commands: ['claimCanvas', 'unregisterPlugin', 'destroyAllPlugins'],
+        notes: "The canvas claim set: SvelteMap of canvasId -> claiming pluginId, held privately and read through a ReadonlyMap getter, so one-claimant-per-canvas cannot be bypassed by writing to the collection (the overlay registry is private for the same reason). `command`, not `internal`, unlike that registry: a layer is a container core hands back to its one registrant, while WHICH canvases a plugin has taken over is a fact about the viewer that hosts and wrappers select over — which of two AV canvases is the plugin's, whether a canvas is claimable at all. Released by the claim's own dispose and, as a backstop, by unregisterPlugin/destroyAllPlugins.",
+    },
+
     // ---- Plugin registration -------------------------------------------------
     {
         member: 'pluginMenuButtons',
@@ -536,6 +554,16 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         ],
         notes: "SvelteMap of per-plugin { open, visible, target, position } UI state, read back through isPluginOpen/getPluginTarget/getPluginPosition. `command`, not `internal`: the viewer's own toolbar button opens and closes a plugin's panel/flyout, so by the parity rule the plugin must be able to observe it (this is what an SDK plugin's PluginContext.surface projects). A TS `private` field, but its contract is public through those accessors.",
     },
+    {
+        member: 'publishedPluginStates',
+        classification: 'command',
+        commands: [
+            'publishPluginState',
+            'unregisterPlugin',
+            'destroyAllPlugins',
+        ],
+        notes: "SvelteMap of pluginId -> the one state object that plugin published (ADR 0018), read back through getPluginState. Inventoried like the other plugin-registration members: the notifying fact is the SET OF PUBLISHED IDS, which is how a wrapper knows whether to render a plugin's controls at all. What is inside a published object is the plugin's own contract — its members carry their own command/observable/query-only classification, checked by the SDK conformance kit rather than by this table — so core never watches into it and a query-only member ticking at frame rate can never wake this watcher.",
+    },
 
     // ---- Internal / transitional --------------------------------------------
     {
@@ -569,7 +597,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
  * Public `ViewerState` members that MUST hold a reactive collection
  * (`SvelteSet`/`SvelteMap` from `svelte/reactivity`) at runtime.
  *
- * These four members are declared as the plain built-ins `Set`/`Map` — which
+ * These members are declared as the plain built-ins `Set`/`Map` — which
  * `SvelteSet`/`SvelteMap` extend — so that `svelte/reactivity` never reaches
  * core's published declaration graph and Svelte is not a type-time requirement
  * for a React or Vue framework wrapper consumer. That is a deliberate trade: the
@@ -590,4 +618,5 @@ export const REACTIVE_COLLECTION_MEMBERS: readonly string[] = [
     'userAnnotations',
     'loadedManifestIds',
     'selectedChoices',
+    'claimedCanvases',
 ];

@@ -126,3 +126,90 @@ describe('structures helpers', () => {
         expect(node.label).toBe('Chapter 1');
     });
 });
+
+describe('structure temporal offsets', () => {
+    it('carries a v3 range item`s `#t=` fragment beside the stripped canvas id', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    id: 'range-1',
+                    type: 'Range',
+                    label: { en: ['Atto Primo'] },
+                    items: [
+                        {
+                            type: 'Canvas',
+                            id: 'https://example.org/canvas/1#t=0,302.05',
+                        },
+                        {
+                            type: 'Canvas',
+                            id: 'https://example.org/canvas/1#t=302.05',
+                        },
+                        { type: 'Canvas', id: 'https://example.org/canvas/2' },
+                    ],
+                },
+            ],
+        });
+
+        expect(node.canvasIds).toEqual([
+            'https://example.org/canvas/1',
+            'https://example.org/canvas/1',
+            'https://example.org/canvas/2',
+        ]);
+        expect(node.canvasTimes).toEqual([
+            { seconds: 0, endSeconds: 302.05 },
+            { seconds: 302.05 },
+            null,
+        ]);
+    });
+
+    it('carries a `#t=` fragment from a v3 range item given as a bare string', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    id: 'range-1',
+                    type: 'Range',
+                    items: ['https://example.org/canvas/1#t=12'],
+                },
+            ],
+        });
+
+        expect(node.canvasIds).toEqual(['https://example.org/canvas/1']);
+        expect(node.canvasTimes).toEqual([{ seconds: 12 }]);
+    });
+
+    it('carries `#t=` fragments from v2 `canvases` and `members`', () => {
+        const [canvasesNode] = parseStructures({
+            structures: [
+                {
+                    '@id': 'range-1',
+                    '@type': 'sc:Range',
+                    canvases: ['https://example.org/canvas/1#t=5,9'],
+                },
+            ],
+        });
+        const [membersNode] = parseStructures({
+            structures: [
+                {
+                    '@id': 'range-2',
+                    '@type': 'sc:Range',
+                    members: [
+                        {
+                            '@id': 'https://example.org/canvas/1#t=9,12',
+                            '@type': 'sc:Canvas',
+                        },
+                    ],
+                },
+            ],
+        });
+
+        expect(canvasesNode.canvasIds).toEqual([
+            'https://example.org/canvas/1',
+        ]);
+        expect(canvasesNode.canvasTimes).toEqual([
+            { seconds: 5, endSeconds: 9 },
+        ]);
+        expect(membersNode.canvasTimes).toEqual([
+            { seconds: 9, endSeconds: 12 },
+        ]);
+    });
+});

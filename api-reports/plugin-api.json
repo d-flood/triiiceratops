@@ -1,4 +1,7 @@
 {
-    "pluginApiVersion": "1.0.0",
-    "capabilities": []
+    "pluginApiVersion": "1.1.0",
+    "capabilities": [
+        "canvas-claim",
+        "published-state"
+    ]
 }
