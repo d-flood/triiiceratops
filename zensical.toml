@@ -101,7 +101,8 @@ Copyright &copy; 2025 David Flood
 # Explicit navigation. Without this, Zensical derives nav from the directory
 # structure of "docs_dir", which would also surface docs/adr/* (internal
 # architecture decision records) and docs/security/* (internal audit notes,
-# plus a csp.md stub superseded by the top-level csp.md) in the published
+# plus a csp.md stub superseded by the top-level csp.md) and
+# bundle-size-comparison.md (not ready to publish) in the published
 # site's navigation. Listing pages explicitly keeps those out of the public
 # nav while leaving the files themselves in the repo. They also carry
 # `search.exclude: true` frontmatter so they don't surface as orphan hits in
@@ -166,6 +167,7 @@ extra_css = ["stylesheets/triiiceratops.css"]
 [project.markdown_extensions.attr_list]
 [project.markdown_extensions.md_in_html]
 [project.markdown_extensions.pymdownx.blocks.caption]
+[project.markdown_extensions.pymdownx.details]
 [project.markdown_extensions.pymdownx.highlight]
 anchor_linenums = true
 line_spans = "__span"
