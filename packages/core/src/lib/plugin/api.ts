@@ -18,7 +18,7 @@
  * runtime descriptor. Kept in sync with `package.json`; a future change should
  * replace the literal with a generated/snapshotted value.
  */
-export const CORE_VERSION = '1.0.0-rc.25';
+export const CORE_VERSION = '1.0.0-rc.37';
 
 /**
  * The plugin API version, independent of {@link CORE_VERSION}. Starts at
