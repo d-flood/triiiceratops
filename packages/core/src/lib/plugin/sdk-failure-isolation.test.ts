@@ -1,5 +1,5 @@
-// Plugin failure isolation & retry (ticket 09), tested at the SDK contract
-// against a LIVE `ViewerState` (real commands, real batched notifications).
+// Plugin failure isolation & retry, tested at the SDK contract against a LIVE
+// `ViewerState` (real commands, real batched notifications).
 //
 // For every guarded phase — setup, mount, command, subscription, cleanup — a
 // failing plugin A is isolated: plugin B and core stay fully functional, and the

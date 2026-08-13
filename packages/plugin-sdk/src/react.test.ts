@@ -1,4 +1,4 @@
-// React adapter unit tests (ticket 13).
+// React adapter unit tests.
 //
 // Exercises useViewerSelector against the SDK's real selector runtime driven by
 // a deterministic fake viewer state: initial value, update after a command,

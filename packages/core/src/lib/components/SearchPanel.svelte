@@ -13,10 +13,8 @@
     let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
 
-    // We'll initialize from viewerState to preserve context.
     let searchQuery = $state('');
 
-    // Sync local query with viewerState
     $effect(() => {
         if (viewerState.searchQuery !== untrack(() => searchQuery)) {
             searchQuery = viewerState.searchQuery;
@@ -42,7 +40,6 @@
     }
     let position = $derived(viewerState.config.search?.position ?? 'right');
 
-    // Total matches across all pages
     let totalMatches = $derived(
         viewerState.searchResults.reduce(
             (sum, group) => sum + group.hits.length,
@@ -50,7 +47,6 @@
         ),
     );
 
-    // Track which canvas groups are expanded (by canvasIndex)
     let expandedGroups = new SvelteSet<number>();
 
     function toggleGroup(canvasIndex: number) {
@@ -61,13 +57,11 @@
         }
     }
 
-    // Number of excerpts to show before collapse
     const INITIAL_EXCERPT_COUNT = 2;
 
-    // Ref for the scrollable results container
     let resultsContainer = $state<HTMLElement | null>(null);
 
-    // Auto-scroll active search result into view (e.g. on init when canvas is set via props)
+    // Also runs on init, so a canvas set via props scrolls its result into view.
     $effect(() => {
         if (!resultsContainer || viewerState.searchResults.length === 0) return;
         const idx = viewerState.currentCanvasIndex;

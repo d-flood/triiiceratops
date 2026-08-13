@@ -1,7 +1,7 @@
 /**
- * Lit adapter (`@triiiceratops/plugin-sdk/lit`) — ticket 13.
+ * Lit adapter (`@triiiceratops/plugin-sdk/lit`).
  *
- * Exposes the SDK's memoized, equality-gated selector contract (ticket 07) as a
+ * Exposes the SDK's memoized, equality-gated selector contract as a
  * Lit `ReactiveController` that requests a host update whenever the selected
  * value changes and unsubscribes when the host disconnects.
  *

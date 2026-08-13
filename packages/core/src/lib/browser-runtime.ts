@@ -1,5 +1,5 @@
 /**
- * The `window.Triiiceratops` browser runtime namespace (ticket 10).
+ * The `window.Triiiceratops` browser runtime namespace.
  *
  * One namespace per page, bootstrapped order-independently: every core (and,
  * later, every plugin) IIFE creates it if absent via {@link ensureBrowserRuntime}

@@ -14,7 +14,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const customElementGuard = wrapperCustomElementGuard();
 
 // Standards-based ESM registration entry for the Web Component, for bundler
-// consumers (ticket 10). Behavior is identical to the self-contained IIFE
+// consumers. Behavior is identical to the self-contained IIFE
 // (vite.config.element.ts): same compiler options (scoped CSS inlined into the
 // shadow root, only the wrapper upgraded to a custom element), same self-styled
 // shadow DOM, same single self-contained artifact — only the module format and

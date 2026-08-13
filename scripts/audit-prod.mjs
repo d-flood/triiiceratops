@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Production-dependency audit gate (ticket 33).
+// Production-dependency audit gate.
 //
 // SPEC: required CI includes a production audit, run "per package". pnpm audits
 // the whole workspace in one pass, but the publishable packages (five today) ship

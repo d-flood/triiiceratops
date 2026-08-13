@@ -1,5 +1,5 @@
 /**
- * Seam 2 — tiled deep zoom (ticket 05).
+ * Tiled deep zoom.
  *
  * What is asserted here is what only a browser can answer: network behaviour
  * (how many requests, in what order, cancelled or not) and painted pixels (blur
@@ -10,7 +10,7 @@
  *
  * The fixture is a fake IIIF level 2 service on the dev server
  * (`scripts/iiifFixturePlugin.mjs`) painting the SAME numbered grid the static
- * fixture uses, so ticket 04's geometric expectations carry over verbatim.
+ * fixture uses, so the geometric expectations carry over verbatim.
  *
  * Chromium only: everything here is scheduling and coordinate maths, and
  * widening the matrix would buy noise rather than coverage.
@@ -394,7 +394,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         // zooming in requires a SUBSET of what is already resident and there is
         // no ordering left to observe.
         //
-        // And with the byte budget at zero, because since ticket 08 a tile that
+        // And with the byte budget at zero, because a tile that
         // leaves the required set is held in the **opportunistic cache** rather
         // than closed — so zooming back in would be answered from memory with
         // no requests at all, and there would again be no ordering to observe.
@@ -627,7 +627,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         await openTiledManifest(page);
 
         // With no opportunistic cache, so `decodedBytes` is exactly the
-        // required set. Since ticket 08 the counter reports everything held —
+        // required set. The counter reports everything held —
         // cache included, deliberately, because a counter that saw only the
         // required set would read comfortably low while the cache was the thing
         // filling memory. What this test is about is that the counters follow

@@ -12,7 +12,7 @@
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
-import { NOTIFYING_MEMBERS } from './notifying-members.js';
+import { NOTIFYING_MEMBERS } from '../generated/notifyingMembers.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { logger, isDebugEnabled } from '../logging/logger';
 import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
@@ -63,9 +63,12 @@ import {
     sortCollectionItems,
     type CollectionItem,
 } from '../utils/collections';
-import { getCanvasLabel } from '../utils/canvasLabels';
 import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
-import { segmentHighlights } from '../utils/highlightSegments';
+import {
+    buildSearchAnnotations,
+    discoverSearchService,
+    parseSearchResponse,
+} from '../utils/iiifSearch';
 import type { CanvasRegion } from '../utils/contentState';
 import {
     findCanvasIndexById,
@@ -73,13 +76,8 @@ import {
     getCanvasId,
     getReferenceId,
 } from '../utils/iiifIds';
-import { normalizeIiifTargets } from '../utils/iiifTargets';
 import { getPagedCanvasGroups } from '../components/viewerControls';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-
-/** IIIF Content Search API profiles, as declared on a search service. */
-const SEARCH_1_PROFILE = 'http://iiif.io/api/search/1/search';
-const SEARCH_0_PROFILE = 'http://iiif.io/api/search/0/search';
 
 /**
  * `behavior` (IIIF v3) and `viewingHint` (IIIF v2) may each be a bare string or
@@ -405,16 +403,16 @@ export class ViewerState {
 
     /**
      * This viewer's active locale (BCP-47) — its `config.locale` if set,
-     * otherwise the page default (CONTEXT.md **Active locale**, ticket 06).
+     * otherwise the page default (CONTEXT.md **Active locale**).
      * Observable state: readable and notifying, with no plugin-facing mutator.
      * Locale is *set* through `config.locale`; core (the viewer root) mirrors the
      * resolved value onto this field whenever the config or the page locale
      * changes, exactly as it mirrors other external facts (e.g. `isFullScreen`),
      * so the reactivity-driven watcher (ADR 0008) notifies subscribers. All of
-     * the viewer's chrome renders in this locale (via the i18n context) and
-     * ticket 08's `PluginLocaleService` will consume it. Defaults to the page
-     * locale at construction so a server render and a subscriber-less viewer
-     * both read a correct value before the first mirror runs.
+     * the viewer's chrome renders in this locale (via the i18n context).
+     * Defaults to the page locale at construction so a server render and a
+     * subscriber-less viewer both read a correct value before the first mirror
+     * runs.
      */
     activeLocale = $state<string>(getLocale());
 
@@ -458,7 +456,6 @@ export class ViewerState {
     }
     set viewingMode(value: 'individuals' | 'paged' | 'continuous') {
         this._viewingMode = value;
-        // Also sync to config for consistency
         this.config.viewingMode = value;
     }
 
@@ -499,7 +496,7 @@ export class ViewerState {
     }
 
     /**
-     * Host reporter for the structured `viewererror` channel (ticket 18). Set by
+     * Host reporter for the structured `viewererror` channel. Set by
      * `TriiiceratopsViewer.svelte` so state-level actionable failures (search,
      * viewport, content) surface as a typed {@link ViewerError} on the viewer
      * root's `viewererror` event and the `onviewererror` callback instead of
@@ -525,7 +522,6 @@ export class ViewerState {
      * which can cause infinite loops when it auto-sets canvasId.
      */
     getSnapshot(): ViewerStateSnapshot {
-        // Calculate canvas index without triggering reactive side effects
         let canvasIndex = -1;
         if (this.manifestId && this.canvasId) {
             const canvases = manifestsState.getCanvases(this.manifestId);
@@ -572,7 +568,6 @@ export class ViewerState {
         }
         if (!this.eventTarget) return;
 
-        // Dispatch asynchronously to break reactive loops
         queueMicrotask(() => {
             this.eventTarget?.dispatchEvent(
                 new CustomEvent(eventName, {
@@ -590,7 +585,6 @@ export class ViewerState {
     ) {
         this.manifestId = initialManifestId || null;
         this.canvasId = initialCanvasId || null;
-        // Fetch manifest immediately
         if (this.manifestId) {
             manifestsState.fetchManifest(
                 this.manifestId,
@@ -633,7 +627,6 @@ export class ViewerState {
             return -1;
         }
 
-        // Manifesto canvases have an id property, but let's be robust and check multiple possibilities
         return findCanvasIndexById(this.canvases, this.canvasId);
     }
 
@@ -739,8 +732,8 @@ export class ViewerState {
      *
      * Deliberately NOT reactive: it is set once per mount, plugins never see
      * it, and making it `$state` would put a renderer handle on the batched
-     * notification path — which is the pass-through this epic removes wearing a
-     * different hat. {@link rendererReady} is the notifying signal.
+     * notification path — a pass-through this state is meant to avoid.
+     * {@link rendererReady} is the notifying signal.
      */
     private rendererPort: RendererPort | null = null;
 
@@ -1408,7 +1401,6 @@ export class ViewerState {
     ) {
         this.manifestRequestConfig = options?.requestConfig;
 
-        // Fetch the raw JSON first to detect if it's a Collection
         let json: any;
         try {
             json = await manifestsState.fetchResource(
@@ -1416,7 +1408,6 @@ export class ViewerState {
                 this.manifestRequestConfig,
             );
         } catch (_error: any) {
-            // If fetch fails, fall back to normal flow which will handle the error
             this.startCanvasId = null;
             this.selectedSequenceIndex = 0;
             await manifestsState.fetchManifest(
@@ -1434,14 +1425,12 @@ export class ViewerState {
             return;
         }
 
-        // Check if the resource is a Collection
         if (isCollection(json)) {
             this.collectionId = manifestId;
             this.collectionLabel = getCollectionLabel(json);
             this.collectionThumbnail = getCollectionThumbnail(json) || '';
             this.collectionItems = sortCollectionItems(parseCollection(json));
 
-            // Auto-load the first manifest in the collection
             const firstManifest = this.collectionItems.find(
                 (item) => item.type === 'Manifest',
             );
@@ -1453,7 +1442,6 @@ export class ViewerState {
             return;
         }
 
-        // Normal manifest flow: register the already-fetched JSON
         this.collectionId = null;
         this.collectionLabel = '';
         this.collectionThumbnail = '';
@@ -1643,11 +1631,10 @@ export class ViewerState {
         ) {
             this.viewingDirection = direction as any;
         } else {
-            this.viewingDirection = 'left-to-right'; // Default
+            this.viewingDirection = 'left-to-right';
         }
 
         // 2. Viewing Mode (Behavior)
-        // Only auto-detect from manifest if user hasn't explicitly configured viewingMode
         if (!this._viewingModeUserConfigured) {
             let behaviors: string[] = [];
             try {
@@ -1689,7 +1676,6 @@ export class ViewerState {
             ) {
                 this.viewingMode = 'paged';
             } else {
-                // Default to 'individuals' when no behavior is specified in manifest
                 this.viewingMode = 'individuals';
             }
         }
@@ -1708,12 +1694,6 @@ export class ViewerState {
 
     selectChoice(canvasId: string, choiceId: string) {
         this.selectedChoices.set(canvasId, choiceId);
-        // Force reactivity for $derived blocks that depend on the map
-        // Reassigning the map is one way, or using fine-grained signals.
-        // Svelte 5 map is reactive, but let's ensure dependent derivations see it.
-        // We might need to "bump" a version signal if derivations don't pick it up automatically
-        // but they should if they use get().
-
         this.dispatchStateChange('choicechange');
     }
 
@@ -1725,15 +1705,12 @@ export class ViewerState {
         const oldConfig = this.config;
         this.config = newConfig;
 
-        // Sync state from config
         if (newConfig.toolbarOpen !== undefined) {
             this.toolbarOpen = newConfig.toolbarOpen;
         }
 
         if (newConfig.viewingMode) {
-            // direct assignment works because of the setter
             this.viewingMode = newConfig.viewingMode;
-            // Mark as user-configured so manifest behavior detection is skipped
             this._viewingModeUserConfigured = true;
         }
 
@@ -1860,7 +1837,7 @@ export class ViewerState {
 
     /**
      * Resolve the viewer's style root — where a plugin's global CSS must be
-     * installed (ticket 08's `PluginStyleService`). For a light-DOM (Svelte)
+     * installed. For a light-DOM (Svelte)
      * viewer this is the owning `Document`; for the Web Component it is the
      * shadow root, so plugin styles reach the shadow-scoped tree. Derived from
      * the mount element captured by {@link setViewerElement} via `getRootNode()`;
@@ -1959,9 +1936,7 @@ export class ViewerState {
     get structures(): StructureNode[] {
         // Raw manifest JSON. `parseStructures` reads `structures` off the
         // document itself and handles both the v2 (`sc:Range`) and the v3
-        // (`Range`) spelling, so this is a plain-JSON read for both versions —
-        // not a branch deletion (SPEC → "The governing rule for the whole
-        // epic").
+        // (`Range`) spelling, so this is a plain-JSON read for both versions.
         const manifestJson = this.manifestEntry?.json;
         if (!manifestJson) return [];
         return parseStructures(manifestJson);
@@ -2072,13 +2047,14 @@ export class ViewerState {
                     canvases: this.canvases,
                     canvasId: this.canvasId,
                 });
-                this.searchAnnotations = this.buildSearchAnnotations(
+                this.searchAnnotations = buildSearchAnnotations(
                     this.searchResults,
+                    this.canvases,
                 );
                 return;
             }
 
-            const service = this.discoverSearchService(manifestJson);
+            const service = discoverSearchService(manifestJson);
 
             if (!service) {
                 logger.warn('No IIIF search service found in manifest');
@@ -2100,14 +2076,14 @@ export class ViewerState {
 
             const data = await response.json();
 
-            if (service.version === 2) {
-                this.searchResults = this.parseV2SearchResponse(data);
-            } else {
-                this.searchResults = this.parseLegacySearchResponse(data);
-            }
-
-            this.searchAnnotations = this.buildSearchAnnotations(
+            this.searchResults = parseSearchResponse(
+                data,
+                service.version,
+                this.canvases,
+            );
+            this.searchAnnotations = buildSearchAnnotations(
                 this.searchResults,
+                this.canvases,
             );
         } catch (e) {
             logger.error('Search error:', e);
@@ -2128,402 +2104,18 @@ export class ViewerState {
         }
     }
 
-    /**
-     * Discover a IIIF Content Search service from raw manifest JSON.
-     *
-     * Reads `service` and `services` — either may be a bare object rather than
-     * an array — and matches search v0, v1 and v2 on `profile` or
-     * `type`/`@type`. The same JSON serves IIIF Presentation 2.x (`@type`,
-     * `@id`) and 3.0 (`type`, `id`). v2 is preferred when several are present.
-     *
-     * Total: every access is guarded, so no manifest shape makes this throw.
-     */
-    private discoverSearchService(
-        manifestJson: any,
-    ): { version: 0 | 1 | 2; serviceId: string } | null {
-        const toArray = (value: any): any[] =>
-            Array.isArray(value) ? value : value ? [value] : [];
-
-        const services = [
-            ...toArray(manifestJson?.service),
-            ...toArray(manifestJson?.services),
-        ];
-
-        let v2Service: any = null;
-        let v1Service: any = null;
-        let v0Service: any = null;
-        let typedV1Service: any = null;
-
-        for (const service of services) {
-            // A service may be a bare id string referencing a definition
-            // elsewhere; there is nothing to match on, so skip it.
-            if (!service || typeof service !== 'object') continue;
-
-            const type = service.type || service['@type'];
-            // `profile` may be an array, and some services spell it
-            // `dcterms:conformsTo`.
-            const rawProfile = service.profile ?? service['dcterms:conformsTo'];
-            const profile = Array.isArray(rawProfile)
-                ? rawProfile[0]
-                : rawProfile;
-
-            if (type === 'SearchService2') {
-                v2Service = service;
-            } else if (!v1Service && profile === SEARCH_1_PROFILE) {
-                v1Service = service;
-            } else if (!v0Service && profile === SEARCH_0_PROFILE) {
-                v0Service = service;
-            } else if (!typedV1Service && type === 'SearchService1') {
-                typedV1Service = service;
-            }
-        }
-
-        // Prefer v2 over v1 over v0.
-        if (v2Service) {
-            return {
-                version: 2,
-                serviceId: v2Service.id || v2Service['@id'],
-            };
-        }
-        if (v1Service) {
-            return {
-                version: 1,
-                serviceId: v1Service.id || v1Service['@id'],
-            };
-        }
-        if (v0Service) {
-            return {
-                version: 0,
-                serviceId: v0Service.id || v0Service['@id'],
-            };
-        }
-        if (typedV1Service) {
-            return {
-                version: 1,
-                serviceId: typedV1Service.id || typedV1Service['@id'],
-            };
-        }
-
-        return null;
-    }
-
-    /**
-     * The display label for a canvas in a search-result group.
-     *
-     * Delegates to the shared helper rather than repeating the chain. The
-     * private copy this replaced read `getLabel()` first and, failing that,
-     * only a string or a `[{value}]` array — so a raw IIIF v3 canvas, whose
-     * `label` is a language map, fell through to "Canvas N" once canvases
-     * stopped being library objects.
-     */
-    private resolveCanvasLabel(canvas: any, canvasIndex: number): string {
-        return getCanvasLabel(canvas, canvasIndex);
-    }
-
-    /** Ensure a canvas group exists in the map and return it */
-    private getOrCreateCanvasGroup(
-        resultsByCanvas: SvelteMap<
-            number,
-            { canvasIndex: number; canvasLabel: string; hits: any[] }
-        >,
-        canvasIndex: number,
-    ): { canvasIndex: number; canvasLabel: string; hits: any[] } {
-        if (!resultsByCanvas.has(canvasIndex)) {
-            const canvas = this.canvases[canvasIndex];
-            resultsByCanvas.set(canvasIndex, {
-                canvasIndex,
-                canvasLabel: this.resolveCanvasLabel(canvas, canvasIndex),
-                hits: [],
-            });
-        }
-        return resultsByCanvas.get(canvasIndex)!;
-    }
-
-    private getSearchCanvasIndexes(): SvelteMap<string, number> {
-        const indexes = new SvelteMap<string, number>();
-        this.canvases.forEach((canvas: any, index: number) => {
-            // `getCanvasId`, not `canvas.id`: a raw IIIF v2 canvas spells its
-            // identifier `@id`, and every v2 search hit targets that spelling.
-            const canvasId = getCanvasId(canvas);
-            if (canvasId && !indexes.has(canvasId))
-                indexes.set(canvasId, index);
-        });
-        return indexes;
-    }
-
-    private resolveSearchTargets(
-        target: unknown,
-        canvasIndexes: SvelteMap<string, number>,
-    ): {
-        canvasIndex: number;
-        bounds: number[] | null;
-        allBounds: number[][];
-    } {
-        let canvasIndex = -1;
-        let bounds: number[] | null = null;
-        const allBounds: number[][] = [];
-
-        for (const normalized of normalizeIiifTargets(target)) {
-            const index = normalized.canvasId
-                ? canvasIndexes.get(normalized.canvasId)
-                : undefined;
-            if (index === undefined) continue;
-            if (canvasIndex === -1) canvasIndex = index;
-            if (normalized.xywh) {
-                allBounds.push(normalized.xywh);
-                if (!bounds) bounds = normalized.xywh;
-            }
-        }
-
-        return { canvasIndex, bounds, allBounds };
-    }
-
-    /**
-     * Parse a IIIF Content Search API v0/v1 response.
-     * Handles both "hits" format (with before/match/after) and "resources"-only format.
-     */
-    private parseLegacySearchResponse(data: any): SearchResultGroup[] {
-        const resources = data.resources || [];
-        const canvasIndexes = this.getSearchCanvasIndexes();
-        const resourcesById = new SvelteMap<string, any>();
-        for (const resource of resources) {
-            for (const id of [resource['@id'], resource.id]) {
-                if (id && !resourcesById.has(id)) {
-                    resourcesById.set(id, resource);
-                }
-            }
-        }
-        const resultsByCanvas = new SvelteMap<
-            number,
-            { canvasIndex: number; canvasLabel: string; hits: any[] }
-        >();
-
-        if (data.hits) {
-            for (const hit of data.hits) {
-                const annotations = hit.annotations || [];
-                const targets = annotations
-                    .map((id: string) => resourcesById.get(id)?.on)
-                    .filter(Boolean);
-                const { canvasIndex, bounds, allBounds } =
-                    this.resolveSearchTargets(targets, canvasIndexes);
-
-                if (canvasIndex >= 0) {
-                    const group = this.getOrCreateCanvasGroup(
-                        resultsByCanvas,
-                        canvasIndex,
-                    );
-                    group.hits.push({
-                        type: 'hit',
-                        before: hit.before || '',
-                        match: hit.match || '',
-                        after: hit.after || '',
-                        bounds,
-                        allBounds,
-                    });
-                }
-            }
-        } else if (resources.length > 0) {
-            for (const res of resources) {
-                const normalizedTargets = normalizeIiifTargets(res.on);
-                const firstTarget = normalizedTargets.find(
-                    (target) => target.canvasId,
-                );
-                if (!firstTarget?.canvasId) {
-                    continue;
-                }
-
-                const canvasIndex =
-                    canvasIndexes.get(firstTarget.canvasId) ?? -1;
-                if (canvasIndex >= 0) {
-                    const boundsArray = normalizedTargets
-                        .map((target) => target.xywh)
-                        .filter(
-                            (
-                                bounds,
-                            ): bounds is [number, number, number, number] =>
-                                bounds !== null,
-                        );
-                    const group = this.getOrCreateCanvasGroup(
-                        resultsByCanvas,
-                        canvasIndex,
-                    );
-                    group.hits.push({
-                        type: 'resource',
-                        match:
-                            res.resource && res.resource.chars
-                                ? res.resource.chars
-                                : res.chars || '',
-                        bounds: boundsArray[0] || null,
-                        allBounds: boundsArray,
-                    });
-                }
-            }
-        }
-
-        return Array.from(resultsByCanvas.values()).sort(
-            (a, b) => a.canvasIndex - b.canvasIndex,
-        );
-    }
-
-    /**
-     * Parse a IIIF Content Search API v2 response.
-     * v2 returns an AnnotationPage with `items` (W3C Annotations) and optional
-     * `annotations` containing contextualizing/highlighting info via TextQuoteSelector.
-     */
-    private parseV2SearchResponse(data: any): SearchResultGroup[] {
-        const items: any[] = data.items || [];
-        const canvasIndexes = this.getSearchCanvasIndexes();
-        const resultsByCanvas = new SvelteMap<
-            number,
-            { canvasIndex: number; canvasLabel: string; hits: any[] }
-        >();
-
-        // Build a context map from the annotations section (TextQuoteSelector info)
-        // Maps source annotation id -> { before, match, after }
-        const contextMap = new SvelteMap<
-            string,
-            { before: string; match: string; after: string }
-        >();
-
-        if (data.annotations) {
-            // annotations can be an array of AnnotationPages or a single AnnotationPage
-            const annoPages = Array.isArray(data.annotations)
-                ? data.annotations
-                : [data.annotations];
-
-            for (const page of annoPages) {
-                const pageItems = page.items || [];
-                for (const anno of pageItems) {
-                    // Each annotation targets a source annotation with a TextQuoteSelector
-                    const targets = Array.isArray(anno.target)
-                        ? anno.target
-                        : [anno.target];
-                    for (const target of targets) {
-                        if (!target || typeof target === 'string') continue;
-                        const sourceId = target.source;
-                        if (!sourceId) continue;
-
-                        const selectors = Array.isArray(target.selector)
-                            ? target.selector
-                            : target.selector
-                              ? [target.selector]
-                              : [];
-
-                        for (const sel of selectors) {
-                            if (sel.type === 'TextQuoteSelector') {
-                                // Don't overwrite if we already have context for this source
-                                // (prefer first contextualizing entry)
-                                if (!contextMap.has(sourceId)) {
-                                    contextMap.set(sourceId, {
-                                        before: sel.prefix || '',
-                                        match: sel.exact || '',
-                                        after: sel.suffix || '',
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Process each result annotation in items
-        for (const item of items) {
-            const annoId = item.id || item['@id'];
-            const { canvasIndex, bounds, allBounds } =
-                this.resolveSearchTargets(item.target, canvasIndexes);
-
-            if (canvasIndex < 0) continue;
-
-            // Extract text from body
-            let bodyText = '';
-            if (item.body) {
-                const body = Array.isArray(item.body)
-                    ? item.body[0]
-                    : item.body;
-                if (body && typeof body === 'object') {
-                    bodyText = body.value || '';
-                } else if (typeof body === 'string') {
-                    bodyText = body;
-                }
-            }
-
-            const group = this.getOrCreateCanvasGroup(
-                resultsByCanvas,
-                canvasIndex,
-            );
-
-            // Check if we have contextualizing/highlighting info for this annotation
-            const context = contextMap.get(annoId);
-            if (context) {
-                group.hits.push({
-                    type: 'hit',
-                    before: context.before,
-                    match: context.match,
-                    after: context.after,
-                    bounds,
-                    allBounds,
-                });
-            } else {
-                group.hits.push({
-                    type: 'resource',
-                    match: bodyText,
-                    bounds,
-                    allBounds,
-                });
-            }
-        }
-
-        return Array.from(resultsByCanvas.values()).sort(
-            (a, b) => a.canvasIndex - b.canvasIndex,
-        );
-    }
-
-    private buildSearchAnnotations(searchResults: SearchResultGroup[]): any[] {
-        let annotationIndex = 0;
-        return searchResults.flatMap((group) => {
-            const canvas = this.canvases[group.canvasIndex];
-            // Both IIIF versions, for the reason given in
-            // `getSearchCanvasIndexes`.
-            const canvasId = getCanvasId(canvas);
-            if (!canvasId) return [];
-            return group.hits.flatMap((hit) => {
-                const boundsArray =
-                    hit.allBounds && hit.allBounds.length > 0
-                        ? hit.allBounds
-                        : hit.bounds
-                          ? [hit.bounds]
-                          : [];
-
-                return boundsArray.map((bounds: number[]) => ({
-                    '@id': `urn:search-hit:${annotationIndex++}`,
-                    '@type': 'oa:Annotation',
-                    motivation: 'sc:painting',
-                    on: `${canvasId}#xywh=${bounds.join(',')}`,
-                    canvasId,
-                    resource: {
-                        '@type': 'cnt:ContentAsText',
-                        // Plain text, like every other excerpt field: the
-                        // annotation panel shows `chars` to the reader, so the
-                        // mark delimiters have to come off first.
-                        chars: segmentHighlights(hit.match)
-                            .map((segment) => segment.text)
-                            .join(''),
-                    },
-                    isSearchHit: true,
-                }));
-            });
-        });
-    }
-
-    // ==================== PARITY COMMANDS (ticket 03) ====================
-    // Supported mutation methods for viewer behaviors the chrome previously
-    // performed only through direct field assignment. Added for the parity rule
-    // (see state-inventory.ts). Core components keep their direct writes; those
-    // remain a legitimate internal escape hatch and notification completeness is
-    // ticket 04's reactivity-driven concern (ADR 0008). These commands therefore
-    // mirror the components' direct-assignment behavior and, like those chrome
-    // interactions, do not dispatch legacy web-component events.
+    // ==================== PARITY COMMANDS ====================
+    // Supported mutation methods for viewer behaviors the parity rule requires
+    // (see state-inventory.ts). The chrome calls these rather than writing the
+    // fields directly, so each member has ONE write path and an invariant here
+    // cannot be skipped by a component that assigns around it. Direct
+    // assignment remains physically possible for trusted code (ADR 0007) and
+    // still notifies, since notification is reactivity-driven rather than
+    // command-driven (ADR 0008).
+    //
+    // They deliberately do NOT dispatch the legacy web-component `statechange`
+    // event: these are hover- and drag-rate interactions, and the chrome never
+    // dispatched for them.
 
     /** Set (or clear, with null) the currently hovered annotation id. */
     setHoveredAnnotationId(annotationId: string | null): void {
@@ -2557,24 +2149,23 @@ export class ViewerState {
     }
 
     /**
-     * Show or hide every annotation on the active canvas at once, marking
-     * visibility as user-touched. Mirrors the annotation panel's "toggle all".
+     * Show or hide every toggleable annotation at once, marking visibility as
+     * user-touched. The annotation panel's "toggle all".
+     *
+     * The set is every annotation the reader is looking at — one canvas in
+     * `individuals`, the whole spread in `paged`, the folios the viewport meets
+     * in `continuous` — minus search hits, which are always drawn and never
+     * toggled. Reading only the current canvas, as this once did, left a facing
+     * page's annotations untouched by a control that says "all".
      */
     setAllAnnotationsVisible(visible: boolean): void {
-        this.annotationVisibilityTouched = true;
-        this.visibleAnnotationIds.clear();
-
-        if (!visible || !this.manifestId || !this.canvasId) {
-            return;
+        if (visible) {
+            this.showVisibleCanvasAnnotations();
+        } else {
+            this.visibleAnnotationIds.clear();
         }
-
-        const annotations = this.getAnnotations(this.manifestId, this.canvasId);
-        annotations.forEach((annotation: any) => {
-            const id = getAnnotationId(annotation);
-            if (id) {
-                this.visibleAnnotationIds.add(id);
-            }
-        });
+        // After, not before: `showVisibleCanvasAnnotations` clears the flag.
+        this.annotationVisibilityTouched = true;
     }
 
     /**
@@ -2854,8 +2445,8 @@ export class ViewerState {
     // ==================== PLUGIN METHODS ====================
 
     /**
-     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path
-     * (epic restore-plugin-toolbar-chrome, ticket 02). Core renders the button
+     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path.
+     * Core renders the button
      * from the plugin's {@link IconDescriptor} and {@link PluginUiTarget}, and the
      * anchored flyout / docked panel container hosts the plugin content via the
      * DOM-mount `mount` thunk. `pluginMenuButtons` +
@@ -2988,19 +2579,19 @@ export class ViewerState {
     // and wakes subscribers. Completeness is structural (nobody has to remember
     // to call `notify()`); the price is timing: notifications are batched and
     // delivered on the microtask flush, never synchronously inside a mutator.
-    // Selectors (ticket 07) and `pluginerror` attribution (ticket 09) build on
-    // top of this; `invokeSubscriptionListener` is the seam ticket 09 replaces.
+    // Selectors and `pluginerror` attribution build on top of this;
+    // `invokeSubscriptionListener` is the guarded call site for delivery.
 
     /**
      * Inventoried members whose changes wake subscribers: `command` and
      * `observable` members notify; `internal` and `query-only` members never do.
      *
-     * The list is checked in as `notifying-members.ts` rather than derived from
-     * `state-inventory.ts` here, because that derivation pulled the inventory's
+     * The list is GENERATED from `state-inventory.ts` at build time rather than
+     * derived from it here, because that derivation pulled the inventory's
      * review prose — classifications, mutator lists, and 72 explanatory notes —
-     * into the shipped bundle for the sake of 47 strings. `state-inventory.test.ts`
-     * recomputes the derivation and fails if the two ever disagree, so the
-     * watcher and the inventory still cannot drift.
+     * into the shipped bundle for the sake of ~49 strings. Generating it means
+     * the inventory is the single source: adding or reclassifying a member is
+     * one edit, and drift is not expressible rather than merely tested for.
      */
     private static readonly WATCHED_MEMBERS: readonly string[] =
         NOTIFYING_MEMBERS;
@@ -3011,8 +2602,8 @@ export class ViewerState {
 
     /**
      * Registered subscription listeners, kept in registration order. Each entry
-     * pairs the listener with an optional per-subscription error handler
-     * (ticket 09): when the listener throws, the guard routes to `onError` if
+     * pairs the listener with an optional per-subscription error handler:
+     * when the listener throws, the guard routes to `onError` if
      * present so the SDK can attribute the failure to the owning plugin
      * (`pluginerror` phase `subscription`); otherwise it falls back to a console
      * error. Core's own subscriptions register no `onError` and keep the
@@ -3041,7 +2632,7 @@ export class ViewerState {
      * effect and delivers no notifications (state reads stay synchronously
      * current everywhere).
      *
-     * `onError` (ticket 09) is called with the thrown value if this listener
+     * `onError` is called with the thrown value if this listener
      * throws during delivery; the throw never stops other listeners or core's
      * own reactions. The SDK passes one per activation so a throwing listener is
      * attributed to its owning plugin (`pluginerror` phase `subscription`).
@@ -3128,7 +2719,7 @@ export class ViewerState {
     }
 
     /**
-     * Single guarded call site for a subscription listener (ticket 09): a
+     * Single guarded call site for a subscription listener: a
      * throwing listener is isolated so the remaining listeners and core's own
      * reactions still run. The failure is routed to the listener's own
      * `onError` when one was registered — the SDK uses this to attribute the
@@ -3147,7 +2738,7 @@ export class ViewerState {
                 try {
                     entry.onError(error);
                 } catch (reportError) {
-                    // triiiceratops-console-allow: ticket 09 subscription
+                    // triiiceratops-console-allow: subscription
                     // isolation last-resort fallback (tested in
                     // viewer.subscribe.onError.test.ts). A throwing error
                     // reporter has no other channel; delivery must continue.
@@ -3157,7 +2748,7 @@ export class ViewerState {
                     );
                 }
             } else {
-                // triiiceratops-console-allow: ticket 09 subscription isolation
+                // triiiceratops-console-allow: subscription isolation
                 // last-resort fallback (tested in
                 // viewer.subscribe.onError.test.ts). An unguarded listener throw
                 // with no `onError` reporter has no structured channel.

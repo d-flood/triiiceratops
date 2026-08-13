@@ -8,7 +8,7 @@
  *
  * The scheduler makes no scene decisions. It is handed the **required set** by
  * `planScene` once per frame and does exactly what that list says. Five rules,
- * each of which the naive implementation gets wrong (ticket 05 §Contract):
+ * each of which the naive implementation gets wrong:
  *
  * 1. **Abort on supersede.** Every request carries an `AbortSignal`, and a tile
  *    that leaves the required set is aborted immediately. During a zoom far more

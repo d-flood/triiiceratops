@@ -21,8 +21,7 @@
 //   · each plugin ESM entry      (import '@triiiceratops/plugin-*')
 //   · no-bundler asset fetch     (HTTP GET the published element IIFE + CSS from a CDN)
 //
-// Framework-wrappers ticket 10 adds a second stage: one THROWAWAY CONSUMER PER
-// FRAMEWORK, each installing published core plus exactly one optional peer
+// A second stage adds one THROWAWAY CONSUMER PER FRAMEWORK, each installing published core plus exactly one optional peer
 // (`react` OR `vue`, at the range the published package itself declares) and
 // importing that subpath for real. Separate consumers are the point — they prove
 // the peers are genuinely optional and independent: a React application must not
@@ -272,7 +271,7 @@ await check('core: resolve element (IIFE) + element/register', () => {
     require.resolve('triiiceratops/element');
     require.resolve('triiiceratops/element/register');
 });
-// Framework-wrappers ticket 10: the framework subpaths must RESOLVE from a
+// The framework subpaths must RESOLVE from a
 // consumer that installed no optional peer at all — resolution is the export
 // map, not the peer. The IMPORT of each is exercised per-framework below, in a
 // consumer that installed exactly one peer.

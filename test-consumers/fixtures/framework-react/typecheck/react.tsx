@@ -1,5 +1,5 @@
 /**
- * The epic's headline promise, compiled rather than asserted: a React consumer
+ * The headline promise, compiled rather than asserted: a React consumer
  * type-checks against `triiiceratops/react` with **no Svelte installed** and
  * **`skipLibCheck: false`**, so any Svelte type reaching the published
  * declaration graph of this subpath fails the packed run.

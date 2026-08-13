@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Shipped-element size gate (shrink-the-element-bundle, ticket 04).
+// Shipped-element size gate.
 //
 // Measures the two published Web Component artifacts — the self-contained IIFE
 // (`./element`) and the ESM registration entry (`./element/register`) — as raw

@@ -379,8 +379,7 @@ describe('projections that read Vue reactive state', () => {
 });
 
 describe('selector cadence', () => {
-    // The acceptance this ticket is measured against, for Vue: zoom read
-    // REACTIVELY through a `frame`-cadence selector.
+    // Zoom read REACTIVELY through a `frame`-cadence selector, for Vue.
     it("wakes a frame-cadence projection from the renderer's animation events", async () => {
         const renderer = createRendererStub({ scale: 1 });
 

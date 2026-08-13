@@ -1,5 +1,5 @@
 /**
- * Plugin conformance suite (ticket 14).
+ * Plugin conformance suite.
  *
  * `runPluginConformance(factory)` registers a battery of vitest cases that
  * activate the plugin against a real test viewer context and assert the

@@ -1,4 +1,4 @@
-// SDK plugin activation integration tests (ticket 07).
+// SDK plugin activation integration tests.
 //
 // These exercise the framework-neutral seam end to end against a REAL
 // `ViewerState` (real commands, real batched `subscribe` notifications): a

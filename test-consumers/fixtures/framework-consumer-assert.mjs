@@ -138,7 +138,7 @@ function assertNoSvelteAndNoSdk(fixtureDir, { absentPeer }) {
 }
 
 /**
- * The epic's headline promise, pinned as configuration.
+ * The headline promise, pinned as configuration.
  *
  * The fixture's `check` script (`tsc -p tsconfig.json`, run by the driver before
  * the build) is the automated form of "a consumer with no Svelte installed
@@ -482,7 +482,7 @@ export async function assertFrameworkFixture(ctx, options) {
     await expect(fragileError).toHaveText('ok', { timeout: 15_000 });
     await expect(fragile).toHaveText(C3);
 
-    // 12. The ticket-08 testing helper, from the same tarball: a real command on
+    // 12. The testing helper, from the same tarball: a real command on
     //     a real headless `ViewerState`, observed by a real projection.
     await expect(kitCanvas).toHaveText('none');
     await page.evaluate(() => window.__tri.driveTestHandle());
@@ -686,7 +686,7 @@ export async function assertFrameworkFixture(ctx, options) {
 
     // ── Development-warning route ──────────────────────────────────────────
     //
-    // EPIC-1. The wrapper-side development warnings are gated on
+    // The wrapper-side development warnings are gated on
     // `ViewerConfig.debug`, and in the published package the wrappers and the
     // element bundle hold two different copies of the logger module — so this
     // has to be measured on the ARTIFACT, from outside, on the real console.

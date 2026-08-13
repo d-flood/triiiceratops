@@ -1,5 +1,5 @@
 /**
- * Seam 2 — the **thumbnail tier**, in a real browser (ticket 09).
+ * The **thumbnail tier**, in a real browser.
  *
  * The planner's unit tests prove what it DECIDES for a thumbnail-tier canvas:
  * which rung, from which branch of the ladder, and under which gate. What only
@@ -219,9 +219,9 @@ test.describe('Canvas2D renderer — the thumbnail tier', () => {
     test('fills the grey boxes: every thumbnail-tier folio gets a small image', async ({
         page,
     }) => {
-        // The user story. Scrolling a long manuscript at anything short of
-        // reading zoom used to show a river of empty rectangles, because only
-        // the two or three canvases holding pyramids had any pixels at all.
+        // Scrolling a long manuscript at anything short of reading zoom must
+        // not show a river of empty rectangles: every visible canvas needs
+        // pixels, not just the two or three holding pyramids.
         await open(page);
         const traffic = watchTraffic(page);
 

@@ -63,7 +63,7 @@ const SHARED_SPECIFIERS: readonly string[] = SHARED_MODULE_IDENTITY.map(
 );
 
 /**
- * Build the compiled headless `triiiceratops/testing` entry (ticket 14).
+ * Build the compiled headless `triiiceratops/testing` entry.
  *
  * `svelte-package` (in `build:lib`) copies `src/lib/testing/index.ts` to
  * `dist/testing/index.js` UNCOMPILED — importing the runes module

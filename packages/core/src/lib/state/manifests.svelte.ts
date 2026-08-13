@@ -164,8 +164,7 @@ export class ManifestsState {
 
         // Every canvas the manifest declares, keyed by id, so that a range's
         // canvas references can be resolved to the canvases themselves. Walks
-        // the raw JSON through the first-party enumerator; it used to walk
-        // `manifesto.js` sequences, which no longer exist in this cache.
+        // the raw JSON through the first-party enumerator.
         const canvasById = new SvelteMap<string, any>();
         const sequenceCount = countSequences(manifestJson);
 
@@ -242,8 +241,6 @@ export class ManifestsState {
 
         // The enumerated canvases first — the same list the viewer renders, so
         // an annotation is always read against the canvas that is on screen.
-        // This walked `manifesto.js` sequences and unwrapped `__jsonld`; the
-        // enumerator hands back that same raw JSON directly.
         const sequenceCount = countSequences(manifestJson);
         for (let index = 0; index < sequenceCount; index++) {
             const canvas = getCanvasesForSequence(manifestJson, index).find(

@@ -6,7 +6,7 @@ import { definePluginStyles } from '@triiiceratops/plugin-sdk';
  * activation installs. Class names are namespaced `tri-id-*` since these rules
  * are not Svelte-scoped (they are installed globally into the viewer root).
  *
- * Core-owned-chrome path (ticket 04): core renders the toolbar button and the
+ * Core-owned-chrome path: core renders the toolbar button and the
  * docked panel's header/title and owns open/close + docking, so this stylesheet
  * carries NO toggle button and NO `position: absolute` — only the layout of the
  * panel *content* (body + footer). The controls themselves are themed by the

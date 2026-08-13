@@ -57,7 +57,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
         true,
     );
 
-    // Core owns the plugin chrome (epic restore-plugin-toolbar-chrome): the
+    // Core owns the plugin chrome: the
     // toolbar button is core-rendered from the plugin's icon and the panel docks
     // in the viewer chrome. Open the (default-closed) toolbar, then click the
     // plugin's core-rendered button to dock its panel. The viewer's DOM lives in

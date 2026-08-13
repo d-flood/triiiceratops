@@ -6,8 +6,8 @@
  * `ViewerState` is the sole plugin-facing state surface). It is checked in and
  * reviewed — never generated. `state-inventory.test.ts` reflects over a
  * constructed instance and fails if any mutable member is missing here (the
- * "unclassified member fails CI" gate); ticket 04 builds the notification
- * capability matrix on top of it.
+ * "unclassified member fails CI" gate); the notification capability matrix
+ * builds on top of it.
  *
  * Classification rules (binding — from CONTEXT.md glossary and the grilling
  * decisions):
@@ -168,7 +168,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
             'setAnnotationVisible',
             'setAllAnnotationsVisible',
         ],
-        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). Parity commands setAnnotationVisible/setAllAnnotationsVisible added this ticket. showVisibleCanvasAnnotations is the multi-canvas default (every canvas on screen: the spread in paged, the folios the viewport meets in continuous); showCurrentCanvasAnnotations remains the single-canvas one.',
+        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). showVisibleCanvasAnnotations is the multi-canvas default (every canvas on screen: the spread in paged, the folios the viewport meets in continuous); showCurrentCanvasAnnotations remains the single-canvas one.',
     },
     {
         member: 'annotationVisibilityTouched',
@@ -180,7 +180,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'hoveredAnnotationId',
         classification: 'command',
         commands: ['setHoveredAnnotationId'],
-        notes: 'Set on annotation hover by the overlay and panel. Parity command added this ticket.',
+        notes: 'Set on annotation hover by the overlay and panel.',
     },
     {
         member: 'activeAnnotationId',
@@ -192,21 +192,21 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'userAnnotations',
         classification: 'command',
         commands: ['setUserAnnotations', 'clearUserAnnotations'],
-        notes: 'Per-viewer plugin-written annotation display state (SvelteMap keyed by manifestId::canvasId, declared as a plain Map — see REACTIVE_COLLECTION_MEMBERS). Moved off the page-shared manifest cache onto ViewerState (ticket 05, ADR 0007) so annotations never leak between viewers; the annotation-editor store display-syncs through these commands.',
+        notes: 'Per-viewer plugin-written annotation display state (SvelteMap keyed by manifestId::canvasId, declared as a plain Map — see REACTIVE_COLLECTION_MEMBERS). Lives on ViewerState rather than the page-shared manifest cache (ADR 0007) so annotations never leak between viewers; the annotation-editor store display-syncs through these commands.',
     },
 
     // ---- Manifest readiness (per-viewer view of the shared cache) ------------
     {
         member: 'loadedManifestIds',
         classification: 'observable',
-        notes: 'Manifest ids this viewer has finished loading (SvelteSet, declared as a plain Set — see REACTIVE_COLLECTION_MEMBERS). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady(). Added ticket 05.',
+        notes: 'Manifest ids this viewer has finished loading (SvelteSet, declared as a plain Set — see REACTIVE_COLLECTION_MEMBERS). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady().',
     },
 
     // ---- Active locale (per-viewer i18n contract) ----------------------------
     {
         member: 'activeLocale',
         classification: 'observable',
-        notes: "This viewer's active locale (BCP-47): config.locale if set, else the page default (CONTEXT.md Active locale). Observable — readable and notifying, no plugin-facing mutator; locale is controlled through config.locale. Core (the viewer root) mirrors the resolved value onto it when the config or page locale changes (like isFullScreen); all chrome renders in it and ticket 08's PluginLocaleService consumes it. Added ticket 06.",
+        notes: "This viewer's active locale (BCP-47): config.locale if set, else the page default (CONTEXT.md Active locale). Observable — readable and notifying, no plugin-facing mutator; locale is controlled through config.locale. Core (the viewer root) mirrors the resolved value onto it when the config or page locale changes (like isFullScreen); all chrome renders in it.",
     },
 
     // ---- Viewing mode / direction / paging -----------------------------------
@@ -325,19 +325,19 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'galleryPosition',
         classification: 'command',
         commands: ['setGalleryPosition'],
-        notes: 'Floating gallery position; parity command added this ticket.',
+        notes: 'Floating gallery position.',
     },
     {
         member: 'gallerySize',
         classification: 'command',
         commands: ['setGallerySize'],
-        notes: 'Floating gallery size; parity command added this ticket.',
+        notes: 'Floating gallery size.',
     },
     {
         member: 'dockSide',
         classification: 'command',
         commands: ['setDockSide'],
-        notes: 'Dock edge; setDockSide keeps the derived docked flags in sync (parity command added this ticket).',
+        notes: 'Dock edge; setDockSide keeps the derived docked flags in sync.',
     },
     {
         member: 'isGalleryDockedBottom',
@@ -376,14 +376,14 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'tileSourceError',
         classification: 'observable',
-        notes: 'Tile-source auth/load failure written by core in response to a renderer load failure; no mutator. Shape unchanged by ticket 12, meaning narrowed: per-canvas error state inside the renderer (`renderer/canvasErrors.ts`) is now the source of truth, and this is the DERIVED viewer-level view of it — raised only once every canvas laid out has failed, which in continuous mode is effectively unreachable (the layout is the whole manifest and metadata is lazy, so a canvas nobody has scrolled to has no error entry and counts as working) and in the single-canvas case is exactly right, because the chrome for it is a full cover over the renderer and raising it while a sibling folio still works would blank a working viewer mid-scroll. Deliberately NOT joined by a per-canvas member: the per-canvas record is renderer instrumentation (the host test handle’s `getCanvasErrors`), like the residency and decoded-byte counters beside it, and ticket 12 puts exposing it out of scope. No ticket currently promotes it to query-only state.',
+        notes: 'Tile-source auth/load failure written by core in response to a renderer load failure; no mutator. Per-canvas error state inside the renderer (`renderer/canvasErrors.ts`) is the source of truth, and this is the DERIVED viewer-level view of it — raised only once every canvas laid out has failed, which in continuous mode is effectively unreachable (the layout is the whole manifest and metadata is lazy, so a canvas nobody has scrolled to has no error entry and counts as working) and in the single-canvas case is exactly right, because the chrome for it is a full cover over the renderer and raising it while a sibling folio still works would blank a working viewer mid-scroll. Deliberately NOT joined by a per-canvas member: the per-canvas record is renderer instrumentation (the host test handle’s `getCanvasErrors`), like the residency and decoded-byte counters beside it, kept out of the plugin-facing surface.',
     },
 
     // ---- Viewport -------------------------------------------------------------
     {
         member: 'rendererPort',
         classification: 'internal',
-        notes: 'The mounted renderer’s command/query seam (attachRenderer). Core-internal and deliberately non-reactive: putting a renderer handle on the notification path is the pass-through this epic removes. `rendererReady` is the notifying signal.',
+        notes: 'The mounted renderer’s command/query seam (attachRenderer). Core-internal and deliberately non-reactive: putting a renderer handle on the notification path would be a pass-through. `rendererReady` is the notifying signal.',
     },
     {
         member: 'frameListeners',
@@ -556,7 +556,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'errorReporter',
         classification: 'internal',
-        notes: 'Private host reporter for the structured `viewererror` channel (ticket 18); wired by the viewer component, null in direct/test use.',
+        notes: 'Private host reporter for the structured `viewererror` channel; wired by the viewer component, null in direct/test use.',
     },
     {
         member: 'viewerElement',

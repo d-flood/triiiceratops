@@ -2,9 +2,9 @@
  * Raw IIIF Canvas JSON → the planner's canvas descriptors.
  *
  * This is the renderer's only contact with manifest shape, and it goes through
- * the existing first-party helper (`utils/resolveCanvasImage`) exactly as the
- * `remove-manifesto` baseline requires: raw v2/v3 JSON in, plain data out. No
- * adapter, accessor, or parser-owned Canvas type is reintroduced here.
+ * the existing first-party helper (`utils/resolveCanvasImage`): raw v2/v3 JSON
+ * in, plain data out. No adapter, accessor, or parser-owned Canvas type is
+ * reintroduced here.
  *
  * Geometry comes from the **manifest Canvas** `width`/`height`, never from an
  * image service: layout must cost no network requests, and manifest dimensions
@@ -43,9 +43,8 @@ const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
  * Read straight off raw IIIF JSON: `thumbnail` is spelled the same in v2 and
  * v3, may be a bare string, a resource object, or an array of either, and the
  * resource's id is `id` in v3 and `@id` in v2. There is no `getThumbnail()`
- * accessor to fall back to — the `remove-manifesto` epic removed it — and this
- * branch must not be replaced by an image-service discovery fetch merely
- * because the canvas no longer arrives wrapped.
+ * accessor to fall back to, and this branch must not be replaced by an
+ * image-service discovery fetch merely because the canvas arrives as raw JSON.
  *
  * Deliberately **not** `utils/getThumbnailSrc.resolveThumbnailResourceSrc`,
  * which is the thumbnail gallery's helper and answers a different question: it
@@ -74,9 +73,10 @@ export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
  *
  * 1. a service **plus** an Image API region is a prebuilt image request — a
  *    single static image of the cropped region (spec, user story 30);
- * 2. a service alone is a `service` source, resolved by tickets 05/06;
+ * 2. a service alone is a `service` source, resolved against the tile pyramid
+ *    or size ladder;
  * 3. otherwise the painting resource's own id is a plain static image
- *    (user story 29) — the only kind this ticket paints.
+ *    (user story 29).
  */
 function toSourceDescriptor(
     resolved: ReturnType<typeof resolveAllCanvasImages>[number],

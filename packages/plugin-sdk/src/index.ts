@@ -24,7 +24,10 @@ export { whenRendererReady } from './renderer.js';
 export type { WhenRendererReadyOptions } from './renderer.js';
 
 // Report user-driven command failures through the structured host channel.
-export { dispatchPluginCommandError } from './reportError.js';
+export {
+    createCommandErrorReporter,
+    dispatchPluginCommandError,
+} from './reportError.js';
 
 // Activation (per viewer, isolated context).
 export { activatePlugin, runActivation } from './activate.js';
@@ -42,7 +45,7 @@ export {
 } from './compatibility.js';
 export type { PluginCompatibilityReason } from './compatibility.js';
 
-// Stub services (ticket 08 supplies real, host-owned implementations).
+// Stub services; core supplies the real, host-owned implementations.
 export {
     createStubStyleService,
     createStubLocaleService,

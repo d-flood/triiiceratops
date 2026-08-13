@@ -6,8 +6,8 @@ import { expect } from '@playwright/test';
 // viewer's `plugins` prop. The journey proves the plugin end to end from a real
 // tarball install: the plugin's panel opens, a two-canvas range is selected, an
 // export runs, and the downloaded bytes are a real multi-page PDF (`%PDF` magic
-// bytes). `pdf-lib` is the plugin package's OWN runtime dependency — it left
-// core's graph (ticket 16) — so this also proves heavy-dependency isolation.
+// bytes). `pdf-lib` is the plugin package's OWN runtime dependency, outside
+// core's graph — so this also proves heavy-dependency isolation.
 
 // The plugin downloads via an `<a download>` + `URL.createObjectURL`. Capture
 // every Blob handed to `createObjectURL` (the URL is revoked immediately, but
@@ -63,7 +63,7 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // Core owns the plugin chrome (epic restore-plugin-toolbar-chrome): the
+        // Core owns the plugin chrome: the
         // toolbar button is core-rendered from the plugin's icon, and the panel
         // docks in the viewer chrome. Open the (default-closed) toolbar, then
         // click the plugin's toolbar button to dock its panel.

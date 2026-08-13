@@ -345,9 +345,9 @@ describe('published distributions ship styles + themes', () => {
         });
     });
 
-    // The Annotorious single-source CSS rule moved to
-    // `@triiiceratops/plugin-annotation-editor` with the plugin (ticket 17); its
-    // `styles.ts` now imports the Annotorious stylesheet with `?inline` and installs
-    // it through the SDK style service. Core's own "no Annotorious layer" rule
-    // (above) is what stays here.
+    // The Annotorious single-source CSS rule lives in
+    // `@triiiceratops/plugin-annotation-editor`, whose `styles.ts` imports the
+    // Annotorious stylesheet with `?inline` and installs it through the SDK
+    // style service. Core's own "no Annotorious layer" rule (above) is what
+    // stays here.
 });

@@ -57,11 +57,8 @@ function requestedImages(): Array<{ source: string; width?: number }> {
  * Wrap painting annotations in an `AnnotationPage`, the way a IIIF v3 canvas
  * carries them.
  *
- * These canvases used to be `manifesto.js`-shaped doubles — a `getContent()`
- * accessor over annotations with a `getBody()` accessor. Core's v3
- * painting-annotation enumeration is first-party as of the `remove-manifesto`
- * epic (ticket 03) and reads `canvas.items[].items[]`, so they now carry the
- * JSON the accessors used to wrap.
+ * Core's v3 painting-annotation enumeration reads `canvas.items[].items[]`
+ * directly, so these canvases carry that raw JSON shape.
  */
 function annotationPages(...annotations: unknown[]) {
     return [
@@ -331,10 +328,7 @@ describe('current world (paged mode)', () => {
         // Two half-width images side by side on an 800x1000 canvas. Each is
         // laid out from its own half-width box, so the two together span the
         // whole canvas and the world ladder comes out at the canvas's own 0.8
-        // aspect ratio rather than a single member image's 0.4. This is a
-        // regression pin on the multi-image-per-canvas case surviving the move
-        // to the shared layout function; the arithmetic is unchanged from
-        // before it.
+        // aspect ratio rather than a single member image's 0.4.
         const viewerState = createViewerState({
             canvases: [createCompositeCanvas()],
             canvasId: 'canvas-1',

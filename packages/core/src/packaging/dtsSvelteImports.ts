@@ -14,8 +14,7 @@
  * file chain that reaches it. Comments are not scanned: the graph is parsed with
  * the TypeScript AST, so prose mentioning `svelte/reactivity` is not a finding.
  *
- * TWO checks run over that graph, because the promise is PER ENTRY POINT
- * (framework-wrappers ticket 10):
+ * TWO checks run over that graph, because the promise is PER ENTRY POINT:
  *
  *   1. A whole-package check with the documented allowances below. A compiled
  *      Svelte component's declaration IS a Svelte type, and `.` deliberately
@@ -27,8 +26,8 @@
  *      `svelte*` specifiers. Check 1 cannot express this — its
  *      compiled-component allowance is keyed by FILE, so it would happily let
  *      `./react` re-export something that reaches
- *      `components/TriiiceratopsViewer.svelte.d.ts`, which is exactly the leak
- *      tickets 06 and 07 were constrained to avoid.
+ *      `components/TriiiceratopsViewer.svelte.d.ts`, a leak check 2 exists to
+ *      close.
  *
  * Run directly: `node ./src/packaging/dtsSvelteImports.ts` (Node strips the
  * types), which is how `build:lib` invokes it after `svelte-package` emits
@@ -67,10 +66,7 @@ const ALLOWED_IN_COMPONENT_DECLARATIONS: readonly string[] = [
  * scope decision, not a suppression: add one only when the Svelte type is
  * unreachable from the framework wrappers' supported surface.
  *
- * Deliberately EMPTY. `types/plugin.d.ts` used to be listed here because the
- * Svelte-only `PluginDef` chrome path typed its icons and panels as
- * `Component<any>`; framework-wrappers ticket 12 removed that path, so nothing
- * reachable from `ViewerState` needs Svelte types any more.
+ * Deliberately EMPTY: nothing reachable from `ViewerState` needs Svelte types.
  */
 export const ALLOWED_SVELTE_IMPORTS_BY_FILE: ReadonlyMap<
     string,
@@ -86,15 +82,15 @@ export const ALLOWED_SVELTE_IMPORTS_BY_FILE: ReadonlyMap<
  * `TriiiceratopsViewer` component, whose declaration is
  * `import("svelte").Component<…>`.
  *
- * `.` USED TO BE that entry, and was exempt here for exactly that reason. It no
- * longer is. TypeScript resolves the single `types` condition regardless of the
- * `svelte` condition, so while the component hung off `.`, a Svelte-free
- * consumer type-checking `import type { ViewerState } from 'triiiceratops'`
- * under `skipLibCheck: false` got an error from a file it never asked for — and
- * `@triiiceratops/plugin-sdk`'s react/vue entries import that very type from
- * this entry, so the breakage reached framework consumers transitively. Moving
- * the component to `./svelte` made `.` framework-neutral, and `.` is now held to
- * the same strict rule as everything else.
+ * `.` must NOT export the compiled component, because TypeScript resolves the
+ * single `types` condition regardless of the `svelte` condition: if the
+ * component hung off `.`, a Svelte-free consumer type-checking
+ * `import type { ViewerState } from 'triiiceratops'` under
+ * `skipLibCheck: false` would get an error from a file it never asked for —
+ * and `@triiiceratops/plugin-sdk`'s react/vue entries import that very type
+ * from this entry, so the breakage would reach framework consumers
+ * transitively. Keeping the component under `./svelte` keeps `.`
+ * framework-neutral.
  *
  * Every OTHER subpath — the framework wrappers and `.` included — must be
  * strictly Svelte-free, and a subpath added later is strict by default.

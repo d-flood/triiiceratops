@@ -1,6 +1,6 @@
 /**
- * The image-manipulation filter controller — the plugin's **Activation-scoped**
- * filter state (epic restore-plugin-toolbar-chrome, ticket 03).
+ * The image-manipulation filter controller — the plugin's Activation-scoped
+ * filter state.
  *
  * A fresh controller is created once per activation, inside `view.mount`, so its
  * state is per-viewer (never module scope — ADR 0007 isolation) and lives ABOVE
@@ -10,18 +10,16 @@
  * closed.
  *
  * Filters are applied through `viewerState.setImageAdjustments`, a first-party
- * command. This plugin used to reach through the renderer pass-through for the
- * drawer's DOM node and write a CSS filter string onto it; the command replaces
- * that outright (SPEC.md §Public API). Three consequences worth stating,
- * because they are why the command exists rather than being a rename:
+ * command (SPEC.md §Public API), rather than by writing a CSS filter string
+ * directly onto a renderer DOM node:
  *
  * - **No readiness gate.** The adjustment set lives in viewer state and is
  *   replayed onto a renderer that mounts later, so there is nothing to wait for
- *   and no dangling readiness subscription to abort. The whole `whenOsdReady`
- *   dance, and the selector that re-applied on a viewer swap, are gone.
+ *   and no dangling readiness subscription to abort.
  * - **No DOM node is handed out**, so the plugin cannot hold a stale one across
  *   a canvas change that reopens the world.
- * - **It survives a renderer change**, which is the point of the epic.
+ * - **It survives a renderer change**, since the plugin never touches the
+ *   renderer's DOM directly.
  */
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';

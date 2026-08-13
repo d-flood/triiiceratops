@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-// Plugin distribution-cleanup regression guard (ticket 28).
+// Plugin distribution-cleanup regression guard.
 //
 // Extends the core guard (`packages/core/src/lib/logging/distribution-cleanup
 // .guard.test.ts`) to the extracted plugin packages: production distributions

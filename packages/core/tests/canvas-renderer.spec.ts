@@ -38,7 +38,7 @@ const HOLD_STILL_MS = VELOCITY_WINDOW_MS * 2;
 
 test.skip(
     ({ browserName }) => browserName !== 'chromium',
-    'Canvas2D renderer slice is Chromium-only until it has tiles (ticket 05).',
+    'Canvas2D renderer slice is Chromium-only until it has tiles.',
 );
 
 /**
@@ -199,7 +199,7 @@ test.describe('Canvas2D renderer — static image', () => {
 
         // Held still before releasing, so this asserts the DRAG and nothing
         // else. Releasing straight from a fast move is a flick and carries
-        // momentum by design (ticket 10) — a different behaviour, asserted
+        // momentum by design — a different behaviour, asserted
         // separately in `canvas-renderer-input.spec.ts`.
         await page.waitForTimeout(HOLD_STILL_MS);
         await page.mouse.up();

@@ -1,10 +1,10 @@
 /**
- * Root-aware plugin style service (ticket 08).
+ * Root-aware plugin style service.
  *
  * Installs a plugin's global CSS into the owning viewer's style root — the
  * `Document` for a light-DOM Svelte viewer, the shadow root for the Web
  * Component (SPEC.md "Plugin SDK And Browser API"; CONTEXT.md **Active locale**
- * is the sibling per-viewer contract). Behavior required by the ticket:
+ * is the sibling per-viewer contract). Required behavior:
  *
  * - **Package-qualified keys.** Each install is keyed `<pluginName>:<id>`, so
  *   two plugins can use the same local `id` without colliding.
@@ -46,7 +46,7 @@ function discoverNonce(doc: Document): string | undefined {
 
 /**
  * Whether the host has explicitly opted into nonce-governed styles by publishing
- * a `<meta property="csp-nonce">` element (ticket 24). This is the "style nonce
+ * a `<meta property="csp-nonce">` element. This is the "style nonce
  * where required" signal from the SPEC: a host running a nonce-based
  * `style-src 'self' 'nonce-…'` (without `unsafe-inline`) advertises its nonce so
  * the service takes the nonce-aware `<style>` fallback — a nonce cannot be

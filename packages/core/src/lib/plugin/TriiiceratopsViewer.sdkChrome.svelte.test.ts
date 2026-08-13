@@ -1,5 +1,5 @@
 // Core viewer × SDK-plugin CONTRACT test — the primary seam for the
-// core-owned-chrome path (epic restore-plugin-toolbar-chrome, ticket 02).
+// core-owned-chrome path.
 //
 // Mounts the REAL viewer chrome with a TEST-DOUBLE SDK plugin (`definePlugin`)
 // and asserts external behavior only:
@@ -14,7 +14,7 @@
 // Lifecycle note: core mounts the plugin's content-only element once per
 // Activation and places it into the open surface (removing it on close); the
 // mount cleanup runs on deactivation. Per-viewer Activation state therefore
-// survives close→reopen (required by the image-manipulation Flyout, ticket 03).
+// survives close→reopen (required by the image-manipulation Flyout).
 
 import { mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -534,7 +534,7 @@ describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
     });
 });
 
-// Chrome DISPLAY COPY for SDK plugins (issue 2). `SdkPluginMeta.name` is the
+// Chrome DISPLAY COPY for SDK plugins. `SdkPluginMeta.name` is the
 // package-qualified IDENTITY (registry key, style namespace, `data-plugin-name`)
 // and must never be the label a user reads. `definePlugin({ title })` supplies
 // the label, resolved through the PLUGIN's own catalog in the viewer's active

@@ -1,6 +1,6 @@
 /**
- * The geometric assertion harness — the epic's hard correctness gate (spec
- * §Testing Decisions, "Geometric assertions").
+ * The geometric assertion harness (spec §Testing Decisions, "Geometric
+ * assertions").
  *
  * It answers one question: **did the pixels land where the coordinate model
  * says they should?** A named feature of the numbered-grid fixture is located
@@ -27,7 +27,7 @@ export const GRID_MANIFEST = '/demo-manifests/static-image/manifest.json';
  * with a real tile pyramid (see `scripts/iiifFixturePlugin.mjs`).
  *
  * Deliberately the same picture as the static fixture, so every geometric
- * expectation written for ticket 04 carries over to deep zoom unchanged — a
+ * expectation carries over to deep zoom unchanged — a
  * tile-seam or level-selection regression shows up as a feature landing in the
  * wrong place, not as a new set of numbers to maintain.
  */
@@ -295,8 +295,8 @@ export async function openRendererManifest(
      * than the others, and not for a renderer reason: the viewer chrome — the
      * canvas list, the thumbnail gallery, the label lookups — walks every
      * canvas in the manifest, and on the dev server it does it through Svelte's
-     * deep `$state` proxies. What this epic bounds is the renderer's network
-     * and memory, and those are asserted by counters rather than by this wait.
+     * deep `$state` proxies. The renderer's network and memory behavior is
+     * asserted by counters elsewhere, not by this wait.
      */
     timeout = 20_000,
 ): Promise<void> {
@@ -434,7 +434,7 @@ export async function getView(page: Page): Promise<RendererView> {
  *
  * Reaching a zoom level by synthesizing wheel events would make the assertion
  * depend on the animation's settling, which is a different property tested
- * separately. Ticket 13 replaces this handle with real viewport command state.
+ * separately.
  */
 export async function setView(
     page: Page,

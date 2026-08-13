@@ -1,5 +1,5 @@
 /**
- * The test viewer context (ticket 14).
+ * The test viewer context.
  *
  * `createTestViewerContext` assembles a REAL, compiled `ViewerState` (from
  * `triiiceratops/testing`) with RECORDING DOUBLES for the style, UI, and locale
@@ -10,7 +10,7 @@
  * host-owned services and the renderer are stand-ins.
  *
  * The doubles only RECORD calls; they need not implement teardown. `runActivation`
- * (ticket 08) auto-tracks every `styles.install` and `locale.subscribe` an
+ * auto-tracks every `styles.install` and `locale.subscribe` an
  * activation performs and releases them on deactivation, so a recording double is
  * free to be a pure log.
  */

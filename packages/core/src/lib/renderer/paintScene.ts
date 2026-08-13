@@ -56,9 +56,9 @@ export interface PaintSources {
  * the viewport is measured in CSS pixels, and folding the ratio into the
  * transform is what keeps every other coordinate in this file CSS-pixel-based.
  *
- * Exported because the **paint hook** (ticket 14) must receive exactly the
- * transform the tiles were drawn with — a plugin overlay can then never desync
- * from the image.
+ * Exported because the **paint hook** must receive exactly the transform the
+ * tiles were drawn with — a plugin overlay can then never desync from the
+ * image.
  */
 export function applyViewportTransform(
     ctx: CanvasRenderingContext2D,
@@ -251,6 +251,6 @@ export function paintScene(
     }
 
     // Left in the viewport transform whatever was painted: the **paint hook**
-    // (ticket 14) must receive exactly the transform the tiles were drawn with.
+    // must receive exactly the transform the tiles were drawn with.
     applyViewportTransform(ctx, viewport, dpr);
 }

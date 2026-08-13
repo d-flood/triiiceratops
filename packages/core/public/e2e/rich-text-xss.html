@@ -22,6 +22,8 @@
             Loaded from SOURCE through the dev server (like search-xss.html) so
             the spec needs no build step.
         -->
+        <!-- Dev-only: installs the renderer e2e handle (see src/devtools). -->
+        <script type="module" src="/src/devtools/register.ts"></script>
         <script type="module" src="/src/lib/custom-element.ts"></script>
         <script>
             // Anything the payloads manage to execute lands here. It must stay

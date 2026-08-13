@@ -22,8 +22,7 @@
  *    This fetch is bounded by the tier: only thumbnail-tier canvases ask, only
  *    when the view is stable, and only through the same concurrency cap as the
  *    thumbnails themselves. That bound is the whole difference between this and
- *    the fetch storm the epic exists to remove — the storm was fetching all N
- *    regardless of tier.
+ *    a fetch storm that fetches all N regardless of tier.
  * 4. **The advertised-scale-factor whole images** for a level0 service that
  *    tiles, through the same rung selection.
  * 5. **Failing all of that, nothing.** The canvas stays in the **box tier**,
@@ -54,8 +53,8 @@
  * taken is `sizeLadder.chooseRung` — the same `minPixelRatio` walk the pyramid
  * uses, which at 0.5 may be as narrow as half the width needed. Deliberately
  * the same rule rather than "the nearest advertised image at or above what is
- * needed" (TRACKER, knowing deviation for ticket 06): one sharpness budget
- * governs both source kinds, and it is how the previous renderer chose.
+ * needed": one sharpness budget governs both source kinds, and it is how the
+ * previous renderer chose.
  *
  * The quantized rung is what that walk is asked about, not the raw projection,
  * so the URL stays stable across a zoom while the selection rule stays shared.
@@ -84,8 +83,8 @@ import type { ImageServiceFacts, SourceDescriptor } from './types';
  * point of a ladder is that a continuous zoom produces a handful of distinct
  * URLs rather than one per frame, and every extra rung is another cache miss.
  *
- * Stated by the ticket's contract rather than tuned, which is why it lives here
- * beside the rule that reads it rather than among the provisional budgets in
+ * A fixed contract rather than a tunable, which is why it lives here beside
+ * the rule that reads it rather than among the provisional budgets in
  * `rendererDefaults`.
  */
 export const THUMBNAIL_RUNGS: readonly number[] = [32, 64, 128, 256, 512];
@@ -117,9 +116,9 @@ export const THUMBNAIL_BASE_RUNG = THUMBNAIL_RUNGS[0];
  * fill. The band is narrow — it ends at the pyramid tier, which is a page or
  * two either side of the viewport centre and gets real tiles — and a sixth rung
  * would cost every canvas in it a fresh cache-missing URL for a sharpness
- * nobody is looking at yet. The ladder is the ticket's stated contract
- * (32/64/128/256/512), so this trades the last half-step of sharpness at the
- * top of the tier for a ladder that stays short.
+ * nobody is looking at yet. The ladder's fixed contract (32/64/128/256/512)
+ * trades the last half-step of sharpness at the top of the tier for a ladder
+ * that stays short.
  */
 export function quantizeRung(
     projectedWidth: number,
@@ -222,9 +221,9 @@ function constructedUrl(
  *
  * Carries the same `native` fallback a size-ladder rung does, for the same
  * reason: the renderer asks every version 2 service for `default`, which is
- * right for every endpoint built since 2016 and wrong for a frozen static tree
- * (TRACKER, knowing deviation for ticket 06). One wasted request per broken
- * service buys the answer for the whole service.
+ * right for every endpoint built since 2016 and wrong for a frozen static tree.
+ * A deliberate deviation: one wasted request per broken service buys the
+ * answer for the whole service.
  */
 function fromConstruction(
     serviceId: string,

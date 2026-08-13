@@ -5,8 +5,8 @@
  * This is a two-pass pipeline, not a minifier swap, and the ordering is the
  * whole point. Setting `build.minify: 'terser'` replaces esbuild's minifier
  * rather than following it, and measures 4,646 gzip bytes WORSE than running
- * terser over what esbuild already produced. Both orderings were measured; see
- * the epic spec. So the configs keep `build.minify: true` and register this
+ * terser over what esbuild already produced. So the configs keep
+ * `build.minify: true` and register this
  * plugin, which minifies each rendered chunk a second time.
  *
  * The options are fixed by the same measurements:

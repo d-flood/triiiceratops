@@ -1,6 +1,5 @@
 /**
- * Image-manipulation filter behavior units (epic restore-plugin-toolbar-chrome,
- * ticket 03).
+ * Image-manipulation filter behavior units.
  *
  * These drive the plugin's real Flyout content through the SDK Test viewer
  * context (a real `ViewerState` with recording-double services), mounting via
@@ -16,10 +15,9 @@
  *     viewer;
  *   - the plugin declares `dismiss: 'explicit'` and the core-chrome routing flag.
  *
- * Asserted on `viewerState.imageAdjustments`, not on a DOM node's inline style.
- * That is the point of the command replacing the renderer's DOM node: the
- * adjustment is observable state, so this suite no longer needs a renderer at
- * all — and what it asserts is now true whichever renderer is mounted.
+ * Asserted on `viewerState.imageAdjustments`, not a DOM node's inline style:
+ * the adjustment is observable state, so this suite needs no renderer at all
+ * — what it asserts holds regardless of which renderer is mounted.
  */
 
 import {

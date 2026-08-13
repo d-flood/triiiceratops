@@ -8,16 +8,12 @@ import {
     fetchExportImageBlob,
     fetchImageBlob,
     getResolvedImageExportUrl,
+    isCrossOriginImageFailure,
     resolveExportSizeOptions,
+    sanitizeFilenamePart,
 } from './imageExport';
 import { installCanvasCompositingMocks } from '../test/utils/mockCanvasCompositing';
 
-/**
- * These were `manifesto.js`-shaped doubles — a `getContent()` accessor over
- * annotations with a `getBody()` accessor. IIIF v3 painting-annotation
- * enumeration is first-party as of the `remove-manifesto` epic (ticket 03) and
- * reads `canvas.items[].items[]`, so they now carry the JSON directly.
- */
 function createLevel1Canvas() {
     return {
         id: 'canvas-1',
@@ -128,6 +124,52 @@ describe('composeImages', () => {
             200,
         );
         expect(blob.type).toBe('image/jpeg');
+    });
+});
+
+describe('isCrossOriginImageFailure', () => {
+    it('recognises each engine"s fetch wording', () => {
+        for (const message of [
+            'Failed to fetch',
+            'NetworkError when attempting to fetch resource.',
+            'Load failed',
+            'cross-origin request blocked',
+            'CORS policy',
+        ]) {
+            expect(isCrossOriginImageFailure(new TypeError(message))).toBe(
+                true,
+            );
+        }
+    });
+
+    it('recognises the canvas taint a blocked read produces', () => {
+        // The case a plugin-local copy of this rule missed, reporting a taint
+        // as a generic failure with no proxy hint.
+        expect(
+            isCrossOriginImageFailure(
+                new DOMException('Tainted canvas', 'SecurityError'),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not swallow ordinary programming mistakes', () => {
+        expect(
+            isCrossOriginImageFailure(new TypeError('x is not a function')),
+        ).toBe(false);
+        expect(isCrossOriginImageFailure(new Error('Failed to fetch'))).toBe(
+            false,
+        );
+        expect(isCrossOriginImageFailure(undefined)).toBe(false);
+    });
+});
+
+describe('sanitizeFilenamePart', () => {
+    it('reduces a label to filesystem-safe segments', () => {
+        expect(sanitizeFilenamePart('Codex Sinaiticus, f. 12r')).toBe(
+            'Codex-Sinaiticus-f-12r',
+        );
+        expect(sanitizeFilenamePart('--a--b--')).toBe('a-b');
+        expect(sanitizeFilenamePart('///')).toBe('');
     });
 });
 

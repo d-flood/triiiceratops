@@ -1,7 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Ticket 24 — browser matrix expansion.
-//
 // Desktop projects (chromium, firefox, webkit) run the core journeys; mobile
 // projects (android-chrome, mobile-webkit) run only the mobile journey set,
 // selected with the `@mobile` tag. Desktop projects run every spec (the mobile
@@ -9,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 // to `@mobile` via `grep`. Browser-specific skips are expressed inline in the
 // specs with a reason (e.g. `test.skip(({ browserName }) => …, 'reason')`).
 //
-// The accessibility suite (ticket 23) pins itself to Chromium at the spec level
+// The accessibility suite pins itself to Chromium at the spec level
 // (`browserName !== 'chromium'` skips), so it is unaffected by the wider desktop
 // matrix here.
 export default defineConfig({

@@ -24,6 +24,7 @@
         provideActiveLocale,
     } from '../state/i18n.svelte';
     import { watchReducedMotion } from '../state/reducedMotion';
+    import { FOCUS_MEMORY_KEY, createFocusMemory } from '../utils/focusMemory';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
@@ -90,7 +91,6 @@
     import ViewerControls from './ViewerControls.svelte';
     import { Spinner } from './ui';
 
-    // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
 
     /**
@@ -237,10 +237,8 @@
     // onto ViewerState.activeLocale as observable state.
     let viewerLocale = $derived(config.locale ?? language.current);
 
-    // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
 
-    // Reactively apply theme when element is available or theme/themeConfig changes
     $effect(() => {
         if (rootElement) {
             applyTheme(rootElement, theme, themeConfig);
@@ -248,7 +246,17 @@
         }
     });
 
-    // Create per-instance viewer state
+    // One memory per viewer, torn down with it: a control this viewer's chrome
+    // destroyed must never be something ANOTHER viewer on the page acts on, and
+    // the remembered node is usually detached, so holding it past unmount would
+    // pin the whole torn-down subtree.
+    const focusMemory = createFocusMemory();
+    setContext(FOCUS_MEMORY_KEY, focusMemory);
+    $effect(() => {
+        if (rootElement) focusMemory.attach(rootElement);
+    });
+    onDestroy(() => focusMemory.destroy());
+
     // Note: We pass empty initial values and use $effect blocks below to set
     // manifestId, canvasId, and plugins reactively, avoiding Svelte's
     // "state_referenced_locally" warning about capturing initial prop values.
@@ -432,7 +440,6 @@
                 ) {
                     return;
                 }
-                // Only apply if different from current internal state
                 if (canvasId !== internalViewerState.canvasId) {
                     internalViewerState.setCanvas(canvasId);
                 }
@@ -945,6 +952,10 @@
             iconDescriptor: panel.iconDescriptor,
             component: PluginMountHost,
             props: { mount: panel.mount },
+            // A plugin author cannot reach the section element, so core names
+            // the panel here — the same `dialog` role a core panel component
+            // renders for itself.
+            dialog: true,
             close: showPanelCloseButton(
                 internalViewerState.config.plugins?.[panel.pluginId]
                     ?.showCloseButton,
@@ -1252,7 +1263,6 @@
     let canvases = $derived(internalViewerState.canvases);
     let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
 
-    // Effect to trigger deferred search once manifest is loaded
     $effect(() => {
         if (
             internalViewerState.pendingSearchQuery &&
@@ -1385,7 +1395,6 @@
         </div>
     {/if}
 
-    <!-- Left Column -->
     {#if isLeftSidebarVisible}
         <div
             class="side-col side-col-left"
@@ -1405,7 +1414,6 @@
                 </div>
             {/if}
 
-            <!-- Gallery (when docked left) -->
             {#if galleryDocked && internalViewerState.dockSide === 'left'}
                 <div
                     class="gallery-host"
@@ -1418,9 +1426,7 @@
         </div>
     {/if}
 
-    <!-- Center Column -->
     <div id="triiiceratops-center-panel" class="center-col">
-        <!-- Top Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
             <div
                 class="gallery-band"
@@ -1430,7 +1436,6 @@
             </div>
         {/if}
 
-        <!-- Main Viewer Area -->
         <div
             class="viewer-area"
             class:opaque={!internalViewerState.config.transparentBackground}
@@ -1598,7 +1603,6 @@
                 <Toolbar />
             {/if}
 
-            <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'overlay'}
                     <div class="plugin-overlay">
@@ -1609,7 +1613,6 @@
                 {/if}
             {/each}
 
-            <!-- Viewer Controls (Canvas Navigation + Zoom + IIIF Choice Selector) -->
             <ViewerControls />
 
             {#if internalViewerState.config.enableDragDrop && isDragOver}
@@ -1626,7 +1629,6 @@
             {/if}
         </div>
 
-        <!-- Bottom Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
             <div
                 class="gallery-band"
@@ -1636,7 +1638,6 @@
             </div>
         {/if}
 
-        <!-- Bottom Area (Plugin Panels) -->
         {#each internalViewerState.pluginPanels as panel (panel.id)}
             {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'bottom'}
                 <div class="plugin-bottom">
@@ -1664,7 +1665,6 @@
         {/if}
     </div>
 
-    <!-- Right Column -->
     {#if isRightSidebarVisible}
         <div
             class="side-col side-col-right"
@@ -1684,7 +1684,6 @@
                 </div>
             {/if}
 
-            <!-- Gallery (when docked right) -->
             {#if galleryDocked && internalViewerState.dockSide === 'right'}
                 <div
                     class="gallery-host"

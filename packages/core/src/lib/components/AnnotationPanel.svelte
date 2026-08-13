@@ -6,6 +6,7 @@
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
     import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
+    import { getAnnotationId } from '../utils/iiifIds';
     import { isSafeUrl } from '../utils/sanitizeHtml';
     import { Button, Badge } from './ui';
 
@@ -37,11 +38,6 @@
         }).flatMap((entry) => entry.annotations),
     );
 
-    // Helper to get ID from a raw JSON annotation — `id` in v3, `@id` in v2.
-    function getAnnotationId(anno: any): string {
-        return anno.id || anno['@id'] || '';
-    }
-
     let renderedAnnotations = $derived.by(() => {
         if (!annotations.length) return [];
 
@@ -61,7 +57,6 @@
         renderedAnnotations.filter((anno) => !anno.isSearchHit),
     );
 
-    // Derived state for "All Visible" status
     let isAllVisible = $derived.by(() => {
         if (toggleableAnnotations.length === 0) return false;
         return toggleableAnnotations.every((anno) => {
@@ -74,12 +69,10 @@
             return;
         }
 
-        viewerState.annotationVisibilityTouched = true;
-        if (viewerState.visibleAnnotationIds.has(anno.id)) {
-            viewerState.visibleAnnotationIds.delete(anno.id);
-        } else {
-            viewerState.visibleAnnotationIds.add(anno.id);
-        }
+        viewerState.setAnnotationVisible(
+            anno.id,
+            !viewerState.visibleAnnotationIds.has(anno.id),
+        );
     }
 
     /**
@@ -149,17 +142,7 @@
     let listEl: HTMLElement | undefined = $state();
 
     function toggleAllAnnotations() {
-        viewerState.annotationVisibilityTouched = true;
-        if (isAllVisible) {
-            // Hide all
-            viewerState.visibleAnnotationIds.clear();
-        } else {
-            // Show all
-            viewerState.visibleAnnotationIds.clear();
-            toggleableAnnotations.forEach((anno) => {
-                if (anno.id) viewerState.visibleAnnotationIds.add(anno.id);
-            });
-        }
+        viewerState.setAllAnnotationsVisible(!isAllVisible);
     }
 </script>
 
@@ -232,9 +215,9 @@
                     data-annotation-row={anno.id}
                     id="annotation-list-item-{anno.id}"
                     onmouseenter={() =>
-                        (viewerState.hoveredAnnotationId = anno.id)}
+                        viewerState.setHoveredAnnotationId(anno.id)}
                     onmouseleave={() =>
-                        (viewerState.hoveredAnnotationId = null)}
+                        viewerState.setHoveredAnnotationId(null)}
                     onclick={(e) => {
                         if (shouldIgnoreRowActivation(e.target)) {
                             return;

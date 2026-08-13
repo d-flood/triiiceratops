@@ -1,4 +1,4 @@
-// Plugin UI service (icon rendering) tests (ticket 08).
+// Plugin UI service (icon rendering) tests.
 //
 // Core owns the <svg> wrapper: it renders the descriptor's inner markup with
 // core-chosen dimensions, currentColor fill, focusability, and aria-hidden, and

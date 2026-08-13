@@ -72,22 +72,6 @@ describe('annotationAdapter', () => {
             }
         });
 
-        /**
-         * A test named "should handle Manifesto-style getTarget and getId
-         * methods" stood here. It built an annotation double carrying `getId`,
-         * `getTarget` and `getBody` accessors and pinned the three
-         * `manifesto.js`-shaped branches of `annotationAdapter.ts` that read
-         * them. Nothing in the product ever hands those branches such an
-         * object: every annotation reaching `parseAnnotation` comes from
-         * `ManifestsState.manualGetAnnotations`, from a content-search
-         * response, or from a plugin — raw JSON in all three cases. The test
-         * asserted on the abstraction the `remove-manifesto` epic removes and
-         * could not survive it, so it was dropped rather than migrated
-         * (ticket 08). Ticket 10 deleted those branches; `extractBody` below
-         * covers what replaced them, since this module is public API through
-         * `triiiceratops/image-export`.
-         */
-
         it('should return null for invalid annotations with no geometry', () => {
             const invalidAnno = {
                 '@id': 'bad-anno',
@@ -422,10 +406,7 @@ describe('annotationAdapter', () => {
 
     /**
      * `extractBody` is exported, and reaches consumers through
-     * `triiiceratops/image-export`. Its `manifesto.js` half — an
-     * `if (typeof annotation.getBody === 'function')` whose `else` held the
-     * raw-JSON reads — was deleted in ticket 10, which promoted that `else`
-     * to the whole function. These pin what a real annotation now produces.
+     * `triiiceratops/image-export`. These pin what a real annotation produces.
      */
     describe('extractBody', () => {
         it('reads a IIIF v3 `body`', () => {

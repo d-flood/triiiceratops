@@ -11,7 +11,7 @@ import {
     STATE_INVENTORY,
     type StateInventoryEntry,
 } from './state-inventory';
-import { NOTIFYING_MEMBERS } from './notifying-members';
+import { NOTIFYING_MEMBERS } from '../generated/notifyingMembers';
 
 vi.mock('./manifests.svelte', () => ({
     manifestsState: {
@@ -279,12 +279,11 @@ describe('ViewerState state inventory', () => {
     });
 
     // The runtime no longer imports the inventory: `ViewerState.WATCHED_MEMBERS`
-    // reads the checked-in `NOTIFYING_MEMBERS` list so the inventory's review
-    // prose stays out of the shipped bundle. That makes drift possible for the
-    // first time, so it is asserted here — including order, because the two are
-    // meant to be the same derivation, not merely the same set. Reclassifying a
-    // member, adding one, or editing either file alone turns this red.
-    it('keeps the checked-in notifying-member list equal to the inventory derivation', () => {
+    // reads the GENERATED `NOTIFYING_MEMBERS` list so the inventory's review
+    // prose stays out of the shipped bundle. The generator is the only writer,
+    // so this now guards the generated file being STALE — regenerating is part
+    // of build/check/test, and a checkout that skipped it turns this red.
+    it('keeps the generated notifying-member list equal to the inventory derivation', () => {
         const derived = STATE_INVENTORY.filter(
             (entry) =>
                 entry.classification === 'command' ||

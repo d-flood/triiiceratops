@@ -5,7 +5,7 @@
 // whose docs still type-check. `buildScript: 'check'` runs `tsc --noEmit`; a
 // non-zero exit (a broken import path or a wrong public-API/plugin-config shape in
 // the docs) fails the fixture. No browser step — this is a pure type-check seam
-// that proves published guidance matches what users can install (ticket 26).
+// that proves published guidance matches what users can install.
 export default {
     name: 'docs-examples',
     tarballs: [

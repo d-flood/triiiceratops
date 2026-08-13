@@ -1,7 +1,7 @@
 /**
  * Guard the PUBLISHED `triiiceratops/react` and `triiiceratops/vue` artifacts.
  *
- * The epic's central promise is that a React or Vue application installs
+ * The central promise is that a React or Vue application installs
  * `triiiceratops` and its own framework, and NOTHING else — no `svelte`, no
  * `@sveltejs/*`, and not the other framework either. That promise is about the
  * built artifacts, not the source, and it is PER ENTRY POINT: core's `.` entry
@@ -22,7 +22,7 @@
  *      also why this runs at the end of `build:element` rather than `build:lib`:
  *      `svelte-package` clears `dist/`, and a `build:lib` that is not followed
  *      by `build:element` leaves a published tree whose wrappers fail at first
- *      mount (framework-wrappers ticket 05, `check-element-artifact.mjs`).
+ *      mount (see `check-element-artifact.mjs`).
  *   3. A relative import that resolves to nothing is a failure, not a silently
  *      short walk.
  *

@@ -1005,8 +1005,8 @@ export type { TriiiceratopsViewerElement };
  * modules share some symbol names (`getCanvasId`, `PositionedTileSource`), which
  * a wildcard would make ambiguous.
  */
-export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
-export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchExportImageBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, isLevel0ImageService, resolveExportSizeOptions, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
+export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, getDeclaredCanvasDimensions, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
+export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchExportImageBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, isCrossOriginImageFailure, isLevel0ImageService, loadImageElement, resolveExportSizeOptions, sanitizeFilenamePart, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
 export { DEFAULT_POINT_RADIUS, resolvePointRadius, type PointStyle, } from './utils/pointMarker';
 export { getCanvasDisplayLayouts } from './components/canvasLayout';
@@ -3556,43 +3556,6 @@ export declare class ViewerState {
     get currentCanvasSearchAnnotations(): any[];
     search(query: string): Promise<void>;
     private _performSearch;
-    /**
-     * Discover a IIIF Content Search service from raw manifest JSON.
-     *
-     * Reads `service` and `services` — either may be a bare object rather than
-     * an array — and matches search v0, v1 and v2 on `profile` or
-     * `type`/`@type`. The same JSON serves IIIF Presentation 2.x (`@type`,
-     * `@id`) and 3.0 (`type`, `id`). v2 is preferred when several are present.
-     *
-     * Total: every access is guarded, so no manifest shape makes this throw.
-     */
-    private discoverSearchService;
-    /**
-     * The display label for a canvas in a search-result group.
-     *
-     * Delegates to the shared helper rather than repeating the chain. The
-     * private copy this replaced read `getLabel()` first and, failing that,
-     * only a string or a `[{value}]` array — so a raw IIIF v3 canvas, whose
-     * `label` is a language map, fell through to "Canvas N" once canvases
-     * stopped being library objects.
-     */
-    private resolveCanvasLabel;
-    /** Ensure a canvas group exists in the map and return it */
-    private getOrCreateCanvasGroup;
-    private getSearchCanvasIndexes;
-    private resolveSearchTargets;
-    /**
-     * Parse a IIIF Content Search API v0/v1 response.
-     * Handles both "hits" format (with before/match/after) and "resources"-only format.
-     */
-    private parseLegacySearchResponse;
-    /**
-     * Parse a IIIF Content Search API v2 response.
-     * v2 returns an AnnotationPage with `items` (W3C Annotations) and optional
-     * `annotations` containing contextualizing/highlighting info via TextQuoteSelector.
-     */
-    private parseV2SearchResponse;
-    private buildSearchAnnotations;
     /** Set (or clear, with null) the currently hovered annotation id. */
     setHoveredAnnotationId(annotationId: string | null): void;
     /**
@@ -3608,8 +3571,14 @@ export declare class ViewerState {
      */
     setAnnotationVisible(annotationId: string, visible: boolean): void;
     /**
-     * Show or hide every annotation on the active canvas at once, marking
-     * visibility as user-touched. Mirrors the annotation panel's "toggle all".
+     * Show or hide every toggleable annotation at once, marking visibility as
+     * user-touched. The annotation panel's "toggle all".
+     *
+     * The set is every annotation the reader is looking at — one canvas in
+     * `individuals`, the whole spread in `paged`, the folios the viewport meets
+     * in `continuous` — minus search hits, which are always drawn and never
+     * toggled. Reading only the current canvas, as this once did, left a facing
+     * page's annotations untouched by a control that says "all".
      */
     setAllAnnotationsVisible(visible: boolean): void;
     /**
@@ -3800,12 +3769,12 @@ export declare class ViewerState {
      * Inventoried members whose changes wake subscribers: `command` and
      * `observable` members notify; `internal` and `query-only` members never do.
      *
-     * The list is checked in as `notifying-members.ts` rather than derived from
-     * `state-inventory.ts` here, because that derivation pulled the inventory's
+     * The list is GENERATED from `state-inventory.ts` at build time rather than
+     * derived from it here, because that derivation pulled the inventory's
      * review prose — classifications, mutator lists, and 72 explanatory notes —
-     * into the shipped bundle for the sake of 47 strings. `state-inventory.test.ts`
-     * recomputes the derivation and fails if the two ever disagree, so the
-     * watcher and the inventory still cannot drift.
+     * into the shipped bundle for the sake of ~49 strings. Generating it means
+     * the inventory is the single source: adding or reclassifying a member is
+     * one edit, and drift is not expressible rather than merely tested for.
      */
     private static readonly WATCHED_MEMBERS;
     /**
@@ -5831,6 +5800,14 @@ export declare function isFullCanvasAnnotation(annotation: any): boolean;
  * Extract xywh from annotation target (multiple formats)
  */
 /**
+ * The text of one annotation body or resource.
+ *
+ * IIIF spells it three ways — v2 `chars`, v3 `value`, and the `cnt:` prefixed
+ * form some v2 publishers emit. Every reader of body text goes through here so
+ * a manifest cannot render in one panel and come back empty in another.
+ */
+export declare function bodyText(resource: unknown): string;
+/**
  * Extract annotation body content (text, label, etc)
  */
 export declare function extractBody(annotation: any): {
@@ -6176,6 +6153,35 @@ export declare function getCompositeImagePlacement(image: ResolvedCanvasImage, c
 };
 export declare function downloadBlob(blob: Blob, filename: string): void;
 export declare function fetchImageBlob(url: string, requestInit?: RequestInit): Promise<Blob>;
+/**
+ * Whether a failed export was the image server refusing this page permission to
+ * read its images, rather than anything the viewer did wrong.
+ *
+ * Worth telling apart because the two need opposite responses. A 404 or a
+ * malformed manifest is a defect somebody can fix; this is a deliberate policy
+ * decision by whoever runs the image server, and the only honest thing a viewer
+ * can do is say so and stop. There is no retry, and no workaround that would not
+ * be a circumvention.
+ *
+ * The distinction is invisible to script by design: a browser reports a blocked
+ * cross-origin read as an opaque network failure precisely so a page cannot
+ * learn anything from it. So this recognises the *shapes* browsers use — a
+ * `TypeError` from `fetch` in each engine's wording, and the `SecurityError` a
+ * canvas raises when asked to hand back pixels drawn from an image it was not
+ * allowed to read.
+ *
+ * One reader for every export path: a plugin that matched only the `fetch`
+ * shapes reported a canvas taint as a generic failure and offered no proxy hint.
+ */
+export declare function isCrossOriginImageFailure(error: unknown): boolean;
+/**
+ * One segment of a download filename, reduced to what every filesystem accepts.
+ */
+export declare function sanitizeFilenamePart(value: string): string;
+/**
+ * Decode a blob into an `<img>`, revoking the object URL either way.
+ */
+export declare function loadImageElement(blob: Blob): Promise<HTMLImageElement>;
 /**
  * Draws pre-fetched image blobs onto a single offscreen canvas at their
  * given pixel rects and re-encodes the result as one blob. Shared by

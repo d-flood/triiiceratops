@@ -1,5 +1,5 @@
 /**
- * Per-viewer plugin activation (ticket 07).
+ * Per-viewer plugin activation.
  *
  * Activation is explicit and per viewer (CONTEXT.md **Activation**): each call
  * negotiates compatibility, then constructs an isolated context with its own
@@ -103,7 +103,7 @@ const INERT_ACTIVATION: PluginActivation = { deactivate(): void {} };
 
 /**
  * Run one activation of a plugin against a host, isolating every lifecycle
- * phase (ticket 09). Each phase failure is routed to `host.reportError` with its
+ * phase. Each phase failure is routed to `host.reportError` with its
  * phase so the host can present a plugin-local error state and offer retry:
  *
  * - `setup`: compatibility negotiation and context/runtime/service construction.

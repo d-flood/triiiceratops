@@ -93,7 +93,7 @@ export function captureError(error) {
     live.errors.push(String((error && error.message) || error));
 }
 
-// The ticket-08 consumer testing helper, imported from the SAME packed tarball
+// The consumer testing helper, imported from the SAME packed tarball
 // with no Svelte, no viewer, no custom element and no network behind it.
 const testHandle = createTestViewerHandle();
 

@@ -191,9 +191,9 @@ function resolveScaleFactors(
  * for it.
  *
  * `null` is not a failure: a level0 service advertising only fixed whole-image
- * sizes is a **size-ladder source**, which has no pyramid by definition and is
- * ticket 06's job. Returning `null` is what keeps this module from inventing a
- * tile grid the server cannot serve.
+ * sizes is a **size-ladder source**, which has no pyramid by definition.
+ * Returning `null` is what keeps this module from inventing a tile grid the
+ * server cannot serve.
  *
  * `fallbackTileSize` is for the *other* tile-less service — a level 1/2
  * endpoint that simply does not advertise `tiles`, which is legal and common

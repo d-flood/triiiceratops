@@ -1507,7 +1507,7 @@ describe('planScene — size-ladder sources', () => {
  * Opening a long paged manifest, along the chain `CanvasHost` actually runs:
  * raw manifest JSON → the visible spread → planner canvases → a scene plan.
  *
- * The claim under test is the one that makes the whole epic possible — opening
+ * The claim under test: opening
  * a manifest costs O(1) network requests regardless of its length, because
  * layout comes from manifest Canvas dimensions and never from `info.json`.
  */
@@ -2288,11 +2288,11 @@ describe('planViewportLimits', () => {
 });
 
 /**
- * Ticket 08 — continuous mode on a manifest of arbitrary length.
+ * Continuous mode on a manifest of arbitrary length.
  *
- * The claim the whole epic exists for: an 800-folio manuscript opens
- * immediately, scrolls smoothly, and holds bounded memory, because only the
- * canvases near the viewport hold anything. Exercised through **raw manifest
+ * An 800-folio manuscript opens immediately, scrolls smoothly, and holds
+ * bounded memory, because only the canvases near the viewport hold anything.
+ * Exercised through **raw manifest
  * JSON** along the chain `CanvasHost` actually runs — raw Canvases →
  * `toPlannerCanvases` → a scene plan — so the fixture is evidence about the
  * renderer rather than about a hand-built descriptor list.
@@ -2587,8 +2587,8 @@ describe('planScene — an 800-canvas continuous manifest', () => {
         // The other half of "the scene is never entirely box tier". Zoomed out
         // absurdly far, every one of the 800 folios is on screen and every one
         // of them is below the box threshold — so "keep painting what is
-        // visible" is the O(manifest) fetch storm this epic removed, wearing a
-        // different hat. The floor is the nearest folio and its two neighbours,
+        // visible" is the same O(manifest) fetch storm the residency window
+        // exists to prevent, wearing a different hat. The floor is the nearest folio and its two neighbours,
         // and the other 797 keep their placeholder rects and nothing else.
         const belowFloor = plan(CANVASES, {
             mode: 'continuous',

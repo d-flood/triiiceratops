@@ -2,15 +2,12 @@
  * The plugin's global CSS, installed once at activation through the SDK style
  * service (`context.styles.install`) so it is root-aware: it reaches the document
  * head for a light-DOM viewer and the shadow root for the Web Component (SPEC.md
- * — "Global plugin CSS is installed through a root-aware style service"). This is
- * where the Annotorious layer CSS now lives (it previously injected from
- * `AnnotationManager`), so the annotation layer renders in the shadow root too.
+ * — "Global plugin CSS is installed through a root-aware style service"), so the
+ * Annotorious annotation layer renders in the shadow root too.
  *
  * The real Annotorious stylesheet is imported `?inline` as the SINGLE SOURCE OF
  * TRUTH (F23): the bundler tracks it against the installed `@annotorious/*`
- * version, so it can't silently drift like a vendored copy. This import moved
- * here from core with the plugin (the `distributions.test.ts` single-source rule
- * moved with it).
+ * version, so it can't silently drift like a vendored copy.
  */
 import { definePluginStyles } from '@triiiceratops/plugin-sdk';
 
@@ -71,10 +68,10 @@ const ANNOTORIOUS_FIXES = `
  * the `annotorious` id at activation, shaped by {@link definePluginStyles} into
  * the `STYLES` / `STYLE_ID` exports.
  *
- * No plugin chrome CSS lives here anymore: core owns the toolbar button and the
- * docked-panel / anchored-flyout surface (epic restore-plugin-toolbar-chrome),
- * so the plugin ships only the Annotorious annotation-layer styles. The panel's
- * own presentation is scoped component CSS rendered inside `view.mount`.
+ * No plugin chrome CSS lives here: core owns the toolbar button and the
+ * docked-panel / anchored-flyout surface, so the plugin ships only the
+ * Annotorious annotation-layer styles. The panel's own presentation is scoped
+ * component CSS rendered inside `view.mount`.
  */
 export const { STYLES, STYLE_ID } = definePluginStyles(
     `${annotoriousCss}\n${ANNOTORIOUS_FIXES}`,

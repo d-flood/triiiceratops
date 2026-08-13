@@ -39,11 +39,11 @@ import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
 import { FILE_PDF_ICON } from './icons';
 import Panel from './Panel.svelte';
+import { PLUGIN_META } from './identity';
 import { STYLE_ID, STYLES } from './styles';
 import type { PdfExportConfig } from './types';
 
-const NAME = '@triiiceratops/plugin-pdf-export';
-const VERSION = '1.0.0-rc.0';
+const { name: NAME, version: VERSION } = PLUGIN_META;
 
 function createView(config: PdfExportConfig): PluginView {
     return {

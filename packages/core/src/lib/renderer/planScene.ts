@@ -11,7 +11,7 @@
  *
  * The **painter** (`paintScene.ts`) consumes the plan and a 2D context and does
  * nothing else. If planning and painting interleaved, this seam would not
- * exist and every later ticket would lose its unit tests.
+ * exist and the renderer's decisions would lose their unit tests.
  *
  * ## Level residency
  *
@@ -545,7 +545,7 @@ function intersects(a: Box, b: Box): boolean {
  * ({@link assignTier}), which cannot distinguish canvas 400 from canvas 4: at
  * reading zoom every canvas in an 800-folio manifest projects the same way, so
  * a tier-only gate hands every one of them a base tile and an `info.json` —
- * O(n) requests to open, which is the behaviour this epic exists to remove.
+ * O(n) requests to open, which the residency window exists to prevent.
  * A canvas outside this set is box tier whatever its size: no network, no
  * texture, layout rect only.
  *
@@ -658,9 +658,10 @@ function residencyWindow(
  * Bounded to three canvases, and that bound is what makes this affordable. The
  * reason the box tier exists is that a size-only gate hands all 800 folios of a
  * long manifest a texture at once, and at extreme zoom-out all 800 of them are
- * on screen — so "keep painting whatever is visible" is the fetch storm this
- * epic removed, in a different costume. Three thumbnails at the base rung is
- * ~6 KB, it is the page the reader is actually centred on plus the two they
+ * on screen — so "keep painting whatever is visible" is the same fetch storm
+ * the residency window exists to prevent, in a different costume. Three
+ * thumbnails at the base rung is ~6 KB, it is the page the reader is actually
+ * centred on plus the two they
  * could turn to, and the other 797 keep their placeholder rects.
  *
  * Restricted to `nearby` so the scoping matches: a viewport the world is nowhere
@@ -1547,7 +1548,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         layout,
         tiers,
         // Centre-out, coarser first on a tie. Sorted here rather than per
-        // canvas so a multi-canvas world (ticket 07) orders across canvases too.
+        // canvas so a multi-canvas world orders across canvases too.
         tileRequests: tileRequests.sort(
             (a, b) => a.priority - b.priority || a.level - b.level,
         ),

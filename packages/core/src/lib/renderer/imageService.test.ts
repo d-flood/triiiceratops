@@ -325,8 +325,8 @@ describe('createImageServiceCache', () => {
             // are in the residency window, every one is thumbnail tier, and a
             // level0 manifest resolves every one to "fetch info.json". Gated but
             // uncapped, the first frame after a flick settles starts fifty
-            // simultaneous requests — the fetch storm the epic exists to remove,
-            // one frame later rather than not at all.
+            // simultaneous requests — a fetch storm, one frame later rather
+            // than not at all.
             const { cache, fetchJson, release } = blockingCache(6);
 
             for (const service of services(50)) void cache.ensure(service);

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Changed-lines coverage report (ticket 34) — `pnpm coverage:changed`.
+// Changed-lines coverage report — `pnpm coverage:changed`.
 //
 // REPORTING, NOT GATING. This surfaces what fraction of the lines a PR actually
 // changed are covered by tests. It never fails the build on a low number — the
@@ -210,10 +210,12 @@ function main() {
 
     // Validate the refs up front so a typo fails loudly rather than as an empty
     // (misleading zero) report.
-    git(['rev-parse', '--verify', '--quiet', `${base}^{commit}`]) ||
+    if (!git(['rev-parse', '--verify', '--quiet', `${base}^{commit}`])) {
         fail(`base ref not found: ${base}`);
-    git(['rev-parse', '--verify', '--quiet', `${head}^{commit}`]) ||
+    }
+    if (!git(['rev-parse', '--verify', '--quiet', `${head}^{commit}`])) {
         fail(`head ref not found: ${head}`);
+    }
 
     const coverage = loadCoverage();
     const changed = changedLinesByFile(base, head);

@@ -1,5 +1,5 @@
 /**
- * Core's declared plugin-compatibility surface (ticket 07).
+ * Core's declared plugin-compatibility surface.
  *
  * These values are what the SDK negotiates a plugin's declared `coreRange`,
  * `pluginApiRange`, and `requiredCapabilities` against at activation. Core
@@ -15,10 +15,10 @@
 
 /**
  * The core package version, exposed for `coreRange` negotiation and the browser
- * runtime descriptor. Kept in sync with `package.json`; ticket 21 replaces the
- * literal with a generated/snapshotted value.
+ * runtime descriptor. Kept in sync with `package.json`; a future change should
+ * replace the literal with a generated/snapshotted value.
  */
-export const CORE_VERSION = '1.0.0-rc.25';
+export const CORE_VERSION = '1.0.0-rc.37';
 
 /**
  * The plugin API version, independent of {@link CORE_VERSION}. Starts at

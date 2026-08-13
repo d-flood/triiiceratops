@@ -8,7 +8,7 @@ import {
 } from './helpers/numberedGrid';
 
 /*
- * Explicit keyboard-operability journeys (ticket 23). These assert behaviors
+ * Explicit keyboard-operability journeys. These assert behaviors
  * axe cannot: tab reachability, panel/flyout/dialog open-operate-close by
  * keyboard, Escape closing with focus return to the invoker, listbox arrow
  * operation, and aria-activedescendant. Serial (single worker) so the shared
@@ -17,8 +17,7 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
-// Desktop viewer only (the Select journey uses the desktop settings sidebar);
-// ticket 24 owns the mobile browser matrix.
+// Desktop viewer only (the Select journey uses the desktop settings sidebar).
 test.beforeEach(({ isMobile }) => {
     test.skip(!!isMobile, 'a11y suite targets the desktop viewer (chromium)');
 });
@@ -126,26 +125,18 @@ test('panel close button returns focus to its toolbar toggle', async ({
 });
 
 /*
- * Parity rule (epic plugin-overlay-layers, ticket 05): a PLUGIN's docked panel
- * gets the same close affordance the two core-panel journeys above assert.
- * Exercised through the demo's real SDK plugin
- * (`@triiiceratops/plugin-pdf-export`, a `target: 'panel'` plugin), so this is
- * the shipped chrome and not a double.
+ * Parity rule: a PLUGIN's docked panel gets the same close affordance the two
+ * core-panel journeys above assert. Exercised through the demo's real SDK
+ * plugin (`@triiiceratops/plugin-pdf-export`, a `target: 'panel'` plugin), so
+ * this is the shipped chrome and not a double.
  *
- * Docked RIGHT for the same reason the core journeys use the right-docked
- * Information panel: the demo's toolbar rail sits on the LEFT, and opening a
- * left-docked panel re-lays-out that rail — the toggle element is recreated, so
- * no panel (core or plugin) can return focus to a node that no longer exists.
- * That is a pre-existing property of the left rail, not of this close button.
- *
- * Note what that means for the DEFAULT plugin configuration: plugin panels dock
- * LEFT by default (core's panels default right), so out of the box focus return
- * does NOT work for a plugin panel. Ticket 06
- * (`.tracker/plugin-overlay-layers/tickets/06-plugin-panel-focus-return.md`)
- * owns that fix; it lives in shared chrome, which ticket 05 may not touch.
- * `TriiiceratopsViewer.pluginPanelClose.svelte.test.ts` covers the left-docked
- * button rendering, its click, and Escape-to-close, and pins the degraded focus
- * behaviour explicitly — it does not prove focus return works on the left.
+ * Two of them dock the plugin RIGHT, matching the right-docked Information
+ * panel the core journeys use: the toggle is never rebuilt, so focus return is
+ * the simple case. The third exercises the DEFAULT plugin configuration —
+ * docked LEFT, on the same side as the demo's toolbar rail, where opening the
+ * panel re-lays-out the rail and recreates the toggle element. A panel there
+ * finds its toggle again by identity (`data-panel-toggle`) rather than by the
+ * node it saw at mount.
  */
 const PLUGIN_TOGGLE = '[aria-label="PDF Export"]';
 const PLUGIN_PANEL = '[data-panel-id="pdf-export:panel"]';
@@ -199,6 +190,52 @@ test('plugin panel closes on Escape and returns focus to its toolbar toggle', as
 
     await expect(panel).toHaveCount(0);
     expect((await activeElementInfo(page)).label).toBe('PDF Export');
+});
+
+test('LEFT-docked plugin panel (the default) closes on Escape and returns focus to its rebuilt toggle', async ({
+    page,
+}) => {
+    await loadViewer(page);
+
+    const toggle = page.locator(PLUGIN_TOGGLE).first();
+    await toggle.focus();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press('Enter');
+
+    const panel = page.locator(PLUGIN_PANEL);
+    await expect(panel).toBeVisible();
+    // The default position, on the toolbar rail's own side — no reconfiguration.
+    await expect(page.locator(`.side-col-left ${PLUGIN_PANEL}`)).toBeVisible();
+    // Addressable by role and name, the way a core panel is — and the name has
+    // to cover the header, or the panel's "Close" button is still just one of
+    // several identically named buttons on the page.
+    const dialog = page.getByRole('dialog', { name: 'PDF Export' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
+    // The rail hand-off invariant: exactly one toolbar, before and after.
+    await expect(page.locator('.toolbar-root')).toHaveCount(1);
+    await expect(page.locator(PLUGIN_TOGGLE).first()).toHaveAttribute(
+        'aria-pressed',
+        'true',
+    );
+
+    // Escape immediately: opening a left-docked panel destroys the toggle the
+    // reader activated, so the panel takes focus and Escape reaches it without
+    // tabbing in first.
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+
+    // Polled past the rail→floating hand-off, which trails the column's close
+    // animation: focus has to survive the toolbar being rebuilt a second time,
+    // and reading once mid-animation reads a toolbar that is still swapping.
+    await expect
+        .poll(async () => (await activeElementInfo(page)).label)
+        .toBe('PDF Export');
+    await expect(page.locator('.toolbar-root')).toHaveCount(1);
+    await expect(page.locator(PLUGIN_TOGGLE).first()).toHaveAttribute(
+        'aria-pressed',
+        'false',
+    );
 });
 
 test('flyout menu opens, moves focus, arrow-navigates, and Escape returns focus', async ({
@@ -288,7 +325,7 @@ test('core Select (listbox) operates with keyboard and exposes aria-activedescen
 });
 
 /*
- * The Canvas2D renderer's keyboard model (ticket 11).
+ * The Canvas2D renderer's keyboard model.
  *
  * The image surface is a new tab stop, and it is the ONLY place in the viewer
  * where an arrow key moves the picture rather than roving focus. Both halves of
@@ -478,8 +515,8 @@ test.describe('Canvas2D renderer — keyboard', () => {
 
         // Reached by TAB rather than by `.focus()`: an element can be
         // programmatically focusable and still sit outside the sequential tab
-        // order, which is exactly the state the previous renderer was in.
-        // Stepping back and forward proves it participates in that order.
+        // order. Stepping back and forward proves it participates in that
+        // order.
         await page.locator(SURFACE).focus();
         await page.keyboard.press('Shift+Tab');
         expect((await activeElementInfo(page)).label).not.toBe(

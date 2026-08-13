@@ -1,10 +1,10 @@
 <script lang="ts">
     /*
-     * The image-manipulation flyout CONTENT (epic restore-plugin-toolbar-chrome,
-     * ticket 03). Core owns the chrome: it renders the toolbar button from
-     * `meta.icon`, owns open/close, and anchors + auto-places this content toward
-     * the canvas. This component renders ONLY the content into the core-provided
-     * container — it draws no toggle button and positions nothing.
+     * The image-manipulation flyout CONTENT. Core owns the chrome: it renders
+     * the toolbar button from `meta.icon`, owns open/close, and anchors +
+     * auto-places this content toward the canvas. This component renders ONLY
+     * the content into the core-provided container — it draws no toggle
+     * button and positions nothing.
      *
      * The look restores `main`'s design: a boxless set of three vertical sliders
      * (the shared `@triiiceratops/ui` themed Range rotated −90°) floating over the

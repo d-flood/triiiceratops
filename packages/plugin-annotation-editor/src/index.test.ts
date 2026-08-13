@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { AnnotationEditorPlugin, createAnnotationEditorPlugin } from './index';
 
 /**
- * The factory returns an SDK plugin (framework-neutral `definePlugin` factory).
- * This suite is the moved `index.test.ts`, updated to assert the SDK shape: the
- * `target` still threads through from config (flyout vs panel), and the plugin
+ * The factory returns an SDK plugin (framework-neutral `definePlugin` factory):
+ * `target` threads through from config (flyout vs panel), and the plugin
  * carries a neutral `view.mount` and its package-qualified name.
  *
  * The capability declaration is deliberately UNSATISFIABLE while the plugin is

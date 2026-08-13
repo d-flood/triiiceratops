@@ -33,6 +33,7 @@ import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
 import { DOWNLOAD_ICON } from './icons';
 import Panel from './Panel.svelte';
+import { PLUGIN_META } from './identity';
 import { STYLE_ID, STYLES } from './styles';
 
 const view: PluginView = {
@@ -58,10 +59,10 @@ const view: PluginView = {
 
 /** The image-download plugin factory. Activate it explicitly, per viewer. */
 export const ImageDownloadPlugin: SdkPlugin = definePlugin({
-    name: '@triiiceratops/plugin-image-export',
+    name: PLUGIN_META.name,
     title: 'image_download_title',
     uiId: 'image-download',
-    version: '1.0.0-rc.0',
+    version: PLUGIN_META.version,
     coreRange: '>=1.0.0-rc.0',
     pluginApiRange: '^1.0.0',
     requiredCapabilities: [],

@@ -308,7 +308,7 @@ function constrainAxis(
  * Returns the centre the viewport must adopt at `nextScale` for that to hold.
  * Expressed as a pure function rather than as a mutation inside the wheel
  * handler so it can be asserted without a browser, and so the same anchoring is
- * reused by double-click zoom (ticket 10) and pinch without being reimplemented.
+ * reused by double-click zoom and pinch without being reimplemented.
  */
 export function anchoredZoomCentre(
     viewport: Viewport,

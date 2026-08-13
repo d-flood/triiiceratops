@@ -7,8 +7,7 @@
  * large binary fixture; pointing at a public institution's server would make
  * the suite depend on the internet. Generating it is a few dozen lines, and it
  * renders the SAME numbered grid the static-image fixture uses — so the
- * geometric assertions written for ticket 04 carry over to deep zoom with no
- * new expectations.
+ * geometric assertions carry over to deep zoom with no new expectations.
  *
  * Development only. `apply: 'serve'` keeps it out of every build, and nothing
  * in `src/` imports it.
@@ -39,9 +38,8 @@ const PREFIX = '/iiif-fixture/';
  *
  * Virtualization is only meaningful against a manifest of several hundred
  * canvases: "load everything" passes any test written against a short one
- * (spec §Further Notes), and the `remove-manifesto` corpus is a PARSER corpus —
- * it says nothing about renderer residency. So this fixture is part of the
- * work, and it is dedicated to renderer and network behaviour: every canvas is
+ * (spec §Further Notes). This fixture is dedicated to renderer and network
+ * behaviour: every canvas is
  * the same numbered grid at the same Canvas dimensions, through its OWN image
  * service, so nothing dedupes and one `info.json` per canvas is exactly what an
  * unvirtualized renderer would ask for.

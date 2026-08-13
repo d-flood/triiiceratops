@@ -1,7 +1,5 @@
 /**
- * Seam 2 — level0 sources (ticket 06).
- *
- * Both level0 shapes, end to end in a real browser:
+ * Level0 sources, end to end in a real browser:
  *
  * - a level0 service that advertises **tiles** is an ordinary pyramid whose
  *   levels are restricted to the advertised scale factors;
@@ -21,7 +19,7 @@
  * geometric assertion is therefore also the URL assertion.
  *
  * Both fixtures paint the same numbered grid as every other renderer fixture,
- * so ticket 04's geometric expectations carry over unchanged.
+ * so the geometric expectations carry over unchanged.
  *
  * Chromium only, for the same reason as the tiled slice: this is scheduling and
  * coordinate maths, and widening the matrix would buy noise.
@@ -188,8 +186,8 @@ test.describe('Canvas2D renderer — level0 ladder on a native-only version 2 tr
         // the reader is centred on rendering at any scale, so what is left is a
         // single thumbnail and none of the ladder.
         //
-        // The byte budget goes to zero for a related reason: since ticket 08 a
-        // rung dropped from the required set moves to the **opportunistic
+        // The byte budget goes to zero for a related reason: a rung dropped
+        // from the required set moves to the **opportunistic
         // cache** rather than being closed, and a cached rung comes back with
         // no request at all — which is the right behaviour and the wrong
         // conditions for this assertion. Zero is the documented "no cache"
@@ -271,7 +269,7 @@ test.describe('Canvas2D renderer — level0 size-ladder source', () => {
         // the whole ladder above it has been released by now.
         //
         // With the byte budget at zero, for the reason the sibling test below
-        // states: since ticket 08 a rung dropped from the required set moves to
+        // states: a rung dropped from the required set moves to
         // the **opportunistic cache** rather than being closed, and the opening
         // fit puts the canvas above the pyramid threshold — so it asks for the
         // top rung, and magnifying back into it PROMOTES that rung out of the
@@ -327,7 +325,7 @@ test.describe('Canvas2D renderer — level0 size-ladder source', () => {
         // keeps the canvas the reader is centred on rendering at any scale, so
         // "released" here means one small image rather than a whole ladder.
         //
-        // With the byte budget at zero, because since ticket 08 "released" has
+        // With the byte budget at zero, because "released" has
         // two stages: a rung dropped from the required set moves to the
         // **opportunistic cache** first, and is closed only when the budget
         // says so. Zero is the documented "no cache" setting, and what is under

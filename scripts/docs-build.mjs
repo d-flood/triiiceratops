@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Build the docs site with the release version stamped into the chrome
-// (ticket 39). This is the engine behind `pnpm docs:build`.
+// Build the docs site with the release version stamped into the chrome.
+// This is the engine behind `pnpm docs:build`.
 //
 // The committed `zensical.toml` stays version-agnostic (developer preview). At
 // build time we derive the version from the core package.json and write an

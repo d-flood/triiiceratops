@@ -8,8 +8,8 @@ import type {
 import type { AdapterLoadResult, W3CAnnotation } from './adapters/types';
 
 /**
- * Type-level smoke test for the public annotation-editor surface (ticket 16,
- * F21). It exercises the generics and the widened `W3CAnnotation` at compile
+ * Type-level smoke test for the public annotation-editor surface (F21). It
+ * exercises the generics and the widened `W3CAnnotation` at compile
  * time only — the gate is `pnpm check` (svelte-check + tsc), which flags any
  * `@ts-expect-error` below that no longer errors. The single runtime assertion
  * exists so vitest treats this as a real, passing suite.
