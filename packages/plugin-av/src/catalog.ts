@@ -32,6 +32,10 @@ export const catalog: LocaleCatalog = {
         // The name a track that declares neither a label nor a language is
         // listed under. Every other name in the list is authored content.
         av_captions_track: 'Captions',
+        // The transcript panel. `{track}` is the track's own authored name, so
+        // a translation reorders the sentence around it rather than naming it.
+        av_transcript: 'Transcript',
+        av_transcript_showing: 'Showing {track}',
         av_elapsed: 'Elapsed time',
         av_duration: 'Total time',
     },

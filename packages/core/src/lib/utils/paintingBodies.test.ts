@@ -275,6 +275,55 @@ describe('isUnsupportedCanvas', () => {
             true,
         );
     });
+
+    /**
+     * A mixed Choice, classified over the SELECTED alternative.
+     *
+     * Asked about the alternatives as authored it answers `false` whichever one
+     * is selected, because one of them is an image — and `findImageBody` takes
+     * only the selected one, so the canvas resolves to no image AND is not
+     * unsupported: the descriptor builder's signal for a broken annotation, and
+     * the canvas is deleted (no rect, no tier, no way back).
+     */
+    describe('over a mixed Choice', () => {
+        const MIXED = v3Canvas({
+            type: 'Choice',
+            items: [
+                { id: 'poster.jpg', type: 'Image', format: 'image/jpeg' },
+                VIDEO_BODY,
+            ],
+        });
+
+        it('is false while the image alternative is selected', () => {
+            expect(isUnsupportedCanvas(MIXED, 'poster.jpg')).toBe(false);
+        });
+
+        it('is true while the video alternative is selected', () => {
+            expect(isUnsupportedCanvas(MIXED, VIDEO_BODY.id)).toBe(true);
+        });
+
+        it('follows the first alternative when nothing is selected', () => {
+            // The IIIF default, and the same one `findImageBody` takes.
+            expect(isUnsupportedCanvas(MIXED)).toBe(false);
+            expect(
+                isUnsupportedCanvas(
+                    v3Canvas({
+                        type: 'Choice',
+                        items: [
+                            VIDEO_BODY,
+                            { id: 'poster.jpg', type: 'Image' },
+                        ],
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        it('keeps the canvas rather than dropping it, in the descriptors', () => {
+            const descriptor = toPlannerCanvas(MIXED, () => VIDEO_BODY.id);
+            expect(descriptor).not.toBeNull();
+            expect(descriptor?.images).toEqual([]);
+        });
+    });
 });
 
 /**

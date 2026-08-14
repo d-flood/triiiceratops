@@ -19,10 +19,8 @@ import type { AvCanvasScan } from './sources';
  * object, as core's own once-per-canvas warning is: the entry goes when the
  * manifest does, so this cannot grow without bound.
  *
- * Keyed by REASON as well as canvas, because the two degradations here are
- * independent: a canvas can be both spatially targeted and temporally composed,
- * and a curator told only about the first would never learn the composition was
- * dropped too.
+ * Keyed by REASON as well as canvas, so that a canvas degraded two ways is
+ * announced twice rather than once.
  */
 const warned = new WeakMap<object, Set<string>>();
 
@@ -63,19 +61,6 @@ export function warnAboutDegradation(
                 `(an \`xywh=\` target). Spatial placement of audiovisual content is not ` +
                 `supported: the placement is ignored, and where this viewer plays the ` +
                 `media it fills the whole canvas rect.`,
-        );
-    }
-
-    // Not an `else`: a canvas can be both, and each degradation is separately
-    // worth knowing about.
-    if (scan.temporallyComposed) {
-        warnOnce(
-            canvas,
-            'composed',
-            `Canvas ${scan.canvasId} is painted by ${scan.placements.length} time-based ` +
-                `bodies sharing its duration. This release plays the first of them ` +
-                `(${scan.placements[0]?.source.url}) and ignores the rest; playing a ` +
-                `composed canvas through as one work is not implemented yet.`,
         );
     }
 }

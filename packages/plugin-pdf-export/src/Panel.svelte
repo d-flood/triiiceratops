@@ -26,7 +26,7 @@
 
     import {
         getCanvasLabel,
-        isUnsupportedCanvas,
+        isUnsupportedCanvasFor,
         resolveLanguageValue,
     } from 'triiiceratops/image-export';
     import {
@@ -149,7 +149,8 @@
     // expect a page the file will not contain.
     let selectedCount = $derived(
         (normalizedRange?.indices ?? []).filter(
-            (index: number) => !isUnsupportedCanvas(canvases[index]),
+            (index: number) =>
+                !isUnsupportedCanvasFor(viewerState, canvases[index]),
         ).length,
     );
     let disabledReason = $derived.by(() => {

@@ -5,6 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { CaptionTrack } from './captions';
 import { loadHls } from './hlsLink';
 import { createMediaStage } from './mediaStage';
 import type { AvSource } from './sources';
@@ -111,6 +112,16 @@ describe('the media element', () => {
         expect(stage.media.hasAttribute('controls')).toBe(false);
         expect(stage.media.controls).toBe(false);
     });
+
+    it.each([
+        ['video', VIDEO],
+        ['audio', AUDIO],
+    ])(
+        'puts the %s element in anonymous CORS mode, so a cross-origin VTT can load',
+        (_kind, source) => {
+            expect(stageFor(source).media.crossOrigin).toBe('anonymous');
+        },
+    );
 
     it('asks for metadata only, so twenty canvases do not fetch twenty files', () => {
         expect(stageFor(VIDEO).media.preload).toBe('metadata');
@@ -246,6 +257,45 @@ describe('an HLS source', () => {
         expect(attachment.destroy).toHaveBeenCalled();
     });
 
+    it('attaches nothing for a rendition swapped away while the chunk was in flight', async () => {
+        withNativeHls('');
+        const { attachment, attachHlsStream } = loaderAttaching();
+
+        const stage = stageFor(HLS);
+        // The reader picked the MP4 before the chunk landed. Attaching now would
+        // put a player over a source nobody asked for any more.
+        stage.setSource({
+            url: 'https://example.org/clip.mp4',
+            kind: 'video',
+            format: 'video/mp4',
+        });
+        await vi.waitFor(() => expect(loadHls).toHaveBeenCalled());
+        await Promise.resolve();
+
+        expect(attachHlsStream).not.toHaveBeenCalled();
+        expect(attachment.destroy).not.toHaveBeenCalled();
+        expect(stage.media.getAttribute('src')).toBe(
+            'https://example.org/clip.mp4',
+        );
+    });
+
+    it('reports no failure for a rendition swapped away before the chunk threw', async () => {
+        withNativeHls('');
+        vi.mocked(loadHls).mockRejectedValue(new Error('chunk unreachable'));
+
+        const stage = stageFor(HLS);
+        stage.setSource({
+            url: 'https://example.org/clip.mp4',
+            kind: 'video',
+            format: 'video/mp4',
+        });
+        await vi.waitFor(() => expect(loadHls).toHaveBeenCalled());
+        await Promise.resolve();
+
+        // The abandoned stream's failure is not the MP4's.
+        expect(stage.unplayable).toBe(false);
+    });
+
     it('attaches nothing to a stage torn down while the chunk was in flight', async () => {
         withNativeHls('');
         const { attachment, attachHlsStream } = loaderAttaching();
@@ -310,6 +360,143 @@ describe('a failed stream', () => {
 
         stage.media.dispatchEvent(new Event('error'));
         tap(visualLaneOf(stage));
+
+        expect(play).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * Swapping rendition — the Choice path. The contract is that the reader keeps
+ * their place: `currentTime` and the paused state are captured before the old
+ * source is detached, and restored once the new one reports metadata.
+ */
+describe('a source swap between choice renditions', () => {
+    const MP4_LOW: AvSource = {
+        url: 'https://example.org/clip-low.mp4',
+        kind: 'video',
+        format: 'video/mp4',
+    };
+
+    /** jsdom's `paused` is a getter, so playing is staged rather than done. */
+    function setPaused(media: HTMLMediaElement, paused: boolean): void {
+        Object.defineProperty(media, 'paused', {
+            configurable: true,
+            get: () => paused,
+        });
+    }
+
+    it('restores the playhead and stays paused', () => {
+        const stage = stageFor(VIDEO);
+        const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
+        stage.media.currentTime = 5;
+
+        stage.setSource(MP4_LOW);
+
+        // Detached first: the element is emptied, which is what resets the
+        // playhead the capture had to be taken before.
+        expect(stage.source).toBe(MP4_LOW);
+        expect(stage.media.getAttribute('src')).toBe(MP4_LOW.url);
+
+        stage.media.dispatchEvent(new Event('loadedmetadata'));
+
+        expect(stage.media.currentTime).toBeCloseTo(5, 3);
+        expect(play).not.toHaveBeenCalled();
+    });
+
+    it('resumes playing when the swap interrupted playback', () => {
+        const stage = stageFor(VIDEO);
+        const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
+        stage.media.currentTime = 5;
+        setPaused(stage.media, false);
+
+        stage.setSource(MP4_LOW);
+        // `pause()` on the way out is the swap's own doing, not the reader's.
+        setPaused(stage.media, true);
+        stage.media.dispatchEvent(new Event('loadedmetadata'));
+
+        expect(stage.media.currentTime).toBeCloseTo(5, 3);
+        expect(play).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing when the same rendition is selected again', () => {
+        const stage = stageFor(VIDEO);
+        const load = vi.spyOn(stage.media, 'load');
+
+        stage.setSource({ ...VIDEO });
+
+        expect(load).not.toHaveBeenCalled();
+    });
+
+    it('clears the treatment the old rendition earned', () => {
+        const stage = stageFor(VIDEO);
+        stage.media.dispatchEvent(new Event('error'));
+        expect(stage.unplayable).toBe(true);
+
+        stage.setSource(MP4_LOW);
+
+        // A rendition the browser refused says nothing about the next one.
+        expect(stage.unplayable).toBe(false);
+        expect(
+            stage.root.querySelector<HTMLElement>(
+                '[data-testid="av-cannot-play"]',
+            )?.hidden,
+        ).toBe(true);
+    });
+
+    it('carries the capture forward when a second swap supersedes the first', () => {
+        const MP4_HIGH: AvSource = {
+            url: 'https://example.org/clip-high.mp4',
+            kind: 'video',
+            format: 'video/mp4',
+        };
+        const stage = stageFor(VIDEO);
+        const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
+        stage.media.currentTime = 5;
+        setPaused(stage.media, false);
+
+        stage.setSource(MP4_LOW);
+        // What the first swap did to the element: emptied and paused. A second
+        // capture taken from here would record the swap, not the reader.
+        stage.media.currentTime = 0;
+        setPaused(stage.media, true);
+        stage.setSource(MP4_HIGH);
+
+        // The superseded swap's listener bows out; only the live one restores.
+        stage.media.dispatchEvent(new Event('loadedmetadata'));
+
+        expect(stage.media.currentTime).toBeCloseTo(5, 3);
+        expect(play).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores once, from the live swap alone', () => {
+        const MP4_HIGH: AvSource = {
+            url: 'https://example.org/clip-high.mp4',
+            kind: 'video',
+            format: 'video/mp4',
+        };
+        const stage = stageFor(VIDEO);
+        const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
+        stage.media.currentTime = 5;
+        setPaused(stage.media, false);
+
+        stage.setSource(MP4_LOW);
+        stage.setSource(MP4_HIGH);
+        stage.media.dispatchEvent(new Event('loadedmetadata'));
+
+        // The superseded swap left a listener behind; only the swap the element
+        // is actually loading may act on it, or the reader is resumed twice.
+        expect(play).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not restore into a stage that has been destroyed', () => {
+        const stage = stageFor(VIDEO);
+        const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
+        stage.media.currentTime = 5;
+        setPaused(stage.media, false);
+
+        stage.setSource(MP4_LOW);
+        stage.destroy();
+        stage.media.dispatchEvent(new Event('loadedmetadata'));
 
         expect(play).not.toHaveBeenCalled();
     });
@@ -693,24 +880,22 @@ describe('tapping the visual lane', () => {
 });
 
 describe('the stage — caption tracks', () => {
-    const EN = {
+    const EN: CaptionTrack = {
         url: 'https://example.org/en.vtt',
         language: 'en',
         label: 'English',
+        annotation: 0,
     };
-    const IT = {
+    const IT: CaptionTrack = {
         url: 'https://example.org/it.vtt',
         language: 'it',
         label: 'Italiano',
+        annotation: 1,
     };
 
     function captionedStage(
         source: AvSource,
-        captions: {
-            url: string;
-            language: string | null;
-            label: string | null;
-        }[],
+        captions: CaptionTrack[],
         onCaptionTracksChange: () => void = () => {},
     ) {
         return createMediaStage({
@@ -842,14 +1027,38 @@ describe('the stage — caption tracks', () => {
 
     /*
         An `<audio>` element has no rendering area, so cues attached to one are
-        parsed and never drawn. Offering them would be exactly the toggle that
-        does nothing user story 46 forbids.
+        parsed and never drawn — which is why `rendersCaptions` is false there
+        and no toggle is offered over them (user story 46). The tracks are
+        attached all the same: parsed-and-not-drawn is exactly what the
+        transcript panel reads (user story 12a).
     */
-    it('attaches no tracks to a sound recording', () => {
+    it('attaches a sound recording its tracks, and paints none of them', () => {
         const stage = captionedStage(AUDIO, [EN]);
 
-        expect(stage.media.querySelectorAll('track')).toHaveLength(0);
-        expect(stage.captionTracks).toEqual([]);
+        expect(stage.media.querySelectorAll('track')).toHaveLength(1);
+        expect(stage.rendersCaptions).toBe(false);
+
+        settle(stage, EN.url, 'load');
+        expect(stage.captionTracks).toEqual([EN]);
+    });
+
+    it('reports a video stage as able to paint its cues', () => {
+        expect(captionedStage(VIDEO, [EN]).rendersCaptions).toBe(true);
+    });
+
+    /* The transcript panel's source: the parsed cues behind one loaded track. */
+    it('hands out the live text track behind a caption track, by URL', () => {
+        fakeTextTracks();
+        const stage = captionedStage(AUDIO, [EN, IT]);
+
+        expect(stage.captionTextTrack(EN.url)).toBe(
+            stage.media.querySelector<HTMLTrackElement>(
+                `track[src="${EN.url}"]`,
+            )?.track,
+        );
+        expect(
+            stage.captionTextTrack('https://example.org/nope.vtt'),
+        ).toBeNull();
     });
 
     /*
@@ -916,5 +1125,83 @@ describe('the stage — caption tracks', () => {
 
         expect(stage.captionTracks).toEqual([]);
         expect(changed).not.toHaveBeenCalled();
+    });
+});
+
+/*
+    A caption track belongs to the body it was authored on. On a temporally
+    composed canvas that matters: the tracks beside segment 1's video must not
+    caption segment 2's, and a reader must not be offered a language that will
+    produce nothing while the segment carrying it is not playing. No vendored
+    recipe pairs captions with a composed canvas, so this is the whole of the
+    coverage for it.
+*/
+describe('the stage — captions on a composed canvas', () => {
+    const EN: CaptionTrack = {
+        url: 'https://example.org/segment-1.vtt',
+        language: 'en',
+        label: 'Act I',
+        annotation: 0,
+    };
+    const IT: CaptionTrack = {
+        url: 'https://example.org/segment-2.vtt',
+        language: 'it',
+        label: 'Atto II',
+        annotation: 1,
+    };
+
+    afterEach(() => vi.restoreAllMocks());
+
+    function stageWithBothTracks() {
+        const stage = createMediaStage({
+            canvasId: 'canvas/1',
+            source: VIDEO,
+            layout: 'video',
+            cannotPlayMessage: 'nope',
+            onPlayStateChange: () => {},
+            captions: [EN, IT],
+        });
+        for (const url of [EN.url, IT.url])
+            stage.media
+                .querySelector(`track[src="${url}"]`)
+                ?.dispatchEvent(new Event('load'));
+        return stage;
+    }
+
+    it('offers only the playing body’s tracks', () => {
+        const stage = stageWithBothTracks();
+        expect(stage.captionTracks).toEqual([EN, IT]);
+
+        stage.setEligibleCaptions([EN.url]);
+        expect(stage.captionTracks).toEqual([EN]);
+
+        stage.setEligibleCaptions([IT.url]);
+        expect(stage.captionTracks).toEqual([IT]);
+
+        // `null` is the state of every canvas that is not composed.
+        stage.setEligibleCaptions(null);
+        expect(stage.captionTracks).toEqual([EN, IT]);
+        stage.destroy();
+    });
+
+    it('turns off a showing track the next segment does not carry', () => {
+        const stage = stageWithBothTracks();
+
+        stage.setEligibleCaptions([EN.url]);
+        stage.setCaptionTrack(EN.url);
+        expect(stage.activeCaptionTrack).toBe(EN.url);
+
+        stage.setEligibleCaptions([IT.url]);
+        expect(stage.activeCaptionTrack).toBeNull();
+        stage.destroy();
+    });
+
+    it('refuses to select a track the playing body does not carry', () => {
+        const stage = stageWithBothTracks();
+
+        stage.setEligibleCaptions([EN.url]);
+        stage.setCaptionTrack(IT.url);
+        expect(stage.activeCaptionTrack).toBeNull();
+        stage.destroy();
     });
 });

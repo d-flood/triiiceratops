@@ -1081,7 +1081,8 @@ export { getCanvasDisplayLayouts } from './components/canvasLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
-export { isUnsupportedCanvas } from './utils/paintingBodies';
+export type { ChoiceSelection } from './utils/paintingBodies';
+export { isUnsupportedCanvas, isUnsupportedCanvasFor, } from './utils/paintingBodies';
 export { getPaintingAnnotations } from './utils/iiifParsing';
 export { resolveLanguageValue } from './utils/languageMap';
 
@@ -1107,7 +1108,8 @@ export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export { createPluginSurface } from './plugin/surface';
 export { getPaintingAnnotations } from './utils/iiifParsing';
-export { isImageBody, isUnsupportedCanvas, paintingBodyAlternatives, } from './utils/paintingBodies';
+export type { ChoiceSelection } from './utils/paintingBodies';
+export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
 export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 export type { ThemeConfig, BuiltInTheme } from './theme/types';
@@ -6312,8 +6314,14 @@ export declare function resolveThumbnailResourceSrc(thumbnail: any, size?: numbe
  * strip — a broken image where the reader needed to be told this is a sound
  * recording. Returning `''` is what routes the canvas to the strip's
  * no-thumbnail treatment instead.
+ *
+ * `selectedChoiceId` names a Choice alternative, and rungs 2 and 3 resolve the
+ * same alternative the classifier is asked about. Without it a mixed Choice
+ * resting on its video alternative classifies as unsupported and still yields
+ * the image alternative's URL — the strip would show the picture while the
+ * viewer showed "cannot display", over one canvas.
  */
-export declare function getThumbnailSrc(canvas: any, size?: number): string;
+export declare function getThumbnailSrc(canvas: any, size?: number, selectedChoiceId?: string): string;
 
 // ======================================================================
 // FILE: dist/utils/iiifIds.d.ts
@@ -6778,10 +6786,41 @@ export declare function paintingBodyAlternatives(annotation: unknown): unknown[]
  * silently (`0489-multimedia-canvas` is the corpus's example, an Image body
  * beside a Video one and three text ones).
  *
- * Decided over **all** the canvas's painting bodies. Nothing here reads a
- * target: whether core can display a canvas is a property of the canvas.
+ * Decided over the canvas's painting bodies **as selected**, which for a Choice
+ * is one alternative and not the set. Asking about the set instead deletes a
+ * canvas outright: {@link findImageBody} takes only the selected alternative,
+ * so a mixed Choice resting on its non-image alternative resolves to no image,
+ * while a classifier that saw the image alternative beside it answered `false`
+ * — no images and not unsupported either, which is the descriptor builder's
+ * signal for a broken annotation to drop. The reader lost the canvas, its rect,
+ * its place in navigation and any way back to the image alternative. Selection
+ * and classification have to be made over the same body.
+ *
+ * `selectedChoiceId` names a Choice alternative; anything else, including
+ * nothing, means the first one — the IIIF default, and the same default
+ * resolution follows.
+ *
+ * Nothing here reads a target: whether core can display a canvas is a property
+ * of the canvas.
  */
-export declare function isUnsupportedCanvas(canvas: unknown): boolean;
+export declare function isUnsupportedCanvas(canvas: unknown, selectedChoiceId?: string): boolean;
+/**
+ * A reader's Choice selections, in either shape callers already hold: the
+ * viewer state object itself, or the bare lookup a plugin entry point is handed.
+ */
+export type ChoiceSelection = {
+    getSelectedChoice(canvasId: string): string | undefined;
+} | ((canvasId: string) => string | undefined);
+/**
+ * {@link isUnsupportedCanvas} against a whole canvas's selection state, which is
+ * how every caller in the tree actually asks it.
+ *
+ * The classification rule and the selection lookup belong together. Written out
+ * per site, the two drift apart the moment one site learns about selection and
+ * another does not — and a viewer showing the unsupported presentation beside a
+ * strip showing the image alternative is exactly that drift.
+ */
+export declare function isUnsupportedCanvasFor(selection: ChoiceSelection | undefined, canvas: unknown): boolean;
 /**
  * The first image body this annotation would place, or `null` if it places
  * none.

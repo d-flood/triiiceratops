@@ -96,28 +96,52 @@ export interface BufferedSpan {
     readonly end: number;
 }
 
+/** One contiguous span of the canvas timeline, in seconds. */
+export interface TimeSpan {
+    readonly start: number;
+    readonly end: number;
+}
+
 /**
- * The element's buffered spans, normalized onto the scrubber.
+ * A media element's buffered ranges as canvas-time spans, where the canvas
+ * timeline IS the element's clock.
  *
- * The one thing the transport reads off the media element rather than off
- * AVState: what a network has fetched is not playback state and has no place on
+ * The non-identity mapping is the sequencer's `bufferedSpans`, which is where
+ * it belongs: it needs the active segment's window to clamp against, and this
+ * side of the seam has no idea a segment exists.
+ */
+export function elementSpans(
+    ranges: TimeRanges | null | undefined,
+): TimeSpan[] {
+    if (!ranges) return [];
+    const spans: TimeSpan[] = [];
+    for (let index = 0; index < ranges.length; index += 1)
+        spans.push({ start: ranges.start(index), end: ranges.end(index) });
+    return spans;
+}
+
+/**
+ * Canvas-time spans, normalized onto the scrubber.
+ *
+ * What a network has fetched is the one thing the transport reads off the media
+ * element rather than off AVState: it is not playback state and has no place on
  * a contract hosts command playback through, and `TimeRanges` has no
  * notification of its own to publish it on. It is redrawn on the frame cadence
  * with everything else.
  */
 export function bufferedSpans(
-    ranges: TimeRanges | null | undefined,
+    spans: readonly TimeSpan[],
     duration: number | null,
 ): BufferedSpan[] {
-    if (!ranges || duration === null || !(duration > 0)) return [];
+    if (duration === null || !(duration > 0)) return [];
 
-    const spans: BufferedSpan[] = [];
-    for (let index = 0; index < ranges.length; index += 1) {
-        const start = timeFraction(ranges.start(index), duration);
-        const end = timeFraction(ranges.end(index), duration);
-        if (end > start) spans.push({ start, end });
+    const fractions: BufferedSpan[] = [];
+    for (const span of spans) {
+        const start = timeFraction(span.start, duration);
+        const end = timeFraction(span.end, duration);
+        if (end > start) fractions.push({ start, end });
     }
-    return spans;
+    return fractions;
 }
 
 /** One selectable caption track, as the control row lists it. */

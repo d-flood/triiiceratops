@@ -72,6 +72,49 @@ export function hasNativeHlsSupport(media: HTMLMediaElement): boolean {
     return media.canPlayType(HLS_CANONICAL_TYPE) !== '';
 }
 
+/**
+ * fMP4 is the container hls.js remuxes every segment into, so Media Source
+ * support for one of these codec strings is what decides whether it can play
+ * anything at all. Any ONE suffices, and the audio-only entries matter: an
+ * audio HLS rendition plays on a browser with no AVC decoder, and testing video
+ * alone would drop it from selection.
+ *
+ * Spelled exactly as `hls.js@1.7.0`'s `isSupported()` builds them
+ * (`utils/codecs.ts` `mimeTypeForCodec`: `${type}/mp4;codecs=${codec}`, no
+ * space and no quotes), because `isTypeSupported` parses the string. That check
+ * is restated here rather than asked of hls.js, which would mean fetching the
+ * chunk — the very thing this decision exists to avoid.
+ */
+const HLS_MSE_TYPES = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=av01.0.01M.08',
+    'video/mp4;codecs=vp09.00.50.08',
+    'audio/mp4;codecs=mp4a.40.2',
+    'audio/mp4;codecs=fLaC',
+];
+
+/**
+ * Whether this browser plays an HLS playlist by either route — natively, or
+ * through the chunk.
+ *
+ * The question format selection asks, and it has to be answerable
+ * synchronously: a Choice is resolved while the stage is being built, and
+ * awaiting a 220 KB chunk to find out whether an alternative is worth
+ * considering would delay every canvas that never needed it.
+ */
+export function canPlayHls(media: HTMLMediaElement): boolean {
+    if (hasNativeHlsSupport(media)) return true;
+    // The same resolution order hls.js uses: a managed source is preferred, and
+    // the WebKit-prefixed global is still the only one some iOS builds expose.
+    const scope = globalThis as unknown as Record<string, typeof MediaSource>;
+    const mediaSource =
+        scope.ManagedMediaSource ??
+        scope.MediaSource ??
+        scope.WebKitMediaSource;
+    if (typeof mediaSource?.isTypeSupported !== 'function') return false;
+    return HLS_MSE_TYPES.some((type) => mediaSource.isTypeSupported(type));
+}
+
 /** The hls.js chunk's public shape, as the eager side uses it. */
 export type HlsModule = typeof import('./hls/index');
 

@@ -1023,6 +1023,56 @@ describe('exportCanvasRangeAsPdf', () => {
         ]);
     });
 
+    /**
+     * The same edge reached through a Choice, where the classifier and the
+     * resolver must agree on which alternative they are looking at. Asked about
+     * the alternatives as authored, the classifier answers "not unsupported"
+     * because one of them is an image, while resolution takes only the selected
+     * one and finds none — leaving the canvas in the range for
+     * `getCanvasExportResource` to fall through to its poster.
+     */
+    it('leaves out a mixed Choice resting on its video alternative', async () => {
+        const loadImageBlob = vi.fn(() => createImageBlob());
+        const film = createVideoCanvas('film');
+        const mixed = {
+            ...film,
+            items: annotationPages({
+                target: 'film',
+                body: {
+                    type: 'Choice',
+                    items: [
+                        {
+                            id: 'https://example.org/media/film.mp4',
+                            type: 'Video',
+                            format: 'video/mp4',
+                        },
+                        {
+                            id: 'https://example.org/still/film.jpg',
+                            type: 'Image',
+                            format: 'image/jpeg',
+                        },
+                    ],
+                },
+            }),
+        };
+
+        const result = await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1'), mixed],
+            startIndex: 0,
+            endIndex: 1,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+            getSelectedChoice: () => 'https://example.org/media/film.mp4',
+        });
+
+        expect(result.exportedCount).toBe(1);
+        expect(result.failedCanvases).toEqual([]);
+        expect(
+            loadImageBlob.mock.calls.map(([params]: any[]) => params.imageUrl),
+        ).toEqual(['https://example.org/canvas-1.png']);
+    });
+
     it('counts the pages it will make, not the canvases it was handed', async () => {
         const progress: string[] = [];
         const getFilename = vi.fn(() => 'mixed.pdf');

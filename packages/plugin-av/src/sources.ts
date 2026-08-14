@@ -3,11 +3,10 @@
  * which of them this release plays.
  *
  * A canvas maps to a provider, never to "the one body": `0064-opera-one-canvas`
- * tiles a single canvas's duration with two videos, and the canvas timeline that
- * plays such a canvas through as one work is a later slice. Everything here
- * therefore reports every placement it found and marks the canvas composed;
- * choosing the first is a decision the *stage* makes, in one place, so replacing
- * it with a sequencer touches no parsing.
+ * tiles a single canvas's duration with two videos, and the sequencer plays such
+ * a canvas through as one work. Everything here reports every placement it found
+ * and marks the canvas composed; what the placements MEAN on the canvas timeline
+ * is the sequencer's to decide, out of the `t=` fragment carried here unparsed.
  *
  * What a body *is* is never decided here. `isImageBody` and
  * `paintingBodyAlternatives` are core's own painting classifier, exported for
@@ -34,7 +33,26 @@ export interface AvSource {
 
 /** One painting annotation that places a time-based body on the canvas. */
 export interface AvPlacement {
-    readonly source: AvSource;
+    /**
+     * This annotation's index among the canvas's painting annotations. It is
+     * how a segment finds the caption tracks authored beside its own body:
+     * `captionTracksForCanvas` numbers tracks over the same list.
+     */
+    readonly annotation: number;
+    /**
+     * The target's media fragment, as authored and unparsed (`''` when there is
+     * none). The sequencer reads the `t=` window out of it to build the segment
+     * map; nothing else looks inside it.
+     */
+    readonly fragment: string;
+    /**
+     * Every time-based resource this annotation could place, in manifest order
+     * — one entry unless a `Choice` offers renditions. Which of them is
+     * attached is `formats.ts`' decision and depends on the browser, so it is
+     * deliberately not made here: parsing must answer the same way whoever
+     * asks.
+     */
+    readonly alternatives: readonly AvSource[];
     /** The annotation's target carries a `t=` media fragment. */
     readonly temporal: boolean;
     /** The annotation's target carries an `xywh=` media fragment. */
@@ -57,8 +75,8 @@ export interface AvCanvasScan {
     /** Every time-based placement, in manifest order. */
     readonly placements: readonly AvPlacement[];
     /**
-     * Several bodies share this canvas's duration. Interim behavior is to play
-     * the first; the canvas timeline replaces it.
+     * Several bodies share this canvas's duration, so the canvas timeline is a
+     * segment map rather than the identity mapping and a sequencer plays it.
      */
     readonly temporallyComposed: boolean;
     /** At least one time-based body is placed into part of the canvas rect. */
@@ -86,9 +104,9 @@ function usableDimension(value: unknown): number | null {
  *
  * Two spellings reach here: the string target every vendored recipe uses
  * (`…/canvas#xywh=…&t=…`) and the `SpecificResource` + `FragmentSelector` form
- * IIIF also permits. Only the fragment's *presence* matters to this plugin —
- * both offsets are ignored in this release, and the warnings say so — so it is
- * returned unparsed rather than decoded into values nothing reads.
+ * IIIF also permits. It is returned unparsed: the `xywh=` half really is ignored
+ * (the degradation warning says so), and the `t=` half is only read by the
+ * sequencer, which is lazily loaded and must not pull a parser into the entry.
  */
 function targetFragment(target: unknown): string {
     if (typeof target === 'string') {
@@ -134,17 +152,18 @@ function mediaKind(body: Record<string, unknown>): AvMediaKind | null {
 }
 
 /**
- * The time-based body this annotation places, or `null`.
+ * Every time-based body this annotation could place, in manifest order.
  *
- * A Choice contributes its FIRST alternative: playability-driven selection
- * (`canPlayType` per alternative, HLS included) is a later slice, and first-wins
- * is the IIIF default a viewer with no opinion follows.
+ * A Choice contributes all of its alternatives, flattened by core's own
+ * unwrapping — the same list the reader is being offered a pick from.
  *
- * "First" means the first alternative that is time-based media, not the first
- * that is not an image: the alternatives arrive in manifest order, and a caption
- * track ahead of its video must be skipped rather than played.
+ * Only the time-based ones: the alternatives arrive in manifest order, and a
+ * caption track sharing the body array with its video must be skipped rather
+ * than played (the `body: [Choice(videos), Text(vtt)]` shape).
  */
-function placedSource(annotation: unknown): AvSource | null {
+function placedSources(annotation: unknown): AvSource[] {
+    const sources: AvSource[] = [];
+
     for (const body of paintingBodyAlternatives(annotation)) {
         if (isImageBody(body)) continue;
 
@@ -155,10 +174,10 @@ function placedSource(annotation: unknown): AvSource | null {
         const kind = mediaKind(record);
         if (!kind) continue;
 
-        return { url, kind, format: stringOrNull(record.format) };
+        sources.push({ url, kind, format: stringOrNull(record.format) });
     }
 
-    return null;
+    return sources;
 }
 
 /**
@@ -176,17 +195,19 @@ export function scanCanvasForAv(canvas: unknown): AvCanvasScan | null {
     if (!record || !canvasId) return null;
 
     const placements: AvPlacement[] = [];
-    for (const annotation of getPaintingAnnotations(canvas)) {
-        const source = placedSource(annotation);
-        if (!source) continue;
+    getPaintingAnnotations(canvas).forEach((annotation, index) => {
+        const alternatives = placedSources(annotation);
+        if (alternatives.length === 0) return;
 
         const fragment = targetFragment(asRecord(annotation)?.target);
         placements.push({
-            source,
+            annotation: index,
+            fragment,
+            alternatives,
             temporal: /(^|&)t=/.test(fragment),
             spatial: /(^|&)xywh=/.test(fragment),
         });
-    }
+    });
 
     if (placements.length === 0) return null;
 

@@ -13,6 +13,23 @@ import type { AVState } from './avState';
 /** Below this `readyState` a playing element has nothing to play (spec name: `HAVE_FUTURE_DATA`). */
 const HAVE_FUTURE_DATA = 3;
 
+/**
+ * The **canvas timeline** of a canvas whose mapping is not the identity: the
+ * three members that would otherwise read and write one element's own clock.
+ *
+ * Supplied by the lazily-loaded sequencer for a temporally composed canvas and
+ * absent for every other, which is what makes a single-body canvas the identity
+ * mapping with no added behaviour. Nothing here knows that segments exist.
+ */
+export interface CanvasTimeline {
+    /** The canvas timeline's length in seconds. */
+    readonly duration: number;
+    /** The playhead, in canvas time. */
+    currentTime(): number;
+    /** Move the playhead, in canvas time. Already clamped by the caller. */
+    seek(seconds: number): void;
+}
+
 /** The media AVState's commands currently address. */
 export interface AvCommandTarget {
     readonly canvasId: string;
@@ -25,6 +42,12 @@ export interface AvCommandTarget {
      * no range for that window.
      */
     readonly canvasDuration: number | null;
+    /**
+     * The canvas timeline, when this canvas's is not the identity mapping onto
+     * its element's clock. `null`/absent is the ordinary case — one body
+     * filling the canvas — and then the element IS the timeline.
+     */
+    readonly timeline?: CanvasTimeline | null;
 }
 
 /** What AVState needs of the activation around it. */
@@ -67,14 +90,17 @@ function clamp(value: number, min: number, max: number): number {
  * The canvas timeline's length: the element's own duration once it has one,
  * and the canvas's declared duration until then.
  *
- * The element leads because it is what playback and seeking are actually bound
- * to under this release's identity mapping — a manifest that rounds its
+ * Where the mapping is the identity the element leads, because it is what
+ * playback and seeking are actually bound to — a manifest that rounds its
  * `duration` must not make `seek(duration)` unreachable or overshoot the end.
  * The manifest fills the window before `loadedmetadata`, where the element
  * reports `NaN`.
  */
 function durationOf(target: AvCommandTarget | null): number | null {
     if (!target) return null;
+    // A composed canvas's length is the canvas's, never the active segment's:
+    // the element leads only where it IS the whole timeline.
+    if (target.timeline) return target.timeline.duration;
     if (Number.isFinite(target.media.duration)) return target.media.duration;
     return target.canvasDuration;
 }
@@ -287,7 +313,8 @@ export function createAvState(port: AvStatePort): AvStatePublication {
                     // element has reported no duration, so there is no ceiling
                     // to bring `seek(Infinity)` back down to.
                     if (!Number.isFinite(position)) return;
-                    media.currentTime = position;
+                    if (target.timeline) target.timeline.seek(position);
+                    else media.currentTime = position;
                     // The playhead moved without waiting for `seeked`, which
                     // some elements defer until data arrives.
                     notifyFrame();
@@ -330,7 +357,10 @@ export function createAvState(port: AvStatePort): AvStatePublication {
         },
         get currentTime(): number {
             const target = port.currentTarget();
-            return target ? target.media.currentTime : 0;
+            if (!target) return 0;
+            return target.timeline
+                ? target.timeline.currentTime()
+                : target.media.currentTime;
         },
 
         subscribe(listener: () => void): () => void {

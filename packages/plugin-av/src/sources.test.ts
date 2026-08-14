@@ -65,7 +65,7 @@ describe('scanCanvasForAv', () => {
         expect(scan?.width).toBe(480);
         expect(scan?.height).toBe(360);
         expect(scan?.placements).toHaveLength(1);
-        expect(scan?.placements[0].source).toEqual({
+        expect(scan?.placements[0].alternatives[0]).toEqual({
             url: 'https://fixtures.iiif.io/video/indiana/lunchroom_manners/high/lunchroom_manners_1024kb.mp4',
             kind: 'video',
             format: 'video/mp4',
@@ -79,7 +79,7 @@ describe('scanCanvasForAv', () => {
 
         const scan = scanCanvasForAv(canvas);
 
-        expect(scan?.placements[0].source.kind).toBe('audio');
+        expect(scan?.placements[0].alternatives[0].kind).toBe('audio');
     });
 
     it('keeps a Sound body whose format says video on the video element', () => {
@@ -89,10 +89,10 @@ describe('scanCanvasForAv', () => {
         const canvases = recipeCanvases('0014-accompanyingcanvas.json');
         const scans = canvases.map((canvas) => scanCanvasForAv(canvas));
 
-        expect(scans[0]?.placements[0].source.kind).toBe('video');
+        expect(scans[0]?.placements[0].alternatives[0].kind).toBe('video');
     });
 
-    it('takes the first alternative of a Choice, and is not composed by it', () => {
+    it('reports every alternative of a Choice, and is not composed by it', () => {
         const [canvas] = recipeCanvases('0434-choice-av.json');
 
         const scan = scanCanvasForAv(canvas);
@@ -101,6 +101,18 @@ describe('scanCanvasForAv', () => {
         // the reader's pick between equivalents, not a composition.
         expect(scan?.placements).toHaveLength(1);
         expect(scan?.temporallyComposed).toBe(false);
+        // All of them, in manifest order. Which one plays is decided against
+        // the browser, in `formats.ts`, and not by parsing.
+        expect(
+            scan?.placements[0].alternatives.map((source) => source.format),
+        ).toEqual([
+            'audio/alac',
+            'audio/mpeg',
+            'audio/flac',
+            'audio/ogg',
+            'audio/mpeg',
+            'audio/wav',
+        ]);
     });
 
     it('reports a canvas whose duration is tiled by several bodies as composed', () => {
@@ -111,7 +123,7 @@ describe('scanCanvasForAv', () => {
         expect(scan?.placements).toHaveLength(2);
         expect(scan?.temporallyComposed).toBe(true);
         // The interim contract: the first body is what plays.
-        expect(scan?.placements[0].source.url).toContain('vae0637');
+        expect(scan?.placements[0].alternatives[0].url).toContain('vae0637');
     });
 
     it('reports a spatially targeted time-based body', () => {
@@ -215,7 +227,7 @@ describe('scanCanvasForAv', () => {
             ],
         };
 
-        expect(scanCanvasForAv(canvas)?.placements[0].source).toEqual({
+        expect(scanCanvasForAv(canvas)?.placements[0].alternatives[0]).toEqual({
             url: '/media/hls/bars.m3u8',
             kind: 'video',
             format: 'application/vnd.apple.mpegurl',
@@ -242,8 +254,8 @@ describe('scanCanvasForAv', () => {
         const scan = scanCanvasForAv(canvas);
 
         expect(scan?.placements).toHaveLength(1);
-        expect(scan?.placements[0].source.kind).toBe('video');
-        expect(scan?.placements[0].source.url).toMatch(/\.mp4$/);
+        expect(scan?.placements[0].alternatives[0].kind).toBe('video');
+        expect(scan?.placements[0].alternatives[0].url).toMatch(/\.mp4$/);
     });
 
     it('reports no dimensions for a duration-only canvas', () => {

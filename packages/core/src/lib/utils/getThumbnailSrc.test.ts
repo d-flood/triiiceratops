@@ -211,3 +211,44 @@ describe('a declared thumbnail on a canvas core cannot render', () => {
         );
     });
 });
+
+describe('a mixed Choice, resolved over the selected alternative', () => {
+    /**
+     * The strip and the viewer answer over one body. Resolving the image
+     * alternative while the classifier reads the video one puts a picture in
+     * the strip for a canvas the viewer says it cannot display.
+     */
+    const IMAGE = { id: 'https://ex/img.jpg', type: 'Image' };
+    const VIDEO = {
+        id: 'https://ex/film.mp4',
+        type: 'Video',
+        format: 'video/mp4',
+    };
+    const canvas = {
+        id: 'https://ex/canvas/1',
+        type: 'Canvas',
+        items: [
+            {
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        target: 'https://ex/canvas/1',
+                        body: { type: 'Choice', items: [IMAGE, VIDEO] },
+                    },
+                ],
+            },
+        ],
+    };
+
+    it('resolves the image alternative by default, matching the classifier', () => {
+        expect(isUnsupportedCanvas(canvas)).toBe(false);
+        expect(getThumbnailSrc(canvas)).toBe('https://ex/img.jpg');
+    });
+
+    it('resolves nothing once the video alternative is selected', () => {
+        expect(isUnsupportedCanvas(canvas, VIDEO.id)).toBe(true);
+        expect(getThumbnailSrc(canvas, 200, VIDEO.id)).toBe('');
+    });
+});

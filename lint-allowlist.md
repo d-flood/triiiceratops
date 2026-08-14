@@ -411,12 +411,14 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-11 · **Review by:** 2027-02-11
 
-### 11. bare `console.warn` — `packages/plugin-av/src/degradation.ts` (manifest degradation warnings)
+### 11. bare `console.warn` — `packages/plugin-av/src/degradation.ts` and `packages/plugin-av/src/sequencer/segments.ts` (manifest degradation warnings)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
   distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
 - **Mechanism:** `// triiiceratops-console-allow` marker comments on the
-  preceding lines, at four call sites. The `warnOnce` helper is guarded by a
+  preceding lines, at five call sites — four in `degradation.ts` and one shared
+  `warn` helper in `sequencer/segments.ts`, which is in the lazily-loaded
+  sequencer chunk precisely because nothing eager may reach the segment map. The `warnOnce` helper is guarded by a
   `WeakMap` keyed on the canvas JSON, so at most one line is emitted per canvas
   per reason per manifest; `warnAboutUnreadableWaveform` is guarded by a `Set` of
   URLs already announced, so one broken waveform publish emits one line however
@@ -424,11 +426,14 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   way, so one caption file supplemented onto several canvases announces once;
   `warnAboutUnloadableHlsChunk` is guarded by a flag, so a
   dist hosted without its chunks emits one line per page rather than one per
-  canvas.
+  canvas. The segment map's three normalization warnings — a body with no `t=`
+  window, overlapping windows, a gap — are each latched by a flag over the
+  whole build, so each is emitted at most once per map build, which happens
+  once per composed canvas.
 - **Rationale:** this is the developer-console half of the AV epic's degradation
   contract (user story 45): a manifest shape the viewer renders less than fully —
-  time-based media placed into part of a canvas rect, several bodies sharing one
-  canvas's duration, or linked waveform data that is neither audiowaveform format
+  time-based media placed into part of a canvas rect, `t=` windows that do not
+  tile a composed canvas's duration cleanly, or linked waveform data that is neither audiowaveform format
   (a lane that seeks but shows no waveform), or a caption track the browser
   refused (almost always a VTT served cross-origin without CORS, which leaves
   the reader no captions toggle at all) — must announce what it did not honour,
@@ -444,12 +449,17 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   `debug` on, and the `WeakSet` already bounds the output to one line per
   offending canvas.
 - **Behavior test:** `packages/plugin-av/src/activation.test.ts` — "the
-  degradation contract" pins that the composed (`0064-opera-one-canvas`) and
-  spatially-targeted (`0489-multimedia-canvas`) vendored recipes each produce
-  exactly one warning, and that an ordinary single-body video canvas
+  degradation contract" pins that the spatially-targeted
+  (`0489-multimedia-canvas`) vendored recipe produces exactly one warning, that
+  the composed one (`0064-opera-one-canvas`) now produces NONE because it plays
+  through as one work, and that an ordinary single-body video canvas
   (`0003-mvm-video`) produces none, so the warn cannot fire for a manifest that
   rendered fully; the same file's "unreadable waveform data" cases pin one line
-  per URL and none for data that parses. `degradation.test.ts` — "an hls.js chunk
+  per URL and none for data that parses. `sequencer/segments.test.ts` pins one
+  line per normalization case — including "says it once however many bodies
+  claim no window", which is the stated per-build bound asserted rather than
+  assumed — and silence for a cleanly tiled canvas.
+  `degradation.test.ts` — "an hls.js chunk
   that will not load" pins one line per page, and "a caption track that will not
   load" pins one line per URL.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>

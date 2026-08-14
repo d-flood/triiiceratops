@@ -70,7 +70,7 @@ triiiceratops :: dist/utils/collections.d.ts :: export declare function getColle
 triiiceratops :: dist/utils/collections.d.ts :: export declare function getCollectionThumbnail(json: any): string | undefined;
 triiiceratops :: dist/utils/collections.d.ts :: export declare function isCollection(json: any): boolean;
 triiiceratops :: dist/utils/collections.d.ts :: export declare function parseCollection(json: any): CollectionItem[];
-triiiceratops :: dist/utils/getThumbnailSrc.d.ts :: export declare function getThumbnailSrc(canvas: any, size?: number): string;
+triiiceratops :: dist/utils/getThumbnailSrc.d.ts :: export declare function getThumbnailSrc(canvas: any, size?: number, selectedChoiceId?: string): string;
 triiiceratops :: dist/utils/getThumbnailSrc.d.ts :: export declare function resolveThumbnailResourceSrc(thumbnail: any, size?: number): string;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function findCanvasById(canvases: any[], canvasId: string | null): any;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;

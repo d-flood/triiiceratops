@@ -9,24 +9,49 @@
         <!-- The custom element injects all its styles into its own shadow root,
              so no separate element stylesheet is needed. -->
         <script src="../../dist/triiiceratops-element.iife.js"></script>
+        <!--
+            `@triiiceratops/plugin-av`, from its own dist DIRECTORY — the entry
+            fetches `av-hls.js`, `av-waveform.js`, `av-sequencer.js` and
+            `av-transcript.js` from beside its own script URL, on demand.
+
+            It must come AFTER core's script, and it is the one plugin of which
+            that is true: it bundles no Svelte and reads core's runtime off
+            `window.Triiiceratops`. Two classic scripts execute in source order,
+            so writing it second is all the ordering this needs.
+        -->
+        <script src="../../dist/plugin-av/iife.js"></script>
     </head>
     <body>
         <triiiceratops-viewer
+            id="images"
             theme="dark"
             manifest-id="https://iiif.wellcomecollection.org/presentation/v3/b18035723"
             canvas-id="https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0001.JP2"
         ></triiiceratops-viewer>
 
-        <!--
-            This core-only Web Component demo renders with no plugins. First-party
-            plugins now ship as their own packages (e.g.
-            `@triiiceratops/plugin-annotation-editor`). To use one here, load its
-            IIFE and activate the factory it registers:
+        <h2>Audio &amp; video</h2>
+        <p>
+            The IIIF Cookbook's
+            <a
+                href="https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json"
+                >simplest video recipe</a
+            >, played by <code>@triiiceratops/plugin-av</code> loaded from a
+            script tag with no bundler.
+        </p>
+        <triiiceratops-viewer
+            id="av"
+            theme="dark"
+            manifest-id="https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json"
+        ></triiiceratops-viewer>
 
-                const plugin = window.Triiiceratops.plugins.get(
-                    '@triiiceratops/plugin-annotation-editor',
-                );
-                viewer.plugins = [plugin];
-        -->
+        <script>
+            // Registration is explicit and per viewer: loading a plugin IIFE
+            // only puts its factory in `window.Triiiceratops.plugins`. The
+            // image viewer above deliberately gets none, so the two show core
+            // alone and core-plus-plugin side by side.
+            document.getElementById('av').plugins = [
+                window.Triiiceratops.plugins.get('@triiiceratops/plugin-av'),
+            ];
+        </script>
     </body>
 </html>

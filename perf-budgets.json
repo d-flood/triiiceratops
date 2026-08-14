@@ -78,6 +78,14 @@
         "av:iife-chunk-waveform": {
             "bytes": 6569,
             "ceilingBytes": 6897
+        },
+        "av:iife-chunk-sequencer": {
+            "bytes": 5036,
+            "ceilingBytes": 5288
+        },
+        "av:iife-chunk-transcript": {
+            "bytes": 4495,
+            "ceilingBytes": 4720
         }
     },
     "acceptedSizeIncreases": {
@@ -96,6 +104,14 @@
         "av:iife-chunk-waveform": {
             "headBytes": 6897,
             "reason": "New artifact family: fetched only when a canvas links waveform data."
+        },
+        "av:iife-chunk-sequencer": {
+            "headBytes": 5288,
+            "reason": "New artifact family: fetched only when a canvas is painted by several time-based bodies tiling its duration. These bytes are never in the entry and never in the pair budget."
+        },
+        "av:iife-chunk-transcript": {
+            "headBytes": 4720,
+            "reason": "New artifact family: the transcript panel, fetched only when the current canvas carries a VTT track that loaded with cues in it. These bytes are never in the entry and never in the pair budget."
         }
     },
     "runtime": {

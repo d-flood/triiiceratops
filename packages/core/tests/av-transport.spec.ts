@@ -24,6 +24,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 import { serveAvPluginDist } from './helpers/avPluginDist';
+import { settled } from './helpers/settle';
 import { AV_MANIFESTS, BARS_MP4, BARS_SIZE } from './helpers/avMedia';
 
 test.describe.configure({ timeout: 120_000 });
@@ -220,7 +221,13 @@ test.describe('av transport — anchored chrome at constant screen size', () => 
             )
             .toBe(true);
 
-        const before = await measure();
+        // SETTLED, not merely tracking. The poll above only asserts the
+        // transport follows the canvas, which it does throughout the opening
+        // animation — so a single read here can capture a canvas that is still
+        // being re-fitted as the docked panel column slides out, and "wider
+        // than before" below would then be measured against a width that was
+        // never the resting one.
+        const before = await settled(page, measure);
         expect(before).not.toBeNull();
 
         await zoomTo(page, 3);
@@ -252,6 +259,19 @@ test.describe('av transport — anchored chrome at constant screen size', () => 
     }) => {
         await openViewer(page);
         await expect(page.locator(GLYPH)).toBeHidden();
+
+        // Let the OPENING fit finish before touching the host's size. The
+        // fixture's panel is docked from load, so core is still re-fitting the
+        // canvas as that column slides out (ticket 20); a host resize landing
+        // inside that window is genuinely ambiguous — core cannot tell it from
+        // the column's own resizing — and would be re-fitted rather than
+        // preserved, putting the scale somewhere this test's zoom arguments
+        // were not written for.
+        await settled(
+            page,
+            async (p) =>
+                (await p.locator(TRANSPORT).boundingBox())?.width ?? null,
+        );
 
         // A phone-width viewer, because the reader's zoom floor is half the
         // scale at which the world fits: on the fixture's 800px-wide viewer

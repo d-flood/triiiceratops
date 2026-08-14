@@ -25,6 +25,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { serveAvPluginDist } from './helpers/avPluginDist';
+import { settledBox } from './helpers/settle';
 import {
     AV_MANIFESTS,
     BARS_MP4,
@@ -290,7 +291,10 @@ test.describe('av waveform — linked peaks fill the timeline lane', () => {
             )
             .toBe(true);
 
-        const lane = (await page.locator(TIMELINE_LANE).first().boundingBox())!;
+        // Settled, not sampled: the opening fit animates and core re-fits again
+        // as the docked panel column slides out, so a fraction taken off a
+        // moving box seeks to the wrong moment.
+        const lane = await settledBox(page, TIMELINE_LANE);
         // The pointer lands on the WAVEFORM, not on bare lane — which is the
         // regression this asserts against: the seek origin is the lane's box.
         await page

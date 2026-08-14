@@ -26,8 +26,13 @@ function media(readyState: number): HTMLMediaElement {
 function seekerOver(
     elements: Record<string, HTMLMediaElement>,
     seek: (canvasId: string, seconds: number) => void,
+    readiness: (canvasId: string) => 'ready' | 'pending' | 'element' = () =>
+        'element',
 ) {
     return createOffsetSeeker({
+        // Where the canvas timeline IS the element's clock — every canvas one
+        // body fills — the element's own metadata is the readiness.
+        timelineReadiness: readiness,
         mediaFor: (canvasId) => elements[canvasId] ?? null,
         seek,
     });
@@ -156,5 +161,76 @@ describe('playlist behaviors', () => {
         expect(warn).toHaveBeenCalledOnce();
 
         warn.mockRestore();
+    });
+});
+
+/*
+    A temporally composed canvas's timeline is its segment map, not one
+    element's `loadedmetadata`: it can place every second of the canvas the
+    moment the sequencer exists, and which element to load is what resolving
+    the offset ANSWERS. Waiting on the attached element there would wait on the
+    element that is about to be replaced.
+*/
+describe('temporal offsets on a composed canvas', () => {
+    it('seeks straight away, whatever the attached element has loaded', () => {
+        const seek = vi.fn();
+        const seeker = seekerOver(
+            { 'canvas/1': media(0) },
+            seek,
+            () => 'ready',
+        );
+
+        seeker.apply({ canvasId: 'canvas/1', seconds: 4_000 });
+
+        expect(seek).toHaveBeenCalledWith('canvas/1', 4_000);
+        seeker.destroy();
+    });
+
+    /*
+        Both halves of a cold load are network races, and on a cold cache the
+        first body's metadata routinely wins: the deep link arrives with the
+        navigation, the sequencer arrives with its chunk. An offset applied
+        against the element attached in between is clamped by ACT ONE's
+        duration, which pins a link into act two back to the end of act one and
+        nothing re-applies it.
+    */
+    it('waits for the segment map rather than clamping against the first body', () => {
+        const seek = vi.fn();
+        const element = media(0);
+        let sequencer = false;
+        const seeker = seekerOver({ 'canvas/1': element }, seek, () =>
+            sequencer ? 'ready' : 'pending',
+        );
+
+        seeker.apply({ canvasId: 'canvas/1', seconds: 4_000 });
+        expect(seek).not.toHaveBeenCalled();
+
+        // The element about to be REPLACED reaches its metadata first. Its
+        // duration is act one's, and it is not this offset's to clamp.
+        element.dispatchEvent(new Event('loadedmetadata'));
+        expect(seek).not.toHaveBeenCalled();
+
+        // The chunk lands, and the timeline that can place 4,000 seconds
+        // exists.
+        sequencer = true;
+        seeker.retry();
+
+        expect(seek).toHaveBeenCalledExactlyOnceWith('canvas/1', 4_000);
+        seeker.destroy();
+    });
+
+    it('has nothing to retry once an offset has been applied', () => {
+        const seek = vi.fn();
+        const seeker = seekerOver(
+            { 'canvas/1': media(1) },
+            seek,
+            () => 'ready',
+        );
+
+        seeker.apply({ canvasId: 'canvas/1', seconds: 12 });
+        seeker.retry();
+
+        expect(seek).toHaveBeenCalledOnce();
+        seeker.destroy();
     });
 });

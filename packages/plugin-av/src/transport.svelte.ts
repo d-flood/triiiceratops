@@ -24,9 +24,11 @@ import {
     bufferedSpans,
     type CaptionOption,
     captionOptions,
+    elementSpans,
     fitsTransport,
     formatMediaTime,
     timeFraction,
+    type TimeSpan,
     volumeIsSettable,
 } from './transport';
 
@@ -144,6 +146,13 @@ export interface TransportOptions {
      * into a command contract.
      */
     currentMedia(): HTMLMediaElement | null;
+    /**
+     * That element's buffered ranges as CANVAS-time spans, so they land where
+     * they belong on a scrubber that spans the whole canvas. Omitted wherever
+     * the canvas timeline is the element's own clock, which is
+     * {@link elementSpans}.
+     */
+    bufferedSpans?(ranges: TimeRanges | null | undefined): readonly TimeSpan[];
     readonly prefs: AudioPrefs;
     labels(): TransportLabels;
     /** The current canvas's scrubber strip as a data URL, or `null`. */
@@ -232,7 +241,10 @@ export function createTransport(options: TransportOptions): Transport {
         view.duration = avState.duration;
         view.currentTime = avState.currentTime;
         view.fraction = timeFraction(view.currentTime, view.duration);
-        view.buffered = bufferedSpans(media?.buffered, view.duration);
+        view.buffered = bufferedSpans(
+            (options.bufferedSpans ?? elementSpans)(media?.buffered),
+            view.duration,
+        );
         view.muted = prefs.muted;
         view.volume = prefs.volume;
         view.position = positionText();

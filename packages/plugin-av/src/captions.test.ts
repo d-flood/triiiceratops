@@ -85,6 +85,9 @@ describe('captions — detection', () => {
                 url: '/media/captions.vtt',
                 language: 'en',
                 label: 'Captions in English',
+                // Authored beside the media in the painting body array, so it
+                // belongs to that body and can be windowed with it.
+                annotation: 0,
             },
         ]);
     });
@@ -103,6 +106,8 @@ describe('captions — detection', () => {
                 url: '/media/captions.vtt',
                 language: 'en',
                 label: 'Captions in WebVTT format',
+                // Supplementing the CANVAS, so it belongs to no one body.
+                annotation: null,
             },
         ]);
     });
@@ -158,6 +163,10 @@ describe('captions — detection', () => {
         ];
 
         expect(captionTracksForCanvas(canvas)).toHaveLength(1);
+        // And it is the CANVAS-level reading that survives: `annotation` is
+        // what windows a track to one segment of a composed canvas, and a file
+        // supplemented onto the canvas captions the whole of it.
+        expect(captionTracksForCanvas(canvas)[0].annotation).toBeNull();
     });
 
     it('ignores non-VTT supplementing bodies and every other motivation', () => {
@@ -188,7 +197,12 @@ describe('captions — detection', () => {
         });
 
         expect(captionTracksForCanvas(canvas)).toEqual([
-            { url: '/media/captions.vtt', language: null, label: null },
+            {
+                url: '/media/captions.vtt',
+                language: null,
+                label: null,
+                annotation: null,
+            },
         ]);
     });
 

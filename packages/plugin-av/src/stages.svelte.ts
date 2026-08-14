@@ -10,8 +10,9 @@
  *   into. Which canvases those are is core's own question, asked through core's
  *   own classifier.
  * - **Staging.** One stage per claimed canvas, all of them inside ONE overlay
- *   layer. A canvas maps to a *source provider* rather than to a body, so the
- *   canvas timeline can replace `placements[0]` without the stage changing.
+ *   layer. A canvas maps to a *source provider* rather than to a body: a canvas
+ *   one body fills plays that body, and a temporally composed one gets a
+ *   sequencer over the same stage. The stage itself knows neither case apart.
  * - **Placing.** Every stage is projected from canvas space on every frame the
  *   viewport moves, which is what makes the media track pan and zoom.
  *
@@ -20,7 +21,7 @@
  */
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';
-import { isUnsupportedCanvas } from 'triiiceratops';
+import { isUnsupportedCanvasFor } from 'triiiceratops';
 
 import type { AVState } from './avState';
 import { createAvState } from './avPlayback';
@@ -30,7 +31,7 @@ import {
     readBehaviors,
     type PlaylistBehaviors,
 } from './behaviors';
-import { captionTracksForCanvas } from './captions';
+import { captionTracksForCanvas, type CaptionTrack } from './captions';
 import {
     resolveAccompanyingImage,
     resolvePlaceholderImage,
@@ -40,21 +41,30 @@ import {
     warnAboutDegradation,
     warnAboutUnreadableWaveform,
 } from './degradation';
+import { createPlayabilityProbe, selectSource } from './formats';
 import {
     createMediaStage,
     type MediaStage,
     type StageRect,
 } from './mediaStage';
 import { reportAvCommandError } from './reportError';
+import type { CanvasSequencer } from './sequencer/index';
+import { loadSequencer } from './sequencerLink';
 import { scanCanvasForAv, type AvCanvasScan } from './sources';
 import { stageLayoutKind } from './stageLayout';
 import { createOffsetSeeker } from './temporalOffsets';
-import { fractionToTime } from './transport';
+import {
+    captionOptions,
+    elementSpans,
+    formatMediaTime,
+    fractionToTime,
+} from './transport';
 import {
     createAudioPrefs,
     createTransport,
     type TransportLabels,
 } from './transport.svelte';
+import { loadTranscript } from './transcriptLink';
 import type { VisibleBox } from './waveform/surface';
 import { loadPeaks, waveformUrlFor } from './waveformLink';
 
@@ -70,6 +80,13 @@ export interface AvStageView {
 export interface AvStageManager {
     /** Every claimed canvas's stage, in layout order. Reactive. */
     readonly views: readonly AvStageView[];
+    /**
+     * Where the panel wants its transcript rendered, or `null` when the panel
+     * is gone. The manager owns the lazy chunk's lifecycle from here, because a
+     * Svelte `$effect` would compile to a runtime helper core's curated shared
+     * runtime does not publish.
+     */
+    setTranscriptHost(host: HTMLElement | null): void;
     /**
      * The published playback state (ADR 0018). The plugin's own UI commands
      * playback through this same object a host reaches by
@@ -92,6 +109,12 @@ interface StageEntry {
      * `null` until (or unless) waveform data resolves for this canvas.
      */
     strip: string | null;
+    /**
+     * The canvas timeline of a temporally composed canvas, once its chunk has
+     * arrived. `null` for every canvas one body fills, and that is what makes
+     * the mapping the identity there with no added behaviour.
+     */
+    sequencer: CanvasSequencer | null;
 }
 
 /** The last path segment of a canvas id — enough to tell two stages apart. */
@@ -159,6 +182,7 @@ export function createAvStageManager(
                       canvasId: entry.stage.canvasId,
                       media: entry.stage.media,
                       canvasDuration: entry.scan.duration,
+                      timeline: entry.sequencer,
                   }
                 : null;
         },
@@ -167,6 +191,7 @@ export function createAvStageManager(
     });
 
     const prefs = createAudioPrefs();
+    const canPlay = createPlayabilityProbe();
 
     function transportLabels(): TransportLabels {
         const { t } = context.locale;
@@ -199,6 +224,16 @@ export function createAvStageManager(
     const transport = createTransport({
         avState: publication.state,
         currentMedia: () => currentEntry()?.stage.media ?? null,
+        // The element's buffered ranges are in the ACTIVE SEGMENT's clock; the
+        // scrubber spans the whole canvas. The sequencer does that mapping
+        // because only it knows the window to clamp against, and what crosses
+        // back is canvas-time seconds rather than anything naming a segment.
+        bufferedSpans: (ranges) => {
+            const sequencer = currentEntry()?.sequencer;
+            return sequencer
+                ? sequencer.bufferedSpans(ranges)
+                : elementSpans(ranges);
+        },
         prefs,
         labels: transportLabels,
         peaksStrip: () => currentEntry()?.strip ?? null,
@@ -208,13 +243,136 @@ export function createAvStageManager(
         captions: () => {
             const stage = currentEntry()?.stage;
             return {
-                tracks: stage?.captionTracks ?? [],
+                // Only where the element can paint them. An audio stage
+                // attaches its tracks for the transcript panel to read, and
+                // offering a toggle over them would be the dead control user
+                // story 46 forbids.
+                tracks: stage?.rendersCaptions ? stage.captionTracks : [],
                 active: stage?.activeCaptionTrack ?? null,
             };
         },
-        setCaptionTrack: (id) => currentEntry()?.stage.setCaptionTrack(id),
+        setCaptionTrack: (id) => {
+            currentEntry()?.stage.setCaptionTrack(id);
+            // The transcript reads the SELECTED track, and a paused canvas is
+            // running no frame cadence to notice on its own.
+            publishViews();
+        },
         t: (key, params) => context.locale.t(key, params),
     });
+
+    let transcriptHost: HTMLElement | null = null;
+    let transcriptPanel: { refresh(): void; destroy(): void } | null = null;
+    /** Which canvas the mounted panel was built for, or `null` for no panel. */
+    let transcriptKey: string | null = null;
+    /** Discriminates an in-flight chunk load from the mount that superseded it. */
+    let transcriptToken = 0;
+
+    /**
+     * The track the transcript reads for the current canvas, or `null` when
+     * this canvas offers no transcript at all.
+     *
+     * The stage's LOADED set, so a refused track and one that carries no cues
+     * are both already gone: `null` here is the no-dead-control rule (user
+     * story 46), and it is why a canvas with no VTT gets no entry rather than
+     * an empty one.
+     *
+     * It follows the caption selection where there is one, and otherwise reads
+     * the first loaded track — which is the state every sound recording is
+     * permanently in, having no captions toggle to select with. The panel says
+     * which track it is reading either way, so "the first one" is never a
+     * silent choice.
+     */
+    function transcriptTrack(): CaptionTrack | null {
+        const stage = currentEntry()?.stage;
+        if (!stage) return null;
+
+        const tracks = stage.captionTracks;
+        return (
+            tracks.find((track) => track.url === stage.activeCaptionTrack) ??
+            tracks[0] ??
+            null
+        );
+    }
+
+    /**
+     * The live text track the transcript reads, the canvas time its cues must
+     * be shifted by, and what to call it.
+     *
+     * Read on the frame cadence, and all three of them for the same reason: on
+     * a temporally composed canvas a segment seam re-windows the eligible
+     * tracks (ticket 18), so the track, its shift and its name all change
+     * together at the seam. A panel told only the track would go on naming the
+     * previous segment's while the cues changed underneath the label.
+     *
+     * The shift is derived rather than asked of the sequencer: AVState reports
+     * the playhead in CANVAS time and the element reports it in the active
+     * segment's own clock, so their difference IS that segment's start. It is
+     * exactly `0` wherever the timeline is the identity, so no rounding stands
+     * between an ordinary canvas and its own cue times.
+     */
+    function transcriptSource(): {
+        track: TextTrack | null;
+        offset: number;
+        label: string;
+    } {
+        const entry = currentEntry();
+        const track = transcriptTrack();
+        if (!entry || !track) return { track: null, offset: 0, label: '' };
+        return {
+            track: entry.stage.captionTextTrack(track.url),
+            offset: entry.sequencer
+                ? publication.state.currentTime - entry.stage.media.currentTime
+                : 0,
+            label: captionOptions(
+                [track],
+                context.locale.t('av_captions_track'),
+            )[0].label,
+        };
+    }
+
+    /**
+     * Bring the transcript panel into line with the canvas, the track and the
+     * host.
+     *
+     * Called from `publishViews`, so on every playback notification: the key
+     * comparison is what keeps a panel that is already right from being torn
+     * down and rebuilt several times a second.
+     *
+     * The key is the CANVAS, deliberately not the track. Which track is read
+     * changes without the canvas changing — a caption selection, a segment
+     * seam re-windowing the eligible set — and tearing the panel down for that
+     * would scroll a reader back to the top and drop their keyboard focus to
+     * `<body>`. The panel follows the track through `transcriptSource`
+     * instead, and `refresh` is what reaches it while playback is paused and
+     * the frame cadence is therefore stopped.
+     */
+    function syncTranscript(): void {
+        const host = transcriptHost;
+        const track = transcriptTrack();
+        const key = host && track ? viewerState.canvasId : null;
+        if (key === transcriptKey) {
+            transcriptPanel?.refresh();
+            return;
+        }
+
+        transcriptKey = key;
+        transcriptToken += 1;
+        transcriptPanel?.destroy();
+        transcriptPanel = null;
+        if (!host || !track) return;
+
+        const token = transcriptToken;
+        void loadTranscript().then((module) => {
+            if (token !== transcriptToken || !module) return;
+            transcriptPanel = module.createTranscriptPanel(host, {
+                avState: publication.state,
+                source: transcriptSource,
+                formatTime: formatMediaTime,
+                styles: context.styles,
+                t: context.locale.t,
+            });
+        });
+    }
 
     function publishViews(): void {
         publication.sync();
@@ -224,6 +382,7 @@ export function createAvStageManager(
             paused: entry.stage.media.paused,
             unplayable: entry.stage.unplayable,
         }));
+        syncTranscript();
     }
 
     /**
@@ -303,6 +462,53 @@ export function createAvStageManager(
         }
     }
 
+    /**
+     * Which rendition of a set of alternatives to attach: the reader's explicit
+     * pick if there is one, and otherwise the first this browser can play.
+     * Per canvas, because a Choice is selected on the canvas.
+     */
+    function sourceFor(
+        canvasId: string,
+        alternatives: AvCanvasScan['placements'][number]['alternatives'],
+    ) {
+        return selectSource(
+            alternatives,
+            viewerState.getSelectedChoice(canvasId),
+            canPlay,
+        );
+    }
+
+    /**
+     * The source a canvas is first staged with: its first placement's.
+     *
+     * Right for a canvas one body fills, and right enough for a composed one —
+     * the sequencer corrects it to segment 0 when its chunk arrives, which
+     * matters only for a manifest whose annotations are authored out of time
+     * order.
+     */
+    function initialSourceFor(scan: AvCanvasScan) {
+        return sourceFor(scan.canvasId, scan.placements[0].alternatives);
+    }
+
+    /**
+     * Carry a changed selection to the stages that are already up. The stage
+     * keeps the reader's place across the swap, so a rendition change mid-play
+     * resumes where it was rather than restarting — and on a composed canvas
+     * the sequencer re-selects the segment that is PLAYING rather than the
+     * first one.
+     */
+    function applySelections(): void {
+        for (const entry of entries.values()) {
+            if (entry.sequencer) {
+                entry.sequencer.reselect();
+                continue;
+            }
+            const source = initialSourceFor(entry.scan);
+            if (source) entry.stage.setSource(source);
+        }
+        publishViews();
+    }
+
     /** Whether `auto-advance` governs this canvas — its own term, or the manifest's. */
     function autoAdvances(
         canvasId: string,
@@ -368,6 +574,12 @@ export function createAvStageManager(
     }
 
     function addStage(scan: AvCanvasScan, canvas: unknown): void {
+        // Before the claim, so a canvas nothing can be attached for is not
+        // claimed and left without a stage — which would suppress the
+        // unsupported presentation and put nothing in its place.
+        const source = initialSourceFor(scan);
+        if (!source) return;
+
         // `context.surface.id` — the id this viewer knows the plugin by. A claim
         // under any other name is refused, and it is what releases the claim if
         // this activation goes away without releasing it itself.
@@ -384,7 +596,6 @@ export function createAvStageManager(
         )
             return;
 
-        const source = scan.placements[0].source;
         const rect = rectFor(scan);
 
         // Resolved here, requested by the stage once it has a lane to size the
@@ -406,7 +617,13 @@ export function createAvStageManager(
             // A track settling changes whether there is a toggle at all, and
             // that is not playback state, so no AVState cadence would ever
             // pull the transport forward on its own.
-            onCaptionTracksChange: () => transport.refresh(),
+            onCaptionTracksChange: () => {
+                transport.refresh();
+                // A track settles on the network's schedule, long after the
+                // panel rendered: this is the only thing that can bring a
+                // transcript in for it.
+                publishViews();
+            },
             onPlayStateChange: publishViews,
             // Through AVState, never into the element: a tap is the same seek a
             // host issues, clamped and refused by the same rules.
@@ -421,7 +638,15 @@ export function createAvStageManager(
                 const seconds = fractionToTime(fraction, duration);
                 if (seconds !== null) publication.state.seek(seconds);
             },
-            onTimelineEnd: () => onTimelineEnd(scan.canvasId),
+            // The END of one element's playback. Where the canvas timeline is
+            // the identity mapping that IS its end; where a sequencer is
+            // playing, it is the end of a segment, and only the sequencer can
+            // tell the last one from the rest.
+            onTimelineEnd: () => {
+                const sequencer = entries.get(scan.canvasId)?.sequencer;
+                if (sequencer) sequencer.segmentEnded();
+                else onTimelineEnd(scan.canvasId);
+            },
         });
         prefs.applyTo(stage.media);
         stage.place(rect, visibleBox());
@@ -433,9 +658,76 @@ export function createAvStageManager(
             release,
             behaviors: readBehaviors(canvas),
             strip: null,
+            sequencer: null,
         };
         entries.set(scan.canvasId, entry);
         attachWaveform(entry, canvas);
+        if (scan.temporallyComposed) attachSequencer(entry, canvas);
+    }
+
+    /**
+     * Give a temporally composed canvas its canvas timeline.
+     *
+     * Fire-and-forget, and lazily loaded: `temporallyComposed` is the whole of
+     * what the entry has to know, and everything that knows what a segment IS
+     * lives in the chunk. A chunk that will not load leaves the canvas playing
+     * its first body — degraded, never failed.
+     */
+    function attachSequencer(entry: StageEntry, canvas: unknown): void {
+        const { canvasId } = entry.scan;
+        // Fixed at claim time: which annotation a track was authored on cannot
+        // change without a restage, so the per-annotation URL sets are built
+        // once rather than re-derived from the raw canvas JSON at every seam.
+        const tracks = captionTracksForCanvas(canvas);
+        const byAnnotation: string[][] = [];
+        const eligibleCaptions = (annotation: number): string[] =>
+            (byAnnotation[annotation] ??= tracks
+                .filter(
+                    (track) =>
+                        track.annotation === null ||
+                        track.annotation === annotation,
+                )
+                .map((track) => track.url));
+
+        void loadSequencer().then((module) => {
+            // The canvas may have been restaged while the chunk was in flight.
+            if (!module || entries.get(canvasId) !== entry) return;
+
+            entry.sequencer = module.createCanvasSequencer({
+                placements: entry.scan.placements,
+                canvasDuration: entry.scan.duration,
+                media: () => entry.stage.media,
+                attached: () => entry.stage.source,
+                select: (alternatives) => sourceFor(canvasId, alternatives),
+                attach: (source, offset, play) =>
+                    entry.stage.setSource(source, { at: offset, play }),
+                // A caption track belongs to the body it was authored on, so
+                // only the playing segment's may show. The sequencer names the
+                // painting annotation and nothing about segments crosses.
+                onSegment: (annotation) => {
+                    entry.stage.setEligibleCaptions(
+                        eligibleCaptions(annotation),
+                    );
+                    transport.refresh();
+                    // The seam re-windows the eligible tracks, so the
+                    // transcript is reading a different one from this moment.
+                    // Tied to the seam itself rather than left to whichever
+                    // media event the swap happens to raise next, so the
+                    // re-source is ordered with the change that caused it.
+                    publishViews();
+                },
+                onEnd: () => onTimelineEnd(canvasId),
+            });
+
+            // The timeline's duration is the canvas's, not the first segment's,
+            // and nothing about a chunk arriving is a media event.
+            publication.sync();
+            transport.refresh();
+            // A deep link into this canvas has been waiting for exactly this:
+            // until the map existed there was nothing that could place a time
+            // past the first body's own duration.
+            offsets.retry();
+        });
     }
 
     /**
@@ -446,8 +738,15 @@ export function createAvStageManager(
      * seeks, so nothing waits for it and nothing fails without it. The
      * `await import()` inside `loadPeaks` is what keeps every byte of parsing
      * and rendering off a page whose manifests link none.
+     *
+     * **Never on a temporally composed canvas** (spec fence, ticket 18). Any
+     * waveform a canvas links describes ONE body, while the lane there spans
+     * the whole work: peaks drawn across it would be a picture of act one
+     * stretched over the opera. The lane still seeks in canvas time.
      */
     function attachWaveform(entry: StageEntry, canvas: unknown): void {
+        if (entry.scan.temporallyComposed) return;
+
         const url = waveformUrlFor(canvas);
         if (!url) return;
 
@@ -472,6 +771,7 @@ export function createAvStageManager(
         const entry = entries.get(canvasId);
         if (!entry) return;
         entries.delete(canvasId);
+        entry.sequencer?.destroy();
         entry.stage.destroy();
         entry.release();
     }
@@ -505,7 +805,10 @@ export function createAvStageManager(
             // `canvasSize` reports the box it gave it. Nothing here has to
             // decide whether a canvas can be projected — `rectFor` answers
             // `null` when it cannot, and an unplaced stage hides.
-            if (isUnsupportedCanvas(canvas))
+            // Asked with the reader's selection, the same one the renderer
+            // classifies with: a mixed Choice is core's canvas while its image
+            // alternative is selected and this plugin's while its media one is.
+            if (isUnsupportedCanvasFor(viewerState, canvas))
                 wanted.set(scan.canvasId, { scan, canvas });
         }
 
@@ -555,8 +858,41 @@ export function createAvStageManager(
             placeAll();
         });
 
+    // The reader's Choice picks, read through core's own selection state rather
+    // than mirrored here: `selectChoice` is the command a host already has
+    // for an image Choice, and a media Choice must answer to the same one.
+    //
+    // Keyed over every canvas rather than every staged one, because a selection
+    // can change which canvases are staged at all: a mixed Choice is core's to
+    // paint while its image alternative is selected and this plugin's while its
+    // media one is, so `sync` runs before the swaps.
+    const stopChoices = context.selectors
+        .select((state) =>
+            state.canvases
+                .map((canvas) => {
+                    const id = canvasIdOf(canvas);
+                    return `${id}\t${state.getSelectedChoice(id) ?? ''}`;
+                })
+                .join('\n'),
+        )
+        .subscribe(() => {
+            sync();
+            applySelections();
+        });
+
     const offsets = createOffsetSeeker({
         mediaFor: (canvasId) => entries.get(canvasId)?.stage.media ?? null,
+        // A composed canvas's timeline is its segment map: it can place every
+        // second of the canvas the moment the sequencer exists, and which
+        // element to load is what resolving the offset ANSWERS. Until the chunk
+        // lands there is no timeline to place an offset against — and the
+        // element that IS attached is the first body, whose duration would
+        // clamp a deep link into act two down to the end of act one.
+        timelineReadiness: (canvasId) => {
+            const entry = entries.get(canvasId);
+            if (entry?.sequencer) return 'ready';
+            return entry?.scan.temporallyComposed ? 'pending' : 'element';
+        },
         // The same path a host's `seek` takes, so an offset is clamped and
         // refused by the same rules. Only ever for the canvas the viewer is on:
         // a held offset can come due after the reader has navigated away, and
@@ -611,11 +947,19 @@ export function createAvStageManager(
         get views(): readonly AvStageView[] {
             return views;
         },
+        setTranscriptHost(host: HTMLElement | null): void {
+            transcriptHost = host;
+            syncTranscript();
+        },
         avState: publication.state,
         destroy(): void {
+            transcriptPanel?.destroy();
+            transcriptPanel = null;
+            transcriptToken += 1;
             publication.destroy();
             stopCurrent();
             stopRescan();
+            stopChoices();
             stopOffsets();
             offsets.destroy();
             stopFrames();

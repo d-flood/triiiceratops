@@ -8,7 +8,19 @@
     let {
         tileSources,
         viewerState,
-    }: { tileSources: unknown; viewerState: ViewerState } = $props();
+        dockedChrome = '',
+    }: {
+        tileSources: unknown;
+        viewerState: ViewerState;
+        /**
+         * An opaque identity for the chrome core currently has docked beside
+         * the viewer. Only compared for CHANGE — a different string means the
+         * size the renderer has to work with is about to change because core
+         * took some of it, and nothing here reads the tokens themselves. A
+         * flyout is not in it: it floats and takes no width or height.
+         */
+        dockedChrome?: string;
+    } = $props();
 
     const m = getMessages();
 
@@ -49,6 +61,25 @@
         // Whether this is a TRAVEL within a laid-out world or a jump into a new
         // one is the renderer's own memory — see `refitForCurrentWorld`.
         renderer.refitForCurrentWorld();
+    });
+
+    /*
+     * What the renderer cannot see for itself: a resize caused by core taking
+     * part of the surface for docked chrome, rather than by the window changing
+     * size. The two must not be collapsed — see `refitForDockedChrome`.
+     *
+     * The baseline is the empty string rather than the mount value on purpose.
+     * A viewer that opens with a panel already docked still mounts this
+     * component beside a column of zero width and lets it slide out, so the
+     * first measurement is taken on the FULL surface and the column's arrival
+     * is a change like any other.
+     */
+    let chromeDocked = '';
+    $effect(() => {
+        const docked = dockedChrome;
+        if (docked === chromeDocked) return;
+        chromeDocked = docked;
+        renderer.refitForDockedChrome();
     });
 
     $effect(() => {

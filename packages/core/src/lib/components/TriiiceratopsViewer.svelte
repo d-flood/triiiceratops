@@ -73,7 +73,7 @@
     import type { CanvasRegion } from '../utils/contentState';
     import { sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-    import { isUnsupportedCanvas } from '../utils/paintingBodies';
+    import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
     import {
         getViewerTileSources,
         getVisibleViewerCanvases,
@@ -1246,6 +1246,43 @@
     let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
 
     /**
+     * Which chrome core has docked beside the viewer, as one token each.
+     *
+     * Handed to `CanvasHost` purely as a CHANGE signal: the surface is about to
+     * change size because CORE took some of it, which is a different event from
+     * the window changing size — the first re-fits the canvas, the second
+     * preserves the reader's scale. Nothing downstream reads the tokens; they
+     * are here because a named string is far easier to reason about in a
+     * debugger than a bare counter would be.
+     *
+     * Both axes count. A gallery docked to the top or bottom edge takes a band
+     * of HEIGHT rather than a column of width, but it is docked chrome all the
+     * same, and the overhang it leaves is on the very axis canvas-anchored
+     * transport chrome sits on. `dockSide` defaults to `'bottom'`, so leaving
+     * the horizontal edges out made the default configuration the broken one.
+     * A left/right gallery needs no token of its own — it already shows up
+     * through `isLeftSidebarVisible` / `isRightSidebarVisible`.
+     *
+     * A flyout contributes nothing: it floats over the viewer and takes no
+     * width or height from it.
+     */
+    let dockedChromeColumns = $derived(
+        [
+            isLeftSidebarVisible ? 'left' : '',
+            isRightSidebarVisible ? 'right' : '',
+            toolbarDockedAsRail ? 'rail' : '',
+            galleryDocked && internalViewerState.dockSide === 'top'
+                ? 'gallery-top'
+                : '',
+            galleryDocked && internalViewerState.dockSide === 'bottom'
+                ? 'gallery-bottom'
+                : '',
+        ]
+            .filter(Boolean)
+            .join(' '),
+    );
+
+    /**
      * Which edge of the center column a floating toolbar occupies, or null when
      * the toolbar is elsewhere (docked as a side rail, or embedded in the nav by
      * `unified` controls).
@@ -1309,7 +1346,16 @@
             !canvases[currentCanvasIndex]
         )
             return null;
-        return getThumbnailSrc(canvases[currentCanvasIndex]) || null;
+        const canvas = canvases[currentCanvasIndex];
+        return (
+            getThumbnailSrc(
+                canvas,
+                200,
+                internalViewerState.getSelectedChoice(
+                    getCanvasId(canvas) ?? '',
+                ),
+            ) || null
+        );
     });
 
     let tileSources = $derived.by(() => {
@@ -1368,7 +1414,9 @@
             currentCanvasId: internalViewerState.canvasId,
             viewingMode: internalViewerState.viewingMode,
             pagedOffset: internalViewerState.pagedOffset,
-        }).some((canvas) => isUnsupportedCanvas(canvas)),
+        }).some((canvas) =>
+            isUnsupportedCanvasFor(internalViewerState, canvas),
+        ),
     );
 
     let tileSourceError = $derived(
@@ -1560,6 +1608,7 @@
                     <CanvasHost
                         {tileSources}
                         viewerState={internalViewerState}
+                        dockedChrome={dockedChromeColumns}
                     />
                 {/if}
             {:else if manifestData && !manifestData.isFetching}

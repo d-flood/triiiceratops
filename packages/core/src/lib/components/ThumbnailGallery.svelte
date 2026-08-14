@@ -11,7 +11,7 @@
         getPaintingBody,
         isChoiceBody,
     } from '../utils/iiifParsing';
-    import { isUnsupportedCanvas } from '../utils/paintingBodies';
+    import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
     import { getCanvasLabel } from '../utils/canvasLabels';
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
     import {
@@ -84,7 +84,13 @@
             }>;
         return canvases.map((canvas: ManifestCanvas, index: number) => {
             const canvasId = getCanvasId(canvas) || `canvas-${index}`;
-            let src = getThumbnailSrc(canvas);
+            // Resolved over the reader's selected alternative, the same body
+            // `unsupported` below is decided on.
+            let src = getThumbnailSrc(
+                canvas,
+                200,
+                viewerState.getSelectedChoice(canvasId),
+            );
             let hasChoice = false;
 
             try {
@@ -125,7 +131,7 @@
                 // no business announcing unshowable content for a canvas
                 // something is showing (CONTEXT.md **Canvas claim**).
                 unsupported:
-                    isUnsupportedCanvas(canvas) &&
+                    isUnsupportedCanvasFor(viewerState, canvas) &&
                     !viewerState.isCanvasClaimed(canvasId),
             };
         });

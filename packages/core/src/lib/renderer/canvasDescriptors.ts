@@ -13,7 +13,7 @@
  */
 
 import { getCanvasId } from '../utils/iiifIds';
-import { isUnsupportedCanvas } from '../utils/paintingBodies';
+import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
 import {
     buildIiifImageRequestUrl,
     getDeclaredCanvasDimensions,
@@ -195,8 +195,13 @@ export function toPlannerCanvas(
     // would be a lie about the manifest. A canvas with no painting bodies at
     // all (Cookbook recipe 0283, an IxIF element) is dropped for the same
     // reason.
+    // Classified over the SELECTED body, the same one resolution just took: a
+    // mixed Choice resting on its non-image alternative is a canvas core cannot
+    // paint, and asking about the alternatives as authored answers `false` and
+    // drops it (see `isUnsupportedCanvas`).
     const canvasId = getCanvasId(canvas);
-    if (!canvasId || !isUnsupportedCanvas(canvas)) return null;
+    if (!canvasId || !isUnsupportedCanvasFor(getSelectedChoice, canvas))
+        return null;
 
     // No `thumbnailUrl`, and its absence is deliberate rather than an omission.
     // A declared thumbnail on this canvas is a poster frame, and painting it in

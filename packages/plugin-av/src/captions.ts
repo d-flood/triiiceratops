@@ -33,6 +33,16 @@ export interface CaptionTrack {
     readonly language: string | null;
     /** The resource's own label, or `null`. Content, so it is never localized. */
     readonly label: string | null;
+    /**
+     * The painting annotation whose body array carried this track, by index, or
+     * `null` for a canvas-level `supplementing` one — which captions the whole
+     * canvas rather than one body on it.
+     *
+     * Only a temporally composed canvas can tell the difference: there, a track
+     * authored beside one segment's body may only show during that segment's
+     * window. `sources.ts` numbers its placements over the same list.
+     */
+    readonly annotation: number | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -77,7 +87,10 @@ function bodyResources(body: unknown): unknown[] {
 }
 
 /** The VTT track this resource is, or `null`. */
-function vttTrack(resource: unknown): CaptionTrack | null {
+function vttTrack(
+    resource: unknown,
+    annotation: number | null,
+): CaptionTrack | null {
     const record = asRecord(resource);
     if (!record || record.format !== 'text/vtt') return null;
 
@@ -85,7 +98,12 @@ function vttTrack(resource: unknown): CaptionTrack | null {
     if (!url) return null;
 
     const language = stringOrNull(record.language);
-    return { url, language, label: labelText(record.label, language) };
+    return {
+        url,
+        language,
+        label: labelText(record.label, language),
+        annotation,
+    };
 }
 
 /** Every embedded `supplementing` annotation on a canvas. */
@@ -108,26 +126,45 @@ function supplementingAnnotations(canvas: Record<string, unknown>): unknown[] {
  * writes the track into the painting body array and also supplements the canvas
  * with it means one track, and two `<track>` children for one file would list
  * the same captions twice.
+ *
+ * The canvas-level shape WINS that collision. `annotation` is what windows a
+ * track to one segment of a composed canvas, and a file supplemented onto the
+ * canvas captions the whole of it however many bodies also name it — showing
+ * it only during one segment's window would hide captions the curator asked
+ * for everywhere.
  */
 export function captionTracksForCanvas(canvas: unknown): CaptionTrack[] {
     const record = asRecord(canvas);
     if (!record) return [];
 
-    const resources = [
-        ...getPaintingAnnotations(canvas).flatMap((annotation) =>
-            paintingBodyAlternatives(annotation),
+    const resources: { resource: unknown; annotation: number | null }[] = [
+        ...getPaintingAnnotations(canvas).flatMap((annotation, index) =>
+            paintingBodyAlternatives(annotation).map((resource) => ({
+                resource,
+                annotation: index,
+            })),
         ),
         ...supplementingAnnotations(record).flatMap((annotation) =>
-            bodyResources(asRecord(annotation)?.body),
+            bodyResources(asRecord(annotation)?.body).map((resource) => ({
+                resource,
+                annotation: null,
+            })),
         ),
     ];
 
     const tracks: CaptionTrack[] = [];
-    const seen = new Set<string>();
-    for (const resource of resources) {
-        const track = vttTrack(resource);
-        if (!track || seen.has(track.url)) continue;
-        seen.add(track.url);
+    const seen = new Map<string, number>();
+    for (const { resource, annotation } of resources) {
+        const track = vttTrack(resource, annotation);
+        if (!track) continue;
+
+        const at = seen.get(track.url);
+        if (at !== undefined) {
+            if (annotation === null)
+                tracks[at] = { ...tracks[at], annotation: null };
+            continue;
+        }
+        seen.set(track.url, tracks.length);
         tracks.push(track);
     }
     return tracks;

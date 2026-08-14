@@ -2011,6 +2011,25 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // viewport centre happens to sit on.
         if (!hadSize && width > 0 && height > 0) {
             fitCurrentCanvas();
+        } else if (width > 0 && height > 0 && chromeRefitInFlight) {
+            // Core itself took part of the surface away (or gave it back). The
+            // preserved-scale rule below is wrong here: a projection fitted to
+            // the full viewer keeps its size and hangs off the side of the
+            // narrowed one, out of the picture and out of the hit test — taking
+            // canvas-anchored chrome with it. So the canvas is re-fitted to the
+            // surface that is actually left. The zoom change is visible and
+            // intended; see `refitForDockedChrome`.
+            //
+            // `fitBoundsTarget`, NOT the `fitCurrentCanvas` the first-size
+            // branch above uses, and the difference is only visible in
+            // continuous mode: `fitCurrentCanvas` goes through
+            // `navigationBoundsTarget` and frames `viewerState.canvasId`, which
+            // after the reader has scrolled is not the canvas they are looking
+            // at. Docking a panel is not navigation — nobody asked to travel —
+            // so the canvas that must stay framed is the one under the viewport
+            // centre. Framing the "current" one instead would answer a panel
+            // opening by teleporting the reader to another folio.
+            applyFit(fitBoundsTarget(viewportLimits()), false);
         } else if (width > 0 && height > 0) {
             // The constraint is a function of the VIEWPORT as well as the world,
             // so a resize can leave a legal centre illegal — widening the window
@@ -2029,6 +2048,130 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         }
 
         requestFrame();
+    }
+
+    /**
+     * Whether the surface change now in flight is attributable to docked
+     * chrome. True from the moment core reports a docked-chrome change until
+     * the surface stops changing size — see {@link watchChromeSettle}.
+     */
+    let chromeRefitInFlight = false;
+    let chromeSettleFrame: number | null = null;
+    let chromeSettleWidth = -1;
+    let chromeSettleHeight = -1;
+    let chromeStableFrames = 0;
+
+    /**
+     * Consecutive frames of an unchanged box that count as "the surface has
+     * stopped resizing".
+     *
+     * More than one, because a single repeat is not evidence of anything at the
+     * START of a transition: measured on a panel open, the box reads the same
+     * for about two frames before `slideWidth` begins moving it, so a one-frame
+     * test declared the slide over before it had begun and left every
+     * intermediate width to the preserve-scale branch — the overhang, back
+     * again. Three frames clears that plateau while still ending the re-fit
+     * ~50ms after motion actually stops.
+     *
+     * Note what this is NOT: a duration. It measures stillness, so it cannot
+     * expire while the surface is still moving, and it cannot go on standing
+     * once the surface is still. A fixed window did both.
+     */
+    const CHROME_SETTLE_FRAMES = 3;
+
+    /**
+     * Hold the re-fit open until the surface has actually STOPPED resizing, and
+     * not one frame longer.
+     *
+     * The column does not arrive at its final width: `TriiiceratopsViewer`'s
+     * `slideWidth` animates it, so the surface passes through a run of
+     * intermediate widths and only the last is the one the canvas has to end up
+     * fitting. Every intermediate re-fits — fitting only the first would leave
+     * the projection sized for a surface wider than the one that remains, which
+     * is the overhang this whole path exists to remove.
+     *
+     * Ending it on a CLOCK instead was wrong, and provably so: for as long as
+     * the window stood, a plain host resize arriving inside it was re-fitted
+     * too, collapsing the two cases the contract requires be held apart
+     * (dragging a window edge, or a phone rotating, while a panel animates).
+     * So the terminator is the geometry itself — {@link CHROME_SETTLE_FRAMES}
+     * consecutive frames of an unchanged box — which is also why this samples
+     * per frame rather than leaning on the ResizeObserver: an observer fires
+     * only when the size CHANGES, so "the size stopped changing" is precisely
+     * the event it never delivers. That matters most in the case with no
+     * animation at all: under `prefers-reduced-motion` `slideWidth` has
+     * duration 0, the column snaps in one step, and the observer's last
+     * callback is indistinguishable from a mid-slide one.
+     *
+     * Residual, accepted: a reader dragging the window edge continuously while
+     * a panel animates keeps the surface changing, so the re-fit persists until
+     * the drag stops. The two cases are genuinely indistinguishable while they
+     * overlap; what matters is that this ends a few frames after the overlap
+     * does rather than on a fixed timeout.
+     */
+    function watchChromeSettle() {
+        if (chromeSettleFrame !== null) return;
+        const step = () => {
+            chromeSettleFrame = null;
+            if (!chromeRefitInFlight || !root) return;
+            const rect = root.getBoundingClientRect();
+            if (
+                rect.width === chromeSettleWidth &&
+                rect.height === chromeSettleHeight
+            ) {
+                chromeStableFrames += 1;
+                if (chromeStableFrames >= CHROME_SETTLE_FRAMES) {
+                    chromeRefitInFlight = false;
+                    return;
+                }
+            } else {
+                chromeStableFrames = 0;
+                chromeSettleWidth = rect.width;
+                chromeSettleHeight = rect.height;
+                // Re-fit at this intermediate width. The ResizeObserver may
+                // have done it already this frame; `measure()` is idempotent
+                // for an unchanged box.
+                measure();
+            }
+            chromeSettleFrame = requestAnimationFrame(step);
+        };
+        chromeSettleFrame = requestAnimationFrame(step);
+    }
+
+    /**
+     * Core has docked or undocked chrome, so the viewer area is about to change
+     * width: re-fit rather than preserve the reader's scale.
+     *
+     * The distinction this draws is *why* the surface changed, not that it did.
+     * A window resize preserves scale, because the reader chose that view and
+     * nothing was taken from them. A panel column is core removing ~320px of
+     * the surface the current projection was fitted to, and a projection that
+     * keeps its size across that overhangs the viewer area it lives in — the
+     * part that overhangs is clipped away, so canvas-anchored chrome sitting
+     * there becomes both invisible and unclickable. Re-fitting is a
+     * reader-visible zoom change, and it is the intended one: the alternative
+     * is a canvas hanging off the side of its own viewer.
+     *
+     * It stays open across several measurements rather than re-fitting once,
+     * because the column slides; {@link watchChromeSettle} is what closes it,
+     * and why it is closed on a signal rather than a timeout. The immediate
+     * `measure()` catches a change that has already been laid out.
+     *
+     * Deliberately not the viewport INSET: an inset states which edges are
+     * reserved and, by contract, never moves the current view — only the next
+     * fit. That is right for a plugin's floating UI and useless here, where the
+     * current view is precisely what has become wrong.
+     */
+    function refitForDockedChrome() {
+        chromeRefitInFlight = true;
+        // Below any real box, so the first sampled frame always counts as a
+        // change and the watch cannot mistake the pre-animation box for a
+        // settled one.
+        chromeSettleWidth = -1;
+        chromeSettleHeight = -1;
+        chromeStableFrames = 0;
+        measure();
+        watchChromeSettle();
     }
 
     /**
@@ -2862,6 +3005,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             );
             if (frameHandle !== null) cancelAnimationFrame(frameHandle);
             frameHandle = null;
+            if (chromeSettleFrame !== null)
+                cancelAnimationFrame(chromeSettleFrame);
+            chromeSettleFrame = null;
+            chromeRefitInFlight = false;
             animating = false;
             momentum = null;
             clearHeldKeys();
@@ -2941,6 +3088,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         },
         requestFrame,
         refitForCurrentWorld,
+        refitForDockedChrome,
         /** Bumped when a decoded image, tile, or `info.json` lands. */
         get loadedGeneration() {
             return loadedGeneration;

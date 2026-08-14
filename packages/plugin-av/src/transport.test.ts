@@ -2,17 +2,28 @@ import { flushSync } from 'svelte';
 import { describe, expect, it } from 'vitest';
 
 import type { AVState } from './avState';
+import type { CaptionTrack } from './captions';
 import { createAudioPrefs, createTransport } from './transport.svelte';
 import {
     TRANSPORT_MIN_WIDTH_PX,
     bufferedSpans,
     captionOptions,
+    elementSpans,
     fitsTransport,
     formatMediaTime,
     fractionToTime,
     timeFraction,
     volumeIsSettable,
 } from './transport';
+
+/** A `TimeRanges` stand-in: the interface is three members wide. */
+function ranges(spans: [number, number][]): TimeRanges {
+    return {
+        length: spans.length,
+        start: (index: number) => spans[index][0],
+        end: (index: number) => spans[index][1],
+    } as TimeRanges;
+}
 
 describe('formatMediaTime', () => {
     it('formats a position as m:ss', () => {
@@ -79,25 +90,16 @@ describe('timeFraction / fractionToTime', () => {
 });
 
 describe('bufferedSpans', () => {
-    /** A `TimeRanges` stand-in: the interface is three members wide. */
-    function ranges(spans: [number, number][]): TimeRanges {
-        return {
-            length: spans.length,
-            start: (index: number) => spans[index][0],
-            end: (index: number) => spans[index][1],
-        } as TimeRanges;
-    }
-
     it('normalizes each span onto the scrubber', () => {
-        expect(bufferedSpans(ranges([[0, 30]]), 120)).toEqual([
+        expect(bufferedSpans([{ start: 0, end: 30 }], 120)).toEqual([
             { start: 0, end: 0.25 },
         ]);
         expect(
             bufferedSpans(
-                ranges([
-                    [0, 30],
-                    [60, 120],
-                ]),
+                [
+                    { start: 0, end: 30 },
+                    { start: 60, end: 120 },
+                ],
                 120,
             ),
         ).toEqual([
@@ -107,9 +109,27 @@ describe('bufferedSpans', () => {
     });
 
     it('drops empty spans and answers nothing without a duration', () => {
-        expect(bufferedSpans(ranges([[5, 5]]), 120)).toEqual([]);
-        expect(bufferedSpans(ranges([[0, 30]]), null)).toEqual([]);
-        expect(bufferedSpans(null, 120)).toEqual([]);
+        expect(bufferedSpans([{ start: 5, end: 5 }], 120)).toEqual([]);
+        expect(bufferedSpans([{ start: 0, end: 30 }], null)).toEqual([]);
+        expect(bufferedSpans([], 120)).toEqual([]);
+    });
+});
+
+describe('elementSpans', () => {
+    it('reads the element’s ranges as seconds, the identity mapping', () => {
+        expect(
+            elementSpans(
+                ranges([
+                    [0, 30],
+                    [60, 120],
+                ]),
+            ),
+        ).toEqual([
+            { start: 0, end: 30 },
+            { start: 60, end: 120 },
+        ]);
+        expect(elementSpans(null)).toEqual([]);
+        expect(elementSpans(undefined)).toEqual([]);
     });
 });
 
@@ -155,11 +175,13 @@ describe('captionOptions', () => {
                         url: 'en.vtt',
                         label: 'Captions in WebVTT format',
                         language: 'en',
+                        annotation: 0,
                     },
                     {
                         url: 'it.vtt',
                         label: 'Captions in WebVTT format',
                         language: 'it',
+                        annotation: 0,
                     },
                 ],
                 'Captions',
@@ -174,8 +196,18 @@ describe('captionOptions', () => {
         expect(
             captionOptions(
                 [
-                    { url: 'a.vtt', label: null, language: 'fr' },
-                    { url: 'b.vtt', label: null, language: null },
+                    {
+                        url: 'a.vtt',
+                        label: null,
+                        language: 'fr',
+                        annotation: 0,
+                    },
+                    {
+                        url: 'b.vtt',
+                        label: null,
+                        language: null,
+                        annotation: 0,
+                    },
                 ],
                 'Captions',
             ).map((option) => option.label),
@@ -288,13 +320,7 @@ describe('createTransport', () => {
     });
 
     /** The transport with a fixed set of caption tracks under it. */
-    function captionedTransport(
-        tracks: {
-            url: string;
-            language: string | null;
-            label: string | null;
-        }[],
-    ) {
+    function captionedTransport(tracks: CaptionTrack[]) {
         const media = document.createElement('video');
         const { state } = fakeAvState();
         let active: string | null = null;
@@ -321,8 +347,18 @@ describe('createTransport', () => {
         return { transport, find, active: () => active };
     }
 
-    const EN = { url: 'en.vtt', language: 'en', label: 'English' };
-    const IT = { url: 'it.vtt', language: 'it', label: 'Italiano' };
+    const EN: CaptionTrack = {
+        url: 'en.vtt',
+        language: 'en',
+        label: 'English',
+        annotation: 0,
+    };
+    const IT: CaptionTrack = {
+        url: 'it.vtt',
+        language: 'it',
+        label: 'Italiano',
+        annotation: 0,
+    };
 
     it('renders no captions control when no track loaded', () => {
         const { transport, find } = captionedTransport([]);

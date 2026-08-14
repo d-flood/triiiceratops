@@ -88,6 +88,8 @@ const format =
 const LAZY_CHUNKS: Record<string, string> = {
     './waveform/index': 'av-waveform.js',
     './hls/index': 'av-hls.js',
+    './sequencer/index': 'av-sequencer.js',
+    './transcript/index': 'av-transcript.js',
 };
 
 const lib =
@@ -103,6 +105,14 @@ const lib =
                 entry: {
                     'av-waveform': resolve(__dirname, 'src/waveform/index.ts'),
                     'av-hls': resolve(__dirname, 'src/hls/index.ts'),
+                    'av-sequencer': resolve(
+                        __dirname,
+                        'src/sequencer/index.ts',
+                    ),
+                    'av-transcript': resolve(
+                        __dirname,
+                        'src/transcript/index.ts',
+                    ),
                 },
                 formats: ['es' as const],
                 fileName: (_format: string, name: string) => `${name}.js`,

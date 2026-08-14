@@ -22,6 +22,7 @@ import type { PluginError } from 'triiiceratops';
 
 import { getAVState } from './avState';
 import { AvPlugin } from './plugin';
+import { loadSequencer } from './sequencerLink';
 
 const AV_DIR = join(
     import.meta.dirname,
@@ -118,6 +119,34 @@ function mountViewerRoot(tc: TestViewerContext): {
             root.remove();
         },
     };
+}
+
+/**
+ * Poll a condition to true, or fail the test.
+ *
+ * For the things this activation does fire-and-forget behind a dynamic import
+ * — the sequencer chunk, the waveform chunk — where a single `flush()` proves
+ * only that nothing has happened yet.
+ */
+async function waitFor(
+    condition: () => boolean,
+    what = 'condition',
+): Promise<void> {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+        if (condition()) return;
+        await settle();
+    }
+    throw new Error(`Timed out waiting for ${what}`);
+}
+
+/**
+ * One turn of the microtask queue AND of the timer queue. A dynamic import
+ * resolves off neither on its own, so a `flush()` alone proves only that
+ * nothing has happened yet.
+ */
+async function settle(): Promise<void> {
+    await flush();
+    await new Promise((resolve) => setTimeout(resolve, 5));
 }
 
 describe('activation and the canvas claim', () => {
@@ -294,6 +323,109 @@ describe('the overlay layer', () => {
     });
 });
 
+/**
+ * One canvas linking waveform data, composed of `bodies` bodies.
+ *
+ * Two `#t=` windows make it a temporally composed canvas; one body leaves the
+ * canvas timeline as the element's own clock. Everything else is held equal, so
+ * the only thing under test is the composition.
+ */
+function canvasLinkingWaveform(bodies: 1 | 2): unknown {
+    const windows = bodies === 2 ? ['#t=0,2', '#t=2,4'] : [''];
+    return {
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        id: 'https://example.org/wave/manifest.json',
+        type: 'Manifest',
+        items: [
+            {
+                id: 'https://example.org/wave/canvas/1',
+                type: 'Canvas',
+                duration: 4,
+                seeAlso: [
+                    {
+                        id: WAVEFORM_URL,
+                        type: 'Dataset',
+                        format: 'application/json',
+                        label: { en: ['waveform.json'] },
+                    },
+                ],
+                items: [
+                    {
+                        type: 'AnnotationPage',
+                        items: windows.map((fragment, index) => ({
+                            type: 'Annotation',
+                            motivation: 'painting',
+                            body: {
+                                id: `https://example.org/wave/body-${index}.mp3`,
+                                type: 'Sound',
+                                format: 'audio/mpeg',
+                                duration: 2,
+                            },
+                            target: `https://example.org/wave/canvas/1${fragment}`,
+                        })),
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+const WAVEFORM_URL = 'https://example.org/wave/waveform.json';
+
+/*
+    The spec fence of ticket 18: the timeline lane renders WITHOUT peaks on a
+    composed canvas. Any waveform a canvas links describes ONE body, and the
+    lane there spans the whole work — so peaks drawn across it would be a
+    picture of act one stretched over the opera.
+
+    Asserted at the fetch, because not requesting the bytes is the whole of the
+    behaviour: there is nothing to adopt if nothing is loaded.
+*/
+describe('the waveform fence on a composed canvas', () => {
+    let fetched: string[];
+    let original: typeof globalThis.fetch;
+
+    beforeEach(() => {
+        fetched = [];
+        original = globalThis.fetch;
+        globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+            fetched.push(String(input));
+            return Promise.reject(new Error('no network in this suite'));
+        }) as typeof globalThis.fetch;
+    });
+
+    afterEach(() => {
+        globalThis.fetch = original;
+    });
+
+    it('loads no peaks for a canvas its bodies tile', async () => {
+        const { cleanup } = await mountWith({
+            id: 'https://example.org/wave/manifest.json',
+            json: canvasLinkingWaveform(2),
+        });
+        // Long enough that a request would have been made: the control below
+        // pins that a wait this long DOES see one where the fence is off.
+        for (let turn = 0; turn < 20; turn += 1) await settle();
+
+        expect(fetched).not.toContain(WAVEFORM_URL);
+
+        cleanup();
+    });
+
+    it('still loads them where one body fills the canvas', async () => {
+        const { cleanup } = await mountWith({
+            id: 'https://example.org/wave/manifest.json',
+            json: canvasLinkingWaveform(1),
+        });
+        await waitFor(
+            () => fetched.includes(WAVEFORM_URL),
+            'the waveform request',
+        );
+
+        cleanup();
+    });
+});
+
 describe('the degradation contract', () => {
     let warn: ReturnType<typeof vi.spyOn>;
 
@@ -309,17 +441,28 @@ describe('the degradation contract', () => {
         return warn.mock.calls.map((call: unknown[]) => String(call[0]));
     }
 
-    it('warns that a temporally composed canvas plays its first body only', async () => {
+    /*
+        The vendored opera-on-one-canvas recipe is the composed shape this
+        release plays through as one work. Nothing about it is degraded any
+        more, so the console must be silent about it — the acceptance criterion
+        "loads and plays with no dev warnings", asserted where the whole
+        activation runs.
+    */
+    it('says nothing about a temporally composed canvas', async () => {
         const { cleanup } = await mountWith({
             id: 'https://iiif.io/api/cookbook/recipe/0064-opera-one-canvas/manifest.json',
             json: recipe('0064-opera-one-canvas.json'),
         });
 
-        expect(
-            warnings().filter((message) =>
-                /2 time-based bodies sharing its duration/.test(message),
-            ),
-        ).toHaveLength(1);
+        // The sequencer arrives behind a dynamic import, and it is the segment
+        // map's own normalization that has the most to warn about — so
+        // asserting on a console the chunk has not reached yet would pass
+        // whatever this recipe provokes. Awaiting the same module the
+        // activation awaited is what settles it.
+        expect(await loadSequencer()).not.toBeNull();
+        await settle();
+
+        expect(warnings()).toEqual([]);
 
         cleanup();
     });
@@ -416,5 +559,90 @@ describe('the published AVState', () => {
 
         viewer.unmount();
         cleanup();
+    });
+});
+
+/**
+ * Choice of formats, end to end through the activation: the browser's own
+ * answer decides which rendition is attached, and the reader's explicit pick
+ * overrides it through core's existing selection command.
+ */
+describe('a choice of renditions', () => {
+    const CANVAS =
+        'https://iiif.io/api/cookbook/recipe/0434-choice-av/canvas/1';
+    const MP3 = 'https://fixtures.iiif.io/audio/ucla/egbe-iyawo-ucla.mp3';
+    const FLAC = 'https://fixtures.iiif.io/audio/ucla/egbe-iyawo-ucla.flac';
+
+    const canPlayType = HTMLMediaElement.prototype.canPlayType;
+    afterEach(() => {
+        HTMLMediaElement.prototype.canPlayType = canPlayType;
+    });
+
+    /** Only MP3, which is the everyday state of a browser outside Safari. */
+    function onlyMp3IsPlayable(): void {
+        HTMLMediaElement.prototype.canPlayType = (type: string) =>
+            type === 'audio/mpeg' ? 'probably' : '';
+    }
+
+    async function stagedChoice(): Promise<{
+        tc: TestViewerContext;
+        media: HTMLMediaElement;
+        done: () => void;
+    }> {
+        onlyMp3IsPlayable();
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0434-choice-av/manifest.json',
+            json: recipe('0434-choice-av.json'),
+        });
+        const viewer = mountViewerRoot(tc);
+        const media = viewer.root.querySelector<HTMLMediaElement>(
+            '[data-testid="av-media"]',
+        )!;
+        return {
+            tc,
+            media,
+            done: () => {
+                viewer.unmount();
+                cleanup();
+            },
+        };
+    }
+
+    it('skips the alternatives this browser cannot decode', async () => {
+        const { media, done } = await stagedChoice();
+
+        // The recipe's first alternative is Apple Lossless. First-item-wins
+        // would have handed the reader a canvas that cannot play.
+        expect(media.getAttribute('src')).toBe(MP3);
+
+        done();
+    });
+
+    it('stops listening for selections once the activation is gone', async () => {
+        onlyMp3IsPlayable();
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0434-choice-av/manifest.json',
+            json: recipe('0434-choice-av.json'),
+        });
+        expect(tc.viewerState.isCanvasClaimed(CANVAS)).toBe(true);
+
+        cleanup();
+        // A selection arriving after teardown must not re-stage anything: the
+        // canvas is core's again, placard and all.
+        tc.viewerState.selectChoice(CANVAS, FLAC);
+        await flush();
+
+        expect([...tc.viewerState.claimedCanvases]).toEqual([]);
+    });
+
+    it('follows an explicit selection, playable or not', async () => {
+        const { tc, media, done } = await stagedChoice();
+
+        tc.viewerState.selectChoice(CANVAS, FLAC);
+        await flush();
+
+        expect(media.getAttribute('src')).toBe(FLAC);
+
+        done();
     });
 });

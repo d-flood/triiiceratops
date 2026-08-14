@@ -71,8 +71,18 @@ export function resolveThumbnailResourceSrc(
  * strip — a broken image where the reader needed to be told this is a sound
  * recording. Returning `''` is what routes the canvas to the strip's
  * no-thumbnail treatment instead.
+ *
+ * `selectedChoiceId` names a Choice alternative, and rungs 2 and 3 resolve the
+ * same alternative the classifier is asked about. Without it a mixed Choice
+ * resting on its video alternative classifies as unsupported and still yields
+ * the image alternative's URL — the strip would show the picture while the
+ * viewer showed "cannot display", over one canvas.
  */
-export function getThumbnailSrc(canvas: any, size = 200): string {
+export function getThumbnailSrc(
+    canvas: any,
+    size = 200,
+    selectedChoiceId?: string,
+): string {
     let src = '';
 
     // 1. The canvas's declared thumbnail.
@@ -101,7 +111,9 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
             // `findImageBody` reads the v2 `resource` spelling as well as the
             // v3 `body` one, unwraps a body array before testing for a Choice,
             // and hands back only a body that classifies as an image.
-            const resource = unwrapSpecificResource(findImageBody(annotation));
+            const resource = unwrapSpecificResource(
+                findImageBody(annotation, selectedChoiceId),
+            );
 
             if (resource) {
                 // Try IIIF image service

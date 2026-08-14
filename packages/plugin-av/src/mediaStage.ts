@@ -72,18 +72,14 @@ export interface MediaStageOptions {
      */
     readonly onSeekFraction?: (fraction: number) => void;
     /**
-     * The canvas's timeline reached its end.
+     * The element reached the end of what it was playing.
      *
-     * This is the seam `auto-advance` listens on, at the canvas-timeline level
-     * rather than on a raw element: today one body fills the canvas and the
-     * element's own `ended` is that end, and when ticket 18 sequences a composed
-     * canvas the sequencer reaching its last segment fires this instead.
-     *
-     * It is not the only place that assumes one element's clock, though it is
-     * the only END of one: `temporalOffsets.ts` waits on `readyState` /
-     * `loadedmetadata` for "the canvas timeline is ready", which for a composed
-     * canvas is not one element's metadata either. Both have to move together
-     * when the sequencer lands.
+     * For a canvas one body fills — the identity mapping — that IS the end of
+     * the canvas timeline, and this is the seam `auto-advance` listens on. For
+     * a temporally composed canvas it is the end of a SEGMENT, and the
+     * activation hands it to the sequencer instead, which crosses the seam and
+     * reports the timeline's end only from the last one. The stage itself knows
+     * neither case apart, which is what keeps segments out of it.
      *
      * It fires only for playback that actually ran off the end — assigning
      * `currentTime` on a paused element does not end it — which is what makes
@@ -92,8 +88,33 @@ export interface MediaStageOptions {
     readonly onTimelineEnd?: () => void;
 }
 
+/** Where a swapped-in source starts, in its OWN clock, and whether it plays. */
+export interface SourceResume {
+    readonly at: number;
+    readonly play: boolean;
+}
+
 export interface MediaStage {
     readonly canvasId: string;
+    /** The alternative currently attached — what a swap is compared against. */
+    readonly source: AvSource;
+    /**
+     * Attach a different rendition of the same canvas, preserving the reader's
+     * place: the playhead and the paused state are captured before the old
+     * source is detached and restored once the new one reports metadata.
+     *
+     * The ELEMENT is not rebuilt, so a Choice mixing a video rendition with an
+     * audio-only one keeps whichever element the first selection built (and an
+     * `<audio>` playing a video source plays its soundtrack). Rebuilding the
+     * stage would throw away the position this exists to keep, and no vendored
+     * recipe offers a Choice across media kinds.
+     *
+     * `resume` overrides both halves of that capture, and is how the sequencer
+     * crosses a **segment seam**: the new source is a different body, so where
+     * the reader was in the OLD one means nothing, and playback has to continue
+     * across a boundary the element reached by ending.
+     */
+    setSource(source: AvSource, resume?: SourceResume): void;
     /** The positioned box, to be appended to the plugin's overlay layer. */
     readonly root: HTMLElement;
     readonly media: HTMLMediaElement;
@@ -122,10 +143,35 @@ export interface MediaStage {
      * offer, because a control that selects it would do nothing.
      */
     readonly captionTracks: readonly CaptionTrack[];
+    /**
+     * Whether this stage's element can PAINT a showing track's cues — true for
+     * `<video>`, false for `<audio>`, which has no rendering area at all.
+     *
+     * Tracks are attached either way, because the transcript panel reads their
+     * parsed cues; what an `<audio>` stage must never grow is a captions
+     * toggle, which would be visible and do nothing (user story 46).
+     */
+    readonly rendersCaptions: boolean;
+    /**
+     * The live `TextTrack` behind one loaded caption track, for reading its
+     * cues — the transcript panel's source. `null` when the URL is not one of
+     * this stage's, or where there is no `TextTrack` implementation (jsdom).
+     */
+    captionTextTrack(url: string): TextTrack | null;
     /** The showing track's URL, or `null` for off — which is where it starts. */
     readonly activeCaptionTrack: string | null;
     /** Show one loaded track, or `null` to show none. */
     setCaptionTrack(url: string | null): void;
+    /**
+     * Narrow the tracks on offer to the ones authored beside the body that is
+     * playing right now, by URL — `null` for "every one this canvas carries",
+     * which is the state of a canvas that is not temporally composed.
+     *
+     * A track belongs to the body it was authored on, so on a composed canvas
+     * one segment's captions must not caption its neighbour. A showing track
+     * that falls out of the set is turned off with it.
+     */
+    setEligibleCaptions(urls: readonly string[] | null): void;
     /**
      * The timeline lane — the waveform's drawing surface hangs inside it, and
      * `null` on a layout that has no timeline lane (video).
@@ -284,6 +330,11 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     // `metadata`, not `auto`: a manifest of twenty canvases must not pull twenty
     // media files down to show a first frame.
     media.preload = 'metadata';
+    // A `<track>` is only fetched at all when the element is in CORS mode; without
+    // this the browser refuses a cross-origin VTT before consulting any header, and
+    // every Cookbook caption recipe is cross-origin. `anonymous` rather than
+    // `use-credentials`: a public viewer sends no credentials to third-party media.
+    media.crossOrigin = 'anonymous';
     if (source.kind === 'video') {
         // Set as an attribute rather than through the property so the markup is
         // what an iOS WebKit that predates the property sees too (user story 23).
@@ -440,17 +491,25 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
      */
     let hlsAttachment: HlsAttachment | null = null;
     let destroyed = false;
+    let current = source;
+    /** Where the reader was, held from the first unrestored swap onward. */
+    let pendingCapture: { at: number; wasPlaying: boolean } | null = null;
 
-    if (!isHlsSource(source) || hasNativeHlsSupport(media)) {
-        media.src = source.url;
-    } else {
+    function attach(next: AvSource): void {
+        if (!isHlsSource(next) || hasNativeHlsSupport(media)) {
+            media.src = next.url;
+            return;
+        }
+
         void loadHls()
             .then((module) => {
-                // The stage may have been torn down while the chunk was in flight;
-                // attaching now would leave a player buffering into detached DOM.
-                if (destroyed) return;
+                // The stage may have been torn down, or swapped to another
+                // rendition, while the chunk was in flight; attaching now would
+                // leave a player buffering into detached DOM or over a source
+                // nobody asked for any more.
+                if (destroyed || current !== next) return;
                 hlsAttachment =
-                    module?.attachHlsStream(media, source.url, onError) ?? null;
+                    module?.attachHlsStream(media, next.url, onError) ?? null;
                 // No chunk, or no Media Source Extensions to run it with. This
                 // canvas cannot play here — which is one stage's treatment, not an
                 // activation failure and not a `pluginerror` (user story 27).
@@ -460,8 +519,72 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
                 // Anything the chunk itself threw on the way to a player — a
                 // constructor or an `attachMedia` that did not like this element.
                 // Same outcome as no chunk at all: one stage's treatment.
-                if (!destroyed) onError();
+                if (!destroyed && current === next) onError();
             });
+    }
+
+    attach(source);
+
+    /**
+     * Swap the rendition without losing the reader's place.
+     *
+     * Both halves of the position are captured BEFORE anything is detached:
+     * emptying the element resets `currentTime` to 0 and fires `pause`, so a
+     * capture taken afterwards records the swap's own side effects rather than
+     * where the reader was. They are restored on `loadedmetadata`, the first
+     * moment the new source has a timeline to seek within — assigning
+     * `currentTime` before it is silently dropped.
+     *
+     * A swap that supersedes one whose restore has not run yet inherits that
+     * capture instead of taking its own. The earlier swap already emptied the
+     * element, so a fresh reading here would record 0 and paused — the previous
+     * swap's own side effects — and drop a reader five seconds in back to the
+     * top of the recording.
+     */
+    function setSource(next: AvSource, resume?: SourceResume): void {
+        if (destroyed || (!resume && next.url === current.url)) return;
+
+        const capture = resume
+            ? { at: resume.at, wasPlaying: resume.play }
+            : (pendingCapture ?? {
+                  at: media.currentTime,
+                  wasPlaying: !media.paused,
+              });
+        // A stated resume is not a capture to be inherited: the next swap wants
+        // where the reader IS, not where a seam put them.
+        pendingCapture = resume ? null : capture;
+        current = next;
+
+        hlsAttachment?.destroy();
+        hlsAttachment = null;
+        media.pause();
+        media.removeAttribute('src');
+        media.load();
+
+        // The old rendition's failure is not the new one's: a stage that showed
+        // the treatment can play again.
+        unplayable = false;
+        unplayableNotice.hidden = true;
+        media.hidden = false;
+
+        media.addEventListener(
+            'loadedmetadata',
+            () => {
+                if (destroyed || current !== next) return;
+                pendingCapture = null;
+                media.currentTime = Number.isFinite(media.duration)
+                    ? Math.min(capture.at, media.duration)
+                    : capture.at;
+                // An autoplay policy rejects with a promise, never a throw, and
+                // a refusal here leaves the element paused — which the transport
+                // already shows.
+                if (capture.wasPlaying)
+                    void Promise.resolve(media.play()).catch(() => {});
+            },
+            { once: true },
+        );
+
+        attach(next);
     }
 
     const toggle = (): void => {
@@ -527,16 +650,19 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     let placement: { lane: StageRect; visible: VisibleBox } | null = null;
 
     /**
-     * The caption tracks, attached as native `<track>` children.
+     * The caption tracks, attached as native `<track>` children — on every
+     * stage, audio included.
      *
-     * Only on a video stage. An `<audio>` element has no rendering area, so the
-     * cues of a track attached to one are parsed and never drawn — a toggle
-     * over it would be visible and do nothing, which is the state user story 46
-     * exists to forbid. A sound recording's transcript is a panel, and the SPEC
-     * fences that out of this release.
+     * An `<audio>` element has no rendering area, so cues attached to one are
+     * parsed and never drawn. Parsed is the point: `hidden` tracks expose
+     * `track.cues`, and that is where the transcript panel reads a sound
+     * recording's words from. What an audio stage does NOT get is the captions
+     * toggle — a control that could only ever paint nothing (user story 46) —
+     * which `rendersCaptions` below is what says.
      */
-    const authoredCaptions =
-        source.kind === 'video' ? (options.captions ?? []) : [];
+    const authoredCaptions = options.captions ?? [];
+    /** Only a `<video>` has somewhere to paint a showing track's cues. */
+    const rendersCaptions = source.kind === 'video';
     /**
      * The tracks that have settled, held **at their authored index** with the
      * unsettled and the dropped left as holes.
@@ -549,9 +675,13 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     const settledCaptions: (CaptionTrack | null)[] = authoredCaptions.map(
         () => null,
     );
+    /** The tracks the playing body carries — `null` while every one qualifies. */
+    let eligibleCaptions: ReadonlySet<string> | null = null;
     const loadedCaptions = (): CaptionTrack[] =>
         settledCaptions.filter(
-            (track): track is CaptionTrack => track !== null,
+            (track): track is CaptionTrack =>
+                track !== null &&
+                (eligibleCaptions === null || eligibleCaptions.has(track.url)),
         );
     let activeCaption: string | null = null;
 
@@ -633,6 +763,20 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         return { element, caption, detach };
     });
 
+    /**
+     * Show one loaded, eligible track and hide the rest. A track that did not
+     * load, or that the playing body does not carry, cannot be selected
+     * whoever asks: the one guarantee this feature makes is that turning
+     * captions on produces captions.
+     */
+    function selectCaptionTrack(url: string | null): void {
+        activeCaption =
+            url !== null && loadedCaptions().some((track) => track.url === url)
+                ? url
+                : null;
+        applyCaptionModes();
+    }
+
     /** Show the selected track and hide every other loaded one. */
     function applyCaptionModes(): void {
         for (const entry of captionElements) {
@@ -647,6 +791,10 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         canvasId,
         root,
         media,
+        get source(): AvSource {
+            return current;
+        },
+        setSource,
         get unplayable(): boolean {
             return unplayable;
         },
@@ -724,19 +872,22 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         get captionTracks(): readonly CaptionTrack[] {
             return loadedCaptions();
         },
+        rendersCaptions,
+        captionTextTrack(url: string): TextTrack | null {
+            const entry = captionElements.find(
+                (candidate) => candidate.caption.url === url,
+            );
+            return (entry?.element.track as TextTrack | undefined) ?? null;
+        },
         get activeCaptionTrack(): string | null {
             return activeCaption;
         },
-        setCaptionTrack(url: string | null): void {
-            // A track that did not load cannot be selected, whoever asks: the
-            // one guarantee this feature makes is that turning captions on
-            // produces captions.
-            activeCaption =
-                url !== null &&
-                loadedCaptions().some((caption) => caption.url === url)
-                    ? url
-                    : null;
-            applyCaptionModes();
+        setCaptionTrack: selectCaptionTrack,
+        setEligibleCaptions(urls: readonly string[] | null): void {
+            eligibleCaptions = urls === null ? null : new Set(urls);
+            // Re-selecting the showing track drops it if the new body does not
+            // carry it, by the same "cannot select what is not on offer" rule.
+            selectCaptionTrack(activeCaption);
         },
         destroy(): void {
             destroyed = true;

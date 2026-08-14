@@ -170,9 +170,15 @@ export { getPaintingAnnotations } from './utils/iiifParsing';
 // implementations of one classification rule would drift apart silently — the
 // exact failure this seam exists to prevent. These are the very functions core
 // paints with, not a public restatement of them.
+// `isUnsupportedCanvasFor` is the form every caller in this repo wants: the
+// classification rule and the Choice-selection lookup it must be asked with,
+// kept together so no site can learn about selection while another does not.
+// It accepts the viewer state itself or a bare `getSelectedChoice` callback.
+export type { ChoiceSelection } from './utils/paintingBodies';
 export {
     isImageBody,
     isUnsupportedCanvas,
+    isUnsupportedCanvasFor,
     paintingBodyAlternatives,
 } from './utils/paintingBodies';
 

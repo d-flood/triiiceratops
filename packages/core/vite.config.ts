@@ -125,6 +125,9 @@ export default defineConfig({
                     import.meta.url,
                 ),
             ),
+            '@triiiceratops/plugin-av': fileURLToPath(
+                new URL('../plugin-av/dist/index.js', import.meta.url),
+            ),
         },
     },
     esbuild: {

@@ -81,4 +81,20 @@ export const AV_MANIFESTS = {
     waveform: '/media/manifests/av-waveform.json',
     /** One canvas whose duration is tiled by two `#t=`-targeted bodies. */
     composed: '/media/manifests/av-composed.json',
+    /** The same shape, but the first body outlives the window it was given. */
+    composedShort: '/media/manifests/av-composed-short.json',
+    /**
+     * The same shape again, with a VTT authored on EACH painting annotation —
+     * the only fixture where the eligible caption track, and so the
+     * transcript's source, changes at a segment seam.
+     */
+    composedCaptions: '/media/manifests/av-composed-captions.json',
+    /** One canvas, a Choice of three renditions whose first is unplayable. */
+    choice: '/media/manifests/av-choice.json',
 } as const;
+
+/** The Choice fixture's canvas, and the three renditions it offers. */
+export const CHOICE_CANVAS = `${AV_MANIFESTS.choice}/canvas/bars`;
+export const CHOICE_UNPLAYABLE = '/media/unplayable-master.mov';
+export const CHOICE_HIGH = '/media/bars.mp4?rendition=high';
+export const CHOICE_LOW = '/media/bars.mp4?rendition=low';

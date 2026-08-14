@@ -15,6 +15,7 @@
     import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
     import { PdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
     import { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';
+    import { AvPlugin } from '@triiiceratops/plugin-av';
     import type { SdkPlugin } from '../lib/types/plugin';
 
     // Initialize state from URL if present
@@ -224,6 +225,7 @@
         ImageDownloadPlugin,
         PdfExportPlugin,
         AnnotationEditorPlugin,
+        AvPlugin,
     ] as unknown as SdkPlugin[];
 
     function isLanguageMapKey(key: string): boolean {

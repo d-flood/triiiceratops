@@ -21,6 +21,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { serveAvPluginDist } from './helpers/avPluginDist';
+import { settledBox } from './helpers/settle';
 import { AV_MANIFESTS, TONE_MP3, TONE_DURATION } from './helpers/avMedia';
 
 test.describe.configure({ timeout: 120_000 });
@@ -364,12 +365,15 @@ test.describe('av audio — a duration-only canvas is claimed and laid out', () 
             )
             .toBe(true);
 
-        const lane = await page.locator(TIMELINE_LANE).boundingBox();
-        expect(lane).not.toBeNull();
+        // The lane's box has to have STOPPED moving before a fraction of it
+        // means anything: a viewer opening beside a docked panel column re-fits
+        // the canvas as the column slides out, so a width read mid-slide and a
+        // click taken against the settled one are two different fractions.
+        const lane = await settledBox(page, TIMELINE_LANE);
 
         // Three quarters across the lane is three quarters through the piece.
         await page.locator(TIMELINE_LANE).click({
-            position: { x: lane!.width * 0.75, y: lane!.height / 2 },
+            position: { x: lane.width * 0.75, y: lane.height / 2 },
         });
 
         await expect

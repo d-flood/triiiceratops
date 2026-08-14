@@ -19,11 +19,26 @@
 // like the entry, free of a Svelte runtime of their own (they are built with
 // nothing external, so a stray Svelte import lands in them rather than failing).
 //
+// Sharing the runtime has a second failure mode, and it is the quiet one: the
+// bundle can read a helper core does not publish. `svelte/internal/client` has
+// ~200 exports and core curates about thirty of them, so a markup change that
+// makes the compiler emit one of the other ~170 builds clean, passes every unit
+// test — unit tests mount against the REAL `svelte/internal`, not against the
+// curated object the browser gets — and then dies at mount with
+// `<local>.<helper> is not a function`. So the helpers the built artifacts
+// actually reference are compared here against the list core publishes.
+//
 // To verify this gate once: drop `svelte` out of `external` in vite.config.ts,
 // rebuild, and watch it fail. For the chunk half, drop `chunkedIife()` out of
-// the IIFE build's plugin list.
+// the IIFE build's plugin list. For the helper half,
+// unwrap one of the captions buttons' children in `src/Transport.svelte` —
+// `<Button …>CC</Button>` rather than `<Button …><span>CC</span></Button>`:
+// the compiler lowers a bare text child of a component to `$.next()`, which
+// core does not publish, and the gate then names `next`. For the helper half
+// over a chunk, put `window.Triiiceratops.svelteInternal.next()` inside
+// `src/waveform/index.ts`.
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -31,19 +46,244 @@ import { gzipSync } from 'node:zlib';
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const iifePath = join(packageRoot, 'dist', 'iife.js');
 const esmPath = join(packageRoot, 'dist', 'index.js');
+const sharedRuntimePath = resolve(
+    packageRoot,
+    '..',
+    'core',
+    'src',
+    'lib',
+    'shared-svelte-runtime.ts',
+);
 
 /**
- * The IIFE's lazy chunks: emitted file name → a string only that chunk's own
- * code can have put in the bundle it appears in.
+ * The helper names core publishes on `window.Triiiceratops.svelteInternal`,
+ * read out of the `svelteInternal` object literal in core's source.
+ *
+ * The source is the authority rather than core's built bundle: the list is
+ * written there by hand and minification renames nothing about the property
+ * keys, but reading the source also means this gate reports against the list a
+ * reviewer can see and edit.
+ */
+function publishedHelpers() {
+    const source = read(sharedRuntimePath, 'core shared-svelte-runtime.ts');
+    if (source === null) return null;
+
+    const block = /svelteInternal:\s*\{([\s\S]*?)\n\s{4}\},/.exec(source);
+    if (!block) {
+        failures.push(
+            `Could not find the \`svelteInternal\` object literal in ` +
+                `${sharedRuntimePath}: the helper gate has nothing to compare ` +
+                `against.`,
+        );
+        return null;
+    }
+
+    // Each entry is `name,` or `name: local,` — the latter only for `if`,
+    // which is a reserved word and so cannot be shorthand.
+    const names = new Set(
+        [...block[1].matchAll(/^\s{8}([A-Za-z_$][\w$]*)\s*[,:]/gm)].map(
+            (match) => match[1],
+        ),
+    );
+    if (names.size === 0) {
+        failures.push(
+            `Parsed no helper names out of ${sharedRuntimePath}: the helper ` +
+                `gate has nothing to compare against.`,
+        );
+        return null;
+    }
+    return names;
+}
+
+/**
+ * The locals in a built artifact that hold `Triiiceratops.svelteInternal`.
+ *
+ * Three ways in, because minification renames every one of them:
+ *
+ * - the IIFE's parameter. `output.globals` passes the namespace as an argument,
+ *   so the binding is positional: the parameter name is read by matching the
+ *   `.svelteInternal` argument at the call site against the parameter list.
+ *   Both wrapper shapes are accepted (`function(a,b,c){…}` and `(a,b,c)=>{…}`)
+ *   and an argument may be parenthesised.
+ * - an `x = <obj>.svelteInternal` binding, whether it is a `const`/`let`/`var`
+ *   declarator, a later declarator in a comma chain, or a bare assignment. The
+ *   comma chain is not hypothetical: `output.intro`'s skew gate holds the
+ *   namespace this way, and the minifier folds its binding into one —
+ *   `var Xe=de.svelte||{},Ke=de.svelteInternal||{},…` is what ships today. It
+ *   is also the only way a CHUNK could hold the namespace, since chunks are
+ *   built with nothing external and have no globals wiring, so they would have
+ *   to reach for `window.Triiiceratops` in source.
+ * - an alias of either: rollup's ESM-interop wrapper (`const r = _interop(x)`)
+ *   is what the compiled components actually dereference, and a plain
+ *   `const y = x` would do the same job.
+ *
+ * `ASSIGNED` deliberately forbids `,` `;` and a second `=` between the name and
+ * `.svelteInternal`, so that in `var a=1,b=x.svelteInternal` it binds `b` and
+ * not `a`; the lookbehind keeps it off `obj.prop = …`.
+ */
+const ASSIGNED = String.raw`(?<![.\w$])([A-Za-z_$][\w$]*)\s*(?<![=!<>+\-*/%&|^])=(?![=>])\s*`;
+
+/**
+ * A minified local, safe to interpolate into a pattern.
+ *
+ * `$` is legal in an identifier and is the end-of-input anchor in a pattern, so
+ * a name the minifier spelled `$e` silently matches nothing at all — and a gate
+ * that resolves no locals resolves no helpers, which is the shape of a pass.
+ */
+function escapeLocal(local) {
+    return local.replace(/\$/g, String.raw`\$`);
+}
+
+function runtimeLocals(source) {
+    const locals = new Set();
+
+    const call = /\}\s*\)\s*\(((?:[^()]|\([^()]*\))*)\)\s*;?\s*$/.exec(source);
+    const head = /^\(?(?:function\s*)?\(([^)]*)\)/.exec(source);
+    if (call && head) {
+        const params = head[1].split(',').map((name) => name.trim());
+        call[1].split(',').forEach((argument, index) => {
+            if (
+                /\.svelteInternal\s*\)*\s*$/.test(argument) &&
+                /^[A-Za-z_$][\w$]*$/.test(params[index] ?? '')
+            ) {
+                locals.add(params[index]);
+            }
+        });
+    }
+
+    for (const match of source.matchAll(
+        new RegExp(ASSIGNED + String.raw`[^;,=]*?\.svelteInternal\b`, 'g'),
+    )) {
+        locals.add(match[1]);
+    }
+
+    // Alias fixpoint. Bounded by the number of locals, which is finite.
+    //
+    // Name-dependent, and knowingly so: the alias pattern is anchored on the
+    // local's own name, so a one-character minified local (`e`) would match
+    // unrelated `const x=e;` bindings and flood the set with names that never
+    // held the namespace. That direction is a noisy FALSE POSITIVE — extra
+    // "helpers" reported as unpublished — which a reader can see and dismiss,
+    // never a build that references an unpublished helper and passes. It is the
+    // safe direction for this gate to be wrong in, so it is left alone.
+    for (let added = true; added; ) {
+        added = false;
+        for (const local of [...locals]) {
+            // No terminator is required after the alias: a trailing `,`/`;` is
+            // only the minified shape, and end-of-line or `)` is just as valid.
+            const alias = new RegExp(
+                ASSIGNED +
+                    String.raw`(?:[A-Za-z_$][\w$]*\s*\(\s*)?${escapeLocal(local)}\s*\)?(?![\w$.([])`,
+                'g',
+            );
+            for (const match of source.matchAll(alias)) {
+                if (!locals.has(match[1])) {
+                    locals.add(match[1]);
+                    added = true;
+                }
+            }
+        }
+    }
+
+    return locals;
+}
+
+/**
+ * Every helper name an artifact reads off one of those locals.
+ *
+ * Four access shapes: `x.next`, `x?.next`, `x["next"]` and ``x[`next`]`` — the
+ * computed forms because a bundler is free to emit either quoting, and the
+ * template literal because leaving it out would be a one-character gap in a form
+ * already deliberately supported.
+ */
+const ACCESS = String.raw`\??\.\s*([A-Za-z_$][\w$]*)|\?\.\s*\[\s*["'\`]([^"'\`]+)["'\`]\s*\]|\[\s*["'\`]([^"'\`]+)["'\`]\s*\]`;
+
+function referencedHelpers(source) {
+    const referenced = new Set();
+    const record = (match) => {
+        for (const group of match.slice(1)) if (group) referenced.add(group);
+    };
+    for (const local of runtimeLocals(source)) {
+        // A lookbehind rather than `\b`: `\b` needs a word character on one side
+        // of the boundary, and a local named `$e` has none.
+        const member = new RegExp(
+            String.raw`(?<![\w$.])${escapeLocal(local)}\s*(?:${ACCESS})`,
+            'g',
+        );
+        for (const match of source.matchAll(member)) record(match);
+        // `const { child, next } = <local>` reaches the same helpers without a
+        // member expression ever appearing.
+        const destructured = new RegExp(
+            String.raw`(?:const|let|var)\s*\{([^}]*)\}\s*=\s*${escapeLocal(local)}(?![\w$])`,
+            'g',
+        );
+        for (const match of source.matchAll(destructured)) {
+            for (const entry of match[1].split(',')) {
+                const name = /^\s*([A-Za-z_$][\w$]*)/.exec(entry);
+                if (name) referenced.add(name[1]);
+            }
+        }
+    }
+    // A chunk has no local to resolve at all: with no globals wiring it reads
+    // the helper straight off the namespace, `…svelteInternal.next()`.
+    for (const match of source.matchAll(
+        new RegExp(String.raw`\.svelteInternal\s*(?:${ACCESS})`, 'g'),
+    )) {
+        record(match);
+    }
+
+    // Rollup's interop wrapper defines these on the namespace object itself;
+    // they are not runtime helpers and core does not publish them.
+    referenced.delete('default');
+    return referenced;
+}
+
+/**
+ * The chunk files an entry actually imports, read out of the entry itself.
+ *
+ * Derived rather than listed, so that a chunk this script has never heard of
+ * still gets inspected: a hard-coded list is a gate that reports green over an
+ * artifact it never opened, and the next lazy half added to `vite.config.ts`
+ * would ship unexamined. Two specifier shapes, one per format: the ESM entry's
+ * relative path, and the IIFE's minified `import(<resolver>("name"))`, which is
+ * what `chunkedIife()` rewrites it to. The same derivation as
+ * `src/lazy-chunks.guard.test.ts`.
+ */
+function importedChunks(entry) {
+    const names = new Set();
+    for (const [, name] of entry.matchAll(
+        /import\(\s*["']\.\/([^"']+\.js)["']\s*\)/g,
+    )) {
+        names.add(name);
+    }
+    for (const [, name] of entry.matchAll(
+        /import\(\s*[A-Za-z_$][\w$]*\(\s*["']([^"'/]+\.js)["']\s*\)\s*\)/g,
+    )) {
+        names.add(name);
+    }
+    return [...names];
+}
+
+/**
+ * The lazy chunks this script knows by name: emitted file name → a string only
+ * that chunk's own code can have put in the bundle it appears in.
  *
  * `samples_per_pixel` is a key in the JSON waveform format, read by the
- * parsers; `manifestLoadError` is one of hls.js's own error details. Neither is
- * reachable from the eager graph, so finding one in the entry means that
+ * parsers; `manifestLoadError` is one of hls.js's own error details; the
+ * sequencer's is a phrase from a normalization warning only the segment-map
+ * builder can emit. None is reachable from the eager graph, so finding one in the entry means that
  * chunk's bytes have been folded back into it.
+ *
+ * This map is the inlining detector only. What is CHECKED is the derived list
+ * above; a new chunk with no marker here is still enumerated, still fetched by
+ * name, and still read by the helper gate — it just has no inlining marker of
+ * its own until one is added.
  */
-const LAZY_CHUNKS = {
+const CHUNK_MARKERS = {
     'av-waveform.js': 'samples_per_pixel',
     'av-hls.js': 'manifestLoadError',
+    'av-sequencer.js': 'cannot be placed on the canvas timeline',
+    'av-transcript.js': 'tri-av-transcript-cues',
 };
 
 /**
@@ -83,7 +323,7 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **20,970**.
+ * the same level this script uses — which currently reads **22,552**.
  *
  * What those eager bytes are:
  *
@@ -104,13 +344,33 @@ const REQUIRED_GLOBALS = [
  *   costs over a reader turning one track on and off;
  * - the HLS playability gate, which decides whether the hls.js chunk is needed
  *   at all and must therefore be in the entry;
+ * - Choice selection: the playability probe, the swap that keeps the reader's
+ *   place across a rendition change, and the subscription to core's selection
+ *   state. About 450 of the total, and eager of necessity — which alternative is
+ *   attached is settled while the stage is being built, so nothing here can wait
+ *   for a chunk any more than the HLS gate above it can;
+ * - the canvas timeline's EAGER half, about 545 bytes: the optional timeline
+ *   AVState reads canvas time through, the resume-aware source swap the seam
+ *   uses, per-body caption eligibility, the loader that fetches the sequencer
+ *   for a canvas whose scan came back temporally composed, the readiness
+ *   tri-state that keeps a deep link from being clamped by the first body's
+ *   duration while that loader is in flight, and the waveform fence. The
+ *   segment map, the seam, the buffered-span mapping and the preloading are
+ *   all in the chunk;
+ * - the transcript's EAGER half, about 430 bytes: which loaded track the
+ *   current canvas's transcript reads, the text track and canvas-time shift it
+ *   reads cues through, and the mount/release of the chunk against the panel's
+ *   host node. The list, its keyboard behaviour, its scroll-follow and its
+ *   stylesheet are all in `dist/av-transcript.js`, which is fetched only for a
+ *   canvas that actually carries VTT;
  * - the version-skew gate's diagnostic prose, and the curator-facing degradation
  *   warnings (user story 45). Their prose is a real share of this number and is
  *   spent deliberately: a message that says what was ignored and what the term
  *   actually means costs a few hundred bytes more than one that says "ignored".
  *
  * **The lazy chunks must never enter this number.** `dist/av-waveform.js`
- * (2,584 gzip) and `dist/av-hls.js` (223,530 gzip) are fetched on demand, and
+ * (2,584 gzip), `dist/av-sequencer.js` (2,094 gzip), `dist/av-transcript.js`
+ * (1,810 gzip) and `dist/av-hls.js` (223,530 gzip) are fetched on demand, and
  * the marker checks below are what prove they are still out. A chunk folded back
  * into the entry would show up here as a jump of roughly its standalone size
  * less what the minifier saves by sharing scope — for the waveform that was
@@ -122,7 +382,18 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 21_000;
+const MAX_IIFE_GZIP = 22_600;
+
+/**
+ * Floor on the number of runtime helpers the IIFE entry must be seen to
+ * dereference.
+ *
+ * Not a budget — a self-test. It exists so that a failure to READ the entry
+ * cannot present as a clean entry; see where it is used. The entry references
+ * 31 today (every name core publishes), so this is a floor no plausible markup
+ * change reaches, only a broken resolver.
+ */
+const MIN_ENTRY_HELPERS = 15;
 
 const failures = [];
 
@@ -171,28 +442,28 @@ if (iife !== null) {
 
     // The chunked dist. Each lazy half must exist beside the entry, be fetched
     // by name from it, and be absent FROM it.
-    for (const [name, marker] of Object.entries(LAZY_CHUNKS)) {
+    const iifeChunks = importedChunks(iife);
+    const chunkSources = new Map();
+    for (const name of iifeChunks) {
         const chunk = read(join(packageRoot, 'dist', name), `dist/${name}`);
         if (chunk === null) continue;
+        chunkSources.set(name, chunk);
 
-        if (!chunk.includes(marker)) {
-            failures.push(
-                `dist/${name} does not contain "${marker}", so it is not the ` +
-                    `chunk it is named for — the lazy split has moved.`,
-            );
-        }
-        if (iife.includes(marker)) {
-            failures.push(
-                `dist/iife.js contains "${marker}", which only dist/${name} ` +
-                    `can have put there: that chunk has been inlined back into ` +
-                    `the entry.`,
-            );
-        }
-        if (!iife.includes(`"${name}"`) && !iife.includes(`'${name}'`)) {
-            failures.push(
-                `dist/iife.js never names dist/${name}, so nothing will ever ` +
-                    `fetch it.`,
-            );
+        const marker = CHUNK_MARKERS[name];
+        if (marker !== undefined) {
+            if (!chunk.includes(marker)) {
+                failures.push(
+                    `dist/${name} does not contain "${marker}", so it is not ` +
+                        `the chunk it is named for — the lazy split has moved.`,
+                );
+            }
+            if (iife.includes(marker)) {
+                failures.push(
+                    `dist/iife.js contains "${marker}", which only dist/${name} ` +
+                        `can have put there: that chunk has been inlined back ` +
+                        `into the entry.`,
+                );
+            }
         }
         for (const fingerprint of BUNDLED_RUNTIME_FINGERPRINTS) {
             if (chunk.includes(fingerprint)) {
@@ -205,6 +476,40 @@ if (iife !== null) {
         }
     }
 
+    for (const name of Object.keys(CHUNK_MARKERS)) {
+        if (!iifeChunks.includes(name)) {
+            failures.push(
+                `dist/iife.js never imports dist/${name}, so nothing will ever ` +
+                    `fetch it: either the lazy split has moved, or the chunk is ` +
+                    `now inlined.`,
+            );
+        }
+    }
+
+    // Nothing in `dist` may go unaccounted for. Every `.js` there is either the
+    // IIFE entry and a chunk it imports (all inspected below), or the ESM entry
+    // and a chunk it imports (deliberately out of this gate's scope — the ESM
+    // build leaves Svelte external for the consumer's bundler and reads no
+    // globals). A file matching neither is an artifact that ships and that this
+    // script has never opened, which is the one thing a gate must not allow.
+    const esmChunks = esm === null ? [] : importedChunks(esm);
+    const accounted = new Set([
+        'iife.js',
+        ...iifeChunks,
+        'index.js',
+        ...esmChunks,
+    ]);
+    for (const name of readdirSync(join(packageRoot, 'dist'))) {
+        if (name.endsWith('.js') && !accounted.has(name)) {
+            failures.push(
+                `dist/${name} is an artifact no entry imports and this gate ` +
+                    `never inspects. Either it is a stale build product that ` +
+                    `should not ship, or the entry that fetches it does so in a ` +
+                    `shape \`importedChunks\` cannot see.`,
+            );
+        }
+    }
+
     // The resolver the rewritten `import()` calls. Without it the specifiers
     // above resolve against the PAGE rather than against the plugin's own
     // script URL, and every chunk 404s on any page not served from the dist
@@ -214,6 +519,79 @@ if (iife !== null) {
             `dist/iife.js never reads \`document.currentScript\`, so it cannot ` +
                 `resolve its chunks against its own script URL.`,
         );
+    }
+
+    // The helper gate. Every artifact that runs in the page runs against the
+    // same globals object, so a chunk reaching for an unpublished helper is
+    // exactly as fatal as the entry doing it — and is where a future
+    // component's helpers would hide.
+    const published = publishedHelpers();
+    if (published !== null) {
+        // The entry's own resolution has to be asserted, not assumed. Every
+        // helper this gate can see is reached through a local that
+        // `runtimeLocals` recognised, so a minifier output it cannot parse
+        // yields an empty referenced set — no helper missing, and a green line
+        // indistinguishable from a clean bundle. Both halves are checked: that
+        // SOMETHING resolved, and that what resolved is the whole compiled
+        // graph rather than one stray binding. The entry references 31 helpers
+        // today; the floor is set well under that so ordinary markup churn
+        // never touches it, and a collapse to a handful is what it catches.
+        const entryLocals = runtimeLocals(iife);
+        const entryHelpers = referencedHelpers(iife);
+        if (entryLocals.size === 0) {
+            failures.push(
+                `Found no local holding window.Triiiceratops.svelteInternal in ` +
+                    `dist/iife.js, so the helper gate inspected nothing there. ` +
+                    `The minifier has emitted a binding shape \`runtimeLocals\` ` +
+                    `does not recognise — widen it rather than trusting this run.`,
+            );
+        } else if (entryHelpers.size < MIN_ENTRY_HELPERS) {
+            failures.push(
+                `dist/iife.js resolves only ${entryHelpers.size} runtime ` +
+                    `helpers (expected at least ${MIN_ENTRY_HELPERS}); the ` +
+                    `compiled components dereference far more than that. The ` +
+                    `helper gate is reading the entry wrongly, so its silence ` +
+                    `means nothing.`,
+            );
+        }
+
+        const artifacts = ['iife.js', ...iifeChunks];
+        let checked = 0;
+        for (const name of artifacts) {
+            const artifact = name === 'iife.js' ? iife : chunkSources.get(name);
+            if (artifact === undefined) continue;
+
+            const missing = [...referencedHelpers(artifact)]
+                .filter((helper) => !published.has(helper))
+                .sort();
+            checked += 1;
+            if (missing.length > 0) {
+                failures.push(
+                    `dist/${name} reads ${missing.map((helper) => `\`${helper}\``).join(', ')} ` +
+                        `off window.Triiiceratops.svelteInternal, which core does not ` +
+                        `publish: this throws "is not a function" at mount in a browser, ` +
+                        `and no unit test can see it. Either change the markup so the ` +
+                        `compiler stops emitting the helper, or add it to ` +
+                        `SHARED_SVELTE_RUNTIME in packages/core/src/lib/` +
+                        `shared-svelte-runtime.ts and accept the core size ratchet.`,
+                );
+            }
+        }
+        if (checked < artifacts.length) {
+            failures.push(
+                `Read ${checked} of ${artifacts.length} IIFE-side artifacts ` +
+                    `(${artifacts.join(', ')}): the helper gate cannot report ` +
+                    `on one it could not open.`,
+            );
+        } else if (failures.length === 0) {
+            // Named, not counted: the number is only worth printing if a reader
+            // can check it against the files the gate actually opened.
+            console.log(
+                `check-shared-runtime: ${checked} artifacts reference only ` +
+                    `helpers core publishes (${published.size} available) — ` +
+                    `${artifacts.map((name) => `dist/${name}`).join(', ')}.`,
+            );
+        }
     }
 
     const gzip = gzipSync(Buffer.from(iife), { level: 9 }).length;

@@ -8,7 +8,7 @@ import {
     getCanvasId,
     getCompositeImagePlacement,
     getVisibleCanvasEntries,
-    isUnsupportedCanvas,
+    isUnsupportedCanvasFor,
     resolveAllCanvasImages,
     resolveExportSizeOptions,
     sanitizeFilenamePart,
@@ -209,15 +209,21 @@ type WorldLayout = {
  * a resolution to pick.
  */
 export function getVisibleCanvasesForDownload(viewerState: ViewerState): any[] {
-    return getVisibleCanvasEntries({
-        canvases: viewerState.canvases,
-        currentCanvasId: viewerState.canvasId,
-        currentCanvasIndex: viewerState.currentCanvasIndex,
-        viewingMode: viewerState.viewingMode,
-        pagedOffset: viewerState.pagedOffset,
-    })
-        .map((entry) => entry.canvas)
-        .filter((canvas) => !isUnsupportedCanvas(canvas));
+    return (
+        getVisibleCanvasEntries({
+            canvases: viewerState.canvases,
+            currentCanvasId: viewerState.canvasId,
+            currentCanvasIndex: viewerState.currentCanvasIndex,
+            viewingMode: viewerState.viewingMode,
+            pagedOffset: viewerState.pagedOffset,
+        })
+            .map((entry) => entry.canvas)
+            // Classified over the SELECTED body: a mixed Choice resting on its
+            // video alternative resolves to no image, and asking about the
+            // alternatives as authored answers `false` and offers an export that
+            // can only fall through to the poster thumbnail.
+            .filter((canvas) => !isUnsupportedCanvasFor(viewerState, canvas))
+    );
 }
 
 function buildWorldLayout(

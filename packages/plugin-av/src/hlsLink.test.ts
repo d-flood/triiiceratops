@@ -2,9 +2,9 @@
  * The eager half of the HLS path: what counts as a stream, and who plays it.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { hasNativeHlsSupport, isHlsSource } from './hlsLink';
+import { canPlayHls, hasNativeHlsSupport, isHlsSource } from './hlsLink';
 import type { AvSource } from './sources';
 
 function source(partial: Partial<AvSource>): AvSource {
@@ -68,5 +68,63 @@ describe('native playback', () => {
 
     it('is absent when the element answers with the empty string', () => {
         expect(hasNativeHlsSupport(mediaAnswering(''))).toBe(false);
+    });
+});
+
+describe('the Media Source gate hls.js would apply', () => {
+    const media = (() => {
+        const element = document.createElement('video');
+        element.canPlayType = () => '' as CanPlayTypeResult;
+        return element;
+    })();
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    /** A `MediaSource` accepting exactly the codec strings listed. */
+    function supporting(...accepted: string[]): {
+        isTypeSupported: (type: string) => boolean;
+    } {
+        return { isTypeSupported: (type) => accepted.includes(type) };
+    }
+
+    it.each([
+        ['avc1', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2'],
+        ['av1', 'video/mp4;codecs=av01.0.01M.08'],
+        ['vp9', 'video/mp4;codecs=vp09.00.50.08'],
+        ['aac audio only', 'audio/mp4;codecs=mp4a.40.2'],
+        ['flac audio only', 'audio/mp4;codecs=fLaC'],
+    ])('opens on %s alone, as hls.js does', (_label, type) => {
+        vi.stubGlobal('MediaSource', supporting(type));
+
+        expect(canPlayHls(media)).toBe(true);
+    });
+
+    it('reads the WebKit-prefixed global where that is the only one', () => {
+        vi.stubGlobal('MediaSource', undefined);
+        vi.stubGlobal(
+            'WebKitMediaSource',
+            supporting('video/mp4;codecs=avc1.42E01E,mp4a.40.2'),
+        );
+
+        expect(canPlayHls(media)).toBe(true);
+    });
+
+    it('prefers a managed source, which hls.js resolves first', () => {
+        vi.stubGlobal(
+            'ManagedMediaSource',
+            supporting('audio/mp4;codecs=fLaC'),
+        );
+        vi.stubGlobal('MediaSource', supporting());
+
+        expect(canPlayHls(media)).toBe(true);
+    });
+
+    it('is shut when no container is decodable', () => {
+        vi.stubGlobal(
+            'MediaSource',
+            supporting('video/mp4;codecs=hev1.1.6.L93.B0'),
+        );
+
+        expect(canPlayHls(media)).toBe(false);
     });
 });

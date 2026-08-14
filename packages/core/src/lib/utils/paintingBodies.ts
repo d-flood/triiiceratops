@@ -11,7 +11,7 @@
  * thumbnail fallback all ask this module rather than re-deriving it.
  */
 
-import { getResourceId } from './iiifIds';
+import { getCanvasId, getResourceId } from './iiifIds';
 import {
     getChoiceAlternatives,
     getPaintingAnnotations,
@@ -188,20 +188,77 @@ export function paintingBodyAlternatives(annotation: unknown): unknown[] {
  * silently (`0489-multimedia-canvas` is the corpus's example, an Image body
  * beside a Video one and three text ones).
  *
- * Decided over **all** the canvas's painting bodies. Nothing here reads a
- * target: whether core can display a canvas is a property of the canvas.
+ * Decided over the canvas's painting bodies **as selected**, which for a Choice
+ * is one alternative and not the set. Asking about the set instead deletes a
+ * canvas outright: {@link findImageBody} takes only the selected alternative,
+ * so a mixed Choice resting on its non-image alternative resolves to no image,
+ * while a classifier that saw the image alternative beside it answered `false`
+ * — no images and not unsupported either, which is the descriptor builder's
+ * signal for a broken annotation to drop. The reader lost the canvas, its rect,
+ * its place in navigation and any way back to the image alternative. Selection
+ * and classification have to be made over the same body.
+ *
+ * `selectedChoiceId` names a Choice alternative; anything else, including
+ * nothing, means the first one — the IIIF default, and the same default
+ * resolution follows.
+ *
+ * Nothing here reads a target: whether core can display a canvas is a property
+ * of the canvas.
  */
-export function isUnsupportedCanvas(canvas: unknown): boolean {
+export function isUnsupportedCanvas(
+    canvas: unknown,
+    selectedChoiceId?: string,
+): boolean {
     let paintsSomething = false;
 
     for (const annotation of getPaintingAnnotations(canvas)) {
-        for (const body of paintingBodyAlternatives(annotation)) {
+        for (const body of selectedPaintingBodies(
+            annotation,
+            selectedChoiceId,
+        )) {
             if (isImageBody(body)) return false;
             paintsSomething = true;
         }
     }
 
     return paintsSomething;
+}
+
+/**
+ * A reader's Choice selections, in either shape callers already hold: the
+ * viewer state object itself, or the bare lookup a plugin entry point is handed.
+ */
+export type ChoiceSelection =
+    | { getSelectedChoice(canvasId: string): string | undefined }
+    | ((canvasId: string) => string | undefined);
+
+/** The selection recorded for `canvasId`, or `undefined` for the IIIF default. */
+function selectedChoiceFor(
+    selection: ChoiceSelection | undefined,
+    canvasId: string,
+): string | undefined {
+    return typeof selection === 'function'
+        ? selection(canvasId)
+        : selection?.getSelectedChoice(canvasId);
+}
+
+/**
+ * {@link isUnsupportedCanvas} against a whole canvas's selection state, which is
+ * how every caller in the tree actually asks it.
+ *
+ * The classification rule and the selection lookup belong together. Written out
+ * per site, the two drift apart the moment one site learns about selection and
+ * another does not — and a viewer showing the unsupported presentation beside a
+ * strip showing the image alternative is exactly that drift.
+ */
+export function isUnsupportedCanvasFor(
+    selection: ChoiceSelection | undefined,
+    canvas: unknown,
+): boolean {
+    return isUnsupportedCanvas(
+        canvas,
+        selectedChoiceFor(selection, getCanvasId(canvas) ?? ''),
+    );
 }
 
 /**
@@ -227,18 +284,38 @@ export function findImageBody(
     annotation: unknown,
     selectedChoiceId?: string,
 ): unknown | null {
-    const body = getPaintingBody(annotation);
-    if (!body) return null;
-
-    for (const entry of Array.isArray(body) ? body : [body]) {
-        const resolved = isChoiceBody(entry)
-            ? chooseAlternative(entry, selectedChoiceId)
-            : entry;
-
-        if (resolved && isImageBody(resolved)) return resolved;
+    for (const body of selectedPaintingBodies(annotation, selectedChoiceId)) {
+        if (isImageBody(body)) return body;
     }
 
     return null;
+}
+
+/**
+ * The resources one painting annotation actually places, each Choice collapsed
+ * to its selected alternative.
+ *
+ * The counterpart to {@link paintingBodyAlternatives}: that one answers "what
+ * COULD this annotation place", this one "what does it place right now". The
+ * body array is unwrapped before the Choice test here for the same reason it is
+ * there.
+ */
+function selectedPaintingBodies(
+    annotation: unknown,
+    selectedChoiceId: string | undefined,
+): unknown[] {
+    const body = getPaintingBody(annotation);
+    if (!body) return [];
+
+    const entries = Array.isArray(body) ? body : [body];
+
+    return entries
+        .map((entry) =>
+            isChoiceBody(entry)
+                ? chooseAlternative(entry, selectedChoiceId)
+                : entry,
+        )
+        .filter((entry) => entry !== null && entry !== undefined);
 }
 
 function chooseAlternative(

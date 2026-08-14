@@ -152,7 +152,14 @@ export interface AvSource {
 }
 /** One painting annotation that places a time-based body on the canvas. */
 export interface AvPlacement {
-    readonly source: AvSource;
+    /**
+     * Every time-based resource this annotation could place, in manifest order
+     * — one entry unless a `Choice` offers renditions. Which of them is
+     * attached is `formats.ts`' decision and depends on the browser, so it is
+     * deliberately not made here: parsing must answer the same way whoever
+     * asks.
+     */
+    readonly alternatives: readonly AvSource[];
     /** The annotation's target carries a `t=` media fragment. */
     readonly temporal: boolean;
     /** The annotation's target carries an `xywh=` media fragment. */

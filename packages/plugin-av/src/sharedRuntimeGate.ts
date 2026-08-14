@@ -69,7 +69,12 @@ const ABSENT_MESSAGE =
     '[triiiceratops] @triiiceratops/plugin-av did not register: ' +
     'window.Triiiceratops is not on this page. This is the one plugin that does ' +
     'not bundle its own Svelte runtime — it reads core’s off that ' +
-    'namespace — so core’s script must load BEFORE it. Load ' +
+    // Not "…BEFORE it. Load triiiceratops-element…": the minifier names one of
+    // this bundle's own locals `it`, and `check-shared-runtime.mjs` scans the
+    // built text for `<local>.<Helper>` without excluding string literals, so
+    // that sentence reads as a helper named `Load` off the shared runtime and
+    // fails the build.
+    'namespace — so core’s script must load BEFORE it: load ' +
     'triiiceratops-element.iife.js first, then this bundle.';
 
 const SKEW_MESSAGE_PREFIX =

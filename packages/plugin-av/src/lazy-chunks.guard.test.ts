@@ -2,8 +2,9 @@
  * Lazy-chunk regression guard, over the BUILT artifacts of BOTH formats.
  *
  * The savings these chunks exist for are invisible in source and easy to lose:
- * one static `import` of `./waveform/…` or `./hls/…` anywhere in the eager graph
- * pulls the parsers, the renderer, or 223 KB gzip of hls.js into the entry, and
+ * one static `import` of `./waveform/…`, `./hls/…` or `./sequencer/…` anywhere
+ * in the eager graph pulls the parsers, the renderer, the segment map, or
+ * 223 KB gzip of hls.js into the entry, and
  * everything still works — it just costs every page bytes it cannot use. So the
  * built entries are inspected the way `scripts/check-shared-runtime.mjs`
  * inspects the IIFE.
@@ -35,13 +36,19 @@ const DIST = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
 /**
  * Strings only the chunk's own code can have put in the bundle they appear in.
  *
- * The waveform's linkage rule and the HLS playability gate are both EAGER, so
- * neither profile nor media type would do: the markers have to come from the
- * parsers, the renderer and hls.js itself.
+ * The waveform's linkage rule, the HLS playability gate and "is this canvas
+ * temporally composed" are all EAGER, so neither a profile, a media type nor
+ * `t=` itself would do: the markers have to come from the parsers, the
+ * renderer, hls.js itself, and the segment map's own normalization warnings.
  */
 const CHUNK_ONLY = {
     waveform: ['samples_per_pixel', 'getUint32'],
     hls: ['manifestLoadError', 'bufferAppendError'],
+    sequencer: [
+        'cannot be placed on the canvas timeline',
+        'skips the gap rather than resting',
+    ],
+    transcript: ['tri-av-transcript-cues', 'tri-av-transcript-time'],
 };
 
 const ENTRIES = [

@@ -359,7 +359,9 @@ export function collectSizes(root) {
     /*
         The AV plugin is sized here rather than through PLUGINS above because
         it is the one plugin whose dist is a DIRECTORY: `iife.js` fetches
-        `av-hls.js` and `av-waveform.js` from beside itself on demand, and the
+        `av-hls.js`, `av-waveform.js`, `av-sequencer.js` and
+        `av-transcript.js` from beside itself
+        on demand, and the
         whole point of that arrangement is that the entry stays small while the
         chunks are large. One `:iife` row would report the entry and say
         nothing about what a reader who opens an HLS canvas actually pays, so
@@ -380,6 +382,12 @@ export function collectSizes(root) {
     sizes['av:iife'] = fileSize(join(avDist, 'iife.js'));
     sizes['av:iife-chunk-hls'] = fileSize(join(avDist, 'av-hls.js'));
     sizes['av:iife-chunk-waveform'] = fileSize(join(avDist, 'av-waveform.js'));
+    sizes['av:iife-chunk-sequencer'] = fileSize(
+        join(avDist, 'av-sequencer.js'),
+    );
+    sizes['av:iife-chunk-transcript'] = fileSize(
+        join(avDist, 'av-transcript.js'),
+    );
 
     return sizes;
 }

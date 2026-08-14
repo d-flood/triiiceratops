@@ -324,6 +324,57 @@ describe('AVState query-only currentTime', () => {
     });
 });
 
+/**
+ * The whole of what a composed canvas changes about AVState's surface: it
+ * changes nothing. A `timeline` on the target is what makes `duration`,
+ * `currentTime` and `seek` speak canvas time where the mapping is not the
+ * identity, and no member here learns that segments exist.
+ */
+describe('AVState over a non-identity canvas timeline', () => {
+    function composed() {
+        const f = fixture();
+        const timeline = {
+            duration: 60,
+            currentTime: vi.fn(() => 42),
+            seek: vi.fn(),
+        };
+        f.setTarget({
+            canvasId: 'canvas/1',
+            media: asMedia(f.media),
+            canvasDuration: 60,
+            timeline,
+        });
+        return { ...f, timeline };
+    }
+
+    it('publishes the canvas duration, not the active element’s', () => {
+        const f = composed();
+        // The element playing the first segment knows only its own length.
+        f.media.duration = 20;
+        f.publication.sync();
+
+        expect(f.state.duration).toBe(60);
+    });
+
+    it('reads and writes the playhead through the timeline', () => {
+        const f = composed();
+
+        expect(f.state.currentTime).toBe(42);
+
+        f.state.seek(55);
+        expect(f.timeline.seek).toHaveBeenCalledWith(55);
+        // Never the element: the segment's own clock is the timeline's to keep.
+        expect(f.media.currentTime).toBe(0);
+    });
+
+    it('still clamps a seek against the CANVAS duration', () => {
+        const f = composed();
+
+        f.state.seek(1_000);
+        expect(f.timeline.seek).toHaveBeenCalledWith(60);
+    });
+});
+
 describe('AVState lifecycle', () => {
     it('detaches from the media and drops its listeners on destroy', async () => {
         const f = fixture();

@@ -21,12 +21,20 @@ function scan(overrides: Partial<AvCanvasScan> = {}): AvCanvasScan {
         duration: 2,
         placements: [
             {
-                source: { url: 'a.mp4', kind: 'video', format: 'video/mp4' },
+                annotation: 0,
+                fragment: 'xywh=0,0,160,90&t=0,1',
+                alternatives: [
+                    { url: 'a.mp4', kind: 'video', format: 'video/mp4' },
+                ],
                 temporal: true,
                 spatial: true,
             },
             {
-                source: { url: 'b.mp4', kind: 'video', format: 'video/mp4' },
+                annotation: 1,
+                fragment: 't=1,2',
+                alternatives: [
+                    { url: 'b.mp4', kind: 'video', format: 'video/mp4' },
+                ],
                 temporal: true,
                 spatial: false,
             },
@@ -52,39 +60,41 @@ describe('warnAboutDegradation', () => {
         return warn.mock.calls.map((call: unknown[]) => String(call[0]));
     }
 
-    it('tells a canvas about BOTH degradations when it has both', () => {
-        // A canvas can be spatially placed and temporally composed at once, and a
-        // curator told only about the first would never learn the composition was
-        // dropped too.
+    it('names the spatial placement it dropped', () => {
         warnAboutDegradation({ id: 'canvas/1' }, scan());
 
-        expect(messages()).toHaveLength(2);
-        expect(messages().join('\n')).toContain(
+        expect(messages()).toHaveLength(1);
+        expect(messages()[0]).toContain(
             'Spatial placement of audiovisual content is not supported',
-        );
-        expect(messages().join('\n')).toContain(
-            '2 time-based bodies sharing its duration',
         );
     });
 
-    it('repeats neither warning on a re-scan of the same canvas', () => {
+    /*
+        Temporal composition is no longer a degradation: a composed canvas plays
+        through as one work under the sequencer, so there is nothing to announce
+        and a curator who reads the console must not be told otherwise.
+    */
+    it('says nothing about a temporally composed canvas', () => {
+        warnAboutDegradation(
+            { id: 'canvas/1' },
+            scan({ spatiallyTargeted: false }),
+        );
+
+        expect(messages()).toEqual([]);
+    });
+
+    it('repeats the warning on a re-scan of the same canvas', () => {
         const canvas = { id: 'canvas/1' };
 
         warnAboutDegradation(canvas, scan());
         warnAboutDegradation(canvas, scan());
 
-        expect(messages()).toHaveLength(2);
+        expect(messages()).toHaveLength(1);
     });
 
     it('warns each canvas separately', () => {
-        warnAboutDegradation(
-            { id: 'canvas/1' },
-            scan({ spatiallyTargeted: false }),
-        );
-        warnAboutDegradation(
-            { id: 'canvas/2' },
-            scan({ spatiallyTargeted: false }),
-        );
+        warnAboutDegradation({ id: 'canvas/1' }, scan());
+        warnAboutDegradation({ id: 'canvas/2' }, scan());
 
         expect(messages()).toHaveLength(2);
     });

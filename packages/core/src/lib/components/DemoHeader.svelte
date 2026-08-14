@@ -17,7 +17,80 @@
     const isDev = import.meta.env.DEV;
     const multiTargetDemoManifestUrl = `${import.meta.env.BASE_URL}demo-manifests/multi-target-array/manifest.json`;
 
-    const SUGGESTED_MANIFESTS = [
+    /**
+     * The audiovisual Cookbook recipes, at their canonical `iiif.io` URLs.
+     *
+     * Exactly the fifteen listed in the vendored corpus's `PROVENANCE.md` — the
+     * recipes whose canvases carry a `Sound` or `Video` painting body. Fourteen
+     * are supported; `0489-multimedia-canvas` is the documented degradation
+     * (its image body paints, its spatially placed video renders full-rect).
+     * They need `@triiiceratops/plugin-av` registered to do anything, which the
+     * demo does in `Demo.svelte`.
+     */
+    const AV_MANIFESTS = [
+        {
+            label: '0002 Simplest Manifest - Audio',
+            url: 'https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json',
+        },
+        {
+            label: '0003 Simplest Manifest - Video',
+            url: 'https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json',
+        },
+        {
+            label: '0013 Placeholder Canvas (poster)',
+            url: 'https://iiif.io/api/cookbook/recipe/0013-placeholderCanvas/manifest.json',
+        },
+        {
+            label: '0014 Accompanying Canvas (album art)',
+            url: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/manifest.json',
+        },
+        {
+            label: '0015 Start Playback at a Given Time',
+            url: 'https://iiif.io/api/cookbook/recipe/0015-start/manifest.json',
+        },
+        {
+            label: '0017 Transcript of A/V Content',
+            url: 'https://iiif.io/api/cookbook/recipe/0017-transcription-av/manifest.json',
+        },
+        {
+            label: '0026 Table of Contents for A/V Content',
+            url: 'https://iiif.io/api/cookbook/recipe/0026-toc-opera/manifest.json',
+        },
+        {
+            label: '0064 Opera on One Canvas (temporal composition)',
+            url: 'https://iiif.io/api/cookbook/recipe/0064-opera-one-canvas/manifest.json',
+        },
+        {
+            label: '0065 Opera Across Multiple Canvases',
+            url: 'https://iiif.io/api/cookbook/recipe/0065-opera-multiple-canvases/manifest.json',
+        },
+        {
+            label: '0074 Multiple Language Captions',
+            url: 'https://iiif.io/api/cookbook/recipe/0074-multiple-language-captions/manifest.json',
+        },
+        {
+            label: '0103 Annotating a Time-Based Region',
+            url: 'https://iiif.io/api/cookbook/recipe/0103-poetry-reading-annotations/manifest.json',
+        },
+        {
+            label: '0219 Using Caption and Subtitle Files',
+            url: 'https://iiif.io/api/cookbook/recipe/0219-using-caption-file/manifest.json',
+        },
+        {
+            label: '0229 Video Navigation with Ranges',
+            url: 'https://iiif.io/api/cookbook/recipe/0229-behavior-ranges/manifest.json',
+        },
+        {
+            label: '0434 Choice of Audio Formats',
+            url: 'https://iiif.io/api/cookbook/recipe/0434-choice-av/manifest.json',
+        },
+        {
+            label: '0489 Multimedia Canvas (degraded: image only)',
+            url: 'https://iiif.io/api/cookbook/recipe/0489-multimedia-canvas/manifest.json',
+        },
+    ];
+
+    const IMAGE_MANIFESTS = [
         {
             label: 'Wellcome Collection (b18035723)',
             url: 'https://iiif.wellcomecollection.org/presentation/v2/b18035723',
@@ -187,6 +260,8 @@
             url: 'https://iiif.io/api/cookbook/recipe/0299-region/manifest.json',
         },
     ];
+
+    const SUGGESTED_MANIFESTS = [...IMAGE_MANIFESTS, ...AV_MANIFESTS];
 
     let {
         manifestUrl = $bindable(),
@@ -383,9 +458,19 @@
                         else selectManifest(v);
                     }}
                 >
-                    {#each SUGGESTED_MANIFESTS as manifest (manifest.url)}
+                    {#each IMAGE_MANIFESTS as manifest (manifest.url)}
                         <option value={manifest.url}>{manifest.label}</option>
                     {/each}
+                    <optgroup
+                        label="Audio &amp; Video"
+                        data-testid="av-recipes"
+                    >
+                        {#each AV_MANIFESTS as manifest (manifest.url)}
+                            <option value={manifest.url}
+                                >{manifest.label}</option
+                            >
+                        {/each}
+                    </optgroup>
                     <option value={CUSTOM_MANIFEST}>{m.try_your_own()}</option>
                 </Select>
 
