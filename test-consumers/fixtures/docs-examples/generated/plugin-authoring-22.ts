@@ -1,17 +1,23 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { isUnsupportedCanvas, type PluginContext } from 'triiiceratops';
+import type { PaintFrame, PluginContext } from 'triiiceratops';
 
-function claimMine(context: PluginContext) {
-    const releases = context.viewerState.canvases
-        .filter((canvas) => isUnsupportedCanvas(canvas))
-        .map((canvas) =>
-            context.viewerState.claimCanvas(
-                canvas.id ?? canvas['@id'],
-                // The id the viewer knows this plugin by — never a literal.
-                context.surface.id,
-            ),
-        );
+function markRegion(context: PluginContext, canvasId: string) {
+    return context.viewerState.registerPaintLayer({
+        id: 'my-plugin:region',
+        order: 10,
+        draw: (ctx: CanvasRenderingContext2D, frame: PaintFrame) => {
+            // The region in the Canvas's own coordinates — as an annotation
+            // stores it — mapped into the space the context is in.
+            const box = frame.canvasBoxToWorld(
+                { x: 100, y: 200, width: 300, height: 400 },
+                canvasId,
+            );
+            if (!box) return; // that canvas is not on screen this frame
 
-    return () => releases.forEach((release) => release());
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2 / frame.transform.scale; // 2 device px, any zoom
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+        },
+    });
 }

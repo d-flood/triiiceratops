@@ -2,10 +2,17 @@
 // Regenerate with: node scripts/docs-examples.mjs
 import type { PluginContext } from 'triiiceratops';
 
-function watchTaps(context: PluginContext, onCanvasPoint: (point: { x: number; y: number }) => void) {
-    // Returns an idempotent unsubscribe; a listener survives a renderer remount.
-    return context.viewerState.subscribeSurfaceTap((point) => {
-        const canvasPoint = context.viewerState.screenToCanvas(point);
-        if (canvasPoint) onCanvasPoint(canvasPoint);
-    });
+function filmstrip(context: PluginContext, height: number) {
+    const { viewerState } = context;
+
+    viewerState.setViewportInset({ bottom: height });
+    // Setting it does not move the image. Ask for the re-frame yourself, if you
+    // want one — most of the time you do not, because the reader may have zoomed
+    // in deliberately and being yanked back to the whole page is a surprise.
+    viewerState.fitCanvas();
+
+    return () => {
+        viewerState.resetViewportInset();
+        viewerState.fitCanvas();
+    };
 }

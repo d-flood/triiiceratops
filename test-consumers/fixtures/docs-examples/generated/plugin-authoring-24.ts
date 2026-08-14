@@ -1,9 +1,17 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { definePluginStyles } from '@triiiceratops/plugin-sdk';
+import { isUnsupportedCanvas, type PluginContext } from 'triiiceratops';
 
-// Conventionally in its own styles.ts, imported by name wherever installed.
-export const { STYLES, STYLE_ID } = definePluginStyles(
-    '.my-plugin-panel { padding: 1rem; }',
-    'panel',
-);
+function claimMine(context: PluginContext) {
+    const releases = context.viewerState.canvases
+        .filter((canvas) => isUnsupportedCanvas(canvas))
+        .map((canvas) =>
+            context.viewerState.claimCanvas(
+                canvas.id ?? canvas['@id'],
+                // The id the viewer knows this plugin by — never a literal.
+                context.surface.id,
+            ),
+        );
+
+    return () => releases.forEach((release) => release());
+}

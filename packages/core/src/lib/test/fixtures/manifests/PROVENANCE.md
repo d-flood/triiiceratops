@@ -142,12 +142,10 @@ than trusted: all 67 recipe manifests were fetched and searched for `Sound` or
 `0489-multimedia-canvas` (filed under Annotation Recipes). All 15 are vendored
 here.
 
-**This is 15, where `docs/bundle-size-comparison.md` says 14** (and therefore 53
-image recipes, not 52). The doc's count omits one of `0229-behavior-ranges` and
-`0489-multimedia-canvas` — most likely `0489`, whose canvas also carries an
-Image body and which an image-only viewer can partly render. The doc's arithmetic
-is a matter for the ticket that rewrites it (`plugin-av` ticket 16); vendoring
-the extra file costs 4 KB and closing the gap by content is the honest list.
+This list of 15 — and the 52 image recipes it leaves — is what
+`docs/bundle-size-comparison.md` counts with. That page previously said 14 and
+53, having read the split off the matrix's categories rather than off the
+manifests; it was corrected to agree with the derivation above.
 
 **The audiovisual recipe ids** — the list tickets 16 (comparison doc) and 17
 (demo picker) consume:

@@ -383,6 +383,32 @@ schedule has no such guarantee and would break on the first skew, so bundling is
 the right answer for everybody outside this repository. Your IIFE then loads in
 any order relative to core's.
 
+What makes the arrangement safe on the inside is a build gate, and it is worth
+knowing why it has to exist. The list core publishes is **curated** — 31
+`svelte/internal/client` helpers under `svelteInternal`, alongside `mount`,
+`unmount` and `getContext`, for 34 names in all — never `export *`, because
+re-exporting the namespace wholesale defeats tree-shaking and was measured at
++8,837 gzip on core. A plugin that compiles to a
+helper outside that list does not fail to build and does not fail its unit tests
+(those mount against the real `svelte/internal`); it throws at mount in a real
+browser. One bare text child of a component — `<Button>CC</Button>`, which
+compiles to `next()` — did exactly that once, and killed a whole transport while
+every gate stayed green. So `check-shared-runtime.mjs` now reads the helpers the
+*built* bundle references back out of the minified output and fails the build if
+any of them is unpublished.
+
+Know its limits before you lean on it. It is a **regex scan over minified
+text**, not a parse, and that cuts both ways. It reported a clean pass on every
+helper it was ever given until a fix to how it escapes minified locals: a local
+the minifier had spelled with a `$` matched nothing, and a gate that resolves no
+locals resolves no helpers — which has exactly the shape of a pass. In the other
+direction it cannot tell code from data, so a literal `.svelteInternal.<name>`
+inside a string will be reported as a reference that is not one. If you are
+considering the same trick in your own monorepo: the gate is not optional
+decoration, and it is what makes a private-API dependency reviewable at all —
+but it is a heuristic backed by a real browser mount, not a proof, and it is
+worth mounting the thing before you believe it.
+
 ## Reading and controlling state
 
 `context.viewerState` is the actual live viewer state — the sole plugin-facing
@@ -479,6 +505,128 @@ function watchCanvas(context: PluginContext) {
 Notifications are **batched** and carry no payload — a notification means "state
 changed, read what you need," not a transition log. Subscribers read the current
 value rather than reconstructing intermediate states.
+
+### Publishing state for hosts to command you through
+
+Selectors let *you* read the viewer. **Published state** is the other direction:
+one object your activation exposes so the host application, a framework wrapper,
+or another plugin can command your plugin — the parity rule, one level down. A
+plugin that renders a panel and nothing else needs none of this. A plugin whose
+behavior a host would reasonably want to drive from its own chrome does: the
+first-party `@triiiceratops/plugin-av` publishes playback (`play`, `pause`,
+`seek`, the playhead) so an application's own transport can control the viewer's
+media.
+
+`context.publishState(state)` publishes it. An activation publishes **at most
+one** object — publishing again supersedes the previous one — and the publication
+lives exactly as long as the activation: core retires it on deactivation, on a
+failure, and while a retry is in flight, so a host asking during any of those
+gets `null` rather than a stale object. Do not export the state from your package
+for a host to import; the viewer is the only way in.
+
+```ts
+import type { PluginContext, PublishedState } from 'triiiceratops';
+
+interface CounterState extends PublishedState {
+    increment(): void;
+    readonly count: number;
+}
+
+function publish(context: PluginContext) {
+    let count = 0;
+    const listeners = new Set<() => void>();
+
+    const state: CounterState = {
+        // Commands maintain the invariants; nothing outside writes `count`.
+        increment() {
+            count += 1;
+            for (const listener of listeners) listener();
+        },
+        get count() {
+            return count;
+        },
+        subscribe(listener: () => void) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+        // Every member above, classified. The seam's own members are not.
+        stateInventory: { increment: 'command', count: 'observable' },
+    };
+
+    context.publishState(state);
+}
+```
+
+**Every member is classified**, in a `stateInventory` table keyed by member name,
+using the same taxonomy the viewer's own state follows:
+
+- `command` — a method that maintains your invariants. Anything a host can
+  change is a command; there is no writable property on a published state.
+- `observable` — a value that notifies through `subscribe`. Notifications are
+  **batched and payload-free**, exactly as the viewer's are: a notification means
+  "something changed, read what you need."
+- `queryOnly` — a high-frequency value that deliberately does *not* notify,
+  because notifying per change would be a storm. A playhead is the archetype: it
+  moves sixty times a second, and a host reads it on the finer
+  `subscribeFrame` cadence or on its own schedule.
+
+`subscribe`, the optional `subscribeFrame`, and `stateInventory` itself are the
+seam, not state, so they are not classified. Any *other* member missing from the
+table fails conformance — including inherited accessors and methods, if your
+state is a class instance.
+
+A published state is a `SelectorSource`. The selector runtime's only
+requirements on its source are `subscribe`, an optional finer-cadence
+`subscribeFrame`, and synchronous reads — so the **same** runtime that backs
+viewer-state selectors works over a published state unchanged, and a host can
+build one with `createSelectorRuntime(published)` from the
+`triiiceratops/selectors` entry point. There is no second reactivity system to
+learn, and a `frame`-cadence projection over a `queryOnly` member is served from
+`subscribeFrame` when you supply one.
+
+What is generalized is the runtime, not the ready-made bindings: `context.selectors`
+is typed `ViewerSelectors` and projects viewer state only, and React's and Vue's
+`useViewerSelector` take a viewer handle with no published-state overload.
+(Svelte needs no selector API at all — see [the Svelte guide](svelte.md).) So a
+host selecting over a published state instantiates the runtime itself rather
+than reaching for a wrapper hook.
+
+Hosts reach it with `viewerState.getPluginState(pluginId)`, which returns
+`unknown` — core cannot know your type — so ship a small typed accessor beside
+your plugin that narrows it, and export only the *type* of the state:
+
+```ts
+import type { PublishedState } from 'triiiceratops';
+
+interface CounterState extends PublishedState {
+    increment(): void;
+    readonly count: number;
+}
+
+export function getCounterState(viewerState: {
+    getPluginState(pluginId: string): unknown;
+}): CounterState | null {
+    const published = viewerState.getPluginState('counter');
+    // Structural, not `instanceof`: the object crossed a package boundary.
+    return published !== null &&
+        typeof published === 'object' &&
+        typeof (published as CounterState).increment === 'function'
+        ? (published as CounterState)
+        : null;
+}
+```
+
+Declare `published-state` in `requiredCapabilities` if you call `publishState`.
+`runPluginConformance` then verifies that whatever your plugin publishes declares
+a `stateInventory`, that the table classifies every member and names only real
+ones, and — as a spot check — that *some* subscriber is woken when an observable
+member's value changes across a flush. Read that last one narrowly: it proves
+only that a notification arrived, not which member it was for, and the kit does
+not check that you declared the capability at all, since its own harness
+activates with `requiredCapabilities: []`. A plugin that publishes nothing passes
+these checks vacuously. Hosts that want to render controls only
+while a plugin is live can watch the set of published states, which is itself a
+notifying member of the viewer's inventory.
 
 ### Knowing whether your panel or flyout is open
 
@@ -898,6 +1046,17 @@ rendering of geometry your DOM already carries — a heat map under your pins, a
 thousand tick marks no one clicks. Both hooks exist because the substrates differ,
 not because one is on its way out ([ADR
 0016](adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md)).
+
+**"Decoration" does not always mean "the paint hook", though.** The paint hook
+draws into the *renderer's* canvas, and every overlay layer stacks above it — so
+if your decoration belongs on top of opaque DOM you put there yourself, painting
+it through the hook draws it correctly and leaves it invisible behind your own
+box. `@triiiceratops/plugin-av`'s waveform is that case: it sits over an opaque
+media stage, so it is a `<canvas>` nested inside the overlay layer's timeline
+lane rather than a paint layer. ADR 0016's rule is about the DOM/pixels split,
+not about which API the pixels come from; the operable geometry is still DOM
+(a real slider and the lane's own tap handling), and the pixels are still
+decoration over it.
 
 ### Taking over a canvas: the canvas claim
 

@@ -1,22 +1,32 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import type { PluginContext } from 'triiiceratops';
+import type { PluginContext, PublishedState } from 'triiiceratops';
 
-function surfaceAware(context: PluginContext) {
-    const { surface } = context;
+interface CounterState extends PublishedState {
+    increment(): void;
+    readonly count: number;
+}
 
-    // `isOpen` and `target` are live getters — never snapshot them.
-    const open = context.selectors.select(() => surface.isOpen);
+function publish(context: PluginContext) {
+    let count = 0;
+    const listeners = new Set<() => void>();
 
-    const render = (isOpen: boolean) => {
-        if (isOpen) {
-            // Start polling, attach an expensive frame handler, resume an
-            // animation — whatever is wasted while nobody can see it.
-        } else {
-            // Pause it. Keep your state: the plugin is still activated.
-        }
+    const state: CounterState = {
+        // Commands maintain the invariants; nothing outside writes `count`.
+        increment() {
+            count += 1;
+            for (const listener of listeners) listener();
+        },
+        get count() {
+            return count;
+        },
+        subscribe(listener: () => void) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+        // Every member above, classified. The seam's own members are not.
+        stateInventory: { increment: 'command', count: 'observable' },
     };
 
-    render(open.get()); // may already be open (config.plugins[uiId].open)
-    return open.subscribe(render);
+    context.publishState(state);
 }

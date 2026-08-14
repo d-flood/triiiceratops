@@ -1,15 +1,20 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import type { PluginContext } from 'triiiceratops';
+import type { PublishedState } from 'triiiceratops';
 
-function surfaceControls(context: PluginContext) {
-    const { surface } = context;
+interface CounterState extends PublishedState {
+    increment(): void;
+    readonly count: number;
+}
 
-    void surface.id; // your chrome id — the `config.plugins` key
-    void surface.target; // 'panel' | 'flyout', follows a runtime override
-
-    const done = document.createElement('button');
-    done.textContent = 'Done';
-    done.onclick = () => surface.close(); // also: open(), toggle()
-    return done;
+export function getCounterState(viewerState: {
+    getPluginState(pluginId: string): unknown;
+}): CounterState | null {
+    const published = viewerState.getPluginState('counter');
+    // Structural, not `instanceof`: the object crossed a package boundary.
+    return published !== null &&
+        typeof published === 'object' &&
+        typeof (published as CounterState).increment === 'function'
+        ? (published as CounterState)
+        : null;
 }

@@ -56,6 +56,13 @@ const TRANSCRIPT = '[data-testid="av-transcript"]';
 const TRANSCRIPT_TRACK = '[data-testid="av-transcript-track"]';
 const CUES = '[data-testid="av-transcript-cues"] button';
 
+// Core's canvas-info popover — the only surface that renders a canvas-level
+// `rendering` link. Selected by ARIA rather than a test id because that is the
+// affordance a reader actually has.
+const CANVAS_INFO_TRIGGER = 'button[aria-label="Canvas Information"]';
+const CANVAS_INFO = '[role="dialog"][aria-label="Canvas Info"]';
+const RENDERING_LINK = 'a.rendering-link';
+
 const MEDIA_DIR = join(import.meta.dirname, 'media');
 const AV_CORPUS = join(
     import.meta.dirname,
@@ -314,6 +321,28 @@ async function openAvPanel(page: Page): Promise<void> {
     await page.locator(PANEL).waitFor({ state: 'visible', timeout: 30_000 });
 }
 
+/**
+ * How many places in the rendered tree — shadow roots included — offer
+ * `0017`'s transcript, by either its URL or its label.
+ */
+function transcriptRenderingHits(page: Page): Promise<number> {
+    return page.evaluate(() => {
+        let hits = 0;
+        const walk = (root: Document | ShadowRoot) => {
+            for (const element of root.querySelectorAll('*')) {
+                const href = (element as HTMLAnchorElement).href;
+                if (typeof href === 'string' && href.includes('volleyball.txt'))
+                    hits += 1;
+                else if (element.textContent === 'Transcript') hits += 1;
+                const shadow = (element as HTMLElement).shadowRoot;
+                if (shadow) walk(shadow);
+            }
+        };
+        walk(document);
+        return hits;
+    });
+}
+
 /** The media element's own view of playback. */
 async function playback(
     page: Page,
@@ -527,6 +556,44 @@ test.describe('demo av cookbook coverage', () => {
 
         await expect(page.locator(STAGE_COUNT)).toBeVisible();
         await expect(page.locator(TRANSCRIPT)).toHaveCount(0);
+    });
+
+    /**
+     * `0017-transcription-av`'s subject is a `text/plain` transcript hung off
+     * the *canvas*'s `rendering`. The plugin plays the video, but the recipe's
+     * own feature is not surfaced to a reader, and this test pins that down so
+     * the docs cannot drift back into claiming otherwise.
+     *
+     * Core renders canvas `rendering` links in one place only — the canvas-info
+     * popover in `ViewerControls` — and that popover is gated behind
+     * `showNav`, which requires `canvases.length > 1`. `0017` is a
+     * single-canvas manifest, so the trigger is never rendered and the link has
+     * no route to the screen. Nothing else in the viewer offers it either.
+     */
+    test('the transcript recipe plays, but its rendering is not offered anywhere', async ({
+        page,
+    }) => {
+        const log = newLog();
+        await openRecipe(page, '0017-transcription-av', log);
+        await page.locator(STAGE).first().waitFor({ state: 'visible' });
+
+        // Single canvas, so the canvas-info popover's trigger never renders.
+        await expect(page.locator(CANVAS_INFO_TRIGGER)).toHaveCount(0);
+        await expect(page.locator(CANVAS_INFO)).toHaveCount(0);
+        await expect(page.locator(RENDERING_LINK)).toHaveCount(0);
+
+        // Nor does any other disclosure the viewer offers surface it.
+        for (const label of [
+            'Toggle Information',
+            'Toggle Table of Contents',
+            'Show Gallery',
+        ]) {
+            const button = page.locator(`button[aria-label="${label}"]`);
+            if (await button.count()) await button.first().click();
+        }
+        await openAvPanel(page);
+
+        expect(await transcriptRenderingHits(page)).toBe(0);
     });
 
     /** The captions half of user story 12, on the corpus the epic is judged by. */

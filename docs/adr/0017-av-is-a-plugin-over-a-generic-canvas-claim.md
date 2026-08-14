@@ -19,6 +19,18 @@ unchanged. The claimant renders its media through the overlay-layer and paint-ho
 substrates it already has (ADR 0016), so the media element is DOM and the waveform is
 pixels, exactly where each belongs.
 
+!!! note "Amended: the waveform does not use the paint hook"
+
+    The sentence above is right that the waveform is *pixels* in ADR 0016's sense,
+    but wrong about where they are drawn. Implementation (`plugin-av` ticket 10)
+    established that the paint hook draws into the **renderer's** canvas, which the
+    plugin's overlay layer sits on top of; because a stage is an opaque box, a
+    waveform painted underneath it would simply be invisible. The waveform is
+    therefore its own `<canvas>` nested inside the stage's timeline lane, within the
+    overlay layer — see `packages/plugin-av/src/waveform/surface.ts`. Only the
+    substrate named here is superseded; the ADR's decision, and ADR 0016's
+    pixels-versus-operable-targets rule that motivates it, are unchanged.
+
 Considered and rejected: an **AV-included core build** (a second element artifact family —
 a second row in every size gate, a second reproducible-build path, and AV bytes that
 cannot be lazy-loaded out of image-only sessions without doing the plugin work anyway); an
