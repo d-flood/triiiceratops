@@ -63,8 +63,13 @@
         // while the viewport is idle would first appear at whatever unrelated
         // repaint came next — and one that was released would go on being drawn
         // until then.
-        void viewerState.paintLayerRevision;
-        renderer.requestFrame();
+        //
+        // The revision has to be CONSUMED, not merely read: as a bare `void`
+        // statement it was side-effect-free, and the element build's terser pass
+        // deleted it, leaving this effect with no dependency at all in the
+        // shipped bundle. The guard is always true. See the same fix on
+        // `overlayLayers` in `TriiiceratopsViewer.svelte`.
+        if (viewerState.paintLayerRevision >= 0) renderer.requestFrame();
     });
 
     $effect(() => {

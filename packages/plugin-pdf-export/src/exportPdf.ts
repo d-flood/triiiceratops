@@ -25,6 +25,7 @@ import {
     getThumbnailSrc,
     isCrossOriginImageFailure,
     isLevel0ImageService,
+    isUnsupportedCanvas,
     loadImageElement,
     parseAnnotation,
     resolveAllCanvasImages,
@@ -1193,9 +1194,17 @@ export async function exportCanvasRangeAsPdf({
     }
 
     // Ensure indices is a plain array (might be Svelte proxy or reactive wrapper)
-    const plainIndices = Array.isArray(range.indices)
-        ? Array.from(range.indices)
-        : [];
+    //
+    // Canvases core cannot paint any of — the **unsupported presentation** —
+    // are dropped from the range here rather than failing inside the loop:
+    // there was never an image to fetch, so they are not a partial export, and
+    // an entry in `failedCanvases` would report a manifest doing exactly what
+    // it says it does as something gone wrong. Dropping them before the loop
+    // is also what keeps the poster thumbnail out of the PDF, which the
+    // single-image path would otherwise fall through to.
+    const plainIndices = (
+        Array.isArray(range.indices) ? Array.from(range.indices) : []
+    ).filter((index) => !isUnsupportedCanvas(canvases[index]));
 
     for (const [offset, index] of plainIndices.entries()) {
         const canvas = canvases[index];

@@ -1013,6 +1013,7 @@ export { getCanvasDisplayLayouts } from './components/canvasLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
+export { isUnsupportedCanvas } from './utils/paintingBodies';
 export { getPaintingAnnotations } from './utils/iiifParsing';
 export { resolveLanguageValue } from './utils/languageMap';
 
@@ -1121,10 +1122,15 @@ export declare const logger: Logger;
  */
 /**
  * The core package version, exposed for `coreRange` negotiation and the browser
- * runtime descriptor. Kept in sync with `package.json`; a future change should
- * replace the literal with a generated/snapshotted value.
+ * runtime descriptor.
+ *
+ * A literal rather than an import of `package.json`, so the element bundle
+ * carries no JSON module — but it is the version a plugin's `coreRange` is
+ * matched against, so drift refuses plugins pinned to a version that was
+ * actually published, naming one that was not. `api.version.test.ts` reads
+ * `package.json` and fails on any disagreement; bump both together.
  */
-export declare const CORE_VERSION = "1.0.0-rc.37";
+export declare const CORE_VERSION = "1.0.0-rc.36";
 /**
  * The plugin API version, independent of {@link CORE_VERSION}. `1.1.0` for the
  * additive {@link capabilities} entry below.
@@ -3197,12 +3203,24 @@ export declare class ViewerState {
     visibleCanvasIds: string[];
     /**
      * {@link visibleCanvasIds}, or the current canvas while no renderer has
-     * answered yet.
+     * answered yet, minus every canvas a plugin has claimed.
      *
      * The annotation panel and the shape overlay both read this, so they cannot
      * disagree about which canvases they are describing — and a viewer whose
      * surface is not sized yet still lists the annotations of the canvas it
      * opened on rather than nothing at all.
+     *
+     * A **canvas claim** takes the canvas out of the set: the claimant owns
+     * what is rendered there, so core has no painting of its own for a comment
+     * to be anchored against. Excluding it here excludes it from every
+     * annotation surface at once — including the annotation editor plugin,
+     * which gates its drawing layer on this list.
+     *
+     * The returned array is REFERENCE-STABLE while the ids are unchanged, which
+     * the selector runtime's stability contract requires of anything a host
+     * wires into a React `getSnapshot`: a fresh-but-equal array every read
+     * would re-render every annotation surface on every unrelated state change,
+     * for the whole session, on any manifest holding a claim.
      */
     get annotatableCanvasIds(): string[];
     /**

@@ -1,3 +1,4 @@
+import { tick } from 'svelte';
 import { describe, expect, it } from 'vitest';
 
 import { configureLogging } from '../logging/logger';
@@ -5,6 +6,7 @@ import {
     toPlannerCanvases,
     unsupportedPresentationIds,
 } from '../renderer/canvasDescriptors';
+import { createSelectorRuntime } from './selectors';
 import { createRendererStub } from '../testing/rendererStub';
 import type { ViewerError } from '../types/viewerError';
 import { isUnsupportedCanvas } from '../utils/paintingBodies';
@@ -301,6 +303,101 @@ describe('canvas claims', () => {
                 (id) => state.isCanvasClaimed(id),
             ).size,
         ).toBe(0);
+    });
+
+    /**
+     * A claimed canvas is not annotatable: the claimant owns what is rendered
+     * there, so a comment drawn over it would target coordinates core is not
+     * painting into.
+     *
+     * `annotatableCanvasIds` is the one scope every annotation surface works
+     * over — the panel, the shape overlay, and the connector all read it — so
+     * excluding a claimed canvas here excludes it from all three at once, with
+     * no new UI and no second list to keep in step.
+     */
+    it('drops a claimed canvas from the annotatable set and restores it on release', () => {
+        const state = viewerWithPlugins('av');
+        const page = 'https://example.test/canvas/page';
+        state.visibleCanvasIds = [page, CANVAS];
+
+        expect(state.annotatableCanvasIds).toEqual([page, CANVAS]);
+
+        const release = state.claimCanvas(CANVAS, 'av');
+        expect(state.annotatableCanvasIds).toEqual([page]);
+
+        release();
+        expect(state.annotatableCanvasIds).toEqual([page, CANVAS]);
+    });
+
+    /**
+     * The claim reaches the fallback branch too, so a viewer whose surface is
+     * not sized yet does not offer the reader a claimed canvas to annotate for
+     * the one frame before the renderer answers.
+     */
+    it('drops a claimed current canvas before a renderer has answered', () => {
+        const state = viewerWithPlugins('av');
+        state.canvasId = CANVAS;
+
+        expect(state.annotatableCanvasIds).toEqual([CANVAS]);
+
+        state.claimCanvas(CANVAS, 'av');
+        expect(state.annotatableCanvasIds).toEqual([]);
+    });
+
+    /**
+     * The claim set is inventoried, so a subscriber is woken by the ordinary
+     * batched **notification** and finds the annotatable set already narrowed
+     * when it reads. Nothing republishes the list; it is derived on read.
+     */
+    it('wakes subscribers with the annotatable set already narrowed', async () => {
+        const state = viewerWithPlugins('av');
+        const page = 'https://example.test/canvas/page';
+        state.visibleCanvasIds = [page, CANVAS];
+
+        const seen: string[][] = [];
+        state.subscribe(() => seen.push([...state.annotatableCanvasIds]));
+
+        state.claimCanvas(CANVAS, 'av');
+        await tick();
+
+        expect(seen).toEqual([[page]]);
+        state.destroy();
+    });
+
+    /**
+     * The selector runtime's stability contract: a recompute whose result is
+     * unchanged hands back the PREVIOUS reference, so a `Selector.get()` wired
+     * into a React `getSnapshot` does not re-render on every unrelated state
+     * change. A getter that filtered into a fresh array per read would break
+     * that for the whole session on any manifest holding a claim, so the
+     * memoization is asserted at the seam a host actually reads through.
+     */
+    it('keeps one array identity across unrelated changes while a claim is held', async () => {
+        const state = viewerWithPlugins('av');
+        const page = 'https://example.test/canvas/page';
+        state.visibleCanvasIds = [page, CANVAS];
+        state.claimCanvas(CANVAS, 'av');
+
+        const runtime = createSelectorRuntime(state);
+        const annotatable = runtime.selectors.select(
+            (s) => s.annotatableCanvasIds,
+        );
+        const first = annotatable.get();
+        expect(first).toEqual([page]);
+
+        let propagated = 0;
+        annotatable.subscribe(() => propagated++);
+
+        for (let bump = 0; bump < 5; bump++) {
+            state.toggleToolbar();
+            await tick();
+            expect(annotatable.get()).toBe(first);
+        }
+
+        expect(propagated).toBe(0);
+
+        runtime.dispose();
+        state.destroy();
     });
 
     it('leaves the viewport and its coordinate queries untouched', () => {

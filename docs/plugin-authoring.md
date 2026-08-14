@@ -685,7 +685,11 @@ in layout order — one canvas in `individuals`, the **whole spread** in `paged`
 and the folios the viewport meets in `continuous`. It is observable state that
 core writes and republishes when the set *changes*, not per frame, so it is safe
 to subscribe to. Read `annotatableCanvasIds` for the same list with a fallback to
-the current canvas before a renderer has answered.
+the current canvas before a renderer has answered, and with every canvas under a
+**canvas claim** removed — the claimant owns what is rendered there, so core has
+no painting of its own for a comment to be anchored against. Its array identity
+is stable while the ids are unchanged, so it is safe to hand straight to a React
+`getSnapshot`.
 
 Prefer it to `canvasId` for anything drawn over the image. `canvasId` is the
 canvas last **navigated** to, which in continuous mode is not what is on screen
@@ -885,13 +889,19 @@ canvas's rect, with a glyph rather than a broken picture in the thumbnail strip.
 That is the **unsupported presentation**.
 
 `viewerState.claimCanvas(canvasId, pluginId)` takes that canvas's non-image
-content over. It returns an idempotent release, and its whole effect is to
-suppress the unsupported presentation and its strip glyph for that canvas,
-leaving a clean box for you to render into through an overlay layer, the paint
-hook, or both. It carries no payload: no render callback, no options. Everything
-else is untouched — core goes on painting the canvas's *image* bodies through the
-tile pipeline (which is what makes a composite image+video canvas compose), and
-layout, navigation, residency, and `canvasToScreen` never learn a claim exists.
+content over. It returns an idempotent release, and its effect is to suppress the
+unsupported presentation and its strip glyph for that canvas, leaving a clean box
+for you to render into through an overlay layer, the paint hook, or both. It
+carries no payload: no render callback, no options. Core goes on painting the
+canvas's *image* bodies through the tile pipeline (which is what makes a
+composite image+video canvas compose), and layout, navigation, residency, and
+`canvasToScreen` never learn a claim exists.
+
+The one thing beyond the placard that a claim moves is the annotation scope: a
+claimed canvas leaves `annotatableCanvasIds`, because core is no longer painting
+anything there for a comment to be anchored against. Every annotation surface
+reads that list — the panel, the overlays, and the annotation editor's drawing
+layer — so the reader is not offered a rectangle tool over your video.
 
 **Pass `context.surface.id` as `pluginId` — never a literal, and never your
 package name.** It is the id the viewer knows you by, the same value your overlay

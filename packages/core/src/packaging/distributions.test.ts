@@ -233,6 +233,44 @@ describe('published distributions ship styles + themes', () => {
         });
 
         /*
+         * The plugin rendering substrate (ADR 0016) is DOM overlay layers plus
+         * paint hooks, and both are driven by a revision counter the render site
+         * reads to establish a reactive dependency. That read was once a bare
+         * `void state.overlayLayerRevision;` expression statement, which this
+         * bundle's terser pass deletes as side-effect-free — so in the SHIPPED
+         * web component a plugin could register an overlay layer, the registry
+         * would accept it, the counter would increment, and no container was
+         * ever created. Every overlay and paint test stayed green because they
+         * all load the element from source, not from this artifact.
+         *
+         * Grepping the minified output is the only place that failure is
+         * visible, so it is asserted here rather than left to an e2e that would
+         * have to drive a real plugin against a real build.
+         */
+        it('keeps the overlay and paint revision reads through minification', () => {
+            const js = readFileSync(
+                dist('triiiceratops-element.iife.js'),
+                'utf8',
+            );
+
+            // Each counter is written in three places the minifier always keeps
+            // — the getter, the setter and the `+= 1` bump. A surviving READ is
+            // therefore a fourth occurrence, and its absence is the bug.
+            for (const revision of [
+                'overlayLayerRevision',
+                'paintLayerRevision',
+            ]) {
+                const occurrences = js.split(revision).length - 1;
+                expect(
+                    occurrences,
+                    `${revision} is written 3 times and read at least once; ` +
+                        `${occurrences} occurrence(s) means the render site's ` +
+                        `read was dropped and the layer will never render`,
+                ).toBeGreaterThan(3);
+            }
+        });
+
+        /*
          * The end of the chain the other guards check in pieces: whatever the
          * compile options did, does loading this file put <triiiceratops-viewer>
          * in the registry, and nothing else?

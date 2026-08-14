@@ -44,6 +44,32 @@ const SLACK = 512;
 /** The published element artifacts, in `packages/core/dist`. */
 const ARTIFACTS = ['triiiceratops-element.iife.js', 'triiiceratops-element.js'];
 
+/**
+ * The standing competitive budget (SPEC user story 39a).
+ *
+ * The per-artifact baselines above ratchet core against ITSELF, which says
+ * nothing about the promise the project actually makes. That promise is about
+ * the viewer a reader loads, and once audiovisual manifests are in scope that
+ * is core PLUS the AV plugin — TIFY, the nearest competitor, supports audio and
+ * video, so comparing core alone against it is not a comparison.
+ *
+ * So core may grow. What may not grow past this line is the pair. Exceeding it
+ * is a CI failure rather than something discovered when the comparison document
+ * is rewritten.
+ *
+ * `gzip` because that is what `docs/bundle-size-comparison.md` quotes and what
+ * a CDN serves. The figure is TIFY's measured size under the same settings this
+ * script uses; re-measure it there, not here, if it is ever refreshed.
+ */
+const COMPETITIVE_BUDGET = {
+    competitor: 'TIFY',
+    gzip: 141467,
+    parts: [
+        join(distDir, 'triiiceratops-element.iife.js'),
+        join(repoRoot, 'packages', 'plugin-av', 'dist', 'iife.js'),
+    ],
+};
+
 const METRICS = ['raw', 'gzip', 'brotli'];
 
 const update = process.argv.includes('--update');
@@ -137,6 +163,53 @@ if (failures.length > 0) {
 }
 
 console.log(`\nElement size OK for ${ARTIFACTS.length} artifact(s).`);
+
+// ---- The standing competitive budget -------------------------------------
+
+const requirePair = process.argv.includes('--require-pair');
+const builtParts = COMPETITIVE_BUDGET.parts.filter((p) => existsSync(p));
+
+if (builtParts.length < COMPETITIVE_BUDGET.parts.length) {
+    const absent = COMPETITIVE_BUDGET.parts
+        .filter((p) => !existsSync(p))
+        .map((p) => relative(repoRoot, p));
+    const message =
+        `Competitive budget vs ${COMPETITIVE_BUDGET.competitor}: NOT CHECKED — ` +
+        `not built: ${absent.join(', ')}.`;
+    if (requirePair) {
+        console.error(
+            `\n${message}\nThis run demanded the pair (\`--require-pair\`); ` +
+                `build every part first.`,
+        );
+        process.exit(1);
+    }
+    // `pnpm build:element` builds core alone, so a skip here is the ordinary
+    // case rather than a problem. `build:all` passes `--require-pair`, which is
+    // where the budget is actually enforced.
+    console.log(`\n${message}`);
+} else {
+    const total = builtParts.reduce((sum, p) => sum + measure(p).gzip, 0);
+    const parts = builtParts
+        .map((p) => `${relative(repoRoot, p)} ${measure(p).gzip}`)
+        .join(' + ');
+    console.log(
+        `\nCompetitive budget vs ${COMPETITIVE_BUDGET.competitor} (gzip): ` +
+            `${total} of ${COMPETITIVE_BUDGET.gzip} ` +
+            `(${COMPETITIVE_BUDGET.gzip - total} to spare)\n  ${parts}`,
+    );
+    if (total > COMPETITIVE_BUDGET.gzip) {
+        console.error(
+            `\nThe viewer a reader loads is now larger than ` +
+                `${COMPETITIVE_BUDGET.competitor}: ${total} gzip against ` +
+                `${COMPETITIVE_BUDGET.gzip}, over by ` +
+                `${total - COMPETITIVE_BUDGET.gzip}.\n` +
+                `Core may grow; the pair may not grow past this line. Shrink ` +
+                `either part — this budget is not re-recorded to accommodate ` +
+                `growth.`,
+        );
+        process.exit(1);
+    }
+}
 
 function format({ raw, gzip, brotli }) {
     return `raw ${raw}  gzip ${gzip}  brotli ${brotli}`;

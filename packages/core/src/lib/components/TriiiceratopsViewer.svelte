@@ -1394,12 +1394,21 @@
      * registry's list is a plain frozen array rebuilt on change, not reactive
      * state, exactly as the paint hook's is — the two registries are
      * deliberately structurally identical, so this is one idiom rather than two.
-     * The `void` read is therefore load-bearing and not a leftover to tidy away.
+     *
+     * The read must be part of the returned EXPRESSION. It was once a bare
+     * `void internalViewerState.overlayLayerRevision;` statement, which the
+     * element build's terser pass deleted as side-effect-free — so in the
+     * shipped web component the registry accepted layers, the counter
+     * incremented, and no container was ever created. Every test stayed green
+     * because they all load the element from source. The guard is always true;
+     * it exists so the read cannot be dropped. `distributions.test.ts` asserts
+     * the read survives minification.
      */
-    let overlayLayers = $derived.by(() => {
-        void internalViewerState.overlayLayerRevision;
-        return internalViewerState.overlayLayers;
-    });
+    let overlayLayers = $derived.by(() =>
+        internalViewerState.overlayLayerRevision >= 0
+            ? internalViewerState.overlayLayers
+            : [],
+    );
 </script>
 
 <div

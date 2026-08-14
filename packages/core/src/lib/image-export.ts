@@ -79,6 +79,13 @@ export { parseAnnotation } from './utils/annotationAdapter';
 // Canvas thumbnail fallback source.
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
 
+// Whether a canvas paints something core can render none of — the question an
+// export asks to leave an audiovisual canvas out of a PDF or a composited page
+// silently, instead of failing on it or falling through to its poster
+// thumbnail. Also exported from `triiiceratops` itself; here so a plugin can
+// ask it without importing the Svelte-bearing root entry into its IIFE.
+export { isUnsupportedCanvas } from './utils/paintingBodies';
+
 // Painting-annotation enumeration over a raw IIIF Canvas — the supported way to
 // see the same image-bearing annotations the viewer does, in either IIIF
 // version. Also exported from `triiiceratops` itself.

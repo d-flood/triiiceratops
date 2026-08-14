@@ -15,10 +15,15 @@
 
 /**
  * The core package version, exposed for `coreRange` negotiation and the browser
- * runtime descriptor. Kept in sync with `package.json`; a future change should
- * replace the literal with a generated/snapshotted value.
+ * runtime descriptor.
+ *
+ * A literal rather than an import of `package.json`, so the element bundle
+ * carries no JSON module — but it is the version a plugin's `coreRange` is
+ * matched against, so drift refuses plugins pinned to a version that was
+ * actually published, naming one that was not. `api.version.test.ts` reads
+ * `package.json` and fails on any disagreement; bump both together.
  */
-export const CORE_VERSION = '1.0.0-rc.37';
+export const CORE_VERSION = '1.0.0-rc.36';
 
 /**
  * The plugin API version, independent of {@link CORE_VERSION}. `1.1.0` for the
@@ -48,4 +53,7 @@ export const pluginApiVersion = '1.1.0';
  *   external control surface is its published state requires it, so an older
  *   core refuses activation instead of mounting a plugin no host can drive.
  */
-export const capabilities: readonly string[] = ['canvas-claim', 'published-state'];
+export const capabilities: readonly string[] = [
+    'canvas-claim',
+    'published-state',
+];

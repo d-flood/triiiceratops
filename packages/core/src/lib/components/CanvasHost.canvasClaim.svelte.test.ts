@@ -90,7 +90,7 @@ describe('a claimed canvas in a mounted viewer', () => {
                     return true;
                 },
             }) as unknown as CanvasRenderingContext2D;
-        } as typeof HTMLCanvasElement.prototype.getContext;
+        } as unknown as typeof HTMLCanvasElement.prototype.getContext;
         Element.prototype.scrollIntoView = function () {};
 
         target = document.createElement('div');

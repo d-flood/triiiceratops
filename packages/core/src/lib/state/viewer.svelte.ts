@@ -800,17 +800,51 @@ export class ViewerState {
 
     /**
      * {@link visibleCanvasIds}, or the current canvas while no renderer has
-     * answered yet.
+     * answered yet, minus every canvas a plugin has claimed.
      *
      * The annotation panel and the shape overlay both read this, so they cannot
      * disagree about which canvases they are describing — and a viewer whose
      * surface is not sized yet still lists the annotations of the canvas it
      * opened on rather than nothing at all.
+     *
+     * A **canvas claim** takes the canvas out of the set: the claimant owns
+     * what is rendered there, so core has no painting of its own for a comment
+     * to be anchored against. Excluding it here excludes it from every
+     * annotation surface at once — including the annotation editor plugin,
+     * which gates its drawing layer on this list.
+     *
+     * The returned array is REFERENCE-STABLE while the ids are unchanged, which
+     * the selector runtime's stability contract requires of anything a host
+     * wires into a React `getSnapshot`: a fresh-but-equal array every read
+     * would re-render every annotation surface on every unrelated state change,
+     * for the whole session, on any manifest holding a claim.
      */
     get annotatableCanvasIds(): string[] {
-        if (this.visibleCanvasIds.length > 0) return this.visibleCanvasIds;
-        return this.canvasId ? [this.canvasId] : [];
+        const inScope =
+            this.visibleCanvasIds.length > 0
+                ? this.visibleCanvasIds
+                : this.canvasId
+                  ? [this.canvasId]
+                  : [];
+
+        // No claims at all: `visibleCanvasIds` is itself `$state.raw`, so it is
+        // already the stable reference and needs no memo.
+        if (this.#claimedCanvases.size === 0) return inScope;
+
+        const filtered = inScope.filter((id) => !this.#claimedCanvases.has(id));
+        const previous = this.#annotatableMemo;
+        if (
+            previous.length === filtered.length &&
+            previous.every((id, index) => id === filtered[index])
+        ) {
+            return previous;
+        }
+        this.#annotatableMemo = filtered;
+        return filtered;
     }
+
+    /** Last array {@link annotatableCanvasIds} handed out, for its memo. */
+    #annotatableMemo: string[] = [];
 
     /**
      * Whether a renderer has a sized surface and accepts viewport commands.
