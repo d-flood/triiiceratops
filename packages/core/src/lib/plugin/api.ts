@@ -26,10 +26,10 @@
 export const CORE_VERSION = '1.0.0-rc.36';
 
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.1.0` for the
- * additive {@link capabilities} entry below.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.2.0` for the
+ * additive `shared-svelte-runtime` {@link capabilities} entry below.
  */
-export const pluginApiVersion = '1.1.0';
+export const pluginApiVersion = '1.2.0';
 
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not
@@ -52,8 +52,19 @@ export const pluginApiVersion = '1.1.0';
  *   `viewerState.getPluginState(pluginId)` (ADR 0018). A plugin whose whole
  *   external control surface is its published state requires it, so an older
  *   core refuses activation instead of mounting a plugin no host can drive.
+ * - `shared-svelte-runtime` — core publishes the curated `svelte` and
+ *   `svelte/internal/client` helpers on `window.Triiiceratops`
+ *   (`SharedSvelteRuntime` in `browser-runtime.ts`), which a FIRST-PARTY plugin
+ *   IIFE consumes instead of bundling a second copy. `svelte/internal` is
+ *   private API with no semver guarantee, so a plugin built against it must
+ *   fail closed on a core that shares no runtime — or shares a different one —
+ *   rather than throw an unnamed `TypeError` out of a compiled component. A
+ *   plugin declaring this must also pin `coreRange` exactly: the capability
+ *   says the runtime is shared, and only the exact version says it is the same
+ *   runtime.
  */
 export const capabilities: readonly string[] = [
     'canvas-claim',
     'published-state',
+    'shared-svelte-runtime',
 ];

@@ -4,10 +4,10 @@
  *   1. No `any` in PUBLIC `.d.ts` output. Scans every package's reachable public
  *      declaration graph (see `api-report/dts.mjs`) for the `any` type token.
  *      Pre-existing, structural exceptions live in
- *      `api-reports/dts-any-allowlist.txt` (each with the untyped-IIIF /
- *      manifesto.js boundary rationale in the file header). A NEW, non-allowlisted
- *      `any` on any public declaration fails the build. These entries should
- *      migrate into `lint-allowlist.md` when it lands.
+ *      `api-reports/dts-any-allowlist.txt`, whose header carries the raw-JSON
+ *      IIIF boundary rationale; `lint-allowlist.md` entry 4 carries the
+ *      human-facing owner and review date. A NEW, non-allowlisted `any` on any
+ *      public declaration fails the build.
  *
  * Usage:
  *   node scripts/check-public-api.mjs                 # enforce (CI)
@@ -42,6 +42,7 @@ const PACKAGES = [
         name: '@triiiceratops/plugin-annotation-editor',
         dir: 'plugin-annotation-editor',
     },
+    { name: '@triiiceratops/plugin-av', dir: 'plugin-av' },
 ];
 
 /** Normalized, stable key for one `any` occurrence. */

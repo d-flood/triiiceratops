@@ -1,0 +1,33 @@
+import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
+
+/**
+ * The plugin's package-owned localization catalog (CONTEXT.md **Active
+ * locale**): ships with the plugin rather than living in core's catalogs, so
+ * core carries no plugin keys. `en` is the required fallback; a missing key
+ * resolves to `en` and then to the key itself.
+ *
+ * Every string a reader or a screen reader meets in the transport is here —
+ * the accessibility contract is that the controls announce in the viewer's
+ * active locale, which a hard-coded label cannot do. The throwaway control
+ * panel's copy is deliberately NOT here: it is labelled but not translated,
+ * because translating a surface that is being replaced would cost every
+ * translator a wasted round.
+ */
+export const catalog: LocaleCatalog = {
+    en: {
+        av_title: 'Audio & Video',
+        av_cannot_play: 'This media cannot be played here.',
+        av_transport: 'Playback controls',
+        av_play: 'Play',
+        av_pause: 'Pause',
+        av_seek: 'Seek',
+        av_mute: 'Mute',
+        av_unmute: 'Unmute',
+        av_volume: 'Volume',
+        // `{current}` and `{total}` are already-formatted clock readings, so a
+        // translation reorders them rather than reformatting them.
+        av_position: '{current} of {total}',
+        av_elapsed: 'Elapsed time',
+        av_duration: 'Total time',
+    },
+};

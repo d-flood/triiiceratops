@@ -34,6 +34,9 @@
  * Registration never activates anything (CONTEXT.md **Registration**);
  * activation is explicit, per viewer, and negotiated later (CONTEXT.md
  * **Activation**).
+ *
+ * The namespace also carries core's **shared Svelte runtime** — see
+ * {@link SharedSvelteRuntime}.
  */
 import type { SdkPlugin } from './types/plugin';
 /** The custom-element tag both Web Component entries register. */
@@ -62,6 +65,64 @@ export interface PluginFactoryRegistry {
     list(): readonly SdkPlugin[];
 }
 /**
+ * Core's **shared Svelte runtime**: the compiler helpers a first-party plugin
+ * IIFE reads off this namespace instead of bundling a second copy of Svelte.
+ *
+ * ## Why it exists
+ *
+ * The published bundle-size comparison measures `triiiceratops-element.iife.js`
+ * against viewers that already do audio and video, and the headroom is small. A
+ * Svelte plugin that ships its own runtime spends roughly half of it on bytes no
+ * reader can see: a representative transport component measured 13.24 KB gzip
+ * bundled against 1.51 KB sharing core's. Core pays essentially nothing to share,
+ * because it already uses every helper listed here — exposing them retains
+ * nothing that was not already retained.
+ *
+ * ## Three rules, none optional
+ *
+ * 1. **The list is curated and small; never `export *`.** Re-exporting the whole
+ *    `svelte/internal/client` namespace was measured at **+8,837 gzip on core**:
+ *    it defeats tree-shaking and retains all ~200 exports. Curation IS the
+ *    mechanism, not a tidiness preference. Derive additions by compiling the
+ *    plugin's real components and reading the `$.<name>` references out of the
+ *    output — never by guessing, and never by adding "while we are here".
+ * 2. **Growth is gated by the size ratchet.** A plugin reaching for a Svelte
+ *    feature core does not already use adds a helper here, and `pnpm size:check`
+ *    fails against the recorded element baseline. That is the intended alarm: a
+ *    core-size increase on a plugin ticket means plugin bytes are moving into
+ *    core, and it must be read that way rather than re-baselined.
+ * 3. **Version skew fails closed**, and in two places, because one is not
+ *    enough. A consuming plugin declares the `shared-svelte-runtime` capability
+ *    and an EXACT `coreRange`, so activation refuses a core that shares no
+ *    runtime or is not the one the plugin was built against — `svelte/internal`
+ *    is private API with no semver guarantee, so the contract is "same repo,
+ *    same release, same Svelte version". But activation is far too late on its
+ *    own: a compiled component dereferences these helpers at MODULE scope, so a
+ *    plugin IIFE loaded against an absent or skewed core throws before it can
+ *    register, let alone negotiate. The consuming bundle therefore also carries
+ *    a gate ahead of its own body that checks this namespace and reports what is
+ *    missing (see `sharedRuntimeGate.ts` in `@triiiceratops/plugin-av`).
+ *    This is a FIRST-PARTY-ONLY privilege: a third-party plugin is released
+ *    independently of core and must keep bundling its own runtime, which is what
+ *    `docs/plugin-authoring.md` goes on telling external authors to do.
+ *
+ * A plugin consuming this reads it before it can do anything else, so its script
+ * must load AFTER core's — the one ordering constraint in an otherwise
+ * order-independent namespace.
+ */
+export interface SharedSvelteRuntime {
+    /**
+     * The public `svelte` entry points a plugin's own code calls: `mount`,
+     * `unmount`, `getContext`.
+     */
+    readonly svelte: Readonly<Record<string, unknown>>;
+    /**
+     * The `svelte/internal/client` helpers the plugin's COMPILED components
+     * reference.
+     */
+    readonly svelteInternal: Readonly<Record<string, unknown>>;
+}
+/**
  * The browser runtime descriptor (SPEC.md — normative shape). `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
  * them; the `plugins` registry exists from first bootstrap so plugins can
@@ -72,6 +133,10 @@ export interface TriiiceratopsBrowserRuntime {
     readonly pluginApiVersion: string;
     readonly capabilities: readonly string[];
     readonly plugins: PluginFactoryRegistry;
+    /** See {@link SharedSvelteRuntime}. Filled only by core. */
+    readonly svelte: SharedSvelteRuntime['svelte'];
+    /** See {@link SharedSvelteRuntime}. Filled only by core. */
+    readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
 }
 declare global {
     interface Window {
@@ -108,13 +173,16 @@ export interface InstallCoreOptions {
     coreVersion: string;
     /** Plugin API version core declares for activation-time negotiation. */
     pluginApiVersion: string;
-    /**
-     * Capabilities core declares. Empty in the 1.0 line — see `plugin/api.ts`
-     * for why the renderer capability was retired with no successor.
-     */
+    /** Capabilities core declares — see `plugin/api.ts` for the list and why. */
     capabilities: readonly string[];
     /** The custom-element constructor to register for {@link tag}. */
     elementCtor: CustomElementConstructor;
+    /**
+     * The {@link SharedSvelteRuntime} to publish on the namespace. Supplied by
+     * the Web Component entries from `shared-svelte-runtime.ts`; omitted by
+     * callers that have no business shipping a Svelte runtime.
+     */
+    svelteRuntime?: SharedSvelteRuntime;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -1028,7 +1096,7 @@ export { SDK_PLUGIN_KIND, isSdkPlugin, PLUGIN_ERROR_EVENT, } from './types/plugi
 export type { SelectorSource, SourceSelectors, } from './state/selectors/runtime';
 export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorReporter, } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
-export type { ContainerSize, ImageAdjustments, ViewportBox, ViewportInset, ViewportPoint, } from './types/viewport';
+export type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportInset, ViewportPoint, } from './types/viewport';
 export { NEUTRAL_IMAGE_ADJUSTMENTS, ZERO_VIEWPORT_INSET, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
 export type { PaintCanvasPlacement, PaintFrame, PaintLayer, PaintLayerDraw, PaintTransform, } from './renderer/paintLayers';
 export type { OverlayLayer } from './renderer/overlayLayers';
@@ -1132,10 +1200,10 @@ export declare const logger: Logger;
  */
 export declare const CORE_VERSION = "1.0.0-rc.36";
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.1.0` for the
- * additive {@link capabilities} entry below.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.2.0` for the
+ * additive `shared-svelte-runtime` {@link capabilities} entry below.
  */
-export declare const pluginApiVersion = "1.1.0";
+export declare const pluginApiVersion = "1.2.0";
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not
  * security permissions.
@@ -1157,6 +1225,16 @@ export declare const pluginApiVersion = "1.1.0";
  *   `viewerState.getPluginState(pluginId)` (ADR 0018). A plugin whose whole
  *   external control surface is its published state requires it, so an older
  *   core refuses activation instead of mounting a plugin no host can drive.
+ * - `shared-svelte-runtime` — core publishes the curated `svelte` and
+ *   `svelte/internal/client` helpers on `window.Triiiceratops`
+ *   (`SharedSvelteRuntime` in `browser-runtime.ts`), which a FIRST-PARTY plugin
+ *   IIFE consumes instead of bundling a second copy. `svelte/internal` is
+ *   private API with no semver guarantee, so a plugin built against it must
+ *   fail closed on a core that shares no runtime — or shares a different one —
+ *   rather than throw an unnamed `TypeError` out of a compiled component. A
+ *   plugin declaring this must also pin `coreRange` exactly: the capability
+ *   says the runtime is shared, and only the exact version says it is the same
+ *   runtime.
  */
 export declare const capabilities: readonly string[];
 
@@ -1957,7 +2035,7 @@ export declare function paintCanvasSpace(layout: readonly LayoutRect[], declared
  * answer for the canvas asked about returns `null` rather than silently
  * answering for a different one.
  */
-import type { ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint } from '../types/viewport.js';
+import type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint } from '../types/viewport.js';
 export interface RendererPort {
     /**
      * Multiply the zoom by `factor`, anchored at a screen-space point — the
@@ -1995,6 +2073,13 @@ export interface RendererPort {
     getVisibleCanvasIds(): string[];
     /** The canvas-space box the viewport currently shows. */
     getVisibleBounds(canvasId?: string): ViewportBox | null;
+    /**
+     * The extent of a canvas's own coordinate space — what `(0, 0)` to
+     * `(width, height)` means for this canvas, and `null` when it is not laid
+     * out. The manifest's declared size where there is one; the size layout
+     * gave it where there is not.
+     */
+    getCanvasSize(canvasId?: string): CanvasSize | null;
     /** The surface's size in CSS pixels; zeroes before it is measured. */
     getContainerSize(): ContainerSize;
     /** Canvas space → screen space. */
@@ -2865,7 +2950,7 @@ import type { ViewerErrorReporter } from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
 import { type PaintLayer, type RegisteredPaintLayer } from '../renderer/paintLayers.js';
 import { type OverlayLayer, type RegisteredOverlayLayer } from '../renderer/overlayLayers.js';
-import { type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
+import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
 import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
 import { type StructureNode } from '../utils/structures';
@@ -3594,6 +3679,20 @@ export declare class ViewerState {
      */
     get viewportBounds(): ViewportBox | null;
     /**
+     * The extent of a canvas's own coordinate space — the box a canvas-space
+     * point runs from `(0, 0)` to — for the current canvas unless named, or
+     * `null` when the mounted renderer does not lay that canvas out.
+     *
+     * Usually the manifest's declared size, and the reason it is asked rather
+     * than read is the case where there is none. A Canvas may declare no
+     * `width`/`height` — a duration-only audio canvas does not — and is still
+     * laid out, from its siblings' median. Its rect is then its canvas space,
+     * and this reports it, so a plugin placing DOM over such a canvas projects
+     * the box the viewer is actually drawing instead of inventing dimensions
+     * the coordinate helpers would then disagree with.
+     */
+    canvasSize(canvasId?: string): CanvasSize | null;
+    /**
      * The viewer surface's size in CSS pixels — what an export path asks in
      * order to request an image sized to what the reader is looking at. Zeroes
      * before the surface is measured.
@@ -4321,7 +4420,7 @@ export declare function createTestViewerHandle(options?: TestViewerHandleOptions
  * does for a canvas it has not laid out.
  */
 import type { RendererPort } from '../renderer/rendererPort.js';
-import { type ContainerSize, type ImageAdjustments, type ViewportPoint } from '../types/viewport.js';
+import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportPoint } from '../types/viewport.js';
 /** Options for {@link createRendererStub}. */
 export interface RendererStubOptions extends Partial<StubView> {
     /**
@@ -4348,6 +4447,12 @@ export interface StubView {
     centre: ViewportPoint;
     /** Surface size in CSS pixels. */
     container: ContainerSize;
+    /**
+     * The canvas-space extent reported for every canvas this stand-in answers
+     * for. One size for all of them: the stub lays nothing out, so it has no
+     * per-canvas geometry to vary it by.
+     */
+    canvasSize: CanvasSize;
 }
 export declare const DEFAULT_STUB_VIEW: StubView;
 /** A {@link RendererPort} plus the controls a test drives it with. */
@@ -5927,6 +6032,22 @@ export interface ViewportBox {
 }
 /** The viewer surface's size in CSS pixels. */
 export interface ContainerSize {
+    width: number;
+    height: number;
+}
+/**
+ * The extent of a canvas's own coordinate space: what `(0, 0)` to
+ * `(width, height)` means for that canvas.
+ *
+ * Usually the manifest's declared `width`/`height`. It is a separate question
+ * from them because a Canvas need not declare any — a duration-only audio
+ * canvas does not — and such a canvas is still laid out, from its siblings'
+ * median or the unsized placeholder. Its rect is then the only statement of its
+ * extent anyone has, and canvas space becomes that rect. A caller placing DOM
+ * over such a canvas needs the answer this reports rather than dimensions it
+ * invented, because it is the one the coordinate helpers themselves divide by.
+ */
+export interface CanvasSize {
     width: number;
     height: number;
 }

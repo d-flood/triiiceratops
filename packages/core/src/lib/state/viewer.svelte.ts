@@ -32,6 +32,7 @@ import { ZOOM_PER_CLICK as DEFAULT_ZOOM_PER_CLICK } from '../renderer/rendererDe
 import {
     NEUTRAL_IMAGE_ADJUSTMENTS,
     ZERO_VIEWPORT_INSET,
+    type CanvasSize,
     type ContainerSize,
     type ImageAdjustments,
     type ViewportBox,
@@ -1497,6 +1498,23 @@ export class ViewerState {
      */
     get viewportBounds(): ViewportBox | null {
         return this.rendererPort?.getVisibleBounds() ?? null;
+    }
+
+    /**
+     * The extent of a canvas's own coordinate space — the box a canvas-space
+     * point runs from `(0, 0)` to — for the current canvas unless named, or
+     * `null` when the mounted renderer does not lay that canvas out.
+     *
+     * Usually the manifest's declared size, and the reason it is asked rather
+     * than read is the case where there is none. A Canvas may declare no
+     * `width`/`height` — a duration-only audio canvas does not — and is still
+     * laid out, from its siblings' median. Its rect is then its canvas space,
+     * and this reports it, so a plugin placing DOM over such a canvas projects
+     * the box the viewer is actually drawing instead of inventing dimensions
+     * the coordinate helpers would then disagree with.
+     */
+    canvasSize(canvasId?: string): CanvasSize | null {
+        return this.rendererPort?.getCanvasSize(canvasId) ?? null;
     }
 
     /**

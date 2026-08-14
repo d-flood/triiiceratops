@@ -372,6 +372,17 @@ discovers and activates registered plugins by name. If two scripts register
 the same plugin name with different versions, the first registration wins and
 the second logs a console warning.
 
+**Bundle your own Svelte runtime** (or whichever framework you build the UI in).
+Core does publish a curated set of `svelte/internal/client` helpers on
+`window.Triiiceratops`, and the first-party `@triiiceratops/plugin-av` consumes
+them instead of shipping a second copy — but `svelte/internal` is private,
+unversioned API, and that plugin can only rely on it because it is built and
+released from core's own repository at core's own Svelte version, and pins
+`coreRange` to an exact core version to say so. A plugin released on its own
+schedule has no such guarantee and would break on the first skew, so bundling is
+the right answer for everybody outside this repository. Your IIFE then loads in
+any order relative to core's.
+
 ## Reading and controlling state
 
 `context.viewerState` is the actual live viewer state — the sole plugin-facing
@@ -959,13 +970,20 @@ over a placard it cannot suppress.
 
 `requiredCapabilities` is normally `[]`. Capability negotiation exists for
 genuinely optional runtime features, not for versions: a plugin states which
-*core* it works with through `coreRange`. Core declares one capability today,
-`canvas-claim` — `ViewerState.claimCanvas`, the seam a plugin owning a canvas's
-non-image content builds on. Declare it only if your plugin calls that method,
-so it fails closed on a viewer that predates the seam instead of silently doing
-nothing. A plugin requiring a capability the host does not declare fails
-activation — which is what happens to anything still asking for the retired
-`osd@5`.
+*core* it works with through `coreRange`. Core declares three capabilities today:
+
+- `canvas-claim` — `ViewerState.claimCanvas`, the seam a plugin owning a
+  canvas's non-image content builds on.
+- `published-state` — `PluginContext.publishState`, which a host reads back
+  through `viewerState.getPluginState(pluginId)`.
+- `shared-svelte-runtime` — the curated Svelte helpers core publishes on
+  `window.Triiiceratops`. A third-party plugin bundles its own runtime and must
+  not declare this.
+
+Declare one only if your plugin calls that seam, so it fails closed on a viewer
+that predates it instead of silently doing nothing. A plugin requiring a
+capability the host does not declare fails activation — which is what happens to
+anything still asking for the retired `osd@5`.
 
 ## Services
 

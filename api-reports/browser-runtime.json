@@ -6,7 +6,9 @@
             "readonly coreVersion: string",
             "readonly pluginApiVersion: string",
             "readonly capabilities: readonly string[]",
-            "readonly plugins: PluginFactoryRegistry"
+            "readonly plugins: PluginFactoryRegistry",
+            "readonly svelte: SharedSvelteRuntime['svelte']",
+            "readonly svelteInternal: SharedSvelteRuntime['svelteInternal']"
         ],
         "PluginFactoryRegistry": [
             "register(factory: SdkPlugin): void",
@@ -17,7 +19,8 @@
     },
     "capabilities": [
         "canvas-claim",
-        "published-state"
+        "published-state",
+        "shared-svelte-runtime"
     ],
-    "pluginApiVersion": "1.1.0"
+    "pluginApiVersion": "1.2.0"
 }

@@ -88,6 +88,7 @@ import { staticImageFailures } from './staticImageFailures';
 import {
     boxContains,
     canvasBoxToWorld,
+    canvasExtent,
     canvasPointToWorld,
     canvasScaleFactor,
     fitTargetBounds,
@@ -102,6 +103,7 @@ import type { RendererPort } from './rendererPort';
 import { markRendererPort } from './rendererPortBrand';
 import {
     imageAdjustmentsToCssFilter,
+    type CanvasSize,
     type ContainerSize,
     type ImageAdjustments,
     type ViewportBox,
@@ -1398,6 +1400,11 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 },
                 placement,
             );
+        },
+
+        getCanvasSize(canvasId?: string): CanvasSize | null {
+            const placement = placementOf(canvasId);
+            return placement ? canvasExtent(placement) : null;
         },
 
         getContainerSize(): ContainerSize {

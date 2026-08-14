@@ -12,6 +12,7 @@
 import TriiiceratopsViewerElement from './components/TriiiceratopsViewerElement.svelte';
 import { installBrowserRuntime, VIEWER_ELEMENT_TAG } from './browser-runtime';
 import { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
+import { SHARED_SVELTE_RUNTIME } from './shared-svelte-runtime';
 
 // The custom-element class the Svelte compiler produced for the wrapper. With no
 // `tag` in <svelte:options>, importing the component does not auto-register it;
@@ -28,6 +29,7 @@ installBrowserRuntime({
     capabilities,
     elementCtor,
     tag: VIEWER_ELEMENT_TAG,
+    svelteRuntime: SHARED_SVELTE_RUNTIME,
 });
 
 export {};

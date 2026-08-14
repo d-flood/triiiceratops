@@ -17,6 +17,9 @@
  * Registration never activates anything (CONTEXT.md **Registration**);
  * activation is explicit, per viewer, and negotiated later (CONTEXT.md
  * **Activation**).
+ *
+ * The namespace also carries core's **shared Svelte runtime** — see
+ * {@link SharedSvelteRuntime}.
  */
 
 import type { SdkPlugin } from './types/plugin';
@@ -50,6 +53,73 @@ export interface PluginFactoryRegistry {
 }
 
 /**
+ * Core's **shared Svelte runtime**: the compiler helpers a first-party plugin
+ * IIFE reads off this namespace instead of bundling a second copy of Svelte.
+ *
+ * ## Why it exists
+ *
+ * The published bundle-size comparison measures `triiiceratops-element.iife.js`
+ * against viewers that already do audio and video, and the headroom is small. A
+ * Svelte plugin that ships its own runtime spends roughly half of it on bytes no
+ * reader can see: a representative transport component measured 13.24 KB gzip
+ * bundled against 1.51 KB sharing core's. Core pays essentially nothing to share,
+ * because it already uses every helper listed here — exposing them retains
+ * nothing that was not already retained.
+ *
+ * ## Three rules, none optional
+ *
+ * 1. **The list is curated and small; never `export *`.** Re-exporting the whole
+ *    `svelte/internal/client` namespace was measured at **+8,837 gzip on core**:
+ *    it defeats tree-shaking and retains all ~200 exports. Curation IS the
+ *    mechanism, not a tidiness preference. Derive additions by compiling the
+ *    plugin's real components and reading the `$.<name>` references out of the
+ *    output — never by guessing, and never by adding "while we are here".
+ * 2. **Growth is gated by the size ratchet.** A plugin reaching for a Svelte
+ *    feature core does not already use adds a helper here, and `pnpm size:check`
+ *    fails against the recorded element baseline. That is the intended alarm: a
+ *    core-size increase on a plugin ticket means plugin bytes are moving into
+ *    core, and it must be read that way rather than re-baselined.
+ * 3. **Version skew fails closed**, and in two places, because one is not
+ *    enough. A consuming plugin declares the `shared-svelte-runtime` capability
+ *    and an EXACT `coreRange`, so activation refuses a core that shares no
+ *    runtime or is not the one the plugin was built against — `svelte/internal`
+ *    is private API with no semver guarantee, so the contract is "same repo,
+ *    same release, same Svelte version". But activation is far too late on its
+ *    own: a compiled component dereferences these helpers at MODULE scope, so a
+ *    plugin IIFE loaded against an absent or skewed core throws before it can
+ *    register, let alone negotiate. The consuming bundle therefore also carries
+ *    a gate ahead of its own body that checks this namespace and reports what is
+ *    missing (see `sharedRuntimeGate.ts` in `@triiiceratops/plugin-av`).
+ *    This is a FIRST-PARTY-ONLY privilege: a third-party plugin is released
+ *    independently of core and must keep bundling its own runtime, which is what
+ *    `docs/plugin-authoring.md` goes on telling external authors to do.
+ *
+ * A plugin consuming this reads it before it can do anything else, so its script
+ * must load AFTER core's — the one ordering constraint in an otherwise
+ * order-independent namespace.
+ */
+export interface SharedSvelteRuntime {
+    /**
+     * The public `svelte` entry points a plugin's own code calls: `mount`,
+     * `unmount`, `getContext`.
+     */
+    readonly svelte: Readonly<Record<string, unknown>>;
+    /**
+     * The `svelte/internal/client` helpers the plugin's COMPILED components
+     * reference.
+     */
+    readonly svelteInternal: Readonly<Record<string, unknown>>;
+}
+
+// Both members are typed structurally, and deliberately so: naming Svelte's own
+// types here would put a `svelte` type import in `browser-runtime.d.ts`, which
+// `./react` and `./vue` reach through the framework substrate — and those
+// subpaths promise a consumer needs no `svelte` package to type-check them
+// (`src/packaging/dtsSvelteImports.ts` fails the build over it). Nothing type-checks
+// against these anyway: the consuming plugin binds them through its bundler's
+// `output.globals`, not through TypeScript.
+
+/**
  * The browser runtime descriptor (SPEC.md — normative shape). `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
  * them; the `plugins` registry exists from first bootstrap so plugins can
@@ -60,6 +130,10 @@ export interface TriiiceratopsBrowserRuntime {
     readonly pluginApiVersion: string;
     readonly capabilities: readonly string[];
     readonly plugins: PluginFactoryRegistry;
+    /** See {@link SharedSvelteRuntime}. Filled only by core. */
+    readonly svelte: SharedSvelteRuntime['svelte'];
+    /** See {@link SharedSvelteRuntime}. Filled only by core. */
+    readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
 }
 
 declare global {
@@ -146,6 +220,12 @@ function createBrowserRuntime(): TriiiceratopsBrowserRuntime {
         pluginApiVersion: '',
         capabilities: [],
         plugins: createPluginRegistry(),
+        // Empty until core installs the real objects — the same "filled when
+        // core loads" rule the version fields follow, and for the same reason:
+        // this factory also stands in for the SDK's plugin-side bootstrap,
+        // which has no Svelte to share.
+        svelte: {},
+        svelteInternal: {},
     };
 }
 
@@ -182,13 +262,16 @@ export interface InstallCoreOptions {
     coreVersion: string;
     /** Plugin API version core declares for activation-time negotiation. */
     pluginApiVersion: string;
-    /**
-     * Capabilities core declares. Empty in the 1.0 line — see `plugin/api.ts`
-     * for why the renderer capability was retired with no successor.
-     */
+    /** Capabilities core declares — see `plugin/api.ts` for the list and why. */
     capabilities: readonly string[];
     /** The custom-element constructor to register for {@link tag}. */
     elementCtor: CustomElementConstructor;
+    /**
+     * The {@link SharedSvelteRuntime} to publish on the namespace. Supplied by
+     * the Web Component entries from `shared-svelte-runtime.ts`; omitted by
+     * callers that have no business shipping a Svelte runtime.
+     */
+    svelteRuntime?: SharedSvelteRuntime;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -219,6 +302,15 @@ export function installBrowserRuntime(
         mutable.coreVersion = options.coreVersion;
         mutable.pluginApiVersion = options.pluginApiVersion;
         mutable.capabilities = [...options.capabilities];
+        // The namespace may have been bootstrapped by a plugin IIFE, whose copy
+        // of the bootstrap has no Svelte to share. Core owns the shared runtime,
+        // so it installs it wherever it finds the namespace. Passed in rather
+        // than imported here because importing Svelte in THIS module would put
+        // it in the `./react` and `./vue` graphs (see shared-svelte-runtime.ts).
+        if (options.svelteRuntime) {
+            mutable.svelte = options.svelteRuntime.svelte;
+            mutable.svelteInternal = options.svelteRuntime.svelteInternal;
+        }
         defineViewerElement(options.elementCtor, tag, target);
         return runtime;
     }

@@ -157,5 +157,22 @@
             },
             "./iife": "./dist/iife.js"
         }
+    },
+    "@triiiceratops/plugin-av": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": null,
+        "types": "./dist/index.d.ts",
+        "style": null,
+        "sideEffects": [
+            "./dist/iife.js"
+        ],
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+            },
+            "./iife": "./dist/iife.js"
+        }
     }
 }

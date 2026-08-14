@@ -326,6 +326,10 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
       context `Map` handed to Svelte's `mount()`.
     - `packages/plugin-annotation-editor/src/AnnotationStore.svelte.ts` — two
       `new Date()` values stringified on the next line.
+    - `packages/plugin-av/src/stages.svelte.ts` — the stage ledger (canvas id →
+      stage + claim), which nothing renders from: the panel renders from the
+      `views` snapshot the manager publishes; and a function-local `Map` built
+      and discarded inside one manifest diff.
 - **Rationale:** the rule assumes a collection or `Date` in a `.svelte`/`.svelte.ts`
   module is state something renders from, and prescribes the reactive equivalent.
   None of these are. Two kinds appear here, and both are **worse** as reactive
@@ -406,3 +410,90 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   cannot fire for a failure somebody can actually fix.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-11 · **Review by:** 2027-02-11
+
+### 11. bare `console.warn` — `packages/plugin-av/src/degradation.ts` (manifest degradation warnings)
+
+- **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+- **Mechanism:** a `// triiiceratops-console-allow` marker comment on the
+  preceding lines — anchored to the single `warnOnce` helper, which is guarded by
+  a `WeakSet` keyed on the canvas JSON, so at most one line is emitted per canvas
+  per manifest.
+- **Rationale:** this is the developer-console half of the AV epic's degradation
+  contract (user story 45): a manifest shape the viewer renders less than fully —
+  time-based media placed into part of a canvas rect, or several bodies sharing
+  one canvas's duration — must announce what it did not honour, to the curator who
+  wrote the manifest. It is deliberately not a structured channel: it is not a
+  viewer error and not a plugin error, and routing it to `pluginerror` would make
+  an honest degraded render look like a failure to every host that handles that
+  channel. It is deliberately not debug-gated either, unlike core's own
+  unreadable-canvas warning it is modelled on: the audience is a curator
+  evaluating whether their manifest works, who has no reason to have turned
+  `debug` on, and the `WeakSet` already bounds the output to one line per
+  offending canvas.
+- **Behavior test:** `packages/plugin-av/src/activation.test.ts` — "the
+  degradation contract" pins that the composed (`0064-opera-one-canvas`) and
+  spatially-targeted (`0489-multimedia-canvas`) vendored recipes each produce
+  exactly one warning, and that an ordinary single-body video canvas
+  (`0003-mvm-video`) produces none, so the warn cannot fire for a manifest that
+  rendered fully.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-13 · **Review by:** 2027-02-13
+
+### 12. `svelte/no-svelte-internal` — `packages/core/src/lib/browser-runtime.ts` (the shared Svelte runtime)
+
+- **Code:** `svelte/no-svelte-internal` (eslint, `eslint-plugin-svelte`)
+- **Mechanism:** one rule-named `eslint-disable-next-line` on the single
+  `import … from 'svelte/internal/client'` statement in the repo.
+- **Rationale:** that import list IS the shared Svelte runtime core publishes on
+  `window.Triiiceratops` (`SharedSvelteRuntime`), and the rule's concern —
+  depending on private, unversioned API — is the exact thing the design is built
+  around rather than an oversight. The published bundle-size comparison measures
+  the element IIFE against viewers that already support audio and video, and a
+  Svelte plugin bundling its own runtime spends about half the remaining headroom
+  on bytes no reader can see (13.24 KB gzip against 1.51 KB shared, measured on a
+  representative transport). The exposure is confined: ONE import statement in
+  ONE file, a hand-curated list of the helpers core already uses (never
+  `export *`, which measured +8,837 gzip on core), consumed only by first-party
+  plugins released from this repo at this Svelte version and gated by their
+  `coreRange` at activation. `docs/plugin-authoring.md` continues to tell
+  third-party authors to bundle their own runtime, which is the audience the rule
+  is right about. When Svelte 6 moves or removes these helpers, this one file is
+  what has to change, and the plugin build fails loudly rather than silently.
+- **Behavior test:** `packages/core/tests/av-video.spec.ts` — "av video — the
+  shared Svelte runtime" loads the built element IIFE and the built
+  `@triiiceratops/plugin-av` IIFE on one page and drives `$state`, `$derived`,
+  `{#if}`, `{#each}` and `bind:value` through the shared helpers, so a helper
+  missing from the list is a failing test rather than a blank panel;
+  `packages/plugin-av/scripts/check-shared-runtime.mjs` fails the plugin build if
+  its IIFE ever acquires a bundled runtime instead of reading these.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-13 · **Review by:** 2027-02-13
+
+### 13. bare `console.error` — `packages/plugin-av/src/sharedRuntimeGate.ts` (the version-skew gate)
+
+- **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+- **Mechanism:** `// triiiceratops-console-allow` marker comments inside the
+  generated gate source, one per call site. The gate emits at most ONE line per
+  page load and then returns.
+- **Rationale:** this is the diagnostic of a bundle that has no core to report
+  through. The plugin's IIFE consumes core's shared Svelte runtime rather than
+  bundling one, so its compiled components dereference
+  `window.Triiiceratops.svelteInternal` at module scope — before any structured
+  channel exists, and before `definePlugin`'s activation-time negotiation can
+  refuse anything. Without this gate the two real failure modes are a bare
+  `ReferenceError: Triiiceratops is not defined` (core absent, or loaded after
+  this script) and a bare `TypeError: s.from_html is not a function` (core too
+  old, or on a Svelte whose internals moved), both thrown ahead of registration,
+  leaving the host's `plugins.get(...)` returning `undefined` with nothing to
+  explain it. There is no channel to route this to: `pluginerror` and
+  `viewererror` are reached through the very namespace that is missing.
+- **Behavior test:** `packages/plugin-av/src/sharedRuntimeGate.test.ts` evaluates
+  the generated gate source against a page with no core, a core sharing no
+  runtime, and a core whose helper was renamed, and pins that each emits exactly
+  one diagnostic naming the cause, throws nothing, and does not let the bundle
+  body run; `packages/plugin-av/scripts/check-shared-runtime.mjs` fails the build
+  if the built IIFE ever ships without the gate.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-13 · **Review by:** 2027-02-13

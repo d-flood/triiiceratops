@@ -223,6 +223,45 @@ importers:
         specifier: ^4.0.15
         version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
 
+  packages/plugin-av:
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(supports-color@8.1.1)(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2))
+      '@triiiceratops/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      '@triiiceratops/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.1
+      '@vitest/coverage-v8':
+        specifier: 4.0.15
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+      happy-dom:
+        specifier: ^20.0.11
+        version: 20.0.11
+      svelte:
+        specifier: 5.45.5
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../core
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
+      vitest:
+        specifier: ^4.0.15
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+
   packages/plugin-image-export:
     devDependencies:
       '@sveltejs/vite-plugin-svelte':

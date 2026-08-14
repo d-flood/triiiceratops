@@ -83,6 +83,7 @@ export { VIEWER_ERROR_EVENT } from './types/viewerError';
 // persistence format for annotation geometry) and screen space; image space is
 // core-internal and never crosses it. Nothing here is a renderer object.
 export type {
+    CanvasSize,
     ContainerSize,
     ImageAdjustments,
     ViewportBox,

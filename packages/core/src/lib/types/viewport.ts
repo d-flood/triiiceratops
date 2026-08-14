@@ -35,6 +35,23 @@ export interface ContainerSize {
 }
 
 /**
+ * The extent of a canvas's own coordinate space: what `(0, 0)` to
+ * `(width, height)` means for that canvas.
+ *
+ * Usually the manifest's declared `width`/`height`. It is a separate question
+ * from them because a Canvas need not declare any — a duration-only audio
+ * canvas does not — and such a canvas is still laid out, from its siblings'
+ * median or the unsized placeholder. Its rect is then the only statement of its
+ * extent anyone has, and canvas space becomes that rect. A caller placing DOM
+ * over such a canvas needs the answer this reports rather than dimensions it
+ * invented, because it is the one the coordinate helpers themselves divide by.
+ */
+export interface CanvasSize {
+    width: number;
+    height: number;
+}
+
+/**
  * Edges of the viewer surface reserved by plugin UI, in screen pixels.
  *
  * A **fit target**, not a box model: a fit frames its box into what is left of
