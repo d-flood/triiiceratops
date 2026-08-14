@@ -62,6 +62,40 @@
         "annotation-editor:iife": {
             "bytes": 117702,
             "ceilingBytes": 123588
+        },
+        "av:esm-entry": {
+            "bytes": 50280,
+            "ceilingBytes": 52794
+        },
+        "av:iife": {
+            "bytes": 51511,
+            "ceilingBytes": 54086
+        },
+        "av:iife-chunk-hls": {
+            "bytes": 856581,
+            "ceilingBytes": 899410
+        },
+        "av:iife-chunk-waveform": {
+            "bytes": 6569,
+            "ceilingBytes": 6897
+        }
+    },
+    "acceptedSizeIncreases": {
+        "av:esm-entry": {
+            "headBytes": 52794,
+            "reason": "New artifact family: the base ref predates @triiiceratops/plugin-av, so there is nothing to diff its entry against."
+        },
+        "av:iife": {
+            "headBytes": 54086,
+            "reason": "New artifact family: the base ref predates @triiiceratops/plugin-av. This is the artifact the competitive pair budget in scripts/size-check.mjs actually gates; the ratchet on its gzip lives in the plugin's own check-shared-runtime.mjs."
+        },
+        "av:iife-chunk-hls": {
+            "headBytes": 899410,
+            "reason": "New artifact family, and deliberately large: hls.js is fetched only when an HLS body must play on a browser with no native HLS. These bytes are never in the entry and never in the pair budget."
+        },
+        "av:iife-chunk-waveform": {
+            "headBytes": 6897,
+            "reason": "New artifact family: fetched only when a canvas links waveform data."
         }
     },
     "runtime": {

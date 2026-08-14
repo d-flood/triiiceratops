@@ -18,9 +18,12 @@ import { mount, unmount } from 'svelte';
 import type { AVState } from './avState';
 import type { StageRect } from './mediaStage';
 import TransportControls from './Transport.svelte';
+import type { CaptionTrack } from './captions';
 import {
     type BufferedSpan,
     bufferedSpans,
+    type CaptionOption,
+    captionOptions,
     fitsTransport,
     formatMediaTime,
     timeFraction,
@@ -38,6 +41,18 @@ export interface TransportLabels {
     readonly volume: string;
     readonly elapsed: string;
     readonly duration: string;
+    readonly captions: string;
+    readonly captionsOff: string;
+    /** The generic name for a track that declares neither label nor language. */
+    readonly captionsTrack: string;
+}
+
+/** The caption tracks on offer and which one is showing. */
+export interface CaptionsView {
+    /** Only tracks that LOADED, so a control here can never be inert. */
+    options: CaptionOption[];
+    /** The showing track's id, or `null` for off. */
+    active: string | null;
 }
 
 /** What the component renders. Every member is published playback state. */
@@ -60,6 +75,13 @@ export interface TransportView {
      * tick would otherwise recompute it.
      */
     position: string;
+    /**
+     * The whole recording drawn once as a picture, for the scrubber's static
+     * strip, or `null` when this canvas links no waveform data. It is how
+     * waveform data reaches a video canvas, which gets no timeline lane in v1.
+     */
+    peaksStrip: string | null;
+    captions: CaptionsView;
     labels: TransportLabels;
 }
 
@@ -70,6 +92,8 @@ export interface TransportPort {
     seek(seconds: number): void;
     setMuted(muted: boolean): void;
     setVolume(volume: number): void;
+    /** Show one caption track, or `null` for off. */
+    setCaptionTrack(id: string | null): void;
 }
 
 /**
@@ -122,6 +146,18 @@ export interface TransportOptions {
     currentMedia(): HTMLMediaElement | null;
     readonly prefs: AudioPrefs;
     labels(): TransportLabels;
+    /** The current canvas's scrubber strip as a data URL, or `null`. */
+    peaksStrip(): string | null;
+    /**
+     * The current canvas's loaded caption tracks and the showing one. Read off
+     * the stage rather than off AVState: which text track is rendering is a
+     * property of one element's own display, not published playback state, and
+     * inventing an AVState member for it would put a fact hosts have no reason
+     * to command into the command contract.
+     */
+    captions(): { tracks: readonly CaptionTrack[]; active: string | null };
+    /** Show one caption track on the current canvas, or `null` for off. */
+    setCaptionTrack(id: string | null): void;
     t(key: string, params?: Record<string, string | number>): string;
 }
 
@@ -134,6 +170,12 @@ export interface Transport {
      * play-state glyph is the other half of.
      */
     place(rect: StageRect | null): boolean;
+    /**
+     * Re-read the view model now. AVState's own cadences cover everything that
+     * is playback state; this is for the facts beside it that change on nobody's
+     * clock — the scrubber's waveform strip arriving from the network.
+     */
+    refresh(): void;
     /** Re-read the labels after a locale change. */
     retranslate(): void;
     destroy(): void;
@@ -157,6 +199,8 @@ export function createTransport(options: TransportOptions): Transport {
         volume: prefs.volume,
         volumeSettable: true,
         position: '',
+        peaksStrip: null,
+        captions: { options: [], active: null },
         labels: options.labels(),
     });
 
@@ -192,6 +236,13 @@ export function createTransport(options: TransportOptions): Transport {
         view.muted = prefs.muted;
         view.volume = prefs.volume;
         view.position = positionText();
+        view.peaksStrip = options.peaksStrip();
+
+        const captions = options.captions();
+        view.captions = {
+            options: captionOptions(captions.tracks, view.labels.captionsTrack),
+            active: captions.active,
+        };
     }
 
     const port: TransportPort = {
@@ -208,6 +259,10 @@ export function createTransport(options: TransportOptions): Transport {
         setMuted(muted: boolean): void {
             prefs.set(prefs.volume, muted);
             avState.setMuted(muted);
+            refresh();
+        },
+        setCaptionTrack(id: string | null): void {
+            options.setCaptionTrack(id);
             refresh();
         },
         setVolume(volume: number): void {
@@ -231,6 +286,7 @@ export function createTransport(options: TransportOptions): Transport {
 
     return {
         root,
+        refresh,
         place(rect: StageRect | null): boolean {
             const showing = rect !== null && fitsTransport(rect.width);
             root.hidden = !showing;
@@ -247,6 +303,9 @@ export function createTransport(options: TransportOptions): Transport {
         retranslate(): void {
             view.labels = options.labels();
             view.position = positionText();
+            // The generic track name is localized, so a locale change has to
+            // rebuild the options a nameless track is listed under.
+            refresh();
         },
         destroy(): void {
             stopState();

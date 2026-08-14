@@ -23,9 +23,12 @@
                 The two BUILT artifacts a consumer loads, in the order a real
                 page loads them: the core element IIFE, then
                 `@triiiceratops/plugin-av`'s IIFE. Both must have been built
-                (`pnpm build:all`); the plugin's URL is served from its `dist/`
-                by the route the spec installs, since the plugin lives outside
-                the dev server's root.
+                (`pnpm build:all`); the plugin's whole `dist/` directory is
+                served under `/plugin-av/` by the route the spec installs
+                (`helpers/avPluginDist.ts`), since the plugin lives outside the
+                dev server's root. The directory, not the one file: this
+                plugin's entry fetches its waveform and hls.js chunks from
+                beside its own script URL.
 
                 The order is load-bearing for THIS plugin and no other. It is the
                 one that does not bundle Svelte: it reads core's runtime off
@@ -53,7 +56,13 @@
             const viewer = document.getElementById('v');
             // The plugin's panel starts open so the throwaway play/pause control
             // is reachable without driving the toolbar.
-            viewer.config = { plugins: { av: { open: true } } };
+            // Drag-and-drop is off by default, and it is the viewer's only
+            // delivery path for a IIIF content state — which `av-structures`
+            // drops on the viewer to prove a `#t=` target seeks.
+            viewer.config = {
+                enableDragDrop: true,
+                plugins: { av: { open: true } },
+            };
             viewer.plugins = [
                 window.Triiiceratops.plugins.get('@triiiceratops/plugin-av'),
             ];

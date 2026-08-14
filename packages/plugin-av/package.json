@@ -37,9 +37,10 @@
         "./iife": "./dist/iife.js"
     },
     "scripts": {
-        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:types && pnpm check:shared-runtime",
+        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:iife-chunks && pnpm build:types && pnpm check:shared-runtime",
         "build:esm": "BUILD_FORMAT=es vite build",
         "build:iife": "BUILD_FORMAT=iife vite build",
+        "build:iife-chunks": "BUILD_FORMAT=iife-chunks vite build",
         "build:types": "tsc -p tsconfig.build.json",
         "check:shared-runtime": "node ./scripts/check-shared-runtime.mjs",
         "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.build.json --noEmit",
@@ -50,9 +51,9 @@
         "lint:fix": "eslint . --fix --max-warnings 0"
     },
     "peerDependencies": {
-        "triiiceratops": "workspace:^",
         "@triiiceratops/plugin-sdk": "workspace:^",
-        "svelte": "^5.0.0"
+        "svelte": "^5.0.0",
+        "triiiceratops": "workspace:^"
     },
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^6.2.1",
@@ -67,5 +68,8 @@
         "typescript": "~5.9.3",
         "vite": "^6.0.0",
         "vitest": "^4.0.15"
+    },
+    "dependencies": {
+        "hls.js": "^1.7.0"
     }
 }

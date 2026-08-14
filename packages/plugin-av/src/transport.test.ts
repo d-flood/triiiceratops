@@ -6,6 +6,7 @@ import { createAudioPrefs, createTransport } from './transport.svelte';
 import {
     TRANSPORT_MIN_WIDTH_PX,
     bufferedSpans,
+    captionOptions,
     fitsTransport,
     formatMediaTime,
     fractionToTime,
@@ -144,6 +145,44 @@ describe('volumeIsSettable', () => {
     });
 });
 
+describe('captionOptions', () => {
+    it('puts the language beside the label, because the labels repeat', () => {
+        // Both caption cookbook recipes label every language identically.
+        expect(
+            captionOptions(
+                [
+                    {
+                        url: 'en.vtt',
+                        label: 'Captions in WebVTT format',
+                        language: 'en',
+                    },
+                    {
+                        url: 'it.vtt',
+                        label: 'Captions in WebVTT format',
+                        language: 'it',
+                    },
+                ],
+                'Captions',
+            ),
+        ).toEqual([
+            { id: 'en.vtt', label: 'Captions in WebVTT format (en)' },
+            { id: 'it.vtt', label: 'Captions in WebVTT format (it)' },
+        ]);
+    });
+
+    it('falls back to the language, then to the localized generic', () => {
+        expect(
+            captionOptions(
+                [
+                    { url: 'a.vtt', label: null, language: 'fr' },
+                    { url: 'b.vtt', label: null, language: null },
+                ],
+                'Captions',
+            ).map((option) => option.label),
+        ).toEqual(['fr', 'Captions']);
+    });
+});
+
 describe('createTransport', () => {
     const LABELS = {
         transport: 'Playback',
@@ -155,6 +194,9 @@ describe('createTransport', () => {
         volume: 'Volume',
         elapsed: 'Elapsed',
         duration: 'Duration',
+        captions: 'Captions',
+        captionsOff: 'Off',
+        captionsTrack: 'Captions',
     };
 
     /** An AVState stand-in: the members the transport reads, and its cadences. */
@@ -194,6 +236,9 @@ describe('createTransport', () => {
             currentMedia: () => current,
             prefs,
             labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
             t: (key) => key,
         });
 
@@ -217,6 +262,9 @@ describe('createTransport', () => {
             currentMedia: () => media,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
             t: (key, params) =>
                 `${locale}:${key}:${String(params?.current)}/${String(params?.total)}`,
         });
@@ -236,6 +284,118 @@ describe('createTransport', () => {
         transport.retranslate();
         expect(scrubber()).toBe('fr:av_position:0:00/0:02');
 
+        transport.destroy();
+    });
+
+    /** The transport with a fixed set of caption tracks under it. */
+    function captionedTransport(
+        tracks: {
+            url: string;
+            language: string | null;
+            label: string | null;
+        }[],
+    ) {
+        const media = document.createElement('video');
+        const { state } = fakeAvState();
+        let active: string | null = null;
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            prefs: createAudioPrefs(),
+            labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks, active }),
+            setCaptionTrack: (id) => {
+                active = id;
+            },
+            t: (key) => key,
+        });
+        // Attached, because opening the list moves focus into it and an
+        // unattached tree has no active element to move.
+        document.body.append(transport.root);
+        flushSync();
+        const find = (selector: string): HTMLElement | null => {
+            flushSync();
+            return transport.root.querySelector(selector);
+        };
+        return { transport, find, active: () => active };
+    }
+
+    const EN = { url: 'en.vtt', language: 'en', label: 'English' };
+    const IT = { url: 'it.vtt', language: 'it', label: 'Italiano' };
+
+    it('renders no captions control when no track loaded', () => {
+        const { transport, find } = captionedTransport([]);
+        expect(find('[data-testid="av-captions"]')).toBeNull();
+        transport.destroy();
+    });
+
+    it('renders a plain toggle for one track, off to begin with', () => {
+        const { transport, find, active } = captionedTransport([EN]);
+
+        const toggle = find('[data-testid="av-captions"]')!;
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        expect(find('[data-testid="av-caption-list"]')).toBeNull();
+
+        toggle.click();
+        expect(active()).toBe(EN.url);
+        expect(
+            find('[data-testid="av-captions"]')!.getAttribute('aria-pressed'),
+        ).toBe('true');
+
+        find('[data-testid="av-captions"]')!.click();
+        expect(active()).toBeNull();
+        transport.destroy();
+    });
+
+    it('opens a radio list of every track plus off when there are several', () => {
+        const { transport, find } = captionedTransport([EN, IT]);
+
+        find('[data-testid="av-captions"]')!.click();
+        const list = find('[data-testid="av-caption-list"]')!;
+        expect(list.getAttribute('role')).toBe('radiogroup');
+
+        const radios = [...list.querySelectorAll('[role="radio"]')];
+        expect(radios.map((radio) => radio.textContent?.trim())).toEqual([
+            'Off',
+            'English (en)',
+            'Italiano (it)',
+        ]);
+        // Off is where it starts, and it is the group's only tab stop.
+        expect(
+            radios.map((radio) => radio.getAttribute('aria-checked')),
+        ).toEqual(['true', 'false', 'false']);
+        expect(radios.map((radio) => radio.getAttribute('tabindex'))).toEqual([
+            '0',
+            '-1',
+            '-1',
+        ]);
+        transport.destroy();
+    });
+
+    it('moves between tracks with the arrow keys, selection following focus', async () => {
+        const { transport, find, active } = captionedTransport([EN, IT]);
+        find('[data-testid="av-captions"]')!.click();
+        // The list is focused on the frame after it is rendered.
+        flushSync();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        const list = find('[data-testid="av-caption-list"]')!;
+        list.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+        );
+        expect(active()).toBe(EN.url);
+
+        list.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'End', bubbles: true }),
+        );
+        expect(active()).toBe(IT.url);
+
+        // Escape leaves rather than trapping the keyboard in the list.
+        list.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        );
+        expect(find('[data-testid="av-caption-list"]')).toBeNull();
         transport.destroy();
     });
 });

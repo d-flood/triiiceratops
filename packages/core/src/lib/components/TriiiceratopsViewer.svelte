@@ -1899,7 +1899,6 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        overflow: hidden;
     }
     .blur-bg {
         position: absolute;
@@ -1978,12 +1977,20 @@
      * accessible names, and a plugin layer painted over them would break that
      * silently. Transparent to pointer events, so adding a layer cannot cost the
      * reader panning; plugin children opt in with `pointer-events: auto`.
+     *
+     * `overflow: hidden` because a layer's children are positioned from
+     * projected canvas points, which routinely fall outside this box — a canvas
+     * fitted to the viewer's height overhangs it sideways, any zoom overhangs it
+     * in both axes. Without the clip a plugin child that opted into pointer
+     * events extends over the side columns and, at this z-index, takes the taps
+     * aimed at the toolbar and the panels docked there.
      */
     .plugin-overlay-layer {
         position: absolute;
         inset: 0;
         z-index: 40;
         pointer-events: none;
+        overflow: hidden;
     }
     .plugin-bottom {
         position: relative;

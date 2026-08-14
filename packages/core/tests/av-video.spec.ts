@@ -23,11 +23,9 @@
  * because the plugin lives outside the dev server's root.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { expect, test, type Page } from '@playwright/test';
 
+import { serveAvPluginDist } from './helpers/avPluginDist';
 import { AV_MANIFESTS, BARS_MP4, BARS_SIZE } from './helpers/avMedia';
 
 test.describe.configure({ timeout: 120_000 });
@@ -36,8 +34,6 @@ test.skip(
     ({ browserName }) => browserName !== 'chromium',
     'Canvas2D renderer slice is Chromium-only (see canvas-renderer.spec.ts).',
 );
-
-const PLUGIN_IIFE = join(import.meta.dirname, '../../plugin-av/dist/iife.js');
 
 const FIXTURE = '/e2e/av-plugin.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
@@ -142,12 +138,7 @@ const PAIR_MANIFEST = {
  * renderer has a surface.
  */
 async function openViewer(page: Page, manifest: string): Promise<void> {
-    await page.route('**/plugin-av/iife.js', (route) =>
-        route.fulfill({
-            contentType: 'text/javascript',
-            body: readFileSync(PLUGIN_IIFE, 'utf8'),
-        }),
-    );
+    await serveAvPluginDist(page);
     await page.route(`**${DEAD_MANIFEST_URL}`, (route) =>
         route.fulfill({
             contentType: 'application/json',
@@ -313,12 +304,15 @@ test.describe('av video — a claimed canvas plays its video', () => {
             .poll(() => media.evaluate((el) => (el as HTMLVideoElement).paused))
             .toBe(true);
 
-        await media.click({ position: { x: 5, y: 5 } });
+        // At the centre, not at a corner: the projection overhangs the
+        // viewer's centre column and is clipped to it, so a corner of a
+        // fitted-to-height video is behind the chrome docked beside it.
+        await media.click();
         await expect
             .poll(() => media.evaluate((el) => (el as HTMLVideoElement).paused))
             .toBe(false);
 
-        await media.click({ position: { x: 5, y: 5 } });
+        await media.click();
         await expect
             .poll(() => media.evaluate((el) => (el as HTMLVideoElement).paused))
             .toBe(true);

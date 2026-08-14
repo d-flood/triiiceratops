@@ -203,7 +203,7 @@ importers:
         version: 5.0.1
       '@vitest/coverage-v8':
         specifier: 4.0.15
-        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2))
       svelte:
         specifier: 5.45.5
         version: 5.45.5
@@ -221,9 +221,13 @@ importers:
         version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
       vitest:
         specifier: ^4.0.15
-        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2)
 
   packages/plugin-av:
+    dependencies:
+      hls.js:
+        specifier: ^1.7.0
+        version: 1.7.0
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.1
@@ -239,7 +243,7 @@ importers:
         version: 24.10.1
       '@vitest/coverage-v8':
         specifier: 4.0.15
-        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2))
       happy-dom:
         specifier: ^20.0.11
         version: 20.0.11
@@ -260,7 +264,7 @@ importers:
         version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
       vitest:
         specifier: ^4.0.15
-        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2)
 
   packages/plugin-image-export:
     devDependencies:
@@ -275,7 +279,7 @@ importers:
         version: link:../ui
       '@vitest/coverage-v8':
         specifier: 4.0.15
-        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2))
       svelte:
         specifier: 5.45.5
         version: 5.45.5
@@ -293,7 +297,7 @@ importers:
         version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
       vitest:
         specifier: ^4.0.15
-        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2)
 
   packages/plugin-image-manipulation:
     devDependencies:
@@ -308,7 +312,7 @@ importers:
         version: link:../ui
       '@vitest/coverage-v8':
         specifier: 4.0.15
-        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2))
       svelte:
         specifier: 5.45.5
         version: 5.45.5
@@ -326,7 +330,7 @@ importers:
         version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
       vitest:
         specifier: ^4.0.15
-        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2)
 
   packages/plugin-pdf-export:
     dependencies:
@@ -345,7 +349,7 @@ importers:
         version: link:../ui
       '@vitest/coverage-v8':
         specifier: 4.0.15
-        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2))
       happy-dom:
         specifier: ^20.0.11
         version: 20.0.11
@@ -366,7 +370,7 @@ importers:
         version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
       vitest:
         specifier: ^4.0.15
-        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2)
 
   packages/plugin-sdk:
     devDependencies:
@@ -414,7 +418,7 @@ importers:
         version: 6.2.1(supports-color@8.1.1)(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2))
       '@vitest/coverage-v8':
         specifier: 4.0.15
-        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2))
       svelte:
         specifier: 5.45.5
         version: 5.45.5
@@ -429,7 +433,7 @@ importers:
         version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
       vitest:
         specifier: ^4.0.15
-        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2)
 
   test-consumers:
     devDependencies:
@@ -2016,6 +2020,9 @@ packages:
   he@1.2.0:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
+
+  hls.js@1.7.0:
+    resolution: {integrity: sha512-NnQpT6Z//+2IB2qovSUbKbrlXY1MOpi0JynZ9L2NNOuTJiNCyMSQj9k2laEj1v7CxU/Hb8oTWR98eT3mVpPQVQ==}
 
   html-encoding-sniffer@4.0.0:
     resolution: {integrity: sha512-Y22oTqIU4uuPgEemfz7NDJz6OeKf12Lsu+QC+s3BVpda64lTiMYCyGwg5ki4vFxkMwQdeZDl2adZoqUgdFuTgQ==}
@@ -4709,6 +4716,8 @@ snapshots:
       function-bind: 1.1.2
 
   he@1.2.0: {}
+
+  hls.js@1.7.0: {}
 
   html-encoding-sniffer@4.0.0:
     dependencies:

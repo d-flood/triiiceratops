@@ -19,12 +19,27 @@
  */
 
 import { createReadStream, statSync } from 'node:fs';
-import { join, normalize, sep } from 'node:path';
+import { basename, join, normalize, sep } from 'node:path';
 import { pipeline } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 /** Mount point, and the prefix every URL in the local AV manifests uses. */
 const PREFIX = '/media/';
+
+/**
+ * A file whose NAME begins with this is served **without CORS**: the payload
+ * carries no `Access-Control-Allow-Origin`, while everything else under
+ * `/media/` grants it.
+ *
+ * It exists for one thing the AV suite cannot otherwise stage. Text tracks are
+ * always fetched with CORS, whatever the page's origin, so a `<track>` pointed
+ * at a server that grants none fails — and that failure is not a 404. Reached
+ * through the `localhost` alias from a `127.0.0.1` page, the browser issues a
+ * genuinely cross-origin request and refuses the response for the real reason
+ * a curator's caption file usually fails. `iiifFixturePlugin.mjs` stages the
+ * same failure for image tiles, with the same prefix trick.
+ */
+const NO_CORS_PREFIX = 'no-cors-';
 
 const MEDIA_DIR = fileURLToPath(new URL('../tests/media', import.meta.url));
 
@@ -153,6 +168,14 @@ export function mediaFixture() {
 
                 response.setHeader('Content-Type', contentType(file));
                 response.setHeader('Accept-Ranges', 'bytes');
+                if (basename(file).startsWith(NO_CORS_PREFIX)) {
+                    // Vite's own CORS middleware may already have supplied it.
+                    response.removeHeader('Access-Control-Allow-Origin');
+                } else {
+                    // Granted for everything else, so a spec can serve the same
+                    // fixture cross-origin and have only the refusal differ.
+                    response.setHeader('Access-Control-Allow-Origin', '*');
+                }
                 // No caching, for the same reason the IIIF fixture sets it: a
                 // spec that counts requests must see every one.
                 response.setHeader('Cache-Control', 'no-store');

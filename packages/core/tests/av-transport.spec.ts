@@ -20,12 +20,10 @@
  * `pnpm build`) must have run.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import { serveAvPluginDist } from './helpers/avPluginDist';
 import { AV_MANIFESTS, BARS_MP4, BARS_SIZE } from './helpers/avMedia';
 
 test.describe.configure({ timeout: 120_000 });
@@ -35,8 +33,6 @@ test.skip(
     'Canvas2D renderer slice is Chromium-only (see canvas-renderer.spec.ts).',
 );
 
-const PLUGIN_IIFE = join(import.meta.dirname, '../../plugin-av/dist/iife.js');
-
 const FIXTURE = '/e2e/av-plugin.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const MEDIA = '[data-testid="av-media"]';
@@ -45,6 +41,7 @@ const SCRUBBER = '[data-testid="av-scrubber"]';
 const PLAY = '[data-testid="av-play"]';
 const MUTE = '[data-testid="av-mute"]';
 const VOLUME = '[data-testid="av-volume"]';
+const CAPTIONS = '[data-testid="av-captions"]';
 const ELAPSED = '[data-testid="av-elapsed"]';
 const DURATION = '[data-testid="av-duration"]';
 const GLYPH = '[data-testid="av-glyph"]';
@@ -105,12 +102,7 @@ async function openViewer(
     // is a state a caller may want to open into deliberately.
     awaitTransport = true,
 ): Promise<void> {
-    await page.route('**/plugin-av/iife.js', (route) =>
-        route.fulfill({
-            contentType: 'text/javascript',
-            body: readFileSync(PLUGIN_IIFE, 'utf8'),
-        }),
-    );
+    await serveAvPluginDist(page);
     await page.route(`**${PAIR_MANIFEST_URL}`, (route) =>
         route.fulfill({
             contentType: 'application/json',
@@ -260,6 +252,27 @@ test.describe('av transport — anchored chrome at constant screen size', () => 
     }) => {
         await openViewer(page);
         await expect(page.locator(GLYPH)).toBeHidden();
+
+        // A phone-width viewer, because the reader's zoom floor is half the
+        // scale at which the world fits: on the fixture's 800px-wide viewer
+        // even a fully zoomed-out 320-unit canvas still projects wider than the
+        // 240px threshold, so no zoom argument could reach the glyph. The
+        // narrow viewer is also the case the threshold exists for.
+        await page.evaluate(() => {
+            const host = document.getElementById('v') as HTMLElement;
+            host.style.width = '360px';
+            host.style.height = '480px';
+        });
+        // The renderer re-fits and re-clamps the scale when it observes the new
+        // surface, so wait for that to land: a zoom issued into the old range is
+        // undone by the resize that arrives after it.
+        await expect
+            .poll(
+                async () =>
+                    (await page.locator(SURFACE).boundingBox())?.width ?? null,
+                { timeout: 20_000 },
+            )
+            .toBeLessThan(400);
 
         // Far enough out that a 320-unit-wide canvas projects under the
         // 240-screen-pixel threshold.
@@ -444,7 +457,7 @@ test.describe('av transport a11y — the keyboard and the a11y tree', () => {
         expect(results.violations).toEqual([]);
     });
 
-    test('walks play → scrubber → mute → volume by keyboard alone', async ({
+    test('walks play → scrubber → mute → volume → captions by keyboard alone', async ({
         page,
     }) => {
         await openViewer(page);
@@ -503,5 +516,17 @@ test.describe('av transport a11y — the keyboard and the a11y tree', () => {
                 return seen.volume > 0 && seen.volume < 1 && !seen.muted;
             })
             .toBe(true);
+
+        // Captions last, which is where the SPEC's v1 inventory puts them.
+        // `av-video.json` carries a VTT track in its painting body array, so
+        // the control is rendered and is the row's final tab stop.
+        await expect(page.locator(CAPTIONS)).toBeVisible({ timeout: 15_000 });
+        await page.keyboard.press('Tab');
+        expect(await focused()).toBe('av-captions');
+        await page.keyboard.press('Enter');
+        await expect(page.locator(CAPTIONS)).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
     });
 });

@@ -5,7 +5,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { warnAboutDegradation } from './degradation';
+import {
+    warnAboutDegradation,
+    warnAboutUnloadableCaptionTrack,
+    warnAboutUnloadableHlsChunk,
+    warnAboutUnreadableWaveform,
+} from './degradation';
 import type { AvCanvasScan } from './sources';
 
 function scan(overrides: Partial<AvCanvasScan> = {}): AvCanvasScan {
@@ -91,5 +96,41 @@ describe('warnAboutDegradation', () => {
         );
 
         expect(messages()).toEqual([]);
+    });
+
+    describe('unreadable waveform data', () => {
+        it('announces one broken publish once, however often it is linked', () => {
+            warnAboutUnreadableWaveform('https://example.org/a/waveform.json');
+            warnAboutUnreadableWaveform('https://example.org/a/waveform.json');
+            warnAboutUnreadableWaveform('https://example.org/b/waveform.dat');
+
+            const said = messages();
+            expect(said).toHaveLength(2);
+            expect(said[0]).toContain('a/waveform.json');
+            expect(said[0]).toContain('The timeline still seeks.');
+        });
+    });
+
+    describe('an hls.js chunk that will not load', () => {
+        it('names the packaging contract, once per page', () => {
+            warnAboutUnloadableHlsChunk(new Error('404'));
+            warnAboutUnloadableHlsChunk(new Error('404'));
+
+            const said = messages();
+            expect(said).toHaveLength(1);
+            expect(said[0]).toContain('dist/iife.js');
+        });
+    });
+
+    describe('a caption track that will not load', () => {
+        it('names the CORS requirement, once per URL', () => {
+            warnAboutUnloadableCaptionTrack('https://elsewhere.test/en.vtt');
+            warnAboutUnloadableCaptionTrack('https://elsewhere.test/en.vtt');
+            warnAboutUnloadableCaptionTrack('https://elsewhere.test/it.vtt');
+
+            const said = messages();
+            expect(said).toHaveLength(2);
+            expect(said[0]).toContain('Access-Control-Allow-Origin');
+        });
     });
 });

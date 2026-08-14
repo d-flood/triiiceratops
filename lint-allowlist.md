@@ -415,15 +415,27 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
   distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
-- **Mechanism:** a `// triiiceratops-console-allow` marker comment on the
-  preceding lines — anchored to the single `warnOnce` helper, which is guarded by
-  a `WeakSet` keyed on the canvas JSON, so at most one line is emitted per canvas
-  per manifest.
+- **Mechanism:** `// triiiceratops-console-allow` marker comments on the
+  preceding lines, at four call sites. The `warnOnce` helper is guarded by a
+  `WeakMap` keyed on the canvas JSON, so at most one line is emitted per canvas
+  per reason per manifest; `warnAboutUnreadableWaveform` is guarded by a `Set` of
+  URLs already announced, so one broken waveform publish emits one line however
+  many canvases link it; `warnAboutUnloadableCaptionTrack` is guarded the same
+  way, so one caption file supplemented onto several canvases announces once;
+  `warnAboutUnloadableHlsChunk` is guarded by a flag, so a
+  dist hosted without its chunks emits one line per page rather than one per
+  canvas.
 - **Rationale:** this is the developer-console half of the AV epic's degradation
   contract (user story 45): a manifest shape the viewer renders less than fully —
-  time-based media placed into part of a canvas rect, or several bodies sharing
-  one canvas's duration — must announce what it did not honour, to the curator who
-  wrote the manifest. It is deliberately not a structured channel: it is not a
+  time-based media placed into part of a canvas rect, several bodies sharing one
+  canvas's duration, or linked waveform data that is neither audiowaveform format
+  (a lane that seeks but shows no waveform), or a caption track the browser
+  refused (almost always a VTT served cross-origin without CORS, which leaves
+  the reader no captions toggle at all) — must announce what it did not honour,
+  to the curator who wrote the manifest. The hls.js chunk line serves the
+  same audience for the packaging half of that contract: the dist is a directory,
+  and an `iife.js` copied away from its chunks degrades HLS canvases to "can't
+  play" with no other trace. It is deliberately not a structured channel: it is not a
   viewer error and not a plugin error, and routing it to `pluginerror` would make
   an honest degraded render look like a failure to every host that handles that
   channel. It is deliberately not debug-gated either, unlike core's own
@@ -436,7 +448,10 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   spatially-targeted (`0489-multimedia-canvas`) vendored recipes each produce
   exactly one warning, and that an ordinary single-body video canvas
   (`0003-mvm-video`) produces none, so the warn cannot fire for a manifest that
-  rendered fully.
+  rendered fully; the same file's "unreadable waveform data" cases pin one line
+  per URL and none for data that parses. `degradation.test.ts` — "an hls.js chunk
+  that will not load" pins one line per page, and "a caption track that will not
+  load" pins one line per URL.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-13 · **Review by:** 2027-02-13
 

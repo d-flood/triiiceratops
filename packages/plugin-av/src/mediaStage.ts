@@ -12,14 +12,22 @@
  * same way on every canvas.
  */
 
+import type { CaptionTrack } from './captions';
 import type { CompanionImage } from './companionCanvases';
+import { warnAboutUnloadableCaptionTrack } from './degradation';
+import type { HlsAttachment } from './hls/index';
+import { hasNativeHlsSupport, isHlsSource, loadHls } from './hlsLink';
 import type { AvSource } from './sources';
 import {
+    clipRect,
     laneFraction,
     stageLanes,
     type StageLanes,
     type StageLayoutKind,
 } from './stageLayout';
+import type { Peaks } from './waveform/peaks';
+import type { VisibleBox, WaveformSurface } from './waveform/surface';
+import type { WaveformModule } from './waveformLink';
 
 /** Where a stage sits, in the overlay container's coordinates. */
 export interface StageRect {
@@ -38,8 +46,23 @@ export interface MediaStageOptions {
     readonly accompanying?: CompanionImage | null;
     /** The `placeholderCanvas` still shown until first play, when there is one. */
     readonly placeholder?: CompanionImage | null;
+    /**
+     * The canvas's declared duration, which gives the timeline lane a length
+     * before the element reports one of its own.
+     */
+    readonly duration?: number | null;
     /** Localized "this cannot be played here" copy. */
     readonly cannotPlayMessage: string;
+    /**
+     * The canvas's WebVTT tracks, as authored. Every one is attached and
+     * loaded; only the ones that actually produced cues are offered.
+     */
+    readonly captions?: readonly CaptionTrack[];
+    /**
+     * A track finished loading or failed, so the set on offer has changed. It
+     * is what tells the transport whether to render a toggle at all.
+     */
+    readonly onCaptionTracksChange?: () => void;
     /** Called whenever the element starts or stops playing. */
     readonly onPlayStateChange: (paused: boolean) => void;
     /**
@@ -48,6 +71,25 @@ export interface MediaStageOptions {
      * means in seconds, and whether it is honoured, is AVState's to decide.
      */
     readonly onSeekFraction?: (fraction: number) => void;
+    /**
+     * The canvas's timeline reached its end.
+     *
+     * This is the seam `auto-advance` listens on, at the canvas-timeline level
+     * rather than on a raw element: today one body fills the canvas and the
+     * element's own `ended` is that end, and when ticket 18 sequences a composed
+     * canvas the sequencer reaching its last segment fires this instead.
+     *
+     * It is not the only place that assumes one element's clock, though it is
+     * the only END of one: `temporalOffsets.ts` waits on `readyState` /
+     * `loadedmetadata` for "the canvas timeline is ready", which for a composed
+     * canvas is not one element's metadata either. Both have to move together
+     * when the sequencer lands.
+     *
+     * It fires only for playback that actually ran off the end — assigning
+     * `currentTime` on a paused element does not end it — which is what makes
+     * continuing into the next canvas reader-initiated rather than autoplay.
+     */
+    readonly onTimelineEnd?: () => void;
 }
 
 export interface MediaStage {
@@ -57,8 +99,14 @@ export interface MediaStage {
     readonly media: HTMLMediaElement;
     /** Whether the stream failed and the stage shows the "can't play" treatment. */
     readonly unplayable: boolean;
-    /** Place the stage over a projected canvas rect, or hide it when there is none. */
-    place(rect: StageRect | null): void;
+    /**
+     * Place the stage over a projected canvas rect, or hide it when there is
+     * none. `visible` is the overlay container's own box: the stage is clipped
+     * to it, so an overhanging projection neither draws nor takes pointer
+     * events outside the container, and the waveform surface is clipped to it
+     * so its backing store stays viewport-sized at any zoom.
+     */
+    place(rect: StageRect | null, visible: VisibleBox): void;
     /** Retranslate the "can't play" treatment after a locale change. */
     setCannotPlayMessage(message: string): void;
     /**
@@ -69,10 +117,31 @@ export interface MediaStage {
     /** Play if paused, pause if playing. */
     toggle(): void;
     /**
-     * The timeline lane — ticket 10's drawing surface, and `null` on a layout
-     * that has no timeline lane (video).
+     * The caption tracks that LOADED — never the ones authored. A track the
+     * browser refused (a dead URL, a server that grants no CORS) is not on
+     * offer, because a control that selects it would do nothing.
+     */
+    readonly captionTracks: readonly CaptionTrack[];
+    /** The showing track's URL, or `null` for off — which is where it starts. */
+    readonly activeCaptionTrack: string | null;
+    /** Show one loaded track, or `null` to show none. */
+    setCaptionTrack(url: string | null): void;
+    /**
+     * The timeline lane — the waveform's drawing surface hangs inside it, and
+     * `null` on a layout that has no timeline lane (video).
      */
     readonly timelineLane: HTMLElement | null;
+    /**
+     * Adopt resolved peaks for this canvas. Builds the drawing surface on the
+     * first call; a layout with no timeline lane (video) keeps the data for the
+     * scrubber strip and draws nothing here.
+     */
+    adoptWaveform(module: WaveformModule, peaks: Peaks): void;
+    /**
+     * Redraw the waveform and its playhead. Cheap and idempotent when there is
+     * no waveform, because it is called on the playback frame cadence.
+     */
+    paintWaveform(): void;
     destroy(): void;
 }
 
@@ -162,6 +231,24 @@ function onLaneTap(
     };
 }
 
+/**
+ * The stage's clip, as an `inset()` in the root's own coordinates — `'none'`
+ * when the whole projection is inside the container.
+ *
+ * `clip-path` rather than a smaller box: the box IS the projection (the lanes
+ * divide the canvas, and the waveform's geometry is measured against it), and
+ * clipping takes the overhang out of hit testing as well as out of the picture,
+ * which shrinking the box would only do by restretching the layout.
+ */
+function clipPathFor(rect: StageRect, shown: StageRect): string {
+    const top = shown.top - rect.top;
+    const left = shown.left - rect.left;
+    const right = rect.width - (left + shown.width);
+    const bottom = rect.height - (top + shown.height);
+    if (top <= 0 && left <= 0 && right <= 0 && bottom <= 0) return 'none';
+    return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+}
+
 /** Write one lane's box onto its element, or take the lane off the stage. */
 function placeLane(lane: HTMLElement, rect: StageRect | null): void {
     lane.hidden = rect === null;
@@ -202,7 +289,6 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         // what an iOS WebKit that predates the property sees too (user story 23).
         media.setAttribute('playsinline', '');
     }
-    media.src = source.url;
 
     /**
      * The lanes. Both are created whatever the layout — the ones this layout
@@ -333,10 +419,50 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         options.onPlayStateChange(true);
     };
 
+    const onEnded = (): void => {
+        onPause();
+        options.onTimelineEnd?.();
+    };
+
     media.addEventListener('error', onError);
     media.addEventListener('play', onPlay);
     media.addEventListener('pause', onPause);
-    media.addEventListener('ended', onPause);
+    media.addEventListener('ended', onEnded);
+
+    /**
+     * The stream, attached after the listeners rather than before them: an HLS
+     * stage can be declared unplayable from inside the loader below, and the
+     * `error` path it shares must already be wired when that happens.
+     *
+     * A progressive file is an `src` assignment and nothing more. HLS is one
+     * too wherever the platform decodes it — Safari and every iOS browser —
+     * and only otherwise costs a chunk (`hlsLink.ts` carries the reasoning).
+     */
+    let hlsAttachment: HlsAttachment | null = null;
+    let destroyed = false;
+
+    if (!isHlsSource(source) || hasNativeHlsSupport(media)) {
+        media.src = source.url;
+    } else {
+        void loadHls()
+            .then((module) => {
+                // The stage may have been torn down while the chunk was in flight;
+                // attaching now would leave a player buffering into detached DOM.
+                if (destroyed) return;
+                hlsAttachment =
+                    module?.attachHlsStream(media, source.url, onError) ?? null;
+                // No chunk, or no Media Source Extensions to run it with. This
+                // canvas cannot play here — which is one stage's treatment, not an
+                // activation failure and not a `pluginerror` (user story 27).
+                if (!hlsAttachment) onError();
+            })
+            .catch(() => {
+                // Anything the chunk itself threw on the way to a player — a
+                // constructor or an `attachMedia` that did not like this element.
+                // Same outcome as no chunk at all: one stage's treatment.
+                if (!destroyed) onError();
+            });
+    }
 
     const toggle = (): void => {
         if (unplayable) return;
@@ -377,6 +503,146 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         else toggle();
     });
 
+    /**
+     * The waveform's drawing surface, built only once peaks have arrived — a
+     * canvas nobody can draw into is DOM that costs memory and says nothing.
+     * Video layouts never build one: their waveform data goes to the scrubber
+     * strip instead (SPEC — "Rendering: stage layout").
+     */
+    let waveform: WaveformSurface | null = null;
+
+    /**
+     * The lane's timeline length. The element leads once it reports one — it is
+     * what a seek is actually bound to — and the manifest's declared duration
+     * fills the window before `loadedmetadata`, the same rule `AVState.duration`
+     * follows.
+     */
+    const timelineDuration = (): number | null => {
+        const reported = media.duration;
+        if (Number.isFinite(reported) && reported > 0) return reported;
+        return options.duration ?? null;
+    };
+
+    /** The last placement, so a late-arriving waveform can be drawn at once. */
+    let placement: { lane: StageRect; visible: VisibleBox } | null = null;
+
+    /**
+     * The caption tracks, attached as native `<track>` children.
+     *
+     * Only on a video stage. An `<audio>` element has no rendering area, so the
+     * cues of a track attached to one are parsed and never drawn — a toggle
+     * over it would be visible and do nothing, which is the state user story 46
+     * exists to forbid. A sound recording's transcript is a panel, and the SPEC
+     * fences that out of this release.
+     */
+    const authoredCaptions =
+        source.kind === 'video' ? (options.captions ?? []) : [];
+    /**
+     * The tracks that have settled, held **at their authored index** with the
+     * unsettled and the dropped left as holes.
+     *
+     * By index rather than in arrival order because the tracks settle when the
+     * network says so: pushing would list the languages in whatever sequence
+     * the responses came back in, which differs between loads and defeats the
+     * manifest order `captionTracksForCanvas` takes care to preserve.
+     */
+    const settledCaptions: (CaptionTrack | null)[] = authoredCaptions.map(
+        () => null,
+    );
+    const loadedCaptions = (): CaptionTrack[] =>
+        settledCaptions.filter(
+            (track): track is CaptionTrack => track !== null,
+        );
+    let activeCaption: string | null = null;
+
+    /**
+     * jsdom implements the `<track>` ELEMENT but not the `TextTrack` behind it,
+     * so the mode is written through a guard rather than a bare assignment.
+     */
+    function setTrackMode(
+        element: HTMLTrackElement,
+        mode: TextTrackMode,
+    ): void {
+        const textTrack = element.track as TextTrack | undefined;
+        if (textTrack) textTrack.mode = mode;
+    }
+
+    /**
+     * Whether a track the browser reports as loaded actually carries cues.
+     *
+     * A syntactically valid VTT with no cues in it loads perfectly: the `load`
+     * event fires, `readyState` reaches `LOADED`, and selecting the track
+     * produces nothing whatever. That is the visible-control-that-does-nothing
+     * of user story 46 reached through the ordinary path, so it is dropped like
+     * a refused one. `undefined` cues means no `TextTrack` implementation to ask
+     * (jsdom), not an empty one, and is not grounds to drop anything.
+     */
+    function hasNoCues(element: HTMLTrackElement): boolean {
+        const cues = (element.track as TextTrack | undefined)?.cues;
+        return cues !== undefined && cues !== null && cues.length === 0;
+    }
+
+    /**
+     * Attach one track and start it loading.
+     *
+     * `hidden`, not `disabled`: a disabled track is never fetched, so a file
+     * the server will refuse would sit there looking fine until a reader turned
+     * captions on and met nothing. `hidden` parses the cues without showing
+     * them, which is what makes "off by default" and "the toggle is only
+     * offered for tracks that work" the same state rather than opposite ones.
+     */
+    const captionElements = authoredCaptions.map((caption, index) => {
+        const element = document.createElement('track');
+        element.kind = 'captions';
+        element.src = caption.url;
+        if (caption.language) element.srclang = caption.language;
+        if (caption.label) element.label = caption.label;
+        media.append(element);
+
+        const detach = (): void => {
+            element.removeEventListener('load', onLoad);
+            element.removeEventListener('error', onFailure);
+        };
+        /** A track that survived: offered, at the position it was authored in. */
+        const keep = (): void => {
+            detach();
+            settledCaptions[index] = caption;
+            options.onCaptionTracksChange?.();
+        };
+        /** A track that cannot caption anything: dropped, with one warning. */
+        const drop = (): void => {
+            detach();
+            warnAboutUnloadableCaptionTrack(caption.url);
+            options.onCaptionTracksChange?.();
+        };
+        // A response can still arrive for a stage nobody is looking at any
+        // more; it must not resurrect one.
+        const onLoad = (): void => {
+            if (destroyed) return;
+            if (hasNoCues(element)) drop();
+            else keep();
+        };
+        const onFailure = (): void => {
+            if (destroyed) return;
+            drop();
+        };
+        element.addEventListener('load', onLoad);
+        element.addEventListener('error', onFailure);
+
+        setTrackMode(element, 'hidden');
+        return { element, caption, detach };
+    });
+
+    /** Show the selected track and hide every other loaded one. */
+    function applyCaptionModes(): void {
+        for (const entry of captionElements) {
+            setTrackMode(
+                entry.element,
+                entry.caption.url === activeCaption ? 'showing' : 'hidden',
+            );
+        }
+    }
+
     return {
         canvasId,
         root,
@@ -385,13 +651,42 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             return unplayable;
         },
         timelineLane: options.layout === 'video' ? null : timelineLane,
-        place(rect: StageRect | null): void {
-            root.hidden = rect === null;
-            if (!rect) return;
+        adoptWaveform(module: WaveformModule, peaks: Peaks): void {
+            if (options.layout === 'video') return;
+            // The surface factory comes from the loaded chunk rather than from
+            // an import here: it is waveform code, and an import would pull it
+            // into the entry alongside the parsers it is useless without.
+            waveform ??= module.createWaveformSurface(
+                timelineLane,
+                timelineDuration,
+            );
+            waveform.setPeaks(peaks);
+            if (placement) waveform.place(placement.lane, placement.visible);
+            waveform.paint(media.currentTime);
+        },
+        paintWaveform(): void {
+            waveform?.paint(media.currentTime);
+        },
+        place(rect: StageRect | null, visible: VisibleBox): void {
+            // What of the projection is inside the container. A stage whose
+            // rect overhangs stays the size of its rect — the lanes divide the
+            // canvas, not the viewport — and is CLIPPED to this instead, which
+            // takes the overhanging part out of hit testing as well as out of
+            // the picture (see `clipRect`). Without that, an audio canvas's
+            // lane, which fills its whole rect, reaches over the columns beside
+            // the container and swallows taps aimed at the chrome there.
+            const shown = rect ? clipRect(rect, visible) : null;
+            root.hidden = shown === null;
+            if (!rect || !shown) {
+                placement = null;
+                waveform?.place(null, { width: 0, height: 0 });
+                return;
+            }
             root.style.left = `${rect.left}px`;
             root.style.top = `${rect.top}px`;
             root.style.width = `${rect.width}px`;
             root.style.height = `${rect.height}px`;
+            root.style.clipPath = clipPathFor(rect, shown);
 
             // The lanes divide the rect in the ROOT's own coordinates, which
             // is why the split is computed from an origin-anchored copy: the
@@ -403,6 +698,21 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             placeLane(visualLane, lanes.visual);
             placeLane(timelineLane, lanes.timeline);
             if (rect.width > 0) requestStills(lanes, rect);
+
+            if (lanes.timeline) {
+                // The surface clips against the CONTAINER's box, so the lane
+                // goes back into container coordinates the root already carries.
+                placement = {
+                    lane: {
+                        ...lanes.timeline,
+                        left: rect.left + lanes.timeline.left,
+                        top: rect.top + lanes.timeline.top,
+                    },
+                    visible,
+                };
+                waveform?.place(placement.lane, placement.visible);
+                waveform?.paint(media.currentTime);
+            }
         },
         setCannotPlayMessage(message: string): void {
             unplayableNotice.textContent = message;
@@ -411,12 +721,36 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             glyph.hidden = !visible || unplayable;
         },
         toggle,
+        get captionTracks(): readonly CaptionTrack[] {
+            return loadedCaptions();
+        },
+        get activeCaptionTrack(): string | null {
+            return activeCaption;
+        },
+        setCaptionTrack(url: string | null): void {
+            // A track that did not load cannot be selected, whoever asks: the
+            // one guarantee this feature makes is that turning captions on
+            // produces captions.
+            activeCaption =
+                url !== null &&
+                loadedCaptions().some((caption) => caption.url === url)
+                    ? url
+                    : null;
+            applyCaptionModes();
+        },
         destroy(): void {
+            destroyed = true;
+            // Before the element is emptied: hls.js owns the `MediaSource`
+            // attached to it and must be the one to detach it.
+            hlsAttachment?.destroy();
+            hlsAttachment = null;
             media.removeEventListener('error', onError);
             media.removeEventListener('play', onPlay);
             media.removeEventListener('pause', onPause);
-            media.removeEventListener('ended', onPause);
+            media.removeEventListener('ended', onEnded);
+            for (const entry of captionElements) entry.detach();
             unbindTaps();
+            waveform?.destroy();
             media.pause();
             // Drop every source before detaching so the browser stops any
             // transfer still in flight for a canvas nobody is looking at any

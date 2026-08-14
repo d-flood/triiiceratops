@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { bundledCss } from '@triiiceratops/ui/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 import { sharedRuntimeGateSource } from './src/sharedRuntimeGate';
 
@@ -12,9 +12,36 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /**
  * Build the plugin for one output format.
  *
- * `BUILD_FORMAT=es`   → `dist/index.js`  (the ESM entry consumers import).
- * `BUILD_FORMAT=iife` → `dist/iife.js`   (a `<script>`-loadable bundle that
- *                       registers into `window.Triiiceratops.plugins`).
+ * `BUILD_FORMAT=es`          → `dist/index.js` plus its own hashed chunks (the
+ *                              ESM entry consumers import).
+ * `BUILD_FORMAT=iife`        → `dist/iife.js`  (a `<script>`-loadable bundle
+ *                              that registers into `window.Triiiceratops.plugins`).
+ * `BUILD_FORMAT=iife-chunks` → `dist/av-waveform.js`, `dist/av-hls.js` — the
+ *                              lazy halves the IIFE fetches at runtime.
+ *
+ * ## The deliberate deviation: the dist is a DIRECTORY
+ *
+ * Every other first-party plugin ships one file per format, because
+ * `inlineDynamicImports` folds its lazy code into the entry. This plugin does
+ * not: hls.js is roughly 225 KB gzip of Media Source machinery that a manifest
+ * of progressive MP4s never needs, and the waveform parsers are another 2.4 KB
+ * that only a canvas linking waveform data needs. Inlining either would spend
+ * the competitive pair budget (`scripts/size-check.mjs`) on bytes most readers
+ * never use.
+ *
+ * Rollup cannot code-split an `iife` output — "UMD and IIFE output formats are
+ * not supported for code-splitting builds" — so the split is made by hand and
+ * in two halves. The entry build treats each lazy module as EXTERNAL and, via
+ * `chunkedIife()` below, rewrites its `import()` specifier into a URL resolved
+ * against the plugin's own `document.currentScript.src`. The chunk build then
+ * emits those modules as self-contained ES modules. A classic `<script>` can
+ * `import()` an ES module, so the entry stays a plain IIFE.
+ *
+ * The consumer-visible contract is therefore behavioral: a script-tag consumer
+ * hosts the whole `dist` directory rather than copying one file out of it, and
+ * the chunks are fetched from beside `iife.js` on demand. A chunk that cannot
+ * be fetched degrades exactly as an absent one does — no waveform, or that
+ * canvas's "can't play" treatment — never an activation failure.
  *
  * ## The deliberate deviation: Svelte is NOT bundled
  *
@@ -43,7 +70,25 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * external as an ordinary peer, which a consumer's bundler dedupes against
  * core's copy exactly as it dedupes any other shared dependency.
  */
-const format = process.env.BUILD_FORMAT === 'iife' ? 'iife' : 'es';
+const format =
+    process.env.BUILD_FORMAT === 'iife'
+        ? 'iife'
+        : process.env.BUILD_FORMAT === 'iife-chunks'
+          ? 'iife-chunks'
+          : 'es';
+
+/**
+ * The modules the IIFE loads on demand: source specifier → emitted file name.
+ *
+ * The keys are exactly the specifiers the eager modules write in their
+ * `await import()`, and the values are what `iife-chunks` emits beside
+ * `iife.js`. Both halves read this one map, so a chunk cannot be renamed on one
+ * side and fetched under the old name on the other.
+ */
+const LAZY_CHUNKS: Record<string, string> = {
+    './waveform/index': 'av-waveform.js',
+    './hls/index': 'av-hls.js',
+};
 
 const lib =
     format === 'iife'
@@ -53,11 +98,69 @@ const lib =
               name: 'TriiiceratopsPluginAv',
               fileName: () => 'iife.js',
           }
-        : {
-              entry: resolve(__dirname, 'src/index.ts'),
-              formats: ['es' as const],
-              fileName: () => 'index.js',
-          };
+        : format === 'iife-chunks'
+          ? {
+                entry: {
+                    'av-waveform': resolve(__dirname, 'src/waveform/index.ts'),
+                    'av-hls': resolve(__dirname, 'src/hls/index.ts'),
+                },
+                formats: ['es' as const],
+                fileName: (_format: string, name: string) => `${name}.js`,
+            }
+          : {
+                entry: resolve(__dirname, 'src/index.ts'),
+                formats: ['es' as const],
+                fileName: () => 'index.js',
+            };
+
+/**
+ * The base URL the IIFE resolves its chunks against, emitted ahead of the
+ * bundle body.
+ *
+ * `document.currentScript` is only correct WHILE the script is evaluating, so
+ * it is captured eagerly into a variable and read later — by the time a reader
+ * opens an HLS canvas it is `null`. The fallback resolves against the document
+ * base, which is right for the common case of a dist directory served from the
+ * page's own origin and wrong for a CDN; a bundle loaded in a way that hides
+ * its own URL (an inline `eval`, a bare `import()`) therefore degrades to no
+ * chunk rather than to a broken one.
+ */
+const CHUNK_BASE_SOURCE = `
+var __triAvChunkBase =
+    (typeof document !== 'undefined' && document.currentScript && document.currentScript.src) || '';
+function __triAvChunkUrl(name) {
+    return __triAvChunkBase ? new URL(name, __triAvChunkBase).href : './' + name;
+}
+`;
+
+/**
+ * Emit the IIFE's dynamic imports as fetches of sibling files instead of
+ * inlining them.
+ *
+ * Two hooks. `resolveId` takes each lazy module out of this build's graph
+ * (external, under its emitted file name), which is what stops rollup demanding
+ * `inlineDynamicImports`; `renderDynamicImport` then wraps the specifier rollup
+ * would have written literally, so `import('av-hls.js')` — which a browser
+ * would resolve against the PAGE — becomes `import(__triAvChunkUrl('av-hls.js'))`,
+ * resolved against the plugin's own script URL.
+ */
+function chunkedIife(): Plugin {
+    return {
+        name: 'tri-av-chunked-iife',
+        apply: 'build',
+        enforce: 'pre',
+        resolveId(source) {
+            const emitted = LAZY_CHUNKS[source];
+            return emitted ? { id: emitted, external: true } : null;
+        },
+        renderDynamicImport({ targetModuleId }) {
+            if (!targetModuleId) return null;
+            return Object.values(LAZY_CHUNKS).includes(targetModuleId)
+                ? { left: 'import(__triAvChunkUrl(', right: '))' }
+                : null;
+        },
+    };
+}
 
 // Both formats keep Svelte external. The ESM build additionally externalizes the
 // declared peers for the consumer's bundler to resolve; the IIFE bundles them,
@@ -67,7 +170,20 @@ const SVELTE = /^svelte(\/|$)/;
 const external =
     format === 'iife'
         ? [SVELTE]
-        : [SVELTE, /^@triiiceratops\/plugin-sdk(\/|$)/, /^triiiceratops(\/|$)/];
+        : format === 'iife-chunks'
+          ? // Self-contained: an ES module fetched from a `<script>` page has
+            // no import map and no bundler, so anything it left external would
+            // be an unresolvable bare specifier at runtime. Nothing in these
+            // two modules reaches Svelte or the SDK today, and
+            // `check-shared-runtime.mjs` fails the build if that ever changes
+            // — silently bundling a second Svelte runtime into a chunk is
+            // exactly what this plugin exists not to do.
+            []
+          : [
+                SVELTE,
+                /^@triiiceratops\/plugin-sdk(\/|$)/,
+                /^triiiceratops(\/|$)/,
+            ];
 
 /**
  * Where each externalized Svelte module is read from at runtime in the IIFE.
@@ -103,6 +219,7 @@ export default defineConfig({
             compilerOptions: { customElement: false },
         }),
         bundledCss(),
+        ...(format === 'iife' ? [chunkedIife()] : []),
     ],
     build: {
         // Lowering private fields leaks helpers outside Vite's generated IIFE.
@@ -116,15 +233,26 @@ export default defineConfig({
             external,
             output: {
                 globals,
-                inlineDynamicImports: true,
+                /*
+                    Nothing is inlined in any format. The ESM build splits its
+                    dynamic imports into hashed chunks a consumer's bundler
+                    re-splits; the IIFE's lazy halves are taken out of its graph
+                    by `chunkedIife()` and emitted by the `iife-chunks` build
+                    instead (SPEC — "Delivery and packaging", deliberate
+                    template deviation 1).
+                */
+                inlineDynamicImports: false,
                 // Only the IIFE reads core's runtime off a global, so only it
                 // needs the gate. `intro` is the one hook that lands inside the
                 // generated function and ahead of every module statement, which
                 // is what lets the gate `return` before a compiled component
                 // dereferences a helper that is not there — see
-                // src/sharedRuntimeGate.ts.
+                // src/sharedRuntimeGate.ts. The chunk-base capture goes ahead of
+                // the gate so its `return` cannot skip it.
                 ...(format === 'iife'
-                    ? { intro: sharedRuntimeGateSource() }
+                    ? {
+                          intro: CHUNK_BASE_SOURCE + sharedRuntimeGateSource(),
+                      }
                     : {}),
             },
         },

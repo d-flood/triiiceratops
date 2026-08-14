@@ -10,6 +10,7 @@
  * no reason to have turned debug on.
  */
 
+import { readBehaviors } from './behaviors';
 import type { AvCanvasScan } from './sources';
 
 /**
@@ -77,4 +78,97 @@ export function warnAboutDegradation(
                 `composed canvas through as one work is not implemented yet.`,
         );
     }
+}
+
+/**
+ * `repeat` on a Canvas, which IIIF Presentation 3 does not allow: the term is
+ * valid on Collections and Manifests only, and there it means "return to the
+ * first canvas after the last", not "loop this one recording".
+ */
+export function warnAboutCanvasRepeat(canvas: unknown): void {
+    if (!readBehaviors(canvas).includes('repeat')) return;
+
+    warnOnce(
+        canvas,
+        'canvas-repeat',
+        `Canvas ${(canvas as { id?: string }).id} carries the \`repeat\` behavior, ` +
+            `which IIIF Presentation 3 defines on Collections and Manifests only. ` +
+            `It is ignored here. \`repeat\` is not a per-canvas loop: on a Manifest, ` +
+            `and only alongside \`auto-advance\`, it returns to the first canvas ` +
+            `after the last one ends.`,
+    );
+}
+
+const warnedWaveforms = new Set<string>();
+
+/**
+ * Waveform data was linked but could not be read — a dead URL, a CORS refusal,
+ * or bytes of neither audiowaveform format.
+ *
+ * Announced once per URL rather than once per canvas, because the same file is
+ * commonly linked from several canvases and one broken publish should not fill
+ * the console. The reader sees nothing: the lane renders without a waveform and
+ * still seeks (SPEC — "Peaks model": malformed data degrades, it does not fail).
+ */
+export function warnAboutUnreadableWaveform(url: string): void {
+    if (warnedWaveforms.has(url)) return;
+    warnedWaveforms.add(url);
+
+    // triiiceratops-console-allow: the same curator-facing degradation channel
+    // as the warnings above. Recorded in lint-allowlist.md.
+    console.warn(
+        `[triiiceratops] Waveform data at ${url} could not be read as ` +
+            `audiowaveform binary (.dat) or JSON, so no waveform is drawn. The ` +
+            `timeline still seeks.`,
+    );
+}
+
+const warnedCaptions = new Set<string>();
+
+/**
+ * A caption track was attached and the browser would not load it — a dead URL,
+ * or (much the commoner cause) a server that serves the VTT cross-origin
+ * without `Access-Control-Allow-Origin`, which text tracks always require.
+ *
+ * Once per URL, for the same reason a waveform is: one caption file is commonly
+ * supplemented onto several canvases. The reader is not told, and is not shown
+ * a toggle for it either — a control that selects a track with no cues is the
+ * silent nothing user story 46 forbids.
+ */
+export function warnAboutUnloadableCaptionTrack(url: string): void {
+    if (warnedCaptions.has(url)) return;
+    warnedCaptions.add(url);
+
+    // triiiceratops-console-allow: the same curator-facing degradation channel
+    // as the warnings above. Recorded in lint-allowlist.md.
+    console.warn(
+        `[triiiceratops] The caption track at ${url} could not be loaded, so it ` +
+            `is not offered. Text tracks are always fetched with CORS: serve the ` +
+            `VTT with an \`Access-Control-Allow-Origin\` header, or from the ` +
+            `viewer's own origin.`,
+    );
+}
+
+let warnedHlsChunk = false;
+
+/**
+ * The hls.js chunk could not be loaded, so an HLS canvas that needed it gets
+ * the "can't play" treatment.
+ *
+ * Announced once per page: the cause is a property of the deployment, not of
+ * the canvas, and the commonest one is a `dist/iife.js` copied away from the
+ * sibling chunks it fetches by name.
+ */
+export function warnAboutUnloadableHlsChunk(cause: unknown): void {
+    if (warnedHlsChunk) return;
+    warnedHlsChunk = true;
+
+    // triiiceratops-console-allow: the same curator-facing degradation channel
+    // as the warnings above. Recorded in lint-allowlist.md.
+    console.warn(
+        `[triiiceratops] The hls.js chunk could not be loaded, so HLS canvases ` +
+            `cannot play. Serve dist/iife.js from its own directory, beside the ` +
+            `chunks it fetches.`,
+        cause,
+    );
 }

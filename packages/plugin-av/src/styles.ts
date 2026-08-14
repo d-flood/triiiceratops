@@ -55,13 +55,29 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
 }
 
 /*
-    The timeline lane. A styled region and a tap target in this release: the
-    waveform and the playhead are drawn into it later, which is why it takes
-    pointer events and holds no children of its own.
+    The timeline lane: a styled region, the tap target for seeking, and the box
+    the waveform's drawing surface hangs inside.
 */
 .tri-av-lane-timeline {
     background: var(--tri-panel-bg, #1c1c1c);
     border-top: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.12));
+}
+
+/*
+    The waveform. Decorative pixels over a lane that already carries the seek
+    (ADR 0016), and clipped to the visible area rather than sized to the whole
+    projected lane — see waveform/surface.ts. Its geometry is written per frame.
+
+    Deliberately no pointer-events declaration: the lane hands a drag down to
+    the renderer by going transparent for one hit test, and an "auto" here would
+    defeat it.
+*/
+.tri-av-waveform {
+    position: absolute;
+    display: block;
+}
+.tri-av-waveform[hidden] {
+    display: none;
 }
 
 .tri-av-accompanying,

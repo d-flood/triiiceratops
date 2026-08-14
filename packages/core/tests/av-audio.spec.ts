@@ -18,11 +18,9 @@
  * `pnpm build`) must have run.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { expect, test, type Page } from '@playwright/test';
 
+import { serveAvPluginDist } from './helpers/avPluginDist';
 import { AV_MANIFESTS, TONE_MP3, TONE_DURATION } from './helpers/avMedia';
 
 test.describe.configure({ timeout: 120_000 });
@@ -31,8 +29,6 @@ test.skip(
     ({ browserName }) => browserName !== 'chromium',
     'Canvas2D renderer slice is Chromium-only (see canvas-renderer.spec.ts).',
 );
-
-const PLUGIN_IIFE = join(import.meta.dirname, '../../plugin-av/dist/iife.js');
 
 const FIXTURE = '/e2e/av-plugin.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
@@ -184,12 +180,7 @@ async function openViewer(
     manifest: string,
     options: { expectStage?: boolean } = {},
 ): Promise<void> {
-    await page.route('**/plugin-av/iife.js', (route) =>
-        route.fulfill({
-            contentType: 'text/javascript',
-            body: readFileSync(PLUGIN_IIFE, 'utf8'),
-        }),
-    );
+    await serveAvPluginDist(page);
     for (const [url, json] of [
         [ACCOMPANYING_URL, ACCOMPANYING_MANIFEST],
         [PLACEHOLDER_URL, PLACEHOLDER_MANIFEST],

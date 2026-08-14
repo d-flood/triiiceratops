@@ -27,6 +27,11 @@ export const catalog: LocaleCatalog = {
         // `{current}` and `{total}` are already-formatted clock readings, so a
         // translation reorders them rather than reformatting them.
         av_position: '{current} of {total}',
+        av_captions: 'Captions',
+        av_captions_off: 'Off',
+        // The name a track that declares neither a label nor a language is
+        // listed under. Every other name in the list is authored content.
+        av_captions_track: 'Captions',
         av_elapsed: 'Elapsed time',
         av_duration: 'Total time',
     },

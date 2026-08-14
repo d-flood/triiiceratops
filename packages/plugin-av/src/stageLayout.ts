@@ -74,6 +74,37 @@ export function stageLanes(
 }
 
 /**
+ * The part of a projected rect that falls inside the overlay container's own
+ * box, or `null` when none of it does.
+ *
+ * A projection is not bounded by the container: a canvas fitted to the viewer's
+ * height overhangs it left and right, and any zoom overhangs it in both axes.
+ * The stage box has to be the CLIPPED rect rather than the projected one,
+ * because the stage's lanes take pointer events — an unclipped audio lane, which
+ * fills its whole rect, reaches out over the side columns and swallows taps
+ * aimed at the toolbar and the panels there. The lanes still divide the FULL
+ * rect; only the box drawn around them is trimmed.
+ *
+ * A container with no measured box (before layout, and in jsdom) clips nothing:
+ * the rect is unknown rather than empty, and hiding every stage would be worse
+ * than drawing one that may overhang.
+ */
+export function clipRect(
+    rect: StageRect,
+    visible: { readonly width: number; readonly height: number },
+): StageRect | null {
+    if (!(visible.width > 0) || !(visible.height > 0)) return rect;
+
+    const left = Math.max(rect.left, 0);
+    const top = Math.max(rect.top, 0);
+    const right = Math.min(rect.left + rect.width, visible.width);
+    const bottom = Math.min(rect.top + rect.height, visible.height);
+    if (!(right > left) || !(bottom > top)) return null;
+
+    return { left, top, width: right - left, height: bottom - top };
+}
+
+/**
  * Where along a lane a point at `offsetX` falls, as `0..1` — the **timeline
  * projection** in its simplest form, and the whole of tap-to-seek's geometry.
  *

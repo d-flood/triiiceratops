@@ -41,6 +41,25 @@ export const BARS_HLS_SEGMENTS = 4;
 /** Three cues spanning the colour-bars clip. */
 export const CAPTIONS_VTT = '/media/captions.vtt';
 
+/** The same three cues in Italian, for a manifest offering a choice of language. */
+export const CAPTIONS_VTT_IT = '/media/captions-it.vtt';
+
+/**
+ * A VALID WebVTT file with no cues in it.
+ *
+ * It loads — `load` fires, `readyState` reaches `LOADED` — and it captions
+ * nothing, which is a dead toggle by a different route from a refused track.
+ */
+export const CAPTIONS_VTT_EMPTY = '/media/captions-empty.vtt';
+
+/**
+ * A copy of `captions.vtt` the fixture server serves **without**
+ * `Access-Control-Allow-Origin`. Requested through the `localhost` alias from a
+ * `127.0.0.1` page it is a real cross-origin refusal — the everyday reason a
+ * curator's caption track never loads, and a different failure from a 404.
+ */
+export const NO_CORS_CAPTIONS_VTT = '/media/no-cors-captions.vtt';
+
 /** `audiowaveform` output for the tone, in both on-disk formats. */
 export const TONE_WAVEFORM_DAT = '/media/tone.dat';
 export const TONE_WAVEFORM_JSON = '/media/tone.json';

@@ -7,6 +7,8 @@
  * `AVState.currentTime` and `AVState.seek` speak.
  */
 
+import type { CaptionTrack } from './captions';
+
 /**
  * Narrowest projected canvas width, in SCREEN pixels, that still gets a
  * transport.
@@ -116,6 +118,36 @@ export function bufferedSpans(
         if (end > start) spans.push({ start, end });
     }
     return spans;
+}
+
+/** One selectable caption track, as the control row lists it. */
+export interface CaptionOption {
+    /** The track's URL — its identity through AVState-free caption commands. */
+    readonly id: string;
+    readonly label: string;
+}
+
+/**
+ * The caption tracks as a reader reads them: the resource's own label, with its
+ * language beside it when it declares one, because "Captions in WebVTT format"
+ * is what both caption cookbook recipes write for every language they offer and
+ * a list of identical labels is not a choice.
+ *
+ * The labels are authored content and are never translated. `fallback` is the
+ * localized generic — the one string here that is the viewer's to say — for a
+ * track that declares neither a label nor a language.
+ */
+export function captionOptions(
+    tracks: readonly CaptionTrack[],
+    fallback: string,
+): CaptionOption[] {
+    return tracks.map((track) => ({
+        id: track.url,
+        label:
+            track.label && track.language
+                ? `${track.label} (${track.language})`
+                : (track.label ?? track.language ?? fallback),
+    }));
 }
 
 /**

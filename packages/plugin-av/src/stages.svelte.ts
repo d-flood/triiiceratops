@@ -25,10 +25,21 @@ import { isUnsupportedCanvas } from 'triiiceratops';
 import type { AVState } from './avState';
 import { createAvState } from './avPlayback';
 import {
+    endOfTimelineAction,
+    playlistBehaviors,
+    readBehaviors,
+    type PlaylistBehaviors,
+} from './behaviors';
+import { captionTracksForCanvas } from './captions';
+import {
     resolveAccompanyingImage,
     resolvePlaceholderImage,
 } from './companionCanvases';
-import { warnAboutDegradation } from './degradation';
+import {
+    warnAboutCanvasRepeat,
+    warnAboutDegradation,
+    warnAboutUnreadableWaveform,
+} from './degradation';
 import {
     createMediaStage,
     type MediaStage,
@@ -37,12 +48,15 @@ import {
 import { reportAvCommandError } from './reportError';
 import { scanCanvasForAv, type AvCanvasScan } from './sources';
 import { stageLayoutKind } from './stageLayout';
+import { createOffsetSeeker } from './temporalOffsets';
 import { fractionToTime } from './transport';
 import {
     createAudioPrefs,
     createTransport,
     type TransportLabels,
 } from './transport.svelte';
+import type { VisibleBox } from './waveform/surface';
+import { loadPeaks, waveformUrlFor } from './waveformLink';
 
 /** What the throwaway control panel renders one stage as. */
 export interface AvStageView {
@@ -71,6 +85,13 @@ interface StageEntry {
     readonly stage: MediaStage;
     readonly scan: AvCanvasScan;
     readonly release: () => void;
+    /** This canvas's own `behavior` terms — `auto-advance` is read off them. */
+    readonly behaviors: readonly string[];
+    /**
+     * The whole recording drawn once as a picture, for the scrubber's strip —
+     * `null` until (or unless) waveform data resolves for this canvas.
+     */
+    strip: string | null;
 }
 
 /** The last path segment of a canvas id — enough to tell two stages apart. */
@@ -159,6 +180,9 @@ export function createAvStageManager(
             volume: t('av_volume'),
             elapsed: t('av_elapsed'),
             duration: t('av_duration'),
+            captions: t('av_captions'),
+            captionsOff: t('av_captions_off'),
+            captionsTrack: t('av_captions_track'),
         };
     }
 
@@ -177,6 +201,18 @@ export function createAvStageManager(
         currentMedia: () => currentEntry()?.stage.media ?? null,
         prefs,
         labels: transportLabels,
+        peaksStrip: () => currentEntry()?.strip ?? null,
+        // Read off the stage each time rather than mirrored here: the loaded
+        // set is decided asynchronously, per element, as each track's fetch
+        // settles.
+        captions: () => {
+            const stage = currentEntry()?.stage;
+            return {
+                tracks: stage?.captionTracks ?? [],
+                active: stage?.activeCaptionTrack ?? null,
+            };
+        },
+        setCaptionTrack: (id) => currentEntry()?.stage.setCaptionTrack(id),
         t: (key, params) => context.locale.t(key, params),
     });
 
@@ -228,13 +264,33 @@ export function createAvStageManager(
         };
     }
 
+    /**
+     * The overlay container's own box — the area a reader can actually see.
+     * The waveform surfaces clip against it so their backing stores stay
+     * viewport-sized however far the canvas is zoomed in.
+     */
+    function visibleBox(): VisibleBox {
+        // The container core hands a plugin is `display: contents` and has no
+        // box of its own — the wrapper it sits in is what the stages' absolute
+        // geometry is measured against. Walk up to whatever actually has one
+        // rather than naming core's element, which is core's to rename.
+        let node: HTMLElement | null = layer;
+        while (node && node.clientWidth === 0 && node.clientHeight === 0)
+            node = node.parentElement;
+        return {
+            width: node?.clientWidth ?? 0,
+            height: node?.clientHeight ?? 0,
+        };
+    }
+
     function placeAll(): void {
         const current = currentEntry();
+        const visible = visibleBox();
         let transportShowing = false;
 
         for (const entry of entries.values()) {
             const rect = rectFor(entry.scan);
-            entry.stage.place(rect);
+            entry.stage.place(rect, visible);
             if (entry === current) transportShowing = transport.place(rect);
         }
         if (!current) transport.place(null);
@@ -245,6 +301,66 @@ export function createAvStageManager(
         for (const entry of entries.values()) {
             entry.stage.setGlyphVisible(entry !== current || !transportShowing);
         }
+    }
+
+    /** Whether `auto-advance` governs this canvas — its own term, or the manifest's. */
+    function autoAdvances(
+        canvasId: string,
+        manifest: PlaylistBehaviors,
+    ): boolean {
+        if (manifest.autoAdvance) return true;
+        return (
+            entries.get(canvasId)?.behaviors.includes('auto-advance') ?? false
+        );
+    }
+
+    /**
+     * Take the playlist step the decision asked for: move the viewer, then start
+     * the canvas it arrived at from the beginning.
+     *
+     * Continuing to play across the boundary is not autoplay — this only runs
+     * because the reader pressed play and playback ran off the end. From the
+     * beginning because the arrived-at media may be resting where an earlier
+     * pass through the playlist left it.
+     */
+    function continuePlayback(action: 'advance' | 'restart'): void {
+        if (action === 'advance') viewerState.nextCanvas();
+        else {
+            const first = canvasIdOf(viewerState.canvases[0]);
+            if (!first) return;
+            viewerState.setCanvas(first);
+        }
+
+        // Silence rather than a refusal when the canvas arrived at is not this
+        // plugin's: advancing into an image page is a complete playlist step,
+        // not a failed command.
+        publication.sync();
+        const arrived = currentEntry();
+        if (!arrived) return;
+        // Before playing, not after: the transport carries the reader's mute
+        // and volume to a newly-current element on its own refresh, which is a
+        // microtask away — and an element that starts unmuted because of it is
+        // one a browser's autoplay policy may simply refuse.
+        prefs.applyTo(arrived.stage.media);
+        publication.state.seek(0);
+        publication.state.play();
+    }
+
+    /**
+     * The end of a claimed canvas's timeline, on the canvas the viewer is
+     * showing: `auto-advance` moves on, and `repeat` — the manifest's, alongside
+     * `auto-advance` — wraps back to the first canvas rather than stopping.
+     */
+    function onTimelineEnd(canvasId: string): void {
+        if (viewerState.canvasId !== canvasId) return;
+
+        const manifest = playlistBehaviors(viewerState.manifestEntry?.json);
+        const action = endOfTimelineAction(
+            autoAdvances(canvasId, manifest),
+            manifest.repeat,
+            viewerState.hasNext,
+        );
+        if (action !== 'stop') continuePlayback(action);
     }
 
     function cannotPlayMessage(): string {
@@ -284,7 +400,13 @@ export function createAvStageManager(
             layout,
             accompanying,
             placeholder: resolvePlaceholderImage(canvas),
+            duration: scan.duration,
             cannotPlayMessage: cannotPlayMessage(),
+            captions: captionTracksForCanvas(canvas),
+            // A track settling changes whether there is a toggle at all, and
+            // that is not playback state, so no AVState cadence would ever
+            // pull the transport forward on its own.
+            onCaptionTracksChange: () => transport.refresh(),
             onPlayStateChange: publishViews,
             // Through AVState, never into the element: a tap is the same seek a
             // host issues, clamped and refused by the same rules.
@@ -299,12 +421,51 @@ export function createAvStageManager(
                 const seconds = fractionToTime(fraction, duration);
                 if (seconds !== null) publication.state.seek(seconds);
             },
+            onTimelineEnd: () => onTimelineEnd(scan.canvasId),
         });
         prefs.applyTo(stage.media);
-        stage.place(rect);
+        stage.place(rect, visibleBox());
         // Before the transport, which is appended last and must stay on top.
         layer?.insertBefore(stage.root, transport.root);
-        entries.set(scan.canvasId, { stage, scan, release });
+        const entry: StageEntry = {
+            stage,
+            scan,
+            release,
+            behaviors: readBehaviors(canvas),
+            strip: null,
+        };
+        entries.set(scan.canvasId, entry);
+        attachWaveform(entry, canvas);
+    }
+
+    /**
+     * Resolve this canvas's waveform data, if it links any, and give it to the
+     * stage and to the scrubber.
+     *
+     * Fire-and-forget: a waveform is an enhancement over a lane that already
+     * seeks, so nothing waits for it and nothing fails without it. The
+     * `await import()` inside `loadPeaks` is what keeps every byte of parsing
+     * and rendering off a page whose manifests link none.
+     */
+    function attachWaveform(entry: StageEntry, canvas: unknown): void {
+        const url = waveformUrlFor(canvas);
+        if (!url) return;
+
+        void loadPeaks(url).then((loaded) => {
+            // The canvas may have gone, or been restaged, while this was in
+            // flight; adopting into a destroyed stage would draw into detached
+            // DOM and leak the peaks with it.
+            if (!loaded || entries.get(entry.scan.canvasId) !== entry) {
+                if (!loaded) warnAboutUnreadableWaveform(url);
+                return;
+            }
+            entry.stage.adoptWaveform(loaded.module, loaded.peaks);
+            entry.strip = loaded.module.renderPeaksStrip(loaded.peaks);
+            // The strip is not playback state, so nothing about AVState changed
+            // and no cadence will pull the transport forward on its own.
+            transport.refresh();
+            publishViews();
+        });
     }
 
     function removeStage(canvasId: string): void {
@@ -328,6 +489,11 @@ export function createAvStageManager(
         >();
 
         for (const canvas of viewerState.canvases) {
+            // Ahead of the AV scan: `repeat` is misplaced on ANY canvas, and a
+            // curator who put it on a page of images needs telling as much as
+            // one who put it on a recording.
+            warnAboutCanvasRepeat(canvas);
+
             const scan = scanCanvasForAv(canvas);
             if (!scan) continue;
 
@@ -389,9 +555,43 @@ export function createAvStageManager(
             placeAll();
         });
 
+    const offsets = createOffsetSeeker({
+        mediaFor: (canvasId) => entries.get(canvasId)?.stage.media ?? null,
+        // The same path a host's `seek` takes, so an offset is clamped and
+        // refused by the same rules. Only ever for the canvas the viewer is on:
+        // a held offset can come due after the reader has navigated away, and
+        // AVState addresses the current canvas alone.
+        seek: (canvasId, seconds) => {
+            if (viewerState.canvasId === canvasId)
+                publication.state.seek(seconds);
+        },
+    });
+
+    // The offset is a fact about the navigation that just happened, replaced
+    // whole (or nulled) by the next one — so a new one supersedes a held one and
+    // a navigation carrying no time drops it. Selected by identity: core
+    // reassigns the object per navigation, so re-entering the same chapter seeks
+    // again rather than being memoized away.
+    const stopOffsets = context.selectors
+        .select((state) => state.temporalOffset)
+        .subscribe((offset) => offsets.apply(offset));
+
     // `frame` means "the image moved" — the cadence that keeps the media inside
     // the canvas rect through a pan or a zoom.
     const stopFrames = viewerState.subscribeFrame(placeAll);
+
+    /**
+     * The playhead's cadence: AVState's own frame notification, which runs while
+     * something is playing and stops when nothing is.
+     *
+     * Each lane paints its OWN element's `currentTime` rather than AVState's.
+     * AVState addresses the current canvas alone, so every other claimed
+     * canvas's lane would otherwise draw a playhead taken from a recording it is
+     * not showing — the same "chrome that lies" the single transport avoids.
+     */
+    const stopPlayheads = publication.state.subscribeFrame(() => {
+        for (const entry of entries.values()) entry.stage.paintWaveform();
+    });
 
     const stopLocale = context.locale.subscribe(() => {
         const message = cannotPlayMessage();
@@ -402,6 +602,10 @@ export function createAvStageManager(
     });
 
     sync();
+    // A selector notifies on change and not on subscription, so an offset the
+    // viewer already carries — a manifest `start`, or a content state, resolved
+    // before this activation mounted — has to be picked up once by hand.
+    offsets.apply(viewerState.temporalOffset);
 
     return {
         get views(): readonly AvStageView[] {
@@ -412,7 +616,10 @@ export function createAvStageManager(
             publication.destroy();
             stopCurrent();
             stopRescan();
+            stopOffsets();
+            offsets.destroy();
             stopFrames();
+            stopPlayheads();
             stopLocale();
             transport.destroy();
             for (const canvasId of [...entries.keys()]) removeStage(canvasId);

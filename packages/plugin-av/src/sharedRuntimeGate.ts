@@ -45,6 +45,7 @@ export const REQUIRED_SVELTE_EXPORTS: readonly string[] = [
 export const REQUIRED_SVELTE_INTERNALS: readonly string[] = [
     'append',
     'bind_select_value',
+    'bind_this',
     'child',
     'delegate',
     'derived',

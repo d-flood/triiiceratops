@@ -811,6 +811,14 @@ contract, not a coincidence: a projected point is already the container's own
 coordinates, so no rect correction, no `getBoundingClientRect`, no offset
 arithmetic.
 
+**The container itself is `display: contents`, so it has no box of its own**: its
+`clientWidth`/`clientHeight` and its `getBoundingClientRect()` are all zero, and
+it is the wrapper core puts it in that is the positioning box your absolutely
+positioned children resolve against. Position children against
+`canvasToScreen` output as above; if you need the visible extent (to clip a
+backing store, say), walk up from the container to the first ancestor that has a
+box rather than measuring the container.
+
 ```ts
 import type { PluginContext } from 'triiiceratops';
 

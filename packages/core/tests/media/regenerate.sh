@@ -70,5 +70,10 @@ ffmpeg -y -i bars.mp4 -c copy \
 audiowaveform -i tone.mp3 -o tone.dat -z 256 -b 16
 audiowaveform -i tone.mp3 -o tone.json -z 256 -b 16
 
-# `captions.vtt` is hand-written — three cues over the two seconds of colour
-# bars — and is not regenerated here.
+# The four VTT files are hand-written and are not regenerated here.
+# `captions.vtt` is three cues over the two seconds of colour bars;
+# `captions-it.vtt` is the same cues in Italian, so a fixture can offer a choice
+# of languages; `no-cors-captions.vtt` is a copy of `captions.vtt` whose NAME is
+# what makes the fixture server serve it without `Access-Control-Allow-Origin`
+# (see `scripts/mediaFixturePlugin.mjs`); `captions-empty.vtt` is a valid file
+# with no cues in it, which loads and captions nothing.
