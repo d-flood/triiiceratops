@@ -2,8 +2,10 @@
  * The IIFE's **version-skew gate**: the check that runs before any of this
  * plugin's code does.
  *
- * This plugin does not bundle Svelte; its compiled components call helpers off
- * `window.Triiiceratops.svelteInternal` (see `vite.config.ts`). Those calls
+ * This plugin bundles neither Svelte nor core's own utilities; its compiled
+ * components call helpers off `window.Triiiceratops.svelteInternal` and its
+ * modules read four functions off `window.Triiiceratops.core` (see
+ * `vite.config.ts`). Those references
  * happen at MODULE scope — a compiled component's `$.from_html(...)` template
  * constant is evaluated when the script is evaluated — so by the time
  * `definePlugin`'s `coreRange` / `pluginApiRange` / `requiredCapabilities`
@@ -44,25 +46,29 @@ export const REQUIRED_SVELTE_EXPORTS: readonly string[] = [
  */
 export const REQUIRED_SVELTE_INTERNALS: readonly string[] = [
     'append',
-    'bind_select_value',
     'bind_this',
     'child',
-    'delegate',
-    'derived',
-    'each',
-    'first_child',
     'from_html',
     'get',
-    'if',
     'pop',
+    'proxy',
     'push',
     'reset',
     'set',
-    'set_text',
-    'sibling',
     'state',
-    'template_effect',
-    'text',
+];
+
+/**
+ * The `window.Triiiceratops.core` utilities this plugin's modules import from
+ * `triiiceratops`. Its IIFE externalizes core, so these are dereferenced at
+ * module scope exactly as the Svelte helpers are, and skew must be reported
+ * here rather than left to throw.
+ */
+export const REQUIRED_CORE_UTILS: readonly string[] = [
+    'getPaintingAnnotations',
+    'isImageBody',
+    'isUnsupportedCanvasFor',
+    'paintingBodyAlternatives',
 ];
 
 const ABSENT_MESSAGE =
@@ -87,6 +93,14 @@ const SKEW_MESSAGE_MIDDLE =
 const SKEW_MESSAGE_SUFFIX =
     '. Core and this plugin ship from one repository at one Svelte version; ' +
     'load matching versions of both.';
+
+const CORE_UTILS_MESSAGE_MIDDLE =
+    ' is on this page but does not publish the curated core utilities this ' +
+    'plugin reads instead of bundling its own copies. Missing utilities: ';
+
+const CORE_UTILS_MESSAGE_SUFFIX =
+    '. Core and this plugin ship from one repository at one version; load ' +
+    'matching versions of both.';
 
 /**
  * The gate, as JavaScript source, for `rollupOptions.output.intro`.
@@ -123,6 +137,21 @@ if (__triAvMissing.length > 0) {
             ${literal(SKEW_MESSAGE_MIDDLE)} +
             __triAvMissing.join(', ') +
             ${literal(SKEW_MESSAGE_SUFFIX)},
+    );
+    return;
+}
+var __triAvCore = __triAvNs.core || {};
+var __triAvMissingCore = ${literal(REQUIRED_CORE_UTILS)}
+    .filter(function (name) { return typeof __triAvCore[name] !== 'function'; });
+if (__triAvMissingCore.length > 0) {
+    // triiiceratops-console-allow: see lint-allowlist.md — same last-resort
+    // diagnostic, for a core that publishes no curated utilities to read.
+    console.error(
+        ${literal(SKEW_MESSAGE_PREFIX)} +
+            (__triAvNs.coreVersion || '(unknown version)') +
+            ${literal(CORE_UTILS_MESSAGE_MIDDLE)} +
+            __triAvMissingCore.join(', ') +
+            ${literal(CORE_UTILS_MESSAGE_SUFFIX)},
     );
     return;
 }

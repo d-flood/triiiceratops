@@ -19,7 +19,8 @@
  * **Activation**).
  *
  * The namespace also carries core's **shared Svelte runtime** — see
- * {@link SharedSvelteRuntime}.
+ * {@link SharedSvelteRuntime} — and its **shared core utilities** — see
+ * {@link SharedCoreUtils}.
  */
 
 import type { SdkPlugin } from './types/plugin';
@@ -120,6 +121,37 @@ export interface SharedSvelteRuntime {
 // `output.globals`, not through TypeScript.
 
 /**
+ * Core's **shared core utilities**: a curated handful of core's own functions a
+ * first-party plugin IIFE reads off this namespace instead of bundling a second
+ * copy of the modules behind them.
+ *
+ * Same privilege as {@link SharedSvelteRuntime}, granted the same way and fenced
+ * by the same three rules:
+ *
+ * 1. **The list is curated and small; never `export *`.** A name goes on it
+ *    because a first-party plugin reads it now, and the initial set is exactly
+ *    the four `@triiiceratops/plugin-av` reads. `export *` would defeat
+ *    tree-shaking and retain core's whole utility surface, which is the thing
+ *    this mechanism exists to avoid.
+ * 2. **Growth is gated by the size ratchet.** Every function here is already
+ *    retained by core's shipped graph, so exposing it costs core essentially
+ *    nothing. A utility core does NOT already retain moves the element baseline,
+ *    and that alarm reads as "plugin bytes are moving into core" — never as
+ *    something to re-baseline away.
+ * 3. **Version skew fails closed, twice.** The `shared-core-utils` capability
+ *    refuses activation on a core that publishes no such member; and the
+ *    consuming bundle's own skew gate checks the namespace ahead of its first
+ *    module statement, because a compiled module dereferences these at load,
+ *    long before activation could refuse anything.
+ *
+ * This is a FIRST-PARTY-ONLY privilege, as the Svelte runtime is, and for the
+ * same reason: it holds only because core and plugin are built and released from
+ * one repository at one version. `docs/plugin-authoring.md` goes on telling
+ * third-party authors to bundle their own copies.
+ */
+export type SharedCoreUtils = Readonly<Record<string, unknown>>;
+
+/**
  * The browser runtime descriptor (SPEC.md — normative shape). `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
  * them; the `plugins` registry exists from first bootstrap so plugins can
@@ -134,6 +166,8 @@ export interface TriiiceratopsBrowserRuntime {
     readonly svelte: SharedSvelteRuntime['svelte'];
     /** See {@link SharedSvelteRuntime}. Filled only by core. */
     readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
+    /** See {@link SharedCoreUtils}. Filled only by core. */
+    readonly core: SharedCoreUtils;
 }
 
 declare global {
@@ -226,6 +260,7 @@ function createBrowserRuntime(): TriiiceratopsBrowserRuntime {
         // which has no Svelte to share.
         svelte: {},
         svelteInternal: {},
+        core: {},
     };
 }
 
@@ -272,6 +307,13 @@ export interface InstallCoreOptions {
      * callers that have no business shipping a Svelte runtime.
      */
     svelteRuntime?: SharedSvelteRuntime;
+    /**
+     * The {@link SharedCoreUtils} to publish on the namespace. Supplied by the
+     * Web Component entries from `shared-core-utils.ts`, and passed in rather
+     * than imported here for the same reason the Svelte runtime is: this module
+     * is reached by the framework substrate behind `./react` and `./vue`.
+     */
+    coreUtils?: SharedCoreUtils;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -310,6 +352,9 @@ export function installBrowserRuntime(
         if (options.svelteRuntime) {
             mutable.svelte = options.svelteRuntime.svelte;
             mutable.svelteInternal = options.svelteRuntime.svelteInternal;
+        }
+        if (options.coreUtils) {
+            mutable.core = options.coreUtils;
         }
         defineViewerElement(options.elementCtor, tag, target);
         return runtime;

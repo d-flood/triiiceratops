@@ -8,13 +8,18 @@
  * DOM in an overlay layer over each claimed canvas, built and placed by
  * `createAvStageManager`.
  *
- * `requiredCapabilities` names both seams this plugin cannot work without, so it
+ * `requiredCapabilities` names the seams this plugin cannot work without, so it
  * fails closed rather than half-working:
  *
  * - `canvas-claim` — without it the plugin would render over an
  *   unsupported-content placard it cannot suppress.
  * - `shared-svelte-runtime` — without it there is no `window.Triiiceratops`
  *   Svelte to consume, and this plugin's IIFE bundles none of its own.
+ * - `shared-core-utils` — without it there are no curated core utilities on the
+ *   namespace, and this plugin's IIFE bundles no copies of its own either.
+ * - `transport-chrome` — without it there is nowhere to register the playback
+ *   controls, and this plugin builds none of its own: a reader would get a
+ *   staged recording with no way to play it.
  *
  * `coreRange` is pinned EXACTLY, not as a lower bound. `>=` would be satisfied
  * by a core 2.0 on a future Svelte, and `svelte/internal` is private API with no
@@ -56,9 +61,9 @@ const view: PluginView = {
         const releaseBundled = context.styles.install(BUNDLED_CSS, 'bundled');
 
         // The stages exist whether or not the panel is open: the reader watches
-        // the canvas, not this chrome. Building them mounts the transport, so
-        // this is the first thing here that can throw — and it throws before it
-        // has registered a layer or claimed a canvas, leaving only the styles
+        // the canvas, not this chrome. Building them builds DOM, so this is the
+        // first thing here that can throw — and it throws before it has
+        // registered a layer or claimed a canvas, leaving only the styles
         // installed above to unwind.
         let stages;
         try {
@@ -112,7 +117,12 @@ export const AvPlugin: SdkPlugin = definePlugin({
     version: VERSION,
     coreRange: '1.0.0-rc.36',
     pluginApiRange: '^1.2.0',
-    requiredCapabilities: ['canvas-claim', 'shared-svelte-runtime'],
+    requiredCapabilities: [
+        'canvas-claim',
+        'shared-svelte-runtime',
+        'shared-core-utils',
+        'transport-chrome',
+    ],
     icon: FILM_STRIP_ICON,
     target: 'panel',
     catalog,

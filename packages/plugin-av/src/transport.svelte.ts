@@ -1,32 +1,30 @@
 /**
- * The transport's host: the positioned box the component is mounted into, the
- * view model it renders from, and the activation-wide audio preferences.
+ * The **transport chrome** this plugin registers: the view model core reads on
+ * its own cadence, the command port every control goes through, and the
+ * activation-wide audio preferences behind the volume and mute values.
  *
- * The split is the same one the stage makes and for the same reason. Placement
- * runs on every frame the viewport moves and is written straight to the
- * wrapper's style; everything a reader can see inside it is Svelte, driven from
- * a `$state` view model this module keeps in step with AVState's two cadences.
+ * There is no DOM here and no component. Core owns the controls, their layout
+ * and their keyboard behaviour (CONTEXT.md **Transport chrome**); this module
+ * owns the facts they render, which are AVState's plus the handful of things
+ * beside it that are not playback state — the buffered ranges, the waveform
+ * strip, and which text tracks actually loaded.
  *
- * The box is a SIBLING of the stage, not a child, because its size is in screen
- * pixels and the stage's is in projected canvas pixels: only the box's `x` and
- * `width` follow the projection, so the controls stay the same size at every
- * zoom (user story 9).
+ * Times crossing to core are FRACTIONS of the canvas timeline, never seconds:
+ * core knows no clock. `seek` converts back at this boundary, and the seek-step
+ * policy stays here, on the view.
  */
 
-import { mount, unmount } from 'svelte';
-
 import type { AVState } from './avState';
-import type { StageRect } from './mediaStage';
-import TransportControls from './Transport.svelte';
 import type { CaptionTrack } from './captions';
 import {
     type BufferedSpan,
     bufferedSpans,
-    type CaptionOption,
     captionOptions,
     elementSpans,
-    fitsTransport,
     formatMediaTime,
+    fractionToTime,
+    SEEK_STEP_LARGE,
+    SEEK_STEP_SMALL,
     timeFraction,
     type TimeSpan,
     volumeIsSettable,
@@ -49,16 +47,17 @@ export interface TransportLabels {
     readonly captionsTrack: string;
 }
 
-/** The caption tracks on offer and which one is showing. */
-export interface CaptionsView {
-    /** Only tracks that LOADED, so a control here can never be inert. */
-    options: CaptionOption[];
-    /** The showing track's id, or `null` for off. */
-    active: string | null;
-}
-
-/** What the component renders. Every member is published playback state. */
+/**
+ * The view model, in this plugin's own vocabulary.
+ *
+ * Structurally core's `TransportChromeView` with two differences that are this
+ * side's business: captions are named captions rather than "alternative text
+ * tracks", and the labels are this plugin's catalog keys. {@link Transport.view}
+ * is where the two meet.
+ */
 export interface TransportView {
+    /** A current canvas this activation has claimed. `false` renders nothing. */
+    present: boolean;
     paused: boolean;
     duration: number | null;
     currentTime: number;
@@ -72,8 +71,8 @@ export interface TransportView {
     /**
      * The scrubber's `aria-valuetext`: the playhead as a localized clock
      * reading, because "127" is not a position a listener can place. It lives
-     * on the view model rather than being formatted in the component so that a
-     * locale change re-announces it even on a paused canvas, where no clock
+     * on the view model rather than being formatted by the render site so that
+     * a locale change re-announces it even on a paused canvas, where no clock
      * tick would otherwise recompute it.
      */
     position: string;
@@ -83,19 +82,11 @@ export interface TransportView {
      * waveform data reaches a video canvas, which gets no timeline lane in v1.
      */
     peaksStrip: string | null;
-    captions: CaptionsView;
+    /** Only tracks that LOADED, so a control over them can never be inert. */
+    captionOptions: { id: string; label: string }[];
+    /** The showing track's id, or `null` for off. */
+    activeCaption: string | null;
     labels: TransportLabels;
-}
-
-/** What the component may do. Everything is an AVState command. */
-export interface TransportPort {
-    /** Play if paused, pause if playing. */
-    toggle(): void;
-    seek(seconds: number): void;
-    setMuted(muted: boolean): void;
-    setVolume(volume: number): void;
-    /** Show one caption track, or `null` for off. */
-    setCaptionTrack(id: string | null): void;
 }
 
 /**
@@ -170,15 +161,57 @@ export interface TransportOptions {
     t(key: string, params?: Record<string, string | number>): string;
 }
 
+/** The playback commands core's controls reach. Everything is an AVState command. */
+export interface TransportPort {
+    toggle(): void;
+    /** Seek to a fraction `0..1` of the canvas timeline. */
+    seek(fraction: number): void;
+    setMuted(muted: boolean): void;
+    setVolume(volume: number): void;
+    setTrack(id: string | null): void;
+}
+
 export interface Transport {
-    /** The positioned box, to be appended to the plugin's overlay layer. */
-    readonly root: HTMLElement;
     /**
-     * Anchor the transport to a projected canvas rect, or hide it when there is
-     * none. Answers whether it is showing, which is the question the stage's
-     * play-state glyph is the other half of.
+     * The chrome as core reads it. Shaped to core's `TransportChromeView` —
+     * kept structural rather than typed against the import so this module's own
+     * tests need no core.
      */
-    place(rect: StageRect | null): boolean;
+    view(): {
+        present: boolean;
+        paused: boolean;
+        duration: number | null;
+        currentTime: number;
+        fraction: number;
+        buffered: readonly { start: number; end: number }[];
+        muted: boolean;
+        volume: number;
+        volumeSettable: boolean;
+        positionText: string;
+        elapsedText: string;
+        durationText: string;
+        strip: string | null;
+        tracks: readonly { id: string; label: string }[];
+        activeTrack: string | null;
+        stepSmall: number;
+        stepLarge: number;
+        labels: {
+            transport: string;
+            play: string;
+            pause: string;
+            elapsed: string;
+            seek: string;
+            duration: string;
+            mute: string;
+            unmute: string;
+            volume: string;
+            tracks: string;
+            tracksOff: string;
+        };
+    };
+    readonly port: TransportPort;
+    /** Core's re-read cadence: AVState's two, handed over. Returns an unsubscribe. */
+    subscribe(onChange: () => void): () => void;
     /**
      * Re-read the view model now. AVState's own cadences cover everything that
      * is playback state; this is for the facts beside it that change on nobody's
@@ -193,12 +226,8 @@ export interface Transport {
 export function createTransport(options: TransportOptions): Transport {
     const { avState, prefs } = options;
 
-    const root = document.createElement('div');
-    root.className = 'tri-av-transport-anchor';
-    root.dataset.testid = 'av-transport-anchor';
-    root.hidden = true;
-
     const view = $state<TransportView>({
+        present: false,
         paused: true,
         duration: null,
         currentTime: 0,
@@ -209,13 +238,27 @@ export function createTransport(options: TransportOptions): Transport {
         volumeSettable: true,
         position: '',
         peaksStrip: null,
-        captions: { options: [], active: null },
+        captionOptions: [],
+        activeCaption: null,
         labels: options.labels(),
     });
 
     // Probing costs a write and a read on the element, so it is done once per
     // element rather than once per frame.
     let probed: HTMLMediaElement | null = null;
+
+    /**
+     * Who core tells when to re-read: one callback, the render site's.
+     *
+     * Deliberately non-reactive. Nothing on this side renders from the set —
+     * the signal is the callback, which core turns into its own state write.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const listeners = new Set<() => void>();
+
+    function announce(): void {
+        for (const listener of [...listeners]) listener();
+    }
 
     /** The playhead as the announced clock reading, in the active locale. */
     function positionText(): string {
@@ -237,6 +280,10 @@ export function createTransport(options: TransportOptions): Transport {
             prefs.applyTo(media);
         }
 
+        // No current claimed canvas is the transient case a navigation to an
+        // image page puts the chrome in. It stays REGISTERED and renders
+        // nothing, rather than deregistering and re-registering per page.
+        view.present = media !== null;
         view.paused = avState.paused;
         view.duration = avState.duration;
         view.currentTime = avState.currentTime;
@@ -251,10 +298,13 @@ export function createTransport(options: TransportOptions): Transport {
         view.peaksStrip = options.peaksStrip();
 
         const captions = options.captions();
-        view.captions = {
-            options: captionOptions(captions.tracks, view.labels.captionsTrack),
-            active: captions.active,
-        };
+        view.captionOptions = captionOptions(
+            captions.tracks,
+            view.labels.captionsTrack,
+        );
+        view.activeCaption = captions.active;
+
+        announce();
     }
 
     const port: TransportPort = {
@@ -262,7 +312,11 @@ export function createTransport(options: TransportOptions): Transport {
             if (view.paused) avState.play();
             else avState.pause();
         },
-        seek(seconds: number): void {
+        seek(fraction: number): void {
+            // Core's coordinate is the scrubber's; the canvas timeline's is
+            // seconds. The conversion lives here because core knows no clock.
+            const seconds = fractionToTime(fraction, view.duration);
+            if (seconds === null) return;
             avState.seek(seconds);
             // AVState notifies on its own cadence; pulling the view forward now
             // keeps a keyboard-repeat seek from lagging a frame behind the key.
@@ -273,7 +327,7 @@ export function createTransport(options: TransportOptions): Transport {
             avState.setMuted(muted);
             refresh();
         },
-        setCaptionTrack(id: string | null): void {
+        setTrack(id: string | null): void {
             options.setCaptionTrack(id);
             refresh();
         },
@@ -287,31 +341,54 @@ export function createTransport(options: TransportOptions): Transport {
         },
     };
 
-    const app = mount(TransportControls, {
-        target: root,
-        props: { view, port },
-    });
-
     const stopState = avState.subscribe(refresh);
     const stopFrames = avState.subscribeFrame(refresh);
     refresh();
 
     return {
-        root,
-        refresh,
-        place(rect: StageRect | null): boolean {
-            const showing = rect !== null && fitsTransport(rect.width);
-            root.hidden = !showing;
-            if (!showing) return false;
-
-            root.style.left = `${rect.left}px`;
-            root.style.width = `${rect.width}px`;
-            // The rect's BOTTOM edge: the box is laid out upwards from there by
-            // its own height, which is in screen pixels and therefore unknown
-            // here. CSS does the subtraction (see `translate` in styles.ts).
-            root.style.top = `${rect.top + rect.height}px`;
-            return true;
+        view() {
+            const { labels } = view;
+            return {
+                present: view.present,
+                paused: view.paused,
+                duration: view.duration,
+                currentTime: view.currentTime,
+                fraction: view.fraction,
+                buffered: view.buffered,
+                muted: view.muted,
+                volume: view.volume,
+                volumeSettable: view.volumeSettable,
+                positionText: view.position,
+                elapsedText: formatMediaTime(view.currentTime, view.duration),
+                durationText: formatMediaTime(view.duration, view.duration),
+                strip: view.peaksStrip,
+                tracks: view.captionOptions,
+                activeTrack: view.activeCaption,
+                stepSmall: SEEK_STEP_SMALL,
+                stepLarge: SEEK_STEP_LARGE,
+                labels: {
+                    transport: labels.transport,
+                    play: labels.play,
+                    pause: labels.pause,
+                    elapsed: labels.elapsed,
+                    seek: labels.seek,
+                    duration: labels.duration,
+                    mute: labels.mute,
+                    unmute: labels.unmute,
+                    volume: labels.volume,
+                    tracks: labels.captions,
+                    tracksOff: labels.captionsOff,
+                },
+            };
         },
+        port,
+        subscribe(onChange: () => void): () => void {
+            listeners.add(onChange);
+            return () => {
+                listeners.delete(onChange);
+            };
+        },
+        refresh,
         retranslate(): void {
             view.labels = options.labels();
             view.position = positionText();
@@ -322,8 +399,7 @@ export function createTransport(options: TransportOptions): Transport {
         destroy(): void {
             stopState();
             stopFrames();
-            void unmount(app);
-            root.remove();
+            listeners.clear();
         },
     };
 }

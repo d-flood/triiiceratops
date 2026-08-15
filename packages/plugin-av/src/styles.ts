@@ -127,26 +127,6 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
     display: none;
 }
 
-/*
-    The transport's anchor box.
-
-    A SIBLING of the stage rather than a child: left/width come from the
-    projected canvas rect, but everything inside is sized in screen pixels, so
-    nesting it in a box that scales with the zoom would scale the controls too.
-    top is written as the rect's BOTTOM edge and the box lays itself out
-    upwards from there, because its own height is only known after layout.
-*/
-.tri-av-transport-anchor {
-    position: absolute;
-    box-sizing: border-box;
-    padding: 0 0.5rem 0.5rem;
-    translate: 0 -100%;
-    pointer-events: none;
-}
-.tri-av-transport-anchor[hidden] {
-    display: none;
-}
-
 .tri-av-unplayable {
     padding: 0.75rem 1rem;
     max-width: 100%;

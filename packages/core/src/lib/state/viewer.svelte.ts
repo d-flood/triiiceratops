@@ -28,6 +28,11 @@ import {
     type OverlayLayer,
     type RegisteredOverlayLayer,
 } from '../renderer/overlayLayers.js';
+import {
+    createTransportChromeRegistry,
+    type RegisteredTransportChrome,
+    type TransportChrome,
+} from './transportChrome.js';
 import { ZOOM_PER_CLICK as DEFAULT_ZOOM_PER_CLICK } from '../renderer/rendererDefaults.js';
 import {
     NEUTRAL_IMAGE_ADJUSTMENTS,
@@ -1203,6 +1208,86 @@ export class ViewerState {
      */
     get overlayLayers(): readonly RegisteredOverlayLayer[] {
         return this.overlayLayerRegistry.layers;
+    }
+
+    // ---- Transport chrome ----------------------------------------------------
+
+    /**
+     * How many times the registered transport chrome has changed — the one
+     * notifying signal that registry needs, the same shape as
+     * {@link overlayLayerRevision} and for the same reason.
+     *
+     * @internal
+     */
+    transportChromeRevision: number = $state(0);
+
+    private transportChromeRegistry = createTransportChromeRegistry({
+        onChange: () => {
+            this.transportChromeRevision += 1;
+        },
+        onRefused: (message) => {
+            logger.warn(message);
+            this.reportError({
+                severity: 'warning',
+                scope: 'plugin',
+                code: 'transport-chrome-refused',
+                message,
+            });
+        },
+        // Answered from plugin UI state, not from the chrome records, for the
+        // reason `overlayLayerRegistry` gives above.
+        isKnownPlugin: (pluginId) => this.pluginUiState.has(pluginId),
+    });
+
+    /**
+     * Register **transport chrome**: a view model of playback facts and a port
+     * of playback commands, which core renders as playback controls inside its
+     * own control bar (CONTEXT.md **Transport chrome**).
+     *
+     * The seam is deliberately media-agnostic. Core learns about a thing that
+     * plays, pauses, seeks and may offer alternative text tracks; it renders the
+     * controls with its own primitives, in its own theme. The claimant supplies
+     * the pictures (as the sanitized {@link IconDescriptor}s its toolbar buttons
+     * already use) and every string, so its vocabulary and its locales stay its
+     * own.
+     *
+     * **`id` must be `` `${pluginId}:${name}` ``**, the same convention the
+     * plugin's chrome ids and overlay layers follow, so
+     * {@link unregisterPlugin} can release chrome a plugin forgot. Chrome whose
+     * id names no known plugin, or which is missing any of its members, or whose
+     * id is already taken, is refused and registers nothing; the returned
+     * dispose is a no-op, so a caller never has to branch. A refusal is reported
+     * on the structured `viewererror` channel with code
+     * `transport-chrome-refused`.
+     *
+     * `view()` is read on core's own cadence and its result is never held across
+     * a frame; `subscribe` is how the claimant tells core to re-read. A view
+     * with `present: false` renders no controls, which is the transient case
+     * (the reader navigated to something this claimant does not drive) and is
+     * why navigation does not churn the registration.
+     *
+     * **The bar renders one chrome.** With two live registrations the first
+     * wins and the second is inert — there is no `order` field, for the reason
+     * the overlay-layer registry gives.
+     *
+     * While chrome is registered the control bar spans its full available width
+     * so the scrubber can take the slack. `nav.align` has nowhere to align in
+     * that arrangement and is inert until the chrome deregisters; every other
+     * bar setting — `controls`, `nav.style`, `nav.edge`, the inset — goes on
+     * meaning what it meant.
+     */
+    registerTransportChrome(chrome: TransportChrome): () => void {
+        return this.transportChromeRegistry.register(chrome);
+    }
+
+    /**
+     * The registered chrome, in registration order. Read by the render site,
+     * which renders the first.
+     *
+     * @internal
+     */
+    get transportChrome(): readonly RegisteredTransportChrome[] {
+        return this.transportChromeRegistry.entries;
     }
 
     // ---- Canvas claims -------------------------------------------------------
@@ -2784,6 +2869,7 @@ export class ViewerState {
             (f) => !f.id.startsWith(`${pluginId}:`),
         );
         this.overlayLayerRegistry.disposeOwnedBy(pluginId);
+        this.transportChromeRegistry.disposeOwnedBy(pluginId);
         for (const [canvasId, owner] of [...this.#claimedCanvases]) {
             if (owner === pluginId) this.#claimedCanvases.delete(canvasId);
         }
@@ -2802,6 +2888,7 @@ export class ViewerState {
         this.pluginPanels = [];
         this.pluginFlyouts = [];
         this.overlayLayerRegistry.disposeAll();
+        this.transportChromeRegistry.disposeAll();
         this.#claimedCanvases.clear();
         this.publishedPluginStates.clear();
         this.pluginUiState.clear();

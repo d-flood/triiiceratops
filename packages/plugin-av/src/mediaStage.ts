@@ -131,12 +131,11 @@ export interface MediaStage {
     /** Retranslate the "can't play" treatment after a locale change. */
     setCannotPlayMessage(message: string): void;
     /**
-     * Show or hide the decorative play-state glyph — what this canvas gets
-     * instead of a transport when it projects too narrow for one.
+     * Show or hide the decorative play-state glyph — what a claimed canvas the
+     * control bar's transport is NOT driving shows instead, so a reader with
+     * several recordings on screen can tell which ones are playing.
      */
     setGlyphVisible(visible: boolean): void;
-    /** Play if paused, pause if playing. */
-    toggle(): void;
     /**
      * The caption tracks that LOADED — never the ones authored. A track the
      * browser refused (a dead URL, a server that grants no CORS) is not on
@@ -172,11 +171,6 @@ export interface MediaStage {
      * that falls out of the set is turned off with it.
      */
     setEligibleCaptions(urls: readonly string[] | null): void;
-    /**
-     * The timeline lane — the waveform's drawing surface hangs inside it, and
-     * `null` on a layout that has no timeline lane (video).
-     */
-    readonly timelineLane: HTMLElement | null;
     /**
      * Adopt resolved peaks for this canvas. Builds the drawing surface on the
      * first call; a layout with no timeline lane (video) keeps the data for the
@@ -798,7 +792,6 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         get unplayable(): boolean {
             return unplayable;
         },
-        timelineLane: options.layout === 'video' ? null : timelineLane,
         adoptWaveform(module: WaveformModule, peaks: Peaks): void {
             if (options.layout === 'video') return;
             // The surface factory comes from the loaded chunk rather than from
@@ -868,7 +861,6 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         setGlyphVisible(visible: boolean): void {
             glyph.hidden = !visible || unplayable;
         },
-        toggle,
         get captionTracks(): readonly CaptionTrack[] {
             return loadedCaptions();
         },

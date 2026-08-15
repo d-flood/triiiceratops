@@ -103,13 +103,18 @@ export { scanCanvasForAv } from './sources';
  * DOM in an overlay layer over each claimed canvas, built and placed by
  * `createAvStageManager`.
  *
- * `requiredCapabilities` names both seams this plugin cannot work without, so it
+ * `requiredCapabilities` names the seams this plugin cannot work without, so it
  * fails closed rather than half-working:
  *
  * - `canvas-claim` — without it the plugin would render over an
  *   unsupported-content placard it cannot suppress.
  * - `shared-svelte-runtime` — without it there is no `window.Triiiceratops`
  *   Svelte to consume, and this plugin's IIFE bundles none of its own.
+ * - `shared-core-utils` — without it there are no curated core utilities on the
+ *   namespace, and this plugin's IIFE bundles no copies of its own either.
+ * - `transport-chrome` — without it there is nowhere to register the playback
+ *   controls, and this plugin builds none of its own: a reader would get a
+ *   staged recording with no way to play it.
  *
  * `coreRange` is pinned EXACTLY, not as a lower bound. `>=` would be satisfied
  * by a core 2.0 on a future Svelte, and `svelte/internal` is private API with no
@@ -130,11 +135,10 @@ export declare const AvPlugin: SdkPlugin;
  * which of them this release plays.
  *
  * A canvas maps to a provider, never to "the one body": `0064-opera-one-canvas`
- * tiles a single canvas's duration with two videos, and the canvas timeline that
- * plays such a canvas through as one work is a later slice. Everything here
- * therefore reports every placement it found and marks the canvas composed;
- * choosing the first is a decision the *stage* makes, in one place, so replacing
- * it with a sequencer touches no parsing.
+ * tiles a single canvas's duration with two videos, and the sequencer plays such
+ * a canvas through as one work. Everything here reports every placement it found
+ * and marks the canvas composed; what the placements MEAN on the canvas timeline
+ * is the sequencer's to decide, out of the `t=` fragment carried here unparsed.
  *
  * What a body *is* is never decided here. `isImageBody` and
  * `paintingBodyAlternatives` are core's own painting classifier, exported for
@@ -152,6 +156,18 @@ export interface AvSource {
 }
 /** One painting annotation that places a time-based body on the canvas. */
 export interface AvPlacement {
+    /**
+     * This annotation's index among the canvas's painting annotations. It is
+     * how a segment finds the caption tracks authored beside its own body:
+     * `captionTracksForCanvas` numbers tracks over the same list.
+     */
+    readonly annotation: number;
+    /**
+     * The target's media fragment, as authored and unparsed (`''` when there is
+     * none). The sequencer reads the `t=` window out of it to build the segment
+     * map; nothing else looks inside it.
+     */
+    readonly fragment: string;
     /**
      * Every time-based resource this annotation could place, in manifest order
      * — one entry unless a `Choice` offers renditions. Which of them is
@@ -181,8 +197,8 @@ export interface AvCanvasScan {
     /** Every time-based placement, in manifest order. */
     readonly placements: readonly AvPlacement[];
     /**
-     * Several bodies share this canvas's duration. Interim behavior is to play
-     * the first; the canvas timeline replaces it.
+     * Several bodies share this canvas's duration, so the canvas timeline is a
+     * segment map rather than the identity mapping and a sequencer plays it.
      */
     readonly temporallyComposed: boolean;
     /** At least one time-based body is placed into part of the canvas rect. */

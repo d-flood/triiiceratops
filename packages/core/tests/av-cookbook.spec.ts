@@ -37,10 +37,10 @@ test.skip(
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const STAGE = '[data-testid="av-stage"]';
 const MEDIA = '[data-testid="av-media"]';
-const TRANSPORT = '[data-testid="av-transport"]';
-const PLAY = '[data-testid="av-play"]';
-const MUTE = '[data-testid="av-mute"]';
-const CAPTIONS = '[data-testid="av-captions"]';
+const TRANSPORT = '[data-testid="transport"]';
+const PLAY = '[data-testid="transport-play"]';
+const MUTE = '[data-testid="transport-mute"]';
+const CAPTIONS = '[data-testid="transport-tracks"]';
 const CANNOT_PLAY = '[data-testid="av-cannot-play"]';
 const UNSUPPORTED = '[data-testid="canvas-unsupported-placeholder"]';
 const ERROR = '[data-testid="canvas-error-placeholder"]';
@@ -51,7 +51,6 @@ const ERROR = '[data-testid="canvas-error-placeholder"]';
 // the transcript went unnoticed while every stage assertion passed.
 const PANEL_TOGGLE = '[data-plugin-toggle="av"]';
 const PANEL = '[data-testid="av-panel"]';
-const STAGE_COUNT = '[data-testid="av-stage-count"]';
 const TRANSCRIPT = '[data-testid="av-transcript"]';
 const TRANSCRIPT_TRACK = '[data-testid="av-transcript-track"]';
 const CUES = '[data-testid="av-transcript-cues"] button';
@@ -318,7 +317,9 @@ async function openRecipe(page: Page, id: string, log: Log): Promise<void> {
 /** Open the plugin's panel through the demo's toolbar, as a reader would. */
 async function openAvPanel(page: Page): Promise<void> {
     await page.locator(PANEL_TOGGLE).click();
-    await page.locator(PANEL).waitFor({ state: 'visible', timeout: 30_000 });
+    // Attached, not visible: a canvas with no transcript leaves the panel
+    // empty, and an empty box has no size to be visible at.
+    await page.locator(PANEL).waitFor({ state: 'attached', timeout: 30_000 });
 }
 
 /**
@@ -386,12 +387,8 @@ test.describe('demo av cookbook coverage', () => {
                 await expect(page.locator(TRANSPORT).first()).toBeVisible();
                 await expect(page.locator(CANNOT_PLAY).first()).toBeHidden();
 
-                // The plugin's own panel is reachable from the demo's chrome
-                // and reports the canvases it claimed.
+                // The plugin's own panel is reachable from the demo's chrome.
                 await openAvPanel(page);
-                await expect(page.locator(STAGE_COUNT)).toContainText(
-                    /[1-9]\d* media canvas\(es\) claimed/,
-                );
             } else {
                 // The documented degradation: the image body paints and the
                 // developer is told, in the console, what was not rendered.
@@ -554,7 +551,7 @@ test.describe('demo av cookbook coverage', () => {
         await page.locator(STAGE).first().waitFor({ state: 'visible' });
         await openAvPanel(page);
 
-        await expect(page.locator(STAGE_COUNT)).toBeVisible();
+        await expect(page.locator(PANEL)).toBeAttached();
         await expect(page.locator(TRANSCRIPT)).toHaveCount(0);
     });
 

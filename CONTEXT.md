@@ -382,11 +382,32 @@ end time is carried but not enforced.
 _Avoid_: start time (that is one source of it), timestamp
 
 **Transport**:
-The plugin-built playback control UI for a claimed AV canvas — play/pause, scrubber,
-time display, volume. Anchored to the canvas it controls. The accessible path to every
-playback action; canvas-surface gestures and waveform taps are enhancements over it,
-never the only way.
+The playback control UI for a claimed AV canvas — play/pause, scrubber, time display,
+volume, alternative text tracks. Rendered in the viewer's control bar beside the canvas
+navigation, driven by the claimant's published playback contract, and never drawn over
+the canvas it controls. The accessible path to every playback action; canvas-surface
+gestures and waveform taps are enhancements over it, never the only way.
 _Avoid_: player chrome, native controls (the transport deliberately replaces them)
+
+**Transport chrome**:
+The media-agnostic seam a claimant of timed media registers with core: a view model of
+playback facts (paused, position, buffered, tracks) and a port of playback commands
+(toggle, seek, set muted/volume/track), plus the icons and strings the claimant owns.
+Core renders it with its own primitives in the control bar; core learns only about a
+thing that plays, pauses, seeks and may offer alternative text tracks. Distinct from
+**Transport**, which is the reader-facing result, and from **Published state**, which is
+the host-facing contract the view model is derived from.
+_Avoid_: AV seam (it names no medium), player API
+
+**Idle chrome**:
+The control bar hiding itself while a claimed canvas plays and nothing is happening, and
+returning on any interaction — a pointer move, a key, focus arriving, or a pause. Scoped
+to manifests with claimed time-based media: with no transport chrome registered there is
+no timer and no listeners. Never in effect while playback is paused or while the bar
+holds keyboard focus, and hidden means transparent and non-interactive rather than absent
+from the accessibility tree.
+_Avoid_: autohide (accurate but says nothing about the two rules that bound it),
+fullscreen chrome (a different feature this viewer does not have)
 
 **Stage layout**:
 The claimant's allocation of its claimed canvas rect into vertical lanes, all in canvas

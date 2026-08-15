@@ -214,8 +214,8 @@ stream costs one canvas, never the session.
 
 ## Bundle
 
-`dist/iife.js` is 22,567 gzip bytes. Registered alongside core's element it makes
-141,353 gzip, which is enforced as a standing budget against TIFY — the nearest
+`dist/iife.js` is 21,402 gzip bytes. Registered alongside core's element it makes
+140,369 gzip, which is enforced as a standing budget against TIFY — the nearest
 audiovisual-capable viewer measured — in CI. The four lazy chunks are outside
 that figure:
 

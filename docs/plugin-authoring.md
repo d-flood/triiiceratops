@@ -383,10 +383,23 @@ schedule has no such guarantee and would break on the first skew, so bundling is
 the right answer for everybody outside this repository. Your IIFE then loads in
 any order relative to core's.
 
+**Bundle your own copies of core's utilities too.** The same first-party
+exception covers a second curated namespace member, `window.Triiiceratops.core`,
+carrying a handful of core's own functions — `getPaintingAnnotations`,
+`isImageBody`, `paintingBodyAlternatives`, `isUnsupportedCanvasFor` — which
+`@triiiceratops/plugin-av`'s IIFE reads instead of bundling the painting
+classifier and the IIIF parsing helpers behind them a second time. The privilege
+is the same one and it holds for the same single reason: core and that plugin are
+built and released together, at one version, from one repository, so the list can
+change with core's own release rather than being a public contract. It is not one
+for a plugin on its own release schedule. Import what you need from
+`triiiceratops` and let your bundler include it, and do not declare
+`shared-core-utils`.
+
 What makes the arrangement safe on the inside is a build gate, and it is worth
-knowing why it has to exist. The list core publishes is **curated** — 31
+knowing why it has to exist. The list core publishes is **curated** — 11
 `svelte/internal/client` helpers under `svelteInternal`, alongside `mount`,
-`unmount` and `getContext`, for 34 names in all — never `export *`, because
+`unmount` and `getContext`, for 14 names in all — never `export *`, because
 re-exporting the namespace wholesale defeats tree-shaking and was measured at
 +8,837 gzip on core. A plugin that compiles to a
 helper outside that list does not fail to build and does not fail its unit tests
@@ -1137,7 +1150,7 @@ over a placard it cannot suppress.
 
 `requiredCapabilities` is normally `[]`. Capability negotiation exists for
 genuinely optional runtime features, not for versions: a plugin states which
-*core* it works with through `coreRange`. Core declares three capabilities today:
+*core* it works with through `coreRange`. Core declares five capabilities today:
 
 - `canvas-claim` — `ViewerState.claimCanvas`, the seam a plugin owning a
   canvas's non-image content builds on.
@@ -1146,6 +1159,14 @@ genuinely optional runtime features, not for versions: a plugin states which
 - `shared-svelte-runtime` — the curated Svelte helpers core publishes on
   `window.Triiiceratops`. A third-party plugin bundles its own runtime and must
   not declare this.
+- `shared-core-utils` — the curated core utilities core publishes on
+  `window.Triiiceratops.core`. Also first-party only: a third-party plugin
+  bundles its own copies and must not declare this.
+- `transport-chrome` — `ViewerState.registerTransportChrome`, which takes a view
+  model of playback facts and a port of playback commands and renders them as
+  playback controls in core's own control bar. Declare it if the only playback
+  chrome your plugin has is the one core renders, so a core too old to render it
+  refuses activation instead of mounting a plugin whose controls never appear.
 
 Declare one only if your plugin calls that seam, so it fails closed on a viewer
 that predates it instead of silently doing nothing. A plugin requiring a

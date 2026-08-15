@@ -21,39 +21,17 @@ import { getContext, mount, unmount } from 'svelte';
 // Recorded in lint-allowlist.md.
 // eslint-disable-next-line svelte/no-svelte-internal
 import {
-    CLASS,
     append,
-    attribute_effect,
-    bind_select_value,
     bind_this,
-    bind_value,
     child,
-    comment,
-    delegate,
-    derived,
-    each,
-    first_child,
     from_html,
     get,
-    // The block helper the compiler emits as `$.if` is exported under the
-    // reserved word itself, so it cannot be bound without renaming.
-    if as if_block,
-    noop,
     pop,
-    prop,
     proxy,
     push,
     reset,
-    rest_props,
     set,
-    set_attribute,
-    set_style,
-    set_text,
-    sibling,
-    snippet,
     state,
-    template_effect,
-    text,
 } from 'svelte/internal/client';
 
 import type { SharedSvelteRuntime } from './browser-runtime';
@@ -68,7 +46,7 @@ import type { SharedSvelteRuntime } from './browser-runtime';
  * tree-shaking. Adding a helper already reachable through core's shipped graph
  * — its own components, or the `@triiiceratops/ui` primitives
  * `packaging/inlineUi.ts` inlines into it — costs essentially nothing, because
- * nothing new is retained: the transport's eleven additions moved the element
+ * nothing new is retained: the eleven the plugin's panel needs moved the element
  * IIFE by 11 bytes gzip. A helper that graph does NOT already reach is a
  * different thing entirely, and the size ratchet is what makes the difference
  * visible in review rather than silent.
@@ -76,36 +54,16 @@ import type { SharedSvelteRuntime } from './browser-runtime';
 export const SHARED_SVELTE_RUNTIME: SharedSvelteRuntime = {
     svelte: { mount, unmount, getContext },
     svelteInternal: {
-        CLASS,
         append,
-        attribute_effect,
-        bind_select_value,
         bind_this,
-        bind_value,
         child,
-        comment,
-        delegate,
-        derived,
-        each,
-        first_child,
         from_html,
         get,
-        if: if_block,
-        noop,
         pop,
-        prop,
         proxy,
         push,
         reset,
-        rest_props,
         set,
-        set_attribute,
-        set_style,
-        set_text,
-        sibling,
-        snippet,
         state,
-        template_effect,
-        text,
     },
 };

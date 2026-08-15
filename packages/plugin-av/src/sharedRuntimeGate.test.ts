@@ -3,14 +3,16 @@
  * statements of a function body, against a page that may or may not carry a core.
  *
  * The generated source is what the bundle actually ships (`output.intro` in
- * vite.config.ts), so it is evaluated here rather than paraphrased. The three
- * cases are the three a host can be in: no core, a core whose namespace exists
- * but shares no runtime, and a core sharing a runtime this plugin cannot use.
+ * vite.config.ts), so it is evaluated here rather than paraphrased. The cases
+ * are the ones a host can be in: no core, a core whose namespace exists but
+ * shares nothing, a core sharing a Svelte runtime this plugin cannot use, and a
+ * core publishing an absent or incomplete set of curated utilities.
  */
 
 import { describe, expect, it } from 'vitest';
 
 import {
+    REQUIRED_CORE_UTILS,
     REQUIRED_SVELTE_EXPORTS,
     REQUIRED_SVELTE_INTERNALS,
     sharedRuntimeGateSource,
@@ -48,7 +50,15 @@ function sharedRuntime(overrides: Record<string, unknown> = {}) {
     const svelteInternal: Record<string, unknown> = {};
     for (const name of REQUIRED_SVELTE_INTERNALS)
         svelteInternal[name] = () => {};
-    return { coreVersion: '1.0.0-rc.36', svelte, svelteInternal, ...overrides };
+    const core: Record<string, unknown> = {};
+    for (const name of REQUIRED_CORE_UTILS) core[name] = () => {};
+    return {
+        coreVersion: '1.0.0-rc.36',
+        svelte,
+        svelteInternal,
+        core,
+        ...overrides,
+    };
 }
 
 describe('the shared-runtime skew gate', () => {
@@ -96,6 +106,32 @@ describe('the shared-runtime skew gate', () => {
         expect(run.errors).toHaveLength(1);
         expect(run.errors[0]).toContain('core 2.0.0');
         expect(run.errors[0]).toContain('Missing helpers: from_html.');
+    });
+
+    it('names the version when a core publishes no core utilities', () => {
+        const run = runGate(
+            sharedRuntime({ coreVersion: '1.0.0-rc.30', core: undefined }),
+        );
+
+        expect(run.registered).toBe(false);
+        expect(run.errors).toHaveLength(1);
+        expect(run.errors[0]).toContain('core 1.0.0-rc.30');
+        expect(run.errors[0]).toContain(
+            'does not publish the curated core utilities',
+        );
+    });
+
+    it('names the missing utility when a core publishes an incomplete set', () => {
+        const runtime = sharedRuntime({ coreVersion: '2.0.0' });
+        delete (runtime.core as Record<string, unknown>).isUnsupportedCanvasFor;
+
+        const run = runGate(runtime);
+
+        expect(run.registered).toBe(false);
+        expect(run.errors).toHaveLength(1);
+        expect(run.errors[0]).toContain(
+            'Missing utilities: isUnsupportedCanvasFor.',
+        );
     });
 
     it('emits exactly one diagnostic, never a bare throw', () => {

@@ -214,11 +214,13 @@ describe('activation and the canvas claim', () => {
         await flush();
 
         expect(other).toHaveBeenCalledWith(canvasId, UI_ID);
-        // No stage was built, so the panel has nothing to show — the same state
-        // as an image manifest, which is exactly right: this canvas is not ours.
-        expect(container.textContent).toContain(
-            'This manifest paints no time-based media',
-        );
+        // No stage was built — the same state as an image manifest, which is
+        // exactly right: this canvas is not ours.
+        const viewer = mountViewerRoot(tc);
+        expect(
+            viewer.root.querySelector('[data-testid="av-media"]'),
+        ).toBeNull();
+        viewer.unmount();
 
         cleanup();
     });
@@ -320,6 +322,88 @@ describe('the overlay layer', () => {
         await flush();
 
         expect(tc.viewerState.overlayLayers).toHaveLength(0);
+    });
+});
+
+describe('the transport chrome', () => {
+    const VIDEO_MANIFEST = {
+        id: 'https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json',
+        json: recipe('0003-mvm-video.json'),
+    };
+    const VIDEO_CANVAS =
+        'https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas';
+
+    /** That recipe's video canvas, followed by a page of images. */
+    const MIXED_MANIFEST = {
+        id: 'https://example.org/mixed/manifest.json',
+        json: {
+            '@context': 'http://iiif.io/api/presentation/3/context.json',
+            id: 'https://example.org/mixed/manifest.json',
+            type: 'Manifest',
+            items: [
+                (recipe('0003-mvm-video.json') as { items: unknown[] })
+                    .items[0],
+                IMAGE_MANIFEST.items[0],
+            ],
+        },
+    };
+    const MIXED_IMAGE_CANVAS = 'https://example.org/images/canvas/1';
+
+    it('is registered for a manifest with a claimed canvas and released with the activation', async () => {
+        const { tc, cleanup } = await mountWith(VIDEO_MANIFEST);
+
+        expect(tc.viewerState.transportChrome.map((entry) => entry.id)).toEqual(
+            [`${UI_ID}:transport`],
+        );
+
+        cleanup();
+        await flush();
+
+        expect(tc.viewerState.transportChrome).toHaveLength(0);
+    });
+
+    // Manifest-scoped, not canvas-scoped: a viewer of page images must render
+    // exactly the chrome it renders with no AV plugin at all.
+    it('registers nothing for a manifest it claims no canvas in', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: IMAGE_MANIFEST.id,
+            json: IMAGE_MANIFEST,
+        });
+
+        expect(tc.viewerState.transportChrome).toHaveLength(0);
+
+        cleanup();
+    });
+
+    it('answers a view consistent with the published playback state', async () => {
+        const { tc, cleanup } = await mountWith(VIDEO_MANIFEST);
+        tc.viewerState.setCanvas(VIDEO_CANVAS);
+        await flush();
+
+        const av = getAVState(tc.viewerState)!;
+        const view = tc.viewerState.transportChrome[0]!.view();
+
+        // The parity rule, asserted rather than assumed: the bar reads the same
+        // facts a host reads, because there is one contract behind both.
+        expect(view.present).toBe(true);
+        expect(view.paused).toBe(av.paused);
+        expect(view.duration).toBe(av.duration);
+        expect(view.currentTime).toBe(av.currentTime);
+
+        cleanup();
+    });
+
+    // The transient case: within a manifest, navigation flips `present` rather
+    // than churning the registration.
+    it('stays registered and renders nothing on an unclaimed canvas', async () => {
+        const { tc, cleanup } = await mountWith(MIXED_MANIFEST);
+        tc.viewerState.setCanvas(MIXED_IMAGE_CANVAS);
+        await flush();
+
+        expect(tc.viewerState.transportChrome).toHaveLength(1);
+        expect(tc.viewerState.transportChrome[0]!.view().present).toBe(false);
+
+        cleanup();
     });
 });
 

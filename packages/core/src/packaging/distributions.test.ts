@@ -247,7 +247,7 @@ describe('published distributions ship styles + themes', () => {
          * visible, so it is asserted here rather than left to an e2e that would
          * have to drive a real plugin against a real build.
          */
-        it('keeps the overlay and paint revision reads through minification', () => {
+        it('keeps the overlay, paint and transport revision reads through minification', () => {
             const js = readFileSync(
                 dist('triiiceratops-element.iife.js'),
                 'utf8',
@@ -259,6 +259,9 @@ describe('published distributions ship styles + themes', () => {
             for (const revision of [
                 'overlayLayerRevision',
                 'paintLayerRevision',
+                // The control bar's transport chrome is driven by the same
+                // idiom, so it is exposed to the same deletion.
+                'transportChromeRevision',
             ]) {
                 const occurrences = js.split(revision).length - 1;
                 expect(

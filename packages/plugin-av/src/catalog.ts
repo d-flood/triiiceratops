@@ -6,12 +6,9 @@ import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
  * core carries no plugin keys. `en` is the required fallback; a missing key
  * resolves to `en` and then to the key itself.
  *
- * Every string a reader or a screen reader meets in the transport is here —
- * the accessibility contract is that the controls announce in the viewer's
- * active locale, which a hard-coded label cannot do. The throwaway control
- * panel's copy is deliberately NOT here: it is labelled but not translated,
- * because translating a surface that is being replaced would cost every
- * translator a wasted round.
+ * Every string a reader or a screen reader meets is here — the accessibility
+ * contract is that the controls announce in the viewer's active locale, which a
+ * hard-coded label cannot do.
  */
 export const catalog: LocaleCatalog = {
     en: {

@@ -12,10 +12,13 @@
  * - **A dead media URL costs one canvas, not the session**: the localized
  *   "can't play" treatment appears inside that stage, with no unsupported
  *   presentation and no viewer error.
- * - **The shared Svelte runtime actually works.** The plugin bundles no Svelte;
- *   it reads core's off `window.Triiiceratops`. A build that succeeds proves
- *   nothing about that, so `$state`, `$derived`, `{#if}`, `{#each}` and
- *   `bind:value` are each driven live and observed after the reactive flush.
+ * - **The shared Svelte runtime is core's, not a second copy.** The plugin
+ *   bundles no Svelte; it reads core's off `window.Triiiceratops`, and the
+ *   namespace is asserted to hold a curated handful of helpers rather than the
+ *   whole `svelte/internal/client` surface.
+ * - **A host can command playback through the published state**, driven by a
+ *   page script that never imports the plugin: play, seek, mute, and a
+ *   currentTime that moves on the finer cadence while playing.
  *
  * Both artifacts are the BUILT ones a consumer loads — `pnpm build:all` (or
  * `build:element` plus the plugin's own `pnpm build`) must have run. The
@@ -26,7 +29,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { serveAvPluginDist } from './helpers/avPluginDist';
-import { AV_MANIFESTS, BARS_MP4, BARS_SIZE } from './helpers/avMedia';
+import { AV_MANIFESTS, BARS_SIZE } from './helpers/avMedia';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -41,8 +44,6 @@ const UNSUPPORTED = '[data-testid="canvas-unsupported-placeholder"]';
 const STAGE = '[data-testid="av-stage"]';
 const MEDIA = '[data-testid="av-media"]';
 const CANNOT_PLAY = '[data-testid="av-cannot-play"]';
-const TOGGLE = '[data-testid="av-toggle"]';
-const CANVAS_SELECT = '[data-testid="av-canvas-select"]';
 
 const BARS_CANVAS = `${AV_MANIFESTS.video}/canvas/bars`;
 
@@ -87,53 +88,6 @@ const DEAD_MANIFEST = {
 };
 
 /**
- * Two video canvases, so the panel's `{#each}` and `bind:value` have something
- * to choose between. It is built here rather than taken from `AV_MANIFESTS`
- * because every local multi-canvas manifest pairs a video with an audio canvas,
- * and these assertions want two stages of the same shape to choose between.
- */
-const PAIR_MANIFEST_URL = '/media/manifests/av-two-videos.json';
-const PAIR_CANVAS_IDS = [
-    `${PAIR_MANIFEST_URL}/canvas/one`,
-    `${PAIR_MANIFEST_URL}/canvas/two`,
-];
-const PAIR_MANIFEST = {
-    '@context': 'http://iiif.io/api/presentation/3/context.json',
-    id: PAIR_MANIFEST_URL,
-    type: 'Manifest',
-    label: { en: ['Two video canvases'] },
-    items: PAIR_CANVAS_IDS.map((canvasId) => ({
-        id: canvasId,
-        type: 'Canvas',
-        width: BARS_SIZE.width,
-        height: BARS_SIZE.height,
-        duration: 2,
-        items: [
-            {
-                id: `${canvasId}/page`,
-                type: 'AnnotationPage',
-                items: [
-                    {
-                        id: `${canvasId}/annotation`,
-                        type: 'Annotation',
-                        motivation: 'painting',
-                        body: {
-                            id: BARS_MP4,
-                            type: 'Video',
-                            format: 'video/mp4',
-                            width: BARS_SIZE.width,
-                            height: BARS_SIZE.height,
-                            duration: 2,
-                        },
-                        target: canvasId,
-                    },
-                ],
-            },
-        ],
-    })),
-};
-
-/**
  * Open the fixture with the plugin's built IIFE served, and wait until the
  * renderer has a surface.
  */
@@ -145,13 +99,6 @@ async function openViewer(page: Page, manifest: string): Promise<void> {
             body: JSON.stringify(DEAD_MANIFEST),
         }),
     );
-    await page.route(`**${PAIR_MANIFEST_URL}`, (route) =>
-        route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify(PAIR_MANIFEST),
-        }),
-    );
-
     await page.goto(`${FIXTURE}?manifest=${encodeURIComponent(manifest)}`, {
         waitUntil: 'domcontentloaded',
     });
@@ -362,58 +309,6 @@ test.describe('av video — the shared Svelte runtime', () => {
         // costs core 8.8 KB gzip.
         expect(runtime.internalKeys.length).toBeGreaterThan(0);
         expect(runtime.internalKeys.length).toBeLessThan(60);
-    });
-
-    test('drives $state, $derived, {#if}, {#each} and bind:value live', async ({
-        page,
-    }) => {
-        // Two staged AV canvases, so the bound `<select>` has something to
-        // choose between and choosing changes what the button commands.
-        await openViewer(page, PAIR_MANIFEST_URL);
-
-        const select = page.locator(CANVAS_SELECT);
-        const toggle = page.locator(TOGGLE);
-        await expect(select).toBeVisible({ timeout: 30_000 });
-
-        // Rendered by the plugin's compiled component using nothing but the
-        // helpers core exposed. A helper missing from the curated list is a
-        // blank panel here, not a build failure — which is why this is driven in
-        // a browser rather than inferred from a successful build.
-        //
-        // {#each} — one option per claimed canvas, plus the leading default.
-        await expect(select.locator('option')).toHaveCount(3);
-
-        // {#if} over $derived state: paused reads "Play".
-        await expect(toggle).toHaveText('Play');
-
-        // bind:value + $state: pick the SECOND canvas, then command it. The
-        // button acts on whatever the binding wrote, so that canvas — not the
-        // first, which is what an unwritten binding would command — playing is
-        // the proof the write landed.
-        const barsCanvas = PAIR_CANVAS_IDS[1];
-        await select.selectOption(barsCanvas);
-        await toggle.click();
-
-        // Svelte batches DOM updates in a microtask; poll rather than read.
-        await expect
-            .poll(
-                () =>
-                    page.evaluate((id) => {
-                        const host = document.getElementById(
-                            'v',
-                        ) as unknown as { shadowRoot: ShadowRoot };
-                        const media = host.shadowRoot.querySelector(
-                            `[data-canvas-id="${id}"] [data-testid="av-media"]`,
-                        ) as HTMLMediaElement | null;
-                        return media ? media.paused : null;
-                    }, barsCanvas),
-                { timeout: 20_000 },
-            )
-            .toBe(false);
-
-        // …and the {#if} branch flips with it, which is the render half of the
-        // same reactivity.
-        await expect(toggle).toHaveText('Pause');
     });
 });
 

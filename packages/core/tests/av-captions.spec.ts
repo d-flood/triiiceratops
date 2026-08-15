@@ -44,9 +44,9 @@ test.skip(
 const FIXTURE = '/e2e/av-plugin.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const MEDIA = '[data-testid="av-media"]';
-const TRANSPORT = '[data-testid="av-transport"]';
-const CAPTIONS = '[data-testid="av-captions"]';
-const CAPTION_LIST = '[data-testid="av-caption-list"]';
+const TRANSPORT = '[data-testid="transport"]';
+const CAPTIONS = '[data-testid="transport-tracks"]';
+const CAPTION_LIST = '[data-testid="transport-track-list"]';
 
 /**
  * A video canvas carrying its captions the second way — a canvas-level
@@ -392,7 +392,7 @@ test.describe('av captions — VTT text tracks', () => {
         // OTHER end of the row is unreachable: the docked left panel stack
         // covers the transport's leading controls, a core defect this ticket
         // did not introduce and does not fix.
-        await page.locator('[data-testid="av-duration"]').click();
+        await page.locator('[data-testid="transport-duration"]').click();
         await expect(page.locator(CAPTION_LIST)).toHaveCount(0);
     });
 });

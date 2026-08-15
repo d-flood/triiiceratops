@@ -228,6 +228,38 @@ describe('ViewerState.unregisterPlugin', () => {
         ]);
     });
 
+    it('disposes that plugin’s transport chrome', () => {
+        state.registerSdkChrome(chrome({ id: 'p1' }));
+        const dispose = state.registerTransportChrome(
+            transportChrome('p1:playback'),
+        );
+
+        state.unregisterPlugin('p1');
+
+        // Chrome left behind would leave the control bar rendering playback
+        // controls addressing a torn-down claimant.
+        expect(state.transportChrome).toEqual([]);
+        // And the claimant's own dispose, if its teardown does get there, is now
+        // a no-op rather than a second teardown.
+        expect(() => dispose()).not.toThrow();
+        expect(state.transportChrome).toEqual([]);
+    });
+
+    it('leaves another plugin’s transport chrome alone, colliding prefix included', () => {
+        state.registerSdkChrome(chrome({ id: 'notes', name: 'Notes' }));
+        state.registerSdkChrome(
+            chrome({ id: 'notes-extra', name: 'Notes Extra' }),
+        );
+        state.registerTransportChrome(transportChrome('notes:playback'));
+        state.registerTransportChrome(transportChrome('notes-extra:playback'));
+
+        state.unregisterPlugin('notes');
+
+        expect(state.transportChrome.map((entry) => entry.id)).toEqual([
+            'notes-extra:playback',
+        ]);
+    });
+
     it('is a safe no-op for an unknown plugin id', () => {
         state.registerSdkChrome(chrome({ id: 'p1', position: 'right' }));
         state.setPluginOpen('p1', true);
@@ -249,6 +281,32 @@ describe('ViewerState.unregisterPlugin', () => {
         expect(state.isPluginOpen('p1')).toBe(true);
     });
 });
+
+/**
+ * Transport chrome, as a claimant registers it. Unregistration is
+ * content-agnostic, so a view nobody reads and a port nobody calls suffice.
+ */
+function transportChrome(id: string) {
+    return {
+        id,
+        icons: {
+            play: ICON,
+            pause: ICON,
+            mute: ICON,
+            unmute: ICON,
+            tracks: ICON,
+        },
+        view: () => ({ present: false }) as never,
+        port: {
+            toggle() {},
+            seek() {},
+            setMuted() {},
+            setVolume() {},
+            setTrack() {},
+        },
+        subscribe: () => () => {},
+    };
+}
 
 describe('ViewerState.destroyAllPlugins', () => {
     let state: ViewerState;
@@ -276,6 +334,20 @@ describe('ViewerState.destroyAllPlugins', () => {
         // Layers are DOM on the image: an undisposed one outlives the plugin
         // that drew it with nothing left to remove it.
         expect(state.overlayLayers).toEqual([]);
+        expect(() => dispose()).not.toThrow();
+    });
+
+    it('disposes every registered transport chrome, whoever registered it', () => {
+        state.registerSdkChrome(chrome({ id: 'p1' }));
+        state.registerSdkChrome(chrome({ id: 'p2', name: 'Plugin Two' }));
+        const dispose = state.registerTransportChrome(
+            transportChrome('p1:playback'),
+        );
+        state.registerTransportChrome(transportChrome('p2:playback'));
+
+        state.destroyAllPlugins();
+
+        expect(state.transportChrome).toEqual([]);
         expect(() => dispose()).not.toThrow();
     });
 

@@ -2009,10 +2009,21 @@
         max-width: 20rem;
     }
 
+    /*
+     * A plugin panel positioned `overlay`. Above `.control-bar` (41), which is
+     * itself above the plugin overlay LAYERS at 40. The two cases differ in
+     * what they contain: a layer spans the viewer area and its opted-in child
+     * is usually the content itself (a claimed AV canvas's media element), so
+     * the bar must paint over it or lose every control; a panel is discrete
+     * chrome the reader operates, and only its own content takes pointer
+     * events, so where a panel and the bar overlap the panel is the thing being
+     * used and has to win. Below the drag overlay (45) and core's annotation
+     * shapes (50).
+     */
     .plugin-overlay {
         position: absolute;
         inset: 0;
-        z-index: 40;
+        z-index: 42;
         pointer-events: none;
     }
     /*

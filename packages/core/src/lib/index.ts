@@ -115,6 +115,19 @@ export type {
 // is where anything a reader must perceive or operate belongs.
 export type { OverlayLayer } from './renderer/overlayLayers';
 
+// The **transport chrome** seam's vocabulary: what `registerTransportChrome`
+// takes. Types only — the registry is core's, reached through
+// `ViewerState.registerTransportChrome`. The seam is media-agnostic on purpose:
+// a claimant hands core playback facts and playback commands, and core renders
+// the controls in its own bar, in its own theme.
+export type {
+    TransportChrome,
+    TransportChromeIcons,
+    TransportChromeLabels,
+    TransportChromePort,
+    TransportChromeView,
+} from './state/transportChrome';
+
 // The custom element's state bridge: the
 // getter-only `viewerState` property paired with the `viewerstateavailable`
 // lifecycle event. This is how a Web Component host binds to the live

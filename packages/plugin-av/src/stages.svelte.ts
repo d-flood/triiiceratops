@@ -15,9 +15,6 @@
  *   sequencer over the same stage. The stage itself knows neither case apart.
  * - **Placing.** Every stage is projected from canvas space on every frame the
  *   viewport moves, which is what makes the media track pan and zoom.
- *
- * Authored as a runes module so the throwaway control panel can read the stage
- * list reactively without a second notification mechanism.
  */
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';
@@ -42,6 +39,7 @@ import {
     warnAboutUnreadableWaveform,
 } from './degradation';
 import { createPlayabilityProbe, selectSource } from './formats';
+import { TRANSPORT_ICONS } from './icons';
 import {
     createMediaStage,
     type MediaStage,
@@ -68,18 +66,7 @@ import { loadTranscript } from './transcriptLink';
 import type { VisibleBox } from './waveform/surface';
 import { loadPeaks, waveformUrlFor } from './waveformLink';
 
-/** What the throwaway control panel renders one stage as. */
-export interface AvStageView {
-    readonly canvasId: string;
-    /** Short, unlocalized identification for the throwaway control. */
-    readonly label: string;
-    readonly paused: boolean;
-    readonly unplayable: boolean;
-}
-
 export interface AvStageManager {
-    /** Every claimed canvas's stage, in layout order. Reactive. */
-    readonly views: readonly AvStageView[];
     /**
      * Where the panel wants its transcript rendered, or `null` when the panel
      * is gone. The manager owns the lazy chunk's lifecycle from here, because a
@@ -117,13 +104,6 @@ interface StageEntry {
     sequencer: CanvasSequencer | null;
 }
 
-/** The last path segment of a canvas id — enough to tell two stages apart. */
-function shortLabel(canvasId: string): string {
-    const trimmed = canvasId.replace(/[/#]+$/, '');
-    const tail = trimmed.slice(trimmed.lastIndexOf('/') + 1);
-    return tail || canvasId;
-}
-
 function canvasIdOf(canvas: unknown): string {
     const record = (canvas ?? {}) as Record<string, unknown>;
     const id = record.id ?? record['@id'];
@@ -143,11 +123,10 @@ export function createAvStageManager(
 ): AvStageManager {
     const { viewerState } = context;
 
-    // Deliberately non-reactive: the stages ARE the DOM, and what a component
-    // renders from is the `views` snapshot published below, not this ledger.
+    // Deliberately non-reactive: the stages ARE the DOM, and nothing renders
+    // from this ledger — `publishViews` is a pulse, not a snapshot.
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const entries = new Map<string, StageEntry>();
-    let views = $state.raw<AvStageView[]>([]);
     let layer: HTMLElement | null = null;
 
     /**
@@ -212,7 +191,7 @@ export function createAvStageManager(
     }
 
     /**
-     * ONE transport, anchored to whichever claimed canvas is current.
+     * ONE transport, driving whichever claimed canvas is current.
      *
      * One rather than one per stage, because AVState addresses the current
      * canvas's media and nothing else — multi-target addressing is a documented
@@ -220,6 +199,9 @@ export function createAvStageManager(
      * would be chrome that reports the wrong canvas's playhead and commands the
      * wrong canvas's media, which is worse than no chrome. Every other visible
      * stage gets the play-state glyph instead.
+     *
+     * It builds no DOM: core renders it in the control bar from the view model
+     * below (see `registerTransportChrome`).
      */
     const transport = createTransport({
         avState: publication.state,
@@ -259,6 +241,36 @@ export function createAvStageManager(
         },
         t: (key, params) => context.locale.t(key, params),
     });
+
+    /** The registration's dispose while chrome is registered, `null` otherwise. */
+    let releaseTransport: (() => void) | null = null;
+
+    /**
+     * Register playback chrome while this manifest has a claimed canvas, and
+     * release it when it has none.
+     *
+     * Scoped to the MANIFEST rather than to the current canvas: navigating to an
+     * image page inside an album is the transient case the view's `present`
+     * flag covers, and deregistering per page would churn core's render site
+     * for a state that is expected. A manifest this plugin claims nothing in
+     * registers nothing at all, so a viewer of page images renders exactly the
+     * chrome it renders today.
+     */
+    function syncTransportRegistration(): void {
+        if (entries.size > 0) {
+            releaseTransport ??= viewerState.registerTransportChrome({
+                // The prefix is the id the viewer knows this plugin by.
+                id: `${context.surface.id}:transport`,
+                icons: TRANSPORT_ICONS,
+                view: transport.view,
+                port: transport.port,
+                subscribe: transport.subscribe,
+            });
+            return;
+        }
+        releaseTransport?.();
+        releaseTransport = null;
+    }
 
     let transcriptHost: HTMLElement | null = null;
     let transcriptPanel: { refresh(): void; destroy(): void } | null = null;
@@ -376,12 +388,6 @@ export function createAvStageManager(
 
     function publishViews(): void {
         publication.sync();
-        views = [...entries.values()].map((entry) => ({
-            canvasId: entry.stage.canvasId,
-            label: shortLabel(entry.stage.canvasId),
-            paused: entry.stage.media.paused,
-            unplayable: entry.stage.unplayable,
-        }));
         syncTranscript();
     }
 
@@ -445,20 +451,13 @@ export function createAvStageManager(
     function placeAll(): void {
         const current = currentEntry();
         const visible = visibleBox();
-        let transportShowing = false;
 
         for (const entry of entries.values()) {
-            const rect = rectFor(entry.scan);
-            entry.stage.place(rect, visible);
-            if (entry === current) transportShowing = transport.place(rect);
-        }
-        if (!current) transport.place(null);
-
-        // The glyph is what a stage shows when no transport is over it —
-        // because the canvas projects too narrow for one, or because the
-        // transport belongs to a different canvas.
-        for (const entry of entries.values()) {
-            entry.stage.setGlyphVisible(entry !== current || !transportShowing);
+            entry.stage.place(rectFor(entry.scan), visible);
+            // The glyph says which recordings are playing among the claimed
+            // canvases the bar is NOT driving. The canvas the bar does drive
+            // needs none: its play state is in the bar.
+            entry.stage.setGlyphVisible(entry !== current);
         }
     }
 
@@ -650,8 +649,7 @@ export function createAvStageManager(
         });
         prefs.applyTo(stage.media);
         stage.place(rect, visibleBox());
-        // Before the transport, which is appended last and must stay on top.
-        layer?.insertBefore(stage.root, transport.root);
+        layer?.append(stage.root);
         const entry: StageEntry = {
             stage,
             scan,
@@ -819,6 +817,7 @@ export function createAvStageManager(
             if (!entries.has(canvasId)) addStage(found.scan, found.canvas);
         }
 
+        syncTransportRegistration();
         publishViews();
     }
 
@@ -829,12 +828,9 @@ export function createAvStageManager(
             layer = container;
             for (const entry of entries.values())
                 container.append(entry.stage.root);
-            // Last, so the chrome sits over every stage rather than under one.
-            container.append(transport.root);
             placeAll();
             return () => {
                 for (const entry of entries.values()) entry.stage.root.remove();
-                transport.root.remove();
                 layer = null;
             };
         },
@@ -853,9 +849,13 @@ export function createAvStageManager(
         .select((state) => state.canvasId)
         .subscribe(() => {
             publication.sync();
-            // The transport is anchored to the current canvas, so it moves with
-            // the selection rather than waiting for the next viewport frame.
+            // Which stage wears the play-state glyph follows the selection,
+            // rather than waiting for the next viewport frame.
             placeAll();
+            // A navigation onto or off a claimed canvas flips the view's
+            // `present`, and no AVState cadence runs on a paused canvas to
+            // carry it to the bar.
+            transport.refresh();
         });
 
     // The reader's Choice picks, read through core's own selection state rather
@@ -944,9 +944,6 @@ export function createAvStageManager(
     offsets.apply(viewerState.temporalOffset);
 
     return {
-        get views(): readonly AvStageView[] {
-            return views;
-        },
         setTranscriptHost(host: HTMLElement | null): void {
             transcriptHost = host;
             syncTranscript();
@@ -965,6 +962,8 @@ export function createAvStageManager(
             stopFrames();
             stopPlayheads();
             stopLocale();
+            releaseTransport?.();
+            releaseTransport = null;
             transport.destroy();
             for (const canvasId of [...entries.keys()]) removeStage(canvasId);
             releaseLayer();

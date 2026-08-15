@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Shared-Svelte-runtime and chunked-dist gate.
+// Shared-runtime and chunked-dist gate.
 //
-// This plugin is the one that does NOT bundle Svelte (see vite.config.ts): its
-// IIFE reads core's runtime off `window.Triiiceratops`. That saving is invisible
+// This plugin is the one that bundles neither Svelte nor core's own utilities
+// (see vite.config.ts): its
+// IIFE reads both off `window.Triiiceratops`. That saving is invisible
 // in source and easy to lose — a stray import that defeats the external, a
 // config edit, a Vite upgrade that stops honouring `rollupOptions.output.globals`
 // — and it would be lost silently, because a bundle carrying its own runtime
@@ -28,15 +29,24 @@
 // `<local>.<helper> is not a function`. So the helpers the built artifacts
 // actually reference are compared here against the list core publishes.
 //
+// `window.Triiiceratops.core` has the same quiet failure mode and gets the same
+// scan: a new `import { … } from 'triiiceratops'` anywhere in the IIFE's graph
+// builds clean and passes every unit test — unit tests import the real module —
+// and then throws in the browser. Every name the artifacts read off that member
+// must be published by core AND listed in the plugin's own `REQUIRED_CORE_UTILS`,
+// or an old core throws from module scope with no diagnostic ahead of it.
+//
 // To verify this gate once: drop `svelte` out of `external` in vite.config.ts,
 // rebuild, and watch it fail. For the chunk half, drop `chunkedIife()` out of
 // the IIFE build's plugin list. For the helper half,
-// unwrap one of the captions buttons' children in `src/Transport.svelte` —
-// `<Button …>CC</Button>` rather than `<Button …><span>CC</span></Button>`:
-// the compiler lowers a bare text child of a component to `$.next()`, which
-// core does not publish, and the gate then names `next`. For the helper half
+// put a bare text child on a component in `src/Panel.svelte` — `<Button …>x</Button>`
+// rather than `<Button …><span>x</span></Button>`: the compiler lowers a bare
+// text child of a component to `$.next()`, which core does not publish, and the
+// gate then names `next`. For the helper half
 // over a chunk, put `window.Triiiceratops.svelteInternal.next()` inside
-// `src/waveform/index.ts`.
+// `src/waveform/index.ts`. For the core-utils half, add
+// `import { normalizeColor } from 'triiiceratops'` to `src/iife.ts` and call it:
+// the gate then names `normalizeColor`.
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -54,6 +64,15 @@ const sharedRuntimePath = resolve(
     'lib',
     'shared-svelte-runtime.ts',
 );
+const sharedCoreUtilsPath = resolve(
+    packageRoot,
+    '..',
+    'core',
+    'src',
+    'lib',
+    'shared-core-utils.ts',
+);
+const gateSourcePath = join(packageRoot, 'src', 'sharedRuntimeGate.ts');
 
 /**
  * The helper names core publishes on `window.Triiiceratops.svelteInternal`,
@@ -96,7 +115,82 @@ function publishedHelpers() {
 }
 
 /**
- * The locals in a built artifact that hold `Triiiceratops.svelteInternal`.
+ * The utility names core publishes on `window.Triiiceratops.core`, read out of
+ * the `SHARED_CORE_UTILS` object literal in core's source.
+ *
+ * Same authority as `publishedHelpers`, for the same reason: the list is written
+ * by hand, minification renames no property key, and reporting against the
+ * source means reporting against the list a reviewer can edit.
+ */
+function publishedCoreUtils() {
+    const source = read(sharedCoreUtilsPath, 'core shared-core-utils.ts');
+    if (source === null) return null;
+
+    const block = /SHARED_CORE_UTILS[^=]*=\s*\{([\s\S]*?)\n\};/.exec(source);
+    if (!block) {
+        failures.push(
+            `Could not find the \`SHARED_CORE_UTILS\` object literal in ` +
+                `${sharedCoreUtilsPath}: the core-utils gate has nothing to ` +
+                `compare against.`,
+        );
+        return null;
+    }
+
+    const names = new Set(
+        [...block[1].matchAll(/^\s{4}([A-Za-z_$][\w$]*)\s*[,:]/gm)].map(
+            (match) => match[1],
+        ),
+    );
+    if (names.size === 0) {
+        failures.push(
+            `Parsed no utility names out of ${sharedCoreUtilsPath}: the ` +
+                `core-utils gate has nothing to compare against.`,
+        );
+        return null;
+    }
+    return names;
+}
+
+/**
+ * The names the plugin's own skew gate checks for at load, read out of
+ * `REQUIRED_CORE_UTILS` in `src/sharedRuntimeGate.ts`.
+ *
+ * Core publishing a utility is only half of what makes reading it safe: the gate
+ * that runs ahead of the bundle body has to know to look for it, or a core too
+ * old to publish it fails with `is not a function` from module scope instead of
+ * the named diagnostic. So the built artifacts are held to both lists.
+ */
+function requiredCoreUtils() {
+    const source = read(gateSourcePath, 'src/sharedRuntimeGate.ts');
+    if (source === null) return null;
+
+    const block = /REQUIRED_CORE_UTILS[^=]*=\s*\[([\s\S]*?)\];/.exec(source);
+    if (!block) {
+        failures.push(
+            `Could not find the \`REQUIRED_CORE_UTILS\` array in ` +
+                `${gateSourcePath}: the core-utils gate cannot tell whether the ` +
+                `skew gate covers what the bundle reads.`,
+        );
+        return null;
+    }
+
+    const names = new Set(
+        [...block[1].matchAll(/["']([^"']+)["']/g)].map((match) => match[1]),
+    );
+    if (names.size === 0) {
+        failures.push(
+            `Parsed no utility names out of \`REQUIRED_CORE_UTILS\` in ` +
+                `${gateSourcePath}: the core-utils gate has nothing to compare ` +
+                `against.`,
+        );
+        return null;
+    }
+    return names;
+}
+
+/**
+ * The locals in a built artifact that hold one member of the
+ * `window.Triiiceratops` namespace — `svelteInternal` or `core`.
  *
  * Three ways in, because minification renames every one of them:
  *
@@ -134,7 +228,7 @@ function escapeLocal(local) {
     return local.replace(/\$/g, String.raw`\$`);
 }
 
-function runtimeLocals(source) {
+function runtimeLocals(source, member = 'svelteInternal') {
     const locals = new Set();
 
     const call = /\}\s*\)\s*\(((?:[^()]|\([^()]*\))*)\)\s*;?\s*$/.exec(source);
@@ -143,7 +237,7 @@ function runtimeLocals(source) {
         const params = head[1].split(',').map((name) => name.trim());
         call[1].split(',').forEach((argument, index) => {
             if (
-                /\.svelteInternal\s*\)*\s*$/.test(argument) &&
+                new RegExp(String.raw`\.${member}\s*\)*\s*$`).test(argument) &&
                 /^[A-Za-z_$][\w$]*$/.test(params[index] ?? '')
             ) {
                 locals.add(params[index]);
@@ -152,7 +246,7 @@ function runtimeLocals(source) {
     }
 
     for (const match of source.matchAll(
-        new RegExp(ASSIGNED + String.raw`[^;,=]*?\.svelteInternal\b`, 'g'),
+        new RegExp(ASSIGNED + String.raw`[^;,=]*?\.${member}\b`, 'g'),
     )) {
         locals.add(match[1]);
     }
@@ -198,19 +292,30 @@ function runtimeLocals(source) {
  */
 const ACCESS = String.raw`\??\.\s*([A-Za-z_$][\w$]*)|\?\.\s*\[\s*["'\`]([^"'\`]+)["'\`]\s*\]|\[\s*["'\`]([^"'\`]+)["'\`]\s*\]`;
 
-function referencedHelpers(source) {
+function referencedHelpers(source, member = 'svelteInternal') {
     const referenced = new Set();
     const record = (match) => {
         for (const group of match.slice(1)) if (group) referenced.add(group);
     };
-    for (const local of runtimeLocals(source)) {
+    for (const local of runtimeLocals(source, member)) {
         // A lookbehind rather than `\b`: `\b` needs a word character on one side
         // of the boundary, and a local named `$e` has none.
-        const member = new RegExp(
-            String.raw`(?<![\w$.])${escapeLocal(local)}\s*(?:${ACCESS})`,
+        //
+        // The second lookbehind is the regex-literal exclusion. A minified local
+        // can be a single letter that is also a regex flag, so `/<pattern>/i`
+        // ends in something shaped exactly like a local and `/…/i.test(x)` would
+        // read as a helper named `test`. It is anchored on a whole literal —
+        // slash, a body with no unescaped slash and no whitespace, slash, then a
+        // flag run — rather than on a bare `/`, because excluding any preceding
+        // slash would also discard a genuine `a/e.next()` and that is a false
+        // NEGATIVE: an unpublished helper the build then ships (see the safe
+        // direction argued in `runtimeLocals`).
+        const access = new RegExp(
+            String.raw`(?<![\w$.])(?<!\/(?:[^\/\\\n\s]|\\.){1,200}\/[a-z]{0,4})` +
+                String.raw`${escapeLocal(local)}\s*(?:${ACCESS})`,
             'g',
         );
-        for (const match of source.matchAll(member)) record(match);
+        for (const match of source.matchAll(access)) record(match);
         // `const { child, next } = <local>` reaches the same helpers without a
         // member expression ever appearing.
         const destructured = new RegExp(
@@ -227,7 +332,7 @@ function referencedHelpers(source) {
     // A chunk has no local to resolve at all: with no globals wiring it reads
     // the helper straight off the namespace, `…svelteInternal.next()`.
     for (const match of source.matchAll(
-        new RegExp(String.raw`\.svelteInternal\s*(?:${ACCESS})`, 'g'),
+        new RegExp(String.raw`\.${member}\s*(?:${ACCESS})`, 'g'),
     )) {
         record(match);
     }
@@ -315,6 +420,10 @@ const REQUIRED_GLOBALS = [
         label: 'window.Triiiceratops?.svelteInternal',
         re: /Triiiceratops\?\.svelteInternal(?![A-Za-z0-9_$])/,
     },
+    {
+        label: 'window.Triiiceratops?.core',
+        re: /Triiiceratops\?\.core(?![A-Za-z0-9_$])/,
+    },
 ];
 
 /**
@@ -323,13 +432,15 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **22,552**.
+ * the same level this script uses — which currently reads **17,140**.
+ *
+ * The playback chrome is NOT in this number and must never come back into it:
+ * core renders it, from the view model `src/transport.svelte.ts` registers
+ * through `registerTransportChrome`. What this bundle carries of the transport
+ * is that view model, its formatting, and the five icon descriptors.
  *
  * What those eager bytes are:
  *
- * - the transport, mostly `@triiiceratops/ui`'s `Button` and `Range`, bundled
- *   here so the chrome inherits the viewer's theming instead of carrying a
- *   parallel stylesheet — by some way the largest single item;
  * - the stage: the lane layout and its styling, the projection's clip to the
  *   overlay container, companion-canvas resolution, and the tap/pan seam that
  *   keeps a plain-audio canvas draggable;
@@ -338,10 +449,8 @@ const REQUIRED_GLOBALS = [
  *   `start`, a chapter's `#t=` and `auto-advance` are all settled on the
  *   navigation that first shows a canvas, and none of them can wait for a chunk;
  * - captions: detecting VTT tracks in both manifest shapes, attaching them as
- *   native `<track>` children, and the transport's toggle. About 750 of the
- *   total is the multi-track radio list alone — its markup, its keyboard
- *   behaviour and its styling — which is what a reader choosing a language
- *   costs over a reader turning one track on and off;
+ *   native `<track>` children, and naming the loaded ones for the track control
+ *   core renders;
  * - the HLS playability gate, which decides whether the hls.js chunk is needed
  *   at all and must therefore be in the entry;
  * - Choice selection: the playability probe, the swap that keeps the reader's
@@ -382,7 +491,7 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 22_600;
+const MAX_IIFE_GZIP = 17_150;
 
 /**
  * Floor on the number of runtime helpers the IIFE entry must be seen to
@@ -390,10 +499,10 @@ const MAX_IIFE_GZIP = 22_600;
  *
  * Not a budget — a self-test. It exists so that a failure to READ the entry
  * cannot present as a clean entry; see where it is used. The entry references
- * 31 today (every name core publishes), so this is a floor no plausible markup
+ * 11 today (every name core publishes), so this is a floor no plausible markup
  * change reaches, only a broken resolver.
  */
-const MIN_ENTRY_HELPERS = 15;
+const MIN_ENTRY_HELPERS = 6;
 
 const failures = [];
 
@@ -424,7 +533,8 @@ if (iife !== null) {
         if (!re.test(iife)) {
             failures.push(
                 `dist/iife.js never reads \`${label}\`, so it is not consuming ` +
-                    `core's shared Svelte runtime.`,
+                    `what core shares on its namespace and is bundling a ` +
+                    `second copy of it instead.`,
             );
         }
     }
@@ -533,7 +643,7 @@ if (iife !== null) {
         // yields an empty referenced set — no helper missing, and a green line
         // indistinguishable from a clean bundle. Both halves are checked: that
         // SOMETHING resolved, and that what resolved is the whole compiled
-        // graph rather than one stray binding. The entry references 31 helpers
+        // graph rather than one stray binding. The entry references 11 helpers
         // today; the floor is set well under that so ordinary markup churn
         // never touches it, and a collapse to a handful is what it catches.
         const entryLocals = runtimeLocals(iife);
@@ -594,17 +704,88 @@ if (iife !== null) {
         }
     }
 
+    // The core-utils gate, the exact counterpart of the helper gate above and
+    // for the exact same failure mode. `window.Triiiceratops.core` is curated
+    // too, so a module that imports a fifth function from `triiiceratops` builds
+    // clean, passes every unit test — unit tests import the REAL module, not the
+    // curated object the browser gets — registers, and then dies with
+    // "is not a function". Both lists have to hold: core must publish the name,
+    // and the skew gate must require it, or an OLD core produces the same throw
+    // from module scope with no diagnostic ahead of it.
+    const publishedUtils = publishedCoreUtils();
+    const requiredUtils = requiredCoreUtils();
+    if (publishedUtils !== null && requiredUtils !== null) {
+        const artifacts = ['iife.js', ...iifeChunks];
+        if (runtimeLocals(iife, 'core').size === 0) {
+            failures.push(
+                `Found no local holding window.Triiiceratops.core in ` +
+                    `dist/iife.js, so the core-utils gate inspected nothing ` +
+                    `there. The minifier has emitted a binding shape ` +
+                    `\`runtimeLocals\` does not recognise — widen it rather ` +
+                    `than trusting this run.`,
+            );
+        }
+        for (const name of artifacts) {
+            const artifact = name === 'iife.js' ? iife : chunkSources.get(name);
+            if (artifact === undefined) continue;
+
+            const utils = [...referencedHelpers(artifact, 'core')].sort();
+            const unpublished = utils.filter(
+                (util) => !publishedUtils.has(util),
+            );
+            const ungated = utils.filter(
+                (util) => publishedUtils.has(util) && !requiredUtils.has(util),
+            );
+            if (unpublished.length > 0) {
+                failures.push(
+                    `dist/${name} reads ${unpublished.map((util) => `\`${util}\``).join(', ')} ` +
+                        `off window.Triiiceratops.core, which core does not publish: ` +
+                        `this throws "is not a function" in a browser, and no unit ` +
+                        `test can see it. Either stop importing it from ` +
+                        `\`triiiceratops\` in the IIFE's graph, or add it to ` +
+                        `SHARED_CORE_UTILS in packages/core/src/lib/` +
+                        `shared-core-utils.ts and accept the core size ratchet.`,
+                );
+            }
+            if (ungated.length > 0) {
+                failures.push(
+                    `dist/${name} reads ${ungated.map((util) => `\`${util}\``).join(', ')} ` +
+                        `off window.Triiiceratops.core without REQUIRED_CORE_UTILS ` +
+                        `in src/sharedRuntimeGate.ts listing them: against an ` +
+                        `older core the skew gate would pass and the bundle would ` +
+                        `then throw "is not a function" from module scope with ` +
+                        `nothing to say why. Add them to REQUIRED_CORE_UTILS.`,
+                );
+            }
+        }
+        if (failures.length === 0) {
+            console.log(
+                `check-shared-runtime: ${artifacts.length} artifacts read only ` +
+                    `core utilities that core publishes (${publishedUtils.size} ` +
+                    `available) and that the skew gate requires ` +
+                    `(${requiredUtils.size} listed).`,
+            );
+        }
+    }
+
     const gzip = gzipSync(Buffer.from(iife), { level: 9 }).length;
     if (gzip > MAX_IIFE_GZIP) {
         failures.push(
             `dist/iife.js is ${gzip} bytes gzip, over the ${MAX_IIFE_GZIP} ceiling. ` +
-                `Check whether it has acquired a bundled Svelte runtime.`,
+                `Check, in rough order of how much they would move it: whether a ` +
+                `lazy chunk has been folded back into the entry (the markers ` +
+                `above catch that outright), whether an import has defeated one ` +
+                `of the externals and pulled in a second Svelte runtime or a ` +
+                `second copy of core's utilities, and whether eager code has ` +
+                `grown that belongs behind a chunk. If the growth is real and ` +
+                `worth its bytes, raise this ceiling deliberately and re-check ` +
+                `the pair budget in scripts/size-check.mjs.`,
         );
     } else if (failures.length === 0) {
         console.log(
             `check-shared-runtime: dist/iife.js ${gzip} bytes gzip ` +
-                `(ceiling ${MAX_IIFE_GZIP}), no bundled Svelte runtime, both ` +
-                `globals read, skew gate present.`,
+                `(ceiling ${MAX_IIFE_GZIP}), no bundled Svelte runtime, all ` +
+                `shared globals read, skew gate present.`,
         );
     }
 }

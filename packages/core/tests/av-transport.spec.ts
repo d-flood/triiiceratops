@@ -1,17 +1,16 @@
 /**
- * The **transport**, in a real browser: canvas-anchored playback chrome over a
- * claimed AV canvas.
+ * The **transport**, in a real browser: playback chrome in the viewer's control
+ * bar, driving a claimed AV canvas.
  *
  * What only a browser can settle:
  *
- * - **It is anchored, but it does not scale.** Its `x`/`width` follow the
- *   projected canvas rect while its HEIGHT stays the same screen pixels through
- *   a zoom — the whole point of putting it in the overlay layer beside the
- *   stage rather than inside it.
+ * - **It is chrome, not a projection.** It sits beside the zoom and canvas
+ *   navigation, takes none of their clicks, and neither moves nor resizes
+ *   through a zoom.
  * - **Every control works and every control is AVState.** Play, a scrubber
  *   drag, arrow and Page seeking, and mute are driven here and read back off
  *   the media element they must have reached.
- * - **Below the threshold there is no transport and there is a glyph.**
+ * - **The glyph marks the claimed canvases the bar is not driving.**
  * - **Accessibility**: axe over a viewer with an open AV stage, and a
  *   keyboard-only walk from play through the scrubber to the volume slider.
  *
@@ -23,9 +22,18 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import { IDLE_CHROME_DELAY_MS } from '../src/lib/components/viewerControls';
+
 import { serveAvPluginDist } from './helpers/avPluginDist';
-import { settled } from './helpers/settle';
-import { AV_MANIFESTS, BARS_MP4, BARS_SIZE } from './helpers/avMedia';
+import { settled, settledBox } from './helpers/settle';
+import {
+    AV_MANIFESTS,
+    BARS_MP4,
+    BARS_SIZE,
+    CAPTIONS_VTT,
+    CAPTIONS_VTT_IT,
+} from './helpers/avMedia';
+import { GRID_MANIFEST } from './helpers/numberedGrid';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -36,18 +44,20 @@ test.skip(
 
 const FIXTURE = '/e2e/av-plugin.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
+const STAGE = '[data-testid="av-stage"]';
 const MEDIA = '[data-testid="av-media"]';
-const TRANSPORT = '[data-testid="av-transport"]';
-const SCRUBBER = '[data-testid="av-scrubber"]';
-const PLAY = '[data-testid="av-play"]';
-const MUTE = '[data-testid="av-mute"]';
-const VOLUME = '[data-testid="av-volume"]';
-const CAPTIONS = '[data-testid="av-captions"]';
-const ELAPSED = '[data-testid="av-elapsed"]';
-const DURATION = '[data-testid="av-duration"]';
+const TRANSPORT = '[data-testid="transport"]';
+const SCRUBBER = '[data-testid="transport-scrubber"]';
+const PLAY = '[data-testid="transport-play"]';
+const MUTE = '[data-testid="transport-mute"]';
+const VOLUME = '[data-testid="transport-volume"]';
+const CAPTIONS = '[data-testid="transport-tracks"]';
+const TRACK_LIST = '[data-testid="transport-track-list"]';
+const BAR = '[data-testid="control-bar"]';
+const ELAPSED = '[data-testid="transport-elapsed"]';
+const DURATION = '[data-testid="transport-duration"]';
 const GLYPH = '[data-testid="av-glyph"]';
-
-const BARS_CANVAS = `${AV_MANIFESTS.video}/canvas/bars`;
+const NAV_INDEX = '.nav-index';
 
 /**
  * Two video canvases, built here rather than taken from `AV_MANIFESTS` for the
@@ -71,6 +81,10 @@ const PAIR_MANIFEST = {
         width: BARS_SIZE.width,
         height: BARS_SIZE.height,
         duration: 2,
+        // A summary is what makes the canvas-info button render at all — it is
+        // the bar's other popover, and so the other thing the idle timer waits
+        // for.
+        summary: { en: ['Colour bars, two seconds.'] },
         items: [
             {
                 id: `${canvasId}/page`,
@@ -96,28 +110,107 @@ const PAIR_MANIFEST = {
     })),
 };
 
+/**
+ * One video canvas with a CHOICE of two caption tracks, which is what makes the
+ * captions control open a list rather than toggle — the bar's own popover, and
+ * so a thing the idle timer has to wait for.
+ */
+const TRACKS_MANIFEST_URL = '/media/manifests/av-transport-tracks.json';
+const TRACKS_CANVAS_ID = `${TRACKS_MANIFEST_URL}/canvas`;
+const TRACKS_MANIFEST = {
+    '@context': 'http://iiif.io/api/presentation/3/context.json',
+    id: TRACKS_MANIFEST_URL,
+    type: 'Manifest',
+    label: { en: ['Colour bars with two caption tracks'] },
+    items: [
+        {
+            id: TRACKS_CANVAS_ID,
+            type: 'Canvas',
+            width: BARS_SIZE.width,
+            height: BARS_SIZE.height,
+            duration: 2,
+            items: [
+                {
+                    id: `${TRACKS_CANVAS_ID}/page`,
+                    type: 'AnnotationPage',
+                    items: [
+                        {
+                            id: `${TRACKS_CANVAS_ID}/annotation`,
+                            type: 'Annotation',
+                            motivation: 'painting',
+                            target: TRACKS_CANVAS_ID,
+                            body: {
+                                id: BARS_MP4,
+                                type: 'Video',
+                                format: 'video/mp4',
+                                width: BARS_SIZE.width,
+                                height: BARS_SIZE.height,
+                                duration: 2,
+                            },
+                        },
+                    ],
+                },
+            ],
+            annotations: [
+                {
+                    id: `${TRACKS_CANVAS_ID}/annopage`,
+                    type: 'AnnotationPage',
+                    items: [
+                        {
+                            id: `${TRACKS_CANVAS_ID}/captions`,
+                            type: 'Annotation',
+                            motivation: 'supplementing',
+                            target: TRACKS_CANVAS_ID,
+                            body: {
+                                type: 'Choice',
+                                items: [
+                                    {
+                                        id: CAPTIONS_VTT,
+                                        type: 'Text',
+                                        format: 'text/vtt',
+                                        language: 'en',
+                                        label: { en: ['English'] },
+                                    },
+                                    {
+                                        id: CAPTIONS_VTT_IT,
+                                        type: 'Text',
+                                        format: 'text/vtt',
+                                        language: 'it',
+                                        label: { it: ['Italiano'] },
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
+};
+
 async function openViewer(
     page: Page,
     manifest: string = AV_MANIFESTS.video,
-    // A canvas that projects under the width threshold has no transport, which
-    // is a state a caller may want to open into deliberately.
-    awaitTransport = true,
 ): Promise<void> {
     await serveAvPluginDist(page);
-    await page.route(`**${PAIR_MANIFEST_URL}`, (route) =>
-        route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify(PAIR_MANIFEST),
-        }),
-    );
+    for (const [url, json] of [
+        [PAIR_MANIFEST_URL, PAIR_MANIFEST],
+        [TRACKS_MANIFEST_URL, TRACKS_MANIFEST],
+    ] as const) {
+        await page.route(`**${url}`, (route) =>
+            route.fulfill({
+                contentType: 'application/json',
+                body: JSON.stringify(json),
+            }),
+        );
+    }
     await page.goto(`${FIXTURE}?manifest=${encodeURIComponent(manifest)}`, {
         waitUntil: 'domcontentloaded',
     });
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 30_000 });
-    if (awaitTransport)
-        await page
-            .locator(TRANSPORT)
-            .waitFor({ state: 'visible', timeout: 30_000 });
+    await page
+        .locator(TRANSPORT)
+        .waitFor({ state: 'visible', timeout: 30_000 });
 }
 
 /** Zoom to an absolute scale in screen pixels per canvas-space unit. */
@@ -143,149 +236,85 @@ async function playback(page: Page) {
     });
 }
 
-test.describe('av transport — anchored chrome at constant screen size', () => {
-    test('tracks the canvas rect in x and width, and keeps its height through a zoom', async ({
+/*
+    The regression group for the bug this epic exists for. It replaces the
+    "anchored chrome at constant screen size" group, whose behaviour — chrome
+    projected onto the canvas rect, and a width threshold that swapped it for a
+    glyph — was deleted with the anchoring decision that created it.
+
+    Written to FAIL against a build where the transport is still anchored: there
+    the transport is painted over the navigation and opts back into pointer
+    events, so the nav and zoom buttons below fail the click.
+*/
+test.describe('av transport — chrome in the bar leaves the navigation reachable', () => {
+    test('the navigation and zoom stay clickable, and the transport does not move, through a zoom', async ({
         page,
     }) => {
-        await openViewer(page);
+        // The PAIR manifest, because canvas navigation is only rendered for a
+        // manifest with more than one canvas — and the navigation being
+        // reachable is what this test is about.
+        await openViewer(page, PAIR_MANIFEST_URL);
 
-        /**
-         * The transport's box beside the projection of the canvas's own bottom
-         * edge. The overlay container's origin IS `canvasToScreen`'s origin, so
-         * the two agree without correction.
-         */
-        const measure = async () =>
-            page.evaluate(
-                ([id, width, height]) => {
-                    const host = document.getElementById('v') as unknown as {
-                        shadowRoot: ShadowRoot;
-                        viewerState: {
-                            canvasToScreen(
-                                point: { x: number; y: number },
-                                canvasId?: string,
-                            ): { x: number; y: number } | null;
-                        };
-                    };
-                    const chrome = host.shadowRoot.querySelector(
-                        '[data-testid="av-transport"]',
-                    ) as HTMLElement | null;
-                    // The ANCHOR is what tracks the projection; the chrome
-                    // inside it is what must not change size.
-                    const anchor = host.shadowRoot.querySelector(
-                        '[data-testid="av-transport-anchor"]',
-                    ) as HTMLElement | null;
-                    const layer =
-                        anchor?.closest('.plugin-overlay-layer') ?? null;
-                    if (!chrome || !anchor || !layer) return null;
+        const zoomIn = page.getByRole('button', { name: 'Zoom In' });
+        const nextCanvas = page.getByRole('button', { name: 'Next Canvas' });
+        const transport = page.locator(TRANSPORT);
 
-                    const topLeft = host.viewerState.canvasToScreen(
-                        { x: 0, y: 0 },
-                        id,
-                    );
-                    const bottomRight = host.viewerState.canvasToScreen(
-                        { x: width as number, y: height as number },
-                        id,
-                    );
-                    if (!topLeft || !bottomRight) return null;
-
-                    const box = anchor.getBoundingClientRect();
-                    const layerBox = layer.getBoundingClientRect();
-                    return {
-                        left: box.left - layerBox.left,
-                        bottom: box.bottom - layerBox.top,
-                        width: box.width,
-                        height: chrome.getBoundingClientRect().height,
-                        canvasLeft: topLeft.x,
-                        canvasBottom: bottomRight.y,
-                        canvasWidth: bottomRight.x - topLeft.x,
-                    };
-                },
-                [BARS_CANVAS, BARS_SIZE.width, BARS_SIZE.height] as const,
-            );
-
-        // Poll rather than read once: the initial fit animates, and a
-        // synchronous read lands mid-transition.
-        await expect
-            .poll(
-                async () => {
-                    const seen = await measure();
-                    if (!seen || seen.height < 1) return null;
-                    return (
-                        Math.abs(seen.left - seen.canvasLeft) < 1.5 &&
-                        // Anchored to the rect's bottom edge.
-                        Math.abs(seen.bottom - seen.canvasBottom) < 1.5 &&
-                        Math.abs(seen.width - seen.canvasWidth) < 1.5
-                    );
-                },
-                { timeout: 20_000 },
-            )
-            .toBe(true);
-
-        // SETTLED, not merely tracking. The poll above only asserts the
-        // transport follows the canvas, which it does throughout the opening
-        // animation — so a single read here can capture a canvas that is still
-        // being re-fitted as the docked panel column slides out, and "wider
-        // than before" below would then be measured against a width that was
-        // never the resting one.
-        const before = await settled(page, measure);
+        // Settled, not merely present: the fixture's docked panel is still
+        // re-fitting the canvas as it slides out, so a single early read lands
+        // mid-transition (the reason the deleted group polled too).
+        const before = await settled(page, async (p) =>
+            p.locator(TRANSPORT).boundingBox(),
+        );
         expect(before).not.toBeNull();
 
+        // The bug, stated as the reader states it: with a recording open, the
+        // controls that move through the work are still there and still take a
+        // click. No `force` — chrome painted over them fails here.
+        await expect(zoomIn).toBeVisible();
+        await expect(nextCanvas).toBeVisible();
+        await expect(page.locator(NAV_INDEX)).toBeVisible();
+
+        await zoomIn.click({ timeout: 20_000 });
         await zoomTo(page, 3);
 
-        // Settled means: the canvas got wider, the transport followed it in x
-        // and width, and its HEIGHT did not move a pixel. All three, or a
-        // transport that simply never moved would pass.
-        await expect
-            .poll(
-                async () => {
-                    const seen = await measure();
-                    if (!seen || !before) return null;
-                    return {
-                        wider: seen.canvasWidth > before.canvasWidth + 1,
-                        follows:
-                            Math.abs(seen.left - seen.canvasLeft) < 1.5 &&
-                            Math.abs(seen.width - seen.canvasWidth) < 1.5 &&
-                            seen.width > before.width + 1,
-                        sameHeight: Math.abs(seen.height - before.height) < 0.5,
-                    };
-                },
-                { timeout: 20_000 },
-            )
-            .toEqual({ wider: true, follows: true, sameHeight: true });
+        // The transport is a group of the bar now, so a zoom cannot move or
+        // resize it: same place, same size, whatever the picture is doing.
+        const after = await settled(page, async (p) =>
+            p.locator(TRANSPORT).boundingBox(),
+        );
+        expect(after).not.toBeNull();
+        expect(Math.abs(after!.x - before!.x)).toBeLessThan(1.5);
+        expect(Math.abs(after!.y - before!.y)).toBeLessThan(1.5);
+        expect(Math.abs(after!.width - before!.width)).toBeLessThan(1.5);
+        expect(Math.abs(after!.height - before!.height)).toBeLessThan(1.5);
+
+        // Still operable at the far zoom, which is user story 6: a reader deep
+        // into a waveform keeps the full controls rather than losing them to a
+        // width test.
+        await expect(transport).toBeVisible();
+        await expect(zoomIn).toBeVisible();
+        await zoomIn.click({ timeout: 20_000 });
     });
 
-    test('shows a glyph and no transport below the width threshold', async ({
+    // The narrow-viewport case the deleted width threshold existed for. There
+    // is no threshold now: the controls are the bar's and the bar is the
+    // viewer's, so they survive a viewport no canvas could project a transport
+    // into.
+    test('keeps the full controls on a viewer too narrow for the old threshold', async ({
         page,
     }) => {
         await openViewer(page);
-        await expect(page.locator(GLYPH)).toBeHidden();
-
-        // Let the OPENING fit finish before touching the host's size. The
-        // fixture's panel is docked from load, so core is still re-fitting the
-        // canvas as that column slides out (ticket 20); a host resize landing
-        // inside that window is genuinely ambiguous — core cannot tell it from
-        // the column's own resizing — and would be re-fitted rather than
-        // preserved, putting the scale somewhere this test's zoom arguments
-        // were not written for.
         await settled(
             page,
             async (p) =>
                 (await p.locator(TRANSPORT).boundingBox())?.width ?? null,
         );
 
-        // A phone-width viewer, because the reader's zoom floor is half the
-        // scale at which the world fits: on the fixture's 800px-wide viewer
-        // even a fully zoomed-out 320-unit canvas still projects wider than the
-        // 240px threshold, so no zoom argument could reach the glyph. The
-        // narrow viewer is also the case the threshold exists for.
         await page.evaluate(() => {
             const host = document.getElementById('v') as HTMLElement;
             host.style.width = '360px';
             host.style.height = '480px';
         });
-        // The renderer re-fits and re-clamps the scale when it observes the new
-        // surface, so wait for that to land: a zoom issued into the old range is
-        // undone by the resize that arrives after it.
         await expect
             .poll(
                 async () =>
@@ -294,24 +323,77 @@ test.describe('av transport — anchored chrome at constant screen size', () => 
             )
             .toBeLessThan(400);
 
-        // Far enough out that a 320-unit-wide canvas projects under the
-        // 240-screen-pixel threshold.
+        // Zoomed far enough out that the canvas projects under the 240px the
+        // old threshold used, which is where the transport used to vanish.
         await zoomTo(page, 0.2);
 
-        await expect(page.locator(TRANSPORT)).toBeHidden({ timeout: 20_000 });
-        await expect(page.locator(GLYPH)).toBeVisible();
-        // Decorative: the play state it depicts is announced by the transport
-        // and by AVState, and a second announcement is noise.
-        await expect(page.locator(GLYPH)).toHaveAttribute(
-            'aria-hidden',
-            'true',
-        );
-
-        // …and it comes back on the way in, so the threshold is a threshold
-        // rather than a one-way trapdoor.
-        await zoomTo(page, 3);
         await expect(page.locator(TRANSPORT)).toBeVisible({ timeout: 20_000 });
-        await expect(page.locator(GLYPH)).toBeHidden();
+        await expect(page.locator(PLAY)).toBeVisible();
+        await expect(page.locator(SCRUBBER)).toBeVisible();
+    });
+});
+
+test.describe('av transport — the glyph says which canvas the bar drives', () => {
+    // The narrowed rule (plugin-av user story 26): the glyph is no longer a
+    // fallback for a canvas too small for chrome, it is what marks the claimed
+    // canvases the bar is NOT driving.
+    test('marks the claimed canvas the bar is not driving, and only that one', async ({
+        page,
+    }) => {
+        await openViewer(page, PAIR_MANIFEST_URL);
+        await page.evaluate(() => {
+            const host = document.getElementById('v') as unknown as {
+                viewerState: { setViewingMode(mode: string): void };
+            };
+            host.viewerState.setViewingMode('continuous');
+        });
+        // Far enough out that BOTH canvases project into the viewer at once.
+        // Continuous mode lays the second one outside the viewport at the
+        // opening fit, and a stage the renderer never places has no box for the
+        // glyph to be seen in.
+        //
+        // The zoom is re-issued on every poll rather than once: switching the
+        // viewing mode re-fits the scene asynchronously, and a zoom that lands
+        // before that fit is simply undone by it.
+        await expect
+            .poll(
+                async () => {
+                    await zoomTo(page, 0.4);
+                    const stages = page.locator(STAGE);
+                    const total = await stages.count();
+                    let placed = 0;
+                    for (let index = 0; index < total; index += 1) {
+                        const box = await stages.nth(index).boundingBox();
+                        if (box && box.width > 0) placed += 1;
+                    }
+                    return placed;
+                },
+                { timeout: 20_000 },
+            )
+            .toBe(2);
+
+        // Two claimed canvases on screen, one current. Exactly one glyph shows,
+        // and it is the one belonging to the canvas the bar is not driving.
+        await expect
+            .poll(async () => page.locator(GLYPH).count(), { timeout: 20_000 })
+            .toBe(2);
+        await expect
+            .poll(
+                async () => {
+                    const glyphs = page.locator(GLYPH);
+                    const total = await glyphs.count();
+                    let visible = 0;
+                    for (let index = 0; index < total; index += 1) {
+                        if (await glyphs.nth(index).isVisible()) visible += 1;
+                    }
+                    return visible;
+                },
+                { timeout: 20_000 },
+            )
+            .toBe(1);
+
+        // One bar, driving the current canvas — never one transport per stage.
+        await expect(page.locator(TRANSPORT)).toHaveCount(1);
     });
 });
 
@@ -411,19 +493,13 @@ test.describe('av transport — every control commands playback', () => {
                     element = element.shadowRoot.activeElement;
                 return (element as HTMLElement | null)?.dataset.testid ?? null;
             }),
-        ).toBe('av-scrubber');
+        ).toBe('transport-scrubber');
     });
 
     test('keeps volume and mute across a canvas switch', async ({ page }) => {
         // Two AV canvases, so the second element exists — built up front, as
         // every stage is — before the reader has touched the first.
-        await openViewer(page, PAIR_MANIFEST_URL, false);
-        // Two canvases share the viewport, so each may project too narrow for a
-        // transport until the view comes in.
-        await zoomTo(page, 3);
-        await page
-            .locator(TRANSPORT)
-            .waitFor({ state: 'visible', timeout: 30_000 });
+        await openViewer(page, PAIR_MANIFEST_URL);
 
         /** One named canvas's own element facts. */
         const mediaOn = (canvasId: string) =>
@@ -497,7 +573,7 @@ test.describe('av transport a11y — the keyboard and the a11y tree', () => {
         let reached = false;
         for (let step = 0; step < 40 && !reached; step += 1) {
             await page.keyboard.press('Tab');
-            reached = (await focused()) === 'av-play';
+            reached = (await focused()) === 'transport-play';
         }
         expect(reached).toBe(true);
 
@@ -509,7 +585,7 @@ test.describe('av transport a11y — the keyboard and the a11y tree', () => {
         await expect.poll(async () => (await playback(page)).paused).toBe(true);
 
         await page.keyboard.press('Tab');
-        expect(await focused()).toBe('av-scrubber');
+        expect(await focused()).toBe('transport-scrubber');
         // A real slider: it announces its range and its position.
         const scrubber = page.locator(SCRUBBER);
         await expect(scrubber).toHaveAttribute('role', 'slider');
@@ -521,12 +597,12 @@ test.describe('av transport a11y — the keyboard and the a11y tree', () => {
             .toBeGreaterThan(0);
 
         await page.keyboard.press('Tab');
-        expect(await focused()).toBe('av-mute');
+        expect(await focused()).toBe('transport-mute');
         await page.keyboard.press('Enter');
         await expect.poll(async () => (await playback(page)).muted).toBe(true);
 
         await page.keyboard.press('Tab');
-        expect(await focused()).toBe('av-volume');
+        expect(await focused()).toBe('transport-volume');
         // Up from the muted slider's zero, which is also how a reader unmutes
         // without going back to the button.
         await page.keyboard.press('ArrowRight');
@@ -542,11 +618,328 @@ test.describe('av transport a11y — the keyboard and the a11y tree', () => {
         // the control is rendered and is the row's final tab stop.
         await expect(page.locator(CAPTIONS)).toBeVisible({ timeout: 15_000 });
         await page.keyboard.press('Tab');
-        expect(await focused()).toBe('av-captions');
+        expect(await focused()).toBe('transport-tracks');
         await page.keyboard.press('Enter');
         await expect(page.locator(CAPTIONS)).toHaveAttribute(
             'aria-pressed',
             'true',
         );
+    });
+});
+
+/*
+    Idle chrome: the bar getting out of the way while a recording plays.
+
+    Only a browser can settle this — it is a computed opacity, a hit test, and a
+    timer, none of which exist in jsdom. Every opacity read here polls until it
+    has stopped moving rather than sampling the fade partway through.
+*/
+test.describe('av transport — the bar gets out of the way while it plays', () => {
+    /** The bar's opacity right now, as a string, for polling and settling. */
+    const opacity = (page: Page) =>
+        page.locator(BAR).evaluate((el) => getComputedStyle(el).opacity);
+
+    async function expectHidden(page: Page): Promise<void> {
+        await expect.poll(() => opacity(page), { timeout: 20_000 }).toBe('0');
+        // Settled, not merely arrived: a fade passing through a value is not
+        // the same as a fade that has finished on it.
+        expect(await settled(page, opacity)).toBe('0');
+    }
+
+    async function expectRevealed(page: Page): Promise<void> {
+        await expect.poll(() => opacity(page), { timeout: 20_000 }).toBe('1');
+        expect(await settled(page, opacity)).toBe('1');
+    }
+
+    /**
+     * Play, then take the pointer off the bar.
+     *
+     * Both halves matter. Muted, because a headless browser refuses audible
+     * script-initiated playback; looping, because the clip is shorter than the
+     * idle delay and a recording that ended is a recording that is paused.
+     * And the pointer has to leave, because a pointer resting on the bar pins
+     * it visible — which is the behaviour under test two tests down.
+     */
+    async function playAndStandBack(page: Page): Promise<void> {
+        // `.first()`: the pair manifest has a stage per canvas, and the bar
+        // drives the current one.
+        await page
+            .locator(MEDIA)
+            .first()
+            .evaluate((el) => {
+                const media = el as HTMLMediaElement;
+                media.loop = true;
+                media.muted = true;
+            });
+        await page.locator(PLAY).click();
+        await expect
+            .poll(async () => (await playbackOf(page)).paused)
+            .toBe(false);
+        await page.mouse.move(4, 4);
+    }
+
+    /** `playback()` restricted to the stage the bar is driving. */
+    const playbackOf = (page: Page) =>
+        page
+            .locator(MEDIA)
+            .first()
+            .evaluate((el) => ({ paused: (el as HTMLMediaElement).paused }));
+
+    test('hides the bar, and the hidden bar takes no clicks', async ({
+        page,
+    }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        // Both halves of hidden. The hit test is read rather than clicked: a
+        // synthetic click would move the pointer, which reveals the bar first
+        // — correctly, and uselessly for this assertion.
+        const hit = await page.evaluate(() => {
+            const root = document.querySelector(
+                'triiiceratops-viewer',
+            )!.shadowRoot!;
+            const bar = root.querySelector('[data-testid="control-bar"]')!;
+            const box = bar.getBoundingClientRect();
+            const under = root.elementFromPoint(
+                box.x + box.width / 2,
+                box.y + box.height / 2,
+            );
+            return {
+                pointerEvents: getComputedStyle(bar).pointerEvents,
+                inBar: !!under && bar.contains(under),
+            };
+        });
+        expect(hit.pointerEvents).toBe('none');
+        expect(hit.inBar).toBe(false);
+    });
+
+    test('stays in the accessibility tree while hidden', async ({ page }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        // Not `visibility: hidden` and not `display: none`: a screen-reader
+        // reader tabbing in must find the controls and reveal them.
+        await expect(page.locator(PLAY)).toHaveCount(1);
+        const boxed = await page.locator(PLAY).evaluate((el) => {
+            const style = getComputedStyle(el);
+            return {
+                display: style.display,
+                visibility: style.visibility,
+                width: el.getBoundingClientRect().width,
+            };
+        });
+        expect(boxed.display).not.toBe('none');
+        expect(boxed.visibility).toBe('visible');
+        expect(boxed.width).toBeGreaterThan(0);
+    });
+
+    test('a pointer move anywhere over the viewer brings it back', async ({
+        page,
+    }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        // Over the picture, nowhere near the chrome — story 10 is that a reader
+        // never has to learn where to move.
+        const surface = (await page.locator(SURFACE).boundingBox())!;
+        await page.mouse.move(
+            surface.x + surface.width / 2,
+            surface.y + surface.height / 4,
+        );
+        await expectRevealed(page);
+
+        // And it goes away again once the reader stops.
+        await expectHidden(page);
+    });
+
+    test('a key press brings it back', async ({ page }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        await page.locator(SURFACE).press('ArrowRight');
+        await expectRevealed(page);
+    });
+
+    test('focus arriving by tab reveals it, and pins it while it holds it', async ({
+        page,
+    }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        /** The deeply-focused element's test id, piercing shadow roots. */
+        const focused = () =>
+            page.evaluate(() => {
+                let element: Element | null = document.activeElement;
+                while (element?.shadowRoot?.activeElement)
+                    element = element.shadowRoot.activeElement;
+                return (element as HTMLElement | null)?.dataset.testid ?? null;
+            });
+
+        // Tabbed to, not focused by script: keyboard focus is the focus the
+        // absolute rule is about, and it is the one a browser marks
+        // `:focus-visible`.
+        let reached = false;
+        for (let step = 0; step < 40 && !reached; step += 1) {
+            await page.keyboard.press('Tab');
+            reached = (await focused()) === 'transport-play';
+        }
+        expect(reached).toBe(true);
+        await expectRevealed(page);
+
+        // Twice the delay with keyboard focus inside, and it is still there —
+        // a reader must never be walking controls they cannot see.
+        await page.waitForTimeout(IDLE_CHROME_DELAY_MS * 2);
+        expect(await settled(page, opacity)).toBe('1');
+    });
+
+    test('a click on a control does not pin it open the way a tab does', async ({
+        page,
+    }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+
+        // Focus left on the play button by the click that started playback is
+        // exactly how every mouse reader arrives here. If that counted as the
+        // focus the absolute rule protects, the chrome would never once get out
+        // of the way — so it is `:focus-visible` that is asked for, and a
+        // mouse click does not set it.
+        expect(
+            await page.locator(PLAY).evaluate((el) => el.matches(':focus')),
+        ).toBe(true);
+        await expectHidden(page);
+    });
+
+    test('never hides while paused, however long the reader waits', async ({
+        page,
+    }) => {
+        await openViewer(page);
+        await page.mouse.move(4, 4);
+
+        await page.waitForTimeout(IDLE_CHROME_DELAY_MS * 2);
+        expect(await settled(page, opacity)).toBe('1');
+
+        // And a pause after playing is a resting state, not a postponement:
+        // the bar comes back and stays back.
+        await playAndStandBack(page);
+        await expectHidden(page);
+        await page
+            .locator(MEDIA)
+            .first()
+            .evaluate((el) => {
+                (el as HTMLMediaElement).pause();
+            });
+        await expectRevealed(page);
+        await page.waitForTimeout(IDLE_CHROME_DELAY_MS * 2);
+        expect(await settled(page, opacity)).toBe('1');
+    });
+
+    test('never hides while the pointer rests on it', async ({ page }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        const bar = await settledBox(page, BAR);
+        await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
+        await expectRevealed(page);
+
+        await page.waitForTimeout(IDLE_CHROME_DELAY_MS * 2);
+        expect(await settled(page, opacity)).toBe('1');
+
+        // Off the bar, and the clock starts again.
+        await page.mouse.move(4, 4);
+        await expectHidden(page);
+    });
+
+    test('never hides while the track list is open', async ({ page }) => {
+        await openViewer(page, TRACKS_MANIFEST_URL);
+        await page.locator(CAPTIONS).waitFor({ timeout: 20_000 });
+        await playAndStandBack(page);
+
+        await page.locator(CAPTIONS).click();
+        await expect(page.locator(TRACK_LIST)).toBeVisible();
+        await page.mouse.move(4, 4);
+
+        await page.waitForTimeout(IDLE_CHROME_DELAY_MS * 2);
+        expect(await settled(page, opacity)).toBe('1');
+    });
+
+    test('never hides while the canvas-info popover is open', async ({
+        page,
+    }) => {
+        await openViewer(page, PAIR_MANIFEST_URL);
+        await playAndStandBack(page);
+
+        await page.getByRole('button', { name: 'Canvas Information' }).click();
+        await page.mouse.move(4, 4);
+
+        await page.waitForTimeout(IDLE_CHROME_DELAY_MS * 2);
+        expect(await settled(page, opacity)).toBe('1');
+    });
+
+    test('under reduced motion it still hides and reveals, with no fade', async ({
+        page,
+    }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await openViewer(page);
+
+        // The preference removes the animation, not the behaviour. The fade is
+        // gone by base.css's global reduced-motion guard, which reports the
+        // ~zero duration the rest of the a11y suite asserts rather than a
+        // literal `0s`.
+        const durations = await page
+            .locator(BAR)
+            .evaluate((el) => getComputedStyle(el).transitionDuration);
+        for (const duration of durations.split(', '))
+            expect(parseFloat(duration)).toBeLessThan(0.01);
+
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        const surface = (await page.locator(SURFACE).boundingBox())!;
+        await page.mouse.move(
+            surface.x + surface.width / 2,
+            surface.y + surface.height / 4,
+        );
+        await expectRevealed(page);
+    });
+
+    test('never hides on a manifest with no claimed canvas', async ({
+        page,
+    }) => {
+        await serveAvPluginDist(page);
+        await page.goto(
+            `${FIXTURE}?manifest=${encodeURIComponent(GRID_MANIFEST)}`,
+            { waitUntil: 'domcontentloaded' },
+        );
+        await page
+            .locator(SURFACE)
+            .waitFor({ state: 'visible', timeout: 30_000 });
+
+        // Nothing claimed, so no chrome registered — and with no chrome
+        // registered there is no idle behaviour at all.
+        await expect(page.locator(TRANSPORT)).toHaveCount(0);
+        await page.mouse.move(4, 4);
+        await page.waitForTimeout(IDLE_CHROME_DELAY_MS * 2);
+        expect(await settled(page, opacity)).toBe('1');
+    });
+
+    test('passes axe with the chrome hidden as well as revealed', async ({
+        page,
+    }) => {
+        await openViewer(page);
+        await playAndStandBack(page);
+        await expectHidden(page);
+
+        const results = await new AxeBuilder({ page })
+            .include('triiiceratops-viewer')
+            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+            .analyze();
+
+        expect(results.violations).toEqual([]);
     });
 });

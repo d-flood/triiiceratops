@@ -76,13 +76,28 @@ describe('declared compatibility', () => {
     });
 
     // Without these the plugin activates on a core with no claim seam and renders
-    // its stages on top of an unsupported-content placard it cannot suppress, or
-    // on a core with no shared Svelte runtime to consume.
-    it('requires both seams it cannot work without', () => {
+    // its stages on top of an unsupported-content placard it cannot suppress; or
+    // on a core with no shared Svelte runtime and no curated utilities to
+    // consume — of neither of which its IIFE carries a copy; or on a core with
+    // nowhere to register playback controls, which would stage a recording and
+    // leave a reader no way to play it.
+    it('requires the seams it cannot work without', () => {
         expect(AvPlugin.requiredCapabilities).toEqual([
             'canvas-claim',
             'shared-svelte-runtime',
+            'shared-core-utils',
+            'transport-chrome',
         ]);
+    });
+
+    it('is refused by a core that renders no transport chrome', () => {
+        expect(
+            refusalsAgainst({
+                capabilities: capabilities.filter(
+                    (name) => name !== 'transport-chrome',
+                ),
+            }),
+        ).toContain('transport-chrome');
     });
 
     it('is refused by a core that shares no Svelte runtime', () => {
@@ -93,6 +108,16 @@ describe('declared compatibility', () => {
                 ),
             }),
         ).toContain('shared-svelte-runtime');
+    });
+
+    it('is refused by a core that shares no core utilities', () => {
+        expect(
+            refusalsAgainst({
+                capabilities: capabilities.filter(
+                    (name) => name !== 'shared-core-utils',
+                ),
+            }),
+        ).toContain('shared-core-utils');
     });
 
     /**

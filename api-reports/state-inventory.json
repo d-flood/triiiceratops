@@ -1,9 +1,9 @@
 {
-    "count": 84,
+    "count": 87,
     "byClassification": {
         "command": 39,
         "observable": 14,
-        "internal": 27,
+        "internal": 30,
         "query-only": 4
     },
     "entries": [
@@ -460,6 +460,21 @@
             "commands": [
                 "toggleToolbar"
             ]
+        },
+        {
+            "member": "transportChrome",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "transportChromeRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "transportChromeRevision",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "unsubscribeFrame",

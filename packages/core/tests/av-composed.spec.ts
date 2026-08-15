@@ -43,9 +43,9 @@ const FIXTURE = '/e2e/av-plugin.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const STAGE = '[data-testid="av-stage"]';
 const MEDIA = '[data-testid="av-media"]';
-const PLAY = '[data-testid="av-play"]';
-const MUTE = '[data-testid="av-mute"]';
-const SCRUBBER = '[data-testid="av-scrubber"]';
+const PLAY = '[data-testid="transport-play"]';
+const MUTE = '[data-testid="transport-mute"]';
+const SCRUBBER = '[data-testid="transport-scrubber"]';
 
 /** `av-composed.json`: `#t=0,2` plays the bars, `#t=2,4` plays the tone. */
 const COMPOSED_DURATION = 4;

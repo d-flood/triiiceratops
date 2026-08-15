@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext } from 'svelte';
+    import { getContext, untrack } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { manifestsState } from '../state/manifests.svelte';
     import Icon from './Icon.svelte';
@@ -8,13 +8,17 @@
     import { resolveLanguageValue } from '../utils/languageMap';
     import { getResourceId } from '../utils/iiifIds';
     import {
+        canIdleHide,
         getCanvasNavLayout,
         getVisibleChoiceGroups,
+        IDLE_CHROME_DELAY_MS,
+        shouldShowGroupDivider,
         shouldUseAbbreviatedChoiceLabels,
         type ChoiceGroup,
     } from './viewerControls';
     import CanvasInfoPopover from './CanvasInfoPopover.svelte';
     import Toolbar from './Toolbar.svelte';
+    import Transport from './Transport.svelte';
     import { Button, Select } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -109,32 +113,217 @@
     let leftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
     let rightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
 
-    // Track whether the unified bar has broken into multiple rows so the
-    // toolbar↔nav divider can be hidden — a vertical separator reads as noise
-    // once the two groups are stacked rather than side by side. CSS can't
-    // detect a flex-wrap break, so we watch the bar's size and compare the two
-    // groups' offset tops: on a shared row they align to the same row box, so
-    // any difference means the nav-cluster has dropped to its own row.
+    // The bar renders one registered transport chrome — the first, if a second
+    // claimant ever registers (see `ViewerState.registerTransportChrome`). The
+    // revision counter is the registry's notifying signal, exactly as with
+    // overlay layers.
+    // The revision counter read is what establishes the dependency — the
+    // registry's list is a plain frozen array rebuilt on change, not reactive
+    // state, exactly as the overlay-layer registry's is.
+    //
+    // The read must be part of the returned EXPRESSION, not a bare statement:
+    // the element build's terser pass deletes a statement it can see no side
+    // effect in, which is how the overlay-layer render site once shipped a
+    // viewer that accepted registrations and rendered none. The guard is always
+    // true; it exists so the read cannot be dropped.
+    let transportChrome = $derived(
+        viewerState.transportChromeRevision >= 0
+            ? (viewerState.transportChrome[0] ?? null)
+            : null,
+    );
+    // The bar can be docked to the top edge, where a track list opening upwards
+    // would open off the viewer.
+    let tracksOpenDown = $derived(viewerState.config.nav?.edge === 'top');
+
+    // Which of the bar's groups share a row. CSS can't detect a flex-wrap
+    // break, so we watch the bar's size and compare the groups' offset tops: on
+    // a shared row they align to the same row box, so any difference means a
+    // later group has dropped to its own. `null` is a group this configuration
+    // does not render at all.
     let barEl: HTMLDivElement | undefined = $state();
     let toolbarEl: HTMLDivElement | undefined = $state();
+    let transportEl = $state<HTMLDivElement | null>(null);
     let navEl: HTMLDivElement | undefined = $state();
-    let barWrapped = $state(false);
+    let toolbarTop = $state<number | null>(null);
+    let transportTop = $state<number | null>(null);
+    let navTop = $state<number | null>(null);
 
     $effect(() => {
-        if (!isUnified || !barEl || !toolbarEl || !navEl) {
-            barWrapped = false;
-            return;
-        }
         const bar = barEl;
-        const toolbar = toolbarEl;
-        const nav = navEl;
+        // Read so the effect re-runs — and re-measures — as groups come and go.
+        const groups = [toolbarEl, transportEl, navEl];
+        if (!bar) return;
         const update = () => {
-            barWrapped = nav.offsetTop > toolbar.offsetTop;
+            const [toolbar, transport, nav] = groups;
+            toolbarTop = toolbar?.offsetTop ?? null;
+            transportTop = transport?.offsetTop ?? null;
+            navTop = nav?.offsetTop ?? null;
         };
         const ro = new ResizeObserver(update);
         ro.observe(bar);
         update();
         return () => ro.disconnect();
+    });
+
+    // One rule, two boundaries. `??` picks the next group actually rendered, so
+    // the toolbar divides against the navigation when no chrome is registered.
+    let dividerAfterToolbar = $derived(
+        shouldShowGroupDivider(toolbarTop, transportTop ?? navTop),
+    );
+    let dividerAfterTransport = $derived(
+        shouldShowGroupDivider(transportTop, navTop),
+    );
+    // Stacked rows get equal breathing room top and bottom; on a single row the
+    // pill hugs its controls.
+    let barWrapped = $derived.by(() => {
+        const tops = [toolbarTop, transportTop, navTop].filter(
+            (top): top is number => top !== null,
+        );
+        return tops.length > 1 && Math.max(...tops) !== Math.min(...tops);
+    });
+
+    // --- Idle chrome -------------------------------------------------------
+    //
+    // Over a claimed canvas this bar is drawn on top of the thing being read —
+    // a video's caption cues, or a sound recording's waveform, which is the
+    // whole rect. So while a recording plays and nothing is happening the bar
+    // fades out and stops taking pointer events, and any interaction brings it
+    // back.
+    //
+    // Hidden is `opacity: 0` plus `pointer-events: none`, never
+    // `visibility`/`display`: the controls stay in the accessibility tree and
+    // stay focusable, so a reader tabbing into them reveals them rather than
+    // finding nothing there.
+    //
+    // The whole behaviour is gated on registered transport chrome, which is
+    // manifest-scoped: a manifest of page images registers no timer and no
+    // listeners at all and behaves exactly as it did before.
+    //
+    // Reduced motion needs nothing of its own here. The preference drops the
+    // FADE, not the behaviour, and base.css's global guard already zeroes every
+    // transition in the viewer when it is set — so the bar goes on hiding and
+    // returning, instantly. Reading the preference again would be a second
+    // answer to a question core already answers once.
+    let idleHidden = $state(false);
+    let trackListOpen = $state(false);
+    // Plain `let`, not `$state`: these are read only when the idle timer fires
+    // and when an event handler runs, and nothing re-renders on them.
+    let pointerInBar = false;
+    let playing = false;
+
+    $effect(() => {
+        const chrome = transportChrome;
+        const bar = barEl;
+        // The bar's own parent is the viewer area — the box a pointer move or a
+        // key press has to land in to count as "over the viewer".
+        const viewer = bar?.parentElement;
+        if (!chrome || !bar || !viewer) return;
+
+        let timer: ReturnType<typeof setTimeout> | undefined;
+
+        const cancel = () => {
+            clearTimeout(timer);
+            timer = undefined;
+        };
+
+        const schedule = () => {
+            cancel();
+            if (!playing) return;
+            timer = setTimeout(() => {
+                timer = undefined;
+                if (
+                    canIdleHide({
+                        playing,
+                        pointerInBar,
+                        // Asked of the DOM at the moment it matters rather than
+                        // latched on focusin, because `:focus-visible` is the
+                        // browser's own answer to "did this focus come from the
+                        // keyboard" and it can change under a focus that never
+                        // moved — a reader who clicked play and then reached
+                        // for the keyboard.
+                        keyboardFocusInBar:
+                            !!bar.querySelector(':focus-visible'),
+                        popoverOpen:
+                            trackListOpen ||
+                            viewerState.showCanvasInfo ||
+                            // Under `controls: 'unified'` the toolbar renders
+                            // inside the bar, and its flyouts — viewing mode,
+                            // the sequence picker, and any plugin panel with
+                            // `target: 'flyout'` — are plain descendants of it.
+                            // Asked of the DOM rather than tracked, because the
+                            // set is open-ended: a plugin's flyout is one the
+                            // bar has no other way to know about.
+                            !!bar.querySelector('[data-flyout-panel].open'),
+                    })
+                )
+                    idleHidden = true;
+                // Nothing is re-armed here. Every condition that pins the bar
+                // visible has an event that lifts it — a pointer leaving, focus
+                // going, a popover dismissed, playback resuming — and each of
+                // those schedules again. Visible is the safe state to rest in.
+            }, IDLE_CHROME_DELAY_MS);
+        };
+
+        const reveal = () => {
+            idleHidden = false;
+            schedule();
+        };
+
+        const enter = () => {
+            pointerInBar = true;
+            reveal();
+        };
+        const leave = () => {
+            pointerInBar = false;
+            schedule();
+        };
+        // Focus arriving reveals whichever way it came; whether it PINS the bar
+        // is the keyboard question the timer asks for itself.
+        const focusMoved = () => reveal();
+
+        // `pointerdown` as well as `pointermove`, because a touch reader has no
+        // pointer to move: a tap is the whole gesture.
+        viewer.addEventListener('pointermove', reveal, { passive: true });
+        viewer.addEventListener('pointerdown', reveal, { passive: true });
+        viewer.addEventListener('keydown', reveal);
+        bar.addEventListener('pointerenter', enter);
+        bar.addEventListener('pointerleave', leave);
+        bar.addEventListener('focusin', focusMoved);
+        bar.addEventListener('focusout', focusMoved);
+
+        // Playback state comes off the same subscription the transport renders
+        // from. Only the transitions matter: stopping reveals and pins, and
+        // starting — including from a host calling the port directly, with no
+        // event of its own — is what starts the clock.
+        const readPlayback = () => {
+            // Untracked, as the transport's own read is: a claimant's `view()`
+            // may touch reactive state, and a dependency taken here would
+            // re-run this whole effect on every playback frame — tearing the
+            // idle timer down and starting it again, so it could never fire.
+            const view = untrack(() => chrome.view());
+            const next = view.present && !view.paused;
+            if (next === playing) return;
+            playing = next;
+            if (next) schedule();
+            else reveal();
+        };
+        readPlayback();
+        const unsubscribe = chrome.subscribe(readPlayback);
+
+        return () => {
+            cancel();
+            unsubscribe();
+            viewer.removeEventListener('pointermove', reveal);
+            viewer.removeEventListener('pointerdown', reveal);
+            viewer.removeEventListener('keydown', reveal);
+            bar.removeEventListener('pointerenter', enter);
+            bar.removeEventListener('pointerleave', leave);
+            bar.removeEventListener('focusin', focusMoved);
+            bar.removeEventListener('focusout', focusMoved);
+            pointerInBar = false;
+            playing = false;
+            idleHidden = false;
+        };
     });
 </script>
 
@@ -239,18 +428,39 @@
     </div>
 {/snippet}
 
-{#if showNav || showZoom || hasChoices || isUnified}
+{#if showNav || showZoom || hasChoices || isUnified || transportChrome}
     <div
         class="control-bar"
         class:elevated={viewerState.showCanvasInfo}
         class:wrapped={barWrapped}
+        class:full-width={!!transportChrome}
+        class:idle-hidden={idleHidden}
+        data-testid="control-bar"
         bind:this={barEl}
     >
         {#if isUnified}
             <div class="toolbar-in-bar" bind:this={toolbarEl}>
                 <Toolbar inline />
             </div>
-            {#if (hasChoices || hasCenterControls) && !barWrapped}
+            {#if dividerAfterToolbar}
+                <div class="divider-v group-divider"></div>
+            {/if}
+        {/if}
+
+        {#if transportChrome}
+            <!-- The playback controls: a group of this bar, between the toolbar
+                 buttons and the canvas navigation. The bar's `flex-wrap: wrap`
+                 drops later items first, so the navigation is what moves and the
+                 transport ends up on the row above it. Its root is bound rather
+                 than wrapped, so a view with nothing to drive (`present: false`)
+                 leaves no empty group holding a width floor open. -->
+            <Transport
+                chrome={transportChrome}
+                openDown={tracksOpenDown}
+                bind:element={transportEl}
+                bind:listOpen={trackListOpen}
+            />
+            {#if dividerAfterTransport}
                 <div class="divider-v group-divider"></div>
             {/if}
         {/if}
@@ -396,7 +606,24 @@
         margin-inline: auto;
         /* Anchored to whichever edge data-nav-edge selects (bottom by default). */
         bottom: var(--ui-nav-inset, 0);
-        z-index: 10;
+        /*
+           Above `.plugin-overlay-layer` (40), which is a SIBLING in
+           `.viewer-area`. A plugin layer is transparent to pointer events, but
+           its children opt back in — a claimed AV canvas's media element does,
+           for tap-to-toggle — and a layer spans the whole viewer area, so at a
+           lower z-index this bar is painted under that media and loses the hit
+           test for every control in it. That cost the navigation and the zoom
+           buttons whenever a recording was open, and it would now cost the
+           playback controls the same plugin registers.
+
+           Below `.plugin-overlay` (42), the box for a plugin panel positioned
+           `overlay`: that is discrete chrome a reader operates, and only its
+           own content takes pointer events, so where one overlaps the bar the
+           panel is the thing being used. Still below core's annotation shapes
+           (50): those are focusable targets carrying the viewer's own
+           accessible names.
+        */
+        z-index: 41;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -443,6 +670,15 @@
     }
     .control-bar.elevated {
         z-index: 1000;
+    }
+
+    /* Idle over a claimed canvas. Transparent AND inert: an invisible bar that
+       still took clicks would be the original bug with the evidence removed.
+       Deliberately not `visibility`/`display` — the controls stay in the
+       accessibility tree and stay focusable, and focus arriving reveals them. */
+    .control-bar.idle-hidden {
+        opacity: 0;
+        pointer-events: none;
     }
     /* Once broken into rows, give the stacked content equal breathing room top
        and bottom — on a single row the pill hugs the controls (no block
@@ -493,26 +729,51 @@
         margin-inline: 0;
     }
     /* When docked into a corner, square the other corner on the touching side and
-       drop that side's border too (the edge itself is already handled above). */
-    :global([data-nav-style='docked'][data-nav-align='start']) .control-bar {
+       drop that side's border too (the edge itself is already handled above).
+
+       `:not(.full-width)` is what makes nav-align inert while transport chrome
+       is registered: these are the only align-derived rules a later
+       `.full-width` block could not outrank, so they opt out by not matching at
+       all rather than by being restated — restating them would have to
+       re-derive the corners the nav-edge docking already squared. */
+    :global([data-nav-style='docked'][data-nav-align='start'])
+        .control-bar:not(.full-width) {
         border-start-start-radius: 0;
         border-end-start-radius: 0;
         border-inline-start: 0;
     }
-    :global([data-nav-style='docked'][data-nav-align='end']) .control-bar {
+    :global([data-nav-style='docked'][data-nav-align='end'])
+        .control-bar:not(.full-width) {
         border-start-end-radius: 0;
         border-end-end-radius: 0;
         border-inline-end: 0;
     }
     :global([data-nav-style='docked'][data-nav-align='start'])
-        .control-bar::before {
+        .control-bar:not(.full-width)::before {
         border-start-start-radius: 0;
         border-end-start-radius: 0;
     }
     :global([data-nav-style='docked'][data-nav-align='end'])
-        .control-bar::before {
+        .control-bar:not(.full-width)::before {
         border-start-end-radius: 0;
         border-end-end-radius: 0;
+    }
+
+    /* While transport chrome is registered the bar spans its full available
+       width, because the scrubber's width IS the resolution at which a reader
+       can aim at a moment. The toolbar then hugs the start, the navigation hugs
+       the end, and the transport takes the slack between them.
+
+       This is also where nav-align goes inert: a full-width bar has nowhere to
+       align, so the insets and margins the alignment rules above set are
+       restored. Deliberately after them — the two selectors have equal
+       specificity, so source order is what decides. The setting is not removed
+       or deprecated; it resumes meaning the moment the chrome deregisters. */
+    .control-bar.full-width {
+        width: auto;
+        inset-inline-start: var(--ui-nav-inset, 0);
+        inset-inline-end: var(--ui-nav-inset, 0);
+        margin-inline: auto;
     }
 
     /* Unified — the toolbar buttons sit at the start of the control bar,

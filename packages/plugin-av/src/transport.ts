@@ -1,7 +1,7 @@
 /**
- * The **transport**'s pure parts: the decisions that do not need a DOM, kept
- * out of the component so they can be tested as functions rather than through a
- * browser.
+ * The **transport**'s pure parts: the formatting and the clock arithmetic
+ * behind the view model, as functions that need no DOM and are tested as
+ * functions rather than through a browser.
  *
  * Time here is always **canvas time** on the canvas timeline, the same clock
  * `AVState.currentTime` and `AVState.seek` speak.
@@ -9,36 +9,11 @@
 
 import type { CaptionTrack } from './captions';
 
-/**
- * Narrowest projected canvas width, in SCREEN pixels, that still gets a
- * transport.
- *
- * The transport's own size never scales with zoom, so at a wide zoom a canvas
- * can project narrower than the chrome that controls it — controls would
- * overhang the picture they belong to, and two adjacent canvases' transports
- * would overlap and stop saying which canvas each one drives. Below this the
- * canvas shows the play-state glyph instead (user story 26); playback stays
- * reachable through the media element's own tap-to-toggle and through AVState.
- *
- * The figure is the width the v1 control row needs before it starts eliding:
- * two 2rem touch targets, the time readout, the volume slider, and a scrubber
- * still wide enough to aim at.
- */
-export const TRANSPORT_MIN_WIDTH_PX = 240;
-
 /** Seconds an arrow key moves the playhead. */
 export const SEEK_STEP_SMALL = 5;
 
 /** Seconds PageUp/PageDown move the playhead. */
 export const SEEK_STEP_LARGE = 30;
-
-/** Whether a canvas projected this wide gets the transport rather than the glyph. */
-export function fitsTransport(projectedWidthPx: number): boolean {
-    return (
-        Number.isFinite(projectedWidthPx) &&
-        projectedWidthPx >= TRANSPORT_MIN_WIDTH_PX
-    );
-}
 
 /**
  * A clock reading for a media position: `m:ss`, widening to `h:mm:ss` only when

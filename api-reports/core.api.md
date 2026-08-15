@@ -36,7 +36,8 @@
  * **Activation**).
  *
  * The namespace also carries core's **shared Svelte runtime** — see
- * {@link SharedSvelteRuntime}.
+ * {@link SharedSvelteRuntime} — and its **shared core utilities** — see
+ * {@link SharedCoreUtils}.
  */
 import type { SdkPlugin } from './types/plugin';
 /** The custom-element tag both Web Component entries register. */
@@ -123,6 +124,36 @@ export interface SharedSvelteRuntime {
     readonly svelteInternal: Readonly<Record<string, unknown>>;
 }
 /**
+ * Core's **shared core utilities**: a curated handful of core's own functions a
+ * first-party plugin IIFE reads off this namespace instead of bundling a second
+ * copy of the modules behind them.
+ *
+ * Same privilege as {@link SharedSvelteRuntime}, granted the same way and fenced
+ * by the same three rules:
+ *
+ * 1. **The list is curated and small; never `export *`.** A name goes on it
+ *    because a first-party plugin reads it now, and the initial set is exactly
+ *    the four `@triiiceratops/plugin-av` reads. `export *` would defeat
+ *    tree-shaking and retain core's whole utility surface, which is the thing
+ *    this mechanism exists to avoid.
+ * 2. **Growth is gated by the size ratchet.** Every function here is already
+ *    retained by core's shipped graph, so exposing it costs core essentially
+ *    nothing. A utility core does NOT already retain moves the element baseline,
+ *    and that alarm reads as "plugin bytes are moving into core" — never as
+ *    something to re-baseline away.
+ * 3. **Version skew fails closed, twice.** The `shared-core-utils` capability
+ *    refuses activation on a core that publishes no such member; and the
+ *    consuming bundle's own skew gate checks the namespace ahead of its first
+ *    module statement, because a compiled module dereferences these at load,
+ *    long before activation could refuse anything.
+ *
+ * This is a FIRST-PARTY-ONLY privilege, as the Svelte runtime is, and for the
+ * same reason: it holds only because core and plugin are built and released from
+ * one repository at one version. `docs/plugin-authoring.md` goes on telling
+ * third-party authors to bundle their own copies.
+ */
+export type SharedCoreUtils = Readonly<Record<string, unknown>>;
+/**
  * The browser runtime descriptor (SPEC.md — normative shape). `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
  * them; the `plugins` registry exists from first bootstrap so plugins can
@@ -137,6 +168,8 @@ export interface TriiiceratopsBrowserRuntime {
     readonly svelte: SharedSvelteRuntime['svelte'];
     /** See {@link SharedSvelteRuntime}. Filled only by core. */
     readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
+    /** See {@link SharedCoreUtils}. Filled only by core. */
+    readonly core: SharedCoreUtils;
 }
 declare global {
     interface Window {
@@ -183,6 +216,13 @@ export interface InstallCoreOptions {
      * callers that have no business shipping a Svelte runtime.
      */
     svelteRuntime?: SharedSvelteRuntime;
+    /**
+     * The {@link SharedCoreUtils} to publish on the namespace. Supplied by the
+     * Web Component entries from `shared-core-utils.ts`, and passed in rather
+     * than imported here for the same reason the Svelte runtime is: this module
+     * is reached by the framework substrate behind `./react` and `./vue`.
+     */
+    coreUtils?: SharedCoreUtils;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -399,6 +439,51 @@ export type CanvasNavLayout = {
     leftIcon: CanvasNavIcon;
     rightIcon: CanvasNavIcon;
 };
+/**
+ * Whether to draw the divider between two adjacent groups of the control bar.
+ *
+ * One rule, applied per boundary: a divider is shown when both groups sit on
+ * the same row, because a vertical rule between groups on different rows reads
+ * as noise rather than as a separator. Rows are compared by offset top — on a
+ * shared row both groups align to the same row box, so any difference means the
+ * later group has dropped.
+ *
+ * `null` means the group is not rendered at all, and a boundary with only one
+ * side has nothing to divide.
+ */
+export declare function shouldShowGroupDivider(beforeOffsetTop: number | null, afterOffsetTop: number | null): boolean;
+/**
+ * How long the control bar waits, with nothing happening, before it hides
+ * itself over a claimed canvas.
+ *
+ * Three seconds is a feel decision, not a derived one: long enough that it does
+ * not snatch the chrome away from a reader who paused mid-reach, short enough
+ * that a reader settling in to watch is not looking at a bar over the caption
+ * cues for the first act.
+ */
+export declare const IDLE_CHROME_DELAY_MS = 3000;
+/**
+ * Whether the control bar may hide itself right now.
+ *
+ * Not four special cases but one rule stated four ways: chrome a reader is
+ * *using* is not idle. Playback stopped, a pointer resting on the bar, keyboard
+ * focus inside it, or a popover it owns left open each mean the reader's
+ * attention is on the chrome rather than through it.
+ *
+ * Two of these are absolute, and a viewer that broke either would be worse than
+ * one that never hid anything: never hide while paused, and never hide while
+ * the bar holds KEYBOARD focus — which is what the second rule protects, since
+ * its whole point is that keyboard focus must never land on something
+ * invisible. Focus a mouse reader left on the play button by clicking it is not
+ * that, and treating it as such would pin the chrome open for the whole of
+ * every recording started from the bar, which is every recording.
+ */
+export declare function canIdleHide(conditions: {
+    playing: boolean;
+    pointerInBar: boolean;
+    keyboardFocusInBar: boolean;
+    popoverOpen: boolean;
+}): boolean;
 export declare function shouldUseAbbreviatedChoiceLabels(viewingMode: ViewingMode, visibleChoiceGroups: ChoiceGroup[]): boolean;
 export declare function getCanvasNavLayout(viewingDirection: ViewingDirection): CanvasNavLayout;
 type ViewingMode = 'individuals' | 'paged' | 'continuous';
@@ -1101,6 +1186,7 @@ export type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, Viewport
 export { NEUTRAL_IMAGE_ADJUSTMENTS, ZERO_VIEWPORT_INSET, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
 export type { PaintCanvasPlacement, PaintFrame, PaintLayer, PaintLayerDraw, PaintTransform, } from './renderer/paintLayers';
 export type { OverlayLayer } from './renderer/overlayLayers';
+export type { TransportChrome, TransportChromeIcons, TransportChromeLabels, TransportChromePort, TransportChromeView, } from './state/transportChrome';
 export type { TriiiceratopsViewerElement } from './types/viewerElement';
 export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
 export type { Logger, LogLevel, LogSink } from './logging/logger';
@@ -1202,10 +1288,10 @@ export declare const logger: Logger;
  */
 export declare const CORE_VERSION = "1.0.0-rc.36";
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.2.0` for the
- * additive `shared-svelte-runtime` {@link capabilities} entry below.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.4.0` for the
+ * additive `transport-chrome` {@link capabilities} entry below.
  */
-export declare const pluginApiVersion = "1.2.0";
+export declare const pluginApiVersion = "1.4.0";
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not
  * security permissions.
@@ -1237,6 +1323,20 @@ export declare const pluginApiVersion = "1.2.0";
  *   plugin declaring this must also pin `coreRange` exactly: the capability
  *   says the runtime is shared, and only the exact version says it is the same
  *   runtime.
+ * - `shared-core-utils` — core publishes a curated handful of its own utility
+ *   functions on `window.Triiiceratops.core` (`SharedCoreUtils` in
+ *   `browser-runtime.ts`), which a FIRST-PARTY plugin IIFE reads instead of
+ *   bundling a second copy of the modules behind them. A plugin whose bundle
+ *   externalizes `triiiceratops` requires it, so a core that publishes no such
+ *   member refuses activation rather than leaving the plugin dereferencing
+ *   `undefined`.
+ * - `transport-chrome` — a claimant of timed media may register a view model of
+ *   playback facts and a port of playback commands
+ *   (`ViewerState.registerTransportChrome`), which core renders as playback
+ *   controls in its own control bar. A plugin whose only playback chrome is the
+ *   one core renders requires it, so a core too old to render it refuses
+ *   activation with a named diagnostic rather than mounting a plugin whose
+ *   controls never appear.
  */
 export declare const capabilities: readonly string[];
 
@@ -2946,12 +3046,213 @@ export interface SelectorRuntime<S extends SelectorSource = ViewerState> {
 export declare function createSelectorRuntime<S extends SelectorSource>(source: S, options?: SelectorRuntimeOptions): SelectorRuntime<S>;
 
 // ======================================================================
+// FILE: dist/state/transportChrome.d.ts
+// ======================================================================
+/**
+ * The **transport chrome** registry: a view model of playback facts and a port
+ * of playback commands, which a claimant of timed media registers and core
+ * renders in its own control bar (CONTEXT.md **Transport chrome**).
+ *
+ * ## Deliberately not an AV seam
+ *
+ * Core learns about a thing that plays, pauses, seeks and may offer alternative
+ * text tracks. It does not learn about IIIF, media elements, time-based
+ * segments, or subtitle formats — that vocabulary belongs to the claimant, and
+ * keeping it out is what makes the seam serve a future medium (a 3D scene with
+ * a timeline, a synchronized multi-track tool) without new core work.
+ *
+ * Two consequences shape the contract below. `seek` takes a fraction of the
+ * timeline rather than seconds, because core knows no clock; and every string
+ * the chrome shows arrives on the view, localized by the claimant's own
+ * catalog, because core has no words for a medium it does not model.
+ *
+ * ## What this module owns, and what it does not
+ *
+ * Only bookkeeping: which chrome is registered, and what happens when a
+ * registration is refused. It is DOM-free and therefore unit-testable. The
+ * controls, their layout and their keyboard behaviour belong to the render site
+ * (`components/Transport.svelte`, inside `components/ViewerControls.svelte`);
+ * the public registration surface belongs to
+ * `ViewerState.registerTransportChrome`.
+ *
+ * ## Deliberately not the overlay-layer registry
+ *
+ * This is structurally `renderer/overlayLayers.ts` — the same ownership rule,
+ * the same idempotent dispose, the same frozen snapshot — and that similarity
+ * is intentional: one idiom to learn for both. It is nonetheless a **separate
+ * module that does not import that one**, so a change to the DOM-container
+ * lifecycle cannot ripple into a view-model registry, and vice versa. The small
+ * overlap is duplicated on purpose; do not "de-duplicate" it by importing
+ * across.
+ *
+ * **There is no `order` field, and adding one would be a mistake**, for the
+ * reason the overlay-layer registry gives: cross-plugin ordering cannot be
+ * coordinated. Here the question barely arises — at most one claimant drives
+ * whatever the viewer is showing — so the slot holds one. If two registrations
+ * are ever live, core renders the first and the second is inert, which is the
+ * honest outcome for a slot that cannot hold two.
+ */
+import type { IconDescriptor } from '../types/plugin.js';
+/** The pictures this medium's controls wear. */
+export interface TransportChromeIcons {
+    play: IconDescriptor;
+    pause: IconDescriptor;
+    mute: IconDescriptor;
+    unmute: IconDescriptor;
+    /** The alternative-text-track control. */
+    tracks: IconDescriptor;
+}
+/** Every string the chrome shows or announces, in the claimant's locale. */
+export interface TransportChromeLabels {
+    /** Names the control group itself, so it is distinguishable from the navigation. */
+    transport: string;
+    play: string;
+    pause: string;
+    elapsed: string;
+    seek: string;
+    duration: string;
+    mute: string;
+    unmute: string;
+    volume: string;
+    tracks: string;
+    /** The "none" option of the track list. */
+    tracksOff: string;
+}
+/**
+ * The playback facts the chrome renders, read on core's own cadence and never
+ * held across a frame.
+ */
+export interface TransportChromeView {
+    /** `false` renders no controls — no current target, or none claimed. */
+    present: boolean;
+    paused: boolean;
+    duration: number | null;
+    currentTime: number;
+    /** `currentTime` as `0..1` of the duration — the scrubber's coordinate. */
+    fraction: number;
+    /** Buffered ranges as `0..1` spans of the whole timeline. */
+    buffered: readonly {
+        start: number;
+        end: number;
+    }[];
+    muted: boolean;
+    volume: number;
+    /** `false` where programmatic volume is read-only: the slider hides. */
+    volumeSettable: boolean;
+    /** The playhead as a localized clock reading, for `aria-valuetext`. */
+    positionText: string;
+    elapsedText: string;
+    durationText: string;
+    /** A picture of the whole recording behind the scrubber, or `null`. */
+    strip: string | null;
+    /** Alternative text tracks that loaded. Empty renders no control at all. */
+    tracks: readonly {
+        id: string;
+        label: string;
+    }[];
+    activeTrack: string | null;
+    /** Seconds an arrow moves the playhead. The policy is the claimant's. */
+    stepSmall: number;
+    /** Seconds a page key moves the playhead. */
+    stepLarge: number;
+    labels: TransportChromeLabels;
+}
+/** Every control core renders is one of these. Core touches nothing else. */
+export interface TransportChromePort {
+    /** Play if paused, pause if playing. */
+    toggle(): void;
+    /** Seek to a fraction `0..1` of the timeline. */
+    seek(fraction: number): void;
+    setMuted(muted: boolean): void;
+    setVolume(volume: number): void;
+    /** Show one alternative text track, or `null` for none. */
+    setTrack(id: string | null): void;
+}
+/** Playback chrome, as a claimant registers it. */
+export interface TransportChrome {
+    /**
+     * A stable identifier of the form `<pluginId>:<name>`, where the prefix must
+     * name a plugin this viewer knows or the registration is refused (see
+     * {@link createTransportChromeRegistry}'s `isKnownPlugin`). It is how a
+     * refusal is reported, and it is what makes unregistering a plugin able to
+     * release the chrome it forgot.
+     */
+    id: string;
+    /**
+     * Static for the activation. The pictures do not change with the playhead,
+     * so re-reading them on every view read would be waste.
+     */
+    icons: TransportChromeIcons;
+    /** Read on core's own cadence. Never held across a frame. */
+    view(): TransportChromeView;
+    port: TransportChromePort;
+    /**
+     * How core learns to re-read. The claimant already runs the cadences its
+     * own published state runs on; this is how it hands them over. Returns an
+     * unsubscribe.
+     */
+    subscribe(onChange: () => void): () => void;
+}
+/**
+ * Chrome the registry accepted.
+ *
+ * A separate type from {@link TransportChrome} rather than an alias: what a
+ * caller hands in and what the render site reads back are two contracts, and
+ * the second may grow a field without that being a change to the first.
+ */
+export interface RegisteredTransportChrome {
+    id: string;
+    icons: TransportChromeIcons;
+    view(): TransportChromeView;
+    port: TransportChromePort;
+    subscribe(onChange: () => void): () => void;
+}
+export interface TransportChromeRegistry {
+    /**
+     * Register chrome. Returns an idempotent dispose; a refused registration
+     * returns a no-op one, so a caller never has to branch.
+     */
+    register(chrome: TransportChrome): () => void;
+    /**
+     * Dispose every registration whose id carries the `` `${pluginId}:` ``
+     * prefix. The **backstop** for a plugin whose own teardown misses its
+     * dispose, not the normal way to release chrome. Safe to call for a plugin
+     * that registered nothing.
+     */
+    disposeOwnedBy(pluginId: string): void;
+    /** Dispose everything, whoever owns it. `destroyAllPlugins`'s half. */
+    disposeAll(): void;
+    /**
+     * The registrations, in registration order. A frozen snapshot rebuilt on
+     * change, so the render site iterates a stable array rather than a live
+     * collection it could mutate mid-render. Only the first is rendered.
+     */
+    readonly entries: readonly RegisteredTransportChrome[];
+}
+/** The registry behind `ViewerState.registerTransportChrome`. */
+export declare function createTransportChromeRegistry(options?: {
+    /** How the render site learns chrome arrived or left. */
+    onChange?: () => void;
+    /** Told why a registration was refused, for the developer's console. */
+    onRefused?: (message: string) => void;
+    /**
+     * Whether `pluginId` names a plugin of this viewer. Viewer state answers
+     * from plugin UI state, which is seeded before a plugin's `view.mount` runs
+     * and is therefore already populated when the plugin registers from inside
+     * it. Omitted, ids are not checked against any owner — the registry's own
+     * unit tests have no viewer to ask.
+     */
+    isKnownPlugin?: (pluginId: string) => boolean;
+}): TransportChromeRegistry;
+
+// ======================================================================
 // FILE: dist/state/viewer.svelte.d.ts
 // ======================================================================
 import type { ViewerErrorReporter } from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
 import { type PaintLayer, type RegisteredPaintLayer } from '../renderer/paintLayers.js';
 import { type OverlayLayer, type RegisteredOverlayLayer } from '../renderer/overlayLayers.js';
+import { type RegisteredTransportChrome, type TransportChrome } from './transportChrome.js';
 import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
 import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
@@ -3539,6 +3840,60 @@ export declare class ViewerState {
      * @internal
      */
     get overlayLayers(): readonly RegisteredOverlayLayer[];
+    /**
+     * How many times the registered transport chrome has changed — the one
+     * notifying signal that registry needs, the same shape as
+     * {@link overlayLayerRevision} and for the same reason.
+     *
+     * @internal
+     */
+    transportChromeRevision: number;
+    private transportChromeRegistry;
+    /**
+     * Register **transport chrome**: a view model of playback facts and a port
+     * of playback commands, which core renders as playback controls inside its
+     * own control bar (CONTEXT.md **Transport chrome**).
+     *
+     * The seam is deliberately media-agnostic. Core learns about a thing that
+     * plays, pauses, seeks and may offer alternative text tracks; it renders the
+     * controls with its own primitives, in its own theme. The claimant supplies
+     * the pictures (as the sanitized {@link IconDescriptor}s its toolbar buttons
+     * already use) and every string, so its vocabulary and its locales stay its
+     * own.
+     *
+     * **`id` must be `` `${pluginId}:${name}` ``**, the same convention the
+     * plugin's chrome ids and overlay layers follow, so
+     * {@link unregisterPlugin} can release chrome a plugin forgot. Chrome whose
+     * id names no known plugin, or which is missing any of its members, or whose
+     * id is already taken, is refused and registers nothing; the returned
+     * dispose is a no-op, so a caller never has to branch. A refusal is reported
+     * on the structured `viewererror` channel with code
+     * `transport-chrome-refused`.
+     *
+     * `view()` is read on core's own cadence and its result is never held across
+     * a frame; `subscribe` is how the claimant tells core to re-read. A view
+     * with `present: false` renders no controls, which is the transient case
+     * (the reader navigated to something this claimant does not drive) and is
+     * why navigation does not churn the registration.
+     *
+     * **The bar renders one chrome.** With two live registrations the first
+     * wins and the second is inert — there is no `order` field, for the reason
+     * the overlay-layer registry gives.
+     *
+     * While chrome is registered the control bar spans its full available width
+     * so the scrubber can take the slack. `nav.align` has nowhere to align in
+     * that arrangement and is inert until the chrome deregisters; every other
+     * bar setting — `controls`, `nav.style`, `nav.edge`, the inset — goes on
+     * meaning what it meant.
+     */
+    registerTransportChrome(chrome: TransportChrome): () => void;
+    /**
+     * The registered chrome, in registration order. Read by the render site,
+     * which renders the first.
+     *
+     * @internal
+     */
+    get transportChrome(): readonly RegisteredTransportChrome[];
     /**
      * Who holds which canvas, to read — never to write.
      *
@@ -5076,6 +5431,13 @@ export interface NavConfig {
     /**
      * Where the nav bar sits along its edge. In `unified` mode this also aligns
      * the embedded toolbar buttons, since they form one bar.
+     *
+     * **Inert while a plugin has registered transport chrome**
+     * (`ViewerState.registerTransportChrome`): the bar then spans its full
+     * available width so the seek bar can take the slack, and a full-width bar
+     * has nowhere to align. The setting is not deprecated and nothing is
+     * warned about — it resumes meaning the moment the chrome deregisters.
+     * `style`, `edge` and the nav inset go on meaning what they meant.
      * @default 'center'
      */
     align?: NavAlign;

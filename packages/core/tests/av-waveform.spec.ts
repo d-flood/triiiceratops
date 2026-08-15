@@ -49,7 +49,7 @@ const STAGE = '[data-testid="av-stage"]';
 const MEDIA = '[data-testid="av-media"]';
 const TIMELINE_LANE = '[data-testid="av-timeline-lane"]';
 const WAVEFORM = '[data-testid="av-waveform"]';
-const PEAKS_STRIP = '[data-testid="av-peaks-strip"]';
+const PEAKS_STRIP = '[data-testid="transport-strip"]';
 
 /** A video canvas whose `seeAlso` links the same waveform data. */
 const VIDEO_URL = '/media/manifests/av-waveform-video.json';

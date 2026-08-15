@@ -66,6 +66,17 @@ function visualLaneOf(stage: { root: HTMLElement }): HTMLElement {
 }
 
 /**
+ * The timeline lane. Present in the DOM whatever the layout — a video layout
+ * simply never places it — so the tests reach it the way a reader's pointer
+ * does rather than through the stage's published interface.
+ */
+function timelineLaneOf(stage: { root: HTMLElement }): HTMLElement {
+    return stage.root.querySelector<HTMLElement>(
+        '[data-testid="av-timeline-lane"]',
+    )!;
+}
+
+/**
  * A pointer gesture on a lane: down where it started, up where it ended. The
  * `up` goes to the window because that is where the stage listens for it —
  * a drag has by then been handed to the renderer, which captured the pointer.
@@ -535,7 +546,7 @@ describe('placement', () => {
         // belong to whatever chrome is docked beside it.
         expect(stage.root.style.left).toBe('-60px');
         expect(stage.root.style.width).toBe('1400px');
-        expect(stage.timelineLane?.style.width).toBe('1400px');
+        expect(timelineLaneOf(stage).style.width).toBe('1400px');
         expect(stage.root.style.clipPath).toBe('inset(0px 60px 0px 60px)');
     });
 
@@ -557,7 +568,7 @@ describe('placement', () => {
 });
 
 describe('the stage layout', () => {
-    it('puts the video in the visual lane and gives it no timeline lane', () => {
+    it('puts the video in the visual lane and never places a timeline lane', () => {
         const stage = stageFor(VIDEO);
         stage.place({ left: 0, top: 0, width: 640, height: 360 }, VIEWPORT);
 
@@ -566,12 +577,7 @@ describe('the stage layout', () => {
         )!;
         expect(visual.contains(stage.media)).toBe(true);
         expect(visual.style.height).toBe('360px');
-        expect(stage.timelineLane).toBeNull();
-        expect(
-            stage.root.querySelector<HTMLElement>(
-                '[data-testid="av-timeline-lane"]',
-            )?.hidden,
-        ).toBe(true);
+        expect(timelineLaneOf(stage).hidden).toBe(true);
     });
 
     it('gives audio alone the whole rect as its timeline lane', () => {
@@ -579,8 +585,8 @@ describe('the stage layout', () => {
         stage.place({ left: 5, top: 7, width: 640, height: 400 }, VIEWPORT);
 
         // The lanes divide the ROOT, which already carries the projection.
-        expect(stage.timelineLane?.style.top).toBe('0px');
-        expect(stage.timelineLane?.style.height).toBe('400px');
+        expect(timelineLaneOf(stage).style.top).toBe('0px');
+        expect(timelineLaneOf(stage).style.height).toBe('400px');
         expect(
             stage.root.querySelector<HTMLElement>(
                 '[data-testid="av-visual-lane"]',
@@ -597,8 +603,8 @@ describe('the stage layout', () => {
             visual.querySelector('[data-testid="av-accompanying"]'),
         ).not.toBeNull();
         expect(visual.style.height).toBe('300px');
-        expect(stage.timelineLane?.style.top).toBe('300px');
-        expect(stage.timelineLane?.style.height).toBe('100px');
+        expect(timelineLaneOf(stage).style.top).toBe('300px');
+        expect(timelineLaneOf(stage).style.height).toBe('100px');
     });
 });
 
@@ -671,7 +677,7 @@ describe('tapping the timeline lane', () => {
         stage.place({ left: 0, top: 0, width: 400, height: 100 }, VIEWPORT);
         // This DOM lays nothing out, so the lane's box is supplied: the
         // arithmetic under test is the stage's own, not the environment's.
-        stage.timelineLane!.getBoundingClientRect = () =>
+        timelineLaneOf(stage).getBoundingClientRect = () =>
             ({ left: 20, top: 0, width: 400, height: 100 }) as DOMRect;
         return { stage, fractions };
     }
@@ -679,7 +685,7 @@ describe('tapping the timeline lane', () => {
     it('reports where along the lane the tap landed', () => {
         const { stage, fractions } = seekingStage(AUDIO);
 
-        tap(stage.timelineLane!, 120, 40);
+        tap(timelineLaneOf(stage), 120, 40);
 
         expect(fractions).toEqual([0.25]);
     });
@@ -691,7 +697,7 @@ describe('tapping the timeline lane', () => {
     it('leaves a drag to the viewer rather than seeking', () => {
         const { stage, fractions } = seekingStage(AUDIO);
 
-        gesture(stage.timelineLane!, { x: 120, y: 40 }, { x: 260, y: 45 });
+        gesture(timelineLaneOf(stage), { x: 120, y: 40 }, { x: 260, y: 45 });
 
         expect(fractions).toEqual([]);
     });
@@ -700,7 +706,7 @@ describe('tapping the timeline lane', () => {
         const { stage, fractions } = seekingStage(AUDIO);
         stage.media.dispatchEvent(new Event('error'));
 
-        tap(stage.timelineLane!, 120, 40);
+        tap(timelineLaneOf(stage), 120, 40);
 
         expect(fractions).toEqual([]);
     });

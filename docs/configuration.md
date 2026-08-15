@@ -53,7 +53,7 @@ interface ViewerConfig {
     nav?: {
         style?: 'docked' | 'floating'; // Default: 'docked' (flush vs inset island)
         edge?: 'top' | 'bottom'; // Default: 'bottom' (which horizontal edge)
-        align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge)
+        align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge; inert while a plugin registers transport chrome — see below)
     };
 
     // Toolbar Settings
@@ -174,6 +174,17 @@ interface ViewerConfig {
     debug?: boolean; // Default: false
 }
 ```
+
+### Nav Alignment and Playback Controls
+
+`nav.align` is **inert while a plugin has registered transport chrome** — the seam a
+claimant of timed media (the AV plugin, for one) uses to put playback controls in the
+control bar. The bar then spans its full available width, because the seek bar's width
+is the precision a reader can aim with, and a full-width bar has nowhere to align.
+
+The setting is not deprecated and nothing is warned about: it resumes meaning the moment
+the chrome deregisters. `nav.style`, `nav.edge`, the nav inset, and `controls` all go on
+meaning exactly what they meant.
 
 ### Sidebar Panel Layout
 

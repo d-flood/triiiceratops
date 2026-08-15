@@ -16,8 +16,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *                              ESM entry consumers import).
  * `BUILD_FORMAT=iife`        → `dist/iife.js`  (a `<script>`-loadable bundle
  *                              that registers into `window.Triiiceratops.plugins`).
- * `BUILD_FORMAT=iife-chunks` → `dist/av-waveform.js`, `dist/av-hls.js` — the
- *                              lazy halves the IIFE fetches at runtime.
+ * `BUILD_FORMAT=iife-chunks` → `dist/av-waveform.js`, `dist/av-hls.js`,
+ *                              `dist/av-sequencer.js`, `dist/av-transcript.js`
+ *                              — the lazy halves the IIFE fetches at runtime.
  *
  * ## The deliberate deviation: the dist is a DIRECTORY
  *
@@ -43,7 +44,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * be fetched degrades exactly as an absent one does — no waveform, or that
  * canvas's "can't play" treatment — never an activation failure.
  *
- * ## The deliberate deviation: Svelte is NOT bundled
+ * ## The deliberate deviation: neither Svelte nor core's utilities are bundled
  *
  * Every other first-party plugin bundles its own Svelte runtime, and its vite
  * config says why: a plugin released independently of core can be paired with
@@ -66,9 +67,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * runtime, and `output.intro` below refuses to evaluate this bundle at all
  * against a core that is absent or shares a runtime it cannot use.
  *
- * The ESM half needs no globals and no special pleading: `svelte` is left
- * external as an ordinary peer, which a consumer's bundler dedupes against
- * core's copy exactly as it dedupes any other shared dependency.
+ * The same bargain covers `triiiceratops` itself. Importing four utilities from
+ * core drags the painting classifier and the IIIF parsing helpers behind them
+ * into this bundle — all of it already parsed and retained by the core script
+ * sitting beside it on the page. So the IIFE externalizes core too and reads the
+ * four off `window.Triiiceratops.core`, fenced by the same pair of gates: the
+ * `shared-core-utils` capability at activation, and `output.intro` ahead of the
+ * bundle body.
+ *
+ * The ESM half needs no globals and no special pleading: `svelte` and
+ * `triiiceratops` are left external as ordinary peers, which a consumer's
+ * bundler dedupes against core's copy exactly as it dedupes any other shared
+ * dependency.
  */
 const format =
     process.env.BUILD_FORMAT === 'iife'
@@ -177,23 +187,32 @@ function chunkedIife(): Plugin {
 // because a script-tag consumer has no bundler to resolve anything with — and
 // the SDK is framework-neutral, so bundling it pulls in no second runtime.
 const SVELTE = /^svelte(\/|$)/;
+const CORE = /^triiiceratops(\/|$)/;
+// The IIFE externalizes core's PACKAGE ENTRY only. `window.Triiiceratops.core`
+// is the one curated namespace member, and core's subpath entries — the selector
+// runtime the SDK re-exports, in particular — are not on it, so externalizing
+// them would leave an unresolvable bare global at runtime. They stay bundled.
+const CORE_ENTRY = /^triiiceratops$/;
 const external =
     format === 'iife'
-        ? [SVELTE]
+        ? [SVELTE, CORE_ENTRY]
         : format === 'iife-chunks'
           ? // Self-contained: an ES module fetched from a `<script>` page has
             // no import map and no bundler, so anything it left external would
-            // be an unresolvable bare specifier at runtime. Nothing in these
-            // two modules reaches Svelte or the SDK today, and
-            // `check-shared-runtime.mjs` fails the build if that ever changes
-            // — silently bundling a second Svelte runtime into a chunk is
-            // exactly what this plugin exists not to do.
+            // be an unresolvable bare specifier at runtime. So the chunks
+            // bundle whatever they reach — `src/sequencer/index.ts` imports
+            // `triiiceratops` and carries its own copy of what it uses, which
+            // is the price of the chunk being loadable on its own.
+            //
+            // What must not happen is a chunk reaching Svelte, and
+            // `check-shared-runtime.mjs` fails the build if one does: it scans
+            // every chunk for the Svelte client runtime's fingerprint strings.
+            // It also scans them for reads off `window.Triiiceratops.core`,
+            // which a chunk has no globals wiring for and could only write by
+            // hand — those are held to core's published set and to
+            // `REQUIRED_CORE_UTILS` exactly as the entry's are.
             []
-          : [
-                SVELTE,
-                /^@triiiceratops\/plugin-sdk(\/|$)/,
-                /^triiiceratops(\/|$)/,
-            ];
+          : [SVELTE, /^@triiiceratops\/plugin-sdk(\/|$)/, CORE];
 
 /**
  * Where each externalized Svelte module is read from at runtime in the IIFE.
@@ -213,6 +232,11 @@ const globals = {
     svelte: 'window.Triiiceratops?.svelte',
     'svelte/internal/client': 'window.Triiiceratops?.svelteInternal',
     'svelte/internal/disclose-version': 'window.Triiiceratops?.svelte',
+    // Core's curated utilities, read off the namespace for the same reason and
+    // under the same first-party rules as its Svelte runtime: bundling them
+    // would ship a second copy of the painting classifier and the IIIF parsing
+    // helpers the core script beside this one has already parsed.
+    triiiceratops: 'window.Triiiceratops?.core',
 };
 
 export default defineConfig({

@@ -36,8 +36,8 @@ const SURFACE = '[data-testid="canvas-renderer-surface"]';
 // The floating panel, not the settings section that carries the same id.
 const STRUCTURES_PANEL = '[role="dialog"][data-panel-id="structures"]';
 const TOC_TOGGLE = '[data-panel-toggle="structures"]';
-const PLAY = '[data-testid="av-play"]';
-const MUTE = '[data-testid="av-mute"]';
+const PLAY = '[data-testid="transport-play"]';
+const MUTE = '[data-testid="transport-mute"]';
 
 const MANIFEST = AV_MANIFESTS.structures;
 const TONE = `${MANIFEST}/canvas/tone`;

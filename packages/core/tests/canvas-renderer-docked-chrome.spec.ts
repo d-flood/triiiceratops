@@ -294,24 +294,30 @@ test('a host resize moments after a panel toggle still preserves scale', async (
 /**
  * The Contract line this whole ticket exists for, in the configuration that
  * produced the original report: a claimed AV canvas with the plugin's panel
- * docked beside it, and the transport anchored to the canvas rect.
+ * docked beside it, and playback controls a reader has to be able to reach.
  *
- * Measured at `6d1dec59` the anchor was 799px wide inside a 479px
- * `.plugin-overlay-layer`, so PLAY — the row's LEFTMOST control — sat at x 177,
- * behind the panel column and clipped out of the hit test by ticket 12's
- * `overflow: hidden`. MUTE, further right, clicked fine throughout, which is
- * why a spec that exercised only the right-hand controls never caught it.
+ * Measured at `6d1dec59`, when the transport was anchored to the canvas rect,
+ * its box was 799px wide inside a 479px `.plugin-overlay-layer`, so PLAY — the
+ * row's LEFTMOST control — sat at x 177, behind the panel column and clipped
+ * out of the hit test by ticket 12's `overflow: hidden`. MUTE, further right,
+ * clicked fine throughout, which is why a spec that exercised only the
+ * right-hand controls never caught it.
+ *
+ * The transport is in the control bar now and cannot be clipped by a docked
+ * column, but the assertion is kept and re-pointed at it: the reason it was
+ * written — the leftmost playback control is inside the visible surface and
+ * takes a real click with the panel docked — is a fact about the viewer, not
+ * about where the chrome happened to live.
  *
  * Both artifacts are the BUILT ones (`pnpm build:all`), as in `av-transport`.
  */
-test.describe('docked chrome — anchored AV chrome stays operable', () => {
+test.describe('docked chrome — AV playback controls stay operable', () => {
     test.describe.configure({ timeout: 120_000 });
 
     const AV_FIXTURE = '/e2e/av-plugin.html';
-    const OVERLAY_LAYER = '.plugin-overlay-layer';
-    const ANCHOR = '[data-testid="av-transport-anchor"]';
-    const PLAY = '[data-testid="av-play"]';
-    const MUTE = '[data-testid="av-mute"]';
+    const TRANSPORT = '[data-testid="transport"]';
+    const PLAY = '[data-testid="transport-play"]';
+    const MUTE = '[data-testid="transport-mute"]';
     const MEDIA = '[data-testid="av-media"]';
 
     test('the transport’s leftmost control is inside the surface and clickable with the panel docked', async ({
@@ -326,24 +332,24 @@ test.describe('docked chrome — anchored AV chrome stays operable', () => {
             .locator(SURFACE)
             .waitFor({ state: 'visible', timeout: 30_000 });
         await page
-            .locator(ANCHOR)
+            .locator(TRANSPORT)
             .waitFor({ state: 'visible', timeout: 30_000 });
 
         // The panel is docked from load in this fixture, so what settles here
         // is the re-fit it caused.
         const box = await settled(page, async (p) => ({
-            layer: await p.locator(OVERLAY_LAYER).boundingBox(),
-            anchor: await p.locator(ANCHOR).boundingBox(),
+            surface: await p.locator(SURFACE).boundingBox(),
+            transport: await p.locator(TRANSPORT).boundingBox(),
         }));
-        expect(box.layer).not.toBeNull();
-        expect(box.anchor).not.toBeNull();
+        expect(box.surface).not.toBeNull();
+        expect(box.transport).not.toBeNull();
 
         // Half of the Contract line: INSIDE the visible surface. This is the
         // 799-in-479 assertion, stated as the relation rather than as the two
         // numbers, which depend on the fixture's size.
-        expect(box.anchor!.x).toBeGreaterThanOrEqual(box.layer!.x - 1);
-        expect(box.anchor!.x + box.anchor!.width).toBeLessThanOrEqual(
-            box.layer!.x + box.layer!.width + 1,
+        expect(box.transport!.x).toBeGreaterThanOrEqual(box.surface!.x - 1);
+        expect(box.transport!.x + box.transport!.width).toBeLessThanOrEqual(
+            box.surface!.x + box.surface!.width + 1,
         );
 
         // A headless browser refuses audible script-initiated playback, so mute

@@ -69,6 +69,13 @@ export interface NavConfig {
     /**
      * Where the nav bar sits along its edge. In `unified` mode this also aligns
      * the embedded toolbar buttons, since they form one bar.
+     *
+     * **Inert while a plugin has registered transport chrome**
+     * (`ViewerState.registerTransportChrome`): the bar then spans its full
+     * available width so the seek bar can take the slack, and a full-width bar
+     * has nowhere to align. The setting is not deprecated and nothing is
+     * warned about — it resumes meaning the moment the chrome deregisters.
+     * `style`, `edge` and the nav inset go on meaning what they meant.
      * @default 'center'
      */
     align?: NavAlign;

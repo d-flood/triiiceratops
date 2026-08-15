@@ -7,6 +7,7 @@ import {
     installBrowserRuntime,
     type TriiiceratopsBrowserRuntime,
 } from './browser-runtime';
+import { SHARED_CORE_UTILS } from './shared-core-utils';
 import type { SdkPlugin } from './types/plugin';
 
 /**
@@ -85,6 +86,32 @@ describe('bootstrap', () => {
         expect(runtime.pluginApiVersion).toBe('');
         expect(runtime.capabilities).toEqual([]);
         expect(runtime.plugins.list()).toEqual([]);
+    });
+});
+
+describe('the shared core utilities', () => {
+    it('is an empty object on a namespace a plugin bootstrapped before core', () => {
+        expect(ensureBrowserRuntime().core).toEqual({});
+    });
+
+    it('carries exactly the curated set once core loads', () => {
+        installBrowserRuntime({
+            ...CORE,
+            elementCtor: makeElementCtor(),
+            tag: uniqueTag(),
+            coreUtils: SHARED_CORE_UTILS,
+        });
+
+        const shared = window.Triiiceratops!.core;
+        expect(Object.keys(shared).sort()).toEqual([
+            'getPaintingAnnotations',
+            'isImageBody',
+            'isUnsupportedCanvasFor',
+            'paintingBodyAlternatives',
+        ]);
+        for (const name of Object.keys(shared)) {
+            expect(typeof shared[name]).toBe('function');
+        }
     });
 });
 

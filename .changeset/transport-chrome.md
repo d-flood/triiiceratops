@@ -1,0 +1,17 @@
+---
+'triiiceratops': minor
+---
+
+Add the **transport chrome** seam: a claimant of timed media registers playback controls, and core renders them as a group of its own control bar.
+
+`viewerState.registerTransportChrome(chrome)` takes a registration and returns an idempotent release, following the overlay-layer registry rule for rule: the id must be `<pluginId>:<name>` naming a plugin the viewer knows, a refused registration returns a no-op dispose so a caller never branches, `unregisterPlugin` releases what a departing plugin forgot, and there is no `order` field. At most one chrome renders — if two are ever live, the first registered wins and the second is inert.
+
+**The seam is deliberately not an AV seam.** What is registered is a view model of playback facts (`view()`, re-read on core's own cadence through the registration's `subscribe`) and a port of playback commands (`toggle`, `seek`, `setMuted`, `setVolume`, `setTrack`), both media-agnostic. Core learns about a thing that plays, pauses, seeks and may offer alternative text tracks; it learns nothing about IIIF, canvases-as-media, time-based segments, subtitle formats, or a media element. Two consequences are load-bearing: `seek` takes a fraction of the timeline rather than seconds, because core knows no clock, and every string the controls show arrives on the view, localized by the claimant's own catalog. The pictures arrive on the registration as the same sanitized `IconDescriptor`s plugins already hand core for toolbar buttons, so no glyph enters core's generated icon table. A future medium with a timeline — a 3D scene, a synchronized multi-track tool — gets viewer-grade playback chrome without new core work.
+
+The controls are core's own: core's `Button` and `Range`, core's focus rings, core's radius tokens, in the viewer's theme. Play/pause, the clock readings, a `role="slider"` scrubber whose `aria-valuetext` is a clock reading rather than a bare number, mute, an optional volume slider, and an alternative-track control that renders nothing on zero tracks, a toggle on one, and a dismissible radio group on several — opening in whichever direction keeps it inside the viewer.
+
+The control bar changes with it. It spans full width while chrome is registered, because the scrubber's width is the resolution at which a reader can aim at a moment; the divider rule generalizes from two groups to three as the newly exported `shouldShowGroupDivider`, which shows a divider between adjacent groups iff they share a row; and the transport group carries a width floor that makes the bar wrap rather than letting the scrubber shrink to nothing. Docked and floating styles, the nav edge, and the nav inset all keep meaning what they meant. **Nav alignment goes inert while chrome is registered** — a full-width bar has nowhere to align. It is not removed, deprecated, or warned about, it resumes meaning the moment the chrome deregisters, and `docs/configuration.md` now says so plainly. A host that registers no claimant sees the bar it sees today.
+
+The seam's vocabulary is public: `TransportChrome`, `TransportChromeIcons`, `TransportChromeLabels`, `TransportChromePort` and `TransportChromeView` are exported from `triiiceratops` as types. The registry itself stays core's.
+
+Plugin API 1.3.0 → 1.4.0: core declares a fifth capability, `transport-chrome`. A plugin whose only playback chrome is the one core renders lists it in `requiredCapabilities` and fails closed on a core too old to render it, with a named diagnostic rather than controls that never appear.

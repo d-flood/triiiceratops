@@ -49,9 +49,9 @@ test.skip(
 const FIXTURE = '/e2e/av-plugin.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const MEDIA = '[data-testid="av-media"]';
-const TRANSPORT = '[data-testid="av-transport"]';
-const CAPTIONS = '[data-testid="av-captions"]';
-const CAPTION_LIST = '[data-testid="av-caption-list"]';
+const TRANSPORT = '[data-testid="transport"]';
+const CAPTIONS = '[data-testid="transport-tracks"]';
+const CAPTION_LIST = '[data-testid="transport-track-list"]';
 const TRANSCRIPT = '[data-testid="av-transcript"]';
 const TRANSCRIPT_TRACK = '[data-testid="av-transcript-track"]';
 const CUES = '[data-testid="av-transcript-cues"] button';
@@ -307,7 +307,9 @@ test.describe('av transcript — VTT cues as readable text', () => {
     test('offers no transcript for a canvas with no VTT', async ({ page }) => {
         await openViewer(page, AV_MANIFESTS.audio);
 
-        await expect(page.locator('[data-testid="av-panel"]')).toBeVisible();
+        // Attached rather than visible: the panel with no transcript in it is
+        // empty, which is the whole of the no-dead-control rule here.
+        await expect(page.locator('[data-testid="av-panel"]')).toBeAttached();
         await expect(page.locator(TRANSCRIPT)).toHaveCount(0);
     });
 

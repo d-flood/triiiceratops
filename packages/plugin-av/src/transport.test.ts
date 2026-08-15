@@ -1,17 +1,16 @@
-import { flushSync } from 'svelte';
 import { describe, expect, it } from 'vitest';
 
 import type { AVState } from './avState';
 import type { CaptionTrack } from './captions';
 import { createAudioPrefs, createTransport } from './transport.svelte';
 import {
-    TRANSPORT_MIN_WIDTH_PX,
     bufferedSpans,
     captionOptions,
     elementSpans,
-    fitsTransport,
     formatMediaTime,
     fractionToTime,
+    SEEK_STEP_LARGE,
+    SEEK_STEP_SMALL,
     timeFraction,
     volumeIsSettable,
 } from './transport';
@@ -49,23 +48,6 @@ describe('formatMediaTime', () => {
         expect(formatMediaTime(Number.NaN)).toBe('--:--');
         expect(formatMediaTime(Number.POSITIVE_INFINITY)).toBe('--:--');
         expect(formatMediaTime(-1)).toBe('--:--');
-    });
-});
-
-describe('fitsTransport', () => {
-    it('admits a canvas at or above the threshold', () => {
-        expect(fitsTransport(TRANSPORT_MIN_WIDTH_PX)).toBe(true);
-        expect(fitsTransport(TRANSPORT_MIN_WIDTH_PX + 1)).toBe(true);
-    });
-
-    it('refuses a canvas projected narrower than the chrome that controls it', () => {
-        expect(fitsTransport(TRANSPORT_MIN_WIDTH_PX - 1)).toBe(false);
-        expect(fitsTransport(0)).toBe(false);
-    });
-
-    it('refuses a width it cannot compare', () => {
-        expect(fitsTransport(Number.NaN)).toBe(false);
-        expect(fitsTransport(Number.POSITIVE_INFINITY)).toBe(false);
     });
 });
 
@@ -301,20 +283,107 @@ describe('createTransport', () => {
                 `${locale}:${key}:${String(params?.current)}/${String(params?.total)}`,
         });
 
-        const scrubber = (): string | null | undefined => {
-            flushSync();
-            return transport.root
-                .querySelector('[data-testid="av-scrubber"]')
-                ?.getAttribute('aria-valuetext');
-        };
-
-        expect(scrubber()).toBe('en:av_position:0:00/0:02');
+        expect(transport.view().positionText).toBe('en:av_position:0:00/0:02');
 
         // A paused canvas never ticks, so nothing but the locale change itself
         // can recompute what the scrubber announces.
         locale = 'fr';
         transport.retranslate();
-        expect(scrubber()).toBe('fr:av_position:0:00/0:02');
+        expect(transport.view().positionText).toBe('fr:av_position:0:00/0:02');
+
+        transport.destroy();
+    });
+
+    it('renders nothing while no claimed canvas is current', () => {
+        const { state } = fakeAvState();
+        let media: HTMLMediaElement | null = null;
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            prefs: createAudioPrefs(),
+            labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
+            t: (key) => key,
+        });
+
+        expect(transport.view().present).toBe(false);
+
+        media = document.createElement('audio');
+        transport.refresh();
+        expect(transport.view().present).toBe(true);
+
+        transport.destroy();
+    });
+
+    it('seeks in canvas seconds from the fraction core commands', () => {
+        const media = document.createElement('audio');
+        const { state } = fakeAvState();
+        const sought: number[] = [];
+        state.seek = (seconds: number) => sought.push(seconds);
+
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            prefs: createAudioPrefs(),
+            labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
+            t: (key) => key,
+        });
+
+        // The duration is 2s, so a quarter of the scrubber is half a second.
+        transport.port.seek(0.25);
+        expect(sought).toEqual([0.5]);
+
+        transport.destroy();
+    });
+
+    it('carries the seek-step policy to core on the view', () => {
+        const media = document.createElement('audio');
+        const { state } = fakeAvState();
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            prefs: createAudioPrefs(),
+            labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
+            t: (key) => key,
+        });
+
+        const view = transport.view();
+        expect(view.stepSmall).toBe(SEEK_STEP_SMALL);
+        expect(view.stepLarge).toBe(SEEK_STEP_LARGE);
+
+        transport.destroy();
+    });
+
+    it("tells core to re-read on AVState's own cadences", () => {
+        const media = document.createElement('audio');
+        const { state, frame } = fakeAvState();
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            prefs: createAudioPrefs(),
+            labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
+            t: (key) => key,
+        });
+
+        let reads = 0;
+        const stop = transport.subscribe(() => (reads += 1));
+        frame();
+        expect(reads).toBe(1);
+
+        stop();
+        frame();
+        expect(reads).toBe(1);
 
         transport.destroy();
     });
@@ -336,15 +405,7 @@ describe('createTransport', () => {
             },
             t: (key) => key,
         });
-        // Attached, because opening the list moves focus into it and an
-        // unattached tree has no active element to move.
-        document.body.append(transport.root);
-        flushSync();
-        const find = (selector: string): HTMLElement | null => {
-            flushSync();
-            return transport.root.querySelector(selector);
-        };
-        return { transport, find, active: () => active };
+        return { transport, active: () => active };
     }
 
     const EN: CaptionTrack = {
@@ -360,78 +421,34 @@ describe('createTransport', () => {
         annotation: 0,
     };
 
-    it('renders no captions control when no track loaded', () => {
-        const { transport, find } = captionedTransport([]);
-        expect(find('[data-testid="av-captions"]')).toBeNull();
+    it('offers no track at all when none loaded, so core renders no control', () => {
+        const { transport } = captionedTransport([]);
+        expect(transport.view().tracks).toEqual([]);
         transport.destroy();
     });
 
-    it('renders a plain toggle for one track, off to begin with', () => {
-        const { transport, find, active } = captionedTransport([EN]);
-
-        const toggle = find('[data-testid="av-captions"]')!;
-        expect(toggle.getAttribute('aria-pressed')).toBe('false');
-        expect(find('[data-testid="av-caption-list"]')).toBeNull();
-
-        toggle.click();
-        expect(active()).toBe(EN.url);
-        expect(
-            find('[data-testid="av-captions"]')!.getAttribute('aria-pressed'),
-        ).toBe('true');
-
-        find('[data-testid="av-captions"]')!.click();
-        expect(active()).toBeNull();
-        transport.destroy();
-    });
-
-    it('opens a radio list of every track plus off when there are several', () => {
-        const { transport, find } = captionedTransport([EN, IT]);
-
-        find('[data-testid="av-captions"]')!.click();
-        const list = find('[data-testid="av-caption-list"]')!;
-        expect(list.getAttribute('role')).toBe('radiogroup');
-
-        const radios = [...list.querySelectorAll('[role="radio"]')];
-        expect(radios.map((radio) => radio.textContent?.trim())).toEqual([
-            'Off',
-            'English (en)',
-            'Italiano (it)',
+    it('offers the loaded tracks by their reader-facing names', () => {
+        const { transport } = captionedTransport([EN, IT]);
+        const view = transport.view();
+        expect(view.tracks).toEqual([
+            { id: 'en.vtt', label: 'English (en)' },
+            { id: 'it.vtt', label: 'Italiano (it)' },
         ]);
-        // Off is where it starts, and it is the group's only tab stop.
-        expect(
-            radios.map((radio) => radio.getAttribute('aria-checked')),
-        ).toEqual(['true', 'false', 'false']);
-        expect(radios.map((radio) => radio.getAttribute('tabindex'))).toEqual([
-            '0',
-            '-1',
-            '-1',
-        ]);
+        // Off is where every canvas starts.
+        expect(view.activeTrack).toBeNull();
         transport.destroy();
     });
 
-    it('moves between tracks with the arrow keys, selection following focus', async () => {
-        const { transport, find, active } = captionedTransport([EN, IT]);
-        find('[data-testid="av-captions"]')!.click();
-        // The list is focused on the frame after it is rendered.
-        flushSync();
-        await new Promise((resolve) => requestAnimationFrame(resolve));
+    it('selects a track through the stage and reports it back', () => {
+        const { transport, active } = captionedTransport([EN, IT]);
 
-        const list = find('[data-testid="av-caption-list"]')!;
-        list.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
-        );
-        expect(active()).toBe(EN.url);
-
-        list.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'End', bubbles: true }),
-        );
+        transport.port.setTrack(IT.url);
         expect(active()).toBe(IT.url);
+        expect(transport.view().activeTrack).toBe(IT.url);
 
-        // Escape leaves rather than trapping the keyboard in the list.
-        list.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-        );
-        expect(find('[data-testid="av-caption-list"]')).toBeNull();
+        transport.port.setTrack(null);
+        expect(active()).toBeNull();
+        expect(transport.view().activeTrack).toBeNull();
         transport.destroy();
     });
 });

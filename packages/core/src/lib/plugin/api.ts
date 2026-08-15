@@ -26,10 +26,10 @@
 export const CORE_VERSION = '1.0.0-rc.36';
 
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.2.0` for the
- * additive `shared-svelte-runtime` {@link capabilities} entry below.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.4.0` for the
+ * additive `transport-chrome` {@link capabilities} entry below.
  */
-export const pluginApiVersion = '1.2.0';
+export const pluginApiVersion = '1.4.0';
 
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not
@@ -62,9 +62,25 @@ export const pluginApiVersion = '1.2.0';
  *   plugin declaring this must also pin `coreRange` exactly: the capability
  *   says the runtime is shared, and only the exact version says it is the same
  *   runtime.
+ * - `shared-core-utils` — core publishes a curated handful of its own utility
+ *   functions on `window.Triiiceratops.core` (`SharedCoreUtils` in
+ *   `browser-runtime.ts`), which a FIRST-PARTY plugin IIFE reads instead of
+ *   bundling a second copy of the modules behind them. A plugin whose bundle
+ *   externalizes `triiiceratops` requires it, so a core that publishes no such
+ *   member refuses activation rather than leaving the plugin dereferencing
+ *   `undefined`.
+ * - `transport-chrome` — a claimant of timed media may register a view model of
+ *   playback facts and a port of playback commands
+ *   (`ViewerState.registerTransportChrome`), which core renders as playback
+ *   controls in its own control bar. A plugin whose only playback chrome is the
+ *   one core renders requires it, so a core too old to render it refuses
+ *   activation with a named diagnostic rather than mounting a plugin whose
+ *   controls never appear.
  */
 export const capabilities: readonly string[] = [
     'canvas-claim',
     'published-state',
     'shared-svelte-runtime',
+    'shared-core-utils',
+    'transport-chrome',
 ];

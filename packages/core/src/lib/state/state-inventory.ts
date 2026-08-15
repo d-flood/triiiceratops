@@ -500,6 +500,23 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'The registry’s registration-ordered snapshot, read by the render site. Internal rather than command state: a plugin registers a layer and receives a dispose, it does not mutate this list. Carries no contract, exactly as paintLayers does not; a test that reads it back to prove register/release symmetry is reading an internal.',
     },
 
+    // ---- Transport chrome -----------------------------------------------------
+    {
+        member: 'transportChromeRevision',
+        classification: 'internal',
+        notes: 'Bumped when transport chrome is registered or disposed, so the control bar renders or removes the playback controls. The same shape as overlayLayerRevision, for the same reason.',
+    },
+    {
+        member: 'transportChromeRegistry',
+        classification: 'internal',
+        notes: 'The transport chrome registry behind registerTransportChrome (`state/transportChrome.ts`). Held here rather than at the control bar so a claimant may register before the bar renders and survives its remount. Not reactive: the revision counter above is the signal.',
+    },
+    {
+        member: 'transportChrome',
+        classification: 'internal',
+        notes: 'The registry’s registration-ordered snapshot, read by the control bar, which renders the first. Internal rather than command state, exactly as overlayLayers is: a claimant registers chrome and receives a dispose, it does not mutate this list. Playback facts are the claimant’s published state, which is where a host reads them.',
+    },
+
     // ---- Canvas claims --------------------------------------------------------
     {
         member: 'claimedCanvases',
