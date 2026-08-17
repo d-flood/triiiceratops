@@ -211,7 +211,7 @@ const { blocks, skipped } = collectStyleBlocks();
  * is added or removed — a failure here is a prompt to confirm the new block is
  * covered, not a problem with the minifier.
  */
-const EXPECTED_BLOCK_COUNT = 37;
+const EXPECTED_BLOCK_COUNT = 39;
 
 describe('minifyCss preserves every component stylesheet in the repository', () => {
     it('found the stylesheets to check', () => {

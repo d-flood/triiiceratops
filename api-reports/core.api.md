@@ -1288,10 +1288,18 @@ export declare const logger: Logger;
  */
 export declare const CORE_VERSION = "1.0.0-rc.36";
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.4.0` for the
- * additive `transport-chrome` {@link capabilities} entry below.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.5.0` for the
+ * transcript control on the `transport-chrome` {@link capabilities} entry below,
+ * over the `1.4.0` that added that entry.
+ *
+ * A minor rather than the major a semantic change would take, because the
+ * contract it widens has not shipped: `transport-chrome` arrived in this same
+ * unreleased line, so its view, port and icon set growing a control is still
+ * that seam being drafted. Once a core carrying it is published, adding a
+ * REQUIRED member to any of the three becomes a major — a claimant built against
+ * the published contract would no longer satisfy it.
  */
-export declare const pluginApiVersion = "1.4.0";
+export declare const pluginApiVersion = "1.5.0";
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not
  * security permissions.
@@ -3055,11 +3063,20 @@ export declare function createSelectorRuntime<S extends SelectorSource>(source: 
  *
  * ## Deliberately not an AV seam
  *
- * Core learns about a thing that plays, pauses, seeks and may offer alternative
- * text tracks. It does not learn about IIIF, media elements, time-based
- * segments, or subtitle formats — that vocabulary belongs to the claimant, and
- * keeping it out is what makes the seam serve a future medium (a 3D scene with
- * a timeline, a synchronized multi-track tool) without new core work.
+ * Core learns about a thing that plays, pauses, seeks, may offer alternative
+ * text tracks, and may offer a readable text of what it contains. It does not
+ * learn about IIIF, media elements, time-based segments, or subtitle formats —
+ * that vocabulary belongs to the claimant, and keeping it out is what makes the
+ * seam serve a future medium (a 3D scene with a timeline, a synchronized
+ * multi-track tool) without new core work.
+ *
+ * `transcript` is the one control here that commands something other than
+ * playback: it asks the claimant to show its own reading surface, and where
+ * that surface lives is the claimant's business entirely — core neither knows
+ * nor asks. It earns a place beside the playback controls because a reader
+ * looking for the words of a recording looks where the recording's controls
+ * are, not in a plugin menu; and it is expressed as a two-state control rather
+ * than a one-way "open" so the same button closes what it opened.
  *
  * Two consequences shape the contract below. `seek` takes a fraction of the
  * timeline rather than seconds, because core knows no clock; and every string
@@ -3101,6 +3118,8 @@ export interface TransportChromeIcons {
     unmute: IconDescriptor;
     /** The alternative-text-track control. */
     tracks: IconDescriptor;
+    /** The readable-text control. */
+    transcript: IconDescriptor;
 }
 /** Every string the chrome shows or announces, in the claimant's locale. */
 export interface TransportChromeLabels {
@@ -3117,6 +3136,8 @@ export interface TransportChromeLabels {
     tracks: string;
     /** The "none" option of the track list. */
     tracksOff: string;
+    /** Names the readable-text control, in both its states. */
+    transcript: string;
 }
 /**
  * The playback facts the chrome renders, read on core's own cadence and never
@@ -3151,6 +3172,13 @@ export interface TransportChromeView {
         label: string;
     }[];
     activeTrack: string | null;
+    /**
+     * Whether this target offers a readable text. `false` renders no control at
+     * all — the same no-dead-control rule the empty `tracks` set follows.
+     */
+    transcript: boolean;
+    /** Whether the claimant's reading surface is currently showing. */
+    transcriptOpen: boolean;
     /** Seconds an arrow moves the playhead. The policy is the claimant's. */
     stepSmall: number;
     /** Seconds a page key moves the playhead. */
@@ -3167,6 +3195,8 @@ export interface TransportChromePort {
     setVolume(volume: number): void;
     /** Show one alternative text track, or `null` for none. */
     setTrack(id: string | null): void;
+    /** Show or hide the claimant's readable text. */
+    setTranscript(open: boolean): void;
 }
 /** Playback chrome, as a claimant registers it. */
 export interface TransportChrome {

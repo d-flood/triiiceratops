@@ -432,12 +432,12 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **17,140**.
+ * the same level this script uses — which currently reads **17,040**.
  *
  * The playback chrome is NOT in this number and must never come back into it:
  * core renders it, from the view model `src/transport.svelte.ts` registers
  * through `registerTransportChrome`. What this bundle carries of the transport
- * is that view model, its formatting, and the five icon descriptors.
+ * is that view model, its formatting, and the six icon descriptors.
  *
  * What those eager bytes are:
  *
@@ -466,12 +466,15 @@ const REQUIRED_GLOBALS = [
  *   duration while that loader is in flight, and the waveform fence. The
  *   segment map, the seam, the buffered-span mapping and the preloading are
  *   all in the chunk;
- * - the transcript's EAGER half, about 430 bytes: which loaded track the
+ * - the transcript's EAGER half, about 875 bytes: which loaded track the
  *   current canvas's transcript reads, the text track and canvas-time shift it
- *   reads cues through, and the mount/release of the chunk against the panel's
- *   host node. The list, its keyboard behaviour, its scroll-follow and its
- *   stylesheet are all in `dist/av-transcript.js`, which is fetched only for a
- *   canvas that actually carries VTT;
+ *   reads cues through, the `rendering` scan that finds an untimed transcript
+ *   file on a canvas carrying no VTT, the answer the control-bar button is
+ *   rendered on, and the mount/release of the chunk against the panel's host
+ *   node. Both renderers — the cue list with its keyboard behaviour and
+ *   scroll-follow, and the untimed file's fetch, paragraph reflow and
+ *   fetch-failure link — are in `dist/av-transcript.js`, which is fetched only
+ *   for a canvas that actually offers one of them;
  * - the version-skew gate's diagnostic prose, and the curator-facing degradation
  *   warnings (user story 45). Their prose is a real share of this number and is
  *   spent deliberately: a message that says what was ignored and what the term
@@ -479,7 +482,7 @@ const REQUIRED_GLOBALS = [
  *
  * **The lazy chunks must never enter this number.** `dist/av-waveform.js`
  * (2,584 gzip), `dist/av-sequencer.js` (2,094 gzip), `dist/av-transcript.js`
- * (1,810 gzip) and `dist/av-hls.js` (223,530 gzip) are fetched on demand, and
+ * (2,773 gzip) and `dist/av-hls.js` (223,530 gzip) are fetched on demand, and
  * the marker checks below are what prove they are still out. A chunk folded back
  * into the entry would show up here as a jump of roughly its standalone size
  * less what the minifier saves by sharing scope — for the waveform that was
@@ -491,7 +494,7 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 17_150;
+const MAX_IIFE_GZIP = 17_060;
 
 /**
  * Floor on the number of runtime helpers the IIFE entry must be seen to

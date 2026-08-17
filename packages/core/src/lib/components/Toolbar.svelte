@@ -204,23 +204,23 @@
     const tooltipPlacement = $derived(
         inline
             ? navOnTop
-                ? 'bottom'
-                : 'top'
+                ? 'place-bottom'
+                : 'place-top'
             : isTop
-              ? 'bottom'
+              ? 'place-bottom'
               : position === 'left'
-                ? 'right'
-                : 'left',
+                ? 'place-right'
+                : 'place-left',
     );
 
     const openButtonTooltipPlacement = $derived(
         position === 'top-left'
-            ? 'right'
+            ? 'place-right'
             : position === 'top-right'
-              ? 'left'
+              ? 'place-left'
               : position === 'left'
-                ? 'right'
-                : 'left',
+                ? 'place-right'
+                : 'place-left',
     );
 
     // --- Standard Viewer Actions ---
@@ -1507,8 +1507,8 @@
 
     /* ===== Toggle handle (btn-sm look + custom overrides) ===== */
     /* the handle also carries .tooltip; keep its absolute positioning winning
-       over .tooltip's position:relative (the tooltip pseudo-elements work from
-       any positioned element). */
+       over the position:relative the shared tooltip layer sets (the tooltip
+       pseudo-elements work from any positioned element). */
     .handle.tooltip {
         position: absolute;
     }
@@ -1602,97 +1602,20 @@
         height: var(--ui-icon, 20px);
     }
 
-    /* ===== Tooltip scaffolding (sm sizing) ===== */
-    .tooltip {
-        --tt-bg: var(--tri-color-neutral);
-        --tt-fg: var(--tri-color-neutral-content);
-        --tt-off: calc(100% + 0.5rem);
-        --tt-tail: calc(100% + 1px + 0.25rem);
-        position: relative;
-    }
-    .tooltip[data-tip]:not([data-tip=''])::before {
-        border-radius: var(--tri-radius-buttons);
-        text-align: center;
-        white-space: normal;
-        max-width: 20rem;
-        color: var(--tt-fg);
-        opacity: 0;
-        background-color: var(--tt-bg);
-        pointer-events: none;
-        z-index: 2;
-        content: attr(data-tip);
-        width: max-content;
-        padding-block: 0.25rem;
-        padding-inline: 0.5rem;
-        font-size: 0.875rem;
-        line-height: 1.25;
-        position: absolute;
-    }
-    .tooltip[data-tip]:not([data-tip=''])::after {
-        opacity: 0;
-        background-color: var(--tt-bg);
-        content: '';
-        pointer-events: none;
-        --mask-tooltip: url("data:image/svg+xml,%3Csvg width='10' height='4' viewBox='0 0 8 4' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0.500009 1C3.5 1 3.00001 4 5.00001 4C7 4 6.5 1 9.5 1C10 1 10 0.499897 10 0H0C-1.99338e-08 0.5 0 1 0.500009 1Z' fill='black'/%3E%3C/svg%3E%0A");
-        width: 0.625rem;
-        height: 0.25rem;
-        mask-position: -1px 0;
-        mask-repeat: no-repeat;
-        mask-image: var(--mask-tooltip);
-        display: block;
-        position: absolute;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-        .tooltip[data-tip]::before,
-        .tooltip[data-tip]::after {
-            transition:
-                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms,
-                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms;
-        }
-    }
-    .tooltip[data-tip]:not([data-tip='']):hover::before,
-    .tooltip[data-tip]:not([data-tip='']):hover::after,
-    .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::before,
-    .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::after {
-        opacity: 1;
-        --tt-pos: 0rem;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-        .tooltip[data-tip]:not([data-tip='']):hover::before,
-        .tooltip[data-tip]:not([data-tip='']):hover::after,
-        .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::before,
-        .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::after {
-            transition:
-                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-    }
-    .tooltip.top::before {
-        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-off) 50%;
-    }
-    .tooltip.top::after {
-        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-tail) 50%;
-    }
-    .tooltip.bottom::before {
-        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem));
-        inset: var(--tt-off) auto auto 50%;
-    }
-    .tooltip.bottom::after {
-        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem))
-            rotate(180deg);
-        inset: var(--tt-tail) auto auto 50%;
-    }
-    /* Edge correction: the outermost button of a top-anchored toolbar sits in
-       the viewer corner, so its centered bottom-tooltip bubble would overflow
-       the viewer border. Anchor just that bubble to the button's outer edge
-       (the tail keeps pointing at the button center). */
-    .actions.top-left > li:first-child .tooltip.bottom::before {
+    /* ===== Tooltip edge corrections =====
+       The bubble, tail, reveal and placements come from `src/styles/tooltip.css`;
+       only the corrections below are specific to where this toolbar puts its
+       buttons. */
+
+    /* The outermost button of a top-anchored toolbar sits in the viewer corner,
+       so its centered bottom-tooltip bubble would overflow the viewer border.
+       Anchor just that bubble to the button's outer edge (the tail keeps
+       pointing at the button center). */
+    .actions.top-left > li:first-child .tooltip.place-bottom::before {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
         inset: var(--tt-off) auto auto 0;
     }
-    .actions.top-right > li:first-child .tooltip.bottom::before {
+    .actions.top-right > li:first-child .tooltip.place-bottom::before {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
         inset: var(--tt-off) 0 auto auto;
     }
@@ -1703,14 +1626,14 @@
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.top::before {
+        .tooltip.place-top::before {
         transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
         inset: auto auto var(--tt-off) 0;
     }
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.bottom::before {
+        .tooltip.place-bottom::before {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
         inset: var(--tt-off) auto auto 0;
     }
@@ -1720,36 +1643,16 @@
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.top::after {
+        .tooltip.place-top::after {
         transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
         inset: auto auto var(--tt-tail) 0.5rem;
     }
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.bottom::after {
+        .tooltip.place-bottom::after {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem))
             rotate(180deg);
         inset: var(--tt-tail) auto auto 0.5rem;
-    }
-    .tooltip.left::before {
-        transform: translateX(calc(var(--tt-pos, 0.25rem) - 0.25rem))
-            translateY(-50%);
-        inset: 50% var(--tt-off) auto auto;
-    }
-    .tooltip.left::after {
-        transform: translateX(var(--tt-pos, 0.25rem)) translateY(-50%)
-            rotate(-90deg);
-        inset: 50% calc(var(--tt-tail) + 1px) auto auto;
-    }
-    .tooltip.right::before {
-        transform: translateX(calc(var(--tt-pos, -0.25rem) + 0.25rem))
-            translateY(-50%);
-        inset: 50% auto auto var(--tt-off);
-    }
-    .tooltip.right::after {
-        transform: translateX(var(--tt-pos, -0.25rem)) translateY(-50%)
-            rotate(90deg);
-        inset: 50% auto auto calc(var(--tt-tail) + 1px);
     }
 </style>

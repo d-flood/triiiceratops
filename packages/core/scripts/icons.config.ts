@@ -62,8 +62,6 @@ export const CORE_ICONS = {
     EyeSlash: [],
     File: [],
     Folder: ['bold'],
-    Gear: [],
-    GithubLogo: [],
     ImageBroken: [],
     Info: ['bold'],
     List: [],

@@ -43,6 +43,8 @@ function makeView(overrides: Partial<TransportChromeView> = {}) {
         strip: null,
         tracks: [],
         activeTrack: null,
+        transcript: false,
+        transcriptOpen: false,
         stepSmall: 5,
         stepLarge: 30,
         labels: {
@@ -57,6 +59,7 @@ function makeView(overrides: Partial<TransportChromeView> = {}) {
             volume: 'Volume',
             tracks: 'Tracks',
             tracksOff: 'Off',
+            transcript: 'Transcript',
         },
         ...overrides,
     } satisfies TransportChromeView;
@@ -68,6 +71,7 @@ const port = {
     setMuted: vi.fn(),
     setVolume: vi.fn(),
     setTrack: vi.fn(),
+    setTranscript: vi.fn(),
 };
 
 const testId = (id: string) => document.querySelector(`[data-testid="${id}"]`);
@@ -127,6 +131,7 @@ describe('ViewerControls idle chrome', () => {
                 mute: ICON,
                 unmute: ICON,
                 tracks: ICON,
+                transcript: ICON,
             },
             view: () => view,
             port,

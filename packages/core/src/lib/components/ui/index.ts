@@ -8,6 +8,7 @@ export {
     Toggle,
     Checkbox,
     Select,
+    NativeSelect,
     TextInput,
     Range,
     Badge,

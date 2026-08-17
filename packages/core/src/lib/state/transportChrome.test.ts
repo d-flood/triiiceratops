@@ -19,6 +19,7 @@ const icons: TransportChromeIcons = {
     mute: ICON,
     unmute: ICON,
     tracks: ICON,
+    transcript: ICON,
 };
 
 /** A view nobody reads: this seam is bookkeeping, not rendering. */
@@ -30,6 +31,7 @@ const port = {
     setMuted() {},
     setVolume() {},
     setTrack() {},
+    setTranscript() {},
 };
 
 function chrome(id: string, overrides: Partial<TransportChrome> = {}) {

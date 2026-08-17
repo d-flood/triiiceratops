@@ -295,6 +295,7 @@ function transportChrome(id: string) {
             mute: ICON,
             unmute: ICON,
             tracks: ICON,
+            transcript: ICON,
         },
         view: () => ({ present: false }) as never,
         port: {
@@ -303,6 +304,7 @@ function transportChrome(id: string) {
             setMuted() {},
             setVolume() {},
             setTrack() {},
+            setTranscript() {},
         },
         subscribe: () => () => {},
     };

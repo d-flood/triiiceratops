@@ -1,6 +1,5 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import { Tooltip } from './ui';
     import { getContext } from 'svelte';
     import type { IconName } from '../generated/icons';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
@@ -513,16 +512,37 @@
         }
     }
 
+    // One entry per thumbnail button: a paged pair, or a single canvas. Every
+    // viewing mode produces these, so the strip has one rendering path.
+    type ThumbnailGroup = {
+        id: string;
+        labels: string[];
+        srcs: string[];
+        unsupported: boolean[];
+        index: number;
+        hasChoice: boolean;
+    };
+
     const groupedThumbnails = $derived.by(() => {
-        const groups: Array<{
-            id: string;
-            labels: string[];
-            srcs: string[];
-            unsupported: boolean[];
-            index: number;
-            hasChoice: boolean;
-        }> = [];
+        const groups: ThumbnailGroup[] = [];
         const thumbs = thumbnails;
+
+        // Outside paged mode every canvas stands alone, and pairing is not
+        // merely unwanted but wrong: `getPagedCanvasGroups` does not know the
+        // viewing mode and would pair regardless.
+        if (viewerState.viewingMode !== 'paged') {
+            return thumbs.map(
+                (thumb): ThumbnailGroup => ({
+                    id: thumb.id,
+                    labels: [thumb.label],
+                    srcs: [thumb.src],
+                    unsupported: [thumb.unsupported],
+                    index: thumb.index,
+                    hasChoice: thumb.hasChoice,
+                }),
+            );
+        }
+
         const pagedGroups = getPagedCanvasGroups(
             canvases || [],
             viewerState.pagedOffset,
@@ -674,10 +694,9 @@
                 {/if}
 
                 {#if dockSide === 'none'}
-                    <Tooltip
-                        tip={toggleLabel}
-                        placement={tooltipPlacement}
-                        class="toggle-anchor toggle-anchor-inline"
+                    <span
+                        class="tooltip place-{tooltipPlacement} toggle-anchor toggle-anchor-inline"
+                        data-tip={toggleLabel}
                     >
                         <button
                             class="expand-toggle toggle-inline"
@@ -687,17 +706,16 @@
                         >
                             <Icon name={toggleIcon} size={14} />
                         </button>
-                    </Tooltip>
+                    </span>
                 {/if}
             </div>
         {/if}
 
         <!-- Expand/collapse caret, centered on the canvas-facing edge (docked only) -->
         {#if caretEdge}
-            <Tooltip
-                tip={toggleLabel}
-                placement={tooltipPlacement}
-                class="toggle-anchor toggle-anchor-edge"
+            <span
+                class="tooltip place-{tooltipPlacement} toggle-anchor toggle-anchor-edge"
+                data-tip={toggleLabel}
             >
                 <button
                     class="expand-toggle toggle-edge"
@@ -707,7 +725,7 @@
                 >
                     <Icon name={toggleIcon} size={12} />
                 </button>
-            </Tooltip>
+            </span>
         {/if}
 
         <div
@@ -724,178 +742,120 @@
                     !isHorizontal && 'track-vertical',
                 ]}
             >
-                {#if viewerState.viewingMode === 'paged'}
-                    {#each groupedThumbnails as thumbGroup (thumbGroup.id)}
-                        {@const isGroupSelected = (() => {
-                            const idx = thumbGroup.index;
-                            const first = thumbnails[idx];
-                            const second =
-                                thumbGroup.srcs.length > 1
-                                    ? thumbnails[idx + 1]
-                                    : null;
-                            return (
-                                viewerState.canvasId === first?.id ||
-                                (second && viewerState.canvasId === second.id)
-                            );
-                        })()}
-                        <button
+                {#each groupedThumbnails as thumbGroup (thumbGroup.id)}
+                    {@const isGroupSelected = (() => {
+                        const idx = thumbGroup.index;
+                        const first = thumbnails[idx];
+                        const second =
+                            thumbGroup.srcs.length > 1
+                                ? thumbnails[idx + 1]
+                                : null;
+                        return (
+                            viewerState.canvasId === first?.id ||
+                            (second && viewerState.canvasId === second.id)
+                        );
+                    })()}
+                    <button
+                        class={['thumb-item', isGroupSelected && 'selected']}
+                        style="{isHorizontal
+                            ? `height: ${thumbItemHeight}px;`
+                            : ''}{isGroupSelected
+                            ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
+                            : ''}"
+                        onclick={() => selectCanvas(thumbGroup.id)}
+                        data-id={thumbGroup.id}
+                        aria-label="Select canvas {thumbGroup.labels.join(
+                            ' / ',
+                        )}"
+                    >
+                        <div
                             class={[
-                                'thumb-item',
-                                isGroupSelected && 'selected',
+                                'thumb-frame',
+                                isRTL && 'frame-rtl',
+                                thumbGroup.srcs.length > 1 && 'frame-paged',
                             ]}
-                            style="{isHorizontal
-                                ? `height: ${thumbItemHeight}px;`
-                                : ''}{isGroupSelected
-                                ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
-                                : ''}"
-                            onclick={() => selectCanvas(thumbGroup.id)}
-                            data-id={thumbGroup.id}
-                            aria-label="Select canvas {thumbGroup.labels.join(
-                                ' / ',
-                            )}"
                         >
-                            <div
-                                class={[
-                                    'thumb-frame',
-                                    isRTL && 'frame-rtl',
-                                    thumbGroup.srcs.length > 1 && 'frame-paged',
-                                ]}
-                            >
+                            <div class="thumb-pane">
+                                {#if thumbGroup.srcs[0]}
+                                    <img
+                                        src={thumbGroup.srcs[0]}
+                                        alt={thumbGroup.labels[0]}
+                                        class="thumb-img"
+                                        loading="lazy"
+                                        draggable="false"
+                                    />
+                                {:else}
+                                    {@render noThumbnail(
+                                        thumbGroup.unsupported[0],
+                                    )}
+                                {/if}
+                            </div>
+                            {#if thumbGroup.srcs.length > 1}
                                 <div class="thumb-pane">
-                                    {#if thumbGroup.srcs[0]}
+                                    {#if thumbGroup.srcs[1]}
                                         <img
-                                            src={thumbGroup.srcs[0]}
-                                            alt={thumbGroup.labels[0]}
+                                            src={thumbGroup.srcs[1]}
+                                            alt={thumbGroup.labels[1]}
                                             class="thumb-img"
                                             loading="lazy"
                                             draggable="false"
                                         />
                                     {:else}
                                         {@render noThumbnail(
-                                            thumbGroup.unsupported[0],
+                                            thumbGroup.unsupported[1],
                                         )}
                                     {/if}
                                 </div>
-                                {#if thumbGroup.srcs.length > 1}
-                                    <div class="thumb-pane">
-                                        {#if thumbGroup.srcs[1]}
-                                            <img
-                                                src={thumbGroup.srcs[1]}
-                                                alt={thumbGroup.labels[1]}
-                                                class="thumb-img"
-                                                loading="lazy"
-                                                draggable="false"
-                                            />
-                                        {:else}
-                                            {@render noThumbnail(
-                                                thumbGroup.unsupported[1],
-                                            )}
-                                        {/if}
+                            {/if}
+                        </div>
+                        <div
+                            class="thumb-label"
+                            title="{thumbGroup.index + 1}. {thumbGroup
+                                .labels[0]}{thumbGroup.labels.length > 1
+                                ? ` / ${thumbGroup.index + 2}. ${thumbGroup.labels[1]}`
+                                : ''}"
+                        >
+                            <div
+                                class={[
+                                    'label-stack',
+                                    thumbGroup.labels.length > 1 &&
+                                        'label-overlay',
+                                ]}
+                            >
+                                <div class="label-line">
+                                    <span class="label-num"
+                                        >{thumbGroup.index + 1}.</span
+                                    >{thumbGroup
+                                        .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
+                                            class="choice-badge"
+                                            title="Has choices/layers"
+                                            ><Icon
+                                                name="Stack"
+                                                size={12}
+                                                class="choice-icon"
+                                            /></span
+                                        >{/if}
+                                </div>
+                                {#if thumbGroup.labels.length > 1}
+                                    <div class="label-line">
+                                        <span class="label-num"
+                                            >{thumbGroup.index + 2}.</span
+                                        >{thumbGroup
+                                            .labels[1]}{#if thumbGroup.hasChoice}<span
+                                                class="choice-badge"
+                                                title="Has choices/layers"
+                                                ><Icon
+                                                    name="Stack"
+                                                    size={12}
+                                                    class="choice-icon"
+                                                /></span
+                                            >{/if}
                                     </div>
                                 {/if}
                             </div>
-                            <div
-                                class="thumb-label"
-                                title="{thumbGroup.index + 1}. {thumbGroup
-                                    .labels[0]}{thumbGroup.labels.length > 1
-                                    ? ` / ${thumbGroup.index + 2}. ${thumbGroup.labels[1]}`
-                                    : ''}"
-                            >
-                                <div
-                                    class={[
-                                        'label-stack',
-                                        thumbGroup.labels.length > 1 &&
-                                            'label-overlay',
-                                    ]}
-                                >
-                                    <div class="label-line">
-                                        <span class="label-num"
-                                            >{thumbGroup.index + 1}.</span
-                                        >{thumbGroup
-                                            .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
-                                                class="choice-badge"
-                                                title="Has choices/layers"
-                                                ><Icon
-                                                    name="Stack"
-                                                    size={12}
-                                                    class="choice-icon"
-                                                /></span
-                                            >{/if}
-                                    </div>
-                                    {#if thumbGroup.labels.length > 1}
-                                        <div class="label-line">
-                                            <span class="label-num"
-                                                >{thumbGroup.index + 2}.</span
-                                            >{thumbGroup
-                                                .labels[1]}{#if thumbGroup.hasChoice}<span
-                                                    class="choice-badge"
-                                                    title="Has choices/layers"
-                                                    ><Icon
-                                                        name="Stack"
-                                                        size={12}
-                                                        class="choice-icon"
-                                                    /></span
-                                                >{/if}
-                                        </div>
-                                    {/if}
-                                </div>
-                            </div>
-                        </button>
-                    {/each}
-                {:else}
-                    {#each thumbnails as thumb (thumb.id)}
-                        <button
-                            class={[
-                                'thumb-item',
-                                viewerState.canvasId === thumb.id && 'selected',
-                            ]}
-                            style="{isHorizontal
-                                ? `height: ${thumbItemHeight}px;`
-                                : ''}{viewerState.canvasId === thumb.id
-                                ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
-                                : ''}"
-                            onclick={() => selectCanvas(thumb.id)}
-                            data-id={thumb.id}
-                            aria-label="Select canvas {thumb.label}"
-                        >
-                            <div class="thumb-frame">
-                                <div class="thumb-pane">
-                                    {#if thumb.src}
-                                        <img
-                                            src={thumb.src}
-                                            alt={thumb.label}
-                                            class="thumb-img"
-                                            loading="lazy"
-                                            draggable="false"
-                                        />
-                                    {:else}
-                                        {@render noThumbnail(thumb.unsupported)}
-                                    {/if}
-                                </div>
-                            </div>
-                            <div
-                                class="thumb-label"
-                                title="{thumb.index + 1}. {thumb.label}"
-                            >
-                                <div class="label-stack">
-                                    <div class="label-line">
-                                        <span class="label-num"
-                                            >{thumb.index + 1}.</span
-                                        >{thumb.label}{#if thumb.hasChoice}<span
-                                                class="choice-badge"
-                                                title="Has choices/layers"
-                                                ><Icon
-                                                    name="Stack"
-                                                    size={12}
-                                                    class="choice-icon"
-                                                /></span
-                                            >{/if}
-                                    </div>
-                                </div>
-                            </div>
-                        </button>
-                    {/each}
-                {/if}
+                        </div>
+                    </button>
+                {/each}
             </div>
         </div>
 
@@ -1114,13 +1074,17 @@
        control rather than a stray mark, and it is doubly load-bearing docked, where
        what sits behind the tab is a thumbnail rather than the gallery's own fill.
 
-       Each button is wrapped in a `<Tooltip>`, and the WRAPPER is what gets
+       Each button sits inside a `.tooltip` span, and the WRAPPER is what gets
        positioned — the tooltip's bubble is a pseudo-element of that span, so it
        has to be the thing pinned to the edge. Hence `.toggle-anchor` carries the
-       absolute positioning and the size, and the button just fills it. Those
-       rules need `:global()` because a class handed to a child component is
-       outside this component's scoping. */
-    .gallery-root :global(.toggle-anchor) {
+       absolute positioning and the size, and the button just fills it.
+
+       That `position: absolute` has to outrank `position: relative` from the
+       shared tooltip layer, which the same span also carries. It does so on
+       specificity rather than source order: every `.toggle-anchor` rule here is
+       scoped and compound, `src/styles/tooltip.css` sets `.tooltip` as a bare
+       global class. Keep them that way round. */
+    .gallery-root .toggle-anchor {
         position: absolute;
         display: block;
         z-index: 60;
@@ -1183,13 +1147,13 @@
 
     /* Narrow on its long axis, so it reads as a handle on the edge rather than a
        bar across it. Its short axis is the tab width above. */
-    .caret-top > :global(.toggle-anchor),
-    .caret-bottom > :global(.toggle-anchor) {
+    .caret-top > .toggle-anchor,
+    .caret-bottom > .toggle-anchor {
         width: 1.75rem;
         height: var(--ui-caret-tab);
     }
-    .caret-left > :global(.toggle-anchor),
-    .caret-right > :global(.toggle-anchor) {
+    .caret-left > .toggle-anchor,
+    .caret-right > .toggle-anchor {
         width: var(--ui-caret-tab);
         height: 1.75rem;
     }
@@ -1201,7 +1165,7 @@
        That rounding is `--tri-radius-buttons`, the same token every other button
        in the viewer takes its corners from — a theme that squares its buttons
        squares this tab too, and one that rounds them rounds it. */
-    .caret-top > :global(.toggle-anchor) {
+    .caret-top > .toggle-anchor {
         top: 0;
         left: 50%;
         transform: translateX(-50%);
@@ -1210,7 +1174,7 @@
         border-top-width: 0;
         border-radius: 0 0 var(--tri-radius-buttons) var(--tri-radius-buttons);
     }
-    .caret-bottom > :global(.toggle-anchor) {
+    .caret-bottom > .toggle-anchor {
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
@@ -1219,7 +1183,7 @@
         border-bottom-width: 0;
         border-radius: var(--tri-radius-buttons) var(--tri-radius-buttons) 0 0;
     }
-    .caret-left > :global(.toggle-anchor) {
+    .caret-left > .toggle-anchor {
         left: 0;
         top: 50%;
         transform: translateY(-50%);
@@ -1228,7 +1192,7 @@
         border-left-width: 0;
         border-radius: 0 var(--tri-radius-buttons) var(--tri-radius-buttons) 0;
     }
-    .caret-right > :global(.toggle-anchor) {
+    .caret-right > .toggle-anchor {
         right: 0;
         top: 50%;
         transform: translateY(-50%);
@@ -1249,19 +1213,19 @@
        would just overhang it: a top-docked strip carries no bottom border, and the
        expanded overlay has none at all (and clips its own overflow, so the offset
        would shave a pixel off the tab). */
-    .gallery-root.dock-horizontal.caret-top > :global(.toggle-anchor) {
+    .gallery-root.dock-horizontal.caret-top > .toggle-anchor {
         top: calc(-1 * var(--tri-border));
     }
-    .gallery-root.dock-vertical.caret-left > :global(.toggle-anchor) {
+    .gallery-root.dock-vertical.caret-left > .toggle-anchor {
         left: calc(-1 * var(--tri-border));
     }
-    .gallery-root.dock-vertical.caret-right > :global(.toggle-anchor) {
+    .gallery-root.dock-vertical.caret-right > .toggle-anchor {
         right: calc(-1 * var(--tri-border));
     }
 
     /* The floating window has no dock edge, so its maximize/restore button lives
        in the header's top corner instead. */
-    .gallery-root :global(.toggle-anchor-inline) {
+    .gallery-root .toggle-anchor-inline {
         top: 0.125rem;
         right: 0.25rem;
         width: 1.25rem;

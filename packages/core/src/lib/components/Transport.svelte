@@ -7,8 +7,9 @@
     application drive playback through one contract that cannot drift.
 
     The vocabulary here is deliberately generic. This component knows about a
-    thing that plays, pauses, seeks and may offer alternative text tracks; the
-    medium, its clock, its formats and its words are all the claimant's
+    thing that plays, pauses, seeks, may offer alternative text tracks and may
+    offer a readable text of itself; the medium, its clock, its formats, its
+    words and where its reading surface lives are all the claimant's
     (`state/transportChrome.ts`).
 -->
 <script lang="ts">
@@ -482,6 +483,28 @@
                     </div>
                 {/if}
             </div>
+        {/if}
+
+        <!--
+            Rendered ONLY where the claimant reports a readable text, by the same
+            rule as the track control above: no state in which this is visible
+            and does nothing. `aria-pressed` rather than `aria-expanded` because
+            what it shows is a surface elsewhere in the viewer, not a popover
+            this button owns.
+        -->
+        {#if view.transcript}
+            <Button
+                size="sm"
+                square
+                ghost
+                type="button"
+                data-testid="transport-transcript"
+                aria-pressed={view.transcriptOpen}
+                aria-label={labels.transcript}
+                onclick={() => port.setTranscript(!view.transcriptOpen)}
+            >
+                <PluginIcon descriptor={icons.transcript} size={18} />
+            </Button>
         {/if}
     </div>
 {/if}

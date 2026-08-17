@@ -62,6 +62,7 @@ import {
     createTransport,
     type TransportLabels,
 } from './transport.svelte';
+import { type TextTranscript, textTranscriptFor } from './renderingTranscript';
 import { loadTranscript } from './transcriptLink';
 import type { VisibleBox } from './waveform/surface';
 import { loadPeaks, waveformUrlFor } from './waveformLink';
@@ -102,6 +103,12 @@ interface StageEntry {
      * the mapping the identity there with no added behaviour.
      */
     sequencer: CanvasSequencer | null;
+    /**
+     * The untimed transcript this canvas links, or `null` for none. Resolved
+     * once at claim time rather than re-derived per read: what a canvas links
+     * cannot change without a restage.
+     */
+    readonly textTranscript: TextTranscript | null;
 }
 
 function canvasIdOf(canvas: unknown): string {
@@ -187,6 +194,7 @@ export function createAvStageManager(
             captions: t('av_captions'),
             captionsOff: t('av_captions_off'),
             captionsTrack: t('av_captions_track'),
+            transcript: t('av_transcript'),
         };
     }
 
@@ -238,6 +246,14 @@ export function createAvStageManager(
             // The transcript reads the SELECTED track, and a paused canvas is
             // running no frame cadence to notice on its own.
             publishViews();
+        },
+        hasTranscript: transcriptAvailable,
+        // The panel's open state belongs to core, which owns the chrome that
+        // opens it; `context.surface` is this plugin's live projection of it.
+        panelOpen: () => context.surface.isOpen,
+        setPanelOpen: (open) => {
+            if (open) context.surface.open();
+            else context.surface.close();
         },
         t: (key, params) => context.locale.t(key, params),
     });
@@ -307,6 +323,23 @@ export function createAvStageManager(
     }
 
     /**
+     * Whether the current canvas offers a transcript in either shape.
+     *
+     * What the control-bar button is rendered on, and deliberately independent
+     * of the panel: the host node only exists while the panel is OPEN, so a
+     * check that consulted it would hide the very button that opens it.
+     *
+     * Not a `$derived`: the loaded caption set settles per track fetch, off
+     * nobody's reactive graph, and the transport already re-reads its whole view
+     * on the playback cadence.
+     */
+    function transcriptAvailable(): boolean {
+        const entry = currentEntry();
+        if (!entry) return false;
+        return transcriptTrack() !== null || entry.textTranscript !== null;
+    }
+
+    /**
      * The live text track the transcript reads, the canvas time its cues must
      * be shifted by, and what to call it.
      *
@@ -361,7 +394,19 @@ export function createAvStageManager(
     function syncTranscript(): void {
         const host = transcriptHost;
         const track = transcriptTrack();
-        const key = host && track ? viewerState.canvasId : null;
+        // Timed text wins where a canvas offers both. It is navigable, it
+        // follows the playhead, and it is the shape the IIIF transcript
+        // meta-recipe means for display alongside playback; the linked file is
+        // the same words with none of that, so it fills the gap rather than
+        // competing for the panel.
+        const text = track ? null : (currentEntry()?.textTranscript ?? null);
+        // The KIND is part of the key, not just the canvas. Caption tracks
+        // settle on the network, so a canvas that links both mounts the file
+        // first and must hand over to the cue list the moment the VTT parses.
+        const key =
+            host && (track || text)
+                ? `${viewerState.canvasId}\n${track ? 'cues' : 'text'}`
+                : null;
         if (key === transcriptKey) {
             transcriptPanel?.refresh();
             return;
@@ -371,18 +416,25 @@ export function createAvStageManager(
         transcriptToken += 1;
         transcriptPanel?.destroy();
         transcriptPanel = null;
-        if (!host || !track) return;
+        if (!host || !key) return;
 
         const token = transcriptToken;
         void loadTranscript().then((module) => {
             if (token !== transcriptToken || !module) return;
-            transcriptPanel = module.createTranscriptPanel(host, {
-                avState: publication.state,
-                source: transcriptSource,
-                formatTime: formatMediaTime,
-                styles: context.styles,
-                t: context.locale.t,
-            });
+            transcriptPanel = text
+                ? module.createTextTranscriptPanel(host, {
+                      url: text.url,
+                      label: text.label,
+                      styles: context.styles,
+                      t: context.locale.t,
+                  })
+                : module.createTranscriptPanel(host, {
+                      avState: publication.state,
+                      source: transcriptSource,
+                      formatTime: formatMediaTime,
+                      styles: context.styles,
+                      t: context.locale.t,
+                  });
         });
     }
 
@@ -602,7 +654,10 @@ export function createAvStageManager(
         // canvas out, and in `individuals` mode it never lays out any canvas
         // but the current one.
         const accompanying = resolveAccompanyingImage(canvas);
-        const layout = stageLayoutKind(source.kind, accompanying !== null);
+        const layout = stageLayoutKind(
+            scan.width !== null && scan.height !== null,
+            accompanying !== null,
+        );
 
         const stage = createMediaStage({
             canvasId: scan.canvasId,
@@ -657,6 +712,7 @@ export function createAvStageManager(
             behaviors: readBehaviors(canvas),
             strip: null,
             sequencer: null,
+            textTranscript: textTranscriptFor(canvas),
         };
         entries.set(scan.canvasId, entry);
         attachWaveform(entry, canvas);

@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PUBLIC_CSS_TOKENS } from '../lib/theme/publicTokens';
+import { SKIP_ENV } from './messageCompiler';
 
 /*
  * Guards that EVERY published distribution actually ships the design system
@@ -31,7 +32,17 @@ function build(config: string) {
         // there afterwards, in exactly the place `scripts/size-check.mjs` and
         // `pnpm size:baseline` read: running `pnpm test` and then
         // `pnpm size:baseline` would re-record a ~1.4 MB bundle as the budget.
-        env: { ...process.env, NODE_ENV: 'production' },
+        //
+        // SKIP_ENV for the same class of reason, on a different shared file: a
+        // build compiles Paraglide's messages into `src/lib/paraglide`, which
+        // ~145 other test files are importing from in parallel workers right
+        // now. Vitest's own config compiled them before any test file loaded, so
+        // there is nothing here to regenerate — see src/packaging/messageCompiler.ts.
+        env: {
+            ...process.env,
+            NODE_ENV: 'production',
+            [SKIP_ENV]: '1',
+        },
     });
 }
 

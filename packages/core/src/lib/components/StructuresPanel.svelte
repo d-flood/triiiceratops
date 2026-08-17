@@ -33,13 +33,49 @@
         }
     }
 
+    /**
+     * True when ranges are chapters of a recording rather than groups of
+     * canvases. Their targets all carry `#t=`, and typically all name the same
+     * canvas, so canvas identity cannot tell them apart.
+     */
+    let isTemporal = $derived(anyTimed(structures));
+
+    function anyTimed(nodes: StructureNode[]): boolean {
+        return nodes.some(
+            (node) =>
+                node.canvasTimes.some((time) => time !== null) ||
+                anyTimed(node.children),
+        );
+    }
+
+    let selectedId = $state<string | null>(null);
+
     function navigateToRange(node: StructureNode) {
+        selectedId = node.id;
         if (node.canvasIds.length > 0) {
             viewerState.setCanvas(node.canvasIds[0], node.canvasTimes[0]);
         }
     }
 
+    function formatTime(seconds: number): string {
+        const whole = Math.floor(seconds);
+        const secondsPart = String(whole % 60).padStart(2, '0');
+        const minutes = Math.floor(whole / 60);
+        return `${minutes}:${secondsPart}`;
+    }
+
+    /** The range's own `#t=` span, or null where it targets no time. */
+    function formatSpan(node: StructureNode): string | null {
+        const time = node.canvasTimes.find((entry) => entry !== null);
+        if (!time) return null;
+        const start = formatTime(time.seconds);
+        return time.endSeconds === undefined || time.endSeconds <= time.seconds
+            ? start
+            : `${start} – ${formatTime(time.endSeconds)}`;
+    }
+
     function isActive(node: StructureNode): boolean {
+        if (isTemporal) return node.id === selectedId;
         return viewerState.canvasId
             ? node.canvasIds.includes(viewerState.canvasId)
             : false;
@@ -52,6 +88,7 @@
             autoExpandedId === node.id || expandedIds.has(node.id)}
         {@const active = isActive(node)}
         {@const hasChildren = node.children.length > 0}
+        {@const span = formatSpan(node)}
         <div>
             <div
                 class="row"
@@ -87,6 +124,10 @@
                 >
                     {node.label || node.id}
                 </button>
+
+                {#if span}
+                    <span class="span">{span}</span>
+                {/if}
             </div>
 
             {#if hasChildren && expanded}
@@ -177,6 +218,15 @@
     }
     .label-btn.active {
         font-weight: 600;
+    }
+
+    .span {
+        flex-shrink: 0;
+        padding-right: 0.75rem;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.6;
     }
 
     .panel {

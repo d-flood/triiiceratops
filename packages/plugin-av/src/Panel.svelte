@@ -43,3 +43,26 @@
         }
     ></div>
 </div>
+
+<style>
+    /*
+        Everything this panel renders sits inside this padding, so a section
+        added later inherits it rather than having to remember it.
+
+        `--ui-panel-header-pad` is CORE's token — the very one the section header
+        above this content is padded with (`PanelStackSection.svelte`) — so the
+        transcript's inset matches the space beside the panel's icon and close
+        button by construction instead of by a matching literal that would drift
+        the first time core retuned its chrome. The fallback is core's own.
+
+        Not set on core's `.content` wrapper one level further up, which would be
+        the general fix: the core panels and two of the export plugins already
+        pad themselves, so a padding there would double on all of them.
+    */
+    .tri-av-panel {
+        padding: var(--ui-panel-header-pad, 0.75rem);
+        /* The header owns the space above, so doubling it here would set the
+           transcript further from its own heading than from the panel edges. */
+        padding-top: 0;
+    }
+</style>

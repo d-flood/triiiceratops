@@ -25,6 +25,10 @@ import {
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const SHAPE = '[data-annotation-id="annotation-geometry-region"]';
+const READONLY_TOOLTIP = '.readonly-tooltip';
+
+/** The annotation body's text, which is also the shape's tooltip. */
+const TOOLTIP_TEXT = 'A region worth marking';
 
 test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -512,4 +516,38 @@ test('the shape tracks the image through a pan and a zoom', async ({
     });
     await settled(page);
     await expectShapeOnModel(page);
+});
+
+/**
+ * The read-only tooltip anchor is placed from `event.clientX`/`clientY`, which
+ * are VIEWPORT coordinates, so it only lands under the pointer while it is
+ * positioned against the viewport.
+ *
+ * It is worth a spec because the element carries `.tooltip` itself rather than
+ * wrapping one, so any `position` reaching it from the shared tooltip rules
+ * applies to the anchor and not to a bubble inside it — and the failure is
+ * silent and layout-dependent: the anchor flows from the stage's own origin
+ * instead, so the tooltip is displaced by however far down the page the viewer
+ * happens to sit and looks correct in any test that renders it at the top.
+ */
+test('the read-only tooltip anchors to the pointer, not to the stage', async ({
+    page,
+}) => {
+    await openAnnotatedManifest(page);
+
+    const box = await page.locator(SHAPE).boundingBox();
+    const pointerX = Math.round(box!.x + box!.width / 2);
+    const pointerY = Math.round(box!.y + box!.height / 2);
+    await page.mouse.move(pointerX, pointerY);
+
+    const tooltip = page.locator(READONLY_TOOLTIP);
+    await expect(tooltip).toBeAttached();
+    await expect(tooltip).toHaveAttribute('data-tip', TOOLTIP_TEXT);
+
+    // The anchor is a zero-size point at the pointer, lifted the 10px
+    // `updateReadonlyTooltip` reserves so the bubble clears the cursor.
+    const anchor = await tooltip.boundingBox();
+    expect(anchor, 'the tooltip anchor has no box').not.toBeNull();
+    expect(Math.abs(anchor!.x - pointerX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(anchor!.y - (pointerY - 10))).toBeLessThanOrEqual(1);
 });

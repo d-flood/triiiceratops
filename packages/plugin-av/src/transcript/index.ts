@@ -222,6 +222,206 @@ const CSS = `
 `;
 
 /**
+ * What the untimed panel needs from the eager side.
+ *
+ * A different port from {@link TranscriptPort} rather than a widening of it,
+ * because the two panels share no input: this one has a file and no clock, that
+ * one has a clock and no file. Nothing here reads playback state, which is the
+ * whole difference between a transcript and a cue list.
+ */
+export interface TextTranscriptPort {
+    /** The transcript file, as the canvas linked it. */
+    readonly url: string;
+    /** The publisher's name for it, or `''` to fall back to the generic one. */
+    readonly label: string;
+    /** The SDK's root-aware, nonce-aware style service. */
+    readonly styles: { install(css: string, id: string): () => void };
+    /** The plugin's locale catalog. */
+    t(key: string, params?: Record<string, string>): string;
+    /**
+     * How the bytes are fetched. Injected so the panel's own tests need no
+     * network, and so a host that must route requests through its own transport
+     * has somewhere to do it. Defaults to `fetch`.
+     */
+    fetchText?(url: string): Promise<string>;
+}
+
+const TEXT_CSS = `
+.tri-av-transcript-text {
+    margin: 0;
+    max-height: 22rem;
+    overflow-y: auto;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+.tri-av-transcript-text p {
+    margin: 0 0 0.75em;
+}
+.tri-av-transcript-text p:last-child {
+    margin-bottom: 0;
+}
+@media (max-width: 480px) {
+    .tri-av-transcript-text {
+        max-height: 14rem;
+    }
+}
+`;
+
+/**
+ * A plain-text transcript's paragraphs.
+ *
+ * Two shapes are in the wild and they need opposite treatment. Prose transcripts
+ * are hard-wrapped at some column the author chose, so a single newline inside a
+ * paragraph is a typesetting artifact and joining on a space is what restores
+ * the sentence; blank lines are the real paragraph breaks. Interview and
+ * oral-history transcripts, by contrast, are often one speaker turn per line
+ * with no blank lines anywhere, and joining those would run every speaker
+ * together into a single block.
+ *
+ * The absence of any blank line is what tells the two apart: a file with none
+ * cannot be using them as breaks, so its lines ARE its paragraphs.
+ */
+function paragraphs(text: string): string[] {
+    const normalized = text.replace(/\r\n?/g, '\n').trim();
+    if (!normalized) return [];
+
+    const lines = (block: string): string[] =>
+        block
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+
+    const blocks = normalized.split(/\n[ \t]*\n+/);
+    if (blocks.length === 1) return lines(normalized);
+    return blocks.map((block) => lines(block).join(' ')).filter(Boolean);
+}
+
+/**
+ * Render an untimed transcript file into `container`.
+ *
+ * The counterpart to {@link createTranscriptPanel} for the other half of the
+ * IIIF transcript contract (cookbook 0017): one whole transcript linked from the
+ * canvas's `rendering`, with no cue times to sync against. There is deliberately
+ * no highlight, no click-to-seek and no scroll-follow — the file carries no
+ * timing, so every one of those would have to be invented, and a transcript that
+ * pretended to follow the playhead while guessing at it is worse than one that
+ * plainly does not.
+ *
+ * A fetch that fails leaves the reader a link to the file rather than an empty
+ * panel. That path is not an edge case: these files are routinely cross-origin
+ * (the cookbook's own is), and CORS is not something a publisher of a transcript
+ * has any reason to have thought about.
+ */
+export function createTextTranscriptPanel(
+    container: HTMLElement,
+    port: TextTranscriptPort,
+): TranscriptPanel {
+    const releaseStyles = port.styles.install(TEXT_CSS, 'transcript-text');
+    const name = port.label || port.t('av_transcript');
+
+    const root = document.createElement('div');
+    root.className = 'tri-av-transcript';
+    root.dataset.testid = 'av-transcript';
+
+    const showing = document.createElement('p');
+    showing.className = 'tri-av-transcript-track';
+    showing.dataset.testid = 'av-transcript-track';
+    showing.textContent = name;
+
+    const body = document.createElement('div');
+    body.className = 'tri-av-transcript-text';
+    body.dataset.testid = 'av-transcript-text';
+    // A named region, so a screen-reader user can reach the transcript as a
+    // landmark instead of arrowing to it through the whole panel.
+    body.setAttribute('role', 'region');
+    body.setAttribute('aria-label', name);
+    // The text arrives over the network, so the region is a live one: a reader
+    // who is already inside it when the bytes land is told, rather than left
+    // sitting in what still reads as an empty box.
+    body.setAttribute('aria-live', 'polite');
+    body.setAttribute('aria-busy', 'true');
+
+    const status = document.createElement('p');
+    status.textContent = port.t('av_transcript_loading');
+    body.append(status);
+
+    root.append(showing, body);
+    container.append(root);
+
+    /** Set by `destroy`, so a fetch that settles afterwards writes nothing. */
+    let live = true;
+
+    function fill(text: string): void {
+        const blocks = paragraphs(text);
+        // A file that fetched but holds nothing is not a transcript a reader can
+        // read, and an empty panel would not say so.
+        if (!blocks.length) {
+            fail();
+            return;
+        }
+        body.replaceChildren(
+            ...blocks.map((block) => {
+                const paragraph = document.createElement('p');
+                paragraph.textContent = block;
+                return paragraph;
+            }),
+        );
+        body.setAttribute('aria-busy', 'false');
+    }
+
+    function fail(): void {
+        const message = document.createElement('p');
+        message.textContent = port.t('av_transcript_failed');
+
+        const link = document.createElement('a');
+        link.href = port.url;
+        link.target = '_blank';
+        // `noreferrer` implies `noopener`; both are named because the
+        // vulnerability being closed is the opened page reaching back through
+        // `window.opener`, and a reader of this line should not have to know
+        // that one keyword covers it.
+        link.rel = 'noreferrer noopener';
+        link.textContent = port.t('av_transcript_open');
+
+        body.replaceChildren(message, link);
+        body.setAttribute('aria-busy', 'false');
+    }
+
+    const read = port.fetchText ?? defaultFetchText;
+    void read(port.url).then(
+        (text) => {
+            if (live) fill(text);
+        },
+        () => {
+            if (live) fail();
+        },
+    );
+
+    return {
+        /**
+         * Nothing to re-read: this panel has no source that changes. It exists
+         * because the manager holds both panels through one handle, and a
+         * caller that had to know which kind it was holding would be the seam
+         * leaking back out.
+         */
+        refresh(): void {},
+        destroy(): void {
+            live = false;
+            root.remove();
+            releaseStyles();
+        },
+    };
+}
+
+async function defaultFetchText(url: string): Promise<string> {
+    const response = await fetch(url);
+    // A 404 body is a page of HTML, and `fetch` resolves for it. Rendering that
+    // as the transcript is the failure this check exists to turn into the link.
+    if (!response.ok) throw new Error(String(response.status));
+    return response.text();
+}
+
+/**
  * Render the transcript into `container` and keep it in step with playback.
  *
  * The list is real list semantics with a real button per cue, because the panel

@@ -45,6 +45,7 @@ export interface TransportLabels {
     readonly captionsOff: string;
     /** The generic name for a track that declares neither label nor language. */
     readonly captionsTrack: string;
+    readonly transcript: string;
 }
 
 /**
@@ -86,6 +87,14 @@ export interface TransportView {
     captionOptions: { id: string; label: string }[];
     /** The showing track's id, or `null` for off. */
     activeCaption: string | null;
+    /**
+     * Whether this canvas offers a transcript — timed cues or a linked file.
+     * False renders no control, so the button never appears over a recording
+     * whose words are nowhere.
+     */
+    hasTranscript: boolean;
+    /** Whether the plugin's panel, where the transcript is read, is showing. */
+    panelOpen: boolean;
     labels: TransportLabels;
 }
 
@@ -158,6 +167,17 @@ export interface TransportOptions {
     captions(): { tracks: readonly CaptionTrack[]; active: string | null };
     /** Show one caption track on the current canvas, or `null` for off. */
     setCaptionTrack(id: string | null): void;
+    /**
+     * Whether the current canvas offers a transcript at all. Read off the stage
+     * manager rather than mirrored here: a canvas's caption tracks join the
+     * loaded set as their fetches settle, so this answer changes after the
+     * canvas is staged.
+     */
+    hasTranscript(): boolean;
+    /** Whether the plugin's panel is showing. */
+    panelOpen(): boolean;
+    /** Show or hide the plugin's panel. */
+    setPanelOpen(open: boolean): void;
     t(key: string, params?: Record<string, string | number>): string;
 }
 
@@ -169,6 +189,8 @@ export interface TransportPort {
     setMuted(muted: boolean): void;
     setVolume(volume: number): void;
     setTrack(id: string | null): void;
+    /** Show or hide the panel the transcript is read in. */
+    setTranscript(open: boolean): void;
 }
 
 export interface Transport {
@@ -193,6 +215,8 @@ export interface Transport {
         strip: string | null;
         tracks: readonly { id: string; label: string }[];
         activeTrack: string | null;
+        transcript: boolean;
+        transcriptOpen: boolean;
         stepSmall: number;
         stepLarge: number;
         labels: {
@@ -207,6 +231,7 @@ export interface Transport {
             volume: string;
             tracks: string;
             tracksOff: string;
+            transcript: string;
         };
     };
     readonly port: TransportPort;
@@ -240,6 +265,8 @@ export function createTransport(options: TransportOptions): Transport {
         peaksStrip: null,
         captionOptions: [],
         activeCaption: null,
+        hasTranscript: false,
+        panelOpen: false,
         labels: options.labels(),
     });
 
@@ -304,6 +331,9 @@ export function createTransport(options: TransportOptions): Transport {
         );
         view.activeCaption = captions.active;
 
+        view.hasTranscript = options.hasTranscript();
+        view.panelOpen = options.panelOpen();
+
         announce();
     }
 
@@ -329,6 +359,13 @@ export function createTransport(options: TransportOptions): Transport {
         },
         setTrack(id: string | null): void {
             options.setCaptionTrack(id);
+            refresh();
+        },
+        setTranscript(open: boolean): void {
+            options.setPanelOpen(open);
+            // The panel's open state is core's, not AVState's, so no playback
+            // cadence will notice this on its own — least of all on the paused
+            // canvas a reader is most likely to be reading the transcript of.
             refresh();
         },
         setVolume(volume: number): void {
@@ -364,6 +401,8 @@ export function createTransport(options: TransportOptions): Transport {
                 strip: view.peaksStrip,
                 tracks: view.captionOptions,
                 activeTrack: view.activeCaption,
+                transcript: view.hasTranscript,
+                transcriptOpen: view.panelOpen,
                 stepSmall: SEEK_STEP_SMALL,
                 stepLarge: SEEK_STEP_LARGE,
                 labels: {
@@ -378,6 +417,7 @@ export function createTransport(options: TransportOptions): Transport {
                     volume: labels.volume,
                     tracks: labels.captions,
                     tracksOff: labels.captionsOff,
+                    transcript: labels.transcript,
                 },
             };
         },

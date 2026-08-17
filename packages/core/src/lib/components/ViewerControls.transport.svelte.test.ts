@@ -40,6 +40,7 @@ const LABELS: TransportChromeLabels = {
     volume: 'Volume',
     tracks: 'Tracks',
     tracksOff: 'Off',
+    transcript: 'Transcript',
 };
 
 function makeView(overrides: Partial<TransportChromeView> = {}) {
@@ -59,6 +60,8 @@ function makeView(overrides: Partial<TransportChromeView> = {}) {
         strip: null,
         tracks: [],
         activeTrack: null,
+        transcript: false,
+        transcriptOpen: false,
         stepSmall: 5,
         stepLarge: 30,
         labels: LABELS,
@@ -72,6 +75,7 @@ const port = {
     setMuted: vi.fn(),
     setVolume: vi.fn(),
     setTrack: vi.fn(),
+    setTranscript: vi.fn(),
 };
 
 const testId = (id: string) => document.querySelector(`[data-testid="${id}"]`);
@@ -127,6 +131,7 @@ describe('ViewerControls transport chrome', () => {
                 mute: ICON,
                 unmute: ICON,
                 tracks: ICON,
+                transcript: ICON,
             },
             view: () => view,
             port,
@@ -160,6 +165,7 @@ describe('ViewerControls transport chrome', () => {
                 mute: ICON,
                 unmute: ICON,
                 tracks: ICON,
+                transcript: ICON,
             },
             view: () => view,
             port,
@@ -432,6 +438,53 @@ describe('ViewerControls transport chrome', () => {
         });
     });
 
+    describe('the readable-text control', () => {
+        it('renders nothing at all where the claimant offers no text', () => {
+            claim(makeView({ transcript: false }));
+            render();
+
+            // The same no-dead-control rule the track control follows.
+            expect(testId('transport-transcript')).toBeNull();
+        });
+
+        it('renders a two-state toggle, and asks for the text to be shown', () => {
+            claim(makeView({ transcript: true, transcriptOpen: false }));
+            render();
+
+            const button = testId('transport-transcript') as HTMLButtonElement;
+            expect(button.getAttribute('aria-pressed')).toBe('false');
+            expect(button.getAttribute('aria-label')).toBe('Transcript');
+            // Not a popover this button owns — the surface it shows lives
+            // wherever the claimant put it.
+            expect(button.getAttribute('aria-expanded')).toBeNull();
+
+            button.click();
+            expect(port.setTranscript).toHaveBeenCalledWith(true);
+        });
+
+        it('closes what it opened rather than asking to open twice', () => {
+            claim(makeView({ transcript: true, transcriptOpen: true }));
+            render();
+
+            const button = testId('transport-transcript') as HTMLButtonElement;
+            expect(button.getAttribute('aria-pressed')).toBe('true');
+
+            button.click();
+            expect(port.setTranscript).toHaveBeenCalledWith(false);
+        });
+
+        it('is independent of the caption tracks', () => {
+            // A recording may have captions and no transcript, or a transcript
+            // and no captions; the two controls answer different questions and
+            // neither stands in for the other.
+            claim(makeView({ tracks: [], transcript: true }));
+            render();
+
+            expect(testId('transport-tracks')).toBeNull();
+            expect(testId('transport-transcript')).not.toBeNull();
+        });
+    });
+
     it('subscribes once, however many frames the claimant publishes', () => {
         // Core and a plugin share one Svelte runtime, so a claimant's `view()`
         // touching its own `$state` is the ordinary case, not an exotic one. If
@@ -457,6 +510,7 @@ describe('ViewerControls transport chrome', () => {
                 mute: ICON,
                 unmute: ICON,
                 tracks: ICON,
+                transcript: ICON,
             },
             view: () =>
                 makeView({ paused: false, currentTime: model.currentTime }),

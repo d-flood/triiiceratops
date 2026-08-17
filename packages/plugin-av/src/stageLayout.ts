@@ -33,12 +33,21 @@ export interface StageLanes {
     readonly timeline: StageRect | null;
 }
 
-/** Which layout a scanned canvas gets, given whether it has an image to show. */
+/**
+ * Which layout a scanned canvas gets.
+ *
+ * Driven by whether the CANVAS has a picture — it declares spatial dimensions —
+ * and not by which element plays it. The two part company on
+ * `0014-accompanyingcanvas`, whose body is a `Sound` formatted `video/mp4`:
+ * `<video>` is the only element that will play it, but the canvas is
+ * duration-only and its picture is the accompanying still, so it wants the
+ * audio layout that has a lane to put that still in.
+ */
 export function stageLayoutKind(
-    mediaKind: 'audio' | 'video',
+    canvasPaintsPicture: boolean,
     hasAccompanyingImage: boolean,
 ): StageLayoutKind {
-    if (mediaKind === 'video') return 'video';
+    if (canvasPaintsPicture) return 'video';
     return hasAccompanyingImage ? 'audio-with-image' : 'audio';
 }
 

@@ -19,7 +19,7 @@
     import CanvasInfoPopover from './CanvasInfoPopover.svelte';
     import Toolbar from './Toolbar.svelte';
     import Transport from './Transport.svelte';
-    import { Button, Select } from './ui';
+    import { Button, NativeSelect } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
@@ -364,7 +364,7 @@
             {@const selectedValue =
                 group.selectedChoiceId ?? getResourceId(group.choices[0])}
             <div class="choice-select-wrap">
-                <Select
+                <NativeSelect
                     size="xs"
                     value={selectedValue}
                     style="border-radius:var(--tri-radius-controls-buttons);max-width:20rem"
@@ -386,7 +386,7 @@
                             {displayLabel}
                         </option>
                     {/each}
-                </Select>
+                </NativeSelect>
             </div>
         {/if}
 

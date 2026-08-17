@@ -355,7 +355,10 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     timelineLane.dataset.testid = 'av-timeline-lane';
     timelineLane.hidden = true;
 
-    if (source.kind === 'video') visualLane.append(media);
+    // By layout, not by element: a `<video>` attached to a duration-only canvas
+    // has no picture to show, and putting it in the visual lane would cover the
+    // accompanying still that lane exists for.
+    if (options.layout === 'video') visualLane.append(media);
     else root.append(media);
 
     const accompanying = options.accompanying ?? null;

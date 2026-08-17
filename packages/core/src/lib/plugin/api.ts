@@ -26,10 +26,18 @@
 export const CORE_VERSION = '1.0.0-rc.36';
 
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.4.0` for the
- * additive `transport-chrome` {@link capabilities} entry below.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.5.0` for the
+ * transcript control on the `transport-chrome` {@link capabilities} entry below,
+ * over the `1.4.0` that added that entry.
+ *
+ * A minor rather than the major a semantic change would take, because the
+ * contract it widens has not shipped: `transport-chrome` arrived in this same
+ * unreleased line, so its view, port and icon set growing a control is still
+ * that seam being drafted. Once a core carrying it is published, adding a
+ * REQUIRED member to any of the three becomes a major — a claimant built against
+ * the published contract would no longer satisfy it.
  */
-export const pluginApiVersion = '1.4.0';
+export const pluginApiVersion = '1.5.0';
 
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not

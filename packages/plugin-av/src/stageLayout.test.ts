@@ -18,15 +18,15 @@ const RECT = { left: 10, top: 20, width: 640, height: 400 };
 describe('stage layout', () => {
     describe('which layout a canvas gets', () => {
         it('gives video the visual lane and no timeline lane', () => {
-            expect(stageLayoutKind('video', false)).toBe('video');
+            expect(stageLayoutKind(true, false)).toBe('video');
             // Waveform data on a video canvas belongs in the scrubber (v1), so
             // an accompanying image does not buy a video canvas a strip.
-            expect(stageLayoutKind('video', true)).toBe('video');
+            expect(stageLayoutKind(true, true)).toBe('video');
         });
 
         it('gives audio a timeline lane, and a visual one only with an image', () => {
-            expect(stageLayoutKind('audio', false)).toBe('audio');
-            expect(stageLayoutKind('audio', true)).toBe('audio-with-image');
+            expect(stageLayoutKind(false, false)).toBe('audio');
+            expect(stageLayoutKind(false, true)).toBe('audio-with-image');
         });
     });
 

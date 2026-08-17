@@ -211,6 +211,7 @@ describe('createTransport', () => {
         captions: 'Captions',
         captionsOff: 'Off',
         captionsTrack: 'Captions',
+        transcript: 'Transcript',
     };
 
     /** An AVState stand-in: the members the transport reads, and its cadences. */
@@ -253,6 +254,9 @@ describe('createTransport', () => {
             peaksStrip: () => null,
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
             t: (key) => key,
         });
 
@@ -279,6 +283,9 @@ describe('createTransport', () => {
             peaksStrip: () => null,
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
             t: (key, params) =>
                 `${locale}:${key}:${String(params?.current)}/${String(params?.total)}`,
         });
@@ -305,6 +312,9 @@ describe('createTransport', () => {
             peaksStrip: () => null,
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
             t: (key) => key,
         });
 
@@ -331,6 +341,9 @@ describe('createTransport', () => {
             peaksStrip: () => null,
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
             t: (key) => key,
         });
 
@@ -352,6 +365,9 @@ describe('createTransport', () => {
             peaksStrip: () => null,
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
             t: (key) => key,
         });
 
@@ -373,6 +389,9 @@ describe('createTransport', () => {
             peaksStrip: () => null,
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
             t: (key) => key,
         });
 
@@ -403,6 +422,9 @@ describe('createTransport', () => {
             setCaptionTrack: (id) => {
                 active = id;
             },
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
             t: (key) => key,
         });
         return { transport, active: () => active };
@@ -449,6 +471,58 @@ describe('createTransport', () => {
         transport.port.setTrack(null);
         expect(active()).toBeNull();
         expect(transport.view().activeTrack).toBeNull();
+        transport.destroy();
+    });
+
+    /** The transport over a canvas that does or does not offer a transcript. */
+    function transcriptTransport(available: boolean) {
+        const media = document.createElement('video');
+        const { state } = fakeAvState();
+        let open = false;
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            prefs: createAudioPrefs(),
+            labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
+            hasTranscript: () => available,
+            panelOpen: () => open,
+            setPanelOpen: (next) => {
+                open = next;
+            },
+            t: (key) => key,
+        });
+        return { transport, open: () => open };
+    }
+
+    it('offers no transcript control where the canvas has no transcript', () => {
+        const { transport } = transcriptTransport(false);
+        expect(transport.view().transcript).toBe(false);
+        transport.destroy();
+    });
+
+    it('opens and closes the reading surface, and reports which it is', () => {
+        const { transport, open } = transcriptTransport(true);
+        expect(transport.view().transcript).toBe(true);
+        expect(transport.view().transcriptOpen).toBe(false);
+
+        transport.port.setTranscript(true);
+        expect(open()).toBe(true);
+        // Read back without waiting for a playback cadence: the panel's open
+        // state is core's, and a paused canvas ticks no frames.
+        expect(transport.view().transcriptOpen).toBe(true);
+
+        transport.port.setTranscript(false);
+        expect(open()).toBe(false);
+        expect(transport.view().transcriptOpen).toBe(false);
+        transport.destroy();
+    });
+
+    it('names the control from the catalog, so it announces in the locale', () => {
+        const { transport } = transcriptTransport(true);
+        expect(transport.view().labels.transcript).toBe('Transcript');
         transport.destroy();
     });
 });

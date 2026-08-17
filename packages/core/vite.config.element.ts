@@ -2,9 +2,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
+import { messageCompiler } from './src/packaging/messageCompiler';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
 import { terserElementBuilds } from './src/packaging/terserElement';
 
@@ -42,10 +42,7 @@ export default defineConfig({
             dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
         }),
         customElementGuard.plugin,
-        paraglideVitePlugin({
-            project: './project.inlang',
-            outdir: './src/lib/paraglide',
-        }),
+        messageCompiler(),
         // Second minification pass, over what esbuild writes. Deliberately not
         // `build.minify: 'terser'`: replacing esbuild rather than following it
         // measures thousands of gzip bytes worse. See src/packaging/terserElement.ts.

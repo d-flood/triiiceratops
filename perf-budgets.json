@@ -4,7 +4,7 @@
     "renderer": "canvas",
     "tracing": "off",
     "capturedAt": "2026-08-08T18:23:18.772Z",
-    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it.",
+    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it. core:style.css was re-recorded from 12,995 when the shared tooltip sheet moved into the global layer: those rules previously shipped twice over, inside Toolbar's and AnnotationShapeOverlay's scoped blocks, which svelte-package hands to a component consumer as part of each component rather than as part of this file. The sheet grew; what a consumer transfers fell.",
     "thresholds": {
         "sizeRegressionPct": 0.05,
         "runtimePct": 0.1,
@@ -20,8 +20,8 @@
             "ceilingBytes": 50281
         },
         "core:style.css": {
-            "bytes": 12995,
-            "ceilingBytes": 13645
+            "bytes": 16504,
+            "ceilingBytes": 17330
         },
         "core:element-iife": {
             "bytes": 534162,

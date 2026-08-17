@@ -22,7 +22,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { serveAvPluginDist } from './helpers/avPluginDist';
 import { settledBox } from './helpers/settle';
-import { AV_MANIFESTS, TONE_MP3, TONE_DURATION } from './helpers/avMedia';
+import {
+    AV_MANIFESTS,
+    BARS_MP4,
+    TONE_MP3,
+    TONE_DURATION,
+} from './helpers/avMedia';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -88,7 +93,16 @@ function companionCanvas(id: string) {
 }
 
 /** A duration-only audio canvas, optionally carrying a companion canvas. */
-function audioManifest(url: string, companions: Record<string, unknown> = {}) {
+function audioManifest(
+    url: string,
+    companions: Record<string, unknown> = {},
+    body: Record<string, unknown> = {
+        id: TONE_MP3,
+        type: 'Sound',
+        format: 'audio/mpeg',
+        duration: TONE_DURATION,
+    },
+) {
     const canvasId = `${url}/canvas/tone`;
     return {
         '@context': 'http://iiif.io/api/presentation/3/context.json',
@@ -110,12 +124,7 @@ function audioManifest(url: string, companions: Record<string, unknown> = {}) {
                                 id: `${canvasId}/annotation`,
                                 type: 'Annotation',
                                 motivation: 'painting',
-                                body: {
-                                    id: TONE_MP3,
-                                    type: 'Sound',
-                                    format: 'audio/mpeg',
-                                    duration: TONE_DURATION,
-                                },
+                                body,
                                 target: canvasId,
                             },
                         ],
@@ -130,6 +139,23 @@ const ACCOMPANYING_URL = '/media/manifests/av-accompanying.json';
 const ACCOMPANYING_MANIFEST = audioManifest(ACCOMPANYING_URL, {
     accompanyingCanvas: companionCanvas(`${ACCOMPANYING_URL}/canvas/score`),
 });
+
+/**
+ * The `0014-accompanyingcanvas` shape: a duration-only canvas whose body is a
+ * `Sound` formatted `video/mp4`. Only a `<video>` will play it, but the picture
+ * is still the accompanying canvas rather than the element.
+ */
+const MP4_SOUND_URL = '/media/manifests/av-accompanying-mp4.json';
+const MP4_SOUND_MANIFEST = audioManifest(
+    MP4_SOUND_URL,
+    { accompanyingCanvas: companionCanvas(`${MP4_SOUND_URL}/canvas/score`) },
+    {
+        id: BARS_MP4,
+        type: 'Sound',
+        format: 'video/mp4',
+        duration: TONE_DURATION,
+    },
+);
 
 const PLACEHOLDER_URL = '/media/manifests/av-placeholder.json';
 const PLACEHOLDER_MANIFEST = audioManifest(PLACEHOLDER_URL, {
@@ -184,6 +210,7 @@ async function openViewer(
     await serveAvPluginDist(page);
     for (const [url, json] of [
         [ACCOMPANYING_URL, ACCOMPANYING_MANIFEST],
+        [MP4_SOUND_URL, MP4_SOUND_MANIFEST],
         [PLACEHOLDER_URL, PLACEHOLDER_MANIFEST],
         [FOREIGN_URL, FOREIGN_MANIFEST],
     ] as const) {
@@ -502,6 +529,23 @@ test.describe('av audio — accompanying and placeholder canvases', () => {
                 };
             })
             .toEqual({ bigger: true, share: true, stacked: true });
+    });
+
+    /*
+        `0014-accompanyingcanvas` again: which ELEMENT plays the body is not
+        which LAYOUT the canvas gets. A `Sound` formatted `video/mp4` needs a
+        `<video>`, but the canvas is duration-only — so it still gets the
+        image-above-strip layout, and the element it plays in stays out of the
+        visual lane rather than covering the still with a black rect.
+    */
+    test('lays a Sound body formatted video/mp4 out as audio with an image', async ({
+        page,
+    }) => {
+        await openViewer(page, MP4_SOUND_URL);
+
+        await expect(page.locator(ACCOMPANYING)).toBeVisible();
+        await expect(page.locator(TIMELINE_LANE)).toBeVisible();
+        await expect(page.locator(`${VISUAL_LANE} ${MEDIA}`)).toHaveCount(0);
     });
 
     // User story 6: the picture is the tap target. For a sound recording that

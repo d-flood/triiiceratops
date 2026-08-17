@@ -200,7 +200,7 @@ describe('expanded thumbnail gallery', () => {
         const props = await mountViewer({ dockPosition: 'bottom' });
 
         expect(caretAnchor()?.getAttribute('data-tip')).toBe('Expand Gallery');
-        expect(caretAnchor()?.classList.contains('top')).toBe(true);
+        expect(caretAnchor()?.classList.contains('place-top')).toBe(true);
 
         props.viewerState?.setGalleryExpanded(true);
         await settle();
@@ -208,7 +208,7 @@ describe('expanded thumbnail gallery', () => {
         expect(caretAnchor()?.getAttribute('data-tip')).toBe(
             'Collapse Gallery',
         );
-        expect(caretAnchor()?.classList.contains('bottom')).toBe(true);
+        expect(caretAnchor()?.classList.contains('place-bottom')).toBe(true);
     });
 
     /**
