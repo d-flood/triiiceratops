@@ -8,11 +8,11 @@ import { definePluginStyles } from '@triiiceratops/plugin-sdk';
  * `tri-av-*` instead. Geometry (`left`/`top`/`width`/`height`) is written per
  * frame by the stage itself and deliberately absent here.
  *
- * The layer is transparent to pointer events; the two lanes opt back in, so a
- * tap can toggle playback or seek. A drag over a lane still pans, because the
- * lane hands the gesture down to the renderer's surface and acts only on a
- * pointer that barely moved (see `onLaneTap`). No descendant of a lane may
- * declare `pointer-events` of its own: the hand-down works by making the lane
+ * The layer is transparent to pointer events; the lanes and the tap target opt
+ * back in, so a tap can toggle playback or seek. A drag over one still pans,
+ * because it hands the gesture down to the renderer's surface and acts only on
+ * a pointer that barely moved (see `onLaneTap`). No descendant of one may
+ * declare `pointer-events` of its own: the hand-down works by making the target
  * transparent for one hit test, which an `auto` further down would defeat.
  *
  * Both `[hidden]` rules restate what the UA sheet already says, and neither is
@@ -22,6 +22,23 @@ import { definePluginStyles } from '@triiiceratops/plugin-sdk';
  * beside its "can't play" notice. Every current engine ships it `!important`, so
  * the hazard is theoretical there and real in one that follows the spec as
  * written.
+ *
+ * Where core paints a companion Canvas into the rect — permanently
+ * (`tri-av-painted`), or as the placeholder a canvas shows until playback
+ * begins (`tri-av-unplayed`) — everything of this plugin's that could cover it
+ * has to get out of the way:
+ * the overlay layer is ABOVE the renderer's canvas at `z-index: 40`, so an
+ * opaque stage renders the companion correctly and shows a black rect over it —
+ * the ADR 0016 visibility hazard `waveform/surface.ts` documents, met from the
+ * other side. The element decoding the sound is the same hazard and goes with
+ * it, hidden by `visibility` rather than by `display` so it stays laid out and
+ * is never taken out of the document before it has been asked to decode
+ * anything. What remains over the picture is `tri-av-tap`: a transparent,
+ * empty, whole-rect tap target that hands a drag down to the renderer exactly
+ * as a lane does.
+ *
+ * The comments below ship — they are part of the stylesheet string — so the
+ * reasoning lives here and the rules carry only what a reader needs in place.
  */
 export const { STYLES, STYLE_ID } = definePluginStyles(
     `
@@ -37,20 +54,34 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
     display: none;
 }
 
+.tri-av-painted,
+.tri-av-unplayed {
+    background: transparent;
+}
+.tri-av-painted .tri-av-media,
+.tri-av-unplayed .tri-av-media {
+    visibility: hidden;
+}
+.tri-av-tap {
+    inset: 0;
+}
+
 /*
     The stage layout's lanes: a vertical division of the stage in canvas space,
     so the stack pans and zooms with the canvas. Geometry is written per frame
     by the stage, as it is for the stage box itself.
 */
 .tri-av-lane-visual,
-.tri-av-lane-timeline {
+.tri-av-lane-timeline,
+.tri-av-tap {
     position: absolute;
     overflow: hidden;
     pointer-events: auto;
     cursor: pointer;
 }
 .tri-av-lane-visual[hidden],
-.tri-av-lane-timeline[hidden] {
+.tri-av-lane-timeline[hidden],
+.tri-av-tap[hidden] {
     display: none;
 }
 
@@ -80,21 +111,6 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
     display: none;
 }
 
-.tri-av-accompanying,
-.tri-av-placeholder {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-}
-
-/* Over everything in the stage until the first play removes it. */
-.tri-av-placeholder {
-    position: absolute;
-    inset: 0;
-    background: var(--tri-viewer-bg, #000);
-}
-
 .tri-av-media {
     width: 100%;
     height: 100%;
@@ -110,7 +126,7 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
     The play-state glyph: what a canvas projected too narrow for the transport
     shows instead (user story 26). Decorative and inert — it announces nothing
     and takes no pointer, because everything it depicts stays reachable through
-    the visual lane's own tap-to-toggle and through AVState.
+    the stage's own tap-to-toggle and through AVState.
 */
 .tri-av-glyph {
     position: absolute;

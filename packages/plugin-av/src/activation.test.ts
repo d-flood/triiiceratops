@@ -303,6 +303,442 @@ describe('activation and the canvas claim', () => {
     });
 });
 
+/*
+    The companion phase is the second half of what claiming a canvas means: the
+    claim suppresses core's placard, and the phase says which of the canvas's own
+    companion Canvases core should paint into the rect instead. The plugin sets
+    it and reads nothing back — what a phase produces is core's.
+*/
+describe('the companion phase', () => {
+    const ACCOMPANYING_CANVAS =
+        'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/canvas/p1';
+
+    it('asks core to paint the accompanying canvas of a canvas that has one', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/manifest.json',
+            json: recipe('0014-accompanyingcanvas.json'),
+        });
+
+        expect(tc.viewerState.isPaintingCompanion(ACCOMPANYING_CANVAS)).toBe(
+            true,
+        );
+
+        cleanup();
+    });
+
+    // The claim's suppression-only semantics: painting is opt-in, so a canvas
+    // with no accompanying canvas leaves core rendering exactly what it would
+    // have rendered without the phase command existing at all.
+    it('asks for nothing on a canvas with no accompanying canvas', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json',
+            json: recipe('0002-mvm-audio.json'),
+        });
+
+        expect(
+            tc.viewerState.isPaintingCompanion(
+                'https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas',
+            ),
+        ).toBe(false);
+
+        cleanup();
+    });
+
+    /*
+        A canvas that declares its own dimensions paints its picture in the
+        `<video>` element, which covers the rect. Core would still paint the
+        companion behind it — a Video body yields no images of its own, so
+        core's composite-canvas skip does not fire — and the tile pipeline would
+        buy the score at every zoom for a picture nobody can see.
+    */
+    it('asks for nothing on a video canvas that carries one', async () => {
+        const manifest = recipe('0003-mvm-video.json') as {
+            items: Record<string, unknown>[];
+        };
+        manifest.items[0].accompanyingCanvas = (
+            recipe('0014-accompanyingcanvas.json') as {
+                items: Record<string, unknown>[];
+            }
+        ).items[0].accompanyingCanvas;
+
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json',
+            json: manifest,
+        });
+
+        expect(
+            tc.viewerState.isPaintingCompanion(
+                'https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas',
+            ),
+        ).toBe(false);
+
+        cleanup();
+    });
+
+    /*
+        Core resolves a companion painting a non-image body to nothing and warns.
+        Asking for it anyway would cost the canvas its timeline lane and its
+        waveform for a picture that never arrives, leaving the reader a rect with
+        nothing in it at all.
+    */
+    it('asks for nothing where the companion paints no image', async () => {
+        const manifest = recipe('0014-accompanyingcanvas.json') as {
+            items: { accompanyingCanvas: { items: unknown } }[];
+        };
+        manifest.items[0].accompanyingCanvas.items = [
+            {
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        body: {
+                            id: 'https://example.org/notes.vtt',
+                            type: 'Text',
+                            format: 'text/vtt',
+                        },
+                        target: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/canvas/accompanying',
+                    },
+                ],
+            },
+        ];
+
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/manifest.json',
+            json: manifest,
+        });
+
+        expect(tc.viewerState.isPaintingCompanion(ACCOMPANYING_CANVAS)).toBe(
+            false,
+        );
+
+        cleanup();
+    });
+
+    /*
+        Core reaches a companion's annotations through `items` and no other
+        spelling, so a 3.0-beta manifest whose companion carries `content`
+        paints nothing however readable it is elsewhere. Asking for it would
+        hide the element for a picture that never arrives — a blank rect, and
+        strictly worse than no companion at all.
+    */
+    it('asks for nothing for a companion spelling its pages "content"', async () => {
+        const manifest = recipe('0014-accompanyingcanvas.json') as {
+            items: {
+                accompanyingCanvas: { items?: unknown; content?: unknown };
+            }[];
+        };
+        const companion = manifest.items[0].accompanyingCanvas;
+        companion.content = companion.items;
+        delete companion.items;
+
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/manifest.json',
+            json: manifest,
+        });
+
+        expect(tc.viewerState.isPaintingCompanion(ACCOMPANYING_CANVAS)).toBe(
+            false,
+        );
+
+        cleanup();
+    });
+
+    /*
+        A Choice is the reader's pick between equivalents, and core resolves the
+        SELECTED alternative — the first one, by default. An image sitting
+        beside it is not a fallback core hunts through, so answering `true` on
+        the strength of one costs the canvas its lane for a still that never
+        paints.
+    */
+    it('asks for nothing where the selected alternative is no image', async () => {
+        const manifest = recipe('0014-accompanyingcanvas.json') as {
+            items: { accompanyingCanvas: { items: { items: unknown[] }[] } }[];
+        };
+        manifest.items[0].accompanyingCanvas.items[0].items = [
+            {
+                type: 'Annotation',
+                motivation: 'painting',
+                body: {
+                    type: 'Choice',
+                    items: [
+                        {
+                            id: 'https://example.org/act1.mp4',
+                            type: 'Video',
+                            format: 'video/mp4',
+                        },
+                        {
+                            id: 'https://example.org/score.jpg',
+                            type: 'Image',
+                            format: 'image/jpeg',
+                        },
+                    ],
+                },
+                target: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/canvas/accompanying',
+            },
+        ];
+
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/manifest.json',
+            json: manifest,
+        });
+
+        expect(tc.viewerState.isPaintingCompanion(ACCOMPANYING_CANVAS)).toBe(
+            false,
+        );
+
+        cleanup();
+    });
+
+    it('goes with the claim when the activation is torn down', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/manifest.json',
+            json: recipe('0014-accompanyingcanvas.json'),
+        });
+
+        cleanup();
+        await flush();
+
+        expect(tc.viewerState.isPaintingCompanion(ACCOMPANYING_CANVAS)).toBe(
+            false,
+        );
+    });
+
+    /*
+        The placeholder half of the schedule (user stories 11 and 12).
+        `0013-placeholderCanvas` is a 640×360 video canvas carrying a still to
+        show before playback. Core paints it, so it is on the tier ladder like
+        anything else, and the element stays invisible until the reader presses
+        play.
+    */
+    describe('the placeholder', () => {
+        const PLACEHOLDER_CANVAS =
+            'https://iiif.io/api/cookbook/recipe/0013-placeholderCanvas/canvas/donizetti';
+
+        /**
+         * Playback as the element reports it: asked for, then holding a frame.
+         * The handover waits for the second, because `play` alone means only
+         * that the browser is preparing — see `mediaStage`'s `onPlay`.
+         */
+        function beginPlayback(media: HTMLMediaElement): void {
+            media.dispatchEvent(new Event('play'));
+            media.dispatchEvent(new Event('loadeddata'));
+        }
+
+        async function stagedPlaceholder(): Promise<{
+            tc: TestViewerContext;
+            media: HTMLMediaElement;
+            done: () => void;
+        }> {
+            const { tc, cleanup } = await mountWith({
+                id: 'https://iiif.io/api/cookbook/recipe/0013-placeholderCanvas/manifest.json',
+                json: recipe('0013-placeholderCanvas.json'),
+            });
+            const viewer = mountViewerRoot(tc);
+            const media = viewer.root.querySelector<HTMLMediaElement>(
+                '[data-testid="av-media"]',
+            )!;
+            return {
+                tc,
+                media,
+                done: () => {
+                    viewer.unmount();
+                    cleanup();
+                },
+            };
+        }
+
+        it('asks core to paint the still before playback', async () => {
+            const { tc, done } = await stagedPlaceholder();
+
+            expect(tc.viewerState.companionPhaseFor(PLACEHOLDER_CANVAS)).toBe(
+                'placeholder',
+            );
+
+            done();
+        });
+
+        // What the reader sees is core's painting: the plugin puts nothing of
+        // its own over the rect, and requests no image anywhere.
+        it('draws no still of its own over the rect', async () => {
+            const { media, done } = await stagedPlaceholder();
+
+            expect(
+                media.closest('[data-testid="av-stage"]')!.querySelector('img'),
+            ).toBeNull();
+
+            done();
+        });
+
+        /*
+            The handover, and the reason `'none'` is stated rather than the
+            phase simply released: core keeps the rect a phase gave the canvas,
+            so a still giving way to nothing never reflows the page (story 10).
+        */
+        it('hands the rect back on the first play', async () => {
+            const { tc, media, done } = await stagedPlaceholder();
+
+            beginPlayback(media);
+            await flush();
+
+            expect(tc.viewerState.companionPhaseFor(PLACEHOLDER_CANVAS)).toBe(
+                'none',
+            );
+
+            done();
+        });
+
+        // Nothing but the first play moves it. Metadata arriving, a seek and a
+        // pause are all states the placeholder is still the right picture for.
+        it('is unmoved by metadata, seeking and pausing', async () => {
+            const { tc, media, done } = await stagedPlaceholder();
+
+            for (const event of ['loadedmetadata', 'seeked', 'pause'])
+                media.dispatchEvent(new Event(event));
+            await flush();
+
+            expect(tc.viewerState.companionPhaseFor(PLACEHOLDER_CANVAS)).toBe(
+                'placeholder',
+            );
+
+            done();
+        });
+
+        /*
+            A canvas carrying BOTH companions: the placeholder is the phase until
+            playback starts and the accompanying canvas takes over from it,
+            because that one is permanent. The rect is core's and identical
+            across the two, so nothing moves at the handover.
+        */
+        it('gives way to the accompanying canvas where there is one', async () => {
+            const manifest = recipe('0014-accompanyingcanvas.json') as {
+                items: Record<string, unknown>[];
+            };
+            manifest.items[0].placeholderCanvas = (
+                recipe('0013-placeholderCanvas.json') as {
+                    items: Record<string, unknown>[];
+                }
+            ).items[0].placeholderCanvas;
+
+            const { tc, cleanup } = await mountWith({
+                id: 'https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/manifest.json',
+                json: manifest,
+            });
+            const viewer = mountViewerRoot(tc);
+
+            expect(tc.viewerState.companionPhaseFor(ACCOMPANYING_CANVAS)).toBe(
+                'placeholder',
+            );
+
+            beginPlayback(
+                viewer.root.querySelector<HTMLMediaElement>(
+                    '[data-testid="av-media"]',
+                )!,
+            );
+            await flush();
+
+            expect(tc.viewerState.companionPhaseFor(ACCOMPANYING_CANVAS)).toBe(
+                'accompanying',
+            );
+
+            viewer.unmount();
+            cleanup();
+        });
+
+        /*
+            Album art on a duration-only audio canvas — the canonical use of
+            `placeholderCanvas`, and the one shape whose picture the timeline
+            lane would otherwise cover. The lane stands down for the still and
+            takes the rect back on the first play, so the reader gets the art
+            before playback and the waveform during it.
+        */
+        const AUDIO_CANVAS =
+            'https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas';
+
+        /** That recipe's audio canvas, given `0013`'s placeholder. */
+        function audioWithPlaceholder() {
+            const manifest = recipe('0002-mvm-audio.json') as {
+                items: Record<string, unknown>[];
+            };
+            manifest.items[0].placeholderCanvas = (
+                recipe('0013-placeholderCanvas.json') as {
+                    items: Record<string, unknown>[];
+                }
+            ).items[0].placeholderCanvas;
+            return {
+                id: 'https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json',
+                json: manifest,
+            };
+        }
+
+        it('shows the still over an audio canvas until it plays', async () => {
+            const { tc, cleanup } = await mountWith(audioWithPlaceholder());
+            const viewer = mountViewerRoot(tc);
+            const stage = viewer.root.querySelector<HTMLElement>(
+                '[data-testid="av-stage"]',
+            )!;
+
+            expect(tc.viewerState.companionPhaseFor(AUDIO_CANVAS)).toBe(
+                'placeholder',
+            );
+            // The companion layout: a tap target over the still and no lane of
+            // this plugin's own. Which lanes are actually placed is geometry,
+            // and belongs to `mediaStage`'s own tests.
+            expect(
+                stage.querySelector('[data-testid="av-tap"]'),
+            ).not.toBeNull();
+
+            beginPlayback(
+                stage.querySelector<HTMLMediaElement>(
+                    '[data-testid="av-media"]',
+                )!,
+            );
+            await flush();
+
+            // `'none'`, not a released phase: the rect is the still's, and
+            // handing the canvas its own geometry back would reflow the page at
+            // the moment story 10 forbids it. The lane simply occupies it.
+            expect(tc.viewerState.companionPhaseFor(AUDIO_CANVAS)).toBe('none');
+
+            viewer.unmount();
+            cleanup();
+        });
+
+        /*
+            Ticket 03's rule, unmoved: a companion that resolves to nothing
+            requestable is no companion at all, and the canvas keeps the
+            full-rect lane and waveform it would have had without one — never a
+            blank rect.
+        */
+        it('keeps the lane where the still would resolve to nothing', async () => {
+            const { json, id } = audioWithPlaceholder();
+            const placeholder = json.items[0].placeholderCanvas as {
+                items: { items: { body: unknown }[] }[];
+            };
+            placeholder.items[0].items[0].body = {
+                id: 'https://example.org/act1.mp4',
+                type: 'Video',
+                format: 'video/mp4',
+            };
+
+            const { tc, cleanup } = await mountWith({ id, json });
+            const viewer = mountViewerRoot(tc);
+
+            expect(
+                tc.viewerState.companionPhaseFor(AUDIO_CANVAS),
+            ).toBeUndefined();
+            // The plain audio layout, lane and all: no tap target stands in
+            // for a picture that was never going to arrive.
+            expect(
+                viewer.root.querySelector('[data-testid="av-tap"]'),
+            ).toBeNull();
+
+            viewer.unmount();
+            cleanup();
+        });
+    });
+});
+
 describe('the overlay layer', () => {
     it('is registered once for the whole activation and released with it', async () => {
         // ONE layer hosts every stage: a layer per canvas would put the plugin's

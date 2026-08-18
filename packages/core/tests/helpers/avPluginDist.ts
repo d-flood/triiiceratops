@@ -8,6 +8,11 @@
  * that served only the entry would leave those chunks 404ing, and the failure
  * would look like "the waveform never drew" or "the stream will not play"
  * rather than like a missing route.
+ *
+ * The AV specs also need CORE's built element, and there is one way to lose it
+ * that does not look like a build problem: **`pnpm api:report` wipes
+ * `packages/core/dist`**. Run `pnpm build:element` again after it, or the next
+ * AV run fails on a fixture page whose viewer never loaded.
  */
 
 import { existsSync, readFileSync } from 'node:fs';

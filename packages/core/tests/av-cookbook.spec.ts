@@ -417,6 +417,52 @@ test.describe('demo av cookbook coverage', () => {
         });
     }
 
+    /*
+        User stories 2, 4 and 37. `0014`'s score is a companion Canvas core
+        paints, so it is on the same tier ladder as any other canvas: zooming in
+        asks the image service for more resolution. `iiif.io`'s reference
+        service is routed to the dev server's real fake one, so the request
+        counter is the observable difference between an inherited pipeline and
+        the single static request the plugin used to make.
+    */
+    test('the score of 0014 sharpens as the reader zooms into it', async ({
+        page,
+    }) => {
+        const log = newLog();
+        await openRecipe(page, '0014-accompanyingcanvas', log);
+        await page.locator(STAGE).first().waitFor({ state: 'visible' });
+
+        // The companion painted at all before anything is asked of the zoom.
+        await expect
+            .poll(() => log.imageRequests, { timeout: 30_000 })
+            .toBeGreaterThan(0);
+        // Settled: the opening fit animates, and tiers arriving for it are not
+        // the zoom's doing.
+        await page.waitForTimeout(1_500);
+        const fitted = log.imageRequests;
+
+        const before = (await page.locator(STAGE).first().boundingBox())!;
+        // Far enough in that the tier the fit was drawn from cannot serve the
+        // pixels on screen — which is the whole of what "it sharpens" means.
+        await page.evaluate(() => {
+            const host = document.querySelector(
+                'triiiceratops-viewer',
+            ) as unknown as { viewerState: { zoomTo(scale: number): void } };
+            host.viewerState.zoomTo(6);
+        });
+        await expect
+            .poll(
+                async () =>
+                    (await page.locator(STAGE).first().boundingBox())?.width,
+            )
+            .toBeGreaterThan(before.width * 2);
+        await expect
+            .poll(() => log.imageRequests, { timeout: 30_000 })
+            .toBeGreaterThan(fitted);
+        await expect(page.locator(UNSUPPORTED)).toHaveCount(0);
+        await expect(page.locator(ERROR)).toHaveCount(0);
+    });
+
     test('an audio recipe plays end to end', async ({ page }) => {
         const log = newLog();
         await openRecipe(page, '0002-mvm-audio', log);

@@ -8,7 +8,11 @@
 // the constructible class needs `svelte/reactivity` at runtime, so it is only
 // exported from `triiiceratops/svelte`. For a constructible state with no Svelte
 // installed, use `triiiceratops/testing`.
-export type { ViewerState, ViewerStateSnapshot } from './state/viewer.svelte';
+export type {
+    CompanionPhase,
+    ViewerState,
+    ViewerStateSnapshot,
+} from './state/viewer.svelte';
 export type {
     SearchHit,
     SearchProvider,

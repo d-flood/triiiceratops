@@ -65,6 +65,11 @@ import {
     toPlannerCanvases,
     unsupportedPresentationIds,
 } from './canvasDescriptors';
+import {
+    resolveCompanionCanvases,
+    withCompanion,
+    type CompanionCanvases,
+} from './companionCanvases';
 import { GestureRecogniser } from './gestureArbiter';
 import { PAN_KEYS, keyPanVelocity } from './keyboardPan';
 import {
@@ -572,6 +577,100 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     });
 
     /**
+     * canvasId → its resolved companions, for the **claimed** canvases that
+     * have any.
+     *
+     * Beside {@link plannerCanvases} rather than inside it, and that separation
+     * is the point: the descriptor derivation above stays claim-free and
+     * phase-free, so a claim arriving does not re-plan every canvas in an
+     * 800-folio manifest (user story 28). This one reads the claim set and
+     * **not** the phase, so pressing play selects between values already in hand
+     * instead of rebuilding them (user story 29).
+     *
+     * Empty for every manifest with no claimed canvas, which is all of them
+     * until an AV plugin is registered.
+     */
+    // Plain `Map`s throughout, like `canvasesById` below and for its reason.
+    const companionsByCanvasId: Map<string, CompanionCanvases> = $derived.by(
+        () => {
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity
+            const companions = new Map<string, CompanionCanvases>();
+            if (plannerCanvases.length === 0) return companions;
+            // The claim COUNT next, and it is the whole cost on an image
+            // manifest: asking `isCanvasClaimed` per canvas would subscribe to
+            // a signal per folio for an answer that is `false` 800 times.
+            if (viewerState.claimedCanvases.size === 0) return companions;
+
+            const claimed = plannerCanvases.filter((canvas) =>
+                viewerState.isCanvasClaimed(canvas.id),
+            );
+            if (claimed.length === 0) return companions;
+
+            // Untracked for `plannerCanvases`' reason: `viewerState.canvases` is
+            // raw manifest JSON behind a deep `$state` proxy, and walking a
+            // companion Canvas tracked would make every property of it a
+            // dependency of this derivation.
+            return untrack(() => {
+                // eslint-disable-next-line svelte/prefer-svelte-reactivity
+                const rawById = new Map<string, unknown>();
+                for (const canvas of viewerState.canvases) {
+                    const canvasId = getCanvasId(canvas);
+                    if (canvasId) rawById.set(canvasId, canvas);
+                }
+
+                for (const canvas of claimed) {
+                    const resolved = resolveCompanionCanvases(
+                        rawById.get(canvas.id),
+                        canvas,
+                        (canvasId) => viewerState.getSelectedChoice(canvasId),
+                    );
+                    if (resolved) companions.set(canvas.id, resolved);
+                }
+                return companions;
+            });
+        },
+    );
+
+    /**
+     * The canvases as they are painted — {@link plannerCanvases} with each
+     * claimed canvas's companion selected by its **companion phase**.
+     *
+     * A canvas whose claimant has set no phase at all is passed through
+     * untouched, so the claim on its own still changes nothing about what core
+     * renders (user story 27).
+     */
+    const paintedCanvases: PlannerCanvas[] = $derived(
+        companionsByCanvasId.size === 0
+            ? plannerCanvases
+            : plannerCanvases.map((canvas) => {
+                  const companions = companionsByCanvasId.get(canvas.id);
+                  if (!companions) return canvas;
+                  const phase = viewerState.companionPhaseFor(canvas.id);
+                  return phase === undefined
+                      ? canvas
+                      : withCompanion(canvas, companions, phase);
+              }),
+    );
+
+    /**
+     * The change signal the host's refit effect watches: every painted canvas's
+     * id and rect, joined.
+     *
+     * Deliberately a key over the geometry rather than the painted list itself.
+     * A refit overwrites the reader's centre and scale, and `paintedCanvases`
+     * reallocates whenever a claim or a companion phase arrives — while the rect
+     * is identical across every phase of the same canvas by construction. Keying
+     * on the array would throw the page back to a fit on every play and pause
+     * (user story 14) and would move a canvas the moment a plugin claimed it
+     * (user story 27).
+     */
+    const paintedGeometry: string = $derived(
+        paintedCanvases
+            .map((canvas) => `${canvas.id}:${canvas.width}×${canvas.height}`)
+            .join('|'),
+    );
+
+    /**
      * The same canvases, by id.
      *
      * Built once per change rather than searched per lookup: on an 800-folio
@@ -583,7 +682,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     // reactive collection would add per-entry signals nothing reads.
     const canvasesById: Map<string, PlannerCanvas> = $derived(
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
-        new Map(plannerCanvases.map((canvas) => [canvas.id, canvas])),
+        new Map(paintedCanvases.map((canvas) => [canvas.id, canvas])),
     );
 
     /**
@@ -630,7 +729,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     function worldInput() {
         return {
-            canvases: plannerCanvases,
+            canvases: paintedCanvases,
             mode: viewerState.viewingMode,
             direction: viewerState.viewingDirection,
             preserveCanvasScale: viewerState.preserveCanvasScale,
@@ -714,6 +813,35 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
+     * Companion warnings already announced, keyed on the canvas they belong to.
+     *
+     * A plain Set, deliberately not a `SvelteSet`: read from the frame loop,
+     * never by the reactive graph.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const reportedCompanionWarnings = new Set<string>();
+
+    /**
+     * Say once, for developers, that a claimed canvas's companion could not be
+     * painted.
+     *
+     * Never a user-facing error and never the unsupported presentation: the
+     * canvas is one a plugin is rendering into, so the reader is being told
+     * about the recording by its claimant either way, and a broken companion
+     * costs a picture rather than the canvas (user story 23). Debug-gated
+     * `logger` for {@link reportUnresolvedThumbnails}' reason — a published
+     * distribution is quiet by default.
+     */
+    function reportCompanionWarnings(): void {
+        for (const [canvasId, companions] of companionsByCanvasId) {
+            if (companions.warnings.length === 0) continue;
+            if (reportedCompanionWarnings.has(canvasId)) continue;
+            reportedCompanionWarnings.add(canvasId);
+            for (const warning of companions.warnings) logger.warn(warning);
+        }
+    }
+
+    /**
      * Fetch the `info.json` of every canvas the planner says needs one.
      *
      * Called once per frame with the planner's list, which is safe because the
@@ -747,6 +875,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 if (image.source.kind !== 'service') continue;
                 ensureImageService(canvasId, image.source.serviceId);
             }
+
+            // Warmed companions too: a picture with no facts has no ladder and
+            // no pyramid, so the handover they exist for would never be ready.
+            // Asked for as WARM, because this canvas does not paint from them.
+            for (const image of canvas.warmImages ?? []) {
+                if (image.source.kind !== 'service') continue;
+                ensureImageService(canvasId, image.source.serviceId, true);
+            }
         }
     }
 
@@ -756,10 +892,25 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * Split out of {@link requestMetadata} only because a canvas can now ask for
      * several; the body is unchanged and its reasoning is per-request.
+     *
+     * `warm` marks a service this canvas does NOT paint from — a warmed
+     * companion, fetched so the handover has something in hand. Such a service
+     * may neither raise nor clear `canvasErrors`, which is a statement about
+     * what the reader can SEE on this canvas: a score behind auth beside a
+     * public placeholder would otherwise raise viewer-wide error chrome over a
+     * canvas that is painting perfectly (`canvasErrors.viewerLevelErrorKind` is
+     * not painting-gated), and a successful warm would clear the message a
+     * genuinely broken painting service had earned. Warming is best-effort and
+     * invisible: it costs the reader nothing and says nothing.
      */
-    function ensureImageService(canvasId: string, serviceId: string): void {
+    function ensureImageService(
+        canvasId: string,
+        serviceId: string,
+        warm = false,
+    ): void {
         void imageServiceCache.ensure(serviceId).then((facts) => {
             if (!facts) {
+                if (warm) return;
                 // A canvas that will never have pixels. Recorded against
                 // THIS canvas rather than swallowed or raised viewer-wide:
                 // painting nothing and saying nothing is indistinguishable
@@ -807,7 +958,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // Guarded rather than deleted unconditionally: this resolves once
             // per frame until the facts land in `knownMetadata`, and a
             // `delete` of an absent key still touches the reactive proxy.
-            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+            if (!warm && canvasErrors[canvasId]) delete canvasErrors[canvasId];
             if (knownMetadata[serviceId] === facts) return;
             // Captured BEFORE the write below, which is what re-lays the
             // world out. See `compensateForReflow`.
@@ -1688,6 +1839,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         tiles.update([...plan.tileRequests, ...plan.thumbnailRequests]);
         requestMetadata(plan.metadataRequests);
         reportUnresolvedThumbnails(plan.unresolvedThumbnails);
+        reportCompanionWarnings();
         // Before painting, so a canvas that left the window stops painting in
         // the frame it left rather than the one after.
         //
@@ -2596,6 +2748,82 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         );
     }
 
+    // ── The stage ────────────────────────────────────────────────────────
+    //
+    // A plugin's overlay layer is a SIBLING of this renderer's root, not a
+    // descendant (see `TriiiceratopsViewer.svelte`, which mounts both into the
+    // same `.viewer-area` box). Nothing a claimant renders can therefore reach
+    // the surface by bubbling, which is why the wheel is bound on the box the
+    // two share rather than on the `<canvas>`: one binding serves every
+    // claimant, present and future, and a claimant hands down nothing.
+    //
+    // The coordinate space is unaffected — `handleWheel` resolves its anchor
+    // from `clientX`/`clientY` against the surface's own bounding rect, never
+    // from the event's `offsetX`/`offsetY`, which is what would have made the
+    // binding element part of the answer.
+
+    /** Anything focus or the wheel must be left to, inside a claimant's layer. */
+    const CLAIMANT_CONTROL =
+        'a[href],button,input,select,textarea,summary,[tabindex],[contenteditable],audio[controls],video[controls]';
+
+    /**
+     * The two subtrees of the stage that ARE the image: this renderer's own
+     * root, and any plugin overlay layer.
+     *
+     * An allowlist rather than a denylist, because the stage also holds chrome
+     * that owns its own wheel — the floating toolbar, the control bar, a
+     * float-mode thumbnail gallery, an `overlay`-positioned plugin panel — and
+     * a rule that named those instead would silently start zooming the next
+     * one somebody adds.
+     */
+    function overStage(from: Element): boolean {
+        return (
+            root?.contains(from) === true ||
+            from.closest('.plugin-overlay-layer') !== null
+        );
+    }
+
+    /**
+     * The wheel, as heard on the stage.
+     *
+     * A claimant that wants the wheel for itself — a transcript, a track list —
+     * opts out by CONSUMING the event (`preventDefault()`), which costs it
+     * nothing it would not already be doing to stop the page scrolling. No
+     * layer that exists today needs it: the only overlay layer the AV plugin
+     * registers holds the stage lanes, and they scroll nothing.
+     */
+    function handleStageWheel(event: WheelEvent) {
+        if (event.defaultPrevented) return;
+        const from = event.target as Element | null;
+        if (!from || !overStage(from)) return;
+        handleWheel(event);
+    }
+
+    /**
+     * Keep the zoom keys reachable after a tap on a claimant's layer.
+     *
+     * The keys are bound on the renderer root, and a claimant's layer has no
+     * focusable ancestor — so a press on a bare stage would otherwise move
+     * focus to the body and fire the root's `onblur`, leaving a reader who
+     * tapped a score to start it playing with no way to magnify it.
+     *
+     * The default is CANCELLED as well as replaced: the browser resolves focus
+     * from the compatibility `mousedown`, which is dispatched after this, so
+     * focusing here without cancelling would simply be overwritten.
+     *
+     * Only for a target that offers no control of its own. A claimant's own
+     * button, its track list, its transcript controls all keep the focus the
+     * reader deliberately moved to them.
+     */
+    function handleStagePointerDown(event: PointerEvent) {
+        if (event.defaultPrevented || event.button !== 0 || !root) return;
+        const from = event.target as Element | null;
+        if (!from?.closest('.plugin-overlay-layer')) return;
+        if (from.closest(CLAIMANT_CONTROL)) return;
+        event.preventDefault();
+        root.focus({ preventScroll: true });
+    }
+
     // ── Keyboard ─────────────────────────────────────────────────────────
     //
     // Every binding here is on the SURFACE ELEMENT, never on the document.
@@ -2928,9 +3156,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         // The only document/window-level listeners this component installs, and
         // they bind nothing: they end a hold, they never start one. The
-        // bindings themselves stay on the surface element (spec §Keyboard).
+        // bindings themselves stay on the surface element, or at the widest on
+        // the stage box below (spec §Keyboard).
         window.addEventListener('blur', handleWindowBlur);
         document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // The stage: the box this renderer's root and every plugin overlay
+        // layer are laid into as siblings, and so the nearest element an event
+        // from either can be heard on. It is `.viewer-area`, the same box whose
+        // origin `ViewerState.canvasToScreen` reports — the renderer root is
+        // mounted straight into it, so its parent IS the stage.
+        //
+        // `passive: false` because the wheel handler cancels the event; a
+        // passive listener may not, and the page would scroll as well as zoom.
+        const stage = root.parentElement;
+        stage?.addEventListener('wheel', handleStageWheel, { passive: false });
+        stage?.addEventListener('pointerdown', handleStagePointerDown);
 
         // The renderer has a sized surface and accepts commands. Attached after
         // the first `measure()` above for exactly that reason: `rendererReady`
@@ -3003,6 +3244,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 'visibilitychange',
                 handleVisibilityChange,
             );
+            stage?.removeEventListener('wheel', handleStageWheel);
+            stage?.removeEventListener('pointerdown', handleStagePointerDown);
             if (frameHandle !== null) cancelAnimationFrame(frameHandle);
             frameHandle = null;
             if (chromeSettleFrame !== null)
@@ -3035,6 +3278,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * `fittedWorld` does: whether a refit is a TRAVEL within a laid-out world
      * or a jump into a new one is the renderer's own memory, not the
      * component's. The component supplies only the change signals.
+     *
+     * The world key below is read TRACKED — those four are change signals in
+     * their own right — while the fit itself is untracked. A fit reads the whole
+     * laid-out world, and every one of those reads would otherwise become a
+     * dependency of the effect, so a refit would follow anything that produced a
+     * fresh descriptor list: a companion phase, a claim, a Choice. A refit
+     * overwrites the reader's centre and scale, so it fires on the signals the
+     * component names and on nothing else. `currentInset`'s own `untrack` is the
+     * same rule applied one read at a time, and stays for its browser spec.
      */
     function refitForCurrentWorld() {
         const world = [
@@ -3047,7 +3299,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             viewerState.viewingMode === 'continuous' && fittedWorld === world;
         fittedWorld = world;
 
-        fitCurrentCanvas(travelling);
+        untrack(() => fitCurrentCanvas(travelling));
         requestFrame();
     }
 
@@ -3058,7 +3310,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             surface = surfaceEl;
             return attach();
         },
-        /** The surface's DOM event handlers, wired by the component's markup. */
+        /**
+         * The surface's DOM event handlers, wired by the component's markup.
+         * The wheel is not among them: it is bound on the stage instead, so
+         * that a claimant's overlay layer — a sibling of the surface — zooms
+         * too. See `handleStageWheel`.
+         */
         handlers: {
             keydown: handleKeyDown,
             keyup: handleKeyUp,
@@ -3067,7 +3324,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             pointermove: handlePointerMove,
             pointerup: handlePointerUp,
             pointercancel: handlePointerCancel,
-            wheel: handleWheel,
         },
         /** Per-canvas error placeholders for the DOM error layer. */
         get errorLayer() {
@@ -3082,9 +3338,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             return unsupportedLayer;
         },
         unsupportedLabel: () => m.canvas_unsupported(),
-        /** Read by the component's refit effect purely as a change signal. */
-        get plannerCanvases() {
-            return plannerCanvases;
+        /**
+         * Read by the component's refit effect purely as a change signal — the
+         * painted canvases' ids and rects, so a companion arriving with a rect
+         * of its own refits like any other change of geometry while a phase
+         * changing under an unchanged rect does not.
+         */
+        get paintedGeometry() {
+            return paintedGeometry;
         },
         requestFrame,
         refitForCurrentWorld,

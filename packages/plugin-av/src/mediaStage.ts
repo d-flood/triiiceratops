@@ -13,7 +13,6 @@
  */
 
 import type { CaptionTrack } from './captions';
-import type { CompanionImage } from './companionCanvases';
 import { warnAboutUnloadableCaptionTrack } from './degradation';
 import type { HlsAttachment } from './hls/index';
 import { hasNativeHlsSupport, isHlsSource, loadHls } from './hlsLink';
@@ -22,7 +21,6 @@ import {
     clipRect,
     laneFraction,
     stageLanes,
-    type StageLanes,
     type StageLayoutKind,
 } from './stageLayout';
 import type { Peaks } from './waveform/peaks';
@@ -42,10 +40,26 @@ export interface MediaStageOptions {
     readonly source: AvSource;
     /** How the rect is divided into lanes — see {@link StageLayoutKind}. */
     readonly layout: StageLayoutKind;
-    /** The `accompanyingCanvas` still shown in the visual lane, when there is one. */
-    readonly accompanying?: CompanionImage | null;
-    /** The `placeholderCanvas` still shown until first play, when there is one. */
-    readonly placeholder?: CompanionImage | null;
+    /**
+     * Whether core is painting this canvas's `placeholderCanvas` into the rect
+     * until playback begins.
+     *
+     * The stage then has to stay out of the picture for exactly that long: core
+     * cannot paint behind an opaque media element, so the element is invisible
+     * — laid out and free to decode, but drawing nothing — the stage's own
+     * background is transparent, and an `audio` stage's opaque timeline lane
+     * gives way to a bare tap target, until there is a first frame to hand the
+     * rect to.
+     */
+    readonly awaitsFirstPlay?: boolean;
+    /**
+     * The element has taken the rect: playback has begun AND there is data for
+     * the current position, so the element is drawing a picture rather than its
+     * own black. The caller's cue to move the companion phase off the
+     * placeholder; doing it in that order is what keeps a frame from being
+     * drawn with neither picture in it.
+     */
+    readonly onFirstPlay?: () => void;
     /**
      * The canvas's declared duration, which gives the timeline lane a length
      * before the element reports one of its own.
@@ -173,7 +187,7 @@ export interface MediaStage {
     setEligibleCaptions(urls: readonly string[] | null): void;
     /**
      * Adopt resolved peaks for this canvas. Builds the drawing surface on the
-     * first call; a layout with no timeline lane (video) keeps the data for the
+     * first call; a layout with no timeline lane keeps the data for the
      * scrubber strip and draws nothing here.
      */
     adoptWaveform(module: WaveformModule, peaks: Peaks): void;
@@ -192,7 +206,15 @@ export interface MediaStage {
 const TAP_SLOP_PX = 6;
 
 /**
- * Act on a tap on either lane, and let a drag pan the viewer instead.
+ * `HTMLMediaElement.HAVE_CURRENT_DATA`: there is data for the current playback
+ * position — a frame to show. Written out because the constant is on the
+ * interface rather than in the global scope this bundle can name.
+ */
+const HAVE_CURRENT_DATA = 2;
+
+/**
+ * Act on a tap on a stage target — either lane, or the tap target over a
+ * companion core paints — and let a drag pan the viewer instead.
  *
  * Two things the obvious `click` listener does not do.
  *
@@ -202,9 +224,9 @@ const TAP_SLOP_PX = 6;
  * heard on the window because by then it belongs to the renderer.
  *
  * And the gesture has to REACH the renderer. The plugin's overlay layer is a
- * SIBLING of the renderer's surface, so a lane that takes pointer events
+ * SIBLING of the renderer's surface, so a target that takes pointer events
  * swallows the drag that would have panned the image — bubbling cannot carry
- * it across. The lane therefore goes transparent for one hit test and the
+ * it across. The target therefore goes transparent for one hit test and the
  * `pointerdown` is re-dispatched on what is below it, which is the renderer's
  * canvas; the renderer captures the pointer there, so every later move and the
  * up arrive without further help.
@@ -217,7 +239,7 @@ function onLaneTap(
 
     const onDown = (event: PointerEvent): void => {
         const lane = (event.target as Element | null)?.closest<HTMLElement>(
-            '.tri-av-lane-visual, .tri-av-lane-timeline',
+            '.tri-av-lane-visual, .tri-av-lane-timeline, .tri-av-tap',
         );
         // Primary button only: a right-click is the browser's, not a tap.
         if (!lane || event.button !== 0) return;
@@ -226,9 +248,10 @@ function onLaneTap(
         const scope = root.getRootNode() as Document | ShadowRoot;
         // jsdom has no hit testing, and a detached stage has nothing under it.
         if (typeof scope.elementFromPoint !== 'function') return;
-        // The LANE is what has to go transparent: `pointer-events: none` on an
-        // ancestor does not cover a descendant that declares `auto` itself,
-        // and the lane is the only thing in the stage that does.
+        // The TARGET is what has to go transparent: `pointer-events: none` on
+        // an ancestor does not cover a descendant that declares `auto` itself,
+        // and the lanes and the tap target are the only things in the stage
+        // that do.
         lane.style.pointerEvents = 'none';
         const under = scope.elementFromPoint(event.clientX, event.clientY);
         lane.style.pointerEvents = '';
@@ -311,8 +334,45 @@ function placeLane(lane: HTMLElement, rect: StageRect | null): void {
 export function createMediaStage(options: MediaStageOptions): MediaStage {
     const { canvasId, source } = options;
 
+    /**
+     * Whether core is painting a companion Canvas into this rect. The stage
+     * then belongs to the renderer: it draws no lanes, and every layer of it
+     * that could cover the picture — the stage's own background, the element
+     * decoding the sound — has to stay out of the way. The plugin's overlay
+     * sits above the renderer's canvas at `z-index: 40`, so anything opaque
+     * here renders the companion correctly and shows a black rect (ADR 0016).
+     */
+    const corePaints = options.layout === 'audio-with-image';
+
+    /**
+     * Whether core is painting the placeholder right now — true until the first
+     * `play`, and only where the caller asked for it. Its own class rather than
+     * the `hidden` attribute, which already means "unplayable" on the media
+     * element and carries `display: none`: taking the element out of layout
+     * before it has been asked to decode anything is not what this needs.
+     */
+    let awaitingPlay = options.awaitsFirstPlay === true;
+
+    /**
+     * Which lanes the stage draws **right now**, which is not always the
+     * layout it keeps.
+     *
+     * The `audio` layout's timeline lane is opaque and fills the rect, so a
+     * stage waiting on its first play would cover the very still core is
+     * painting there. It takes the companion layout — no lanes, a tap target —
+     * for exactly that long and falls back to its own on the first play. Every
+     * other layout already leaves core's painting visible: the `video` lane is
+     * transparent and holds the element, which `tri-av-unplayed` hides.
+     */
+    const laneLayout = (): StageLayoutKind =>
+        awaitingPlay && options.layout === 'audio'
+            ? 'audio-with-image'
+            : options.layout;
+
     const root = document.createElement('div');
     root.className = 'tri-av-stage';
+    if (corePaints) root.classList.add('tri-av-painted');
+    if (awaitingPlay) root.classList.add('tri-av-unplayed');
     root.dataset.testid = 'av-stage';
     root.dataset.canvasId = canvasId;
 
@@ -340,10 +400,10 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
      * does not have simply never get placed — so the DOM shape is one shape and
      * ticket 10 has a surface to find whether or not it is on screen yet.
      *
-     * The visual lane holds the picture: the video element itself, or the
-     * accompanying still beside a sound recording. An `<audio>` element renders
-     * nothing without `controls`, so it stays a child of the root rather than
-     * occupying a lane it would only make empty.
+     * The visual lane holds the picture where the picture is the plugin's: the
+     * video element. An `<audio>` element renders nothing without `controls`,
+     * so it stays a child of the root rather than occupying a lane it would
+     * only make empty.
      */
     const visualLane = document.createElement('div');
     visualLane.className = 'tri-av-lane-visual';
@@ -356,70 +416,34 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     timelineLane.hidden = true;
 
     // By layout, not by element: a `<video>` attached to a duration-only canvas
-    // has no picture to show, and putting it in the visual lane would cover the
-    // accompanying still that lane exists for.
+    // has no picture to show, and putting it in the visual lane would cover
+    // whatever does.
     if (options.layout === 'video') visualLane.append(media);
     else root.append(media);
-
-    const accompanying = options.accompanying ?? null;
-    let accompanyingImage: HTMLImageElement | null = null;
-    if (accompanying) {
-        accompanyingImage = document.createElement('img');
-        accompanyingImage.className = 'tri-av-accompanying';
-        accompanyingImage.dataset.testid = 'av-accompanying';
-        // Decorative here: the recording is the content, and the companion
-        // canvas's own label is not this element's to announce.
-        accompanyingImage.alt = '';
-        accompanyingImage.decoding = 'async';
-        visualLane.append(accompanyingImage);
-    }
 
     root.append(visualLane, timelineLane);
 
     /**
-     * The placeholder still, shown until playback first starts.
+     * The tap target over a companion core paints: the whole rect, transparent,
+     * and the ONLY thing the plugin puts over the picture (user story 6).
      *
-     * A plain image URL on a video element becomes `poster`, so the browser
-     * paints and clears it on the element's own schedule. Everything else — a
-     * URL this plugin built off an image service, or any placeholder on an
-     * audio canvas, which has no element to hang a poster on — is an overlay
-     * over the whole rect that the first `play` removes.
+     * It is a target rather than a lane because it divides nothing and shows
+     * nothing; it hands a drag down to the renderer by the same route the lanes
+     * do, so panning and zooming the score are the renderer's as usual.
+     *
+     * A stage that only borrows that layout until its first play hides this
+     * again when its own lanes come back, because the lanes take their own taps
+     * and a target left over them would swallow every seek.
      */
-    const placeholder = options.placeholder ?? null;
-    let placeholderOverlay: HTMLImageElement | null = null;
-    if (placeholder && !(placeholder.plain && source.kind === 'video')) {
-        placeholderOverlay = document.createElement('img');
-        placeholderOverlay.className = 'tri-av-placeholder';
-        placeholderOverlay.dataset.testid = 'av-placeholder';
-        placeholderOverlay.alt = '';
-        placeholderOverlay.decoding = 'async';
-        root.append(placeholderOverlay);
+    const tapTarget =
+        laneLayout() === 'audio-with-image'
+            ? document.createElement('div')
+            : null;
+    if (tapTarget) {
+        tapTarget.className = 'tri-av-tap';
+        tapTarget.dataset.testid = 'av-tap';
+        root.append(tapTarget);
     }
-
-    /**
-     * Both stills are requested at the size of the lane that will show them,
-     * which nobody knows until the renderer has laid the canvas out — so the
-     * request waits for the first placement rather than going out at claim
-     * time against a rect that does not exist yet. It is made once and never
-     * revised: re-requesting on a zoom is deliberately not in this release
-     * (v1 — "sized to the visual lane's projected size").
-     */
-    let stillsRequested = false;
-    const requestStills = (lanes: StageLanes, rect: StageRect): void => {
-        if (stillsRequested) return;
-        stillsRequested = true;
-
-        if (accompanying && accompanyingImage) {
-            accompanyingImage.src = accompanying.urlFor(
-                lanes.visual?.width ?? rect.width,
-            );
-        }
-        if (!placeholder) return;
-        // The placeholder covers the whole stage, whatever the lanes do.
-        const url = placeholder.urlFor(rect.width);
-        if (placeholderOverlay) placeholderOverlay.src = url;
-        else (media as HTMLVideoElement).poster = url;
-    };
 
     const unplayableNotice = document.createElement('div');
     unplayableNotice.className = 'tri-av-unplayable';
@@ -453,12 +477,40 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         unplayableNotice.hidden = false;
         media.hidden = true;
         glyph.hidden = true;
+        // A stage still waiting for a first frame stays waiting: there will
+        // never be one now, and core's still is the only picture this canvas
+        // has. It is not stuck hidden — the stage is transparent while the
+        // still shows, and the notice above says why nothing plays.
+    };
+    /**
+     * The element takes the rect, and only then is the phase handed back — in
+     * that order, so no frame is drawn with neither picture in it.
+     */
+    const reveal = (): void => {
+        if (!awaitingPlay) return;
+        awaitingPlay = false;
+        media.removeEventListener('loadeddata', reveal);
+        media.removeEventListener('playing', reveal);
+        root.classList.remove('tri-av-unplayed');
+        // The lanes this stage stayed out of the rect for are its own again.
+        if (lastPlace) place(lastPlace.rect, lastPlace.visible);
+        options.onFirstPlay?.();
     };
     const onPlay = (): void => {
-        // The poster clears itself; an overlay does not, and this is the only
-        // moment it should: "until playback begins", not "until metadata".
-        if (placeholderOverlay) placeholderOverlay.remove();
-        placeholderOverlay = null;
+        // `play` fires when playback is ASKED for, not when there is a picture
+        // to show: the element's own background is opaque black, so revealing
+        // it here blacks the still out for the whole buffering interval — the
+        // entire interval, on the MSE path, where nothing is buffered until
+        // after `play()` (user story 12). The still stands until there is a
+        // frame to replace it with, and `readyState` is checked first because
+        // an already-buffered element may fire neither event again.
+        if (awaitingPlay) {
+            if (media.readyState >= HAVE_CURRENT_DATA) reveal();
+            else {
+                media.addEventListener('loadeddata', reveal);
+                media.addEventListener('playing', reveal);
+            }
+        }
         paintGlyph();
         options.onPlayStateChange(false);
     };
@@ -613,10 +665,11 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         if (fraction !== null) options.onSeekFraction?.(fraction);
     };
     /*
-        The layer is transparent to pointer events; the lanes opt back in. A tap
-        on the visual lane toggles playback — the universal convention, and it
-        must reach whatever is SHOWING there, which for a sound recording is the
-        accompanying still rather than the media element.
+        The layer is transparent to pointer events; the lanes and the tap target
+        opt back in. A tap anywhere but the timeline lane toggles playback — the
+        universal convention, and it must reach whatever is SHOWING there, which
+        for a sound recording with a companion is core's painting rather than
+        any element of this plugin's.
     */
     const unbindTaps = onLaneTap(root, (lane, event) => {
         if (lane === timelineLane) onTimelineTap(event);
@@ -626,8 +679,8 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     /**
      * The waveform's drawing surface, built only once peaks have arrived — a
      * canvas nobody can draw into is DOM that costs memory and says nothing.
-     * Video layouts never build one: their waveform data goes to the scrubber
-     * strip instead (SPEC — "Rendering: stage layout").
+     * Only the `audio` layout builds one: every other layout's waveform data
+     * goes to the scrubber strip instead (SPEC — "The stage layout, revised").
      */
     let waveform: WaveformSurface | null = null;
 
@@ -645,6 +698,63 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
 
     /** The last placement, so a late-arriving waveform can be drawn at once. */
     let placement: { lane: StageRect; visible: VisibleBox } | null = null;
+    /**
+     * The last projection, so the stage can re-place itself off the reader's
+     * cadence: the lanes change at the first play, which is not a frame the
+     * viewport moved in and so brings no placement of its own.
+     */
+    let lastPlace: { rect: StageRect | null; visible: VisibleBox } | null =
+        null;
+
+    function place(rect: StageRect | null, visible: VisibleBox): void {
+        lastPlace = { rect, visible };
+        // What of the projection is inside the container. A stage whose
+        // rect overhangs stays the size of its rect — the lanes divide the
+        // canvas, not the viewport — and is CLIPPED to this instead, which
+        // takes the overhanging part out of hit testing as well as out of
+        // the picture (see `clipRect`). Without that, an audio canvas's
+        // lane, which fills its whole rect, reaches over the columns beside
+        // the container and swallows taps aimed at the chrome there.
+        const shown = rect ? clipRect(rect, visible) : null;
+        root.hidden = shown === null;
+        if (!rect || !shown) {
+            placement = null;
+            waveform?.place(null, { width: 0, height: 0 });
+            return;
+        }
+        root.style.left = `${rect.left}px`;
+        root.style.top = `${rect.top}px`;
+        root.style.width = `${rect.width}px`;
+        root.style.height = `${rect.height}px`;
+        root.style.clipPath = clipPathFor(rect, shown);
+
+        // The lanes divide the rect in the ROOT's own coordinates, which
+        // is why the split is computed from an origin-anchored copy: the
+        // root already carries the projection.
+        const current = laneLayout();
+        const lanes = stageLanes(
+            { left: 0, top: 0, width: rect.width, height: rect.height },
+            current,
+        );
+        placeLane(visualLane, lanes.visual);
+        placeLane(timelineLane, lanes.timeline);
+        if (tapTarget) tapTarget.hidden = current !== 'audio-with-image';
+
+        if (lanes.timeline) {
+            // The surface clips against the CONTAINER's box, so the lane
+            // goes back into container coordinates the root already carries.
+            placement = {
+                lane: {
+                    ...lanes.timeline,
+                    left: rect.left + lanes.timeline.left,
+                    top: rect.top + lanes.timeline.top,
+                },
+                visible,
+            };
+            waveform?.place(placement.lane, placement.visible);
+            waveform?.paint(media.currentTime);
+        }
+    }
 
     /**
      * The caption tracks, attached as native `<track>` children — on every
@@ -653,13 +763,21 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
      * An `<audio>` element has no rendering area, so cues attached to one are
      * parsed and never drawn. Parsed is the point: `hidden` tracks expose
      * `track.cues`, and that is where the transcript panel reads a sound
-     * recording's words from. What an audio stage does NOT get is the captions
+     * recording's words from. What such a stage does NOT get is the captions
      * toggle — a control that could only ever paint nothing (user story 46) —
      * which `rendersCaptions` below is what says.
      */
     const authoredCaptions = options.captions ?? [];
-    /** Only a `<video>` has somewhere to paint a showing track's cues. */
-    const rendersCaptions = source.kind === 'video';
+    /**
+     * Whether a showing track's cues have somewhere to be drawn.
+     *
+     * A `<video>` alone is not enough: on an `audio-with-image` stage the rect
+     * belongs to the companion core paints, and the element is hidden behind it
+     * — so a `Sound` body formatted `video/mp4` decodes through a `<video>` that
+     * paints no cues, and a toggle over it would be the dead control.
+     */
+    const rendersCaptions =
+        source.kind === 'video' && options.layout !== 'audio-with-image';
     /**
      * The tracks that have settled, held **at their authored index** with the
      * unsettled and the dropped left as holes.
@@ -796,7 +914,10 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             return unplayable;
         },
         adoptWaveform(module: WaveformModule, peaks: Peaks): void {
-            if (options.layout === 'video') return;
+            // Only the `audio` layout has a timeline lane to draw into. Every
+            // other layout's peaks go to the scrubber strip in the control bar
+            // instead, which is the caller's own path.
+            if (options.layout !== 'audio') return;
             // The surface factory comes from the loaded chunk rather than from
             // an import here: it is waveform code, and an import would pull it
             // into the entry alongside the parsers it is useless without.
@@ -811,53 +932,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         paintWaveform(): void {
             waveform?.paint(media.currentTime);
         },
-        place(rect: StageRect | null, visible: VisibleBox): void {
-            // What of the projection is inside the container. A stage whose
-            // rect overhangs stays the size of its rect — the lanes divide the
-            // canvas, not the viewport — and is CLIPPED to this instead, which
-            // takes the overhanging part out of hit testing as well as out of
-            // the picture (see `clipRect`). Without that, an audio canvas's
-            // lane, which fills its whole rect, reaches over the columns beside
-            // the container and swallows taps aimed at the chrome there.
-            const shown = rect ? clipRect(rect, visible) : null;
-            root.hidden = shown === null;
-            if (!rect || !shown) {
-                placement = null;
-                waveform?.place(null, { width: 0, height: 0 });
-                return;
-            }
-            root.style.left = `${rect.left}px`;
-            root.style.top = `${rect.top}px`;
-            root.style.width = `${rect.width}px`;
-            root.style.height = `${rect.height}px`;
-            root.style.clipPath = clipPathFor(rect, shown);
-
-            // The lanes divide the rect in the ROOT's own coordinates, which
-            // is why the split is computed from an origin-anchored copy: the
-            // root already carries the projection.
-            const lanes = stageLanes(
-                { left: 0, top: 0, width: rect.width, height: rect.height },
-                options.layout,
-            );
-            placeLane(visualLane, lanes.visual);
-            placeLane(timelineLane, lanes.timeline);
-            if (rect.width > 0) requestStills(lanes, rect);
-
-            if (lanes.timeline) {
-                // The surface clips against the CONTAINER's box, so the lane
-                // goes back into container coordinates the root already carries.
-                placement = {
-                    lane: {
-                        ...lanes.timeline,
-                        left: rect.left + lanes.timeline.left,
-                        top: rect.top + lanes.timeline.top,
-                    },
-                    visible,
-                };
-                waveform?.place(placement.lane, placement.visible);
-                waveform?.paint(media.currentTime);
-            }
-        },
+        place,
         setCannotPlayMessage(message: string): void {
             unplayableNotice.textContent = message;
         },
@@ -891,6 +966,8 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             hlsAttachment?.destroy();
             hlsAttachment = null;
             media.removeEventListener('error', onError);
+            media.removeEventListener('loadeddata', reveal);
+            media.removeEventListener('playing', reveal);
             media.removeEventListener('play', onPlay);
             media.removeEventListener('pause', onPause);
             media.removeEventListener('ended', onEnded);
@@ -898,13 +975,11 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             unbindTaps();
             waveform?.destroy();
             media.pause();
-            // Drop every source before detaching so the browser stops any
+            // Drop the source before detaching so the browser stops any
             // transfer still in flight for a canvas nobody is looking at any
-            // more — the stills as much as the stream.
+            // more.
             media.removeAttribute('src');
             media.load();
-            accompanyingImage?.removeAttribute('src');
-            placeholderOverlay?.removeAttribute('src');
             root.remove();
         },
     };

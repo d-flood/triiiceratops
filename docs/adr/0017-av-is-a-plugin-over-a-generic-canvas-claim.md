@@ -45,6 +45,39 @@ pipeline continuing under the claimant's overlay. The claim is scoped to non-ima
 precisely so compositing is free and the seam stays generic — a future 3D plugin claims a
 canvas whose Model body core already classifies as non-image, and gets the same clean box.
 
+!!! note "Amended: companion canvases are core's to paint, and the claimant supplies only timing"
+
+    The rejected-alternatives passage above names `accompanyingCanvas` and
+    `placeholderCanvas` among the "separate Canvas resources core never painted."
+    That was a description of the wiring at the time, not a principle, and the
+    `paint-companion-canvases` epic reverses it: **core resolves and paints both
+    companions itself**, through the same descriptor builder and tile ladder every
+    other canvas goes through, into the claimed canvas's rect. A companion is a
+    Canvas, so it deep-zooms, pans and honours Choice, region placements and both id
+    spellings for free — none of which the plugin's own resolver ever handled.
+
+    **The claimant supplies only *timing*.** Knowing that playback has started is the
+    one thing core cannot know, so that is the entire contribution: a
+    `setCompanionPhase` command naming `'none' | 'placeholder' | 'accompanying'` for
+    a canvas the caller has claimed.
+
+    **An enum, not a Canvas payload**, deliberately. A payload would put
+    plugin-supplied JSON into core's planner — a second, unversioned way for a
+    resource to reach the tile pipeline, and a second thing to validate. The enum
+    carries no resource at all: core reads the manifest, the claimant says when.
+
+    **`placeholderCanvas` and `accompanyingCanvas` are ordinary Presentation 3
+    vocabulary**, most often used with time-based media but not defined in terms of
+    it — which is what keeps this seam media-agnostic. A future claimant of another
+    medium gets companion painting on the same terms, without core learning anything
+    about that medium.
+
+    This amends only the sentence about companions. The decision itself is unchanged
+    and so are the rejected alternatives: the claim is still scoped to non-image
+    content, core still paints image bodies under the claimant's overlay, and a
+    claim on its own still paints no companion — a phase is a separate, explicit
+    opt-in.
+
 Two deliberate deviations ride along. The plugin's IIFE build breaks the single-file
 plugin template: hls.js and the waveform code are emitted as separate chunks loaded on
 demand (native HLS is used where the browser has it; hls.js is imported only when an HLS

@@ -133,6 +133,22 @@ export interface PlannerCanvas {
      * image's own box (see `planScene.planThumbnail`).
      */
     thumbnailUrl?: string | null;
+    /**
+     * Pictures this canvas does not paint but is about to — held **resident and
+     * unpainted**, so that whatever names them next has them already.
+     *
+     * The one producer is `companionCanvases.withCompanion`: a claimed canvas
+     * showing its `placeholderCanvas` carries its `accompanyingCanvas` here, so
+     * that pressing play selects between two pictures in hand rather than
+     * starting a fetch (user story 41). Absent everywhere else, including on
+     * every canvas of every manifest with no AV plugin registered.
+     *
+     * **One request each, and never a draw**: the base level where that is a
+     * single tile covering the whole image, and otherwise the base rung of the
+     * thumbnail ladder. A companion with no such cheap whole view is not warmed
+     * at all. `planScene` says why that is the bound it is.
+     */
+    warmImages?: PlannerImage[];
 }
 
 /** A point in canvas space. */

@@ -1,9 +1,9 @@
 {
-    "count": 87,
+    "count": 88,
     "byClassification": {
         "command": 39,
         "observable": 14,
-        "internal": 30,
+        "internal": 31,
         "query-only": 4
     },
     "entries": [
@@ -87,6 +87,11 @@
         },
         {
             "member": "collectionThumbnailHydrationId",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "companionPhases",
             "classification": "internal",
             "commands": null
         },

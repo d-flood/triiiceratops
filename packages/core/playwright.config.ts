@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { E2E_ORIGIN, E2E_PORT } from './tests/helpers/origin';
+
 // Desktop projects (chromium, firefox, webkit) run the core journeys; mobile
 // projects (android-chrome, mobile-webkit) run only the mobile journey set,
 // selected with the `@mobile` tag. Desktop projects run every spec (the mobile
@@ -21,11 +23,9 @@ export default defineConfig({
     timeout: 60_000,
     reporter: 'html',
     use: {
-        // Pin to the IPv4 loopback (not `localhost`): Firefox/WebKit resolve
-        // `localhost` to IPv6 `::1` while Vite's dev server binds IPv4 only,
-        // which makes those engines fail to connect. `127.0.0.1` is unambiguous
-        // across all engines.
-        baseURL: 'http://127.0.0.1:5175',
+        // Shared with the specs that need an absolute URL; set `E2E_PORT` to
+        // run on a port of your own. See `tests/helpers/origin.ts`.
+        baseURL: E2E_ORIGIN,
         trace: 'on-first-retry',
     },
     projects: [
@@ -55,8 +55,8 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'pnpm dev --port 5175 --host 127.0.0.1',
-        url: 'http://127.0.0.1:5175',
+        command: `pnpm dev --port ${E2E_PORT} --host 127.0.0.1`,
+        url: E2E_ORIGIN,
         reuseExistingServer: !process.env.CI,
     },
 });

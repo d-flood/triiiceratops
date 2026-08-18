@@ -275,11 +275,27 @@ _Avoid_: error placeholder (that is `CanvasErrorKind`, a load failure), broken c
 **Canvas claim**:
 A plugin taking ownership of the non-image content of one canvas in one viewer
 instance. Claiming suppresses the unsupported presentation (and its thumbnail noise)
-for that canvas; it changes nothing else core does — image painting bodies still render
-through the normal pipeline, and layout, navigation, and coordinate projection are
-untouched. One claimant per canvas; a second claim is refused. Claims are keyed to the
-activation and released when it ends.
+for that canvas; on its own it changes nothing else core does — image painting bodies
+still render through the normal pipeline, and layout, navigation, and coordinate
+projection are untouched. What a claim adds is eligibility: only a claimed canvas can
+be given a **companion phase**, and only its claimant can set one. One claimant per
+canvas; a second claim is refused. Claims are keyed to the activation and released when
+it ends.
 _Avoid_: canvas takeover, render veto (a claim does not stop core's image painting)
+
+**Companion phase**:
+Which companion Canvas — `placeholderCanvas` or `accompanyingCanvas` — core paints for a
+claimed canvas right now: `'none' | 'placeholder' | 'accompanying'`. Set only by that
+canvas's claimant, and released with the claim. Core reads both companions itself and
+paints the chosen one through the ordinary image pipeline, so a companion deep-zooms and
+pans like any other canvas; the claimant's only contribution is _timing_, because knowing
+that playback has started is the one thing core cannot know. An **absent** phase is not
+`'none'`: absent passes the descriptor through untouched, while an explicit `'none'` keeps
+the adopted companion rect and paints nothing into it — so no phase transition ever
+reflows the page. Geometry is decided once, from the companion that resolved to something
+requestable, and never by the phase.
+_Avoid_: painted companion (nothing is handed over — core resolves the Canvas itself),
+companion payload (the seam deliberately carries no resource, only an enum)
 
 **Input claim**:
 A consumer temporarily owning pointer input, suppressing pan and zoom gestures for its
@@ -411,10 +427,15 @@ fullscreen chrome (a different feature this viewer does not have)
 
 **Stage layout**:
 The claimant's allocation of its claimed canvas rect into vertical lanes, all in canvas
-space so the stack pans and zooms coherently: a visual lane (video frame or
-accompanying image) and a timeline lane (waveform). Audio without an accompanying
-image gives the timeline lane the whole rect; video takes the whole rect as visual
-lane.
+space so the stack pans and zooms coherently. Chosen by **what core paints in the rect**,
+never by which element decodes the body: `video` — the picture is the media element, so
+the visual lane fills the rect; `audio-with-image` — core paints a companion Canvas there,
+so the plugin draws no lanes at all and contributes only a tap target, the play-state
+glyph and the "can't play" notice; `audio` — nothing to look at either way, so the
+timeline lane fills the rect and carries the waveform. A stage's layout can change once,
+at first play: a duration-only canvas whose only companion is a `placeholderCanvas` takes
+`audio-with-image` before play and falls to `audio` on the handover, keeping the
+companion's aspect throughout so the rect does not move.
 _Avoid_: media layout (ambiguous with the viewer's canvas layout)
 
 **Timeline projection**:

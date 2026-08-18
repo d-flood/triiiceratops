@@ -1,8 +1,8 @@
 /**
  * The **stage layout**: how a claimed canvas's rect is divided into lanes.
  *
- * A vertical split of the SAME rect, in canvas space, so the whole stack pans
- * and zooms with the canvas it belongs to. That is what separates it from the
+ * A division of the SAME rect, in canvas space, so the whole stack pans and
+ * zooms with the canvas it belongs to. That is what separates it from the
  * transport, which is anchored to the rect but sized in screen pixels.
  *
  * Pure arithmetic, deliberately: a lane split is the thing a test can state
@@ -12,17 +12,17 @@
 import type { StageRect } from './mediaStage';
 
 /**
- * Which lanes a canvas gets. Fixed for v1 (SPEC — "Rendering: stage layout"):
+ * Which lanes a canvas gets, chosen by **what core paints in this rect**:
  *
- * - `video` — the visual lane fills the rect. Video canvases get no timeline
- *   lane; waveform data on video appears inside the scrubber instead.
- * - `audio` — nothing to look at, so the timeline lane fills the rect.
- * - `audio-with-image` — the accompanying image above, a timeline strip below.
+ * - `video` — core paints nothing and the picture is the element, so the visual
+ *   lane fills the rect. Waveform data on video appears inside the scrubber.
+ * - `audio-with-image` — core paints a companion Canvas here, so the plugin
+ *   draws no lanes at all: the rect belongs to the renderer, and the stage
+ *   contributes only a tap target, the glyph and the "can't play" notice.
+ * - `audio` — nothing to look at either way, so the timeline lane fills the
+ *   rect and carries the waveform.
  */
 export type StageLayoutKind = 'video' | 'audio' | 'audio-with-image';
-
-/** How much of the rect the timeline strip takes when it shares it (v1). */
-export const TIMELINE_LANE_FRACTION = 0.25;
 
 /**
  * The lanes of one stage, in the coordinate space the rect was given in.
@@ -36,27 +36,26 @@ export interface StageLanes {
 /**
  * Which layout a scanned canvas gets.
  *
- * Driven by whether the CANVAS has a picture — it declares spatial dimensions —
- * and not by which element plays it. The two part company on
- * `0014-accompanyingcanvas`, whose body is a `Sound` formatted `video/mp4`:
- * `<video>` is the only element that will play it, but the canvas is
- * duration-only and its picture is the accompanying still, so it wants the
- * audio layout that has a lane to put that still in.
+ * Driven by what is drawn in the rect and never by which element plays the
+ * body. The two part company on `0014-accompanyingcanvas`, whose body is a
+ * `Sound` formatted `video/mp4`: `<video>` is the only element that will play
+ * it, but the canvas is duration-only and its picture is the companion Canvas
+ * core paints — so the plugin must keep out of the rect rather than cover the
+ * score with the element that happens to be decoding the sound.
  */
 export function stageLayoutKind(
     canvasPaintsPicture: boolean,
-    hasAccompanyingImage: boolean,
+    corePaintsCompanion: boolean,
 ): StageLayoutKind {
     if (canvasPaintsPicture) return 'video';
-    return hasAccompanyingImage ? 'audio-with-image' : 'audio';
+    return corePaintsCompanion ? 'audio-with-image' : 'audio';
 }
 
 /**
  * Divide a rect into its lanes.
  *
- * The split is by fraction rather than by a pixel height, because the rect is a
- * projection: at any zoom the strip stays the same share of the canvas, which
- * is what "in canvas space" means for a reader who is zooming.
+ * A canvas core paints a companion into gets none: whatever the plugin drew
+ * there would sit above the renderer's canvas (`z-index: 40`) and hide it.
  */
 export function stageLanes(
     rect: StageRect,
@@ -64,22 +63,7 @@ export function stageLanes(
 ): StageLanes {
     if (layout === 'video') return { visual: rect, timeline: null };
     if (layout === 'audio') return { visual: null, timeline: rect };
-
-    const timelineHeight = rect.height * TIMELINE_LANE_FRACTION;
-    return {
-        visual: {
-            left: rect.left,
-            top: rect.top,
-            width: rect.width,
-            height: rect.height - timelineHeight,
-        },
-        timeline: {
-            left: rect.left,
-            top: rect.top + (rect.height - timelineHeight),
-            width: rect.width,
-            height: timelineHeight,
-        },
-    };
+    return { visual: null, timeline: null };
 }
 
 /**

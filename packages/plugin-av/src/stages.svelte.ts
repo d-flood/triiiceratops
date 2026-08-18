@@ -18,7 +18,14 @@
  */
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';
-import { isUnsupportedCanvasFor } from 'triiiceratops';
+import {
+    getPaintingAnnotations,
+    isImageBody,
+    isUnsupportedCanvasFor,
+    paintingBodyAlternatives,
+    type ChoiceSelection,
+    type CompanionPhase,
+} from 'triiiceratops';
 
 import type { AVState } from './avState';
 import { createAvState } from './avPlayback';
@@ -29,10 +36,6 @@ import {
     type PlaylistBehaviors,
 } from './behaviors';
 import { captionTracksForCanvas, type CaptionTrack } from './captions';
-import {
-    resolveAccompanyingImage,
-    resolvePlaceholderImage,
-} from './companionCanvases';
 import {
     warnAboutCanvasRepeat,
     warnAboutDegradation,
@@ -109,6 +112,65 @@ interface StageEntry {
      * cannot change without a restage.
      */
     readonly textTranscript: TextTranscript | null;
+}
+
+/**
+ * Whether the canvas carries a companion Canvas under `property` that core will
+ * paint — the whole of what the plugin needs to know to set a phase.
+ *
+ * Core reads the vocabulary, resolves the picture and sizes every request, so
+ * nothing here inspects an image service or builds a URL: a companion is on the
+ * same tier ladder as any other canvas precisely because this plugin has no
+ * opinion about it (SPEC — "The plugin, reduced").
+ *
+ * A `true` answer has to mean core WILL paint, because the layout decision and
+ * the paint decision have to agree: yielding the rect to a picture that never
+ * arrives leaves the reader a blank stage, where the honest fallback is the
+ * treatment the canvas would have had with no companion at all (SPEC —
+ * "Degradation and honesty"). So each of core's own refusals is asked here:
+ *
+ * - a value that is not an object, or that carries no `items` holding a
+ *   non-empty AnnotationPage, is **absent**. `items` and nothing else: core
+ *   reaches a companion through that one spelling, so a v2 `images` or a
+ *   3.0-beta `content` companion is absent to it however paintable it looks;
+ * - a canvas with no id resolves to no images at all;
+ * - a companion core cannot paint — a Text or Video body, and for a Choice the
+ *   **selected** alternative rather than any of them — is refused by core's own
+ *   classifier, asked with the same selection core resolves with;
+ * - an image body with no id and no service resolves to nothing requestable.
+ */
+function paintsCompanion(
+    selection: ChoiceSelection,
+    canvas: unknown,
+    property: string,
+): boolean {
+    const companion = (canvas as Record<string, unknown> | null | undefined)?.[
+        property
+    ];
+    if (!companion || typeof companion !== 'object') return false;
+
+    const pages = (companion as { items?: unknown }).items;
+    if (
+        !Array.isArray(pages) ||
+        !pages.some(
+            (page) =>
+                Array.isArray((page as { items?: unknown } | null)?.items) &&
+                (page as { items: unknown[] }).items.length > 0,
+        )
+    )
+        return false;
+    if (!canvasIdOf(companion)) return false;
+    if (isUnsupportedCanvasFor(selection, companion)) return false;
+
+    for (const annotation of getPaintingAnnotations(companion)) {
+        for (const body of paintingBodyAlternatives(annotation)) {
+            if (!isImageBody(body)) continue;
+            const record = body as Record<string, unknown>;
+            const id = record.id ?? record['@id'];
+            if (typeof id === 'string' && id !== '') return true;
+        }
+    }
+    return false;
 }
 
 function canvasIdOf(canvas: unknown): string {
@@ -649,22 +711,64 @@ export function createAvStageManager(
 
         const rect = rectFor(scan);
 
-        // Resolved here, requested by the stage once it has a lane to size the
-        // request against: at claim time the renderer has usually not laid the
-        // canvas out, and in `individuals` mode it never lays out any canvas
-        // but the current one.
-        const accompanying = resolveAccompanyingImage(canvas);
+        // By what is painted in the rect PERMANENTLY: the accompanying canvas
+        // outlives playback, so it is what decides whether this plugin draws
+        // lanes at all. A canvas core paints one into gets none — only a tap
+        // target and the glyph.
         const layout = stageLayoutKind(
             scan.width !== null && scan.height !== null,
-            accompanying !== null,
+            paintsCompanion(viewerState, canvas, 'accompanyingCanvas'),
         );
+
+        /*
+            The companion phase is the whole of what this plugin says about the
+            picture: which of the canvas's own Presentation 3 properties core
+            should render right now. Core reads the vocabulary and resolves it
+            through its ordinary image pipeline, so a placeholder deep-zooms
+            like any other canvas rather than being one fixed-size still.
+
+            A phase is set only where the stage leaves core's painting visible,
+            so the two can never disagree. Nothing of the plugin's is over the
+            rect while a placeholder shows: the media element is invisible for
+            exactly that long, and the `audio` layout's opaque timeline lane —
+            which would otherwise cover the still — stands down for it and
+            takes the rect back on the first play. A canvas laid out at the
+            still's aspect keeps that rect through the handover, because a
+            reflow at the moment playback starts is what story 10 forbids.
+        */
+        const showsPlaceholder = paintsCompanion(
+            viewerState,
+            canvas,
+            'placeholderCanvas',
+        );
+        const setPhase = (phase: CompanionPhase): void =>
+            viewerState.setCompanionPhase(
+                scan.canvasId,
+                context.surface.id,
+                phase,
+            );
+
+        if (showsPlaceholder) setPhase('placeholder');
+        else if (layout === 'audio-with-image') setPhase('accompanying');
 
         const stage = createMediaStage({
             canvasId: scan.canvasId,
             source,
             layout,
-            accompanying,
-            placeholder: resolvePlaceholderImage(canvas),
+            awaitsFirstPlay: showsPlaceholder,
+            // The rect is the same across every phase (core decides it once,
+            // from the accompanying canvas ahead of the placeholder), so the
+            // handover moves nothing under the reader. An explicit `'none'`
+            // rather than no phase at all is what keeps that true: a released
+            // phase would hand the canvas back its own geometry.
+            onFirstPlay: showsPlaceholder
+                ? () =>
+                      setPhase(
+                          layout === 'audio-with-image'
+                              ? 'accompanying'
+                              : 'none',
+                      )
+                : undefined,
             duration: scan.duration,
             cannotPlayMessage: cannotPlayMessage(),
             captions: captionTracksForCanvas(canvas),

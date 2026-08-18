@@ -1146,6 +1146,70 @@ Declare `canvas-claim` in `requiredCapabilities` if you call this, so your plugi
 fails closed on a core that predates the seam instead of activating and rendering
 over a placard it cannot suppress.
 
+### The second half of a claim: the companion phase
+
+A claim on its own paints nothing, but a claimed canvas often *has* a picture to
+show — IIIF gives a canvas two ordinary Presentation 3 properties for it,
+`placeholderCanvas` (what to show before the content starts) and
+`accompanyingCanvas` (what to show alongside it). Both are **Canvases**, and core
+paints them for you.
+
+`viewerState.setCompanionPhase(canvasId, pluginId, phase)` says which one core
+should paint into that canvas's rect right now:
+
+| Phase | What core paints |
+| --- | --- |
+| `'placeholder'` | the canvas's `placeholderCanvas` |
+| `'accompanying'` | its `accompanyingCanvas` |
+| `'none'` | nothing — but the rect the companion established is kept |
+| *never called* | nothing, and the canvas's descriptor is untouched |
+
+The phase **names** a property; it never carries one. Core reads the vocabulary
+itself and resolves the companion through the same descriptor builder every other
+canvas goes through, so a companion deep-zooms to whatever its image service
+serves, pans with the viewer's own gestures, and honours Choice bodies, region
+placements and both id spellings for free. Nothing crosses the seam but the enum —
+there is no way to hand core a Canvas, deliberately.
+
+Your only contribution is **timing**, because that is the one thing core cannot
+know. A media plugin's schedule is the obvious shape: `'placeholder'` when it
+claims, `'accompanying'` (or an explicit `'none'`) the moment playback really
+starts.
+
+Four rules worth knowing before you wire it up:
+
+- **Only the canvas's claimant may set a phase.** An unclaimed canvas, a canvas
+  another plugin holds, an id no plugin of this viewer answers to, or an
+  unrecognized phase string is refused on the `viewererror` channel with
+  `code: 'canvas-claim-refused'`, exactly as a refused claim is, and leaves the
+  stored phase alone. A typo is reported rather than quietly turning painting off.
+- **A phase is released with the claim** — by the claim's own dispose and by the
+  same deactivation backstops. There is no second release to forget.
+- **Never called is not `'none'`.** Never calling leaves the canvas's descriptor
+  exactly as it would be with no claimant at all. An explicit `'none'` keeps the
+  rect the companion established and paints nothing into it — which is what stops a
+  phase change from reflowing the page mid-playback. Geometry is decided once, from
+  whichever companion resolved to something requestable, and never by the phase.
+- **There is no fallback between the two.** A phase naming a property the canvas
+  does not have paints nothing, because only you know which one you meant.
+
+```ts
+// In the claimant, once playback has a frame to show.
+context.viewerState.setCompanionPhase(
+    canvasId,
+    context.surface.id, // the same id you claimed with
+    'accompanying',
+);
+```
+
+`viewerState.isPaintingCompanion(canvasId)` is the read for your own chrome — a
+recording with a picture in its rect needs different lanes from one without. It is
+reactive inside a Svelte host (the storage is a `SvelteMap`), but it is classified
+`internal` and therefore **never notifies**, so a host watching through
+`subscribe()` has to poll it.
+
+This is part of the `canvas-claim` capability; there is nothing extra to declare.
+
 ### Capabilities
 
 `requiredCapabilities` is normally `[]`. Capability negotiation exists for
@@ -1153,7 +1217,8 @@ genuinely optional runtime features, not for versions: a plugin states which
 *core* it works with through `coreRange`. Core declares five capabilities today:
 
 - `canvas-claim` — `ViewerState.claimCanvas`, the seam a plugin owning a
-  canvas's non-image content builds on.
+  canvas's non-image content builds on, and with it `setCompanionPhase` and
+  `isPaintingCompanion`.
 - `published-state` — `PluginContext.publishState`, which a host reads back
   through `viewerState.getPluginState(pluginId)`.
 - `shared-svelte-runtime` — the curated Svelte helpers core publishes on

@@ -1174,7 +1174,7 @@ export { resolveLanguageValue } from './utils/languageMap';
 // ======================================================================
 // FILE: dist/index.d.ts
 // ======================================================================
-export type { ViewerState, ViewerStateSnapshot } from './state/viewer.svelte';
+export type { CompanionPhase, ViewerState, ViewerStateSnapshot, } from './state/viewer.svelte';
 export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, } from './types/config';
 export type { PluginMenuButton, PluginPanel, PluginFlyout, PluginUiTarget, } from './types/plugin';
 export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService, LocaleCatalog, IconDescriptor, PluginIcon, PluginUiService, PluginSurface, PluginContext, PublishedState, PublishedStateClassification, PluginView, PluginHost, PluginActivation, SdkPluginMeta, SdkPlugin, PluginErrorPhase, PluginError, PluginErrorReport, } from './types/plugin';
@@ -2359,6 +2359,22 @@ export interface PlannerCanvas {
      * image's own box (see `planScene.planThumbnail`).
      */
     thumbnailUrl?: string | null;
+    /**
+     * Pictures this canvas does not paint but is about to — held **resident and
+     * unpainted**, so that whatever names them next has them already.
+     *
+     * The one producer is `companionCanvases.withCompanion`: a claimed canvas
+     * showing its `placeholderCanvas` carries its `accompanyingCanvas` here, so
+     * that pressing play selects between two pictures in hand rather than
+     * starting a fetch (user story 41). Absent everywhere else, including on
+     * every canvas of every manifest with no AV plugin registered.
+     *
+     * **One request each, and never a draw**: the base level where that is a
+     * single tile covering the whole image, and otherwise the base rung of the
+     * thumbnail ladder. A companion with no such cheap whole view is not warmed
+     * at all. `planScene` says why that is the bound it is.
+     */
+    warmImages?: PlannerImage[];
 }
 /** A point in canvas space. */
 export interface Point {
@@ -3301,6 +3317,15 @@ export type TemporalOffset = IiifTemporalFragment & {
     canvasId: string;
 };
 /**
+ * Which companion Canvas core paints for a claimed canvas, if either.
+ *
+ * The value names a Presentation 3 property of the claimed canvas —
+ * `placeholderCanvas` or `accompanyingCanvas` — which core resolves itself; it
+ * never carries one. `'none'` is the default, so a claimant that never sets a
+ * phase leaves the claim's suppression-only semantics exactly as they are.
+ */
+export type CompanionPhase = 'none' | 'placeholder' | 'accompanying';
+/**
  * Snapshot of viewer state for external consumers.
  * Used by web component events to expose state without Svelte reactivity.
  */
@@ -3973,6 +3998,76 @@ export declare class ViewerState {
     claimCanvas(canvasId: string, pluginId: string): () => void;
     /** Whether a plugin owns this canvas's non-image content. */
     isCanvasClaimed(canvasId: string): boolean;
+    /**
+     * The **companion phase** per claimed canvas: canvas id → which companion
+     * Canvas core paints for it right now.
+     *
+     * Not exposed as a collection: the phase is one claimant's instruction
+     * about one canvas, not a set hosts select over, so
+     * {@link isPaintingCompanion} is the only read and the published surface
+     * carries no getter.
+     *
+     * TS `private` rather than an ECMAScript `#` field, unlike the private
+     * fields below: an inventoried member must stay visible to the state
+     * inventory's enumerable-member reflection. So this is a compile-time
+     * privacy only — a caller willing to cast can reach the map, which
+     * `claimedCanvases` (a getter with no setter) does prevent. That is
+     * accepted here rather than worked around: reaching it needs a cast past
+     * the plugin surface's `Readonly<>`, and `setCompanionPhase` remains the
+     * only path that upholds the one-claimant rule.
+     *
+     * A `SvelteMap` so the reactive reads that select a companion descriptor
+     * re-run when the phase moves, exactly as the claim set does; the invariant
+     * is enforced by `REACTIVE_COLLECTION_MEMBERS`.
+     */
+    private companionPhases;
+    /**
+     * Say which companion Canvas core should paint for a canvas this plugin has
+     * claimed — or neither.
+     *
+     * The phase NAMES a property of the claimed canvas and never carries one:
+     * `'placeholder'` asks for its `placeholderCanvas`, `'accompanying'` for its
+     * `accompanyingCanvas`, and core resolves the vocabulary itself. A phase
+     * naming a property the canvas does not have paints nothing; there is no
+     * fallback between the two, because only the claimant knows which it means.
+     *
+     * The default is `'none'`, so painting is opt-in: a claimant that never
+     * calls this changes nothing about what core renders and the claim keeps the
+     * suppression-only semantics {@link claimCanvas} documents.
+     *
+     * **Only the canvas's claimant may set a phase.** A call naming an empty
+     * canvas or plugin id, a plugin this viewer knows nothing of, an unclaimed
+     * canvas, or a canvas held by another plugin is refused and reported on the
+     * structured `viewererror` channel exactly as a refused claim is, and leaves
+     * the stored phase untouched. An unrecognized phase is refused too rather
+     * than coerced to `'none'`, so a typo is reported instead of silently
+     * turning painting off.
+     *
+     * **Released with the claim** — by the claim's own dispose and by the
+     * {@link unregisterPlugin}/{@link destroyAllPlugins} backstops — so there is
+     * no second release for a claimant to forget, and a departed plugin cannot
+     * leave core painting a canvas nothing owns.
+     */
+    setCompanionPhase(canvasId: string, pluginId: string, phase: CompanionPhase): void;
+    /**
+     * Whether a claimed canvas is currently asking core to paint a companion —
+     * the boolean a host's own chrome needs to tell a recording with a picture
+     * from one without.
+     */
+    isPaintingCompanion(canvasId: string): boolean;
+    /**
+     * Which companion a claimed canvas is asking core to paint, or `undefined`
+     * where its claimant has never said.
+     *
+     * The renderer's read, and the reason it is not {@link isPaintingCompanion}:
+     * painting needs the phase's identity, not the boolean, and `undefined` is
+     * distinct from `'none'` — a claimant that never asked changes nothing about
+     * the canvas's descriptor, while an explicit `'none'` is a claimant that
+     * asked for the companion to stop being painted and keeps the rect it had.
+     *
+     * @internal
+     */
+    companionPhaseFor(canvasId: string): CompanionPhase | undefined;
     /**
      * A refused claim is an author error the developer must be told about, so
      * it goes out on the structured channel as well as the debug log — the same

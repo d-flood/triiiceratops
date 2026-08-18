@@ -432,7 +432,7 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **17,040**.
+ * the same level this script uses — which currently reads **17,017**.
  *
  * The playback chrome is NOT in this number and must never come back into it:
  * core renders it, from the view model `src/transport.svelte.ts` registers

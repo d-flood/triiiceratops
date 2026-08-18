@@ -55,8 +55,10 @@
         void tileSources;
         // Read so the effect re-runs when the manifest or the mode changes and
         // the world has to be refitted; the images themselves are reconciled in
-        // the frame loop, where the tier that gates them is known.
-        void renderer.plannerCanvases;
+        // the frame loop, where the tier that gates them is known. Geometry
+        // only — a refit overwrites the reader's centre and scale, so it must
+        // not fire for a change that leaves every rect where it was.
+        void renderer.paintedGeometry;
 
         // Whether this is a TRAVEL within a laid-out world or a jump into a new
         // one is the renderer's own memory — see `refitForCurrentWorld`.
@@ -194,7 +196,6 @@
         onpointerup={renderer.handlers.pointerup}
         onpointercancel={renderer.handlers.pointercancel}
         onlostpointercapture={renderer.handlers.pointercancel}
-        onwheel={renderer.handlers.wheel}
     ></canvas>
 
     <!--

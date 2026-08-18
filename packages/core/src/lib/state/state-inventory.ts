@@ -525,6 +525,12 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: "The canvas claim set: SvelteMap of canvasId -> claiming pluginId, held privately and read through a ReadonlyMap getter, so one-claimant-per-canvas cannot be bypassed by writing to the collection (the overlay registry is private for the same reason). `command`, not `internal`, unlike that registry: a layer is a container core hands back to its one registrant, while WHICH canvases a plugin has taken over is a fact about the viewer that hosts and wrappers select over — which of two AV canvases is the plugin's, whether a canvas is claimable at all. Released by the claim's own dispose and, as a backstop, by unregisterPlugin/destroyAllPlugins.",
     },
 
+    {
+        member: 'companionPhases',
+        classification: 'internal',
+        notes: "The companion phase per claimed canvas: SvelteMap of canvasId -> CompanionPhase, written by setCompanionPhase and cleared with the claim (the claim's own dispose, and unregisterPlugin/destroyAllPlugins as backstops). `internal` for the reason overlayLayers and transportChrome are, and unlike claimedCanvases beside it: a claimant issues a command and core holds the result for its own rendering, so there is no enum for a host to select over. The one host-facing question — is this canvas showing a companion — is answered by the isPaintingCompanion() boolean, which is why the map is private and not a readable collection. `internal` therefore never notifies (ADR 0008): a Svelte host's read of isPaintingCompanion() re-runs anyway because the map is a SvelteMap (see REACTIVE_COLLECTION_MEMBERS), but a host watching through subscribe() must poll it. Reclassifying to `command` is the change to make if that ever bites.",
+    },
+
     // ---- Plugin registration -------------------------------------------------
     {
         member: 'pluginMenuButtons',
@@ -636,4 +642,5 @@ export const REACTIVE_COLLECTION_MEMBERS: readonly string[] = [
     'loadedManifestIds',
     'selectedChoices',
     'claimedCanvases',
+    'companionPhases',
 ];

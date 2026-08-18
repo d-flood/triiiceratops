@@ -76,6 +76,11 @@ function timelineLaneOf(stage: { root: HTMLElement }): HTMLElement {
     )!;
 }
 
+/** The full-rect tap target, which only a painted companion's stage builds. */
+function tapTargetOf(stage: { root: HTMLElement }): HTMLElement {
+    return stage.root.querySelector<HTMLElement>('[data-testid="av-tap"]')!;
+}
+
 /**
  * A pointer gesture on a lane: down where it started, up where it ended. The
  * `up` goes to the window because that is where the stage listens for it —
@@ -594,73 +599,47 @@ describe('the stage layout', () => {
         ).toBe(true);
     });
 
-    it('stacks an accompanying image over the strip', () => {
+    /*
+        The rect is core's where core paints a companion into it. Anything this
+        plugin drew there would sit above the renderer's canvas and hide the
+        picture, so the stage contributes a tap target and nothing else.
+    */
+    it('draws no lanes and no still where core paints a companion', () => {
         const stage = stageWithImage();
         stage.place({ left: 0, top: 0, width: 640, height: 400 }, VIEWPORT);
 
-        const visual = visualLaneOf(stage);
-        expect(
-            visual.querySelector('[data-testid="av-accompanying"]'),
-        ).not.toBeNull();
-        expect(visual.style.height).toBe('300px');
-        expect(timelineLaneOf(stage).style.top).toBe('300px');
-        expect(timelineLaneOf(stage).style.height).toBe('100px');
+        expect(visualLaneOf(stage).hidden).toBe(true);
+        expect(timelineLaneOf(stage).hidden).toBe(true);
+        expect(stage.root.querySelector('img')).toBeNull();
+        expect(tapTargetOf(stage)).not.toBeNull();
+    });
+
+    // The overlay layer is above the renderer's canvas, so an opaque stage
+    // renders the companion correctly and shows a black rect over it.
+    it('is transparent, element included, where core paints', () => {
+        const style = document.createElement('style');
+        style.textContent = STYLES;
+        document.head.append(style);
+        const stage = stageWithImage();
+        document.body.append(stage.root);
+
+        expect(getComputedStyle(stage.root).backgroundColor).toBe(
+            'rgba(0, 0, 0, 0)',
+        );
+        expect(getComputedStyle(stage.media).visibility).toBe('hidden');
     });
 });
 
-/**
- * A stage carrying an accompanying still whose URL records the width it was
- * asked for — which is the whole of the sizing contract this stage owns.
- */
+/** A stage on a canvas core is painting a companion Canvas into. */
 function stageWithImage() {
     return createMediaStage({
         canvasId: 'canvas/1',
         source: AUDIO,
         layout: 'audio-with-image',
-        accompanying: {
-            plain: false,
-            urlFor: (width) => `https://example.org/score/${Math.round(width)}`,
-        },
         cannotPlayMessage: 'nope',
         onPlayStateChange: () => {},
     });
 }
-
-describe('the accompanying still', () => {
-    function srcOf(stage: { root: HTMLElement }): string | null {
-        return (
-            stage.root
-                .querySelector<HTMLImageElement>(
-                    '[data-testid="av-accompanying"]',
-                )
-                ?.getAttribute('src') ?? null
-        );
-    }
-
-    // The request must be for the lane, not for the canvas: at claim time the
-    // renderer has usually laid nothing out, and asking then buys a
-    // full-resolution image for a strip a fraction of that size.
-    it('is not requested until there is a lane to size it against', () => {
-        const stage = stageWithImage();
-
-        expect(srcOf(stage)).toBeNull();
-
-        stage.place(null, VIEWPORT);
-        expect(srcOf(stage)).toBeNull();
-
-        stage.place({ left: 0, top: 0, width: 640, height: 400 }, VIEWPORT);
-        expect(srcOf(stage)).toBe('https://example.org/score/640');
-    });
-
-    // The v1 fence: one request, at the size the lane first had.
-    it('is not re-requested when the projection changes', () => {
-        const stage = stageWithImage();
-        stage.place({ left: 0, top: 0, width: 640, height: 400 }, VIEWPORT);
-        stage.place({ left: 0, top: 0, width: 1280, height: 800 }, VIEWPORT);
-
-        expect(srcOf(stage)).toBe('https://example.org/score/640');
-    });
-});
 
 describe('tapping the timeline lane', () => {
     function seekingStage(source: AvSource) {
@@ -712,53 +691,245 @@ describe('tapping the timeline lane', () => {
     });
 });
 
-describe('the placeholder', () => {
-    const PLAIN = {
-        plain: true,
-        urlFor: () => 'https://example.org/poster.png',
-    };
+/*
+    The placeholder is core's painting now, so the stage's whole part in it is
+    keeping out of the rect until playback starts. It builds no still of its
+    own and no image URL at all.
+*/
+describe('a canvas whose placeholder core paints', () => {
+    const awaiting = (onFirstPlay?: () => void, source: AvSource = VIDEO) =>
+        createMediaStage({
+            canvasId: 'canvas/1',
+            source,
+            layout: source.kind === 'video' ? 'video' : 'audio',
+            awaitsFirstPlay: true,
+            onFirstPlay,
+            cannotPlayMessage: 'nope',
+            onPlayStateChange: () => {},
+        });
 
-    it('is the video element’s poster when it is a plain image URL', () => {
+    /** What a media element reports before anything at all has been decoded. */
+    function withReadyState(media: HTMLMediaElement, value: number): void {
+        vi.spyOn(media, 'readyState', 'get').mockReturnValue(value);
+    }
+
+    it('keeps the element out of the picture until playback begins', () => {
+        const stage = awaiting();
+        stage.place({ left: 0, top: 0, width: 640, height: 360 }, VIEWPORT);
+
+        // By a class of its own, never the `hidden` attribute: `hidden` means
+        // "unplayable" on this element and would take it out of layout before
+        // it has been asked to decode anything.
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(true);
+        expect(stage.media.hidden).toBe(false);
+        expect(stage.root.querySelector('img')).toBeNull();
+
+        stage.media.dispatchEvent(new Event('play'));
+        stage.media.dispatchEvent(new Event('loadeddata'));
+
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(false);
+    });
+
+    /*
+        User story 12, and the whole reason the `poster` attribute could be
+        retired: `play` means the element was asked to play, not that it has a
+        picture. The element's own background is black, so revealing it here
+        would black the still out for the entire buffering interval — which on
+        the MSE path is every first play.
+    */
+    it('holds the still while the element is still buffering', () => {
+        const stage = awaiting();
+        withReadyState(stage.media, 0);
+
+        stage.media.dispatchEvent(new Event('play'));
+
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(true);
+
+        stage.media.dispatchEvent(new Event('playing'));
+
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(false);
+    });
+
+    // An element that already has data may fire neither event again, so the
+    // reveal cannot be left waiting on one.
+    it('reveals at once where there is already a frame', () => {
+        const stage = awaiting();
+        withReadyState(stage.media, 2);
+
+        stage.media.dispatchEvent(new Event('play'));
+
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(false);
+    });
+
+    /*
+        The stream hls.js attaches has nothing buffered until after `play()`, so
+        this is the path the black rect was worst on: no `src`, a MediaSource,
+        and a first frame whenever the network delivers one.
+    */
+    it('holds the still across an HLS attachment', async () => {
+        vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue(
+            '' as CanPlayTypeResult,
+        );
+        const attachHlsStream = vi.fn(() => ({ destroy: vi.fn() }));
+        vi.mocked(loadHls).mockResolvedValue({
+            attachHlsStream,
+        } as unknown as Awaited<ReturnType<typeof loadHls>>);
+
+        const stage = awaiting(undefined, {
+            url: 'https://example.org/stream.m3u8',
+            kind: 'video',
+            format: 'application/vnd.apple.mpegurl',
+        });
+        await vi.waitFor(() => expect(attachHlsStream).toHaveBeenCalled());
+        withReadyState(stage.media, 0);
+
+        stage.media.dispatchEvent(new Event('play'));
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(true);
+
+        stage.media.dispatchEvent(new Event('loadeddata'));
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(false);
+
+        vi.restoreAllMocks();
+    });
+
+    /*
+        A stream that fails has no frame coming, so the still stays: the stage
+        is transparent behind the can't-play notice rather than a black rect
+        over the only picture this canvas has.
+    */
+    it('leaves the still standing under a failed stream', () => {
+        const stage = awaiting();
+
+        stage.media.dispatchEvent(new Event('error'));
+
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(true);
+        expect(
+            stage.root.querySelector<HTMLElement>(
+                '[data-testid="av-cannot-play"]',
+            )!.hidden,
+        ).toBe(false);
+    });
+
+    /*
+        User story 12. The element is revealed BEFORE the caller is told to hand
+        the rect back, so the two pictures overlap for a frame rather than
+        leaving one in which neither is drawn.
+    */
+    it('reveals the element before reporting the first play', () => {
+        let classAtCallback: boolean | null = null;
+        const stage = awaiting(() => {
+            classAtCallback = stage.root.classList.contains('tri-av-unplayed');
+        });
+
+        stage.media.dispatchEvent(new Event('play'));
+        stage.media.dispatchEvent(new Event('loadeddata'));
+
+        expect(classAtCallback).toBe(false);
+    });
+
+    // Once, not on every play: a reader who pauses and resumes has already seen
+    // the handover, and asking for the placeholder back would flash the rect.
+    it('reports the first play and no later one', () => {
+        let plays = 0;
+        const stage = awaiting(() => {
+            plays += 1;
+        });
+
+        stage.media.dispatchEvent(new Event('play'));
+        stage.media.dispatchEvent(new Event('loadeddata'));
+        stage.media.dispatchEvent(new Event('pause'));
+        stage.media.dispatchEvent(new Event('play'));
+        stage.media.dispatchEvent(new Event('playing'));
+
+        expect(plays).toBe(1);
+    });
+
+    /*
+        A duration-only canvas whose only companion is a placeholder: its
+        timeline lane is opaque and fills the rect, so it stands down for the
+        still and takes the rect back on the first play. The rect itself never
+        changes — it is the still's, and a reflow at the moment playback starts
+        is what story 10 forbids.
+    */
+    describe('over an audio canvas', () => {
+        const RECT = { left: 0, top: 0, width: 640, height: 480 };
+        const stagedAudio = () => {
+            const stage = awaiting(undefined, AUDIO);
+            stage.place(RECT, VIEWPORT);
+            return stage;
+        };
+        const laneOf = (stage: ReturnType<typeof stagedAudio>) =>
+            stage.root.querySelector<HTMLElement>(
+                '[data-testid="av-timeline-lane"]',
+            )!;
+        const tapOf = (stage: ReturnType<typeof stagedAudio>) =>
+            stage.root.querySelector<HTMLElement>('[data-testid="av-tap"]');
+
+        it('draws no lane over the still, only a tap target', () => {
+            const stage = stagedAudio();
+
+            expect(laneOf(stage).hidden).toBe(true);
+            expect(tapOf(stage)!.hidden).toBe(false);
+        });
+
+        it('takes the rect back with its lane on the first frame', () => {
+            const stage = stagedAudio();
+
+            stage.media.dispatchEvent(new Event('play'));
+            stage.media.dispatchEvent(new Event('loadeddata'));
+
+            // Re-placed by the stage itself: the first play is not a frame the
+            // viewport moved in, so no placement of the reader's arrives.
+            const lane = laneOf(stage);
+            expect(lane.hidden).toBe(false);
+            expect(lane.style.width).toBe(`${RECT.width}px`);
+            expect(lane.style.height).toBe(`${RECT.height}px`);
+            // Gone with the lanes it stood in for: a target left over them
+            // would swallow every seek.
+            expect(tapOf(stage)!.hidden).toBe(true);
+        });
+
+        // The waveform is this canvas's picture of its own recording, and it is
+        // adopted long before the first play. Declining it for the layout the
+        // stage only borrows would lose it for good.
+        it('keeps its waveform for the playing rect', () => {
+            const stage = stagedAudio();
+            const surface = {
+                setPeaks: vi.fn(),
+                place: vi.fn(),
+                paint: vi.fn(),
+                destroy: vi.fn(),
+            };
+
+            stage.adoptWaveform(
+                {
+                    createWaveformSurface: () => surface,
+                } as unknown as Parameters<typeof stage.adoptWaveform>[0],
+                { length: 1, peaks: new Float32Array([1]) } as never,
+            );
+            stage.media.dispatchEvent(new Event('play'));
+            stage.media.dispatchEvent(new Event('loadeddata'));
+
+            expect(surface.setPeaks).toHaveBeenCalled();
+            expect(surface.place).toHaveBeenCalledWith(
+                expect.objectContaining({ width: RECT.width }),
+                VIEWPORT,
+            );
+        });
+    });
+
+    // A canvas with no placeholder shows its element from the start, as it
+    // always has: there is nothing behind it to let through.
+    it('shows the element from the start where nothing is painted', () => {
         const stage = createMediaStage({
             canvasId: 'canvas/1',
             source: VIDEO,
             layout: 'video',
-            placeholder: PLAIN,
-            cannotPlayMessage: 'nope',
-            onPlayStateChange: () => {},
-        });
-        stage.place({ left: 0, top: 0, width: 640, height: 360 }, VIEWPORT);
-
-        expect((stage.media as HTMLVideoElement).poster).toContain(
-            'poster.png',
-        );
-        expect(
-            stage.root.querySelector('[data-testid="av-placeholder"]'),
-        ).toBeNull();
-    });
-
-    // An audio element has no poster to hang it on, and a URL this plugin built
-    // off an image service is not the plain URL the contract reserves for one.
-    it('is an overlay otherwise, and the first play takes it away', () => {
-        const stage = createMediaStage({
-            canvasId: 'canvas/1',
-            source: AUDIO,
-            layout: 'audio',
-            placeholder: PLAIN,
             cannotPlayMessage: 'nope',
             onPlayStateChange: () => {},
         });
 
-        const overlay = stage.root.querySelector(
-            '[data-testid="av-placeholder"]',
-        );
-        expect(overlay).not.toBeNull();
-
-        stage.media.dispatchEvent(new Event('play'));
-
-        expect(
-            stage.root.querySelector('[data-testid="av-placeholder"]'),
-        ).toBeNull();
+        expect(stage.root.classList.contains('tri-av-unplayed')).toBe(false);
     });
 });
 
@@ -779,29 +950,6 @@ describe('destroy', () => {
         expect(stage.media.hasAttribute('src')).toBe(false);
         expect(load).toHaveBeenCalledTimes(1);
         expect(stage.root.isConnected).toBe(false);
-    });
-
-    // The stills are transfers too, and a stage is destroyed while they may
-    // still be in flight — on a manifest change, or when the activation ends.
-    it('drops the stills’ sources as well as the stream’s', () => {
-        const stage = createMediaStage({
-            canvasId: 'canvas/1',
-            source: AUDIO,
-            layout: 'audio-with-image',
-            accompanying: { plain: true, urlFor: () => 'score.png' },
-            placeholder: { plain: true, urlFor: () => 'poster.png' },
-            cannotPlayMessage: 'nope',
-            onPlayStateChange: () => {},
-        });
-        stage.place({ left: 0, top: 0, width: 640, height: 400 }, VIEWPORT);
-        const stills = [
-            ...stage.root.querySelectorAll<HTMLImageElement>('img'),
-        ];
-        expect(stills.every((img) => img.hasAttribute('src'))).toBe(true);
-
-        stage.destroy();
-
-        expect(stills.some((img) => img.hasAttribute('src'))).toBe(false);
     });
 
     it('deafens the element, so a late event reaches no plugin callback', () => {
@@ -848,17 +996,17 @@ describe('tapping the visual lane', () => {
     });
 
     /*
-        User story 6 — the picture is the tap target. For audio that picture is
-        the accompanying still, which is NOT the media element: binding the
-        toggle to the element alone would leave the image inert.
+        User story 6 — the picture is the tap target. Where core paints the
+        picture the plugin owns no element over it at all, so the toggle hangs
+        on a transparent full-rect target rather than on the media element.
     */
-    it('toggles for an accompanying still, which is not the media element', () => {
+    it('toggles from the tap target over a painted companion', () => {
         const stage = stageWithImage();
         document.body.append(stage.root);
         stage.place({ left: 0, top: 0, width: 640, height: 400 }, VIEWPORT);
         const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
 
-        tap(visualLaneOf(stage), 100, 100);
+        tap(tapTargetOf(stage), 100, 100);
 
         expect(play).toHaveBeenCalledTimes(1);
     });
@@ -869,7 +1017,7 @@ describe('tapping the visual lane', () => {
         stage.place({ left: 0, top: 0, width: 640, height: 400 }, VIEWPORT);
         const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
 
-        gesture(visualLaneOf(stage), { x: 100, y: 100 }, { x: 240, y: 130 });
+        gesture(tapTargetOf(stage), { x: 100, y: 100 }, { x: 240, y: 130 });
 
         expect(play).not.toHaveBeenCalled();
     });
@@ -1050,6 +1198,28 @@ describe('the stage — caption tracks', () => {
 
     it('reports a video stage as able to paint its cues', () => {
         expect(captionedStage(VIDEO, [EN]).rendersCaptions).toBe(true);
+    });
+
+    /*
+        `0014`'s shape: a Sound body formatted `video/mp4`, which only a
+        `<video>` will decode, on a canvas whose rect belongs to the companion
+        core paints. The element is hidden behind that picture, so its cues go
+        nowhere and the toggle would be the dead control user story 46 forbids —
+        while the tracks stay attached for the transcript panel.
+    */
+    it('paints no cues where core owns the rect, whatever the element is', () => {
+        const stage = createMediaStage({
+            canvasId: 'canvas/1',
+            source: VIDEO,
+            layout: 'audio-with-image',
+            cannotPlayMessage: 'nope',
+            onPlayStateChange: () => {},
+            captions: [EN],
+            onCaptionTracksChange: () => {},
+        });
+
+        expect(stage.rendersCaptions).toBe(false);
+        expect(stage.media.querySelectorAll('track')).toHaveLength(1);
     });
 
     /* The transcript panel's source: the parsed cues behind one loaded track. */

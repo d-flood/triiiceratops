@@ -19,7 +19,7 @@ bytes, is one. [Which figure applies to
 you](#audiovisual-support-and-what-it-costs) depends on whether your manifests
 carry time-based media.
 
-<div class="tri-chart" aria-hidden="true"><div class="tri-chart-row"><span class="tri-chart-label tri-chart-label--self">Triiiceratops</span><span class="tri-chart-value">117.6 KB</span><span class="tri-chart-track"><span class="tri-chart-fill tri-chart-fill--self" style="width: 16.5%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label tri-chart-label--self">Triiiceratops + AV</span><span class="tri-chart-value">134.2 KB</span><span class="tri-chart-track"><span class="tri-chart-fill tri-chart-fill--self" style="width: 18.8%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">TIFY</span><span class="tri-chart-value">141.5 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 19.8%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Diva.js</span><span class="tri-chart-value">173.8 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 24.3%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Canvas Panel</span><span class="tri-chart-value">180.8 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 25.3%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Glycerine</span><span class="tri-chart-value">339.9 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 47.6%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Universal Viewer</span><span class="tri-chart-value">513.5 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 71.9%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Clover IIIF</span><span class="tri-chart-value">623.8 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 87.4%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Mirador</span><span class="tri-chart-value">713.9 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 100.0%"></span></span></div></div>
+<div class="tri-chart" aria-hidden="true"><div class="tri-chart-row"><span class="tri-chart-label tri-chart-label--self">Triiiceratops</span><span class="tri-chart-value">119.5 KB</span><span class="tri-chart-track"><span class="tri-chart-fill tri-chart-fill--self" style="width: 16.7%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label tri-chart-label--self">Triiiceratops + AV</span><span class="tri-chart-value">136.4 KB</span><span class="tri-chart-track"><span class="tri-chart-fill tri-chart-fill--self" style="width: 19.1%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">TIFY</span><span class="tri-chart-value">141.5 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 19.8%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Diva.js</span><span class="tri-chart-value">173.8 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 24.3%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Canvas Panel</span><span class="tri-chart-value">180.8 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 25.3%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Glycerine</span><span class="tri-chart-value">339.9 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 47.6%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Universal Viewer</span><span class="tri-chart-value">513.5 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 71.9%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Clover IIIF</span><span class="tri-chart-value">623.8 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 87.4%"></span></span></div><div class="tri-chart-row"><span class="tri-chart-label">Mirador</span><span class="tri-chart-value">713.9 KB</span><span class="tri-chart-track"><span class="tri-chart-fill" style="width: 100.0%"></span></span></div></div>
 
 /// caption
 gzip transfer size, in KB of 1000 bytes. Shorter is better.
@@ -27,32 +27,33 @@ gzip transfer size, in KB of 1000 bytes. Shorter is better.
 
 | Viewer | Version | Raw | gzip | Brotli | vs. Triiiceratops core |
 | --- | --- | ---: | ---: | ---: | ---: |
-| **Triiiceratops** | 1.0.0-rc.36 | **415,549** | **117,616** | **97,914** | — |
-| **Triiiceratops + `plugin-av`** | + 1.0.0-rc.0 | **459,659** | **134,154** | **112,562** | 1.14× |
-| TIFY | 0.35.0 | 541,485 | 141,467 | 119,874 | 1.20× |
-| Diva.js | 7.4.0 | 643,863 | 173,784 | 144,601 | 1.48× |
-| Canvas Panel | 1.0.74 | 604,070 | 180,757 | 140,948 | 1.54× |
-| Glycerine Viewer | 2.1.0 | 1,118,864 | 339,905 | 286,755 | 2.89× |
-| Universal Viewer | 4.4.2 | 1,831,630 | 513,473 | 358,120 | 4.37× |
-| Clover IIIF | 3.12.0 | 2,129,446 | 623,761 | 517,691 | 5.30× |
-| Mirador | 4.1.0 | 2,430,874 | 713,937 | 558,083 | 6.07× |
+| **Triiiceratops** | 1.0.0-rc.36 | **421,725** | **119,495** | **99,584** | — |
+| **Triiiceratops + `plugin-av`** | + 1.0.0-rc.0 | **467,003** | **136,361** | **114,554** | 1.14× |
+| TIFY | 0.35.0 | 541,485 | 141,467 | 119,874 | 1.18× |
+| Diva.js | 7.4.0 | 643,863 | 173,784 | 144,601 | 1.45× |
+| Canvas Panel | 1.0.74 | 604,070 | 180,757 | 140,948 | 1.51× |
+| Glycerine Viewer | 2.1.0 | 1,118,864 | 339,905 | 286,755 | 2.84× |
+| Universal Viewer | 4.4.2 | 1,831,630 | 513,473 | 358,120 | 4.30× |
+| Clover IIIF | 3.12.0 | 2,129,446 | 623,761 | 517,691 | 5.22× |
+| Mirador | 4.1.0 | 2,430,874 | 713,937 | 558,083 | 5.97× |
 
 All three size columns are bytes; the "vs." column is gzip bytes as a multiple of
 Triiiceratops **core**, and the chart above plots that same gzip column.
 
 The audiovisual pair beats TIFY on all three columns, and on gzip it beats it by
-**7,313 bytes — 5.17%**. That is a real margin rather than the rounding error it
-once was, but it is not a cushion: AV support costs 16,538 gzip bytes, and there
+**5,106 bytes — 3.61%**. That is a real margin rather than the rounding error it
+once was, but it is emphatically not a cushion: it is roughly 4% of the pair, one
+feature's worth of bytes wide. AV support costs 16,866 gzip bytes, and there
 is no arrangement of this table in which core grows freely and the pair still
 clears the line. The project therefore treats it as
 [a standing budget](#audiovisual-support-and-what-it-costs). On raw bytes and
-Brotli the margin is wider (81,826 and 7,312 respectively), because the pair is
+Brotli the margin is wider (74,482 and 5,320 respectively), because the pair is
 two separately compressed responses and TIFY is two as well.
 
 For scale: OpenSeadragon 6.1.0 is 87,297 gzip bytes as a bare tile renderer with
 no manifest handling, navigation, metadata, search or localization. Triiiceratops
-is a complete viewer for 1.35× that. Canvas Panel, which likewise renders
-canvases rather than providing a full viewer, is 1.54× ours.
+is a complete viewer for 1.37× that. Canvas Panel, which likewise renders
+canvases rather than providing a full viewer, is 1.51× ours.
 
 ## How much of IIIF each one implements
 
@@ -97,7 +98,7 @@ published package depends on `@iiif/vault`, `@iiif/presentation-2`,
 `@iiif/presentation-3`, `@atlas-viewer/atlas` and Preact — a complete
 manifest-parsing and tile-rendering stack — but exposes it as canvas-rendering
 custom elements for building a viewer rather than as a viewer. So it pays for a
-full IIIF stack in its 604,070 bytes, 1.54× our gzip, while leaving navigation,
+full IIIF stack in its 604,070 bytes, 1.51× our gzip, while leaving navigation,
 metadata, search and the rest of the interface to whoever embeds it. Diva.js
 supports Presentation API v2 and v3 by its own README and would qualify; it
 simply has no column.
@@ -108,28 +109,30 @@ Audio and video are not in core. They are `@triiiceratops/plugin-av`, a separate
 package a host registers like any other plugin, and the architecture is what
 keeps the second Triiiceratops row as close to the first as it is.
 
-**Core did not grow to make this possible.** What core gained is three small,
-media-agnostic seams — it classifies painting bodies so a video URL never enters
-the image pipeline, it lets a plugin *claim* a canvas's non-image content, and it
-lets a plugin publish a state object hosts command it through. None of that is
-audiovisual code; a future 3D or advanced-audio plugin uses the same seams. A
-viewer with no AV plugin registered still behaves correctly on an AV manifest:
-the canvas keeps its place in layout, navigation and the thumbnail strip and
-shows an honest "this viewer cannot display this" placard, rather than a broken
-image tile.
+**Core grew by four small, media-agnostic seams**, and by nothing else. It
+classifies painting bodies so a video URL never enters the image pipeline; it
+lets a plugin *claim* a canvas's non-image content; it paints a claimed canvas's
+`placeholderCanvas` or `accompanyingCanvas` — ordinary Presentation 3 Canvases —
+through the tile pipeline it paints every other canvas with, on a three-valued
+phase the claimant sets purely to say *when*; and it lets a plugin publish a
+state object hosts command it through. None of that is audiovisual code; a future
+3D or advanced-audio plugin uses the same seams. A viewer with no AV plugin
+registered still behaves correctly on an AV manifest: the canvas keeps its place
+in layout, navigation and the thumbnail strip and shows an honest "this viewer
+cannot display this" placard, rather than a broken image tile.
 
 **The heavy parts are chunks nobody fetches by default.** Four modules are split
 out of the plugin's entry in *both* build formats — the ESM build emits them as
 real chunks a consumer's bundler re-splits, and the IIFE, which cannot code-split
 at all, ships them as sibling ES modules the entry `import()`s from its own dist
-directory. None of them is in the 16,538 gzip above:
+directory. None of them is in the 16,866 gzip above:
 
 | Chunk | gzip | Fetched when |
 | --- | ---: | --- |
 | `dist/av-hls.js` (hls.js) | 223,530 | an HLS stream must play on a browser with no native HLS |
 | `dist/av-waveform.js` | 2,584 | a canvas links audiowaveform data |
 | `dist/av-sequencer.js` | 2,094 | one canvas is painted by several media files tiling its duration |
-| `dist/av-transcript.js` | 2,058 | the current canvas has a caption track that loaded with cues in it |
+| `dist/av-transcript.js` | 2,773 | the current canvas has a caption track that loaded with cues in it |
 
 hls.js alone is nearly twice the whole viewer. That is exactly why it is a chunk:
 a manifest of MP4s never pays for it. This is the same code-splitting argument
@@ -150,7 +153,7 @@ released from one repository at one Svelte version, which is why the plugin pins
 
 The pair is a **standing size budget**, not a measurement taken once for this
 page: `pnpm size:check:pair` fails the build if core's element IIFE plus the
-plugin's IIFE exceeds TIFY's 141,467 gzip. With 7,313 bytes of headroom that gate
+plugin's IIFE exceeds TIFY's 141,467 gzip. With 5,106 bytes of headroom that gate
 is the binding constraint on the project, and it is not re-recorded to make room
 — the only way to add eager bytes is to remove some.
 
@@ -179,8 +182,8 @@ row says so.
 | --- | --- | --- |
 | `0002-mvm-audio` | the minimal audio canvas (duration, no width/height) | plays |
 | `0003-mvm-video` | the minimal video canvas | plays |
-| `0013-placeholderCanvas` | `placeholderCanvas` as a poster before playback | plays |
-| `0014-accompanyingcanvas` | `accompanyingCanvas` — album art above the timeline strip | plays |
+| `0013-placeholderCanvas` | `placeholderCanvas` as the picture before playback | plays; the placeholder is painted by core as a Canvas, so it deep-zooms |
+| `0014-accompanyingcanvas` | `accompanyingCanvas` — a score alongside the recording | plays; the companion fills the rect and deep-zooms to its image service |
 | `0015-start` | `start` as a `PointSelector` time offset | plays, positioned |
 | `0017-transcription-av` | a `text/plain` transcript on canvas `rendering` | **plays, but the recipe's own feature is not surfaced** — core offers canvas `rendering` links only in the canvas-info popover, which appears only on multi-canvas manifests, and this recipe has one canvas |
 | `0026-toc-opera` | ranges with `#t=` fragments as chapters | plays; chapters seek |
@@ -208,7 +211,7 @@ audiowaveform data linked from the manifest, never computed in the browser.
 ??? info "Exactly what was measured, and where it came from"
 
     Competitors measured 12 August 2026; the two Triiiceratops rows and the
-    chunk table re-measured 15 August 2026 from a fresh `pnpm build:all`.
+    chunk table re-measured 18 August 2026 from a fresh `pnpm build:all`.
     **Triiiceratops was built from source**; every other row is that project's
     own published artifact, fetched from npm at the version shown and **not
     re-minified**. Both are legitimate; neither bundle was altered to make this
@@ -221,7 +224,7 @@ audiowaveform data linked from the manifest, never computed in the browser.
 
     | Viewer | What was counted | Source |
     | --- | --- | --- |
-    | Triiiceratops | `triiiceratops-element.iife.js` — the whole viewer in one file; component CSS is injected into the shadow root | Built from [`1df37eaf`](https://github.com/d-flood/triiiceratops/commit/1df37eaf) with `pnpm build:all` |
+    | Triiiceratops | `triiiceratops-element.iife.js` — the whole viewer in one file; component CSS is injected into the shadow root | Built from [`a0b989cf`](https://github.com/d-flood/triiiceratops/commit/a0b989cf) with `pnpm build:all` |
     | Triiiceratops + `plugin-av` | the same file plus `@triiiceratops/plugin-av`'s `dist/iife.js` — two script tags, two HTTP responses, compressed separately. The plugin's four lazy chunks are **not** counted: none is fetched unless a manifest needs it, exactly as Universal Viewer's unloaded chunks are not counted in its row | Same build; measured by `pnpm size:check:pair` |
     | TIFY | `tify.js` + `tify.css` | [js](https://cdn.jsdelivr.net/npm/tify@0.35.0/dist/tify.js), [css](https://cdn.jsdelivr.net/npm/tify@0.35.0/dist/tify.css), [embed docs](https://github.com/tify-iiif-viewer/tify/blob/v0.35.0/README.md#embedding-tify) |
     | Diva.js | `diva.js` + the OpenSeadragon 6.0.2 build its README loads from a CDN | [js](https://unpkg.com/diva.js@7.4.0/build/diva.js), [OSD](https://cdn.jsdelivr.net/npm/openseadragon@6.0.2/build/openseadragon/openseadragon.min.js) |
@@ -323,8 +326,8 @@ audiowaveform data linked from the manifest, never computed in the browser.
     - CDN compression can differ from these deterministic local settings.
 
 Triiiceratops also publishes a second, equally self-contained element entry for
-bundler consumers, `triiiceratops/element/register` — 439,653 raw / 125,356 gzip
-/ 104,074 Brotli. It is larger because ES output keeps module structure. The
+bundler consumers, `triiiceratops/element/register` — 441,051 raw / 125,660 gzip
+/ 105,014 Brotli. It is larger because ES output keeps module structure. The
 table uses the IIFE because that is the
 [official plain-HTML embed](integration.md#any-framework-web-component). The AV
 plugin's ESM build is not tabulated at all: it leaves `svelte` external as an

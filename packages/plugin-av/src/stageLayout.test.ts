@@ -10,7 +10,6 @@ import {
     laneFraction,
     stageLanes,
     stageLayoutKind,
-    TIMELINE_LANE_FRACTION,
 } from './stageLayout';
 
 const RECT = { left: 10, top: 20, width: 640, height: 400 };
@@ -19,12 +18,15 @@ describe('stage layout', () => {
     describe('which layout a canvas gets', () => {
         it('gives video the visual lane and no timeline lane', () => {
             expect(stageLayoutKind(true, false)).toBe('video');
-            // Waveform data on a video canvas belongs in the scrubber (v1), so
-            // an accompanying image does not buy a video canvas a strip.
+            // A canvas whose picture is the element keeps the rect whatever it
+            // carries: the element covers it, so a companion painted behind it
+            // would cost tiles at every zoom and show nobody anything. The
+            // companion phase is set from this decision, so it is not asked for
+            // either.
             expect(stageLayoutKind(true, true)).toBe('video');
         });
 
-        it('gives audio a timeline lane, and a visual one only with an image', () => {
+        it('yields the rect where core paints a companion, and keeps it otherwise', () => {
             expect(stageLayoutKind(false, false)).toBe('audio');
             expect(stageLayoutKind(false, true)).toBe('audio-with-image');
         });
@@ -45,48 +47,18 @@ describe('stage layout', () => {
             });
         });
 
-        it('stacks the image above a strip, with no gap and nothing spilling', () => {
-            const { visual, timeline } = stageLanes(RECT, 'audio-with-image');
-
-            expect(visual).toEqual({
-                left: 10,
-                top: 20,
-                width: 640,
-                height: 300,
-            });
-            expect(timeline).toEqual({
-                left: 10,
-                top: 320,
-                width: 640,
-                height: 100,
-            });
-            // The two lanes are exactly the rect: they abut, and together they
-            // cover it.
-            expect(visual!.top + visual!.height).toBe(timeline!.top);
-            expect(timeline!.top + timeline!.height).toBe(
-                RECT.top + RECT.height,
-            );
-            expect(timeline!.height / RECT.height).toBeCloseTo(
-                TIMELINE_LANE_FRACTION,
-                12,
-            );
-        });
-
         /*
-            The split is by fraction, not by a pixel height. The rect is a
-            projection of canvas space, so a strip fixed in pixels would be a
-            different share of the canvas at every zoom — the stack would stop
-            zooming coherently, which is the whole reason the lanes are in
-            canvas space.
+            The rect belongs to the renderer where core paints a companion. A
+            lane of any height would sit above the renderer's canvas and hide
+            part of the picture — and the quarter-rect timeline strip this
+            layout used to get was the last piece of transport-era canvas real
+            estate, now that the transport lives in the control bar.
         */
-        it('keeps the same share of the rect at any zoom', () => {
-            const zoomed = { left: 0, top: 0, width: 1280, height: 800 };
-            const lanes = stageLanes(zoomed, 'audio-with-image');
-
-            expect(lanes.timeline!.height / zoomed.height).toBeCloseTo(
-                TIMELINE_LANE_FRACTION,
-                12,
-            );
+        it('leaves the whole rect to core where core paints a companion', () => {
+            expect(stageLanes(RECT, 'audio-with-image')).toEqual({
+                visual: null,
+                timeline: null,
+            });
         });
     });
 

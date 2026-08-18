@@ -1144,39 +1144,97 @@ function carryBaseLevel(
 ): void {
     if (!facts || source.kind !== 'service') return;
 
-    // The base level of a pyramid and the base rung of a ladder are the same
-    // key: level 0, one tile. Probed before anything is built, because this is
-    // the test that is false for every canvas but the one or two mid-handover.
-    const key = tileKey(canvasId, source.serviceId, 0, 0, 0);
+    // Probed before anything is built, because this is the test that is false
+    // for every canvas but the one or two mid-handover.
+    const key = tileKey(canvasId, baseUri(source, facts), 0, 0, 0);
     if (!residentTiles.has(key)) return;
-
-    const pyramid = buildPyramid(source.serviceId, facts);
-    const ladder =
-        !pyramid && isSizeLadderSource(facts, source.profile)
-            ? buildSizeLadder(source.serviceId, facts)
-            : null;
-    const url = pyramid
-        ? tileUrl(pyramid, pyramid.levels[0], 0, 0)
-        : ladder
-          ? rungUrl(ladder, ladder.rungs[0])
-          : null;
-    if (!url) return;
-
-    const fallback = ladder ? rungFallback(ladder, ladder.rungs[0]) : undefined;
 
     // Required, not merely held: `tileDraws` is the required-AND-held subset, so
     // a base tile left out of the request list would be demoted to the
     // opportunistic cache and could not be painted — which is the blank frame
     // again, arriving through eviction instead of through the tier.
-    requests.push({
-        key,
+    const request = baseLevelTile(canvasId, source, facts, 0);
+    if (!request) return;
+
+    requests.push(request);
+    draws.push({ key, canvasId, level: 0, order, ...box });
+}
+
+/**
+ * The base URI for a service's image requests, which is the identity every
+ * planner keys its tiles by.
+ *
+ * `info.json` owns it and it can differ from the id the manifest advertised — a
+ * trailing slash, an http→https redirect, or an auth gateway signing access.
+ * Keying a request one way and drawing it the other produces a tile nothing
+ * ever asks for, so this is the single spelling of that choice
+ * (`tilePyramid.buildPyramid` and `sizeLadder.buildSizeLadder` make the same
+ * one).
+ */
+function baseUri(
+    source: { serviceId: string },
+    facts: ImageServiceFacts,
+): string {
+    return facts.requestBaseUri ?? source.serviceId;
+}
+
+/**
+ * One service's **base level** as a tile request: level 0, tile (0,0) — but
+ * only where that one request is the whole picture.
+ *
+ * A pyramid's coarsest level is a single tile whenever the renderer derived the
+ * scale-factor chain itself, and need not be when the service declared
+ * `scaleFactors`: factors are taken as given, so `[1,2,4]` on a 10000 px image
+ * with 512 px tiles leaves five columns at the coarsest level and tile (0,0) is
+ * a corner. A size ladder's base rung is always whole, but on a level0 master
+ * with no advertised `sizes` it is the full-resolution scan. `null` for both,
+ * and for a service with no facts, no pyramid and no ladder.
+ *
+ * `fallbackTileSize` is passed through to {@link buildPyramid} for the level 1/2
+ * service that omits `tiles`; `maxDecodedPixels` refuses a base image bigger
+ * than one decode may be.
+ */
+function baseLevelTile(
+    canvasId: string,
+    source: SourceDescriptor,
+    facts: ImageServiceFacts | undefined,
+    priority: number,
+    fallbackTileSize?: number,
+    maxDecodedPixels = Infinity,
+): TileRequest | null {
+    if (!facts || source.kind !== 'service') return null;
+
+    const pyramid = buildPyramid(source.serviceId, facts, fallbackTileSize);
+    const ladder =
+        !pyramid && isSizeLadderSource(facts, source.profile)
+            ? buildSizeLadder(source.serviceId, facts)
+            : null;
+
+    let url: string;
+    let fallback: { url: string; group: string } | null = null;
+
+    if (pyramid) {
+        const level = pyramid.levels[0];
+        if (level.columns !== 1 || level.rows !== 1) return null;
+        if (level.width * level.height > maxDecodedPixels) return null;
+        url = tileUrl(pyramid, level, 0, 0);
+    } else if (ladder) {
+        const rung = ladder.rungs[0];
+        if (rung.width * rung.height > maxDecodedPixels) return null;
+        url = rungUrl(ladder, rung);
+        fallback = rungFallback(ladder, rung);
+    } else {
+        return null;
+    }
+
+    return {
+        key: tileKey(canvasId, baseUri(source, facts), 0, 0, 0),
         canvasId,
         level: 0,
         url,
-        priority: 0,
+        priority,
         ...(fallback ? { fallback } : {}),
-    });
-    draws.push({ key, canvasId, level: 0, order, ...box });
+    };
 }
 
 /**
@@ -1282,6 +1340,110 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // to decide for it.
         if (tier === 'box') continue;
 
+        // Asked at most ONCE per canvas, however many services it paints from.
+        // The host fetches every service on the canvas it is handed, and the
+        // list is re-emitted every frame until the facts land — so a per-image
+        // push would put one entry per painting annotation into a list walked
+        // sixty times a second, for one answer.
+        //
+        // Gated on a stable view wherever it is called from: a flick passes over
+        // hundreds of canvases that are never dwelt on, and asking for each one
+        // as it goes by is most of the request storm on its own (spec §Tile
+        // scheduling).
+        let askedForMetadata = false;
+        function askForMetadata(): void {
+            if (!viewStable || askedForMetadata) return;
+            askedForMetadata = true;
+            metadataRequests.push(canvas.id);
+        }
+
+        // **The companion the phase is about to name** (`PlannerCanvas.warmImages`),
+        // made requestable without being painted.
+        //
+        // ONE request per warmed picture, and the cheapest one that shows the
+        // whole of it: the base level where that is a single tile covering the
+        // image, and otherwise the base rung of the thumbnail ladder. Either is
+        // a picture the handover can paint in the frame it happens — the tier
+        // that takes over draws whichever it finds resident — while the ladder
+        // above it is left to climb on demand, so a companion nobody is looking
+        // at yet never costs a reader more than a thumbnail (user stories 41 and
+        // 42). A picture with no such cheap whole view — a level0 master with no
+        // derivatives — is simply not warmed, which is the same answer the
+        // thumbnail tier gives it.
+        //
+        // Nothing is pushed to `tileDraws`: the phase decides what paints, and
+        // it has not named this companion.
+        //
+        // Services only. A **static-image** companion has no ladder to warm a
+        // rung of and reaches the host as an `<img>` it paints on sight, so the
+        // only way to make one resident is to draw it — which is the phase's
+        // decision and not this block's.
+        //
+        // Ahead of the empty-`images` guard below, because the canvas that
+        // paints nothing at all is the one whose handover has the longest way
+        // to come.
+        const warmTileMark = tileRequests.length;
+        const warmThumbnailMark = thumbnailRequests.length;
+
+        for (const image of canvas.warmImages ?? []) {
+            if (image.source.kind !== 'service') continue;
+            const facts = factsFor(image.source, knownMetadata);
+            if (!facts) {
+                askForMetadata();
+                continue;
+            }
+
+            // Last in the centre-out queue, behind every tile of the picture
+            // the reader is actually looking at. Kept in the required set even
+            // while the view moves, unlike a new thumbnail: demoting it to the
+            // opportunistic cache mid-drag would lose the one thing the
+            // handover is waiting on.
+            const priority = Number.MAX_SAFE_INTEGER;
+            const warm = baseLevelTile(
+                canvas.id,
+                image.source,
+                facts,
+                priority,
+                // The same grid the pyramid tier derives for a level 1/2
+                // service that omits `tiles`, so the warmed key is the key that
+                // tier will draw.
+                DERIVED_TILE_SIZE,
+                budgets.maxDecodedPixels,
+            );
+            if (warm) {
+                tileRequests.push(warm);
+                continue;
+            }
+
+            // The base rung, which is the one rung `planThumbnail` asks for at
+            // every projection: warming it is warming a request the reader's own
+            // thumbnail tier makes anyway, and it is keyed the way that tier
+            // keys it.
+            const resolved = resolveThumbnail({
+                source: image.source,
+                facts,
+                rung: THUMBNAIL_BASE_RUNG,
+                minPixelRatio: budgets.minPixelRatio,
+                maxDecodedPixels: budgets.maxDecodedPixels,
+                imageWidth:
+                    canvas.width === null ? null : image.width * canvas.width,
+            });
+            if (resolved.kind !== 'url') continue;
+
+            thumbnailRequests.push({
+                key: thumbnailKey(canvas.id, resolved.url),
+                canvasId: canvas.id,
+                level: 0,
+                url: resolved.url,
+                priority,
+                rung: THUMBNAIL_BASE_RUNG,
+                ...(resolved.fallback ? { fallback: resolved.fallback } : {}),
+            });
+        }
+
+        const warmTiles = tileRequests.length - warmTileMark;
+        const warmThumbnails = thumbnailRequests.length - warmThumbnailMark;
+
         // Neither does a canvas with no image on it — the **unsupported
         // presentation**'s canvas. There is no source to ask for tiles, a
         // thumbnail, or `info.json`, and reporting it in `unresolvedThumbnails`
@@ -1320,23 +1482,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                 order,
                 ...box,
             });
-        }
-
-        // Asked at most ONCE per canvas, however many services it paints from.
-        // The host fetches every service on the canvas it is handed, and the
-        // list is re-emitted every frame until the facts land — so a per-image
-        // push would put one entry per painting annotation into a list walked
-        // sixty times a second, for one answer.
-        //
-        // Gated on a stable view wherever it is called from: a flick passes over
-        // hundreds of canvases that are never dwelt on, and asking for each one
-        // as it goes by is most of the request storm on its own (spec §Tile
-        // scheduling).
-        let askedForMetadata = false;
-        function askForMetadata(): void {
-            if (!viewStable || askedForMetadata) return;
-            askedForMetadata = true;
-            metadataRequests.push(canvas.id);
         }
 
         // One small image instead of a pyramid — the tier that fills the grey
@@ -1440,6 +1585,12 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             if (outcome === 'unresolved') {
                 unresolvedThumbnails.push(canvas.id);
                 tiers[canvas.id] = 'box';
+                // A box-tier canvas holds no network resource, and a warmed
+                // companion is required rather than opportunistic — left in,
+                // it is a texture on a canvas that paints nothing and that the
+                // byte budget may never reclaim.
+                tileRequests.splice(warmTileMark, warmTiles);
+                thumbnailRequests.splice(warmThumbnailMark, warmThumbnails);
             }
             continue;
         }

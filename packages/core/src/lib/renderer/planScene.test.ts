@@ -19,6 +19,7 @@ import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { toPlannerCanvases } from './canvasDescriptors';
 import { parseImageService } from './imageService';
 import { planScene, planViewportLimits } from './planScene';
+import { THUMBNAIL_BASE_RUNG } from './thumbnailLadder';
 import { tileKey } from './tilePyramid';
 import type {
     ImageServiceFacts,
@@ -3071,3 +3072,428 @@ describe('planScene — composite canvases', () => {
         });
     });
 });
+
+/**
+ * The companion a claimed canvas's phase is about to name (`companionCanvases`).
+ *
+ * Everything here is about the REQUIRED SET rather than about the draw list: a
+ * warmed companion is requestable and never painted, which is the whole of the
+ * distinction this seam has to keep.
+ */
+describe('planScene — warming the companion behind the phase', () => {
+    const WARM_SERVICE = serviceIdOf('warm');
+    const WARM_BASE = tileKey('c1', WARM_SERVICE, 0, 0, 0);
+
+    function warming(overrides: Partial<Parameters<typeof planScene>[0]> = {}) {
+        return plan(
+            [
+                {
+                    ...serviceCanvas('c1', 1000, 1000),
+                    warmImages: [fills('warm', serviceSource('warm'), 1, 1)],
+                },
+            ],
+            {
+                knownMetadata: byService({ c1: FACTS, warm: FACTS }),
+                ...overrides,
+            },
+        );
+    }
+
+    it('makes the companion requestable at its base level and nothing more', () => {
+        const result = warming();
+        const warm = result.tileRequests.filter((request) =>
+            request.url.startsWith(WARM_SERVICE),
+        );
+
+        expect(warm.map((request) => request.key)).toEqual([WARM_BASE]);
+        expect(warm[0].level).toBe(0);
+        // The picture the reader IS looking at still gets its whole pyramid, so
+        // the warming is an addition rather than a substitution.
+        expect(
+            result.tileRequests.filter((request) =>
+                request.url.startsWith(serviceIdOf('c1')),
+            ).length,
+        ).toBeGreaterThan(1);
+    });
+
+    it('never paints it', () => {
+        // Requestable is not painted: the phase decides what paints, and it has
+        // not named this companion yet.
+        expect(warming().tileDraws.some((draw) => draw.key === WARM_BASE)).toBe(
+            false,
+        );
+    });
+
+    it('queues it behind everything on screen', () => {
+        const warm = warming().tileRequests.find(
+            (request) => request.key === WARM_BASE,
+        )!;
+
+        expect(
+            warming()
+                .tileRequests.filter((request) => request.key !== WARM_BASE)
+                .every((request) => request.priority < warm.priority),
+        ).toBe(true);
+    });
+
+    it('paints it the frame the phase names it, with no new request', () => {
+        // The handover: the same key the warm request bought is what the
+        // pyramid draws, so there is no interval in which the rect paints
+        // neither companion.
+        const named = plan(
+            [
+                {
+                    ...serviceCanvas('c1', 1000, 1000),
+                    images: [fills('warm', serviceSource('warm'), 1, 1)],
+                },
+            ],
+            {
+                knownMetadata: byService({ warm: FACTS }),
+                residentTiles: new Set<TileKey>([WARM_BASE]),
+            },
+        );
+
+        expect(named.tileDraws.some((draw) => draw.key === WARM_BASE)).toBe(
+            true,
+        );
+    });
+
+    it('asks for the companion service’s info.json', () => {
+        // Without it there is no pyramid and therefore no URL to warm.
+        expect(warming({ knownMetadata: {} }).metadataRequests).toEqual(['c1']);
+    });
+
+    it('costs a canvas with no warm companion nothing', () => {
+        const bare = plan([serviceCanvas('c1', 1000, 1000)], {
+            knownMetadata: byService({ c1: FACTS }),
+        });
+
+        expect(bare.tileRequests).toEqual(warming().tileRequests.slice(0, -1));
+    });
+
+    it('warms nothing on a box-tier canvas', () => {
+        // Outside the residency window a canvas holds nothing at all, and a
+        // companion of it is no exception.
+        const result = belowBoxThreshold(
+            (id) => ({
+                ...serviceCanvas(id, 1000, 1000),
+                warmImages: [fills('warm', serviceSource('warm'), 1, 1)],
+            }),
+            { knownMetadata: byService({ warm: FACTS }) },
+        );
+
+        expect(result.tiers.c0).toBe('box');
+        expect(
+            result.tileRequests.some((request) => request.canvasId === 'c0'),
+        ).toBe(false);
+    });
+
+    it('keeps it required while the view is moving', () => {
+        // Not behind the view-stable gate, which exists to keep a flick from
+        // asking per canvas for something it will never dwell on. This is one
+        // tile on a canvas the reader is already on, and dropping it from the
+        // required set mid-drag would demote it to the opportunistic cache —
+        // losing the very picture the handover is waiting on.
+        expect(
+            warming({ viewStable: false }).tileRequests.some(
+                (request) => request.key === WARM_BASE,
+            ),
+        ).toBe(true);
+    });
+});
+
+/**
+ * What the warmed companion COSTS, and under which spelling it is bought.
+ *
+ * A warmed tile is required rather than opportunistic (`tileScheduler.trim`
+ * never evicts a required tile), so a request keyed the way nothing draws it,
+ * or one bigger than a decode may be, is not merely wasted — it is unreclaimable
+ * for the life of the page.
+ */
+describe('planScene — what warming a companion buys', () => {
+    const WARM = serviceIdOf('warm');
+
+    /** `c1` painting its own picture, warming a companion on `warm`. */
+    function warming(
+        warmFacts: ImageServiceFacts,
+        overrides: Partial<Parameters<typeof planScene>[0]> = {},
+        profile = 'level2',
+    ) {
+        return plan(
+            [
+                {
+                    ...serviceCanvas('c1', 1000, 1000),
+                    warmImages: [
+                        {
+                            ...fills('warm', serviceSource('warm'), 1, 1),
+                            source: {
+                                kind: 'service',
+                                serviceId: WARM,
+                                profile,
+                            },
+                        },
+                    ],
+                },
+            ],
+            {
+                knownMetadata: {
+                    ...byService({ c1: FACTS }),
+                    [WARM]: warmFacts,
+                },
+                ...overrides,
+            },
+        );
+    }
+
+    /** The same picture once the phase has named it: `c1` paints from `warm`. */
+    function named(
+        warmFacts: ImageServiceFacts,
+        overrides: Partial<Parameters<typeof planScene>[0]> = {},
+        profile = 'level2',
+    ) {
+        return plan(
+            [
+                {
+                    ...serviceCanvas('c1', 1000, 1000),
+                    images: [
+                        {
+                            ...fills('warm', serviceSource('warm'), 1, 1),
+                            source: {
+                                kind: 'service',
+                                serviceId: WARM,
+                                profile,
+                            },
+                        },
+                    ],
+                },
+            ],
+            { knownMetadata: { [WARM]: warmFacts }, ...overrides },
+        );
+    }
+
+    it('keys the warm tile the way the planner that draws it keys tiles', () => {
+        // `info.json` owns the base URI for image requests and it can differ
+        // from the id the manifest advertised — a trailing slash, an http→https
+        // redirect, an auth gateway signing access. Bought under the manifest's
+        // spelling, the tile lands under a key nothing ever asks for: the
+        // handover fetches from cold anyway AND the orphan stays required for
+        // ever.
+        const redirected: ImageServiceFacts = {
+            ...FACTS,
+            requestBaseUri: 'https://signed.test/warm',
+        };
+        const warm = warming(redirected).tileRequests.find((request) =>
+            request.url.startsWith('https://signed.test/warm'),
+        );
+
+        expect(warm).toBeDefined();
+        expect(
+            named(redirected, {
+                residentTiles: new Set<TileKey>([warm!.key]),
+            }).tileDraws.map((draw) => draw.key),
+        ).toContain(warm!.key);
+    });
+
+    it('warms a service that omits `tiles` from its derived grid', () => {
+        // A level 1/2 endpoint without a `tiles` key is legal and common
+        // (Cantaloupe and IIP both ship such configurations). The pyramid tier
+        // derives a grid for it; warming has to derive the same one, or that
+        // whole class of service keeps the handover flash.
+        const noTiles: ImageServiceFacts = {
+            width: 4096,
+            height: 4096,
+            version: 3,
+        };
+        const warm = warming(noTiles).tileRequests.find((request) =>
+            request.url.startsWith(WARM),
+        );
+
+        expect(warm).toBeDefined();
+        expect(
+            named(noTiles, {
+                residentTiles: new Set<TileKey>([warm!.key]),
+            }).tileDraws.map((draw) => draw.key),
+        ).toContain(warm!.key);
+    });
+
+    it('refuses to warm a level0 master whose only whole image is over the cap', () => {
+        // 12000x9000 is 108 megapixels. Warmed, it would be the whole master
+        // downloaded before the reader pressed play, and required for ever
+        // after. A companion that cannot be warmed cheaply is not warmed.
+        const master: ImageServiceFacts = {
+            width: 12_000,
+            height: 9000,
+            level0: true,
+            version: 3,
+        };
+        const result = warming(master, {}, 'level0');
+
+        expect(
+            result.tileRequests.some((request) => request.url.startsWith(WARM)),
+        ).toBe(false);
+        expect(
+            result.thumbnailRequests.some((request) =>
+                request.url.startsWith(WARM),
+            ),
+        ).toBe(false);
+    });
+
+    it('warms a level0 derivative set at its cheapest advertised image', () => {
+        // The ordinary level0 shape still gets its handover: the base rung is a
+        // whole picture and a small one.
+        const derivatives: ImageServiceFacts = {
+            width: 12_000,
+            height: 9000,
+            level0: true,
+            version: 3,
+            sizes: [
+                { width: 750, height: 563 },
+                { width: 1500, height: 1125 },
+            ],
+        };
+
+        expect(
+            warming(derivatives, {}, 'level0')
+                .tileRequests.map((request) => request.url)
+                .filter((url) => url.startsWith(WARM)),
+        ).toEqual(['https://images.test/warm/full/750,/0/default.jpg']);
+    });
+
+    /**
+     * `scaleFactors: [1,2,4]` on a 10000px image tiled at 512: the coarsest
+     * level is 2500px across, five columns wide. Tile (0,0) there is a CORNER.
+     */
+    const COARSE_CORNER: ImageServiceFacts = {
+        width: 10_000,
+        height: 10_000,
+        tileSize: 512,
+        scaleFactors: [1, 2, 4],
+        version: 3,
+    };
+
+    it('warms a thumbnail rather than a corner when the coarsest level is not one tile', () => {
+        // `resolveScaleFactors` derives the chain down to a single tile only
+        // when the service declares no factors; declared ones are taken as
+        // given and can stop anywhere. One thumbnail is a picture of the whole
+        // image; one tile of a five-column level is not, and the other
+        // twenty-four are not "bounded and deliberate".
+        const result = warming(COARSE_CORNER);
+
+        expect(
+            result.tileRequests.some((request) => request.url.startsWith(WARM)),
+        ).toBe(false);
+        expect(
+            result.thumbnailRequests
+                .filter((request) => request.url.startsWith(WARM))
+                .map((request) => request.rung),
+        ).toEqual([THUMBNAIL_BASE_RUNG]);
+    });
+
+    it('warms the very request the reader’s own thumbnail tier makes', () => {
+        // Same key, so the handover paints from what was warmed rather than
+        // holding a second picture of the same thing.
+        const warm = warming(COARSE_CORNER).thumbnailRequests.find((request) =>
+            request.url.startsWith(WARM),
+        );
+        const tier = named(COARSE_CORNER, {
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale: 0.2 }),
+        });
+
+        expect(tier.tiers.c1).toBe('thumbnail');
+        expect(tier.thumbnailRequests.map((request) => request.key)).toContain(
+            warm!.key,
+        );
+    });
+
+    it('warms the canvas that paints nothing at all', () => {
+        // The longest blank interval of the lot: there is no picture on this
+        // canvas for the warmed one to arrive behind.
+        const result = plan(
+            [
+                {
+                    id: 'c1',
+                    width: 1000,
+                    height: 1000,
+                    images: [],
+                    warmImages: [
+                        {
+                            ...fills('warm', serviceSource('warm'), 1, 1),
+                            source: {
+                                kind: 'service',
+                                serviceId: WARM,
+                                profile: 'level2',
+                            },
+                        },
+                    ],
+                },
+            ],
+            { knownMetadata: { [WARM]: FACTS } },
+        );
+
+        expect(result.tileRequests.map((request) => request.url)).toEqual([
+            'https://images.test/warm/full/512,/0/default.jpg',
+        ]);
+    });
+
+    it('drops the warm request when the canvas is demoted to the box tier', () => {
+        // A box-tier canvas holds no network resource and no texture. Demotion
+        // by `unresolvedThumbnails` is a second route into that tier, and a
+        // warm tile left behind by it is required on a canvas that paints
+        // nothing — unreclaimable by the byte budget.
+        const result = plan(
+            [
+                {
+                    ...level0Master('c1'),
+                    warmImages: [
+                        {
+                            ...fills('warm', serviceSource('warm'), 1, 1),
+                            source: {
+                                kind: 'service',
+                                serviceId: WARM,
+                                profile: 'level2',
+                            },
+                        },
+                    ],
+                },
+            ],
+            {
+                viewport: viewport({ centre: { x: 500, y: 500 }, scale: 0.2 }),
+                knownMetadata: {
+                    ...byService({
+                        c1: {
+                            width: 12_000,
+                            height: 9000,
+                            level0: true,
+                            version: 3,
+                        },
+                    }),
+                    [WARM]: FACTS,
+                },
+            },
+        );
+
+        expect(result.tiers.c1).toBe('box');
+        expect(result.unresolvedThumbnails).toEqual(['c1']);
+        expect(result.tileRequests).toEqual([]);
+        expect(result.thumbnailRequests).toEqual([]);
+    });
+});
+
+/** A canvas painting from a level0 service, used for the box-demotion route. */
+function level0Master(id: string): PlannerCanvas {
+    return {
+        id,
+        width: 1000,
+        height: 1000,
+        images: [
+            {
+                ...fills(id, serviceSource(id), 1, 1),
+                source: {
+                    kind: 'service',
+                    serviceId: serviceIdOf(id),
+                    profile: 'level0',
+                },
+            },
+        ],
+    };
+}
