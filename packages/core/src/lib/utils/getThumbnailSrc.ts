@@ -1,35 +1,23 @@
+import { isLevel0Profile } from '../renderer/sizeLadder';
 import { getPaintingAnnotations } from './iiifParsing';
+import { iiifImageRequestUrl } from './iiifImageRequest';
 import { findImageBody, unwrapSpecificResource } from './paintingBodies';
 
-function normalizeServiceId(serviceId: string): string {
-    return serviceId.endsWith('/info.json')
-        ? serviceId.slice(0, -'/info.json'.length)
-        : serviceId;
-}
-
+/**
+ * A width request against an image service, or `''` where one cannot be built.
+ *
+ * A level0 service answers only the derivatives it already holds, so a
+ * constructed width would 404; `''` is what routes the canvas to the strip's
+ * no-thumbnail treatment instead. The profile is read through
+ * `sizeLadder.complianceLevel`, which knows the three spellings a compliance
+ * level has in the wild — the bare version 3 token, the version 2 profile URI
+ * and the version 1 fragment — where a substring search for `level0` also
+ * matches it anywhere else in an id.
+ */
 function getThumbnailServiceUrl(service: any, size: number): string {
-    let profile: unknown = '';
-    try {
-        profile = (service?.profile as unknown) || '';
-        if (typeof profile === 'object' && profile) {
-            const pObj = profile as Record<string, unknown>;
-            profile =
-                (pObj.value as string | undefined) ||
-                (pObj.id as string | undefined) ||
-                (pObj['@id'] as string | undefined) ||
-                JSON.stringify(pObj);
-        }
-    } catch {
-        // ignore
-    }
-
-    const pStr = String(profile ?? '').toLowerCase();
-    const isLevel0 = pStr.includes('level0') || pStr.includes('level-0');
-    const serviceId = normalizeServiceId(service?.id || service?.['@id'] || '');
-
-    return !isLevel0 && serviceId
-        ? `${serviceId}/full/${size},/0/default.jpg`
-        : '';
+    const serviceId: string = service?.id || service?.['@id'] || '';
+    if (!serviceId || isLevel0Profile(service?.profile)) return '';
+    return iiifImageRequestUrl(serviceId, `${size},`);
 }
 
 export function resolveThumbnailResourceSrc(

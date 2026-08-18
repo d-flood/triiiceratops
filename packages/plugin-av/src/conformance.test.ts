@@ -9,8 +9,8 @@
  */
 
 import {
-    collectIncompatibilities,
     definePlugin,
+    negotiateCompatibility,
     type PluginContext,
     type PluginHost,
     type PublishedState,
@@ -54,11 +54,22 @@ const THIS_CORE: DeclaredHost = {
     capabilities,
 };
 
-function refusalsAgainst(declared: Partial<DeclaredHost>): string[] {
-    return collectIncompatibilities(
-        AvPlugin,
-        hostDeclaring({ ...THIS_CORE, ...declared }),
-    ).map((reason) => reason.required);
+/**
+ * The refusal message a host declaring `declared` produces, or `''` when it
+ * activates the plugin. Negotiation raises ONE formatted error naming every
+ * failed check, which is what core shows a host, so the message is what an
+ * assertion has to read.
+ */
+function refusalAgainst(declared: Partial<DeclaredHost>): string {
+    try {
+        negotiateCompatibility(
+            AvPlugin,
+            hostDeclaring({ ...THIS_CORE, ...declared }),
+        );
+    } catch (error) {
+        return (error as Error).message;
+    }
+    return '';
 }
 
 describe('declared compatibility', () => {
@@ -70,9 +81,9 @@ describe('declared compatibility', () => {
     });
 
     it('activates on the core this repository builds', () => {
-        expect(
-            collectIncompatibilities(AvPlugin, hostDeclaring(THIS_CORE)),
-        ).toEqual([]);
+        expect(() =>
+            negotiateCompatibility(AvPlugin, hostDeclaring(THIS_CORE)),
+        ).not.toThrow();
     });
 
     // Without these the plugin activates on a core with no claim seam and renders
@@ -92,32 +103,32 @@ describe('declared compatibility', () => {
 
     it('is refused by a core that renders no transport chrome', () => {
         expect(
-            refusalsAgainst({
+            refusalAgainst({
                 capabilities: capabilities.filter(
                     (name) => name !== 'transport-chrome',
                 ),
             }),
-        ).toContain('transport-chrome');
+        ).toContain('"transport-chrome"');
     });
 
     it('is refused by a core that shares no Svelte runtime', () => {
         expect(
-            refusalsAgainst({
+            refusalAgainst({
                 capabilities: capabilities.filter(
                     (name) => name !== 'shared-svelte-runtime',
                 ),
             }),
-        ).toContain('shared-svelte-runtime');
+        ).toContain('"shared-svelte-runtime"');
     });
 
     it('is refused by a core that shares no core utilities', () => {
         expect(
-            refusalsAgainst({
+            refusalAgainst({
                 capabilities: capabilities.filter(
                     (name) => name !== 'shared-core-utils',
                 ),
             }),
-        ).toContain('shared-core-utils');
+        ).toContain('"shared-core-utils"');
     });
 
     /**
@@ -129,8 +140,8 @@ describe('declared compatibility', () => {
      */
     it('pins core exactly, so a future major cannot satisfy it', () => {
         expect(AvPlugin.coreRange).toBe(CORE_VERSION);
-        expect(refusalsAgainst({ coreVersion: '2.0.0' })).toContain(
-            CORE_VERSION,
+        expect(refusalAgainst({ coreVersion: '2.0.0' })).toContain(
+            `requires core ${CORE_VERSION}`,
         );
     });
 });

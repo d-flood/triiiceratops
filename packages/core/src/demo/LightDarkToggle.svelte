@@ -1,6 +1,6 @@
 <script lang="ts">
-    import Icon from './Icon.svelte';
-    import { m } from '../state/i18n.svelte';
+    import DemoIcon from './DemoIcon.svelte';
+    import { m } from './i18n.svelte';
 
     // Bindable so the demo can react to the page (demo) theme. Only ever
     // 'light' or 'dark' — the demo page itself is intentionally limited to the
@@ -21,9 +21,9 @@
     onclick={toggle}
 >
     {#if theme === 'dark'}
-        <Icon name="Moon" size={18} weight="fill" />
+        <DemoIcon name="moonFill" size={18} />
     {:else}
-        <Icon name="Sun" size={18} weight="fill" />
+        <DemoIcon name="sunFill" size={18} />
     {/if}
 </button>
 

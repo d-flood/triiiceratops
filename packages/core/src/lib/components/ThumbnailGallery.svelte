@@ -37,39 +37,9 @@
         (viewerState.config as { locale?: string }).locale || language.current,
     );
 
-    let draggable = $derived(viewerState.config.gallery?.draggable ?? true);
-
     let { canvases } = $props<{ canvases?: ManifestCanvas[] }>();
 
-    let isResizing = $state(false);
-    let resizeStart: { x: number; y: number; w: number; h: number } = {
-        x: 0,
-        y: 0,
-        w: 0,
-        h: 0,
-    };
     let galleryElement: HTMLElement | null = $state(null);
-
-    $effect(() => {
-        if (
-            viewerState.config.gallery?.width &&
-            viewerState.config.gallery?.height
-        ) {
-            viewerState.setGallerySize({
-                width: viewerState.config.gallery.width,
-                height: viewerState.config.gallery.height,
-            });
-        }
-        if (
-            viewerState.config.gallery?.x !== undefined &&
-            viewerState.config.gallery?.y !== undefined
-        ) {
-            viewerState.setGalleryPosition({
-                x: viewerState.config.gallery.x,
-                y: viewerState.config.gallery.y,
-            });
-        }
-    });
 
     let thumbnails = $derived.by(() => {
         if (!canvases || !Array.isArray(canvases))
@@ -136,91 +106,6 @@
         });
     });
 
-    function onDrag(e: MouseEvent) {
-        if (!viewerState.isGalleryDragging) return;
-
-        let newX = e.clientX - viewerState.galleryDragOffset.x;
-        let newY = e.clientY - viewerState.galleryDragOffset.y;
-
-        const maxX = Math.max(
-            0,
-            window.innerWidth - viewerState.gallerySize.width,
-        );
-        const maxY = Math.max(
-            0,
-            window.innerHeight - viewerState.gallerySize.height,
-        );
-        newX = Math.max(0, Math.min(newX, maxX));
-        newY = Math.max(0, Math.min(newY, maxY));
-
-        viewerState.setGalleryPosition({ x: newX, y: newY });
-
-        // Use the stored center panel rect (captured at drag start, works with shadow DOM)
-        const rect = viewerState.galleryCenterPanelRect;
-        if (!rect) {
-            return;
-        }
-
-        const x = e.clientX;
-        const y = e.clientY;
-
-        const THRESHOLD = 60;
-
-        viewerState.dragOverSide = null;
-
-        if (x >= rect.left && x <= rect.left + THRESHOLD) {
-            viewerState.dragOverSide = 'left';
-        } else if (x <= rect.right && x >= rect.right - THRESHOLD) {
-            viewerState.dragOverSide = 'right';
-        } else if (y >= rect.top && y <= rect.top + THRESHOLD) {
-            viewerState.dragOverSide = 'top';
-        } else if (y <= rect.bottom && y >= rect.bottom - THRESHOLD) {
-            viewerState.dragOverSide = 'bottom';
-        }
-    }
-
-    function stopDrag() {
-        const dropTarget = viewerState.dragOverSide;
-
-        viewerState.isGalleryDragging = false;
-        viewerState.dragOverSide = null;
-        window.removeEventListener('mousemove', onDrag);
-        window.removeEventListener('mouseup', stopDrag);
-
-        if (dropTarget) {
-            viewerState.setDockSide(dropTarget);
-        }
-    }
-
-    function startResize(e: MouseEvent) {
-        e.stopPropagation(); // Prevent drag
-        isResizing = true;
-        resizeStart = {
-            x: e.clientX,
-            y: e.clientY,
-            w: viewerState.gallerySize.width,
-            h: viewerState.gallerySize.height,
-        };
-        window.addEventListener('mousemove', onResize);
-        window.addEventListener('mouseup', stopResize);
-    }
-
-    function onResize(e: MouseEvent) {
-        if (!isResizing) return;
-        const dx = e.clientX - resizeStart.x;
-        const dy = e.clientY - resizeStart.y;
-        viewerState.setGallerySize({
-            width: Math.max(200, resizeStart.w + dx),
-            height: Math.max(200, resizeStart.h + dy),
-        });
-    }
-
-    function stopResize() {
-        isResizing = false;
-        window.removeEventListener('mousemove', onResize);
-        window.removeEventListener('mouseup', stopResize);
-    }
-
     function selectCanvas(canvasId: string) {
         if (viewerState.viewingMode === 'paged') {
             const pagedGroups = getPagedCanvasGroups(
@@ -248,29 +133,14 @@
         }
     }
 
-    let dockSide: 'none' | 'top' | 'bottom' | 'left' | 'right' = $state(
-        viewerState.dockSide as 'none' | 'top' | 'bottom' | 'left' | 'right',
-    );
+    type DockEdge = 'top' | 'bottom' | 'left' | 'right';
 
-    // Sync external changes
-    $effect(() => {
-        const ds = viewerState.dockSide as string;
-        dockSide =
-            ds === 'none' ||
-            ds === 'top' ||
-            ds === 'bottom' ||
-            ds === 'left' ||
-            ds === 'right'
-                ? (ds as 'none' | 'top' | 'bottom' | 'left' | 'right')
-                : 'none';
-    });
-
-    // Sync internal changes
-    $effect(() => {
-        if (viewerState.dockSide !== dockSide) {
-            viewerState.setDockSide(dockSide);
-        }
-    });
+    /**
+     * The edge the gallery is docked to. An unchecked narrowing of the state
+     * field: nothing validates what is written there, so a value outside the four
+     * edges reaches this component as-is and falls through every branch below.
+     */
+    let dockSide = $derived(viewerState.dockSide as DockEdge);
 
     // Auto-scroll active thumbnail into view
     $effect(() => {
@@ -315,18 +185,11 @@
 
     let expanded = $derived(viewerState.galleryExpanded);
 
-    // Switch to horizontal layout if height is small or docked to top/bottom.
-    //
-    // Expanded always wins: an expanded gallery IS the floating window's grid at
-    // viewer size — same cell size, same padding and gap — so it takes the grid
-    // branch for the same reason a tall floating window does. Deliberately not a
-    // third layout with its own density: the float grid is already the right one,
-    // and one fewer knob is one fewer thing to diverge.
+    // A top/bottom dock is the one layout that runs as a single row; every other
+    // view is the wrapped track. Expanded always wins, whatever the dock side:
+    // the expanded gallery is a grid filling the column, never a strip across it.
     let isHorizontal = $derived(
-        !expanded &&
-            (dockSide === 'top' ||
-                dockSide === 'bottom' ||
-                (dockSide === 'none' && viewerState.gallerySize.height < 320)),
+        !expanded && (dockSide === 'top' || dockSide === 'bottom'),
     );
 
     let galleryExtent = $derived(viewerState.galleryExtent);
@@ -364,8 +227,7 @@
     let isRTL = $derived(viewerState.viewingDirection === 'right-to-left');
 
     // The glyph points the way the gallery will travel: away from its dock edge
-    // to expand, back toward it to collapse. A floating gallery has no edge to
-    // travel from, so it gets maximize/restore instead.
+    // to expand, back toward it to collapse.
     const EXPAND_CARET = {
         top: 'CaretDown',
         bottom: 'CaretUp',
@@ -385,11 +247,6 @@
         right: 'left',
     } as const;
 
-    type DockEdge = 'top' | 'bottom' | 'left' | 'right';
-    let dockEdge = $derived(
-        dockSide === 'none' ? null : (dockSide as DockEdge),
-    );
-
     /**
      * Which of the gallery's own edges carries the caret: always the one facing
      * the canvas, in both states. A bottom-docked gallery's caret sits on its top
@@ -402,18 +259,10 @@
      * because the canvas side of a bottom-docked strip is where the canvas nav
      * lives.
      */
-    let caretEdge = $derived(
-        dockEdge === null ? null : OPPOSITE_EDGE[dockEdge],
-    );
+    let caretEdge = $derived(OPPOSITE_EDGE[dockSide]);
 
     let toggleIcon = $derived<IconName>(
-        dockEdge === null
-            ? expanded
-                ? 'CornersIn'
-                : 'CornersOut'
-            : expanded
-              ? COLLAPSE_CARET[dockEdge]
-              : EXPAND_CARET[dockEdge],
+        expanded ? COLLAPSE_CARET[dockSide] : EXPAND_CARET[dockSide],
     );
 
     let toggleLabel = $derived(
@@ -425,21 +274,10 @@
      * outward, over the canvas — empty space, and it leaves the thumbnails
      * readable. Expanded, the gallery IS the whole column, so outward would push
      * the bubble past the viewer edge; it opens inward over the grid instead.
-     * The floating window's inline button has no edge, so its bubble goes left,
-     * away from the window's own corner.
      */
     let tooltipPlacement = $derived<'top' | 'bottom' | 'left' | 'right'>(
-        dockEdge === null
-            ? 'left'
-            : expanded
-              ? dockEdge
-              : OPPOSITE_EDGE[dockEdge],
+        expanded ? dockSide : OPPOSITE_EDGE[dockSide],
     );
-
-    // The header hosts the drag grip, which is meaningless for an expanded
-    // overlay — so it survives expansion only for a floating gallery, where it
-    // is the sole home for the maximize/restore button.
-    let showHeader = $derived(dockSide === 'none' || (!expanded && draggable));
 
     function toggleExpanded() {
         viewerState.toggleGalleryExpanded();
@@ -458,59 +296,6 @@
         window.addEventListener('keydown', onKeydown);
         return () => window.removeEventListener('keydown', onKeydown);
     });
-
-    function startDrag(e: MouseEvent) {
-        if (!draggable) return; // Dragging disabled in config
-        if ((e.target as HTMLElement).closest('.resize-handle')) return; // Don't drag if resizing
-
-        const wasDocked = dockSide !== 'none';
-
-        // Calculate position and offset first (no state changes yet)
-        if (wasDocked) {
-            let centeredX = Math.max(0, e.clientX - 150);
-            let centeredY = Math.max(0, e.clientY - 20);
-
-            // Constrain initial position so it doesn't jump off-screen if undocking near edges
-            const maxInitialX = Math.max(0, window.innerWidth - 300);
-            const maxInitialY = Math.max(0, window.innerHeight - 400);
-
-            centeredX = Math.min(centeredX, maxInitialX);
-            centeredY = Math.min(centeredY, maxInitialY);
-
-            viewerState.setGalleryPosition({ x: centeredX, y: centeredY });
-            viewerState.galleryDragOffset = {
-                x: e.clientX - centeredX,
-                y: e.clientY - centeredY,
-            };
-        } else {
-            viewerState.galleryDragOffset = {
-                x: e.clientX - viewerState.galleryPosition.x,
-                y: e.clientY - viewerState.galleryPosition.y,
-            };
-        }
-
-        // CRITICAL: Capture center panel rect BEFORE undocking
-        // Use getRootNode() to work inside shadow DOM
-        const root = galleryElement?.getRootNode() as Document | ShadowRoot;
-        const centerPanel =
-            root?.getElementById?.('triiiceratops-center-panel') ??
-            document.getElementById('triiiceratops-center-panel');
-        if (centerPanel) {
-            viewerState.galleryCenterPanelRect =
-                centerPanel.getBoundingClientRect();
-        }
-
-        // CRITICAL: Set dragging state and attach listeners BEFORE changing dockSide
-        // This ensures listeners persist even if component unmounts
-        viewerState.isGalleryDragging = true;
-        window.addEventListener('mousemove', onDrag);
-        window.addEventListener('mouseup', stopDrag);
-
-        // NOW undock - this may cause component remount, but listeners are already attached
-        if (wasDocked) {
-            dockSide = 'none';
-        }
-    }
 
     // One entry per thumbnail button: a paged pair, or a single canvas. Every
     // viewing mode produces these, so the strip has one rendering path.
@@ -626,8 +411,7 @@
         class={[
             'gallery-root',
             expanded && 'expanded',
-            !expanded && dockSide !== 'none' && 'docked',
-            !expanded && dockSide === 'none' && 'floating',
+            !expanded && 'docked',
             !expanded &&
                 (dockSide === 'bottom' || dockSide === 'top') &&
                 'dock-horizontal',
@@ -640,93 +424,27 @@
             caretEdge === 'bottom' && 'caret-bottom',
             caretEdge === 'left' && 'caret-left',
             caretEdge === 'right' && 'caret-right',
-            viewerState.isGalleryDragging && 'dragging',
             // Which axis a thumbnail is fixed on. Not tied to `dock-vertical`,
             // because it has to survive expanding: see `constrainWidth`.
             constrainWidth && 'constrain-width',
         ]}
         style="{GALLERY_THUMB_VARS}; --ui-thumb-h: {thumbFrameHeight}px;
-        --ui-thumb-item-w: {thumbItemWidth}px; {expanded || dockSide !== 'none'
-            ? ''
-            : `left: ${viewerState.galleryPosition.x}px; top: ${viewerState.galleryPosition.y}px; width: ${viewerState.gallerySize.width}px; height: ${viewerState.gallerySize.height}px;`}"
+        --ui-thumb-item-w: {thumbItemWidth}px;"
     >
-        <!-- Header Area (drag grip when draggable/floating; also the floating
-             gallery's home for the maximize/restore button) -->
-        {#if showHeader}
-            <div
-                class={[
-                    'gallery-header',
-                    !expanded &&
-                        (dockSide === 'bottom' || dockSide === 'top') &&
-                        'header-horizontal',
-                    (expanded ||
-                        (dockSide !== 'bottom' && dockSide !== 'top')) &&
-                        'header-vertical',
-                ]}
+        <!-- Expand/collapse caret, centered on the canvas-facing edge -->
+        <span
+            class="tooltip place-{tooltipPlacement} toggle-anchor"
+            data-tip={toggleLabel}
+        >
+            <button
+                class="expand-toggle toggle-edge"
+                onclick={toggleExpanded}
+                aria-label={toggleLabel}
+                aria-expanded={expanded}
             >
-                <!-- Drag Handle (an expanded overlay has nowhere to be dragged to) -->
-                {#if !expanded}
-                    <div
-                        class={[
-                            'drag-handle',
-                            (dockSide === 'bottom' || dockSide === 'top') &&
-                                'handle-horizontal',
-                            dockSide !== 'bottom' &&
-                                dockSide !== 'top' &&
-                                'handle-vertical',
-                        ]}
-                        onmousedown={startDrag}
-                        role="button"
-                        tabindex="0"
-                        aria-label="Drag Gallery"
-                    >
-                        <div
-                            class={[
-                                'drag-grip',
-                                (dockSide === 'bottom' || dockSide === 'top') &&
-                                    'grip-horizontal',
-                                dockSide !== 'bottom' &&
-                                    dockSide !== 'top' &&
-                                    'grip-vertical',
-                            ]}
-                        ></div>
-                    </div>
-                {/if}
-
-                {#if dockSide === 'none'}
-                    <span
-                        class="tooltip place-{tooltipPlacement} toggle-anchor toggle-anchor-inline"
-                        data-tip={toggleLabel}
-                    >
-                        <button
-                            class="expand-toggle toggle-inline"
-                            onclick={toggleExpanded}
-                            aria-label={toggleLabel}
-                            aria-expanded={expanded}
-                        >
-                            <Icon name={toggleIcon} size={14} />
-                        </button>
-                    </span>
-                {/if}
-            </div>
-        {/if}
-
-        <!-- Expand/collapse caret, centered on the canvas-facing edge (docked only) -->
-        {#if caretEdge}
-            <span
-                class="tooltip place-{tooltipPlacement} toggle-anchor toggle-anchor-edge"
-                data-tip={toggleLabel}
-            >
-                <button
-                    class="expand-toggle toggle-edge"
-                    onclick={toggleExpanded}
-                    aria-label={toggleLabel}
-                    aria-expanded={expanded}
-                >
-                    <Icon name={toggleIcon} size={12} />
-                </button>
-            </span>
-        {/if}
+                <Icon name={toggleIcon} size={12} />
+            </button>
+        </span>
 
         <div
             class={[
@@ -858,82 +576,18 @@
                 {/each}
             </div>
         </div>
-
-        {#if dockSide === 'none' && !expanded}
-            <div
-                class="resize-handle"
-                style="clip-path: polygon(100% 0, 0 100%, 100% 100%);"
-                onmousedown={startResize}
-                role="button"
-                tabindex="0"
-                aria-label="Resize"
-            ></div>
-        {/if}
     </div>
-
-    {#if viewerState.isGalleryDragging}
-        <div
-            class={[
-                'drop-zone drop-top',
-                viewerState.dragOverSide === 'top' && 'drop-active',
-                viewerState.dragOverSide !== 'top' && 'drop-idle',
-            ]}
-            role="group"
-        >
-            <span class="drop-label">Dock Top</span>
-        </div>
-
-        <div
-            class={[
-                'drop-zone drop-bottom',
-                viewerState.dragOverSide === 'bottom' && 'drop-active',
-                viewerState.dragOverSide !== 'bottom' && 'drop-idle',
-            ]}
-            role="group"
-        >
-            <span class="drop-label">Dock Bottom</span>
-        </div>
-
-        <div
-            class={[
-                'drop-zone drop-left',
-                viewerState.dragOverSide === 'left' && 'drop-active',
-                viewerState.dragOverSide !== 'left' && 'drop-idle',
-            ]}
-            role="group"
-        >
-            <span
-                class="drop-label drop-label-vertical"
-                style="writing-mode: vertical-rl;">Dock Left</span
-            >
-        </div>
-
-        <div
-            class={[
-                'drop-zone drop-right',
-                viewerState.dragOverSide === 'right' && 'drop-active',
-                viewerState.dragOverSide !== 'right' && 'drop-idle',
-            ]}
-            role="group"
-        >
-            <span
-                class="drop-label drop-label-vertical"
-                style="writing-mode: vertical-rl;">Dock Right</span
-            >
-        </div>
-    {/if}
 {/if}
 
 <style>
-    /* ===== Root floating / docked window ===== */
+    /* ===== Root: docked band/rail and expanded overlay ===== */
     .gallery-root {
         display: flex;
         user-select: none;
         background-color: var(--tri-gallery-bg);
         color: var(--tri-gallery-content);
-        /* The expanded overlay's caret gutter is root padding, and every sizing
-           rule here (100% when docked, an explicit pixel size when floating) means
-           the gallery's OUTER box. */
+        /* The expanded overlay's caret gutter is root padding, and the 100% sizing
+           rules below mean the gallery's OUTER box. */
         box-sizing: border-box;
     }
     .gallery-root.docked {
@@ -953,16 +607,6 @@
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 0.2s;
     }
-    .gallery-root.floating {
-        position: fixed;
-        z-index: 900;
-        flex-direction: column;
-        overflow: hidden;
-        border-width: 1px;
-        border-style: solid;
-        border-color: var(--tri-surface-border);
-        box-shadow: 0 25px 50px -12px #00000040;
-    }
     .gallery-root.dock-horizontal {
         flex-direction: row;
         border-top-width: 1px;
@@ -975,92 +619,19 @@
         border-right-width: 1px;
         border-right-style: solid;
     }
-    .gallery-root.dragging {
-        pointer-events: none;
-        opacity: 0.8;
-    }
     /* Expanded: the parent host (.gallery-expanded in TriiiceratopsViewer) owns
        the inset-0 positioning, exactly as the docked bands own the strip's size —
        the gallery just fills what it is given.
 
-       Structurally identical to `.floating` apart from the positioning the host
-       owns — same column flow, same clipped overflow — so the expanded gallery is
-       literally the floating window's grid at viewer size. It sets no padding,
-       gap, or cell size of its own: those stay on the shared `.gallery-content` /
-       `.gallery-track` rules, which is what keeps the two views from drifting. */
+       It sets no padding, gap, or cell size of its own: those stay on the shared
+       `.gallery-content` / `.gallery-track` rules, which is what keeps the
+       expanded grid and the docked track from drifting apart. */
     .gallery-root.expanded {
         position: relative;
         flex-direction: column;
         width: 100%;
         height: 100%;
         overflow: hidden;
-    }
-
-    /* ===== Header / drag handle ===== */
-    .gallery-header {
-        display: flex;
-        flex-shrink: 0;
-        position: relative;
-        user-select: none;
-        background-color: var(--tri-gallery-bg);
-    }
-    .gallery-header.header-horizontal {
-        flex-direction: row;
-        height: 100%;
-        align-items: center;
-        border-right-width: 1px;
-        border-right-style: solid;
-        border-right-color: var(--tri-surface-border);
-    }
-    .gallery-header.header-vertical {
-        flex-direction: column;
-        width: 100%;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-bottom-color: var(--tri-surface-border);
-    }
-
-    .drag-handle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: move;
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.15s;
-    }
-    .drag-handle:hover {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-surface-border) 50%,
-            transparent
-        );
-    }
-    .drag-handle:active {
-        background-color: var(--tri-surface-border);
-    }
-    .drag-handle.handle-horizontal {
-        width: 2rem;
-        height: 100%;
-    }
-    .drag-handle.handle-vertical {
-        height: 1.5rem;
-        width: 100%;
-    }
-
-    .drag-grip {
-        background-color: var(--tri-surface-border);
-        border-radius: calc(infinity * 1px);
-    }
-    .drag-grip.grip-horizontal {
-        width: 0.375rem;
-        height: 3rem;
-    }
-    .drag-grip.grip-vertical {
-        width: 3rem;
-        height: 0.375rem;
     }
 
     /* ===== Expand / collapse control =====
@@ -1221,18 +792,6 @@
     }
     .gallery-root.dock-vertical.caret-right > .toggle-anchor {
         right: calc(-1 * var(--tri-border));
-    }
-
-    /* The floating window has no dock edge, so its maximize/restore button lives
-       in the header's top corner instead. */
-    .gallery-root .toggle-anchor-inline {
-        top: 0.125rem;
-        right: 0.25rem;
-        width: 1.25rem;
-        height: 1.25rem;
-    }
-    .toggle-inline {
-        border-radius: var(--tri-radius-buttons);
     }
 
     /* ===== Content scroll area ===== */
@@ -1488,97 +1047,5 @@
     }
     .choice-badge :global(.choice-icon) {
         opacity: 0.7;
-    }
-
-    /* ===== Resize handle ===== */
-    .resize-handle {
-        position: absolute;
-        bottom: 0;
-        right: 0;
-        width: 1.5rem;
-        height: 1.5rem;
-        cursor: se-resize;
-        z-index: 50;
-        background-color: var(--tri-color-primary);
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.15s;
-    }
-    .resize-handle:hover {
-        background-color: var(--tri-color-primary);
-    }
-
-    /* ===== Drop zones ===== */
-    .drop-zone {
-        position: absolute;
-        z-index: 999;
-        border-radius: 0.75rem;
-        border-width: 4px;
-        border-style: dashed;
-        border-color: color-mix(
-            in oklab,
-            var(--tri-color-primary) 40%,
-            transparent
-        );
-        pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition-property: all;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-    .drop-zone.drop-right {
-        transition-duration: 0.3s;
-    }
-    .drop-top {
-        top: 0.5rem;
-        left: 0.5rem;
-        right: 0.5rem;
-        height: 4rem;
-    }
-    .drop-bottom {
-        bottom: 0.5rem;
-        left: 0.5rem;
-        right: 0.5rem;
-        height: 4rem;
-    }
-    .drop-left {
-        top: 0.5rem;
-        bottom: 0.5rem;
-        left: 0.5rem;
-        width: 4rem;
-    }
-    .drop-right {
-        top: 0.5rem;
-        bottom: 0.5rem;
-        right: 0.5rem;
-        width: 4rem;
-    }
-    .drop-zone.drop-active {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-color-primary) 20%,
-            transparent
-        );
-        transform: scale(1.05);
-    }
-    .drop-zone.drop-idle {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-gallery-bg) 50%,
-            transparent
-        );
-    }
-
-    .drop-label {
-        font-weight: 700;
-        color: var(--tri-color-primary-text);
-        opacity: 0.5;
-    }
-    .drop-label-vertical {
-        transform: rotate(180deg);
     }
 </style>

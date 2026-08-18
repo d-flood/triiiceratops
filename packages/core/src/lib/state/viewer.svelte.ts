@@ -152,8 +152,6 @@ export interface ViewerStateSnapshot {
         | 'bottom-to-top';
     preserveCanvasScale: boolean;
     galleryExpanded: boolean;
-    galleryPosition: { x: number; y: number };
-    gallerySize: { width: number; height: number };
 }
 
 export class ViewerState {
@@ -475,9 +473,6 @@ export class ViewerState {
     /**
      * `gallery.size` — the docked band's height or the docked rail's width, and the
      * knob every thumbnail dimension is derived from. See `galleryGeometry`.
-     *
-     * Not named `gallerySize`: that is already the floating window's width and
-     * height, which is a different thing entirely.
      */
     get galleryExtent() {
         return this.config.gallery?.size ?? 100;
@@ -508,17 +503,9 @@ export class ViewerState {
      * Whether the gallery is expanded to fill the viewer's center column as a
      * thumbnail grid. Orthogonal to {@link dockSide}: expanding renders the
      * gallery as an overlay layer and leaves the dock side untouched, so
-     * collapsing restores the strip/rail/window exactly where it was.
+     * collapsing restores the strip or rail exactly where it was.
      */
     galleryExpanded = $state(false);
-
-    // Gallery State (Lifted for persistence during re-docking)
-    galleryPosition = $state({ x: 20, y: 100 });
-    gallerySize = $state({ width: 300, height: 400 });
-    isGalleryDragging = $state(false);
-    galleryDragOffset = $state({ x: 0, y: 0 });
-    dragOverSide = $state<'top' | 'bottom' | 'left' | 'right' | null>(null);
-    galleryCenterPanelRect = $state<DOMRect | null>(null);
 
     // ==================== EVENT DISPATCH (Web Component Only) ====================
 
@@ -587,8 +574,6 @@ export class ViewerState {
             viewingDirection: this.viewingDirection,
             preserveCanvasScale: this.preserveCanvasScale,
             galleryExpanded: this.galleryExpanded,
-            galleryPosition: this.galleryPosition,
-            gallerySize: this.gallerySize,
         };
     }
 
@@ -2170,18 +2155,6 @@ export class ViewerState {
             if (newConfig.gallery.dockPosition !== undefined) {
                 this.dockSide = newConfig.gallery.dockPosition;
             }
-            if (newConfig.gallery.width !== undefined) {
-                this.gallerySize.width = newConfig.gallery.width;
-            }
-            if (newConfig.gallery.height !== undefined) {
-                this.gallerySize.height = newConfig.gallery.height;
-            }
-            if (newConfig.gallery.x !== undefined) {
-                this.galleryPosition.x = newConfig.gallery.x;
-            }
-            if (newConfig.gallery.y !== undefined) {
-                this.galleryPosition.y = newConfig.gallery.y;
-            }
             // Applied after `open` so `expanded: true` wins the implication
             // regardless of key order in the host's config object.
             if (newConfig.gallery.expanded !== undefined) {
@@ -2634,20 +2607,10 @@ export class ViewerState {
         this.setGalleryExpanded(!this.galleryExpanded);
     }
 
-    /** Move the floating (undocked) thumbnail gallery to an absolute position. */
-    setGalleryPosition(position: { x: number; y: number }): void {
-        this.galleryPosition = position;
-    }
-
-    /** Resize the floating (undocked) thumbnail gallery. */
-    setGallerySize(size: { width: number; height: number }): void {
-        this.gallerySize = size;
-    }
-
     /**
      * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
-     * 'right') or float it ('none'), keeping the derived docked flags in sync.
-     * Maintaining that invariant is why this is a command, not a field write.
+     * 'right'), keeping the derived docked flags in sync. Maintaining that
+     * invariant is why this is a command, not a field write.
      */
     setDockSide(side: string): void {
         this.dockSide = side;

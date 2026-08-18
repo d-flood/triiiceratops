@@ -141,6 +141,7 @@ import {
     MIN_FLICK_SPEED,
     MIN_VELOCITY_SPAN_MS,
     MIN_ZOOM_FRACTION,
+    MOBILE_BUDGET_QUERY,
     MOMENTUM_MIN_SPEED,
     MOMENTUM_TIME_CONSTANT,
     MULTI_CANVAS_GAP_FRACTION,
@@ -175,10 +176,12 @@ import {
     clamp,
     constrainCentre,
     fitBounds,
-    fitBoundsInset,
     insetFitCentre,
+    insetFitScale,
     normalizeWheelDelta,
     screenToCanvas as screenToCanvasPoint,
+    viewportBox,
+    viewportTransform,
     wheelZoomRate,
     zoomRange,
 } from './viewportMath';
@@ -269,8 +272,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let reducedMotion = false;
     let frameHandle: number | null = null;
     let lastFrameTime = 0;
-    /** Resolved once the next painted frame has landed (e2e determinism). */
-    let paintWaiters: Array<() => void> = [];
 
     /**
      * The decoded whole images this renderer holds, and their request
@@ -295,6 +296,44 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let loadedGeneration = $state(0);
 
     /**
+     * `ViewerConfig.renderer`'s numeric knobs, validated once per config change.
+     *
+     * Every member is optional, and a config carrying `undefined`, `null`, or a
+     * stray `NaN` from a JSON round-trip must take core's default rather than
+     * poison the planner with a threshold nothing compares true against. The
+     * check belongs at this edge and nowhere else: the frame loop, the input
+     * handlers and `applyByteBudget` all read numbers that are already known
+     * good, instead of each re-deciding whether the same value is usable.
+     */
+    const knobs = $derived.by(() => {
+        const config = viewerState.config?.renderer;
+        const usable = (value: number | undefined): value is number =>
+            typeof value === 'number' && Number.isFinite(value) && value > 0;
+        // Overrides only, so a knob nobody set leaves core's default — and so
+        // `maxDecodedPixels`, which is not a knob, can never be reached at all.
+        const budgets: Partial<PlannerBudgets> = {};
+        const carry = (member: keyof PlannerBudgets, value?: number) => {
+            if (usable(value)) budgets[member] = value;
+        };
+        carry('byteBudget', config?.byteBudget);
+        carry('marginFactor', config?.residencyMargin);
+        carry('pyramidThreshold', config?.pyramidThreshold);
+        carry('boxThreshold', config?.boxThreshold);
+        carry('minPixelRatio', config?.minPixelRatio);
+        const animation = config?.animationTimeConstant;
+        return {
+            budgets,
+            /**
+             * The time constant every programmatic and discrete animation runs
+             * at.
+             */
+            animationTime: usable(animation)
+                ? animation
+                : ANIMATION_TIME_CONSTANT,
+        };
+    });
+
+    /**
      * The planner's policy inputs — thresholds, the residency margin, and the
      * decoded-byte ceiling.
      *
@@ -305,69 +344,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * `applyByteBudget`). Nothing else in here varies at runtime.
      *
      * The consumer's `ViewerConfig.renderer` overrides land here too, through
-     * {@link configuredBudgets} — a **closed** set of named knobs, not an open
-     * options object. A configured `byteBudget` wins over the device ceiling,
-     * because a consumer who states a number has more context than a media
-     * query does.
+     * {@link knobs} — a **closed** set of named knobs, not an open options
+     * object. A configured `byteBudget` wins over the device ceiling, because a
+     * consumer who states a number has more context than a media query does.
      *
      * Deliberately not `$state`: read by the frame loop, never by the reactive
      * graph.
      */
-    let budgets = configuredBudgets(DEFAULT_BUDGETS);
-
-    /**
-     * Apply `ViewerConfig.renderer` over a set of budgets.
-     *
-     * Every member is optional and each is checked for being a usable number,
-     * so a config carrying `undefined`, `null`, or a stray `NaN` from a JSON
-     * round-trip takes core's default rather than poisoning the planner with a
-     * threshold nothing compares true against.
-     */
-    function configuredBudgets(base: PlannerBudgets): PlannerBudgets {
-        const config = viewerState.config?.renderer;
-        if (!config) return base;
-        const usable = (value: number | undefined): value is number =>
-            typeof value === 'number' && Number.isFinite(value) && value > 0;
-        return {
-            byteBudget: usable(config.byteBudget)
-                ? config.byteBudget
-                : base.byteBudget,
-            marginFactor: usable(config.residencyMargin)
-                ? config.residencyMargin
-                : base.marginFactor,
-            pyramidThreshold: usable(config.pyramidThreshold)
-                ? config.pyramidThreshold
-                : base.pyramidThreshold,
-            boxThreshold: usable(config.boxThreshold)
-                ? config.boxThreshold
-                : base.boxThreshold,
-            minPixelRatio: usable(config.minPixelRatio)
-                ? config.minPixelRatio
-                : base.minPixelRatio,
-            maxDecodedPixels: base.maxDecodedPixels,
-        };
-    }
-
-    /**
-     * The time constant every programmatic and discrete animation runs at, from
-     * `ViewerConfig.renderer.animationTimeConstant`.
-     */
-    function animationTime(): number {
-        const configured = viewerState.config?.renderer?.animationTimeConstant;
-        return typeof configured === 'number' &&
-            Number.isFinite(configured) &&
-            configured > 0
-            ? configured
-            : ANIMATION_TIME_CONSTANT;
-    }
+    let budgets: PlannerBudgets = { ...DEFAULT_BUDGETS, ...knobs.budgets };
 
     /**
      * The log-scale zoom per pixel of wheel travel, from
      * `ViewerConfig.renderer.zoomPerWheelNotch`.
      *
-     * Read per event rather than cached, like `animationTime()`: config is
-     * reactive, and a wheel handler is nowhere near hot enough for one property
-     * read and a `Math.log` to matter.
+     * Read per event rather than resolved with the other knobs: this one has a
+     * floor of its own (below) and a `Math.log` to convert, and a wheel handler
+     * is nowhere near hot enough for either to matter.
      *
      * A factor of 1 or less is rejected rather than honoured — it would freeze
      * the wheel or invert its direction, neither of which is a thing to
@@ -1310,14 +1302,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const inset = currentInset();
-        const scale = clampScale(fitBoundsInset(bounds, viewport, inset).scale);
+        const scale = clampScale(insetFitScale(bounds, viewport, inset));
         // The centre is composed at the scale actually ADOPTED, not the one the
         // fit asked for: the inset shift is a screen distance, so a clamped fit
         // whose shift was divided by the un-clamped scale lands off-centre by
         // `adopted / wanted` — see `insetFitCentre`.
         const centre = insetFitCentre(bounds, viewport, inset, scale);
         if (animated) {
-            setViewAnimated(centre, scale, animationTime());
+            setViewAnimated(centre, scale, knobs.animationTime);
             return;
         }
 
@@ -1428,14 +1420,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         if (viewport.scale <= 0) return [];
 
-        const width = viewport.width / viewport.scale;
-        const height = viewport.height / viewport.scale;
-        const view = {
-            x: viewport.centre.x - width / 2,
-            y: viewport.centre.y - height / 2,
-            width,
-            height,
-        };
+        const view = viewportBox(viewport);
         const nearest = nearestRect(layout, viewport.centre);
 
         return layout
@@ -1493,7 +1478,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             setViewAnimated(
                 viewport.centre,
                 clampScale(scale / currentCanvasScaleFactor()),
-                animationTime(),
+                knobs.animationTime,
             );
         },
 
@@ -1503,7 +1488,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             setViewAnimated(
                 canvasPointToWorld(centre, placement),
                 viewport.scale,
-                animationTime(),
+                knobs.animationTime,
             );
         },
 
@@ -1540,17 +1525,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         getVisibleBounds(canvasId?: string): ViewportBox | null {
             const placement = placementOf(canvasId);
             if (!placement || viewport.scale <= 0) return null;
-            const width = viewport.width / viewport.scale;
-            const height = viewport.height / viewport.scale;
-            return worldBoxToCanvas(
-                {
-                    x: viewport.centre.x - width / 2,
-                    y: viewport.centre.y - height / 2,
-                    width,
-                    height,
-                },
-                placement,
-            );
+            return worldBoxToCanvas(viewportBox(viewport), placement);
         },
 
         getCanvasSize(canvasId?: string): CanvasSize | null {
@@ -1609,6 +1584,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const frameListeners = new Set<() => void>();
+    // Allocated only if devtools registers a waiter, so production pays nothing.
+    let detachWaiters: (() => void)[] | null = null;
 
     /**
      * Surface-tap listeners. A plain `Set` for the same reason the frame ones
@@ -1671,12 +1648,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     function scheduleFrame() {
         if (frameHandle !== null) return;
         frameHandle = requestAnimationFrame(runFrame);
-    }
-
-    function settlePaintWaiters() {
-        const waiters = paintWaiters;
-        paintWaiters = [];
-        for (const resolve of waiters) resolve();
     }
 
     function runFrame(now: number) {
@@ -1747,11 +1718,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // on a change (see `publishVisibleCanvasIds`).
         publishVisibleCanvasIds();
 
-        if (animating || momentum || keyPan) {
-            scheduleFrame();
-        } else {
-            settlePaintWaiters();
-        }
+        if (animating || momentum || keyPan) scheduleFrame();
     }
 
     /**
@@ -1880,11 +1847,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     /**
      * What a paint layer is told about this frame.
      *
-     * The transform is spelled out again rather than read back off the context
-     * (`getTransform` allocates a `DOMMatrix` per frame) and is the same
-     * arithmetic `paintScene.applyViewportTransform` performs — asserted by the
-     * geometric e2e assertion, which locates a layer's own ink and compares it
-     * with the coordinate model, exactly as it does for the tiles.
+     * The transform is built rather than read back off the context
+     * (`getTransform` allocates a `DOMMatrix` per frame), from the same
+     * `viewportMath.viewportTransform` the painter sets on it — so a layer's ink
+     * and the tiles are on one matrix by construction, not by two spellings
+     * agreeing. The geometric e2e assertion locates a layer's own ink and
+     * compares it with the coordinate model, exactly as it does for the tiles.
      *
      * The canvas half comes from `paintCanvasSpace`, which carries this frame's
      * rects AND the canvas-space → world conversion over them. The declared
@@ -1894,15 +1862,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * canvas-space point is.
      */
     function paintFrame(plan: ScenePlan): PaintFrame {
-        const scale = viewport.scale * dpr;
         return {
-            transform: {
-                scale,
-                offsetX: (viewport.width / 2) * dpr - viewport.centre.x * scale,
-                offsetY:
-                    (viewport.height / 2) * dpr - viewport.centre.y * scale,
-                dpr,
-            },
+            transform: viewportTransform(viewport, dpr),
             width: viewport.width,
             height: viewport.height,
             ...paintCanvasSpace(plan.layout, declaredCanvasSize),
@@ -2365,7 +2326,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
-     * The media queries the byte ceiling is resolved from, kept live.
+     * The media query the byte ceiling is resolved from, kept live.
      *
      * `(pointer: coarse) and (hover: none)` is a LIVE question, not a
      * device-identity one, and the two watchers either side of this one already
@@ -2375,33 +2336,26 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * cache on a machine the browser will kill a tab on for far less, which is
      * the case the two ceilings exist to separate.
      *
-     * Keyed by the query text this component passed in rather than by
-     * `MediaQueryList.media`, which the platform is free to re-serialize.
-     *
-     * A plain Map, deliberately not a `SvelteMap`: it is read by
-     * `resolveByteBudget` and by the change listener, never by the reactive
-     * graph.
+     * One held query rather than a map of them, because `resolveByteBudget`
+     * asks exactly one: it takes the matcher rather than reaching for
+     * `matchMedia`, so that the choice between the two ceilings is a pure
+     * function with an ordinary unit test.
      */
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const byteBudgetQueries = new Map<string, MediaQueryList>();
+    let byteBudgetQuery: MediaQueryList | null = null;
 
-    function byteBudgetMatches(query: string): boolean {
-        let held = byteBudgetQueries.get(query);
-        if (!held) {
-            held = window.matchMedia(query);
-            held.addEventListener?.('change', applyByteBudget);
-            byteBudgetQueries.set(query, held);
+    function byteBudgetMatches(): boolean {
+        if (!byteBudgetQuery) {
+            byteBudgetQuery = window.matchMedia(MOBILE_BUDGET_QUERY);
+            byteBudgetQuery.addEventListener?.('change', applyByteBudget);
         }
-        return held.matches;
+        return byteBudgetQuery.matches;
     }
 
     function applyByteBudget() {
         // A consumer who named a ceiling knows more than the media query does,
         // so the device answer is only consulted when none was configured.
-        const byteBudget = configuredBudgets({
-            ...budgets,
-            byteBudget: resolveByteBudget(byteBudgetMatches),
-        }).byteBudget;
+        const byteBudget =
+            knobs.budgets.byteBudget ?? resolveByteBudget(byteBudgetMatches);
         if (byteBudget === budgets.byteBudget) return;
 
         budgets = { ...budgets, byteBudget };
@@ -2411,10 +2365,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     function unwatchByteBudget() {
-        for (const query of byteBudgetQueries.values()) {
-            query.removeEventListener?.('change', applyByteBudget);
-        }
-        byteBudgetQueries.clear();
+        byteBudgetQuery?.removeEventListener?.('change', applyByteBudget);
+        byteBudgetQuery = null;
     }
 
     /**
@@ -2681,7 +2633,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         setViewAnimated(
             anchoredZoomCentre(viewport, anchor, scale),
             scale,
-            animationTime(),
+            knobs.animationTime,
         );
     }
 
@@ -2940,7 +2892,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         setViewAnimated(
             { ...targetCentre },
             clampScale(targetScale * factor),
-            animationTime(),
+            knobs.animationTime,
         );
     }
 
@@ -2965,7 +2917,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * While Meta (Cmd) is down, macOS delivers no `keyup` for other keys. Hold
      * an arrow, press Cmd, release the arrow, release Cmd, and `handleKeyUp`
      * never sees the arrow at all: it stays in `heldPanKeys`, the surface pans
-     * forever, the frame loop never settles, and every `nextPaint` waiter
+     * forever, the frame loop never settles, and every awaited `nextPaint`
      * hangs with it. Treat the modifier arriving — on either a key-down or a
      * key-up — as the end of any hold, which is the same thing losing focus
      * means.
@@ -3059,7 +3011,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * from the window-level listeners below. Every one of those is the same
      * failure — a key-up that will never arrive — and a stranded `keyPan` is
      * not merely a visual bug: the frame loop never settles, `isMoving()`
-     * stays true, and `nextPaint` waiters never resolve.
+     * stays true, and no awaited `nextPaint` ever resolves.
      */
     function handleBlur() {
         clearHeldKeys();
@@ -3191,11 +3143,13 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         /*
          * Development-only instrumentation. `src/devtools/` registers an
          * installer through `rendererDevtools`; with none registered — every
-         * production build — this is a null check and the handle's shaping code
-         * is not in the bundle graph at all. See `rendererDevtools.ts` for why
-         * this is a registry rather than a build-time DEV conditional.
+         * production build — the thunk below is never called and the handle's
+         * shaping code is not in the bundle graph at all. See
+         * `rendererDevtools.ts` for why this is a registry rather than a
+         * build-time DEV conditional, and why the internals are raw handles:
+         * everything that can be shaped from them is shaped in `src/devtools/`.
          */
-        installRendererDevtools(surface, {
+        installRendererDevtools(surface, () => ({
             getViewport: () => viewport,
             setView: (view) => {
                 viewport = {
@@ -3212,26 +3166,32 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             isMoving: () => animating || momentum !== null || keyPan !== null,
             fitWorld,
             port: canvasPort,
+            requestFrame,
+            onDetach: (fn) => {
+                (detachWaiters ??= []).push(fn);
+                return () => {
+                    detachWaiters = detachWaiters?.filter((f) => f !== fn) ?? null;
+                };
+            },
             setByteBudget: (bytes) => {
                 budgets = { ...budgets, byteBudget: bytes };
                 tiles.setByteBudget(bytes);
             },
-            getStats: () => ({
-                residentTileCount: tiles.residentTileCount,
-                cachedTileCount: tiles.cachedTileCount,
-                decodedBytes: tiles.decodedBytes,
-                requiredBytes: tiles.requiredBytes,
-                byteBudget: tiles.byteBudget,
-                tileRequestCount: tiles.requestCount,
-                scenePlanCount,
-            }),
+            tiles,
+            getScenePlanCount: () => scenePlanCount,
             getTiers: () => lastTiers,
-            getCanvasErrors: () => ({ ...canvasErrors }),
+            canvasErrors,
             registerPaintLayer:
                 viewerState.registerPaintLayer.bind(viewerState),
-            nextPaint,
-        });
+        }));
         return () => {
+            // Before frameListeners.clear(): a settled-paint promise resolves
+            // out of a frame listener, and no frame follows detach.
+            if (detachWaiters) {
+                const waiters = detachWaiters;
+                detachWaiters = null;
+                for (const fn of waiters) fn();
+            }
             detachRenderer();
             releasePageLayer();
             frameListeners.clear();
@@ -3256,7 +3216,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             momentum = null;
             clearHeldKeys();
             keyPan = null;
-            settlePaintWaiters();
             staticImages.clear();
             // Aborts every outstanding tile request and closes every decoded
             // tile. The METADATA cache is deliberately left alone: it is
@@ -3264,13 +3223,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // remounting free.
             tiles.dispose();
         };
-    }
-
-    function nextPaint(): Promise<void> {
-        return new Promise<void>((resolve) => {
-            paintWaiters.push(resolve);
-            requestFrame();
-        });
     }
 
     /**

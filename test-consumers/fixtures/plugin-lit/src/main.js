@@ -72,6 +72,26 @@ const activation = activatePlugin(plugin, {
     coreVersion: CORE_VERSION,
     pluginApiVersion,
     capabilities,
+    // Activating outside `TriiiceratopsViewer` means owning the plugin's
+    // services. Inert ones are enough here: what this fixture asserts is the
+    // mount / selector / cleanup contract, not the services.
+    styles: { install: () => () => {} },
+    locale: { current: 'en', t: (key) => key, subscribe: () => () => {} },
+    ui: { renderIcon: () => () => {} },
+    surface: {
+        id: 'fixture',
+        isOpen: true,
+        target: 'panel',
+        open: () => {},
+        close: () => {},
+        toggle: () => {},
+    },
+    // Rethrow: this fixture activates a plugin expected to succeed, so a
+    // guarded phase failure must surface as an uncaught page error rather than
+    // be swallowed — the shared spec asserts no page errors were raised.
+    reportError: (report) => {
+        throw report.error;
+    },
 });
 
 window.__tri = {

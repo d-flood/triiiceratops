@@ -21,12 +21,6 @@ import type {
 
 import { negotiateCompatibility } from './compatibility.js';
 import { createSelectorRuntime, type SelectorRuntime } from './selectors.js';
-import {
-    createStubLocaleService,
-    createStubStyleService,
-    createStubSurfaceService,
-    createStubUiService,
-} from './services.js';
 
 /**
  * Wrap a style service so every `install` this activation performs is tracked
@@ -134,11 +128,10 @@ function trackPublishedState(
 }
 
 /**
- * The one id this viewer knows a plugin by, when the host supplied no surface to
- * ask (direct `runActivation` / test-kit use). Mirrors core's
- * `sdkPluginChromeId`: prefer the declared `uiId`, else collapse the
- * package-qualified name to the DOM-safe form (`@scope/plugin-foo` →
- * `scope-plugin-foo`).
+ * The one id this viewer knows a plugin by, for a caller that has to name a
+ * plugin before there is a surface to ask. Mirrors core's `sdkPluginChromeId`:
+ * prefer the declared `uiId`, else collapse the package-qualified name to the
+ * DOM-safe form (`@scope/plugin-foo` → `scope-plugin-foo`).
  *
  * Duplicated rather than value-imported for the reason `definePlugin`'s
  * `SDK_PLUGIN_KIND` is: a value import from `triiiceratops` would pull core —
@@ -165,10 +158,11 @@ const INERT_ACTIVATION: PluginActivation = { deactivate(): void {} };
  *   by the selector runtime and the `ViewerState.subscribe` listener guard.
  * - `cleanup`: a teardown cleanup threw; the remaining cleanups still run.
  *
- * When the host supplies NO `reportError` (direct SDK / test-kit use), the
- * historical behavior is preserved: a `setup` failure (e.g.
- * `PluginCompatibilityError`) or a `mount` failure throws, and
- * subscription/command/cleanup failures fall back to a console error.
+ * The host supplies every service and the report channel; there is no fallback
+ * path for a host that omits one. Core always supplies them, and a test that
+ * activates without a viewer builds a host from
+ * `@triiiceratops/plugin-sdk/testing` — so a fallback could only ever ship
+ * unreachable stub services in every plugin bundle.
  */
 export function runActivation(
     meta: SdkPluginMeta,
@@ -192,37 +186,31 @@ export function runActivation(
         // activation, wired so selector projection/callback failures are
         // attributed to this plugin.
         selectorRuntime = createSelectorRuntime(host.viewerState, {
-            onProjectionError: report
-                ? (error) => report({ phase: 'command', error })
-                : undefined,
-            onListenerError: report
-                ? (error) => report({ phase: 'subscription', error })
-                : undefined,
+            onProjectionError: (error) => report({ phase: 'command', error }),
+            onListenerError: (error) =>
+                report({ phase: 'subscription', error }),
         });
 
         // Wrap the host-supplied style and locale services so this activation's
         // style installs and locale subscriptions are released automatically on
         // teardown, even if the plugin's own cleanup forgot them.
-        styles = trackStyles(host.styles ?? createStubStyleService());
-        locale = trackLocale(host.locale ?? createStubLocaleService());
+        styles = trackStyles(host.styles);
+        locale = trackLocale(host.locale);
 
         // The plugin's own panel/flyout: how it observes whether the user can
-        // currently see it. Core supplies the real surface (it owns the chrome
-        // id); a chrome-less host gets the always-open stub. Its `id` is also the
-        // one id this viewer knows the plugin by, so it is what a publication is
-        // keyed to, exactly as an overlay layer's id is.
-        const surface =
-            host.surface ?? createStubSurfaceService(sdkChromeId(meta));
-        published = trackPublishedState(host.viewerState, surface.id);
+        // currently see it. Its `id` is also the one id this viewer knows the
+        // plugin by, so it is what a publication is keyed to, exactly as an
+        // overlay layer's id is.
+        published = trackPublishedState(host.viewerState, host.surface.id);
         const publishState = published.publish;
 
         context = {
             viewerState: host.viewerState,
             selectors: selectorRuntime.selectors,
-            surface,
+            surface: host.surface,
             styles: styles.service,
             locale: locale.service,
-            ui: host.ui ?? createStubUiService(),
+            ui: host.ui,
             publishState,
         };
     } catch (error) {
@@ -230,11 +218,8 @@ export function runActivation(
         styles?.releaseAll();
         locale?.releaseAll();
         published?.releaseAll();
-        if (report) {
-            report({ phase: 'setup', error });
-            return INERT_ACTIVATION;
-        }
-        throw error;
+        report({ phase: 'setup', error });
+        return INERT_ACTIVATION;
     }
 
     // Own cleanup list per activation: the view's returned cleanup, then the
@@ -254,14 +239,6 @@ export function runActivation(
             cleanups.push(viewCleanup);
         }
     } catch (error) {
-        if (!report) {
-            // No host channel: release the partial activation and rethrow.
-            styleService.releaseAll();
-            localeService.releaseAll();
-            publishedState.releaseAll();
-            runtime.dispose();
-            throw error;
-        }
         report({ phase: 'mount', error });
         // Retire the publication NOW rather than at teardown: a plugin that
         // published and then threw is a FAILED activation, and published state
@@ -288,17 +265,7 @@ export function runActivation(
                 try {
                     cleanups[i]?.();
                 } catch (error) {
-                    if (report) {
-                        report({ phase: 'cleanup', error });
-                    } else {
-                        // triiiceratops-console-allow: report-channel-first
-                        // fallback. Only reached in direct SDK / test-kit use
-                        // with no host `reportError`. Recorded in lint-allowlist.md.
-                        console.error(
-                            `[triiiceratops] Plugin "${meta.name}" cleanup threw during deactivation; teardown continues.`,
-                            error,
-                        );
-                    }
+                    report({ phase: 'cleanup', error });
                 }
             }
             cleanups.length = 0;

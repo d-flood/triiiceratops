@@ -556,18 +556,6 @@ export interface ScenePlan {
      * be keyed on the pair and "permanently" has to come out of this sentence.
      */
     unresolvedThumbnails: string[];
-    /**
-     * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
-     * their service offers exceeds it.
-     *
-     * The cap normally degrades to blur: a rung above it is refused and a
-     * coarser one is taken. When even the cheapest rung is over the ceiling
-     * there is no coarser one, and the choice is between a blank canvas and a
-     * decode the budget said no to. The renderer draws it — never blank wins —
-     * and reports it here rather than overriding the budget in silence, so a
-     * host can decide what to do with it.
-     */
-    overCapCanvases: string[];
     /** The derived zoom floor, in the same units as `Viewport.scale`. */
     minZoom: number;
 }

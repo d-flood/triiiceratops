@@ -85,9 +85,8 @@ Rules:
   one-time `console.warn` is the only way to make that page-level
   misconfiguration visible to the integrator. Ticket 30 moved this warn from the
   four plugin packages into the single SDK `register.ts`, so it now exists once.
-  Two further report-channel-first fallbacks carry the same marker and are
-  covered by the same guard: `packages/plugin-sdk/src/activate.ts` (cleanup-phase
-  fallback when the host supplied no `reportError`) and
+  One further report-channel-first fallback carries the same marker and is
+  covered by the same guard:
   `packages/plugin-annotation-editor/src/AnnotationStore.svelte.ts` (persistence
   fallback when the host supplied no `onPersistenceError`).
 - **Behavior test:** `packages/plugin-sdk/src/register.test.ts` — duplicate

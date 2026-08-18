@@ -1,9 +1,9 @@
 {
-    "count": 88,
+    "count": 82,
     "byClassification": {
-        "command": 39,
+        "command": 37,
         "observable": 14,
-        "internal": 31,
+        "internal": 27,
         "query-only": 4
     },
     "entries": [
@@ -115,11 +115,6 @@
             ]
         },
         {
-            "member": "dragOverSide",
-            "classification": "internal",
-            "commands": null
-        },
-        {
             "member": "errorReporter",
             "classification": "internal",
             "commands": null
@@ -135,35 +130,11 @@
             "commands": null
         },
         {
-            "member": "galleryCenterPanelRect",
-            "classification": "internal",
-            "commands": null
-        },
-        {
-            "member": "galleryDragOffset",
-            "classification": "internal",
-            "commands": null
-        },
-        {
             "member": "galleryExpanded",
             "classification": "command",
             "commands": [
                 "setGalleryExpanded",
                 "toggleGalleryExpanded"
-            ]
-        },
-        {
-            "member": "galleryPosition",
-            "classification": "command",
-            "commands": [
-                "setGalleryPosition"
-            ]
-        },
-        {
-            "member": "gallerySize",
-            "classification": "command",
-            "commands": [
-                "setGallerySize"
             ]
         },
         {
@@ -206,11 +177,6 @@
             "commands": [
                 "setDockSide"
             ]
-        },
-        {
-            "member": "isGalleryDragging",
-            "classification": "internal",
-            "commands": null
         },
         {
             "member": "isSearching",

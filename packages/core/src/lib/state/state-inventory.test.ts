@@ -521,14 +521,6 @@ const commandScenarios: CapabilityScenario[] = [
             state.setManifestRequestConfig({ headers: { 'x-test': '1' } }),
     },
     { member: 'searchQuery', act: (state) => state.search('hello') },
-    {
-        member: 'galleryPosition',
-        act: (state) => state.setGalleryPosition({ x: 1, y: 2 }),
-    },
-    {
-        member: 'gallerySize',
-        act: (state) => state.setGallerySize({ width: 1, height: 2 }),
-    },
     { member: 'dockSide', act: (state) => state.setDockSide('right') },
     {
         member: 'isGalleryDockedBottom',
@@ -755,8 +747,7 @@ describe('ViewerState subscription capability matrix', () => {
 
         // Public `internal`-classified members: no plugin-facing contract.
         state.startCanvasId = 'canvas-x';
-        state.isGalleryDragging = true;
-        state.dragOverSide = 'left';
+        state.pendingSearchQuery = 'nothing';
         await tick();
 
         expect(listener).not.toHaveBeenCalled();

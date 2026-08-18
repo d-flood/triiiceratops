@@ -427,9 +427,14 @@ export interface PluginView {
 /**
  * What the host (core, or the SDK test kit) supplies at activation. Core passes
  * its declared `coreVersion`/`pluginApiVersion`/`capabilities` so the SDK can
- * negotiate compatibility without importing core constants. Services are
- * optional — the SDK fills stubs when the host omits them; a host may instead
- * supply real, per-viewer services.
+ * negotiate compatibility without importing core constants.
+ *
+ * Every member is required, services included. Core builds the real, per-viewer
+ * ones for each activation; a test that activates without a viewer assembles the
+ * host from `@triiiceratops/plugin-sdk/testing`, whose test viewer context
+ * carries recording doubles and whose `createStub*` helpers cover the rest. The
+ * SDK filling in stubs itself would put a service implementation no reader can
+ * ever see into every shipped plugin bundle.
  */
 export interface PluginHost {
     /** Core-owned DOM container the plugin renders into. */
@@ -446,25 +451,21 @@ export interface PluginHost {
      * surface is governed by `coreRange` instead (`plugin/api.ts`).
      */
     readonly capabilities: readonly string[];
-    readonly styles?: PluginStyleService;
-    readonly locale?: PluginLocaleService;
-    readonly ui?: PluginUiService;
+    readonly styles: PluginStyleService;
+    readonly locale: PluginLocaleService;
+    readonly ui: PluginUiService;
     /**
-     * The plugin's own panel/flyout chrome. Supplied by core (which owns the
-     * chrome id it registered); when a host omits it — direct `runActivation` or
-     * test-kit use with no chrome — the SDK fills a stub whose `isOpen` is always
-     * `true`, so a plugin under test behaves as if its surface were visible.
+     * The plugin's own panel/flyout chrome, owned by whoever registered the
+     * chrome id. Its `id` is the only id the viewer knows the plugin by, so it is
+     * also what published state and overlay layers are keyed to.
      */
-    readonly surface?: PluginSurface;
+    readonly surface: PluginSurface;
     /**
-     * Report a plugin lifecycle failure to the host. When present, the SDK
-     * routes every guarded phase failure here instead of throwing, so the host
-     * can present a plugin-local error state and offer retry. When absent
-     * (direct SDK / test-kit use with no host), setup and mount failures throw
-     * synchronously and subscription/command/cleanup failures fall back to a
-     * console error.
+     * Report a plugin lifecycle failure to the host. The SDK routes every guarded
+     * phase failure here rather than throwing, so the host can present a
+     * plugin-local error state and offer retry.
      */
-    readonly reportError?: (report: PluginErrorReport) => void;
+    readonly reportError: (report: PluginErrorReport) => void;
 }
 
 /** Handle returned by a successful activation. */
@@ -582,9 +583,14 @@ export interface SdkPluginMeta {
     readonly uiId?: string;
     /** Plugin package version. */
     readonly version: string;
-    /** Semver range of core versions this plugin supports. */
+    /**
+     * Core versions this plugin supports, as an exact version (`1.2.3`), a caret
+     * range (`^1.2.3`), or a `>=` lower bound (`>=1.2.3`) — the whole grammar the
+     * SDK negotiates. Any other syntax fails activation with an error naming the
+     * range rather than being read as "incompatible".
+     */
     readonly coreRange: string;
-    /** Semver range of plugin API versions this plugin supports. */
+    /** Plugin API versions this plugin supports; same grammar as {@link coreRange}. */
     readonly pluginApiRange: string;
     /**
      * Capability identifiers this plugin requires. Normally empty: a plugin

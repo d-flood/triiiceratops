@@ -1,6 +1,7 @@
 import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId, getResourceId } from './iiifIds';
+import { iiifImageRequestUrl, normalizeServiceId } from './iiifImageRequest';
 import { getPaintingAnnotations } from './iiifParsing';
 import {
     findImageBody,
@@ -96,12 +97,6 @@ type CanvasDimensions = {
     width: number;
     height: number;
 };
-
-function normalizeServiceId(serviceId: string): string {
-    return serviceId.endsWith('/info.json')
-        ? serviceId.slice(0, -'/info.json'.length)
-        : serviceId;
-}
 
 function getNumericDimension(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) && value > 0
@@ -511,10 +506,6 @@ export function buildIiifImageRequestUrl(
         width: 1600,
     },
 ): string {
-    const base = normalizeServiceId(serviceId);
-    const region = options.region || 'full';
-    const quality = options.quality || 'default';
-    const format = options.format || 'jpg';
     const width =
         typeof options.width === 'number'
             ? Math.max(1, Math.round(options.width))
@@ -523,9 +514,14 @@ export function buildIiifImageRequestUrl(
         typeof options.height === 'number'
             ? Math.max(1, Math.round(options.height))
             : null;
-    const size = options.size || (width ? `${width},` : `,${height || 1600}`);
 
-    return `${base}/${region}/${size}/0/${quality}.${format}`;
+    return iiifImageRequestUrl(
+        serviceId,
+        options.size || (width ? `${width},` : `,${height || 1600}`),
+        options.quality || 'default',
+        options.format || 'jpg',
+        options.region || 'full',
+    );
 }
 
 /**

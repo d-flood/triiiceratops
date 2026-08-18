@@ -1,3 +1,5 @@
+import { clamp } from '../renderer/viewportMath';
+
 // Gap (in normalized world units, where a canvas is one unit wide) inserted
 // between adjacent canvases in paged/continuous layouts. Deliberately *not*
 // exported: this module is the one layout implementation in the repository, so
@@ -116,10 +118,6 @@ function getDimension(value: number | null | undefined) {
     return typeof value === 'number' && Number.isFinite(value) && value > 0
         ? value
         : null;
-}
-
-function clamp(value: number, min: number, max: number) {
-    return Math.min(max, Math.max(min, value));
 }
 
 function median(values: number[]) {

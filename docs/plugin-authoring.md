@@ -316,19 +316,34 @@ example wired up in each supported framework:
 
 In module builds you can also activate a plugin explicitly against a live
 `ViewerState`, without going through the viewer component — this is what the
-[test kit](plugin-testing.md) uses, and what you'd reach for to activate a
-plugin outside of `TriiiceratopsViewer` (a custom host, a manual test, a
-one-off script):
+[test kit](plugin-testing.md) uses, and what you'd reach for in a test or a
+manual harness (a scratch page, a one-off script):
 
 The constructible `ViewerState` class comes from `triiiceratops/svelte` and needs
 the `svelte` peer installed — it is the same class the viewer component itself
 uses. For **tests**, prefer `createHeadlessViewerState()` from the
 [test kit](plugin-testing.md), which needs no Svelte.
 
+You supply the whole host, services included: `styles`, `locale`, `ui`,
+`surface`, and the `reportError` channel every guarded phase failure is routed
+to. Core builds real, per-viewer ones for each activation it runs, and a real
+custom host does the same — it implements the four services against its own
+chrome. The snippet below is a test/harness example instead: it fills them with
+the test kit's `createStub*` helpers, which are inert placeholders from
+`@triiiceratops/plugin-sdk/testing` — a dev dependency that does not belong in
+shipped code. In a test, `createTestViewerContext()` hands you recording doubles
+worth asserting against.
+
 ```ts
 import { CORE_VERSION, pluginApiVersion, capabilities } from 'triiiceratops';
 import { ViewerState } from 'triiiceratops/svelte';
 import { activatePlugin } from '@triiiceratops/plugin-sdk';
+import {
+    createStubLocaleService,
+    createStubStyleService,
+    createStubSurfaceService,
+    createStubUiService,
+} from '@triiiceratops/plugin-sdk/testing';
 import { createExamplePlugin } from './my-plugin';
 
 const state = new ViewerState();
@@ -338,6 +353,14 @@ const activation = activatePlugin(createExamplePlugin(), {
     coreVersion: CORE_VERSION,
     pluginApiVersion,
     capabilities,
+    styles: createStubStyleService(),
+    locale: createStubLocaleService(),
+    ui: createStubUiService(),
+    // No chrome to hide the plugin, so the stub surface reports itself open.
+    surface: createStubSurfaceService('example'),
+    reportError: (report) => {
+        console.error(report.phase, report.error);
+    },
 });
 
 // Later:
@@ -703,9 +726,9 @@ function surfaceControls(context: PluginContext) {
 ```
 
 When a plugin is activated with no chrome at all — a bare `runActivation` into a
-container you placed yourself — `surface.isOpen` is `true` and the movers are
-no-ops: there is nothing that could be hiding your UI, so surface-gated work
-runs.
+container you placed yourself, with the test kit's `createStubSurfaceService()`
+for a surface — `isOpen` is `true` and the movers are no-ops: there is nothing
+that could be hiding your UI, so surface-gated work runs.
 
 ### The viewport
 

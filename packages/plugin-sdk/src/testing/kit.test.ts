@@ -311,6 +311,12 @@ function hostFor(tc: ReturnType<typeof createTestViewerContext>): PluginHost {
         styles: tc.styles,
         locale: tc.locale,
         ui: tc.ui,
+        surface: tc.surface,
+        // Rethrow: these tests activate plugins that are expected to succeed, so
+        // a phase failure should fail the test rather than be swallowed.
+        reportError: (report) => {
+            throw report.error;
+        },
     };
 }
 
@@ -718,10 +724,7 @@ describe('conformance: published state (ADR 0018)', () => {
 
     it('reads the published state back through viewer state, and only while active', async () => {
         const tc = createTestViewerContext({ uiId: 'kit-publishing' });
-        const activation = activatePlugin(makePublishingPlugin(), {
-            ...hostFor(tc),
-            surface: tc.surface,
-        });
+        const activation = activatePlugin(makePublishingPlugin(), hostFor(tc));
 
         const published = tc.viewerState.getPluginState('kit-publishing');
         expect(
@@ -741,10 +744,7 @@ describe('conformance: published state (ADR 0018)', () => {
             notifications += 1;
         });
 
-        const activation = activatePlugin(makePublishingPlugin(), {
-            ...hostFor(tc),
-            surface: tc.surface,
-        });
+        const activation = activatePlugin(makePublishingPlugin(), hostFor(tc));
         await flush();
         expect(notifications, 'publishing wakes the state watcher').toBe(1);
 

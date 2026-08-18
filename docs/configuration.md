@@ -87,15 +87,10 @@ interface ViewerConfig {
     // Thumbnail Gallery Settings
     gallery?: {
         open?: boolean; // Default: false
-        draggable?: boolean; // Default: true
         showCloseButton?: boolean; // Default: true
-        dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none'; // Default: 'bottom'
+        dockPosition?: 'left' | 'right' | 'top' | 'bottom'; // Default: 'bottom'
         expanded?: boolean; // Default: false (fills the center column as a grid; implies open)
         size?: number; // Default: 100 (strip height when top/bottom, rail width when left/right)
-        width?: number; // Floating window width
-        height?: number; // Floating window height
-        x?: number; // Floating window X position
-        y?: number; // Floating window Y position
     };
 
     // Sidebar Stack Settings
@@ -444,8 +439,6 @@ interface ViewerStateSnapshot {
         | 'top-to-bottom' | 'bottom-to-top';
     preserveCanvasScale: boolean;
     galleryExpanded: boolean;
-    galleryPosition: { x: number; y: number };
-    gallerySize: { width: number; height: number };
 }
 ```
 

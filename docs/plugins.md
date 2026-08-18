@@ -473,6 +473,7 @@ reference.
 | `triiiceratops/element/register`                     | Web Component ESM registration           |
 | `@triiiceratops/plugin-sdk`                          | Plugin SDK (base)                        |
 | `@triiiceratops/plugin-sdk/register`                 | Browser/IIFE registration (`registerBrowserPlugin`) |
+| `@triiiceratops/plugin-sdk/register-shared`          | Browser/IIFE registration for a plugin that cannot load before core — without a shared-runtime load-order gate it silently no-ops with no diagnostic, so third-party plugins should keep using `/register` |
 | `@triiiceratops/plugin-sdk/{svelte,react,vue,lit}`   | SDK framework adapters                   |
 | `@triiiceratops/plugin-sdk/testing`                  | SDK plugin test kit                      |
 | `@triiiceratops/plugin-image-manipulation`           | Image manipulation plugin (ES module)    |

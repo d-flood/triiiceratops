@@ -423,7 +423,7 @@ describe('image adjustments', () => {
  * What is asserted here is the COMMAND: the merge, the reset, the refusal, and
  * that nothing is pushed at the renderer. That an inset changes where a fit
  * lands is arithmetic, and it is asserted where the arithmetic lives
- * (`renderer/viewportMath.test.ts` — `fitBoundsInset`) plus one browser
+ * (`renderer/viewportMath.test.ts` — `insetFitScale`) plus one browser
  * assertion in `tests/canvas-renderer.spec.ts`. Teaching the renderer stand-in
  * enough fit maths to assert against here would create a second implementation
  * that drifts from the real one.

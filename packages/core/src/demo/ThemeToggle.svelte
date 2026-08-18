@@ -1,8 +1,8 @@
 <script lang="ts">
-    import Icon from './Icon.svelte';
+    import DemoIcon from './DemoIcon.svelte';
     import { onMount } from 'svelte';
-    import { m } from '../state/i18n.svelte';
-    import { BUILTIN_THEMES, type BuiltInTheme } from '../theme/types';
+    import { m } from './i18n.svelte';
+    import { BUILTIN_THEMES, type BuiltInTheme } from '../lib/theme/types';
 
     // Bindable so the demo can pass the selected theme down to the viewer.
     let { theme = $bindable('light') }: { theme?: BuiltInTheme } = $props();
@@ -38,7 +38,7 @@
             <div class="dot dot-success"></div>
             <div class="dot dot-error"></div>
         </div>
-        <Icon name="CaretDown" size={16} />
+        <DemoIcon name="caretDown" size={16} />
     </div>
     <div tabindex="-1" class="dropdown-content">
         <ul class="menu theme-menu">

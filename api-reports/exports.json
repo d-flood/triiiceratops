@@ -64,6 +64,10 @@
                 "types": "./dist/register.d.ts",
                 "import": "./dist/register.js"
             },
+            "./register-shared": {
+                "types": "./dist/register-shared.d.ts",
+                "import": "./dist/register-shared.js"
+            },
             "./react": {
                 "types": "./dist/react.d.ts",
                 "import": "./dist/react.js"

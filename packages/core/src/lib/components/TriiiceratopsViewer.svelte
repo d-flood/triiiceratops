@@ -123,25 +123,16 @@
      *
      * Animates `clip-path`, not `height`: clip-path is composited, so the grid
      * lays out once and is uncovered, where an animated height would reflow every
-     * thumbnail on every frame. A floating gallery has no edge to slide from, so
-     * it just fades up.
+     * thumbnail on every frame.
      */
     function expandGallery(
         node: HTMLElement,
         {
             edge,
             from,
-        }: { edge: 'top' | 'bottom' | 'left' | 'right' | 'none'; from: number },
+        }: { edge: 'top' | 'bottom' | 'left' | 'right'; from: number },
     ) {
         const duration = prefersReducedMotion ? 0 : 260;
-        if (edge === 'none') {
-            return {
-                duration,
-                easing: cubicOut,
-                css: (t: number) =>
-                    `opacity: ${t}; transform: scale(${0.98 + 0.02 * t});`,
-            };
-        }
         // `u` is the un-revealed fraction: at u=1 only the docked footprint shows.
         const closed = (u: number) => `calc(${u} * (100% - ${from}px))`;
         const inset = (u: number) => {
@@ -1127,9 +1118,8 @@
     /**
      * The gallery, expanded to fill the center column as a thumbnail grid. It
      * renders in exactly one place — the `.gallery-expanded` overlay — so the
-     * docked/floating render sites below all stand down while it is up. Two
-     * mounted `ThumbnailGallery` instances would both run the dockSide sync
-     * effects and fight over them.
+     * docked render sites below all stand down while it is up. Two mounted
+     * `ThumbnailGallery` instances would put two galleries on screen at once.
      */
     let galleryExpanded = $derived(
         internalViewerState.showThumbnailGallery &&
@@ -1165,8 +1155,7 @@
             | 'top'
             | 'bottom'
             | 'left'
-            | 'right'
-            | 'none',
+            | 'right',
         // The band's height or the rail's width, whichever edge it slides out of —
         // one number either way, since that is what `gallery.size` is.
         from: galleryExtent,
@@ -1513,7 +1502,7 @@
         </div>
     {/if}
 
-    <div id="triiiceratops-center-panel" class="center-col">
+    <div class="center-col">
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
             <div
                 class="gallery-band"
@@ -1716,11 +1705,6 @@
                         {m.drop_manifest_hint()}
                     </div>
                 </div>
-            {/if}
-
-            <!-- Float-mode Gallery -->
-            {#if galleryDocked && internalViewerState.dockSide === 'none'}
-                <ThumbnailGallery {canvases} />
             {/if}
         </div>
 

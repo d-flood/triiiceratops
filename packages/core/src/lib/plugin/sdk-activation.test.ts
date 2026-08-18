@@ -20,6 +20,10 @@ import {
 
 import { ViewerState } from '../state/viewer.svelte';
 import { CORE_VERSION, pluginApiVersion, capabilities } from './api';
+import { createPluginLocaleService } from './localeService';
+import { createPluginStyleService } from './styleService';
+import { createPluginSurface } from './surface';
+import { createPluginUiService } from './uiService';
 
 vi.mock('../state/manifests.svelte', () => ({
     manifestsState: {
@@ -101,9 +105,17 @@ function makeTestPlugin(
     });
 }
 
+/**
+ * A host over core's own per-activation services. `reportError` rethrows by
+ * default: these tests activate plugins that are expected to work, so a phase
+ * failure should surface as a failing test rather than a swallowed report.
+ */
 function makeHost(
     container: HTMLElement,
     viewerState: ViewerState,
+    reportError: PluginHost['reportError'] = (report) => {
+        throw report.error;
+    },
 ): PluginHost {
     return {
         container,
@@ -117,6 +129,14 @@ function makeHost(
         coreVersion: CORE_VERSION,
         pluginApiVersion,
         capabilities,
+        styles: createPluginStyleService(document, 'test'),
+        locale: createPluginLocaleService({
+            current: 'en',
+            subscribe: () => () => {},
+        }),
+        ui: createPluginUiService(),
+        surface: createPluginSurface(viewerState, 'test-plugin', 'panel'),
+        reportError,
     };
 }
 
@@ -278,8 +298,9 @@ describe('compatibility negotiation at activation', () => {
         const err = thrown as PluginCompatibilityError;
         expect(err.code).toBe('PLUGIN_INCOMPATIBLE');
         expect(err.pluginName).toBe('@triiiceratops/plugin-test');
-        expect(err.reasons.some((r) => r.kind === 'core')).toBe(true);
-        expect(err.message).toContain('^99.0.0');
+        // One formatted message carries every failed check; core surfaces it
+        // verbatim, so it is the whole contract.
+        expect(err.message).toContain('requires core ^99.0.0');
         expect(err.message).toContain(CORE_VERSION);
 
         // No side effects for an incompatible plugin: nothing was mounted.

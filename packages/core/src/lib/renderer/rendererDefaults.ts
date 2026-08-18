@@ -83,6 +83,22 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
 };
 
 /**
+ * The box a canvas gets when nothing at all is known about its shape: no
+ * declared dimensions, no fetched service facts, and no sibling to take a
+ * median from.
+ *
+ * Square, and its absolute size does not matter — a world of one such canvas is
+ * fitted to the viewport, and a world with siblings never reaches this rung. It
+ * is a plausible page size so that nothing downstream which stumbles on it
+ * divides by something absurd. What matters is that there IS one: dropping the
+ * canvas instead looks like a safe refusal and is a dead end, because an
+ * unlaid-out canvas gets no tier, therefore no metadata request, therefore no
+ * reflow, so the folio a fetch would have sized is blank permanently rather
+ * than briefly (user story 32).
+ */
+export const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
+
+/**
  * The gutter between adjacent canvases, as a fraction of the median laid-out
  * canvas extent along the axis the world flows in.
  *

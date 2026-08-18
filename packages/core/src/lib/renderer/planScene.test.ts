@@ -1459,10 +1459,9 @@ describe('planScene — size-ladder sources', () => {
         expect(far.tileDraws).toEqual([]);
     });
 
-    it('reports a canvas whose cheapest image is already over the cap', () => {
+    it('still draws a canvas whose cheapest image is already over the cap', () => {
         // The cap degrades to blur while there is anything coarser to fall back
-        // to. When there is not, the renderer still draws — never blank — and
-        // says so, rather than overriding the budget in silence.
+        // to. When there is not, the renderer still draws it — never blank.
         const result = plan([level0Canvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
             knownMetadata: byService({
@@ -1471,12 +1470,7 @@ describe('planScene — size-ladder sources', () => {
             budgets: { ...BUDGETS, maxDecodedPixels: 1024 },
         });
 
-        expect(result.overCapCanvases).toEqual(['c1']);
         expect(result.tileRequests).toHaveLength(1);
-    });
-
-    it('leaves a canvas within the cap out of `overCapCanvases`', () => {
-        expect(ladderPlan(8).overCapCanvases).toEqual([]);
     });
 
     it('carries the deprecated `native` spelling as a fallback on version 2 rungs only', () => {

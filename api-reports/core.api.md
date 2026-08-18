@@ -1937,9 +1937,11 @@ import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
  * for the layer that wants device pixels instead: reset the transform, and
  * `x_device = x_world * scale + offsetX`.
  *
- * `scale` has `dpr` folded in, exactly as `paintScene.applyViewportTransform`
- * folds it, which is what keeps a layer's ink on the same sub-pixel grid as the
- * tiles rather than half a device pixel off it.
+ * `scale` has `dpr` folded in. A layer is handed the very transform the tiles
+ * were drawn with — `viewportMath.viewportTransform` builds it once per frame
+ * and the painter and the host both take it from there — which is what keeps a
+ * layer's ink on the same sub-pixel grid as the tiles rather than half a device
+ * pixel off it.
  */
 export interface PaintTransform {
     /** Device pixels per world unit — the viewport scale times `dpr`. */
@@ -2774,18 +2776,6 @@ export interface ScenePlan {
      * be keyed on the pair and "permanently" has to come out of this sentence.
      */
     unresolvedThumbnails: string[];
-    /**
-     * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
-     * their service offers exceeds it.
-     *
-     * The cap normally degrades to blur: a rung above it is refused and a
-     * coarser one is taken. When even the cheapest rung is over the ceiling
-     * there is no coarser one, and the choice is between a blank canvas and a
-     * decode the budget said no to. The renderer draws it — never blank wins —
-     * and reports it here rather than overriding the budget in silence, so a
-     * host can decide what to do with it.
-     */
-    overCapCanvases: string[];
     /** The derived zoom floor, in the same units as `Viewport.scale`. */
     minZoom: number;
 }
@@ -3346,14 +3336,6 @@ export interface ViewerStateSnapshot {
     viewingDirection: 'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top';
     preserveCanvasScale: boolean;
     galleryExpanded: boolean;
-    galleryPosition: {
-        x: number;
-        y: number;
-    };
-    gallerySize: {
-        width: number;
-        height: number;
-    };
 }
 export declare class ViewerState {
     #private;
@@ -3512,9 +3494,6 @@ export declare class ViewerState {
     /**
      * `gallery.size` — the docked band's height or the docked rail's width, and the
      * knob every thumbnail dimension is derived from. See `galleryGeometry`.
-     *
-     * Not named `gallerySize`: that is already the floating window's width and
-     * height, which is a different thing entirely.
      */
     get galleryExtent(): number;
     private _viewingMode;
@@ -3526,24 +3505,9 @@ export declare class ViewerState {
      * Whether the gallery is expanded to fill the viewer's center column as a
      * thumbnail grid. Orthogonal to {@link dockSide}: expanding renders the
      * gallery as an overlay layer and leaves the dock side untouched, so
-     * collapsing restores the strip/rail/window exactly where it was.
+     * collapsing restores the strip or rail exactly where it was.
      */
     galleryExpanded: boolean;
-    galleryPosition: {
-        x: number;
-        y: number;
-    };
-    gallerySize: {
-        width: number;
-        height: number;
-    };
-    isGalleryDragging: boolean;
-    galleryDragOffset: {
-        x: number;
-        y: number;
-    };
-    dragOverSide: "left" | "right" | "bottom" | "top" | null;
-    galleryCenterPanelRect: DOMRect | null;
     /**
      * Event target for dispatching CustomEvents.
      * Only set by TriiiceratopsViewerElement (web component build).
@@ -4331,20 +4295,10 @@ export declare class ViewerState {
     setGalleryExpanded(expanded: boolean): void;
     /** Flip the gallery between expanded and collapsed (see {@link setGalleryExpanded}). */
     toggleGalleryExpanded(): void;
-    /** Move the floating (undocked) thumbnail gallery to an absolute position. */
-    setGalleryPosition(position: {
-        x: number;
-        y: number;
-    }): void;
-    /** Resize the floating (undocked) thumbnail gallery. */
-    setGallerySize(size: {
-        width: number;
-        height: number;
-    }): void;
     /**
      * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
-     * 'right') or float it ('none'), keeping the derived docked flags in sync.
-     * Maintaining that invariant is why this is a command, not a field write.
+     * 'right'), keeping the derived docked flags in sync. Maintaining that
+     * invariant is why this is a command, not a field write.
      */
     setDockSide(side: string): void;
     /** Plugin-registered menu buttons */
@@ -5193,12 +5147,7 @@ export interface GalleryConfig {
      * Where the gallery should be docked by default if shown.
      * @default 'bottom'
      */
-    dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none';
-    /**
-     * Whether the gallery can be dragged/moved by the user.
-     * @default true
-     */
-    draggable?: boolean;
+    dockPosition?: 'left' | 'right' | 'top' | 'bottom';
     /**
      * Whether the gallery is currently open/visible.
      * @default false
@@ -5213,8 +5162,7 @@ export interface GalleryConfig {
      * How much of the viewer the gallery takes, in pixels, and the only knob that
      * changes a thumbnail's size. It applies to whichever axis the gallery's
      * position commits to: the strip's HEIGHT when docked to the top or bottom, and
-     * the rail's WIDTH when docked to the left or right. A floating window sizes
-     * itself (see `width` / `height`), so there it sets the thumbnail row's height.
+     * the rail's WIDTH when docked to the left or right.
      *
      * Thumbnails are derived from it rather than the reverse. A thumbnail is fixed
      * on the axis its gallery committed to and takes its own image's shape on the
@@ -5234,27 +5182,11 @@ export interface GalleryConfig {
     size?: number;
     /**
      * Whether the gallery starts expanded — filling the viewer's center column
-     * as a full grid of thumbnails instead of a docked strip or floating window.
+     * as a full grid of thumbnails instead of a docked strip or rail.
      * Implies `open`, since an expanded gallery is necessarily visible.
      * @default false
      */
     expanded?: boolean;
-    /**
-     * Width of the gallery window when floating (in pixels).
-     */
-    width?: number;
-    /**
-     * Height of the gallery window when floating (in pixels).
-     */
-    height?: number;
-    /**
-     * X position of the gallery window when floating (in pixels).
-     */
-    x?: number;
-    /**
-     * Y position of the gallery window when floating (in pixels).
-     */
-    y?: number;
 }
 
 // ======================================================================
@@ -6179,9 +6111,14 @@ export interface PluginView {
 /**
  * What the host (core, or the SDK test kit) supplies at activation. Core passes
  * its declared `coreVersion`/`pluginApiVersion`/`capabilities` so the SDK can
- * negotiate compatibility without importing core constants. Services are
- * optional — the SDK fills stubs when the host omits them; a host may instead
- * supply real, per-viewer services.
+ * negotiate compatibility without importing core constants.
+ *
+ * Every member is required, services included. Core builds the real, per-viewer
+ * ones for each activation; a test that activates without a viewer assembles the
+ * host from `@triiiceratops/plugin-sdk/testing`, whose test viewer context
+ * carries recording doubles and whose `createStub*` helpers cover the rest. The
+ * SDK filling in stubs itself would put a service implementation no reader can
+ * ever see into every shipped plugin bundle.
  */
 export interface PluginHost {
     /** Core-owned DOM container the plugin renders into. */
@@ -6198,25 +6135,21 @@ export interface PluginHost {
      * surface is governed by `coreRange` instead (`plugin/api.ts`).
      */
     readonly capabilities: readonly string[];
-    readonly styles?: PluginStyleService;
-    readonly locale?: PluginLocaleService;
-    readonly ui?: PluginUiService;
+    readonly styles: PluginStyleService;
+    readonly locale: PluginLocaleService;
+    readonly ui: PluginUiService;
     /**
-     * The plugin's own panel/flyout chrome. Supplied by core (which owns the
-     * chrome id it registered); when a host omits it — direct `runActivation` or
-     * test-kit use with no chrome — the SDK fills a stub whose `isOpen` is always
-     * `true`, so a plugin under test behaves as if its surface were visible.
+     * The plugin's own panel/flyout chrome, owned by whoever registered the
+     * chrome id. Its `id` is the only id the viewer knows the plugin by, so it is
+     * also what published state and overlay layers are keyed to.
      */
-    readonly surface?: PluginSurface;
+    readonly surface: PluginSurface;
     /**
-     * Report a plugin lifecycle failure to the host. When present, the SDK
-     * routes every guarded phase failure here instead of throwing, so the host
-     * can present a plugin-local error state and offer retry. When absent
-     * (direct SDK / test-kit use with no host), setup and mount failures throw
-     * synchronously and subscription/command/cleanup failures fall back to a
-     * console error.
+     * Report a plugin lifecycle failure to the host. The SDK routes every guarded
+     * phase failure here rather than throwing, so the host can present a
+     * plugin-local error state and offer retry.
      */
-    readonly reportError?: (report: PluginErrorReport) => void;
+    readonly reportError: (report: PluginErrorReport) => void;
 }
 /** Handle returned by a successful activation. */
 export interface PluginActivation {
@@ -6310,9 +6243,14 @@ export interface SdkPluginMeta {
     readonly uiId?: string;
     /** Plugin package version. */
     readonly version: string;
-    /** Semver range of core versions this plugin supports. */
+    /**
+     * Core versions this plugin supports, as an exact version (`1.2.3`), a caret
+     * range (`^1.2.3`), or a `>=` lower bound (`>=1.2.3`) — the whole grammar the
+     * SDK negotiates. Any other syntax fails activation with an error naming the
+     * range rather than being read as "incompatible".
+     */
     readonly coreRange: string;
-    /** Semver range of plugin API versions this plugin supports. */
+    /** Plugin API versions this plugin supports; same grammar as {@link coreRange}. */
     readonly pluginApiRange: string;
     /**
      * Capability identifiers this plugin requires. Normally empty: a plugin

@@ -14,6 +14,12 @@
  * `src/lib/generated/icons.ts`. It runs at the head of `build:element`, before
  * the bundles are produced.
  *
+ * It also asserts the reverse — that nothing in the table goes unrendered —
+ * because the same dynamic index that makes a hole silent makes a surplus entry
+ * unshakeable: it ships in every element bundle whether or not anyone asks for
+ * it. The two directions together mean the manifest equals what the scanned
+ * roots render.
+ *
  * Three things keep it from passing vacuously:
  *
  *   1. It must find `<Icon>` usages at all. A scan that matched nothing — a moved
@@ -42,9 +48,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const coreRoot = path.resolve(here, '..');
 const repoRoot = path.resolve(coreRoot, '..', '..');
 
-/** Source trees whose `<Icon>` usages resolve through core's generated table. */
+/**
+ * Source trees whose `<Icon>` usages resolve through core's generated table.
+ * The library tree only: `src/demo` carries its own glyph table and renders it
+ * through `DemoIcon`, so counting its usages here would hold demo-only chrome
+ * against the manifest in both directions.
+ */
 const ROOTS = [
-    path.join(coreRoot, 'src'),
+    path.join(coreRoot, 'src', 'lib'),
     path.join(repoRoot, 'packages', 'ui', 'src'),
 ];
 
@@ -345,11 +356,46 @@ if (icons) {
     }
 }
 
+/* ------------------------------------------------- and nothing left over */
+
+/*
+ * The reverse direction, in two checks. The pair-level one skips `regular`
+ * because the generator emits it for EVERY manifest glyph — it is the weight
+ * `Icon.svelte` falls back to, so a glyph rendered only at `bold` still has an
+ * unasked-for regular entry by design. Check 1 covers those glyphs by name, so
+ * an entirely surplus glyph is still caught at whatever weights it was given.
+ */
+const scanned = ROOTS.map(rel).join(', ');
+
+if (icons) {
+    for (const name of Object.keys(icons.regular).sort()) {
+        if (required.has(name)) continue;
+        problems.push(
+            `surplus glyph ${name}: generated, but nothing under ${scanned} ` +
+                `renders it at any weight — remove "${name}" from CORE_ICONS in ` +
+                `scripts/icons.config.ts.`,
+        );
+    }
+    for (const weight of ICON_WEIGHTS) {
+        if (weight === 'regular') continue;
+        for (const name of Object.keys(icons[weight]).sort()) {
+            const rendered = required.get(name);
+            // A name rendered nowhere at all is check 1's to report, once.
+            if (rendered === undefined || rendered.has(weight)) continue;
+            problems.push(
+                `surplus glyph ${name} (${weight}): generated, but nothing under ` +
+                    `${scanned} renders it at that weight — remove "${weight}" from ` +
+                    `CORE_ICONS.${name} in scripts/icons.config.ts.`,
+            );
+        }
+    }
+}
+
 /* ---------------------------------------------------------------- reporting */
 
 if (problems.length > 0) {
     console.error(
-        'check-icon-coverage: the icon table does not cover the chrome\n',
+        'check-icon-coverage: the icon table and the chrome disagree\n',
     );
     for (const problem of problems) console.error(`  - ${problem}`);
     process.exit(1);

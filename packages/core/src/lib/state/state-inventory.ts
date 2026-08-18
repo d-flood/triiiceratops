@@ -330,19 +330,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Mirrors document.fullscreenElement via a fullscreenchange listener. The user-actionable behavior is the toggleFullScreen() command, which changes the underlying browser fact rather than writing this field.',
     },
 
-    // ---- Gallery placement (floating & docked) -------------------------------
-    {
-        member: 'galleryPosition',
-        classification: 'command',
-        commands: ['setGalleryPosition'],
-        notes: 'Floating gallery position.',
-    },
-    {
-        member: 'gallerySize',
-        classification: 'command',
-        commands: ['setGallerySize'],
-        notes: 'Floating gallery size.',
-    },
+    // ---- Gallery placement ---------------------------------------------------
     {
         member: 'dockSide',
         classification: 'command',
@@ -361,27 +349,6 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         commands: ['setDockSide'],
         notes: 'Derived from dockSide; maintained as an invariant by setDockSide.',
     },
-    {
-        member: 'isGalleryDragging',
-        classification: 'internal',
-        notes: 'Transient drag-gesture bookkeeping owned by the gallery UI; no durable plugin-facing meaning.',
-    },
-    {
-        member: 'galleryDragOffset',
-        classification: 'internal',
-        notes: 'Transient pointer offset captured during a gallery drag gesture.',
-    },
-    {
-        member: 'dragOverSide',
-        classification: 'internal',
-        notes: 'Transient dock-preview side highlighted while dragging the gallery.',
-    },
-    {
-        member: 'galleryCenterPanelRect',
-        classification: 'internal',
-        notes: 'Measured DOMRect of the center panel captured at drag start (shadow-DOM safe). Layout bookkeeping, no contract.',
-    },
-
     // ---- Errors ---------------------------------------------------------------
     {
         member: 'tileSourceError',

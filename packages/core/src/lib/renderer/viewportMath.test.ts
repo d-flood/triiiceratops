@@ -9,7 +9,7 @@ import {
     clamp,
     constrainCentre,
     fitBounds,
-    fitBoundsInset,
+    insetFitScale,
     insetFitCentre,
     normalizeWheelDelta,
     screenToCanvas,
@@ -76,7 +76,7 @@ describe('fitBounds', () => {
     });
 });
 
-describe('fitBoundsInset', () => {
+describe('insetFitScale', () => {
     const BOX = { x: 0, y: 0, width: 1000, height: 1000 };
     const NONE = { top: 0, right: 0, bottom: 0, left: 0 };
 
@@ -93,8 +93,12 @@ describe('fitBoundsInset', () => {
         size: { width: number; height: number },
         inset: typeof NONE,
     ) {
-        const fit = fitBoundsInset(bounds, size, inset);
-        const viewport: Viewport = { ...size, ...fit };
+        const scale = insetFitScale(bounds, size, inset);
+        const viewport: Viewport = {
+            ...size,
+            scale,
+            centre: insetFitCentre(bounds, size, inset, scale),
+        };
         const topLeft = canvasToScreen({ x: bounds.x, y: bounds.y }, viewport);
         const bottomRight = canvasToScreen(
             { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
@@ -113,8 +117,11 @@ describe('fitBoundsInset', () => {
             { x: 0, y: 0, width: 1000, height: 750 },
             { x: -200, y: 40, width: 300, height: 3000 },
         ]) {
-            expect(fitBoundsInset(bounds, VIEWPORT, NONE)).toEqual(
-                fitBounds(bounds, VIEWPORT),
+            const fit = fitBounds(bounds, VIEWPORT);
+            const scale = insetFitScale(bounds, VIEWPORT, NONE);
+            expect(scale).toBe(fit.scale);
+            expect(insetFitCentre(bounds, VIEWPORT, NONE, scale)).toEqual(
+                fit.centre,
             );
         }
     });
@@ -122,14 +129,14 @@ describe('fitBoundsInset', () => {
     it('takes the scale from the inset extent and leaves a symmetric inset centred', () => {
         // 1000x1000 into the 800x400 left by 100 top and bottom → 0.4, and the
         // reserved edges are equal, so the centre does not move.
-        const fit = fitBoundsInset(BOX, VIEWPORT, {
-            ...NONE,
-            top: 100,
-            bottom: 100,
-        });
+        const inset = { ...NONE, top: 100, bottom: 100 };
+        const scale = insetFitScale(BOX, VIEWPORT, inset);
 
-        expect(fit.scale).toBeCloseTo(0.4, 10);
-        expect(fit.centre).toEqual({ x: 500, y: 500 });
+        expect(scale).toBeCloseTo(0.4, 10);
+        expect(insetFitCentre(BOX, VIEWPORT, inset, scale)).toEqual({
+            x: 500,
+            y: 500,
+        });
     });
 
     it('centres the box in the visible rectangle for an asymmetric inset', () => {
@@ -185,42 +192,48 @@ describe('fitBoundsInset', () => {
     });
 
     it('is `fitBounds` again when every axis falls back', () => {
-        expect(
-            fitBoundsInset(BOX, VIEWPORT, {
-                top: 500,
-                bottom: 500,
-                left: 500,
-                right: 500,
-            }),
-        ).toEqual(fitBounds(BOX, VIEWPORT));
+        const inset = { top: 500, bottom: 500, left: 500, right: 500 };
+        const fit = fitBounds(BOX, VIEWPORT);
+        const scale = insetFitScale(BOX, VIEWPORT, inset);
+        expect(scale).toBe(fit.scale);
+        expect(insetFitCentre(BOX, VIEWPORT, inset, scale)).toEqual(fit.centre);
     });
 
     // Set-time validation refuses these, but the arithmetic stays total: a bad
     // number must not produce a NaN scale or centre for the painter.
     it('stays total for a non-finite edge and a degenerate box', () => {
-        expect(
-            fitBoundsInset(BOX, VIEWPORT, { ...NONE, bottom: Number.NaN }),
-        ).toEqual(fitBounds(BOX, VIEWPORT));
-        expect(
-            fitBoundsInset(BOX, VIEWPORT, { ...NONE, top: Infinity }),
-        ).toEqual(fitBounds(BOX, VIEWPORT));
+        const fit = fitBounds(BOX, VIEWPORT);
+        for (const inset of [
+            { ...NONE, bottom: Number.NaN },
+            { ...NONE, top: Infinity },
+        ]) {
+            const scale = insetFitScale(BOX, VIEWPORT, inset);
+            expect(scale).toBe(fit.scale);
+            expect(insetFitCentre(BOX, VIEWPORT, inset, scale)).toEqual(
+                fit.centre,
+            );
+        }
 
-        const degenerate = fitBoundsInset(
-            { x: 10, y: 20, width: 0, height: 0 },
-            VIEWPORT,
-            { ...NONE, bottom: 200 },
-        );
-        expect(degenerate.scale).toBe(1);
-        expect(Number.isFinite(degenerate.centre.x)).toBe(true);
-        expect(Number.isFinite(degenerate.centre.y)).toBe(true);
+        const box = { x: 10, y: 20, width: 0, height: 0 };
+        const inset = { ...NONE, bottom: 200 };
+        const scale = insetFitScale(box, VIEWPORT, inset);
+        expect(scale).toBe(1);
+        const centre = insetFitCentre(box, VIEWPORT, inset, scale);
+        expect(Number.isFinite(centre.x)).toBe(true);
+        expect(Number.isFinite(centre.y)).toBe(true);
     });
 
     // An unmeasured surface has no extent to reserve part of, and the fit
     // arithmetic must not invent one.
     it('does not shift the centre when there is no fit to shift', () => {
-        expect(
-            fitBoundsInset(BOX, { width: 0, height: 0 }, { ...NONE, left: 40 }),
-        ).toEqual({ centre: { x: 500, y: 500 }, scale: 0 });
+        const size = { width: 0, height: 0 };
+        const inset = { ...NONE, left: 40 };
+        const scale = insetFitScale(BOX, size, inset);
+        expect(scale).toBe(0);
+        expect(insetFitCentre(BOX, size, inset, scale)).toEqual({
+            x: 500,
+            y: 500,
+        });
     });
 });
 
@@ -236,20 +249,6 @@ describe('fitBoundsInset', () => {
 describe('insetFitCentre', () => {
     const BOX = { x: 0, y: 0, width: 1000, height: 1000 };
     const NONE = { top: 0, right: 0, bottom: 0, left: 0 };
-
-    it('agrees with `fitBoundsInset` at the fit’s own scale', () => {
-        for (const inset of [
-            NONE,
-            { ...NONE, bottom: 200 },
-            { ...NONE, left: 300, right: 100, top: 60 },
-            { ...NONE, top: 400, bottom: 400, left: 200 },
-        ]) {
-            const fit = fitBoundsInset(BOX, VIEWPORT, inset);
-            expect(insetFitCentre(BOX, VIEWPORT, inset, fit.scale)).toEqual(
-                fit.centre,
-            );
-        }
-    });
 
     // The claim in screen terms: whatever scale is adopted, the box centre lands
     // in the middle of the rectangle the inset leaves visible.
@@ -279,7 +278,7 @@ describe('insetFitCentre', () => {
  * Where an inset stops being fully honoured, pinned as behaviour rather than
  * fixed.
  *
- * `CanvasHost.applyFit` composes three of these functions — `fitBoundsInset` for
+ * `CanvasHost.applyFit` composes three of these functions — `insetFitScale` for
  * the scale, `clampScale` (`zoomRange`) for the scale it may actually adopt, and
  * `constrainCentre` for the centre an animated fit is allowed — and both clamps
  * start cutting into the inset's shift at exactly the same threshold: an inset
@@ -308,7 +307,7 @@ describe('the limit of what an inset can ask for', () => {
     function fit(inset: typeof NONE, world = CANVAS) {
         const home = fitBounds(CANVAS, SURFACE).scale;
         const { min, max } = zoomRange(home, 0, 128, MIN_ZOOM_FRACTION);
-        const wanted = fitBoundsInset(CANVAS, SURFACE, inset).scale;
+        const wanted = insetFitScale(CANVAS, SURFACE, inset);
         const scale = clamp(wanted, min, max);
         const centre = insetFitCentre(CANVAS, SURFACE, inset, scale);
         return {
@@ -371,11 +370,7 @@ describe('the limit of what an inset can ask for', () => {
 
         const home = fitBounds(last, SURFACE).scale;
         const { min, max } = zoomRange(home, 0, 128, MIN_ZOOM_FRACTION);
-        const scale = clamp(
-            fitBoundsInset(last, SURFACE, inset).scale,
-            min,
-            max,
-        );
+        const scale = clamp(insetFitScale(last, SURFACE, inset), min, max);
         const wanted = insetFitCentre(last, SURFACE, inset, scale);
         const allowed = constrainCentre(
             wanted,
@@ -393,7 +388,7 @@ describe('the limit of what an inset can ask for', () => {
         // Within half the axis there is nothing to clamp, on the same folio.
         const modest = { ...NONE, bottom: 200 };
         const modestScale = clamp(
-            fitBoundsInset(last, SURFACE, modest).scale,
+            insetFitScale(last, SURFACE, modest),
             min,
             max,
         );

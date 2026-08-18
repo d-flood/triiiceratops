@@ -61,8 +61,8 @@ function testPlugin(attempt: (host: PluginHost) => void): SdkPlugin {
         name: '@example/plugin-notes',
         uiId: UI_ID,
         version: '1.0.0',
-        coreRange: '*',
-        pluginApiRange: '*',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
         requiredCapabilities: [],
         icon: ICON,
         // `flyout`, not the default `panel`: the seeded target is then observable

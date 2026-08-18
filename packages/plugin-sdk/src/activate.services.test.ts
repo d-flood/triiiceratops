@@ -8,6 +8,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { runActivation, sdkChromeId } from './activate.js';
+import {
+    createStubSurfaceService,
+    createStubUiService,
+} from './testing/stubs.js';
 import type {
     PluginContext,
     PluginHost,
@@ -57,8 +61,8 @@ function makeMeta(view: SdkPluginMeta['view']): SdkPluginMeta {
     return {
         name: '@triiiceratops/plugin-services-test',
         version: '1.0.0',
-        coreRange: '*',
-        pluginApiRange: '*',
+        coreRange: '>=1.0.0',
+        pluginApiRange: '^1.0.0',
         requiredCapabilities: [],
         icon: { kind: 'svg', inner: '', viewBox: '0 0 1 1' },
         target: 'panel',
@@ -78,6 +82,9 @@ function makeHost(
         capabilities: [],
         styles,
         locale,
+        ui: createStubUiService(),
+        surface: createStubSurfaceService('services-test'),
+        reportError: () => {},
     };
 }
 
@@ -216,11 +223,12 @@ describe('activation surface wiring', () => {
         activation.deactivate();
     });
 
-    it('stubs a chrome-less host as ALWAYS OPEN, keyed by the plugin id', () => {
-        // A bare `runActivation` has no toolbar button, panel, or flyout: the
-        // caller placed the container themselves, so nothing can hide the plugin.
-        // A `false` stub would silently park every plugin that gates work on
-        // `surface.isOpen`, which reads as a broken plugin.
+    // A chrome-less activation is the caller's own container with no toolbar
+    // button, panel, or flyout: nothing can hide the plugin, so the surface the
+    // test kit's stub reports is open and its movers are inert. A `false` stub
+    // would silently park every plugin that gates work on `surface.isOpen`,
+    // which reads as a broken plugin.
+    it('reports a chrome-less stub surface as ALWAYS OPEN', () => {
         const styles = recordingStyles();
         const locale = recordingLocale();
 
@@ -228,13 +236,8 @@ describe('activation surface wiring', () => {
             makeHost(styles.service, locale.service),
         );
 
-        expect(surface).toBeDefined();
         expect(surface!.isOpen).toBe(true);
-        // The DOM-safe id core would have registered, not the raw package name:
-        // the surface id is what a plugin keys its overlay layers and its
-        // publication to, so a stub that answered differently from a real
-        // viewer would teach authors the wrong key.
-        expect(surface!.id).toBe('triiiceratops-plugin-services-test');
+        expect(surface!.id).toBe('services-test');
         expect(surface!.target).toBe('panel');
 
         // The no-op movers never change `isOpen`, so a subscriber correctly never
@@ -246,28 +249,6 @@ describe('activation surface wiring', () => {
         }).not.toThrow();
         expect(surface!.isOpen).toBe(true);
 
-        activation.deactivate();
-    });
-
-    it('prefers the plugin uiId over its package name for the stub id', () => {
-        const styles = recordingStyles();
-        const locale = recordingLocale();
-        let surface: PluginContext['surface'] | undefined;
-
-        const activation = runActivation(
-            {
-                ...makeMeta({
-                    mount(_container, context: PluginContext) {
-                        surface = context.surface;
-                        return () => {};
-                    },
-                }),
-                uiId: 'services-test',
-            },
-            makeHost(styles.service, locale.service),
-        );
-
-        expect(surface!.id).toBe('services-test');
         activation.deactivate();
     });
 });
@@ -431,10 +412,10 @@ describe('activation published state', () => {
         ).toBe(0);
     });
 
-    // Core keys a publication to the plugin's DOM-safe chrome id, so an SDK that
-    // published under the raw package name would tell a host to look under a key
-    // no viewer ever uses.
-    it('publishes under the sanitized chrome id when the host supplies no surface', () => {
+    // A publication is keyed to the host surface's id — the one id the viewer
+    // knows the plugin by — not to the plugin's package name, which would tell a
+    // host to look under a key no viewer ever uses.
+    it('publishes under the host surface id, not the package name', () => {
         const { state, published } = recordingPublications();
 
         runActivation(
@@ -451,9 +432,7 @@ describe('activation published state', () => {
             hostWith(state),
         );
 
-        expect([...published.keys()]).toEqual([
-            'triiiceratops-plugin-services-test',
-        ]);
+        expect([...published.keys()]).toEqual(['services-test']);
     });
 });
 

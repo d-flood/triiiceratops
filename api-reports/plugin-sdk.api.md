@@ -7,6 +7,7 @@
 //   - dist/index.d.ts
 //   - dist/lit.d.ts
 //   - dist/react.d.ts
+//   - dist/register-shared.d.ts
 //   - dist/register.d.ts
 //   - dist/svelte.d.ts
 //   - dist/testing/index.d.ts
@@ -26,11 +27,10 @@
  */
 import type { PluginActivation, PluginHost, SdkPluginMeta } from 'triiiceratops';
 /**
- * The one id this viewer knows a plugin by, when the host supplied no surface to
- * ask (direct `runActivation` / test-kit use). Mirrors core's
- * `sdkPluginChromeId`: prefer the declared `uiId`, else collapse the
- * package-qualified name to the DOM-safe form (`@scope/plugin-foo` →
- * `scope-plugin-foo`).
+ * The one id this viewer knows a plugin by, for a caller that has to name a
+ * plugin before there is a surface to ask. Mirrors core's `sdkPluginChromeId`:
+ * prefer the declared `uiId`, else collapse the package-qualified name to the
+ * DOM-safe form (`@scope/plugin-foo` → `scope-plugin-foo`).
  *
  * Duplicated rather than value-imported for the reason `definePlugin`'s
  * `SDK_PLUGIN_KIND` is: a value import from `triiiceratops` would pull core —
@@ -52,10 +52,11 @@ export declare function sdkChromeId(meta: {
  *   by the selector runtime and the `ViewerState.subscribe` listener guard.
  * - `cleanup`: a teardown cleanup threw; the remaining cleanups still run.
  *
- * When the host supplies NO `reportError` (direct SDK / test-kit use), the
- * historical behavior is preserved: a `setup` failure (e.g.
- * `PluginCompatibilityError`) or a `mount` failure throws, and
- * subscription/command/cleanup failures fall back to a console error.
+ * The host supplies every service and the report channel; there is no fallback
+ * path for a host that omits one. Core always supplies them, and a test that
+ * activates without a viewer builds a host from
+ * `@triiiceratops/plugin-sdk/testing` — so a fallback could only ever ship
+ * unreachable stub services in every plugin bundle.
  */
 export declare function runActivation(meta: SdkPluginMeta, host: PluginHost): PluginActivation;
 /**
@@ -74,50 +75,42 @@ export declare function activatePlugin(plugin: SdkPluginMeta & {
  *
  * A plugin declares `coreRange`, `pluginApiRange`, and `requiredCapabilities`.
  * At activation the SDK checks them against the host's declared `coreVersion`,
- * `pluginApiVersion`, and `capabilities` and, on any mismatch, throws a
- * structured, actionable {@link PluginCompatibilityError}.
+ * `pluginApiVersion`, and `capabilities` and, on any mismatch, throws an
+ * actionable {@link PluginCompatibilityError} naming every failed check.
  *
  * A small self-contained semver implementation is used deliberately: the base
- * SDK is dependency-light and framework-neutral, so it takes on no runtime
- * dependency (not even `semver`). It supports the range styles plugin authors
- * actually declare: exact versions, `*`/`x`, caret (`^`), tilde (`~`),
- * comparators (`>=`, `>`, `<=`, `<`, `=`), space-joined AND, and `||` OR.
+ * SDK is dependency-light and framework-neutral, and every byte here ships in
+ * every plugin bundle, so it takes on no runtime dependency (not even `semver`)
+ * and implements only the three range styles a plugin declares in practice —
+ * an exact version, a caret range, and a `>=` lower bound. Anything else
+ * (`~`, `*`, `<`, a space-joined AND, a `||` OR set) is REFUSED with a thrown
+ * error rather than answered, because the alternative to a narrow
+ * implementation is not a broad one but a silently wrong one: a range style the
+ * SDK does not understand would otherwise read as "incompatible" and take a
+ * working plugin off the page with no explanation.
+ *
  * Prereleases compare per semver ordering (a prerelease is lower than its
  * release), so `1.0.0-rc.25` satisfies `>=1.0.0-rc.0` but not `^1.0.0`.
  */
 import type { PluginHost, SdkPluginMeta } from 'triiiceratops';
 /**
- * Does `version` satisfy the npm-style `range`? Returns `false` for an
- * unparseable version. An empty range matches any version.
+ * Does `version` satisfy `range`? Returns `false` for an unparseable version.
+ *
+ * `range` is one of exactly three styles — `1.2.3`, `^1.2.3`, `>=1.2.3`. Any
+ * other syntax throws, and the throw is the point: see the module note.
  */
 export declare function satisfies(version: string, range: string): boolean;
-/** A single failed compatibility check. */
-export interface PluginCompatibilityReason {
-    kind: 'core' | 'pluginApi' | 'capability';
-    /** The plugin's declared requirement (range or capability id). */
-    required: string;
-    /** What the host actually provides. */
-    actual: string;
-    /** Human-readable, actionable explanation. */
-    message: string;
-}
 /**
- * Structured, actionable error thrown when a plugin cannot activate against the
- * host. Carries every failed check so a host/UI can render precise guidance,
- * routed through the `pluginerror` channel.
+ * Actionable error thrown when a plugin cannot activate against the host. The
+ * message names every failed check; core surfaces it verbatim on the
+ * `pluginerror` channel.
  */
 export declare class PluginCompatibilityError extends Error {
     readonly code: "PLUGIN_INCOMPATIBLE";
     readonly pluginName: string;
     readonly pluginVersion: string;
-    readonly reasons: readonly PluginCompatibilityReason[];
-    constructor(pluginName: string, pluginVersion: string, reasons: readonly PluginCompatibilityReason[]);
+    constructor(pluginName: string, pluginVersion: string, failures: readonly string[]);
 }
-/**
- * Check a plugin's declared requirements against the host. Returns the list of
- * failed checks (empty when fully compatible).
- */
-export declare function collectIncompatibilities(plugin: SdkPluginMeta, host: PluginHost): PluginCompatibilityReason[];
 /**
  * Negotiate compatibility, throwing a {@link PluginCompatibilityError} when the
  * plugin cannot activate against the host.
@@ -169,9 +162,14 @@ export interface DefinePluginConfig {
     uiId?: string;
     /** Plugin package version. */
     version: string;
-    /** Semver range of core versions this plugin supports. */
+    /**
+     * Core versions this plugin supports, as an exact version (`1.2.3`), a caret
+     * range (`^1.2.3`), or a `>=` lower bound (`>=1.2.3`). Those three are the
+     * whole grammar the SDK implements; any other syntax fails activation with an
+     * error naming the range, rather than being read as "incompatible".
+     */
     coreRange: string;
-    /** Semver range of plugin API versions this plugin supports. */
+    /** Plugin API versions this plugin supports; same grammar as {@link coreRange}. */
     pluginApiRange: string;
     /** Capability identifiers this plugin requires. Defaults to `[]`. */
     requiredCapabilities?: readonly string[];
@@ -212,9 +210,9 @@ export declare function definePlugin(config: DefinePluginConfig): SdkPlugin;
  * The base entry has zero runtime framework dependencies: everything imported
  * from `triiiceratops` here is type-only (erased at build), and the runtime code
  * (`definePlugin`, activation, selectors, compatibility) is self-contained.
- * Framework adapters (Svelte/React/Vue/Lit), the test kit, and real style/
- * locale/icon services arrive as separate subpaths in later tickets (08, 13,
- * 14).
+ * Framework adapters (Svelte/React/Vue/Lit) and the test kit — which carries the
+ * stub host services — are separate subpaths, so nothing a shipped plugin cannot
+ * reach is bundled into it.
  */
 export { definePlugin } from './definePlugin.js';
 export type { DefinePluginConfig } from './definePlugin.js';
@@ -226,9 +224,7 @@ export { createCommandErrorReporter, dispatchPluginCommandError, } from './repor
 export { activatePlugin, runActivation } from './activate.js';
 export { createSelectorRuntime } from './selectors.js';
 export type { SelectorRuntime } from './selectors.js';
-export { satisfies, collectIncompatibilities, negotiateCompatibility, PluginCompatibilityError, } from './compatibility.js';
-export type { PluginCompatibilityReason } from './compatibility.js';
-export { createStubStyleService, createStubLocaleService, createStubUiService, createStubSurfaceService, } from './services.js';
+export { satisfies, negotiateCompatibility, PluginCompatibilityError, } from './compatibility.js';
 export type { PluginView, PluginContext, PublishedState, PublishedStateClassification, SelectorSource, SourceSelectors, ViewerSelectors, Selector, PluginStyleService, PluginLocaleService, LocaleCatalog, PluginUiService, PluginSurface, IconDescriptor, PluginIcon, PluginUiTarget, PluginHost, PluginActivation, SdkPlugin, SdkPluginMeta, PluginErrorPhase, PluginError, PluginErrorReport, ViewerState, } from 'triiiceratops';
 
 // ======================================================================
@@ -343,6 +339,28 @@ import type { PluginContext, ViewerState } from 'triiiceratops';
 export declare function useViewerSelector<T>(context: PluginContext, selector: (state: ViewerState) => T, equals?: (a: T, b: T) => boolean): T;
 
 // ======================================================================
+// FILE: dist/register-shared.d.ts
+// ======================================================================
+/**
+ * Browser registration for a plugin that cannot load before core.
+ *
+ * `@triiiceratops/plugin-sdk/register` bootstraps `window.Triiiceratops` if it
+ * is absent, so a plugin script may register before core's script runs. A plugin
+ * whose bundle reads core's shared Svelte runtime off that namespace has no such
+ * freedom: its own load-order gate refuses to evaluate the bundle at all without
+ * a core already on the page, and any core that installs the namespace installs
+ * `plugins` with it. Bootstrapping a registry it can never be the first to need
+ * is dead weight in every one of its bytes, so this entry registers into the
+ * namespace core installed and does nothing else.
+ *
+ * The `?.` is not a load-order fallback — the gate has already guaranteed the
+ * namespace — but the honest way to say that this entry never creates one.
+ */
+import type { SdkPlugin } from 'triiiceratops';
+/** Register the plugin factory into the core-installed namespace. */
+export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
+
+// ======================================================================
 // FILE: dist/register.d.ts
 // ======================================================================
 /**
@@ -359,31 +377,18 @@ export declare function useViewerSelector<T>(context: PluginContext, selector: (
  * **Registration**) — activation stays explicit and per viewer.
  *
  * Shipped as the `@triiiceratops/plugin-sdk/register` subpath and consumed by
- * every plugin's IIFE entry. It imports only a type (erased at build) and
+ * every plugin's IIFE entry. It imports only types (erased at build) and
  * nothing else from the SDK, so bundling it into a plugin IIFE pulls no runtime
  * and no Svelte into the bundle — the copy stays cheap and self-contained.
+ *
+ * A plugin that CANNOT load before core — one whose bundle reads core's shared
+ * Svelte runtime off the namespace — has nothing to bootstrap and uses
+ * `@triiiceratops/plugin-sdk/register-shared` instead, which is this file
+ * without the registry.
  */
 import type { SdkPlugin } from 'triiiceratops';
-interface PluginFactoryRegistry {
-    register(factory: SdkPlugin): void;
-    get(name: string): SdkPlugin | undefined;
-    has(name: string): boolean;
-    list(): readonly SdkPlugin[];
-}
-interface BrowserRuntime {
-    coreVersion: string;
-    pluginApiVersion: string;
-    capabilities: readonly string[];
-    plugins: PluginFactoryRegistry;
-}
-declare global {
-    interface Window {
-        Triiiceratops?: BrowserRuntime;
-    }
-}
 /** Bootstrap `window.Triiiceratops` if absent and register the plugin factory. */
 export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
-export {};
 
 // ======================================================================
 // FILE: dist/renderer.d.ts
@@ -484,39 +489,6 @@ export declare function dispatchPluginCommandError(node: EventTarget, pluginName
  */
 export { createSelectorRuntime } from 'triiiceratops/selectors';
 export type { SelectorRuntime, SelectorRuntimeOptions, SelectorSource, SourceSelectors, } from 'triiiceratops/selectors';
-
-// ======================================================================
-// FILE: dist/services.d.ts
-// ======================================================================
-/**
- * Minimal stub service implementations.
- *
- * The plugin context always exposes `styles`, `locale`, and `ui`. When the host
- * omits them, the SDK fills these harmless stubs so a plugin can be authored and
- * activated end-to-end (e.g. bare `runActivation` with no host services). In
- * production core supplies the real, per-viewer, root-aware services on the
- * {@link PluginHost}; the SDK only reaches for a stub as a fallback.
- */
-import type { PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService } from 'triiiceratops';
-/** No-op style service: records nothing, returns a no-op uninstaller. */
-export declare function createStubStyleService(): PluginStyleService;
-/** English-only locale stub: returns the key, never changes locale. */
-export declare function createStubLocaleService(): PluginLocaleService;
-/** No-op UI service: renders nothing, returns a no-op cleanup. */
-export declare function createStubUiService(): PluginUiService;
-/**
- * Chrome-less surface stub, used when a host supplies no `surface` — a bare
- * `runActivation` against a container the caller placed itself, with no toolbar
- * button, panel, or flyout in play.
- *
- * `isOpen` is `true`, not `false`: the caller mounted the plugin into a container
- * of their own and there is no chrome that could hide it, so the honest answer is
- * "visible". A `false` stub would silently park every plugin that gates work on
- * `surface.isOpen` in its paused state and look like a broken plugin. `open`,
- * `close`, and `toggle` are no-ops — there is no chrome to move — and `isOpen`
- * therefore never changes, so a subscriber correctly never wakes.
- */
-export declare function createStubSurfaceService(uiId?: string): PluginSurface;
 
 // ======================================================================
 // FILE: dist/svelte.d.ts
@@ -841,7 +813,45 @@ export declare function createTestViewerContext(options?: TestViewerContextOptio
  */
 export { flush, createHeadlessViewerState, type HeadlessViewerFixtures, } from 'triiiceratops/testing';
 export { createTestViewerContext, whenRendererReady, type TestViewerContext, type TestViewerContextOptions, type RecordingStyleService, type RecordedStyleInstall, type RecordingUiService, type RecordedUiRequest, type TestLocaleService, } from './context.js';
+export { createStubStyleService, createStubLocaleService, createStubUiService, createStubSurfaceService, } from './stubs.js';
 export { runPluginConformance, conformanceCases, type PluginFactory, type ConformanceCase, } from './conformance.js';
+
+// ======================================================================
+// FILE: dist/testing/stubs.d.ts
+// ======================================================================
+/**
+ * Minimal stub host services, for a test that wants an activation and nothing
+ * else.
+ *
+ * A `PluginHost` supplies `styles`, `locale`, `ui`, and `surface`; core builds
+ * the real, per-viewer, root-aware implementations, and the test kit's
+ * `createTestViewerContext` hands back recording doubles worth asserting
+ * against. These stubs are for the third case: a bare `runActivation` into a
+ * container the caller placed, where the services are required by the contract
+ * and irrelevant to the test.
+ *
+ * They live on the testing surface rather than in the SDK's base entry so no
+ * plugin bundle carries a service implementation no reader can see.
+ */
+import type { PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService } from 'triiiceratops';
+/** No-op style service: records nothing, returns a no-op uninstaller. */
+export declare function createStubStyleService(): PluginStyleService;
+/** English-only locale stub: returns the key, never changes locale. */
+export declare function createStubLocaleService(): PluginLocaleService;
+/** No-op UI service: renders nothing, returns a no-op cleanup. */
+export declare function createStubUiService(): PluginUiService;
+/**
+ * Chrome-less surface stub — a bare `runActivation` against a container the
+ * caller placed itself, with no toolbar button, panel, or flyout in play.
+ *
+ * `isOpen` is `true`, not `false`: the caller mounted the plugin into a container
+ * of their own and there is no chrome that could hide it, so the honest answer is
+ * "visible". A `false` stub would silently park every plugin that gates work on
+ * `surface.isOpen` in its paused state and look like a broken plugin. `open`,
+ * `close`, and `toggle` are no-ops — there is no chrome to move — and `isOpen`
+ * therefore never changes, so a subscriber correctly never wakes.
+ */
+export declare function createStubSurfaceService(uiId?: string): PluginSurface;
 
 // ======================================================================
 // FILE: dist/vue.d.ts

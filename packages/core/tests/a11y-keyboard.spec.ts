@@ -739,8 +739,8 @@ test.describe('Canvas2D renderer — keyboard', () => {
 
         // Tab away mid-hold. The key-up will be delivered to whatever took
         // focus, so a surface that kept the velocity would pan forever — and
-        // not merely visibly: the frame loop would never settle and every
-        // `nextPaint` waiter would hang on it.
+        // not merely visibly: the frame loop would never settle, so nothing
+        // awaiting a settled paint would ever be answered.
         await page.locator(SURFACE).focus();
         await page.keyboard.down('ArrowRight');
         await page.waitForTimeout(150);

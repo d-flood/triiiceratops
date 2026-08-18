@@ -1,9 +1,15 @@
 <script lang="ts">
-    import Icon from './Icon.svelte';
-    import { getMessages } from '../state/i18n.svelte';
-    import { Button, Toggle, Checkbox, Select, Range } from './ui';
-    import { DEFAULT_ZOOM_PER_WHEEL_NOTCH } from '../renderer/rendererDefaults';
-    import { BUILTIN_THEMES, type BuiltInTheme } from '../theme/types';
+    import DemoIcon from './DemoIcon.svelte';
+    import { m } from './i18n.svelte';
+    import {
+        Button,
+        Toggle,
+        Checkbox,
+        Select,
+        Range,
+    } from '../lib/components/ui';
+    import { DEFAULT_ZOOM_PER_WHEEL_NOTCH } from '../lib/renderer/rendererDefaults';
+    import { BUILTIN_THEMES, type BuiltInTheme } from '../lib/theme/types';
 
     let {
         config = $bindable(),
@@ -24,7 +30,6 @@
         onReset?: () => void;
         onShare?: () => Promise<void>;
     } = $props();
-    const m = getMessages();
 
     // When the demo is loaded via an `iiif-content` state URL, the "Docked rail"
     // preset starts with the toolbar already open rather than collapsed.
@@ -241,7 +246,7 @@
                     onclick={() => onThemeChange?.(t)}
                 >
                     <span class="chip-icon"
-                        ><Icon name="Palette" size={16} weight="fill" /></span
+                        ><DemoIcon name="paletteFill" size={16} /></span
                     >
                     <span class="chip-name">{t}</span>
                 </button>
@@ -835,22 +840,6 @@
                             </li>
                             <li>
                                 <label class="settings-label">
-                                    <span>{m.settings_toggle_draggable()}</span>
-                                    <Checkbox
-                                        size="xs"
-                                        checked={config.gallery?.draggable ??
-                                            true}
-                                        onchange={(e) => {
-                                            if (!config.gallery)
-                                                config.gallery = {};
-                                            config.gallery.draggable =
-                                                e.currentTarget.checked;
-                                        }}
-                                    />
-                                </label>
-                            </li>
-                            <li>
-                                <label class="settings-label">
                                     <span
                                         >{m.settings_toggle_close_button()}</span
                                     >
@@ -899,9 +888,6 @@
                                         >
                                         <option value="right"
                                             >{m.settings_position_right()}</option
-                                        >
-                                        <option value="none"
-                                            >{m.settings_position_floating()}</option
                                         >
                                     </Select>
                                 </label>
@@ -1323,7 +1309,7 @@
                             style="width:100%;justify-content:flex-start;gap:0.5rem;"
                             onclick={onReset}
                         >
-                            <Icon name="ArrowCounterClockwise" size={16} />
+                            <DemoIcon name="arrowCounterClockwise" size={16} />
                             {m.reset_config()}
                         </Button>
                     </li>
@@ -1338,10 +1324,10 @@
                         onclick={copyConfig}
                     >
                         {#if copied}
-                            <Icon name="Check" size={16} />
+                            <DemoIcon name="check" size={16} />
                             {m.copied()}
                         {:else}
-                            <Icon name="Copy" size={16} />
+                            <DemoIcon name="copy" size={16} />
                             {m.copy_config()}
                         {/if}
                     </Button>
@@ -1357,10 +1343,10 @@
                             onclick={shareState}
                         >
                             {#if shared}
-                                <Icon name="Check" size={16} />
+                                <DemoIcon name="check" size={16} />
                                 {m.link_copied()}
                             {:else}
-                                <Icon name="ShareNetwork" size={16} />
+                                <DemoIcon name="shareNetwork" size={16} />
                                 {m.share_current_state()}
                             {/if}
                         </Button>

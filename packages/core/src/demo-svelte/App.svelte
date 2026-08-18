@@ -61,7 +61,7 @@
             showInfo: true,
             showViewingMode: true,
         },
-        gallery: { open: false, draggable: true, showCloseButton: true },
+        gallery: { open: false, showCloseButton: true },
         search: { open: false, showCloseButton: true, query: '' },
         annotations: { open: false, showCloseButton: true },
         information: { open: false, showCloseButton: true, showButton: true },

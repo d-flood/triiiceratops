@@ -19,7 +19,61 @@
  */
 
 import type { ViewportInset } from '../types/viewport';
+import type { PaintTransform } from './paintLayers';
+import type { Box } from './tilePyramid';
 import type { Point, Viewport } from './types';
+
+/**
+ * The viewport as a canvas-space box.
+ *
+ * What "on screen" means to anything reasoning in the world rather than about
+ * pixels: the residency window is this box inflated, the visible-canvas set is
+ * what intersects it, and `ViewerState.getVisibleBounds` is it converted into
+ * one canvas's space.
+ *
+ * Undefined for a `scale` of zero — an unmeasured surface shows nothing, and
+ * every caller has already answered that question its own way (an empty set, a
+ * null box) before asking this one.
+ */
+export function viewportBox(viewport: Viewport): Box {
+    const halfWidth = viewport.width / (2 * viewport.scale);
+    const halfHeight = viewport.height / (2 * viewport.scale);
+
+    return {
+        x: viewport.centre.x - halfWidth,
+        y: viewport.centre.y - halfHeight,
+        width: halfWidth * 2,
+        height: halfHeight * 2,
+    };
+}
+
+/**
+ * World space → device pixels: the matrix the tiles are drawn with.
+ *
+ * `dpr` is the backing-store ratio, folded into `scale` rather than applied
+ * separately — the context is sized in device pixels while the viewport is
+ * measured in CSS pixels, and folding it here is what keeps every other
+ * coordinate in the painter CSS-pixel-based.
+ *
+ * One function because there is one matrix: `paintScene` sets it on the context,
+ * its tile path applies it by hand to snap edges to whole device pixels, and the
+ * host hands the same numbers to every paint layer. Those are three readers of
+ * one fact, and a layer whose ink is half a device pixel off the tiles is what a
+ * second spelling of it looks like.
+ */
+export function viewportTransform(
+    viewport: Viewport,
+    dpr: number,
+): PaintTransform {
+    const scale = viewport.scale * dpr;
+
+    return {
+        scale,
+        offsetX: (viewport.width / 2) * dpr - viewport.centre.x * scale,
+        offsetY: (viewport.height / 2) * dpr - viewport.centre.y * scale,
+        dpr,
+    };
+}
 
 /** Canvas space → screen space. */
 export function canvasToScreen(point: Point, viewport: Viewport): Point {
@@ -64,15 +118,15 @@ export function fitBounds(
 }
 
 /**
- * {@link fitBounds}, framing into the part of the surface a plugin has left
- * visible.
+ * {@link fitBounds}'s scale, framing into the part of the surface a plugin has
+ * left visible.
  *
  * A **viewport inset** reserves edges of the surface — the space under a
  * plugin's own floating UI — so a fit lands the box in the rectangle the reader
- * can actually see rather than behind that UI. The scale comes from the inset
- * extents, and the centre is shifted by half the asymmetry: reserving 200px at
- * the bottom moves the framed box up by 100 screen pixels, and reserving the
- * same at top and bottom moves it not at all.
+ * can actually see rather than behind that UI. This is the scale half of that
+ * fit; {@link insetFitCentre} is the other, and is deliberately separate
+ * because every caller clamps this answer before composing the centre against
+ * it.
  *
  * **Only fits consult the inset.** `canvasToScreen`/`screenToCanvas`,
  * `constrainCentre`, `zoomRange`, and every pan and zoom are about the whole
@@ -83,26 +137,22 @@ export function fitBounds(
  * A zero inset is `fitBounds` exactly, which is why the fit path has one
  * branch rather than two.
  */
-export function fitBoundsInset(
+export function insetFitScale(
     bounds: { x: number; y: number; width: number; height: number },
     size: { width: number; height: number },
     inset: ViewportInset,
-): { centre: Point; scale: number } {
-    const fit = fitBounds(bounds, {
+): number {
+    return fitBounds(bounds, {
         width: insetAxis(size.width, inset.left, inset.right).extent,
         height: insetAxis(size.height, inset.top, inset.bottom).extent,
-    });
-    return {
-        centre: insetFitCentre(bounds, size, inset, fit.scale),
-        scale: fit.scale,
-    };
+    }).scale;
 }
 
 /**
  * The centre that frames `bounds` into `inset` **at a scale the caller has
  * already settled on**.
  *
- * The other half of {@link fitBoundsInset}, split out because a fit does not
+ * The other half of {@link insetFitScale}, split out because a fit does not
  * always get the scale it asked for. The inset's centre shift is a distance in
  * SCREEN pixels and a viewport stores its centre in canvas units, so converting
  * one to the other needs the scale the viewport will actually adopt — and
@@ -142,7 +192,7 @@ export function insetFitCentre(
 }
 
 /**
- * One axis of {@link fitBoundsInset}: the extent a fit frames into, and how far
+ * One axis of {@link insetFitScale}: the extent a fit frames into, and how far
  * the middle of that extent sits from the middle of the surface, both in screen
  * pixels.
  *

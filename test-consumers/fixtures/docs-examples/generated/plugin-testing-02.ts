@@ -23,9 +23,13 @@ describe('example plugin', () => {
             styles: tc.styles,
             locale: tc.locale,
             ui: tc.ui,
-            // Pass the real surface. Omit it and the plugin gets an always-open
-            // stub whose `id` names no plugin of this viewer — see the trap below.
+            // The REAL surface over the real state — see the trap below.
             surface: tc.surface,
+            // Every guarded phase failure lands here. Rethrowing turns a broken
+            // activation into a failing test instead of a silent one.
+            reportError: (report) => {
+                throw report.error;
+            },
         });
 
         const label = container.querySelector('span');

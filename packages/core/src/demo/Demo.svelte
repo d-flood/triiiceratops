@@ -1,11 +1,11 @@
 <script lang="ts">
-    import DemoHeader from '../lib/components/DemoHeader.svelte';
+    import DemoHeader from './DemoHeader.svelte';
     import TriiiceratopsViewer from '../lib/components/TriiiceratopsViewer.svelte';
-    import SettingsMenu from '../lib/components/SettingsMenu.svelte';
+    import SettingsMenu from './SettingsMenu.svelte';
     import { manifestsState } from '../lib/state/manifests.svelte';
     import { ViewerState } from '../lib/state/viewer.svelte';
     import type { ViewerStateSnapshot } from '../lib/state/viewer.svelte';
-    import { m } from '../lib/state/i18n.svelte';
+    import { m } from './i18n.svelte';
     import { SvelteURLSearchParams } from 'svelte/reactivity';
     import {
         parseContentState,
@@ -60,14 +60,8 @@
         },
         gallery: {
             open: false,
-            draggable: true,
             showCloseButton: true,
-            dockPosition: 'bottom' as
-                | 'bottom'
-                | 'top'
-                | 'left'
-                | 'right'
-                | 'none',
+            dockPosition: 'bottom' as 'bottom' | 'top' | 'left' | 'right',
         },
         search: {
             open: false,
@@ -359,16 +353,6 @@
                     }
                     if (newGallery.dockPosition !== (state.dockSide as any)) {
                         newGallery.dockPosition = state.dockSide as any;
-                        hasChanges = true;
-                    }
-                    if (state.gallerySize && state.dockSide === 'none') {
-                        newGallery.width = state.gallerySize.width;
-                        newGallery.height = state.gallerySize.height;
-                        hasChanges = true;
-                    }
-                    if (state.galleryPosition && state.dockSide === 'none') {
-                        newGallery.x = state.galleryPosition.x;
-                        newGallery.y = state.galleryPosition.y;
                         hasChanges = true;
                     }
 

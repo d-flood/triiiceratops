@@ -21,22 +21,10 @@ import {
     resolveAllCanvasImages,
 } from '../utils/resolveCanvasImage';
 
+import { UNSIZED_CANVAS_PLACEHOLDER } from './rendererDefaults';
 import type { PlannerCanvas, PlannerImage, SourceDescriptor } from './types';
 
 type SelectedChoiceLookup = (canvasId: string) => string | undefined;
-
-/**
- * Stand-in dimensions for a Canvas that declares none.
- *
- * Their value is irrelevant and they never reach layout: this module reports
- * such a canvas's geometry as `null` and the planner supplies the real guess (a
- * median of the canvas's siblings, then a reflow from the image service). They
- * exist only so `resolveCanvasImage` — whose every other caller wants an
- * unsized canvas dropped — still hands back the source descriptor rather than
- * refusing outright. Square, and a plausible page size, so nothing downstream
- * that stumbles on them divides by something absurd.
- */
-const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
 
 /**
  * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of the
@@ -150,6 +138,12 @@ export function toPlannerCanvas(
     const declared = getDeclaredCanvasDimensions(canvas);
     const resolved = resolveAllCanvasImages(canvas, {
         getSelectedChoice,
+        // Never reaches layout: this module reports such a canvas's geometry
+        // as `null` and the planner supplies the real guess (a median of the
+        // canvas's siblings, then a reflow from the image service). It is here
+        // only so `resolveCanvasImage` — whose every other caller wants an
+        // unsized canvas dropped — still hands back the source descriptor
+        // rather than refusing outright.
         fallbackCanvasDimensions: UNSIZED_CANVAS_PLACEHOLDER,
     });
 

@@ -85,6 +85,8 @@
  */
 
 import { getCanvasDisplayLayouts } from '../components/canvasLayout';
+import { UNSIZED_CANVAS_PLACEHOLDER } from './rendererDefaults';
+import { viewportBox } from './viewportMath';
 import {
     boxContains,
     distanceToBox,
@@ -94,7 +96,6 @@ import {
 import {
     buildSizeLadder,
     chooseRung,
-    exceedsDecodedPixelCap,
     isLevel0Profile,
     rungFallback,
     rungUrl,
@@ -188,20 +189,6 @@ function median(values: number[]): number {
         ? (sorted[middle - 1] + sorted[middle]) / 2
         : sorted[middle];
 }
-
-/**
- * The box a canvas is laid out in when nothing at all is known about its shape:
- * no declared dimensions, no fetched service facts, and no sibling to take a
- * median from.
- *
- * Square, and its absolute size does not matter — a world of one such canvas is
- * fitted to the viewport, and a world with siblings never reaches this rung.
- * What matters is that there IS one. Dropping the canvas instead looks like a
- * safe refusal and is a dead end: an unlaid-out canvas gets no tier, therefore
- * no metadata request, therefore no reflow, so the folio that a fetch would
- * have sized is blank permanently rather than briefly (user story 32).
- */
-const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
 
 /** The aspect ratio of a box, or null when it has none. */
 function aspectOf(box: { width: number; height: number } | null) {
@@ -492,19 +479,6 @@ export function planViewportLimits(input: PlanWorldInput): {
         layout,
         bounds: worldBounds(layout),
         minZoom: deriveMinZoom(layout, input.budgets.boxThreshold),
-    };
-}
-
-/** The viewport as a canvas-space box. */
-function viewportBox(viewport: Viewport): Box {
-    const halfWidth = viewport.width / (2 * viewport.scale);
-    const halfHeight = viewport.height / (2 * viewport.scale);
-
-    return {
-        x: viewport.centre.x - halfWidth,
-        y: viewport.centre.y - halfHeight,
-        width: halfWidth * 2,
-        height: halfHeight * 2,
     };
 }
 
@@ -1298,7 +1272,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             : 'box';
 
     const tiers: Record<string, ResidencyTier> = {};
-    const overCapCanvases: string[] = [];
     const metadataRequests: string[] = [];
     const tileRequests: TileRequest[] = [];
     const thumbnailRequests: ThumbnailRequest[] = [];
@@ -1600,7 +1573,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // including its base level. Applied without that gate, "the base level
         // is never evicted" would mean 800 resident base tiles on an 800-folio
         // manifest (spec §Further Notes).
-        let reportedOverCap = false;
 
         for (const { image, box, order } of placements) {
             const source = image.source;
@@ -1655,17 +1627,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             if (isSizeLadderSource(facts, source.profile)) {
                 const ladder = buildSizeLadder(source.serviceId, facts);
                 if (!ladder) continue;
-
-                if (
-                    !reportedOverCap &&
-                    exceedsDecodedPixelCap(ladder, budgets.maxDecodedPixels)
-                ) {
-                    // Once per canvas: the report names a canvas, and a
-                    // composite one with two over-cap ladders is still one
-                    // canvas drawn over the ceiling.
-                    reportedOverCap = true;
-                    overCapCanvases.push(canvas.id);
-                }
 
                 planSizeLadder(
                     canvas.id,
@@ -1747,7 +1708,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         ),
         metadataRequests,
         unresolvedThumbnails,
-        overCapCanvases,
         minZoom,
     };
 }

@@ -4,6 +4,7 @@ import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
+import demoBoundary from './eslint.boundaries.js';
 
 export default ts.config(
     js.configs.recommended,
@@ -80,4 +81,9 @@ export default ts.config(
             'svelte/prefer-svelte-reactivity': 'warn',
         },
     },
+    // `scripts/pre-commit.sh` lints staged paths from the repo root, where this
+    // config — not `packages/core/eslint.config.js` — is the one ESLint loads,
+    // so core's boundary rules have to be reachable from here too, anchored to
+    // the package's path instead of to its own directory.
+    ...demoBoundary('packages/core/'),
 );

@@ -659,17 +659,9 @@ describe('ViewerState manifest behavior', () => {
         expect(state.isGalleryDockedBottom).toBe(false);
         expect(state.isGalleryDockedRight).toBe(true);
 
-        state.setDockSide('none');
+        state.setDockSide('left');
         expect(state.isGalleryDockedBottom).toBe(false);
         expect(state.isGalleryDockedRight).toBe(false);
-    });
-
-    it('setGalleryPosition and setGallerySize replace their values', () => {
-        state.setGalleryPosition({ x: 42, y: 84 });
-        expect(state.galleryPosition).toEqual({ x: 42, y: 84 });
-
-        state.setGallerySize({ width: 500, height: 600 });
-        expect(state.gallerySize).toEqual({ width: 500, height: 600 });
     });
 
     it('setDockSide keeps the derived docked flags in sync', () => {
@@ -683,7 +675,7 @@ describe('ViewerState manifest behavior', () => {
         expect(state.isGalleryDockedBottom).toBe(true);
         expect(state.isGalleryDockedRight).toBe(false);
 
-        state.setDockSide('none');
+        state.setDockSide('top');
         expect(state.isGalleryDockedBottom).toBe(false);
         expect(state.isGalleryDockedRight).toBe(false);
     });

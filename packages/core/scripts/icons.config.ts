@@ -43,10 +43,10 @@ export type ExtraIconWeight = Exclude<IconWeight, 'regular'>;
  * The `bold` entries are the panel-header glyphs — five of them reach
  * `PanelStackSection` as single-glyph components (`src/lib/components/icons/`)
  * rendered as `<panel.icon weight="bold">`, and `ListDashes` is bold inline in
- * `AnnotationPanel`. The `fill` entries are the theme controls.
+ * `AnnotationPanel`. Every other glyph here renders at `regular` only, so `bold`
+ * is currently the sole extra weight any of them declares.
  */
 export const CORE_ICONS = {
-    ArrowCounterClockwise: [],
     ArrowsLeftRight: [],
     BookOpen: [],
     CaretDown: [],
@@ -55,7 +55,6 @@ export const CORE_ICONS = {
     CaretUp: [],
     ChatCenteredText: ['bold'],
     Check: [],
-    Copy: [],
     CornersIn: [],
     CornersOut: [],
     Eye: [],
@@ -70,13 +69,9 @@ export const CORE_ICONS = {
     MagnifyingGlass: ['bold'],
     MagnifyingGlassMinus: [],
     MagnifyingGlassPlus: [],
-    Moon: ['fill'],
-    Palette: ['fill'],
     Scroll: [],
-    ShareNetwork: [],
     Slideshow: [],
     Stack: [],
-    Sun: ['fill'],
     X: [],
 } as const satisfies Record<string, readonly ExtraIconWeight[]>;
 

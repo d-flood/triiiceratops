@@ -27,9 +27,14 @@
  * gate in `sharedRuntimeGate.ts` runs ahead of everything here and returns
  * without registering. Nothing in this file may therefore assume the gate
  * passed — it runs only if the gate let it.
+ *
+ * That gate is also why registration comes from `plugin-sdk/register-shared`
+ * rather than `plugin-sdk/register`: the bootstrapping entry exists so a plugin
+ * can create the namespace before core does, and this bundle cannot even be
+ * evaluated until core has created it.
  */
 
-import { registerBrowserPlugin } from '@triiiceratops/plugin-sdk/register';
+import { registerBrowserPlugin } from '@triiiceratops/plugin-sdk/register-shared';
 
 import { AvPlugin } from './plugin';
 

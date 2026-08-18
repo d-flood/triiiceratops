@@ -1,11 +1,16 @@
 /**
- * Minimal stub service implementations.
+ * Minimal stub host services, for a test that wants an activation and nothing
+ * else.
  *
- * The plugin context always exposes `styles`, `locale`, and `ui`. When the host
- * omits them, the SDK fills these harmless stubs so a plugin can be authored and
- * activated end-to-end (e.g. bare `runActivation` with no host services). In
- * production core supplies the real, per-viewer, root-aware services on the
- * {@link PluginHost}; the SDK only reaches for a stub as a fallback.
+ * A `PluginHost` supplies `styles`, `locale`, `ui`, and `surface`; core builds
+ * the real, per-viewer, root-aware implementations, and the test kit's
+ * `createTestViewerContext` hands back recording doubles worth asserting
+ * against. These stubs are for the third case: a bare `runActivation` into a
+ * container the caller placed, where the services are required by the contract
+ * and irrelevant to the test.
+ *
+ * They live on the testing surface rather than in the SDK's base entry so no
+ * plugin bundle carries a service implementation no reader can see.
  */
 
 import type {
@@ -50,9 +55,8 @@ export function createStubUiService(): PluginUiService {
 }
 
 /**
- * Chrome-less surface stub, used when a host supplies no `surface` — a bare
- * `runActivation` against a container the caller placed itself, with no toolbar
- * button, panel, or flyout in play.
+ * Chrome-less surface stub — a bare `runActivation` against a container the
+ * caller placed itself, with no toolbar button, panel, or flyout in play.
  *
  * `isOpen` is `true`, not `false`: the caller mounted the plugin into a container
  * of their own and there is no chrome that could hide it, so the honest answer is

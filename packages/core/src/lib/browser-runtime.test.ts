@@ -19,8 +19,8 @@ function makePlugin(name: string, version: string): SdkPlugin {
         kind: 'triiiceratops-plugin',
         name,
         version,
-        coreRange: '*',
-        pluginApiRange: '*',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
         requiredCapabilities: [],
         icon: {
             kind: 'svg',
